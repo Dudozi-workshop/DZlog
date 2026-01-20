@@ -1,0 +1,1757 @@
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+
+package com.example.dzlog
+
+// =========================================================
+// Imports (FOUNDATION ONLY)
+// =========================================================
+
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.os.Bundle
+import android.util.Rational
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.Preview
+import androidx.camera.core.UseCaseGroup
+import androidx.camera.core.ViewPort
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.lifecycle.LifecycleOwner
+import com.example.dzlog.data.counter.CounterSyncImpl
+import com.example.dzlog.data.mediastore.MediaStoreSaverImpl
+import com.example.dzlog.data.repository.DzlogRepository
+import com.example.dzlog.data.repository.DzlogRepositoryImpl
+import com.example.dzlog.domain.model.CaptureAspect
+import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.model.WatermarkTableAnchor
+import com.example.dzlog.watermark.WatermarkRendererImpl
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import com.example.dzlog.domain.model.ResolvedCell
+import com.example.dzlog.watermark.drawWatermarkTableFromResolvedCells
+import com.example.dzlog.domain.model.WatermarkTemplatePreset
+import com.example.dzlog.domain.watermark.CellDef
+import com.example.dzlog.domain.watermark.templateForPreset
+import com.example.dzlog.domain.model.EmptyValuePolicy
+
+
+
+
+
+// =========================================================
+// App Navigation
+// =========================================================
+
+enum class AppScreen {
+    HOME,
+    CAMERA
+}
+
+// =========================================================
+// DataStore
+// =========================================================
+
+private val Context.dataStore by preferencesDataStore(name = "dzlog_prefs")
+
+// =========================================================
+// Basic Keys
+// =========================================================
+
+val KEY_TREATMENT = stringPreferencesKey("treatment_value")
+val KEY_STRAIN = stringPreferencesKey("strain_value")
+val KEY_WIZARD_COMPLETED = booleanPreferencesKey("wizard_completed")
+val KEY_FOLDER2_SOURCE = intPreferencesKey("folder2_source")
+val KEY_FOLDER2_MANUAL = stringPreferencesKey("folder2_manual_value")
+val KEY_COUNTER_DIGITS = intPreferencesKey("counter_digits")
+val KEY_CAPTURE_ASPECT = intPreferencesKey("capture_aspect")
+val KEY_SAVE_MODE = intPreferencesKey("save_mode")
+val KEY_ORIGINAL_SPLIT_BY_TREATMENT = booleanPreferencesKey("original_split_by_treatment")
+val KEY_HIDE_WATERMARK_GALLERY = booleanPreferencesKey("hide_watermark_gallery")
+val KEY_FILENAME_PREFIX = stringPreferencesKey("filename_prefix")
+val KEY_ORIENTATION_MODE = intPreferencesKey("orientation_mode")
+val KEY_SHOW_WM_PREVIEW = intPreferencesKey("show_wm_preview") // 0/1
+val KEY_WM_TABLE_ANCHOR = intPreferencesKey("wm_table_anchor") // 0~4
+val KEY_WM_TABLE_WIDTH = intPreferencesKey("wm_table_width_ratio")   // 40~100
+val KEY_WM_TABLE_HEIGHT = intPreferencesKey("wm_table_height_ratio") // 10~35
+val KEY_WM_OFFSET_X = intPreferencesKey("wm_offset_x_ratio") // 0~100
+val KEY_WM_OFFSET_Y = intPreferencesKey("wm_offset_y_ratio") // 0~100
+val KEY_WM_BG_ALPHA = intPreferencesKey("wm_bg_alpha") // 0~255
+val KEY_WM_LABEL_SCALE = intPreferencesKey("wm_label_scale") // 60~160
+val KEY_WM_VALUE_SCALE = intPreferencesKey("wm_value_scale") // 60~160
+
+
+
+// =========================================================
+// Folder / Counter
+// =========================================================
+
+enum class Folder2Source(val v: Int) {
+    MANUAL(0),
+    STRAIN(1),
+    COUNTER(2);
+
+    companion object {
+        fun from(v: Int) = values().firstOrNull { it.v == v } ?: MANUAL
+    }
+}
+
+
+fun counterKeyFor(treatmentKey: String, folder2Key: String) =
+    intPreferencesKey("counter_${treatmentKey}_${folder2Key}")
+
+fun legacyCounterKeyFor(treatmentKey: String) =
+    intPreferencesKey("counter_$treatmentKey")
+
+const val COUNTER_DIGITS_DEFAULT = 4
+
+fun clampCounterDigits(v: Int) = v.coerceIn(2, 6)
+
+fun formatCounter(counter: Int, digits: Int): String {
+    val d = clampCounterDigits(digits)
+    return counter.toString().padStart(d, '0')
+}
+
+// =========================================================
+// Save / Orientation
+// =========================================================
+
+enum class OrientationMode(val v: Int, val label: String) {
+    PORTRAIT_LOCK(0, "세로 고정"),
+    AUTO_ROTATE(1, "자동 회전");
+
+    companion object {
+        fun from(v: Int) = values().firstOrNull { it.v == v } ?: PORTRAIT_LOCK
+    }
+}
+
+// =========================================================
+// Watermark Core
+// =========================================================
+
+
+enum class WatermarkGridPreset(
+    val v: Int,
+    val label: String,
+    val rows: Int,
+    val cols: Int
+) {
+    G2X3(0, "2x3", 2, 3),
+    G2X4(1, "2x4", 2, 4),
+    G3X3(2, "3x3", 3, 3);
+
+    val totalCells: Int get() = rows * cols
+
+    companion object {
+        fun from(v: Int) = values().firstOrNull { it.v == v } ?: G2X3
+    }
+}
+
+// =========================================================
+// Clamp / Utils
+// =========================================================
+
+fun clampHeightRatio(v: Int) = v.coerceIn(10, 35)
+fun clampWidthRatio(v: Int) = v.coerceIn(40, 100)
+fun clampAlpha(v: Int) = v.coerceIn(0, 255)
+fun clampScale(v: Int) = v.coerceIn(70, 160)
+fun clampRatio01(v: Int) = v.coerceIn(0, 100)
+
+// =========================================================
+// Date / Time Utils
+// =========================================================
+
+const val WM_DEFAULT_DATE_PATTERN = "yyyy.MM.dd"
+const val WM_DEFAULT_TIME_PATTERN = "HH:mm:ss"
+
+fun resolveDate(date: Date, pattern: String): String =
+    try {
+        SimpleDateFormat(pattern, Locale.getDefault()).format(date)
+    } catch (_: Exception) {
+        SimpleDateFormat(WM_DEFAULT_DATE_PATTERN, Locale.getDefault()).format(date)
+    }
+
+fun resolveTime(date: Date, pattern: String): String =
+    try {
+        SimpleDateFormat(pattern, Locale.getDefault()).format(date)
+    } catch (_: Exception) {
+        SimpleDateFormat(WM_DEFAULT_TIME_PATTERN, Locale.getDefault()).format(date)
+    }
+
+
+// =========================================================
+// PART 2 — MainActivity / AppRoot / HomeScreen (Navigation)
+// =========================================================
+
+// =========================================================
+// Part 2-A. MainActivity
+// =========================================================
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent { AppRoot() }
+    }
+}
+
+// =========================================================
+// Part 2-B. AppRoot
+// =========================================================
+
+@Composable
+fun AppRoot() {
+    var screen by remember { mutableStateOf(AppScreen.HOME) }
+    var startWithWizard by remember { mutableStateOf(false) }
+    var orientationMode by remember { mutableStateOf(OrientationMode.PORTRAIT_LOCK) }
+
+    val context = LocalContext.current
+    val activity = context as? android.app.Activity
+
+    // ✅ Load orientation mode from DataStore
+    LaunchedEffect(Unit) {
+        orientationMode = try {
+            val prefs = context.dataStore.data.first()
+            OrientationMode.from(prefs[KEY_ORIENTATION_MODE] ?: OrientationMode.PORTRAIT_LOCK.v)
+        } catch (_: Exception) {
+            OrientationMode.PORTRAIT_LOCK
+        }
+    }
+
+    // ✅ Apply orientation mode
+    LaunchedEffect(orientationMode) {
+        val a = activity ?: return@LaunchedEffect
+        a.requestedOrientation = when (orientationMode) {
+            OrientationMode.PORTRAIT_LOCK ->
+                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+
+            OrientationMode.AUTO_ROTATE ->
+                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+
+    when (screen) {
+        AppScreen.HOME -> HomeScreen(
+            onOpenSettings = {
+                startWithWizard = true
+                screen = AppScreen.CAMERA
+            },
+            onStartCamera = {
+                startWithWizard = false
+                screen = AppScreen.CAMERA
+            }
+        )
+
+        AppScreen.CAMERA -> {
+            // ✅ CameraScreen은 Part 3에서 제공됨
+            CameraScreen(
+                startWithWizard = startWithWizard,
+                onExitToHome = { screen = AppScreen.HOME },
+                orientationMode = orientationMode,
+                setOrientationMode = { orientationMode = it }
+            )
+        }
+    }
+}
+
+// =========================================================
+// Part 2-C. HomeScreen
+// =========================================================
+
+@Composable
+fun HomeScreen(
+    onOpenSettings: () -> Unit,
+    onStartCamera: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF0B0C0D)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth(0.86f)
+        ) {
+            Text("DZlog", fontSize = 24.sp, color = Color.White)
+            Spacer(Modifier.height(20.dp))
+
+            Button(onClick = onStartCamera, modifier = Modifier.fillMaxWidth()) {
+                Text("촬영 시작")
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            Button(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) {
+                Text("설정")
+            }
+        }
+    }
+}
+
+
+// =========================================================
+// PART 3 — CameraScreen (Permission Gate) / CameraPreview (CameraX Bind)
+// =========================================================
+
+
+private fun CaptureAspect.toRational(): Rational = when (this) {
+    CaptureAspect.R3_4 -> Rational(3, 4)
+    CaptureAspect.R9_16 -> Rational(9, 16)
+    CaptureAspect.R1_1 -> Rational(1, 1)
+}
+
+// ---------------------------------------------------------
+// CameraScreen (Permission Gate)
+// ---------------------------------------------------------
+
+@Composable
+fun CameraScreen(
+    startWithWizard: Boolean,
+    onExitToHome: () -> Unit,
+    orientationMode: OrientationMode,
+    setOrientationMode: (OrientationMode) -> Unit
+) {
+    val context = LocalContext.current
+
+    var hasPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasPermission = granted
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasPermission) launcher.launch(Manifest.permission.CAMERA)
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        if (hasPermission) {
+            CameraPreview(
+                startWithWizard = startWithWizard,
+                onExitToHome = onExitToHome,
+                orientationMode = orientationMode,
+                setOrientationMode = setOrientationMode
+            )
+        } else {
+            Text(
+                text = "카메라 권한이 필요합니다.\n설정에서 권한을 허용해주세요.",
+                modifier = Modifier.align(Alignment.Center),
+                color = Color.White
+            )
+        }
+
+    }
+}
+
+// =========================================================
+// CameraPreview 함수 (CameraX Bind Core)
+// =========================================================
+
+@Composable
+fun CameraPreview(
+    startWithWizard: Boolean,
+    onExitToHome: () -> Unit,
+    orientationMode: OrientationMode,
+    setOrientationMode: (OrientationMode) -> Unit
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+    // ✅ 임시(나중에 Wizard 설정값으로 대체)
+    val projectKeyNow = "default"
+    val group1Now = "G1"
+    val group2Now = "G2"
+
+
+    val repository = remember {
+        val saver = MediaStoreSaverImpl()
+        DzlogRepositoryImpl(
+            saver = saver,
+            counterSync = CounterSyncImpl(saver),
+            watermarkRenderer = WatermarkRendererImpl()
+        )
+    }
+
+
+
+    // ✅ CameraX bind 결과(촬영에 사용할 ImageCapture) — 단일 소스
+    var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+
+    // ✅ 선택 비율(단일 소스)
+    var captureAspect by remember { mutableStateOf(CaptureAspect.R3_4) }
+
+    // ✅ 추가: 저장모드/자릿수 (기본값은 안전하게)
+    var saveMode by remember { mutableStateOf(SaveMode.WATERMARK_ONLY) }
+    var counterDigits by remember { mutableStateOf(4) } // 기본 0001 형태
+
+    // ✅ 추가: 촬영 카운터(파일명/표에 들어갈 숫자)
+    var counter by remember { mutableStateOf(1) }
+
+    // ✅ 추가: 워터마크에 들어갈 값
+    var treatment by remember { mutableStateOf("T1") }
+    var strain by remember { mutableStateOf("S1") }
+
+    // ✅ Wizard 시작 여부
+    var showWizard by remember { mutableStateOf(startWithWizard) }
+    // 파일명 초기값 설정
+    var filePrefix by remember { mutableStateOf("DZlog") }
+    //프리뷰 표시 설정
+    var showWmPreview by remember { mutableStateOf(true) } // 기본 켜짐(원하면 false)
+    //표 위치 변경
+    var wmTableAnchor by remember {
+        mutableStateOf(com.example.dzlog.domain.model.WatermarkTableAnchor.BOTTOM_RIGHT)
+    }    // 표 크기 변경
+    var wmTableWidthRatio by remember { mutableStateOf(40) }
+    var wmTableHeightRatio by remember { mutableStateOf(20) }
+    var wmOffsetXRatio by remember { mutableStateOf(0) } // 0~100
+    var wmOffsetYRatio by remember { mutableStateOf(0) } // 0~100
+// 표 투명도
+    var wmBgAlpha by remember { mutableStateOf(80) } // 0~255 (기본 80 추천)
+// 글씨 크기 변경
+    var wmLabelScale by remember { mutableStateOf(100) } // 60~160
+    var wmValueScale by remember { mutableStateOf(100) } // 60~160
+
+
+    // ---------- Load captureAspect from DataStore ----------
+    LaunchedEffect(Unit) {
+        try {
+            val prefs = context.dataStore.data.first()
+// 표 위치 수정
+            wmTableAnchor = when (prefs[KEY_WM_TABLE_ANCHOR] ?: 3) {
+                0 -> WatermarkTableAnchor.TOP_LEFT
+                1 -> WatermarkTableAnchor.TOP_RIGHT
+                2 -> WatermarkTableAnchor.BOTTOM_LEFT
+                3 -> WatermarkTableAnchor.BOTTOM_RIGHT
+                else -> WatermarkTableAnchor.CUSTOM
+            }
+
+            //표 크기 수정
+            wmTableWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(40, 100)
+            wmTableHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 35)
+            wmOffsetXRatio = (prefs[KEY_WM_OFFSET_X] ?: 0).coerceIn(0, 100)
+            wmOffsetYRatio = (prefs[KEY_WM_OFFSET_Y] ?: 0).coerceIn(0, 100)
+
+            // 표 투명도
+            wmBgAlpha = (prefs[KEY_WM_BG_ALPHA] ?: 80).coerceIn(0, 255)
+
+            // 글씨 크기
+            wmLabelScale = (prefs[KEY_WM_LABEL_SCALE] ?: 100).coerceIn(60, 160)
+            wmValueScale = (prefs[KEY_WM_VALUE_SCALE] ?: 100).coerceIn(60, 160)
+
+
+            captureAspect = CaptureAspect.from(
+                prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v
+            )
+
+            // ✅ SaveMode는 Int로 저장(0/1/2)
+            saveMode = when (prefs[KEY_SAVE_MODE] ?: 0) {
+                0 -> SaveMode.WATERMARK_ONLY
+                1 -> SaveMode.BOTH
+                else -> SaveMode.ORIGINAL_ONLY
+            }
+
+            // ✅ 자릿수는 1~6 사이로 클램프
+            counterDigits = (prefs[KEY_COUNTER_DIGITS] ?: 4).coerceIn(1, 6)
+
+            // ✅ 워터마크 값
+            treatment = prefs[KEY_TREATMENT] ?: "T1"
+            strain = prefs[KEY_STRAIN] ?: "S1"
+
+            // ✅ 파일명 접두어
+            filePrefix = prefs[KEY_FILENAME_PREFIX] ?: "DZlog"
+            showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
+
+        } catch (_: Exception) {
+            captureAspect = CaptureAspect.R3_4
+            saveMode = SaveMode.WATERMARK_ONLY
+            counterDigits = 4
+            treatment = "T1"
+            strain = "S1"
+            filePrefix = "DZlog"
+            showWmPreview = true
+            wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
+            //표 크기 수정
+            wmTableWidthRatio = 40
+            wmTableHeightRatio = 20
+            wmOffsetXRatio = 0
+            wmOffsetYRatio = 0
+            //표 투명도
+            wmBgAlpha = 80
+            // 글씨 크기
+            wmLabelScale = 100
+            wmValueScale = 100
+
+
+
+
+        }
+    }
+
+    // =====================================================
+    // UI Frame: 선택 비율의 "액자" (what-you-see-is-what-you-get)
+    // =====================================================
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+
+        // ✅ 레이아웃은 Column 1개만 쓴다 (중첩 Column 금지)
+        Column(modifier = Modifier.fillMaxSize()) {
+
+            // 위 블랙바
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.18f)
+                    .background(Color.Black)
+            )
+
+            // ✅ 가운데 프리뷰 "액자"
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.64f),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(captureAspect.ratioF)
+                        .background(Color.Black)
+                        .border(2.dp, Color.Red)
+                        .clipToBounds() // ✅ 액자 밖은 잘라냄(크롭 강제)
+                ) {
+                    // =================================================
+                    // AndroidView(PreviewView) + CameraX bind (UseCaseGroup)
+                    // =================================================
+
+                    Text(
+                        text = "UI=${captureAspect.label}  w/h=${captureAspect.w}/${captureAspect.h}",
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(top = 44.dp, start = 16.dp),
+                        color = Color.Yellow
+                    )
+
+// ✅ key는 딱 1번만 사용
+                    key(captureAspect) {
+                        AndroidView(
+                            modifier = Modifier.fillMaxSize(),
+                            factory = { ctx: Context ->
+                                PreviewView(ctx).apply {
+                                    scaleType = PreviewView.ScaleType.FILL_CENTER
+                                }.also { previewView ->
+                                    // ✅ 여기서 바인딩 (aspect 바뀔 때만 새로 생성되며 factory가 다시 탐)
+                                    bindCamera(
+                                        context = context,
+                                        lifecycleOwner = lifecycleOwner,
+                                        previewView = previewView,
+                                        aspect = captureAspect
+                                    ) { cap: ImageCapture? ->
+                                        boundImageCapture = cap
+                                    }
+                                }
+                            },
+                            update = { previewView ->
+                                previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
+                            }
+                        )
+
+                        // ✅ 프리뷰도 "촬영과 동일한 설정값"을 넣어서 100% 같은 결과를 보이게 함
+                        val previewReq = com.example.dzlog.domain.model.CaptureRequest(
+                            projectKey = projectKeyNow,
+                            group1 = group1Now,
+                            group2 = group2Now,
+                            displayNameBase = sanitizePrefix(filePrefix),
+                            counter = counter,
+                            counterDigits = counterDigits,
+                            saveMode = saveMode,
+                            watermark = com.example.dzlog.domain.model.WatermarkConfig(
+                                // 지금 showLabel/showDate/showTime는 아직 state가 없으니 우선 true 유지
+                                showLabel = true,
+                                showDate = true,
+                                showTime = true,
+                                datePattern = "yyyy-MM-dd",
+                                timePattern = "HH:mm",
+
+                                templatePreset = com.example.dzlog.domain.model.WatermarkTemplatePreset.values()[0],
+                                gridPreset = com.example.dzlog.domain.model.WatermarkGridPreset.values()[0],
+
+                                // ✅ 여기부터가 핵심: 프리뷰도 촬영과 같은 변수 사용
+                                anchor = wmTableAnchor,
+                                offsetXRatio = wmOffsetXRatio,
+                                offsetYRatio = wmOffsetYRatio,
+                                tableHeightRatio = wmTableHeightRatio,
+                                tableWidthRatio = wmTableWidthRatio,
+                                tableBgAlpha = wmBgAlpha,
+                                labelScale = wmLabelScale,
+                                valueScale = wmValueScale,
+
+                                memo1 = "",
+                                memo2 = "",
+                                memo3 = "",
+                                emptyPolicy = com.example.dzlog.domain.model.EmptyValuePolicy.BLANK,
+                                emptyCustomText = "",
+
+                                treatment = treatment,
+                                strain = strain,
+                                folder2Text = group2Now
+                            )
+                        )
+
+// ✅ 설정의 체크박스(showWmPreview)로 on/off 되게 연결
+                        WatermarkPreviewBitmapOverlay(
+                            enabled = showWmPreview,
+                            request = previewReq
+                        )
+
+
+
+
+
+                        // ✅ 워터마크 미리보기 오버레이 (프리뷰에서 바로 확인)
+                        /*if (showWmPreview) {
+                        WatermarkPreviewBox(
+                            captureAspect = captureAspect,
+                            tableWidthRatio = wmTableWidthRatio,
+                            tableHeightRatio = wmTableHeightRatio,
+                            anchor = wmTableAnchor,
+                            offsetXRatio = wmOffsetXRatio,
+                            offsetYRatio = wmOffsetYRatio,
+                            bgAlpha = wmBgAlpha,
+                            showLabel = true,
+                            labelScale = wmLabelScale,
+                            valueScale = wmValueScale
+                        )
+                    } */
+                }
+                }
+            }
+        }
+
+        // =====================================================
+        // 상단 UI(테스트용) - 지금은 설정만
+        // =====================================================
+        Box(
+            modifier = Modifier
+                .padding(16.dp)
+                .align(Alignment.TopEnd)
+                .background(Color(0x66000000))
+                .clickable {
+                    showWizard = true
+                    Toast.makeText(context, "설정 열기", Toast.LENGTH_SHORT).show()
+                }
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            Text("설정", color = Color.White)
+        }
+        Text(
+            text = "ASPECT = ${captureAspect.label}",
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp),
+            color = Color.White
+        )
+
+        // =====================================================
+        // 촬영 버튼(FAB) - 화면 하단 중앙
+        // =====================================================
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 26.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            val enabledNow = boundImageCapture != null
+
+            Box(
+                modifier = Modifier
+                    .size(78.dp)
+                    .background(
+                        color = if (enabledNow) Color.White else Color(0xFF777777),
+                        shape = androidx.compose.foundation.shape.CircleShape
+                    )
+                    .clickable(enabled = enabledNow) {
+                        val cap = boundImageCapture
+                        if (cap == null) {
+                            Toast.makeText(context, "카메라 준비 중", Toast.LENGTH_SHORT).show()
+                            return@clickable
+                        }
+
+                        val req = com.example.dzlog.domain.model.CaptureRequest(
+                            projectKey = projectKeyNow,
+                            group1 = group1Now,
+                            group2 = group2Now,
+                            displayNameBase = sanitizePrefix(filePrefix),
+                            counter = counter,
+                            counterDigits = counterDigits,
+                            saveMode = saveMode,
+                            watermark = com.example.dzlog.domain.model.WatermarkConfig(
+                                showLabel = true,
+                                showDate = true,
+                                showTime = true,
+                                datePattern = "yyyy-MM-dd",
+                                timePattern = "HH:mm",
+                                templatePreset = com.example.dzlog.domain.model.WatermarkTemplatePreset.values()[0],
+                                gridPreset = com.example.dzlog.domain.model.WatermarkGridPreset.values()[0],
+                                anchor = wmTableAnchor,
+                                offsetXRatio = wmOffsetXRatio,
+                                offsetYRatio = wmOffsetYRatio,
+                                tableWidthRatio = wmTableWidthRatio,
+                                tableHeightRatio = wmTableHeightRatio,
+                                tableBgAlpha = wmBgAlpha,
+                                labelScale = wmLabelScale,
+                                valueScale = wmValueScale,
+                                memo1 = "",
+                                memo2 = "",
+                                memo3 = "",
+                                emptyPolicy = com.example.dzlog.domain.model.EmptyValuePolicy.BLANK,
+                                emptyCustomText = "",
+                                treatment = treatment,
+                                strain = strain,
+                                folder2Text = group2Now
+                            )
+                        )
+
+                        repository.captureAndSave(
+                            context = context,
+                            imageCapture = cap,
+                            request = req,
+                            onDone = { entry ->
+                                counter = counter + 1   // ✅ 이 줄이 없으면 평생 001
+                                Toast.makeText(context, "저장 완료", Toast.LENGTH_SHORT).show()
+                            },
+                            onFail = { msg ->
+                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            }
+                        )
+                    }
+                ,
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .background(
+                            color = if (enabledNow) Color(0xFF0B0C0D) else Color(0xFF555555),
+                            shape = androidx.compose.foundation.shape.CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "●",
+                        color = if (enabledNow) Color.White else Color(0xFFDDDDDD),
+                        fontSize = 18.sp
+                    )
+                }
+            }
+        }
+        // =====================================================
+        // 설정 다이얼로그(Wizard UI)
+        // =====================================================
+        if (showWizard) {
+            AlertDialog(
+                onDismissRequest = { showWizard = false },
+                title = { Text("설정", color = Color.White) },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = showWmPreview,
+                                onCheckedChange = { checked ->
+                                    showWmPreview = checked
+                                    scope.launch {
+                                        context.dataStore.edit { prefs ->
+                                            prefs[KEY_SHOW_WM_PREVIEW] = if (checked) 1 else 0
+                                        }
+                                    }
+                                }
+                            )
+                            Text("촬영 화면에 워터마크 미리보기 표시", color = Color.White)
+                        }
+                        Spacer(Modifier.height(16.dp))
+
+                        //표 크기 설정
+                        Text("표 크기", color = Color.White)
+                        Spacer(Modifier.height(8.dp))
+
+                        Text("가로 크기 (${wmTableWidthRatio}%)", color = Color.White)
+                        Slider(
+                            value = wmTableWidthRatio.toFloat(),
+                            onValueChange = { v ->
+                                val nv = v.toInt().coerceIn(40, 100)
+                                wmTableWidthRatio = nv
+                                scope.launch {
+                                    context.dataStore.edit { it[KEY_WM_TABLE_WIDTH] = nv }
+                                }
+                            },
+                            valueRange = 40f..100f
+                        )
+
+                        Spacer(Modifier.height(6.dp))
+
+                        Text("세로 크기 (${wmTableHeightRatio}%)", color = Color.White)
+                        Slider(
+                            value = wmTableHeightRatio.toFloat(),
+                            onValueChange = { v ->
+                                val nv = v.toInt().coerceIn(10, 35)
+                                wmTableHeightRatio = nv
+                                scope.launch {
+                                    context.dataStore.edit { it[KEY_WM_TABLE_HEIGHT] = nv }
+                                }
+                            },
+                            valueRange = 10f..35f
+                        )
+
+                        // 표 투명도
+                        Spacer(Modifier.height(12.dp))
+                        Text("배경 투명도 (${wmBgAlpha})", color = Color.White)
+                        Text("0=투명, 255=진함", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+
+                        Slider(
+                            value = wmBgAlpha.toFloat(),
+                            onValueChange = { v ->
+                                val nv = v.toInt().coerceIn(0, 255)
+                                wmBgAlpha = nv
+                                scope.launch {
+                                    context.dataStore.edit { it[KEY_WM_BG_ALPHA] = nv }
+                                }
+                            },
+                            valueRange = 0f..255f
+                        )
+// 글씨 크기
+                        Spacer(Modifier.height(12.dp))
+                        Text("글자 크기", color = Color.White)
+                        Text("라벨/값 크기를 따로 조절", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+
+                        Spacer(Modifier.height(8.dp))
+                        Text("라벨 크기 (${wmLabelScale}%)", color = Color.White)
+                        Slider(
+                            value = wmLabelScale.toFloat(),
+                            onValueChange = { v ->
+                                val nv = v.toInt().coerceIn(60, 160)
+                                wmLabelScale = nv
+                                scope.launch { context.dataStore.edit { it[KEY_WM_LABEL_SCALE] = nv } }
+                            },
+                            valueRange = 60f..160f
+                        )
+
+                        Text("값 크기 (${wmValueScale}%)", color = Color.White)
+                        Slider(
+                            value = wmValueScale.toFloat(),
+                            onValueChange = { v ->
+                                val nv = v.toInt().coerceIn(60, 160)
+                                wmValueScale = nv
+                                scope.launch { context.dataStore.edit { it[KEY_WM_VALUE_SCALE] = nv } }
+                            },
+                            valueRange = 60f..160f
+                        )
+
+// 사진 비율
+                        Spacer(Modifier.height(20.dp))
+                        Text(
+                            "※ 미리보기는 촬영 화면에서 확인됨",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 12.sp
+                        )
+
+                        Spacer(Modifier.height(20.dp))
+
+                        Text("촬영 비율", color = Color.White)
+
+                        // 3:4
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = (captureAspect == CaptureAspect.R3_4),
+                                onClick = { captureAspect = CaptureAspect.R3_4 }
+                            )
+                            Text("3:4", color = Color.White)
+                        }
+
+                        // 9:16
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = (captureAspect == CaptureAspect.R9_16),
+                                onClick = { captureAspect = CaptureAspect.R9_16 }
+                            )
+                            Text("9:16", color = Color.White)
+                        }
+
+                        // 1:1
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = (captureAspect == CaptureAspect.R1_1),
+                                onClick = { captureAspect = CaptureAspect.R1_1 }
+                            )
+                            Text("1:1", color = Color.White)
+                        }
+                        Spacer(Modifier.height(16.dp))
+
+                        //표 위치
+                        Text("표 위치", color = Color.White)
+
+                        fun saveAnchor(v: Int, a: WatermarkTableAnchor) {
+                            wmTableAnchor = a
+                            scope.launch {
+                                context.dataStore.edit { prefs -> prefs[KEY_WM_TABLE_ANCHOR] = v }
+                            }
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = wmTableAnchor == WatermarkTableAnchor.TOP_LEFT,
+                                onClick = { saveAnchor(0, WatermarkTableAnchor.TOP_LEFT) }
+                            )
+                            Text("좌상", color = Color.White)
+                            Spacer(Modifier.width(12.dp))
+
+                            RadioButton(
+                                selected = wmTableAnchor == WatermarkTableAnchor.TOP_RIGHT,
+                                onClick = { saveAnchor(1, WatermarkTableAnchor.TOP_RIGHT) }
+                            )
+                            Text("우상", color = Color.White)
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = wmTableAnchor == WatermarkTableAnchor.BOTTOM_LEFT,
+                                onClick = { saveAnchor(2, WatermarkTableAnchor.BOTTOM_LEFT) }
+                            )
+                            Text("좌하", color = Color.White)
+                            Spacer(Modifier.width(12.dp))
+
+                            RadioButton(
+                                selected = wmTableAnchor == WatermarkTableAnchor.BOTTOM_RIGHT,
+                                onClick = { saveAnchor(3, WatermarkTableAnchor.BOTTOM_RIGHT) }
+                            )
+                            Text("우하", color = Color.White)
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = wmTableAnchor == WatermarkTableAnchor.CUSTOM,
+                                onClick = { saveAnchor(4, WatermarkTableAnchor.CUSTOM) }
+                            )
+                            Text("사용자 지정", color = Color.White)
+                        }
+// 사용자 지정 시 위치 조절 슬라이드
+                        if (wmTableAnchor == WatermarkTableAnchor.CUSTOM) {
+                            Spacer(Modifier.height(12.dp))
+                            Text("사용자 지정 위치", color = Color.White)
+                            Text("X=좌→우, Y=상→하 (0~100)", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                            Spacer(Modifier.height(8.dp))
+
+                            Text("X 위치 (${wmOffsetXRatio}%)", color = Color.White)
+                            Slider(
+                                value = wmOffsetXRatio.toFloat(),
+                                onValueChange = { v ->
+                                    val nv = v.toInt().coerceIn(0, 100)
+                                    wmOffsetXRatio = nv
+                                    scope.launch {
+                                        context.dataStore.edit { it[KEY_WM_OFFSET_X] = nv }
+                                    }
+                                },
+                                valueRange = 0f..100f
+                            )
+
+                            Text("Y 위치 (${wmOffsetYRatio}%)", color = Color.White)
+                            Slider(
+                                value = wmOffsetYRatio.toFloat(),
+                                onValueChange = { v ->
+                                    val nv = v.toInt().coerceIn(0, 100)
+                                    wmOffsetYRatio = nv
+                                    scope.launch {
+                                        context.dataStore.edit { it[KEY_WM_OFFSET_Y] = nv }
+                                    }
+                                },
+                                valueRange = 0f..100f
+                            )
+                        }
+
+//파일명 접두어
+                        Spacer(Modifier.height(16.dp))
+
+                        Text("파일명 접두어", color = Color.White)
+                        Text("예: DZlog → DZlog_0001.jpg", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+
+                        Spacer(Modifier.height(6.dp))
+
+                        TextField(
+                            value = filePrefix,
+                            onValueChange = { v ->
+                                filePrefix = v
+                                scope.launch {
+                                    context.dataStore.edit { prefs ->
+                                        prefs[KEY_FILENAME_PREFIX] = v
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(Modifier.height(16.dp))
+
+// =============================
+// ✅ Treatment / Strain 입력
+// =============================
+                        Text("Treatment", color = Color.White)
+                        Spacer(Modifier.height(6.dp))
+                        TextField(
+                            value = treatment,
+                            onValueChange = {
+                                treatment = it
+                                scope.launch { context.dataStore.edit { prefs -> prefs[KEY_TREATMENT] = it } }
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+
+                        Text("Strain", color = Color.White)
+                        Spacer(Modifier.height(6.dp))
+                        TextField(
+                            value = strain,
+                            onValueChange = {
+                                strain = it
+                                scope.launch { context.dataStore.edit { prefs -> prefs[KEY_STRAIN] = it } }
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(Modifier.height(20.dp))
+// =============================
+// ✅ 저장 모드 설정
+// =============================
+                        Text("저장 모드", color = Color.White)
+                        Spacer(Modifier.height(8.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = saveMode == SaveMode.WATERMARK_ONLY,
+                                onClick = {
+                                    saveMode = SaveMode.WATERMARK_ONLY
+                                    scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = 0 } }
+                                }
+                            )
+                            Text("워터마크만", color = Color.White)
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = saveMode == SaveMode.BOTH,
+                                onClick = {
+                                    saveMode = SaveMode.BOTH
+                                    scope.launch {
+                                        context.dataStore.edit { prefs: androidx.datastore.preferences.core.MutablePreferences ->
+                                            prefs[KEY_SAVE_MODE] = 1
+                                        }
+                                    }
+                                }
+                            )
+                            Text("원본+워터마크", color = Color.White)
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = saveMode == SaveMode.ORIGINAL_ONLY,
+                                onClick = {
+                                    saveMode = SaveMode.ORIGINAL_ONLY
+                                    scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = 2 } }
+                                }
+                            )
+                            Text("원본만", color = Color.White)
+                        }
+
+                        Spacer(Modifier.height(20.dp))
+
+// =============================
+// ✅ 카운터 자릿수 설정
+// =============================
+                        Text("카운터 자릿수", color = Color.White)
+                        Text("예: 4자리면 0001", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                        Spacer(Modifier.height(8.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Button(
+                                onClick = {
+                                    val next = (counterDigits - 1).coerceIn(1, 6)
+                                    counterDigits = next
+                                    scope.launch { context.dataStore.edit { it[KEY_COUNTER_DIGITS] = next } }
+                                }
+                            ) { Text("-", color = Color.White) }
+
+                            Spacer(Modifier.width(12.dp))
+                            Text(counterDigits.toString(), color = Color.White, fontSize = 18.sp)
+                            Spacer(Modifier.width(12.dp))
+
+                            Button(
+                                onClick = {
+                                    val next = (counterDigits + 1).coerceIn(1, 6)
+                                    counterDigits = next
+                                    scope.launch { context.dataStore.edit { it[KEY_COUNTER_DIGITS] = next } }
+                                }
+                            ) { Text("+", color = Color.White) }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showWizard = false }) {
+                        Text("닫기")
+                    }
+                },
+                containerColor = Color(0xFF1A1A1A)
+            )
+        }
+
+
+        // ✅ 중요: boundImageCapture는 "촬영 버튼 onClick"에서 사용해야 함
+        // (촬영 버튼 코드는 다음 단계에서 붙이면 됨)
+    }
+} //CameraPreview 함수 끝
+@Composable
+private fun WatermarkPreviewBitmapOverlay(
+    enabled: Boolean,
+    request: com.example.dzlog.domain.model.CaptureRequest
+) {
+    if (!enabled) return
+
+    val ctx = LocalContext.current
+
+    // ✅ 프리뷰용 비트맵 캐시
+    var previewBmp by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+
+    // ✅ 설정값이 바뀔 때만 다시 렌더 (너무 자주면 렉 -> 살짝 딜레이)
+    LaunchedEffect(
+        request.watermark.anchor,
+        request.watermark.offsetXRatio,
+        request.watermark.offsetYRatio,
+        request.watermark.tableWidthRatio,
+        request.watermark.tableHeightRatio,
+        request.watermark.tableBgAlpha,
+        request.watermark.labelScale,
+        request.watermark.valueScale,
+        request.watermark.showLabel,
+        request.watermark.treatment,
+        request.watermark.strain,
+        request.counterDigits,
+        request.counter
+    ) {
+        kotlinx.coroutines.delay(120) // ✅ 슬라이더 드래그 시 과도 렌더 방지
+
+        // ✅ 프리뷰는 "빈 원본 이미지" 위에 실제 워터마크 렌더를 그대로 올림
+        // (실제 저장과 동일한 drawWatermarkTableFromResolvedCells 사용)
+        val src = android.graphics.Bitmap.createBitmap(
+            2000, 2000, android.graphics.Bitmap.Config.ARGB_8888
+        ).apply {
+            eraseColor(android.graphics.Color.TRANSPARENT)
+        }
+// ✅ 실제 저장과 동일하게 ResolvedCell 구성
+        val template = com.example.dzlog.domain.watermark.templateForPreset(
+            preset = request.watermark.templatePreset,
+            grid = request.watermark.gridPreset,
+            memo1 = request.watermark.memo1,
+            memo2 = request.watermark.memo2,
+            memo3 = request.watermark.memo3
+        )
+
+
+        val cells = com.example.dzlog.data.repository.buildResolvedCellsForPreview(
+            request = request,
+            template = template
+        )
+
+
+        val out = com.example.dzlog.watermark.drawWatermarkTableFromResolvedCells(
+            src = src,
+            cells = cells,
+            rows = request.watermark.gridPreset.rows,
+            cols = request.watermark.gridPreset.cols,
+            showLabel = request.watermark.showLabel,
+            anchor = request.watermark.anchor,
+            offsetXRatio = request.watermark.offsetXRatio,
+            offsetYRatio = request.watermark.offsetYRatio,
+            tableHeightRatio = request.watermark.tableHeightRatio,
+            tableWidthRatio = request.watermark.tableWidthRatio,
+            bgAlpha = request.watermark.tableBgAlpha,
+            labelScale = request.watermark.labelScale,
+            valueScale = request.watermark.valueScale
+        )
+
+        previewBmp = out
+    }
+
+    val bmp = previewBmp ?: return
+
+    // ✅ 화면 전체를 덮지 말고 "표 영역만" 보이게: 투명 배경 비트맵 그대로 overlay
+    androidx.compose.foundation.Image(
+        bitmap = bmp.asImageBitmap(),
+        contentDescription = null,
+        modifier = Modifier.fillMaxSize()
+    )
+}
+
+@Composable
+private fun WatermarkPreviewBox(
+    captureAspect: CaptureAspect,
+    tableWidthRatio: Int,
+    tableHeightRatio: Int,
+    anchor: WatermarkTableAnchor,
+    offsetXRatio: Int,
+    offsetYRatio: Int,
+    bgAlpha: Int,
+    showLabel: Boolean,
+    labelScale: Int,
+    valueScale: Int,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val frameW: Int = constraints.maxWidth
+            val frameH: Int = constraints.maxHeight
+            if (frameW <= 0 || frameH <= 0) return@BoxWithConstraints
+
+            // ✅ 타입을 강제로 박아준다(추론 에러 방지)
+            val overlayBmp: Bitmap = remember(
+                frameW, frameH,
+                tableWidthRatio, tableHeightRatio,
+                anchor, offsetXRatio, offsetYRatio,
+                bgAlpha, showLabel, labelScale, valueScale
+            ) {
+                val src: Bitmap = Bitmap.createBitmap(frameW, frameH, Bitmap.Config.ARGB_8888)
+
+                val cells: List<com.example.dzlog.domain.model.ResolvedCell> = listOf(
+                    com.example.dzlog.domain.model.ResolvedCell("Treatment", "T1"),
+                    com.example.dzlog.domain.model.ResolvedCell("Strain", "S1"),
+                    com.example.dzlog.domain.model.ResolvedCell("No.", "0001"),
+                    com.example.dzlog.domain.model.ResolvedCell("Date", "2026-01-21"),
+                    com.example.dzlog.domain.model.ResolvedCell("Time", "12:34"),
+                    com.example.dzlog.domain.model.ResolvedCell("", ""),
+                    com.example.dzlog.domain.model.ResolvedCell("", ""),
+                    com.example.dzlog.domain.model.ResolvedCell("", ""),
+                    com.example.dzlog.domain.model.ResolvedCell("", "")
+                )
+
+                drawWatermarkTableFromResolvedCells(
+                    src = src,
+                    cells = cells,
+                    rows = 3,
+                    cols = 3,
+                    showLabel = showLabel,
+                    anchor = anchor,
+                    offsetXRatio = offsetXRatio,
+                    offsetYRatio = offsetYRatio,
+                    tableHeightRatio = tableHeightRatio,
+                    tableWidthRatio = tableWidthRatio,
+                    bgAlpha = bgAlpha,
+                    labelScale = labelScale,
+                    valueScale = valueScale
+                )
+            }
+
+            Image(
+                bitmap = overlayBmp.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
+private fun bindCamera(
+    context: Context,
+    lifecycleOwner: LifecycleOwner,
+    previewView: PreviewView,
+    aspect: CaptureAspect,
+    onBound: (ImageCapture?) -> Unit
+) {
+    val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+    cameraProviderFuture.addListener({
+        val cameraProvider = cameraProviderFuture.get()
+
+        val rotation = previewView.display.rotation
+        android.util.Log.d("DZlog", "BIND aspect=${aspect.label} w/h=${aspect.w}/${aspect.h}")
+
+        val preview = Preview.Builder()
+            .setTargetRotation(rotation)
+            .build()
+            .apply { setSurfaceProvider(previewView.surfaceProvider) }
+
+        val imageCapture = ImageCapture.Builder()
+            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .setTargetRotation(rotation)
+            .build()
+
+        val viewPort = ViewPort.Builder(
+            Rational(aspect.w, aspect.h),
+            rotation
+        )
+            .setScaleType(ViewPort.FILL_CENTER)
+            .build()
+
+        val useCaseGroup = UseCaseGroup.Builder()
+            .setViewPort(viewPort)
+            .addUseCase(preview)
+            .addUseCase(imageCapture)
+            .build()
+
+        try {
+            cameraProvider.unbindAll()
+            cameraProvider.bindToLifecycle(
+                lifecycleOwner,
+                CameraSelector.DEFAULT_BACK_CAMERA,
+                useCaseGroup
+            )
+            onBound(imageCapture)
+        } catch (_: Exception) {
+            onBound(null)
+        }
+    }, ContextCompat.getMainExecutor(context))
+}
+
+
+private fun sanitizePrefix(raw: String): String {
+    val trimmed = raw.trim()
+    if (trimmed.isEmpty()) return "DZlog"
+
+    // 파일명에서 위험한 문자만 최소 제거
+    val cleaned = trimmed.replace(Regex("""[\\/:*?"<>|]"""), "_")
+    return cleaned.ifEmpty { "DZlog" }
+}
+
+
+@Composable
+private fun WatermarkGuideOverlay(
+    modifier: Modifier,
+    captureAspect: CaptureAspect,
+    anchor: WatermarkTableAnchor,
+    offsetXRatio: Int,
+    offsetYRatio: Int,
+    tableWidthRatio: Int,
+    tableHeightRatio: Int
+) {
+    BoxWithConstraints(modifier = modifier) {
+        val areaW = constraints.maxWidth
+        val areaH = constraints.maxHeight
+        if (areaW <= 0 || areaH <= 0) return@BoxWithConstraints
+
+        // ✅ 이 Box 자체가 이미 aspectRatio(captureAspect)로 잡혀 있으니,
+        // frameW/H는 areaW/H와 같다고 봐도 되지만,
+        // 계산을 통일하기 위해 “프레임” 개념으로 그대로 둠.
+        val frameW = areaW
+        val frameH = areaH
+        val frameLeft = 0
+        val frameTop = 0
+
+        // 표 크기(px)
+        val tableW = (frameW * (clampWidthRatio(tableWidthRatio) / 100f))
+            .toInt()
+            .coerceAtLeast(1)
+        val tableH = (frameH * (clampHeightRatio(tableHeightRatio) / 100f))
+            .toInt()
+            .coerceAtLeast(1)
+
+        val maxX = (frameW - tableW).coerceAtLeast(0)
+        val maxY = (frameH - tableH).coerceAtLeast(0)
+
+        fun basePosByAnchorPx(): IntOffset {
+            return when (anchor) {
+                WatermarkTableAnchor.TOP_LEFT -> IntOffset(0, 0)
+                WatermarkTableAnchor.TOP_RIGHT -> IntOffset(maxX, 0)
+                WatermarkTableAnchor.BOTTOM_LEFT -> IntOffset(0, maxY)
+                WatermarkTableAnchor.BOTTOM_RIGHT -> IntOffset(maxX, maxY)
+                WatermarkTableAnchor.CUSTOM -> {
+                    val rx = clampRatio01(offsetXRatio) / 100f
+                    val ry = clampRatio01(offsetYRatio) / 100f
+                    IntOffset((maxX * rx).toInt(), (maxY * ry).toInt())
+                }
+            }
+        }
+
+        val pos = basePosByAnchorPx()
+        val finalLeft = frameLeft + pos.x
+        val finalTop = frameTop + pos.y
+
+        val density = androidx.compose.ui.platform.LocalDensity.current
+
+        // ✅ 가이드: 테두리(실선) 1개만 (원하면 코너만 남기는 건 다음 단계에서)
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(finalLeft, finalTop) }
+                .size(
+                    width = with(density) { tableW.toDp() },
+                    height = with(density) { tableH.toDp() }
+                )
+                .border(2.dp, Color.White.copy(alpha = 0.35f))
+        )
+    }
+}
+
+// =========================================================
+// PART 4 — Setup Wizard Overlay (Settings UI) + Aspect(4:3/16:9/1:1) 저장
+// =========================================================
+// ✅ 범위
+// - SetupWizardOverlay: 설정 오버레이 UI
+// - "촬영 비율(4:3/16:9/1:1)" 선택 + DataStore 저장
+// - (가이드 on/off 토글은 여기서 스위치만 제공, 실제 가이드는 Part 5에서 1개만 유지)
+// ❌ 촬영 버튼/저장/워터마크 렌더링은 Part 5
+// =========================================================
+
+@Composable
+fun SetupWizardOverlay(
+    context: Context,
+    showWizard: Boolean,
+    onClose: () -> Unit,
+
+    // --- Aspect (what-you-see-is-what-you-get 핵심) ---
+    captureAspect: CaptureAspect,
+    setCaptureAspect: (CaptureAspect) -> Unit,
+
+    // --- Guide toggle (표 위치 가이드 on/off) ---
+    wmGuideEnabled: Boolean,
+    setWmGuideEnabled: (Boolean) -> Unit,
+
+    // --- Orientation mode (이미 AppRoot에서 적용 중이지만 설정 UI는 여기서) ---
+    orientationMode: OrientationMode,
+    setOrientationMode: (OrientationMode) -> Unit
+) {
+    if (!showWizard) return
+
+    val tabTitles = listOf("필수", "촬영비율", "가이드/고급")
+    var tabIndex by remember { mutableStateOf(0) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xCC000000)),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.94f)
+                .fillMaxHeight(0.92f)
+                .background(Color(0xFFF7F7F7))
+                .padding(12.dp)
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("DZlog 설정", fontSize = 18.sp, color = Color.Black)
+                    TextButton(onClick = onClose) { Text("닫기") }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                TabRow(selectedTabIndex = tabIndex) {
+                    tabTitles.forEachIndexed { idx, title ->
+                        Tab(
+                            selected = tabIndex == idx,
+                            onClick = { tabIndex = idx },
+                            text = { Text(title, fontSize = 12.sp, color = Color.Black) }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                val scroll = rememberScrollState()
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(scroll)
+                        .padding(bottom = 10.dp)
+                ) {
+                    when (tabIndex) {
+                        0 -> {
+                            Text("기본", color = Color.Black)
+                            Spacer(Modifier.height(8.dp))
+
+                            Text("화면 방향", color = Color.Black)
+                            Spacer(Modifier.height(6.dp))
+
+                            listOf(
+                                OrientationMode.PORTRAIT_LOCK to "세로 고정(권장)",
+                                OrientationMode.AUTO_ROTATE to "자동 회전 허용"
+                            ).forEach { (mode, label) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { setOrientationMode(mode) }
+                                        .padding(vertical = 6.dp)
+                                ) {
+                                    RadioButton(
+                                        selected = orientationMode == mode,
+                                        onClick = { setOrientationMode(mode) }
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(label, color = Color.Black)
+                                }
+                            }
+
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                "※ 비율/가이드는 다음 탭에서 설정합니다.",
+                                fontSize = 12.sp,
+                                color = Color.DarkGray
+                            )
+                        }
+
+                        1 -> {
+                            Text("촬영 비율", color = Color.Black)
+                            Spacer(Modifier.height(8.dp))
+
+                            Text(
+                                "what-you-see-is-what-you-get",
+                                color = Color.DarkGray,
+                                fontSize = 12.sp
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "이 설정은 '프리뷰 액자 비율'과 '실제 저장(크롭) 비율'을 동일하게 맞추기 위한 기준입니다.",
+                                color = Color.Black,
+                                fontSize = 13.sp
+                            )
+
+                            Spacer(Modifier.height(12.dp))
+
+                            listOf(
+                                CaptureAspect.R3_4 to "3:4 (기본)",
+                                CaptureAspect.R9_16 to "9:16",
+                                CaptureAspect.R1_1 to "1:1"
+                            ).forEach { (aspect, label) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            setCaptureAspect(aspect)
+                                            persistCaptureAspect(context, aspect)
+                                        }
+                                        .padding(vertical = 6.dp)
+                                ) {
+                                    RadioButton(
+                                        selected = captureAspect == aspect,
+                                        onClick = {
+                                            setCaptureAspect(aspect)
+                                            persistCaptureAspect(context, aspect)
+                                        }
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(label, color = Color.Black)
+                                }
+                            }
+
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                "※ 비율을 바꾸면 프리뷰가 즉시 바뀌며, 저장되는 사진도 같은 규칙으로 크롭됩니다.",
+                                fontSize = 12.sp,
+                                color = Color.DarkGray
+                            )
+                        }
+
+                        2 -> {
+                            Text("가이드/고급", color = Color.Black)
+                            Spacer(Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { setWmGuideEnabled(!wmGuideEnabled) }
+                                    .padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = wmGuideEnabled,
+                                    onCheckedChange = { setWmGuideEnabled(it) }
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("프리뷰에 표 위치 가이드 표시", color = Color.Black)
+                            }
+
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                "※ 가이드의 실제 크기/위치는 Part 5에서 '단일 가이드'로 정리해 맞춥니다.",
+                                fontSize = 12.sp,
+                                color = Color.DarkGray
+                            )
+                        }
+                    }
+                }
+
+                // 하단 저장/닫기
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(onClick = onClose) { Text("닫기") }
+                }
+            }
+        }
+    }
+}
+
+private fun persistCaptureAspect(context: Context, aspect: CaptureAspect) {
+    val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+    scope.launch {
+        try {
+            context.dataStore.edit { prefs ->
+                prefs[KEY_CAPTURE_ASPECT] = aspect.v
+            }
+        } catch (_: Exception) {
+        }
+    }
+}
+
+
+// =========================================================
+// Part 7. Naming / Scan Utils
+// (❗ Part6 바로 아래에 그대로 붙여넣기)
+// =========================================================
+
+fun sanitizeFolderName(input: String): String {
+    val trimmed = input.trim()
+    if (trimmed.isBlank()) return ""
+    val illegal = Regex("[\\\\/:*?\"<>|]")
+    val cleaned = trimmed.replace(illegal, "_")
+    return cleaned.trim().trim('.')
+}
+
+fun sanitizeKey(input: String): String {
+    val t = input.trim()
+    if (t.isBlank()) return "default"
+    val illegal = Regex("[^a-zA-Z0-9가-힣_]+")
+    val cleaned = t.replace(" ", "_").replace(illegal, "_")
+    return cleaned.take(40).ifBlank { "default" }
+}
+
+fun buildBaseName(
+    treatment: String,
+    strain: String,
+    counterText: String,
+    fnIncTreatment: Boolean,
+    fnIncStrain: Boolean,
+    fnIncDate: Boolean,
+    fnIncTime: Boolean,
+    fnDelim: String
+): String {
+    val delim = fnDelim.ifBlank { "_" }.take(3)
+    val parts = mutableListOf<String>()
+
+    if (fnIncTreatment && treatment.isNotBlank()) parts.add(sanitizeFolderName(treatment))
+    if (fnIncStrain && strain.isNotBlank()) parts.add(sanitizeFolderName(strain))
+
+    parts.add(counterText)
+
+    if (fnIncDate || fnIncTime) {
+        val now = Date()
+        if (fnIncDate) parts.add(SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(now))
+        if (fnIncTime) parts.add(SimpleDateFormat("HHmmss", Locale.getDefault()).format(now))
+    }
+
+    return parts.filter { it.isNotBlank() }.joinToString(delim).ifBlank { counterText }
+}
+
+fun extractCounterFromNameWithDelim(
+    displayName: String,
+    digits: Int,
+    fnDelim: String
+): Int? {
+    val base = displayName
+        .removeSuffix(".jpg").removeSuffix(".jpeg")
+        .removeSuffix(".JPG").removeSuffix(".JPEG")
+
+    val delim = fnDelim.ifBlank { "_" }.take(3)
+    val tokens = base.split(delim).map { it.trim() }
+
+    val target = tokens.firstOrNull { it.matches(Regex("""\d{$digits}""")) } ?: return null
+    return target.toIntOrNull()
+}
+
+
