@@ -9,6 +9,7 @@ import androidx.camera.core.ImageCapture
 import androidx.core.content.ContextCompat
 import com.example.dzlog.data.mediastore.MediaStoreSaver
 import com.example.dzlog.domain.model.CaptureRequest
+import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.LogEntry
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.watermark.WatermarkRenderer
@@ -78,10 +79,11 @@ class DzlogRepositoryImpl(
                         val result = runCatching {
                             val decodedBmp = BitmapFactory.decodeFile(tmpFile.absolutePath)
                                 ?: throw IllegalStateException("촬영 이미지 디코딩 실패")
-                            val originalBmp = rotateBitmap(
+                            val rotatedBmp = rotateBitmap(
                                 source = decodedBmp,
                                 degrees = surfaceRotationToDegrees(imageCapture.targetRotation)
                             )
+                            val originalBmp = cropToAspect(rotatedBmp, request.captureAspect)
 
                             val baseRel = buildRelativePath(
                                 request.projectKey,
@@ -217,6 +219,32 @@ class DzlogRepositoryImpl(
         return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
     }
 
+    private fun cropToAspect(source: Bitmap, aspect: CaptureAspect): Bitmap {
+        val targetRatio = aspect.w.toFloat() / aspect.h.toFloat()
+        val srcWidth = source.width
+        val srcHeight = source.height
+        if (srcWidth == 0 || srcHeight == 0) return source
+
+        val srcRatio = srcWidth.toFloat() / srcHeight.toFloat()
+        if (kotlin.math.abs(srcRatio - targetRatio) < 0.001f) {
+            return source
+        }
+
+        val (cropWidth, cropHeight) = if (srcRatio > targetRatio) {
+            val height = srcHeight
+            val width = (height * targetRatio).toInt().coerceAtMost(srcWidth)
+            width to height
+        } else {
+            val width = srcWidth
+            val height = (width / targetRatio).toInt().coerceAtMost(srcHeight)
+            width to height
+        }
+
+        val left = ((srcWidth - cropWidth) / 2f).toInt().coerceAtLeast(0)
+        val top = ((srcHeight - cropHeight) / 2f).toInt().coerceAtLeast(0)
+
+        return Bitmap.createBitmap(source, left, top, cropWidth, cropHeight)
+    }
 
     private fun ensureJpg(name: String): String {
         val n = name.trim()

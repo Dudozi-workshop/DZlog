@@ -632,6 +632,7 @@ fun CameraPreview(
                         counter = counter,
                         counterDigits = counterDigits,
                         saveMode = saveMode,
+                        captureAspect = captureAspect,
                         watermark = com.example.dzlog.domain.model.WatermarkConfig(
                             showLabel = true,
                             showDate = true,
@@ -725,6 +726,7 @@ fun CameraPreview(
                             counter = counter,
                             counterDigits = counterDigits,
                             saveMode = saveMode,
+                            captureAspect = captureAspect,
                             watermark = com.example.dzlog.domain.model.WatermarkConfig(
                                 showLabel = true,
                                 showDate = true,
@@ -1282,15 +1284,24 @@ private fun bindCamera(
         val rotation = previewView.display.rotation
         android.util.Log.d("DZlog", "BIND aspect=${aspect.label} w/h=${aspect.w}/${aspect.h}")
 
-        val preview = Preview.Builder()
+        val cameraAspectRatio = aspect.toCameraXAspectRatio()
+
+        val previewBuilder = Preview.Builder()
+
             .setTargetRotation(rotation)
-            .build()
+        if (cameraAspectRatio != null) {
+            previewBuilder.setTargetAspectRatio(cameraAspectRatio)
+        }
+        val preview = previewBuilder.build()
             .apply { setSurfaceProvider(previewView.surfaceProvider) }
 
-        val imageCapture = ImageCapture.Builder()
+        val imageCaptureBuilder = ImageCapture.Builder()
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
             .setTargetRotation(rotation)
-            .build()
+        if (cameraAspectRatio != null) {
+            imageCaptureBuilder.setTargetAspectRatio(cameraAspectRatio)
+        }
+        val imageCapture = imageCaptureBuilder.build()
 
         val viewPort = ViewPort.Builder(
             Rational(aspect.w, aspect.h),

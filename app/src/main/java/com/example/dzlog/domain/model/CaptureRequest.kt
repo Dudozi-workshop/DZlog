@@ -16,6 +16,9 @@ data class CaptureRequest(
     // 저장 모드
     val saveMode: SaveMode,
 
+    // 촬영 비율(프리뷰와 저장 일치)
+    val captureAspect: CaptureAspect,
+
     // 워터마크 렌더 입력
     val watermark: WatermarkConfig
 )
