@@ -1339,53 +1339,6 @@ private fun sanitizePrefix(raw: String): String {
 }
 
 
-@Composable
-private fun WatermarkGuideOverlay(
-    modifier: Modifier,
-    captureAspect: CaptureAspect,
-    anchor: WatermarkTableAnchor,
-    offsetXRatio: Int,
-    offsetYRatio: Int,
-    tableWidthRatio: Int,
-    tableHeightRatio: Int
-) {
-    BoxWithConstraints(modifier = modifier) {
-        val areaW = constraints.maxWidth
-        val areaH = constraints.maxHeight
-        if (areaW <= 0 || areaH <= 0) return@BoxWithConstraints
-
-        // ✅ 이 Box 자체가 이미 aspectRatio(captureAspect)로 잡혀 있으니,
-        // frameW/H는 areaW/H와 같다고 봐도 되지만,
-        // 계산을 통일하기 위해 “프레임” 개념으로 그대로 둠.
-        val frameW = areaW
-        val frameH = areaH
-        val frameLeft = 0
-        val frameTop = 0
-
-        // 표 크기(px)
-        val tableW = (frameW * (clampWidthRatio(tableWidthRatio) / 100f))
-            .toInt()
-            .coerceAtLeast(1)
-        val tableH = (frameH * (clampHeightRatio(tableHeightRatio) / 100f))
-            .toInt()
-            .coerceAtLeast(1)
-
-        val maxX = (frameW - tableW).coerceAtLeast(0)
-        val maxY = (frameH - tableH).coerceAtLeast(0)
-
-        fun basePosByAnchorPx(): IntOffset {
-            return when (anchor) {
-                WatermarkTableAnchor.TOP_LEFT -> IntOffset(0, 0)
-                WatermarkTableAnchor.TOP_RIGHT -> IntOffset(maxX, 0)
-                WatermarkTableAnchor.BOTTOM_LEFT -> IntOffset(0, maxY)
-                WatermarkTableAnchor.BOTTOM_RIGHT -> IntOffset(maxX, maxY)
-                WatermarkTableAnchor.CUSTOM -> {
-                    val rx = clampRatio01(offsetXRatio) / 100f
-                    val ry = clampRatio01(offsetYRatio) / 100f
-                    IntOffset((maxX * rx).toInt(), (maxY * ry).toInt())
-                }
-            }
-        }
 
         val pos = basePosByAnchorPx()
         val finalLeft = frameLeft + pos.x
