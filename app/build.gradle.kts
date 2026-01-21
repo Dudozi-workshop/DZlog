@@ -68,4 +68,6 @@ dependencies {
 
     // DataStore Preferences
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    // Lifecycle Compose (LocalLifecycleOwner)
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 }

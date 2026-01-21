@@ -23,7 +23,6 @@ import androidx.camera.core.UseCaseGroup
 import androidx.camera.core.ViewPort
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -1163,7 +1162,6 @@ private fun WatermarkPreviewBitmapOverlay(
     val watermarkRenderer = remember { WatermarkRendererImpl() }
     val captureResolution = remember(imageCapture) {
         imageCapture?.resolutionInfo?.resolution
-            ?: imageCapture?.attachedSurfaceResolution
     }
     var previewSize by remember { mutableStateOf(IntSize.Zero) }
 
