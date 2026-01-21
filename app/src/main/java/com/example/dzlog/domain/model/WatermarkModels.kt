@@ -12,7 +12,7 @@ enum class EmptyValuePolicy(val v: Int, val label: String) {
     CUSTOM(2, "커스텀");
 
     companion object {
-        fun from(v: Int) = entries.firstOrNull { it.v == v } ?: BLANK
+        fun from(v: Int) = values().firstOrNull { it.v == v } ?: BLANK
     }
 }
 
@@ -24,7 +24,7 @@ enum class WatermarkGridPreset(val v: Int, val label: String, val rows: Int, val
     val totalCells: Int get() = rows * cols
 
     companion object {
-        fun from(v: Int) = entries.firstOrNull { it.v == v } ?: G2X3
+        fun from(v: Int) = values().firstOrNull { it.v == v } ?: G2X3
     }
 }
 
@@ -34,6 +34,5 @@ enum class WatermarkTemplatePreset(val v: Int, val label: String) {
     META(2, "메타");
 
     companion object {
-        fun from(v: Int) = entries.firstOrNull { it.v == v } ?: BASIC
-    }
+        fun from(v: Int) = values().firstOrNull { it.v == v } ?: BASIC    }
 }
