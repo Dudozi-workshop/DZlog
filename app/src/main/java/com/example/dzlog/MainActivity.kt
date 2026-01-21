@@ -48,6 +48,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Tab
@@ -90,9 +92,11 @@ import com.example.dzlog.data.repository.DzlogRepository
 import com.example.dzlog.data.repository.DzlogRepositoryImpl
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellKind
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.GroupLevel
+import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.watermark.WatermarkRendererImpl
 import com.example.dzlog.watermark.renderWatermarkForRequest
@@ -460,6 +464,10 @@ fun CameraPreview(
 
     // ✅ Wizard 시작 여부
     var showWizard by remember { mutableStateOf(startWithWizard) }
+    var showTableEditor by remember { mutableStateOf(false) }
+    val initialTemplateState = remember { defaultTableTemplateState() }
+    var tableTemplateState by remember { mutableStateOf(initialTemplateState) }
+
     // 파일명 초기값 설정
     var filePrefix by remember { mutableStateOf("DZlog") }
     //프리뷰 표시 설정
@@ -915,6 +923,15 @@ fun CameraPreview(
                             )
                             Text("촬영 화면에 워터마크 미리보기 표시", color = Color.White)
                         }
+                        Spacer(Modifier.height(12.dp))
+                        Button(onClick = { showTableEditor = true }) {
+                            Text("표 편집")
+                        }
+                        Text(
+                            text = "셀 속성/그룹/G1·G2 설정",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 12.sp
+                        )
                         Spacer(Modifier.height(16.dp))
 
                         //표 크기 설정
@@ -1251,7 +1268,14 @@ fun CameraPreview(
                 containerColor = Color(0xFF1A1A1A)
             )
         }
-
+        if (showTableEditor) {
+            TableEditorBottomSheet(
+                templateState = tableTemplateState,
+                onTemplateChange = { tableTemplateState = it },
+                onReset = { tableTemplateState = initialTemplateState },
+                onDismissRequest = { showTableEditor = false }
+            )
+        }
 
         // ✅ 중요: boundImageCapture는 "촬영 버튼 onClick"에서 사용해야 함
         // (촬영 버튼 코드는 다음 단계에서 붙이면 됨)
@@ -1431,6 +1455,365 @@ private fun surfaceRotationToDegrees(rotation: Int): Int {
         Surface.ROTATION_270 -> 270
         else -> 0
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TableEditorBottomSheet(
+    templateState: TableTemplateState,
+    onTemplateChange: (TableTemplateState) -> Unit,
+    onReset: () -> Unit,
+    onDismissRequest: () -> Unit
+) {
+    val context = LocalContext.current
+    var selectedCellId by remember { mutableStateOf(templateState.cells.firstOrNull()?.cellId) }
+
+    if (selectedCellId == null && templateState.cells.isNotEmpty()) {
+        selectedCellId = templateState.cells.first().cellId
+    }
+
+    val hasUnassignedCells = templateState.cells.any { isCellUnassigned(it) }
+    val selectedCell = templateState.cells.firstOrNull { it.cellId == selectedCellId }
+
+    ModalBottomSheet(onDismissRequest = onDismissRequest) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("Table Editor", fontSize = 18.sp, color = Color.Black)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFF1EDE3))
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                repeat(templateState.rows) { row ->
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        repeat(templateState.cols) { col ->
+                            val cell = templateState.cells.firstOrNull {
+                                it.rowIndex == row && it.colIndex == col
+                            }
+                            val cellUnassigned = cell?.let { isCellUnassigned(it) } ?: false
+                            val isSelected = cell?.cellId == selectedCellId
+                            val cellBackground = if (cellUnassigned) {
+                                Color(0xFFFFE1E1)
+                            } else {
+                                Color(0xFFF7F4EE)
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(64.dp)
+                                    .padding(2.dp)
+                                    .background(cellBackground)
+                                    .border(
+                                        width = if (isSelected) 2.dp else 1.dp,
+                                        color = if (isSelected) Color(0xFF5B7F60) else Color(0xFFB5B0A8)
+                                    )
+                                    .clickable(enabled = cell != null) {
+                                        selectedCellId = cell?.cellId
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (cell != null) {
+                                    Text(
+                                        text = cell.label.ifBlank { "R${row + 1}C${col + 1}" },
+                                        color = Color.Black,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        val updated = addRow(templateState)
+                        onTemplateChange(updated)
+                    }
+                ) { Text("+Row") }
+                Button(
+                    onClick = {
+                        val updated = removeRow(templateState)
+                        onTemplateChange(updated)
+                        if (updated.cells.none { it.cellId == selectedCellId }) {
+                            selectedCellId = updated.cells.firstOrNull()?.cellId
+                        }
+                    },
+                    enabled = templateState.rows > 1
+                ) { Text("-Row") }
+                Button(
+                    onClick = {
+                        val updated = addColumn(templateState)
+                        onTemplateChange(updated)
+                    }
+                ) { Text("+Col") }
+                Button(
+                    onClick = {
+                        val updated = removeColumn(templateState)
+                        onTemplateChange(updated)
+                        if (updated.cells.none { it.cellId == selectedCellId }) {
+                            selectedCellId = updated.cells.firstOrNull()?.cellId
+                        }
+                    },
+                    enabled = templateState.cols > 1
+                ) { Text("-Col") }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        Toast.makeText(context, "Saved (stub)", Toast.LENGTH_SHORT).show()
+                    },
+                    enabled = !hasUnassignedCells
+                ) { Text("Save") }
+                Button(onClick = onReset) { Text("Reset") }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFF7F4EE))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("Cell Detail Panel", fontSize = 16.sp, color = Color.Black)
+                if (selectedCell == null) {
+                    Text("셀을 선택하세요.", color = Color.DarkGray)
+                } else {
+                    Text("Kind", color = Color.Black)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = selectedCell.kind == TableCellKind.BASE,
+                            onClick = {
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                    cell.copy(kind = TableCellKind.BASE, fileNameInclude = false)
+                                }
+                                onTemplateChange(updated)
+                            }
+                        )
+                        Text("BASE", color = Color.Black)
+                        Spacer(Modifier.width(12.dp))
+                        RadioButton(
+                            selected = selectedCell.kind == TableCellKind.INPUT,
+                            onClick = {
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                    cell.copy(kind = TableCellKind.INPUT)
+                                }
+                                onTemplateChange(updated)
+                            }
+                        )
+                        Text("INPUT", color = Color.Black)
+                    }
+
+                    Text("Data Type", color = Color.Black)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = selectedCell.dataType == TableCellDataType.TEXT,
+                            onClick = {
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                    cell.copy(dataType = TableCellDataType.TEXT)
+                                }
+                                onTemplateChange(updated)
+                            }
+                        )
+                        Text("TEXT", color = Color.Black)
+                        Spacer(Modifier.width(12.dp))
+                        RadioButton(
+                            selected = selectedCell.dataType == TableCellDataType.NUMBER,
+                            onClick = {
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                    cell.copy(dataType = TableCellDataType.NUMBER)
+                                }
+                                onTemplateChange(updated)
+                            }
+                        )
+                        Text("NUMBER", color = Color.Black)
+                    }
+
+                    Text("Group", color = Color.Black)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        GroupLevel.values().forEach { level ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = selectedCell.groupLevel == level,
+                                    onClick = {
+                                        val hadExisting = templateState.cells.any {
+                                            it.cellId != selectedCell.cellId && it.groupLevel == level
+                                        }
+                                        val updated = updateGroupLevel(
+                                            templateState = templateState,
+                                            cellId = selectedCell.cellId,
+                                            level = level
+                                        )
+                                        onTemplateChange(updated)
+                                        if (hadExisting && level != GroupLevel.NONE) {
+                                            Toast.makeText(
+                                                context,
+                                                "${level.name} moved to selected cell",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                )
+                                Text(level.name, color = Color.Black)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                        }
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = selectedCell.fileNameInclude,
+                            enabled = selectedCell.kind == TableCellKind.INPUT,
+                            onCheckedChange = { checked ->
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                    cell.copy(
+                                        fileNameInclude = if (cell.kind == TableCellKind.INPUT) {
+                                            checked
+                                        } else {
+                                            false
+                                        }
+                                    )
+                                }
+                                onTemplateChange(updated)
+                            }
+                        )
+                        Text("Filename include", color = Color.Black)
+                    }
+
+                    TextField(
+                        value = selectedCell.label,
+                        onValueChange = { value ->
+                            val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                cell.copy(label = value)
+                            }
+                            onTemplateChange(updated)
+                        },
+                        singleLine = true,
+                        label = { Text("Label") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    TextField(
+                        value = selectedCell.valueText,
+                        onValueChange = { value ->
+                            val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                cell.copy(valueText = value)
+                            }
+                            onTemplateChange(updated)
+                        },
+                        singleLine = true,
+                        label = { Text("Value") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun updateCell(
+    templateState: TableTemplateState,
+    cellId: String,
+    transform: (TableCellState) -> TableCellState
+): TableTemplateState {
+    return templateState.copy(
+        cells = templateState.cells.map { cell ->
+            if (cell.cellId == cellId) {
+                transform(cell)
+            } else {
+                cell
+            }
+        }
+    )
+}
+
+private fun updateGroupLevel(
+    templateState: TableTemplateState,
+    cellId: String,
+    level: GroupLevel
+): TableTemplateState {
+    return templateState.copy(
+        cells = templateState.cells.map { cell ->
+            when {
+                cell.cellId == cellId -> cell.copy(groupLevel = level)
+                level == GroupLevel.G1 && cell.groupLevel == GroupLevel.G1 -> cell.copy(groupLevel = GroupLevel.NONE)
+                level == GroupLevel.G2 && cell.groupLevel == GroupLevel.G2 -> cell.copy(groupLevel = GroupLevel.NONE)
+                else -> cell
+            }
+        }
+    )
+}
+
+private fun addRow(templateState: TableTemplateState): TableTemplateState {
+    val newRowIndex = templateState.rows
+    val newCells = (0 until templateState.cols).map { col ->
+        TableCellState(rowIndex = newRowIndex, colIndex = col)
+    }
+    return templateState.copy(
+        rows = templateState.rows + 1,
+        cells = templateState.cells + newCells
+    )
+}
+
+private fun removeRow(templateState: TableTemplateState): TableTemplateState {
+    val lastRowIndex = templateState.rows - 1
+    return templateState.copy(
+        rows = templateState.rows - 1,
+        cells = templateState.cells.filterNot { it.rowIndex == lastRowIndex }
+    )
+}
+
+private fun addColumn(templateState: TableTemplateState): TableTemplateState {
+    val newColIndex = templateState.cols
+    val newCells = (0 until templateState.rows).map { row ->
+        TableCellState(rowIndex = row, colIndex = newColIndex)
+    }
+    return templateState.copy(
+        cols = templateState.cols + 1,
+        cells = templateState.cells + newCells
+    )
+}
+
+private fun removeColumn(templateState: TableTemplateState): TableTemplateState {
+    val lastColIndex = templateState.cols - 1
+    return templateState.copy(
+        cols = templateState.cols - 1,
+        cells = templateState.cells.filterNot { it.colIndex == lastColIndex }
+    )
+}
+
+private fun isCellUnassigned(cell: TableCellState): Boolean {
+    return cell.label.isBlank()
+}
+
+private fun defaultTableTemplateState(): TableTemplateState {
+    val rows = 2
+    val cols = 3
+    return TableTemplateState(
+        rows = rows,
+        cols = cols,
+        cells = List(rows * cols) { index ->
+            val row = index / cols
+            val col = index % cols
+            TableCellState(rowIndex = row, colIndex = col)
+        }
+    )
 }
 
 private fun sanitizePrefix(raw: String): String {
