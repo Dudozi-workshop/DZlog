@@ -11,9 +11,8 @@ import com.example.dzlog.data.mediastore.MediaStoreSaver
 import com.example.dzlog.domain.model.CaptureRequest
 import com.example.dzlog.domain.model.LogEntry
 import com.example.dzlog.domain.model.SaveMode
-import com.example.dzlog.domain.watermark.resolveCellsFromTemplate
-import com.example.dzlog.domain.watermark.templateForPreset
 import com.example.dzlog.watermark.WatermarkRenderer
+import com.example.dzlog.watermark.renderWatermarkForRequest
 import java.io.File
 import androidx.camera.core.ImageCaptureException
 import kotlinx.coroutines.CoroutineScope
@@ -93,24 +92,14 @@ class DzlogRepositoryImpl(
                                 request.counter.toString().padStart(request.counterDigits, '0')
                             val displayName = ensureJpg("${request.displayNameBase}_$counterText")
                             val capturedAt = Date()
-                            val cells = buildResolvedCells(request, capturedAt)
 
                             when (request.saveMode) {
                                 SaveMode.WATERMARK_ONLY -> {
-                                    val wmBmp = watermarkRenderer.renderTable(
+                                    val wmBmp = renderWatermarkForRequest(
+                                        renderer = watermarkRenderer,
                                         originalBmp = originalBmp,
-                                        cells = cells,
-                                        rows = request.watermark.gridPreset.rows,
-                                        cols = request.watermark.gridPreset.cols,
-                                        showLabel = request.watermark.showLabel,
-                                        anchor = request.watermark.anchor,
-                                        offsetXRatio = request.watermark.offsetXRatio,
-                                        offsetYRatio = request.watermark.offsetYRatio,
-                                        tableHeightRatio = request.watermark.tableHeightRatio,
-                                        tableWidthRatio = request.watermark.tableWidthRatio,
-                                        bgAlpha = request.watermark.tableBgAlpha,
-                                        labelScale = request.watermark.labelScale,
-                                        valueScale = request.watermark.valueScale
+                                        request = request,
+                                        capturedAt = capturedAt
                                     )
 
                                     val saved = saver.saveJpeg(
@@ -132,20 +121,11 @@ class DzlogRepositoryImpl(
 
                                 SaveMode.BOTH -> {
                                     // 1) 워터마크 먼저(대표 파일)
-                                    val wmBmp = watermarkRenderer.renderTable(
+                                    val wmBmp = renderWatermarkForRequest(
+                                        renderer = watermarkRenderer,
                                         originalBmp = originalBmp,
-                                        cells = cells,
-                                        rows = request.watermark.gridPreset.rows,
-                                        cols = request.watermark.gridPreset.cols,
-                                        showLabel = request.watermark.showLabel,
-                                        anchor = request.watermark.anchor,
-                                        offsetXRatio = request.watermark.offsetXRatio,
-                                        offsetYRatio = request.watermark.offsetYRatio,
-                                        tableHeightRatio = request.watermark.tableHeightRatio,
-                                        tableWidthRatio = request.watermark.tableWidthRatio,
-                                        bgAlpha = request.watermark.tableBgAlpha,
-                                        labelScale = request.watermark.labelScale,
-                                        valueScale = request.watermark.valueScale
+                                        request = request,
+                                        capturedAt = capturedAt
                                     )
 
                                     val savedWm = saver.saveJpeg(
@@ -212,45 +192,6 @@ class DzlogRepositoryImpl(
                     onFail(exception.message ?: "촬영 실패")
                 }
             }
-        )
-    }
-
-    // =====================================================
-    // ✅ 워터마크 표에 들어갈 ResolvedCell 만들기
-    // - 기존 resolveCellsFromTemplate 흐름을 Repository에서 호출
-    // =====================================================
-    // =====================================================
-// ✅ 워터마크 표에 들어갈 ResolvedCell 만들기 (MVP 안정판)
-// - 템플릿/CellDef 없이 바로 cells 구성
-// =====================================================
-    private fun buildResolvedCells(
-        request: CaptureRequest,
-        capturedAt: Date
-    ): List<com.example.dzlog.domain.model.ResolvedCell> {
-        val wm = request.watermark
-        val counterText = request.counter.toString().padStart(request.counterDigits, '0')
-
-        val template = templateForPreset(
-            preset = wm.templatePreset,
-            grid = wm.gridPreset,
-            memo1 = wm.memo1,
-            memo2 = wm.memo2,
-            memo3 = wm.memo3
-        )
-
-        return resolveCellsFromTemplate(
-            template = template,
-            treatment = wm.treatment,
-            strain = wm.strain,
-            folder2Text = wm.folder2Text,
-            counterText = counterText,
-            capturedAt = capturedAt,
-            showDate = wm.showDate,
-            showTime = wm.showTime,
-            datePattern = wm.datePattern,
-            timePattern = wm.timePattern,
-            emptyPolicy = wm.emptyPolicy,
-            emptyCustomText = wm.emptyCustomText
         )
     }
 
