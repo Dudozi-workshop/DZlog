@@ -1188,6 +1188,8 @@ private fun WatermarkPreviewBitmapOverlay(
     LaunchedEffect(
         captureResolution?.width,
         captureResolution?.height,
+        previewSize.width,
+        previewSize.height,
         request.watermark.anchor,
         request.watermark.offsetXRatio,
         request.watermark.offsetYRatio,
@@ -1205,8 +1207,11 @@ private fun WatermarkPreviewBitmapOverlay(
         kotlinx.coroutines.delay(120)
         // ✅ 슬라이더 드래그 시 과도 렌더 방지
         val resolution = captureResolution ?: return@LaunchedEffect
-        val previewResolution = cropResolutionForAspect(resolution, request.captureAspect)
-
+        val previewResolution = if (previewSize.width > 0 && previewSize.height > 0) {
+            previewSize
+        } else {
+            cropResolutionForAspect(resolution, request.captureAspect)
+        }
 
         // ✅ 프리뷰는 "빈 원본 이미지" 위에 실제 워터마크 렌더를 그대로 올림
         // (실제 저장과 동일한 renderWatermarkForRequest 사용)

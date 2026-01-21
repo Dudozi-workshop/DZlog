@@ -226,8 +226,6 @@ class DzlogRepositoryImpl(
         return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
     }
 
-
-
     private fun cropToAspect(source: Bitmap, aspect: CaptureAspect): Bitmap {
         val targetRatio = aspect.w.toFloat() / aspect.h.toFloat()
         val srcWidth = source.width
