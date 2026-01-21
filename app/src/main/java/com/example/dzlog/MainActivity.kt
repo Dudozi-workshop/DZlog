@@ -362,13 +362,6 @@ fun HomeScreen(
 // PART 3 — CameraScreen (Permission Gate) / CameraPreview (CameraX Bind)
 // =========================================================
 
-
-private fun CaptureAspect.toRational(): Rational = when (this) {
-    CaptureAspect.R3_4 -> Rational(3, 4)
-    CaptureAspect.R9_16 -> Rational(9, 16)
-    CaptureAspect.R1_1 -> Rational(1, 1)
-}
-
 // ---------------------------------------------------------
 // CameraScreen (Permission Gate)
 // ---------------------------------------------------------
@@ -611,98 +604,31 @@ fun CameraPreview(
                         color = Color.Yellow
                     )
 
-// ✅ key는 딱 1번만 사용
-                    key(captureAspect) {
-                        AndroidView(
-                            modifier = Modifier.fillMaxSize(),
-                            factory = { ctx: Context ->
-                                PreviewView(ctx).apply {
-                                    scaleType = PreviewView.ScaleType.FILL_CENTER
-                                }.also { previewView ->
-                                    // ✅ 여기서 바인딩 (aspect 바뀔 때만 새로 생성되며 factory가 다시 탐)
-                                    bindCamera(
-                                        context = context,
-                                        lifecycleOwner = lifecycleOwner,
-                                        previewView = previewView,
-                                        aspect = captureAspect
-                                    ) { cap: ImageCapture? ->
-                                        boundImageCapture = cap
-                                    }
-                                }
-                            },
-                            update = { previewView ->
-                                previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
-                            }
-                        )
+// PreviewView는 1회 생성 + context 변경 시만 재생성
+                    val previewView = remember(context) {
+                        PreviewView(context).apply {
+                            scaleType = PreviewView.ScaleType.FILL_CENTER
+                        }
+                    }
 
-                        // ✅ 프리뷰도 "촬영과 동일한 설정값"을 넣어서 100% 같은 결과를 보이게 함
-                        val previewReq = com.example.dzlog.domain.model.CaptureRequest(
-                            projectKey = projectKeyNow,
-                            group1 = group1Now,
-                            group2 = group2Now,
-                            displayNameBase = sanitizePrefix(filePrefix),
-                            counter = counter,
-                            counterDigits = counterDigits,
-                            saveMode = saveMode,
-                            watermark = com.example.dzlog.domain.model.WatermarkConfig(
-                                // 지금 showLabel/showDate/showTime는 아직 state가 없으니 우선 true 유지
-                                showLabel = true,
-                                showDate = true,
-                                showTime = true,
-                                datePattern = "yyyy-MM-dd",
-                                timePattern = "HH:mm",
+// captureAspect 변경 시에만 CameraX 재바인딩
+                    LaunchedEffect(captureAspect) {
+                        bindCamera(
+                            context = context,
+                            lifecycleOwner = lifecycleOwner,
+                            previewView = previewView,
+                            aspect = captureAspect
+                        ) { cap ->
+                            boundImageCapture = cap
+                        }
+                    }
 
-                                templatePreset = com.example.dzlog.domain.model.WatermarkTemplatePreset.values()[0],
-                                gridPreset = com.example.dzlog.domain.model.WatermarkGridPreset.values()[0],
-
-                                // ✅ 여기부터가 핵심: 프리뷰도 촬영과 같은 변수 사용
-                                anchor = wmTableAnchor,
-                                offsetXRatio = wmOffsetXRatio,
-                                offsetYRatio = wmOffsetYRatio,
-                                tableHeightRatio = wmTableHeightRatio,
-                                tableWidthRatio = wmTableWidthRatio,
-                                tableBgAlpha = wmBgAlpha,
-                                labelScale = wmLabelScale,
-                                valueScale = wmValueScale,
-
-                                memo1 = "",
-                                memo2 = "",
-                                memo3 = "",
-                                emptyPolicy = com.example.dzlog.domain.model.EmptyValuePolicy.BLANK,
-                                emptyCustomText = "",
-
-                                treatment = treatment,
-                                strain = strain,
-                                folder2Text = group2Now
-                            )
-                        )
-
-// ✅ 설정의 체크박스(showWmPreview)로 on/off 되게 연결
-                        WatermarkPreviewBitmapOverlay(
-                            enabled = showWmPreview,
-                            request = previewReq
-                        )
-
-
-
-
-
-                        // ✅ 워터마크 미리보기 오버레이 (프리뷰에서 바로 확인)
-                        /*if (showWmPreview) {
-                        WatermarkPreviewBox(
-                            captureAspect = captureAspect,
-                            tableWidthRatio = wmTableWidthRatio,
-                            tableHeightRatio = wmTableHeightRatio,
-                            anchor = wmTableAnchor,
-                            offsetXRatio = wmOffsetXRatio,
-                            offsetYRatio = wmOffsetYRatio,
-                            bgAlpha = wmBgAlpha,
-                            showLabel = true,
-                            labelScale = wmLabelScale,
-                            valueScale = wmValueScale
-                        )
-                    } */
-                }
+// AndroidView는 고정
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
+                        factory = { _: Context -> previewView },
+                        update = { it.scaleType = PreviewView.ScaleType.FILL_CENTER }
+                    )
                 }
             }
         }
@@ -1340,24 +1266,6 @@ private fun sanitizePrefix(raw: String): String {
 
 
 
-        val pos = basePosByAnchorPx()
-        val finalLeft = frameLeft + pos.x
-        val finalTop = frameTop + pos.y
-
-        val density = androidx.compose.ui.platform.LocalDensity.current
-
-        // ✅ 가이드: 테두리(실선) 1개만 (원하면 코너만 남기는 건 다음 단계에서)
-        Box(
-            modifier = Modifier
-                .offset { IntOffset(finalLeft, finalTop) }
-                .size(
-                    width = with(density) { tableW.toDp() },
-                    height = with(density) { tableH.toDp() }
-                )
-                .border(2.dp, Color.White.copy(alpha = 0.35f))
-        )
-    }
-}
 
 // =========================================================
 // PART 4 — Setup Wizard Overlay (Settings UI) + Aspect(4:3/16:9/1:1) 저장

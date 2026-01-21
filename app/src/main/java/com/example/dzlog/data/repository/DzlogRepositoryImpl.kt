@@ -8,9 +8,17 @@ import com.example.dzlog.data.mediastore.MediaStoreSaver
 import com.example.dzlog.domain.model.CaptureRequest
 import com.example.dzlog.domain.model.LogEntry
 import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.watermark.resolveCellsFromTemplate
+import com.example.dzlog.domain.watermark.templateForPreset
 import com.example.dzlog.watermark.WatermarkRenderer
 import java.io.File
 import androidx.camera.core.ImageCaptureException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.Date
 
 
 class DzlogRepositoryImpl(
@@ -18,6 +26,8 @@ class DzlogRepositoryImpl(
     private val counterSync: com.example.dzlog.data.counter.CounterSync,
     private val watermarkRenderer: WatermarkRenderer
 ) : DzlogRepository {
+
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun buildRelativePath(projectKey: String, group1: String, group2: String): String {
         return "Pictures/DZlog/$projectKey/$group1/$group2/"
@@ -52,44 +62,44 @@ class DzlogRepositoryImpl(
             object : ImageCapture.OnImageSavedCallback {
 
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                    try {
-                        val originalBmp = BitmapFactory.decodeFile(tmpFile.absolutePath)
-                            ?: throw IllegalStateException("촬영 이미지 디코딩 실패")
+                    ioScope.launch {
+                        val result = runCatching {
+                            val originalBmp = BitmapFactory.decodeFile(tmpFile.absolutePath)
+                                ?: throw IllegalStateException("촬영 이미지 디코딩 실패")
 
-                        val baseRel = buildRelativePath(request.projectKey, request.group1, request.group2)
-                        val origRel = buildOriginalRelativePath(request.projectKey, request.group1, request.group2)
+                            val baseRel = buildRelativePath(request.projectKey, request.group1, request.group2)
+                            val origRel = buildOriginalRelativePath(request.projectKey, request.group1, request.group2)
 
-                        val counterText = request.counter.toString().padStart(request.counterDigits, '0')
-                        val displayName = ensureJpg("${request.displayNameBase}_$counterText")
+                            val counterText = request.counter.toString().padStart(request.counterDigits, '0')
+                            val displayName = ensureJpg("${request.displayNameBase}_$counterText")
+                            val capturedAt = Date()
+                            val cells = buildResolvedCells(request, capturedAt)
 
-                        when (request.saveMode) {
-                            SaveMode.WATERMARK_ONLY -> {
-                                val wmBmp = watermarkRenderer.renderTable(
-                                    originalBmp = originalBmp,
-                                    cells = buildResolvedCells(request),
-                                    rows = request.watermark.gridPreset.rows,
-                                    cols = request.watermark.gridPreset.cols,
-                                    showLabel = request.watermark.showLabel,
-                                    anchor = request.watermark.anchor,
-                                    offsetXRatio = request.watermark.offsetXRatio,
-                                    offsetYRatio = request.watermark.offsetYRatio,
-                                    tableHeightRatio = request.watermark.tableHeightRatio,
-                                    tableWidthRatio = request.watermark.tableWidthRatio,
-                                    bgAlpha = request.watermark.tableBgAlpha,
-                                    labelScale = request.watermark.labelScale,
-                                    valueScale = request.watermark.valueScale
-                                )
+                            when (request.saveMode) {
+                                SaveMode.WATERMARK_ONLY -> {
+                                    val wmBmp = watermarkRenderer.renderTable(
+                                        originalBmp = originalBmp,
+                                        cells = cells,
+                                        rows = request.watermark.gridPreset.rows,
+                                        cols = request.watermark.gridPreset.cols,
+                                        showLabel = request.watermark.showLabel,
+                                        anchor = request.watermark.anchor,
+                                        offsetXRatio = request.watermark.offsetXRatio,
+                                        offsetYRatio = request.watermark.offsetYRatio,
+                                        tableHeightRatio = request.watermark.tableHeightRatio,
+                                        tableWidthRatio = request.watermark.tableWidthRatio,
+                                        bgAlpha = request.watermark.tableBgAlpha,
+                                        labelScale = request.watermark.labelScale,
+                                        valueScale = request.watermark.valueScale
+                                    )
 
-                                val saved = saver.saveJpeg(
-                                    context = context,
-                                    bitmap = wmBmp,
-                                    displayName = displayName,
-                                    relativePath = baseRel
-                                )
+                                    val saved = saver.saveJpeg(
+                                        context = context,
+                                        bitmap = wmBmp,
+                                        displayName = displayName,
+                                        relativePath = baseRel
+                                    )
 
-                                tmpFile.delete()
-
-                                onDone(
                                     LogEntry(
                                         mediaStoreId = saved.mediaStoreId,
                                         contentUri = saved.uri,
@@ -98,47 +108,43 @@ class DzlogRepositoryImpl(
                                         group1 = request.group1,
                                         group2 = request.group2
                                     )
-                                )
-                            }
-
-                            SaveMode.BOTH -> {
-                                // 1) 워터마크 먼저(대표 파일)
-                                val wmBmp = watermarkRenderer.renderTable(
-                                    originalBmp = originalBmp,
-                                    cells = buildResolvedCells(request),
-                                    rows = request.watermark.gridPreset.rows,
-                                    cols = request.watermark.gridPreset.cols,
-                                    showLabel = request.watermark.showLabel,
-                                    anchor = request.watermark.anchor,
-                                    offsetXRatio = request.watermark.offsetXRatio,
-                                    offsetYRatio = request.watermark.offsetYRatio,
-                                    tableHeightRatio = request.watermark.tableHeightRatio,
-                                    tableWidthRatio = request.watermark.tableWidthRatio,
-                                    bgAlpha = request.watermark.tableBgAlpha,
-                                    labelScale = request.watermark.labelScale,
-                                    valueScale = request.watermark.valueScale
-                                )
-
-                                val savedWm = saver.saveJpeg(
-                                    context = context,
-                                    bitmap = wmBmp,
-                                    displayName = displayName,
-                                    relativePath = baseRel
-                                )
-
-                                // 2) 원본은 original/ 하위 (실패해도 워터마크는 이미 저장됨)
-                                kotlin.runCatching {
-                                    saver.saveJpeg(
-                                        context = context,
-                                        bitmap = originalBmp,
-                                        displayName = displayName,
-                                        relativePath = origRel
-                                    )
                                 }
 
-                                tmpFile.delete()
+                                SaveMode.BOTH -> {
+                                    // 1) 워터마크 먼저(대표 파일)
+                                    val wmBmp = watermarkRenderer.renderTable(
+                                        originalBmp = originalBmp,
+                                        cells = cells,
+                                        rows = request.watermark.gridPreset.rows,
+                                        cols = request.watermark.gridPreset.cols,
+                                        showLabel = request.watermark.showLabel,
+                                        anchor = request.watermark.anchor,
+                                        offsetXRatio = request.watermark.offsetXRatio,
+                                        offsetYRatio = request.watermark.offsetYRatio,
+                                        tableHeightRatio = request.watermark.tableHeightRatio,
+                                        tableWidthRatio = request.watermark.tableWidthRatio,
+                                        bgAlpha = request.watermark.tableBgAlpha,
+                                        labelScale = request.watermark.labelScale,
+                                        valueScale = request.watermark.valueScale
+                                    )
 
-                                onDone(
+                                    val savedWm = saver.saveJpeg(
+                                        context = context,
+                                        bitmap = wmBmp,
+                                        displayName = displayName,
+                                        relativePath = baseRel
+                                    )
+
+                                    // 2) 원본은 original/ 하위 (실패해도 워터마크는 이미 저장됨)
+                                    kotlin.runCatching {
+                                        saver.saveJpeg(
+                                            context = context,
+                                            bitmap = originalBmp,
+                                            displayName = displayName,
+                                            relativePath = origRel
+                                        )
+                                    }
+
                                     LogEntry(
                                         mediaStoreId = savedWm.mediaStoreId,
                                         contentUri = savedWm.uri,
@@ -147,20 +153,16 @@ class DzlogRepositoryImpl(
                                         group1 = request.group1,
                                         group2 = request.group2
                                     )
-                                )
-                            }
+                                }
 
-                            SaveMode.ORIGINAL_ONLY -> {
-                                val saved = saver.saveJpeg(
-                                    context = context,
-                                    bitmap = originalBmp,
-                                    displayName = displayName,
-                                    relativePath = origRel
-                                )
+                                SaveMode.ORIGINAL_ONLY -> {
+                                    val saved = saver.saveJpeg(
+                                        context = context,
+                                        bitmap = originalBmp,
+                                        displayName = displayName,
+                                        relativePath = origRel
+                                    )
 
-                                tmpFile.delete()
-
-                                onDone(
                                     LogEntry(
                                         mediaStoreId = saved.mediaStoreId,
                                         contentUri = saved.uri,
@@ -169,12 +171,19 @@ class DzlogRepositoryImpl(
                                         group1 = request.group1,
                                         group2 = request.group2
                                     )
-                                )
+                                }
                             }
                         }
-                    } catch (e: Exception) {
+
                         tmpFile.delete()
-                        onFail(e.message ?: "captureAndSave 실패")
+
+                        withContext(Dispatchers.Main) {
+                            result.onSuccess { entry ->
+                                onDone(entry)
+                            }.onFailure { error ->
+                                onFail(error.message ?: "captureAndSave 실패")
+                            }
+                        }
                     }
                 }
 
@@ -193,57 +202,35 @@ class DzlogRepositoryImpl(
 // ✅ 워터마크 표에 들어갈 ResolvedCell 만들기 (MVP 안정판)
 // - 템플릿/CellDef 없이 바로 cells 구성
 // =====================================================
-    private fun buildResolvedCells(request: CaptureRequest): List<com.example.dzlog.domain.model.ResolvedCell> {
+    private fun buildResolvedCells(
+        request: CaptureRequest,
+        capturedAt: Date
+    ): List<com.example.dzlog.domain.model.ResolvedCell> {
         val wm = request.watermark
-
-        fun applyEmpty(raw: String): String {
-            val v = raw.trim()
-            if (v.isNotEmpty()) return v
-            return when (wm.emptyPolicy) {
-                com.example.dzlog.domain.model.EmptyValuePolicy.BLANK -> ""
-                com.example.dzlog.domain.model.EmptyValuePolicy.DASH -> "-"
-                com.example.dzlog.domain.model.EmptyValuePolicy.CUSTOM -> wm.emptyCustomText
-            }
-        }
-
         val counterText = request.counter.toString().padStart(request.counterDigits, '0')
 
-        val now = java.util.Date()
-        val dateText =
-            if (wm.showDate) java.text.SimpleDateFormat(wm.datePattern, java.util.Locale.getDefault()).format(now) else ""
-        val timeText =
-            if (wm.showTime) java.text.SimpleDateFormat(wm.timePattern, java.util.Locale.getDefault()).format(now) else ""
-
-        // ✅ 표에 넣을 "후보"들 (필요하면 순서/라벨 바꾸면 됨)
-        val pairs: List<Pair<String, String>> = listOf(
-            "Treatment" to wm.treatment,
-            "Strain" to wm.strain,
-            "Folder2" to wm.folder2Text,
-            "Counter" to counterText,
-            "Date" to dateText,
-            "Time" to timeText,
-            "Memo1" to wm.memo1,
-            "Memo2" to wm.memo2,
-            "Memo3" to wm.memo3
+        val template = templateForPreset(
+            preset = wm.templatePreset,
+            grid = wm.gridPreset,
+            memo1 = wm.memo1,
+            memo2 = wm.memo2,
+            memo3 = wm.memo3
         )
 
-        // ✅ rows*cols 만큼만 채우고, 부족하면 빈칸
-        val need = (wm.gridPreset.rows * wm.gridPreset.cols).coerceAtLeast(1)
-
-        val baseCells = pairs.map { (label, value) ->
-            com.example.dzlog.domain.model.ResolvedCell(
-                label = label,
-                valueText = applyEmpty(value)
-            )
-        }
-
-        return if (baseCells.size >= need) {
-            baseCells.take(need)
-        } else {
-            baseCells + List(need - baseCells.size) {
-                com.example.dzlog.domain.model.ResolvedCell(label = "", valueText = "")
-            }
-        }
+        return resolveCellsFromTemplate(
+            template = template,
+            treatment = wm.treatment,
+            strain = wm.strain,
+            folder2Text = wm.folder2Text,
+            counterText = counterText,
+            capturedAt = capturedAt,
+            showDate = wm.showDate,
+            showTime = wm.showTime,
+            datePattern = wm.datePattern,
+            timePattern = wm.timePattern,
+            emptyPolicy = wm.emptyPolicy,
+            emptyCustomText = wm.emptyCustomText
+        )
     }
 
 
