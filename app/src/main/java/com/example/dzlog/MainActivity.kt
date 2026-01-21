@@ -11,6 +11,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Rational
+import android.view.Surface
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -69,6 +70,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -89,6 +91,7 @@ import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.watermark.WatermarkRendererImpl
+import com.example.dzlog.watermark.renderWatermarkForRequest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -1161,7 +1164,7 @@ private fun WatermarkPreviewBitmapOverlay(
 
     val watermarkRenderer = remember { WatermarkRendererImpl() }
     val captureResolution = remember(imageCapture) {
-        imageCapture?.resolutionInfo?.resolution
+        resolveRenderSize(imageCapture)
     }
     var previewSize by remember { mutableStateOf(IntSize.Zero) }
 
@@ -1192,7 +1195,7 @@ private fun WatermarkPreviewBitmapOverlay(
 
 
         // ✅ 프리뷰는 "빈 원본 이미지" 위에 실제 워터마크 렌더를 그대로 올림
-        // (실제 저장과 동일한 drawWatermarkTableFromResolvedCells 사용)
+        // (실제 저장과 동일한 renderWatermarkForRequest 사용)
         val src = android.graphics.Bitmap.createBitmap(
             resolution.width,
             resolution.height,
@@ -1200,38 +1203,15 @@ private fun WatermarkPreviewBitmapOverlay(
         ).apply {
             eraseColor(android.graphics.Color.TRANSPARENT)
         }
-// ✅ 실제 저장과 동일하게 ResolvedCell 구성
-        val template = com.example.dzlog.domain.watermark.templateForPreset(
-            preset = request.watermark.templatePreset,
-            grid = request.watermark.gridPreset,
-            memo1 = request.watermark.memo1,
-            memo2 = request.watermark.memo2,
-            memo3 = request.watermark.memo3
-        )
 
 
-        val cells = com.example.dzlog.data.repository.buildResolvedCellsForPreview(
-            request = request,
-            template = template
-        )
 
-        val out = watermarkRenderer.renderTable(
+        previewBmp = renderWatermarkForRequest(
+            renderer = watermarkRenderer,
             originalBmp = src,
-            cells = cells,
-            rows = request.watermark.gridPreset.rows,
-            cols = request.watermark.gridPreset.cols,
-            showLabel = request.watermark.showLabel,
-            anchor = request.watermark.anchor,
-            offsetXRatio = request.watermark.offsetXRatio,
-            offsetYRatio = request.watermark.offsetYRatio,
-            tableHeightRatio = request.watermark.tableHeightRatio,
-            tableWidthRatio = request.watermark.tableWidthRatio,
-            bgAlpha = request.watermark.tableBgAlpha,
-            labelScale = request.watermark.labelScale,
-            valueScale = request.watermark.valueScale
+            request = request,
+            capturedAt = Date()
         )
-
-        previewBmp = out
     }
 
     val bmp = previewBmp ?: return
@@ -1328,6 +1308,25 @@ private fun bindCamera(
     }, ContextCompat.getMainExecutor(context))
 }
 
+private fun resolveRenderSize(imageCapture: ImageCapture?): IntSize? {
+    val resolution = imageCapture?.resolutionInfo?.resolution ?: return null
+    val degrees = surfaceRotationToDegrees(imageCapture.targetRotation)
+    return if (degrees % 180 == 0) {
+        IntSize(resolution.width, resolution.height)
+    } else {
+        IntSize(resolution.height, resolution.width)
+    }
+}
+
+private fun surfaceRotationToDegrees(rotation: Int): Int {
+    return when (rotation) {
+        Surface.ROTATION_0 -> 0
+        Surface.ROTATION_90 -> 90
+        Surface.ROTATION_180 -> 180
+        Surface.ROTATION_270 -> 270
+        else -> 0
+    }
+}
 
 private fun sanitizePrefix(raw: String): String {
     val trimmed = raw.trim()
