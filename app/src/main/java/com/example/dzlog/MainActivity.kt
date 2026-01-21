@@ -44,6 +44,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -417,7 +418,9 @@ fun CameraPreview(
     setOrientationMode: (OrientationMode) -> Unit
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return;    val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return;
+    val scope = rememberCoroutineScope()
+
     // ✅ 임시(나중에 Wizard 설정값으로 대체)
     val projectKeyNow = "default"
     val group1Now = "G1"
@@ -599,6 +602,7 @@ fun CameraPreview(
                     val previewView = remember(context) {
                         PreviewView(context).apply {
                             scaleType = PreviewView.ScaleType.FILL_CENTER
+                            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                         }
                     }
 
@@ -1161,8 +1165,16 @@ private fun WatermarkPreviewBitmapOverlay(
     if (!enabled) return
 
     val watermarkRenderer = remember { WatermarkRendererImpl() }
-    val captureResolution = remember(imageCapture) {
-        resolveRenderSize(imageCapture)
+    var captureResolution by remember { mutableStateOf<IntSize?>(null) }
+    LaunchedEffect(imageCapture) {
+        captureResolution = resolveRenderSize(imageCapture)
+        if (captureResolution == null && imageCapture != null) {
+            repeat(3) {
+                kotlinx.coroutines.delay(120)
+                captureResolution = resolveRenderSize(imageCapture)
+                if (captureResolution != null) return@LaunchedEffect
+            }
+        }
     }
     var previewSize by remember { mutableStateOf(IntSize.Zero) }
 
@@ -1239,6 +1251,7 @@ private fun WatermarkPreviewBitmapOverlay(
         modifier = Modifier
             .fillMaxSize()
             .onSizeChanged { previewSize = it }
+            .zIndex(1f)
     ) {
         androidx.compose.foundation.Image(
             bitmap = bmp.asImageBitmap(),

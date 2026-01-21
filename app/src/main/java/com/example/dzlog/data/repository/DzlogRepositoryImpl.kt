@@ -60,7 +60,13 @@ class DzlogRepositoryImpl(
             return
         }
 
-        val outputOptions = ImageCapture.OutputFileOptions.Builder(tmpFile).build()
+        val metadata = ImageCapture.Metadata().apply {
+            isReversedHorizontal = false
+            isReversedVertical = false
+        }
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(tmpFile)
+            .setMetadata(metadata)
+            .build()
 
         imageCapture.takePicture(
             outputOptions,
