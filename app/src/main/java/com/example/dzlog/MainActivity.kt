@@ -90,6 +90,9 @@ import com.example.dzlog.data.repository.DzlogRepository
 import com.example.dzlog.data.repository.DzlogRepositoryImpl
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.model.TableCellKind
+import com.example.dzlog.domain.model.TableCellState
+import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.watermark.WatermarkRendererImpl
 import com.example.dzlog.watermark.renderWatermarkForRequest
@@ -471,10 +474,59 @@ fun CameraPreview(
     var wmOffsetYRatio by remember { mutableStateOf(0) } // 0~100
 // 표 투명도
     var wmBgAlpha by remember { mutableStateOf(80) } // 0~255 (기본 80 추천)
-// 글씨 크기 변경
+    // 글씨 크기 변경
     var wmLabelScale by remember { mutableStateOf(100) } // 60~160
     var wmValueScale by remember { mutableStateOf(100) } // 60~160
+    var fnDelim by remember { mutableStateOf("_") }
+    var fnIncDate by remember { mutableStateOf(false) }
+    var fnIncTime by remember { mutableStateOf(false) }
 
+    val tableCells = remember(treatment, strain, filePrefix, group1Now, group2Now) {
+        listOf(
+            TableCellState(
+                rowIndex = 0,
+                colIndex = 0,
+                kind = TableCellKind.BASE,
+                valueText = group1Now,
+                groupLevel = GroupLevel.G1
+            ),
+            TableCellState(
+                rowIndex = 0,
+                colIndex = 1,
+                kind = TableCellKind.BASE,
+                valueText = group2Now,
+                groupLevel = GroupLevel.G2
+            ),
+            TableCellState(
+                rowIndex = 0,
+                colIndex = 2,
+                kind = TableCellKind.INPUT,
+                valueText = filePrefix,
+                fileNameInclude = true
+            ),
+            TableCellState(
+                rowIndex = 1,
+                colIndex = 0,
+                kind = TableCellKind.INPUT,
+                valueText = treatment,
+                fileNameInclude = true
+            ),
+            TableCellState(
+                rowIndex = 1,
+                colIndex = 1,
+                kind = TableCellKind.INPUT,
+                valueText = strain,
+                fileNameInclude = true
+            ),
+            TableCellState(
+                rowIndex = 1,
+                colIndex = 2,
+                kind = TableCellKind.INPUT,
+                valueText = "B3",
+                fileNameInclude = false
+            )
+        )
+    }
 
     // ---------- Load captureAspect from DataStore ----------
     LaunchedEffect(Unit) {
@@ -626,9 +678,16 @@ fun CameraPreview(
                     )
                     val previewRequest = com.example.dzlog.domain.model.CaptureRequest(
                         projectKey = projectKeyNow,
-                        group1 = group1Now,
-                        group2 = group2Now,
-                        displayNameBase = sanitizePrefix(filePrefix),
+                        group1 = resolveGroupValue(tableCells, GroupLevel.G1),
+                        group2 = resolveGroupValue(tableCells, GroupLevel.G2),
+                        displayNameBase = buildDisplayNameBase(
+                            cells = tableCells,
+                            counter = counter,
+                            counterDigits = counterDigits,
+                            fnDelim = fnDelim,
+                            includeDate = fnIncDate,
+                            includeTime = fnIncTime
+                        ),
                         counter = counter,
                         counterDigits = counterDigits,
                         saveMode = saveMode,
@@ -656,7 +715,7 @@ fun CameraPreview(
                             emptyCustomText = "",
                             treatment = treatment,
                             strain = strain,
-                            folder2Text = group2Now
+                            folder2Text = resolveGroupValue(tableCells, GroupLevel.G2)
                         )
                     )
 
@@ -692,7 +751,33 @@ fun CameraPreview(
                 .padding(16.dp),
             color = Color.White
         )
-
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = 40.dp, start = 16.dp)
+        ) {
+            val savePathPreview = buildSavePathPreviewText(
+                cells = tableCells,
+                saveMode = saveMode
+            )
+            Text(
+                text = "Save Path Preview: $savePathPreview",
+                color = Color.White,
+                fontSize = 12.sp
+            )
+            Text(
+                text = "Filename Preview: ${buildDisplayNameBase(
+                    cells = tableCells,
+                    counter = counter,
+                    counterDigits = counterDigits,
+                    fnDelim = fnDelim,
+                    includeDate = fnIncDate,
+                    includeTime = fnIncTime
+                )}",
+                color = Color.White,
+                fontSize = 12.sp
+            )
+        }
         // =====================================================
         // 촬영 버튼(FAB) - 화면 하단 중앙
         // =====================================================
@@ -720,9 +805,16 @@ fun CameraPreview(
 
                         val req = com.example.dzlog.domain.model.CaptureRequest(
                             projectKey = projectKeyNow,
-                            group1 = group1Now,
-                            group2 = group2Now,
-                            displayNameBase = sanitizePrefix(filePrefix),
+                            group1 = resolveGroupValue(tableCells, GroupLevel.G1),
+                            group2 = resolveGroupValue(tableCells, GroupLevel.G2),
+                            displayNameBase = buildDisplayNameBase(
+                                cells = tableCells,
+                                counter = counter,
+                                counterDigits = counterDigits,
+                                fnDelim = fnDelim,
+                                includeDate = fnIncDate,
+                                includeTime = fnIncTime
+                            ),
                             counter = counter,
                             counterDigits = counterDigits,
                             saveMode = saveMode,
@@ -750,7 +842,7 @@ fun CameraPreview(
                                 emptyCustomText = "",
                                 treatment = treatment,
                                 strain = strain,
-                                folder2Text = group2Now
+                                folder2Text = resolveGroupValue(tableCells, GroupLevel.G2)
                             )
                         )
 
@@ -1589,7 +1681,73 @@ fun sanitizeFolderName(input: String): String {
     val cleaned = trimmed.replace(illegal, "_")
     return cleaned.trim().trim('.')
 }
+fun sanitizeFilePart(input: String): String {
+    return sanitizeFolderName(input)
+}
 
+fun resolveGroupValue(cells: List<TableCellState>, level: GroupLevel): String {
+    return cells
+        .asSequence()
+        .filter { it.groupLevel == level }
+        .sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
+        .map { sanitizeFolderName(it.valueText) }
+        .firstOrNull { it.isNotBlank() }
+        .orEmpty()
+}
+
+fun buildGalleryBasePathPreview(cells: List<TableCellState>): String {
+    val g1 = resolveGroupValue(cells, GroupLevel.G1)
+    val g2 = resolveGroupValue(cells, GroupLevel.G2)
+    return if (g1.isNotBlank() && g2.isNotBlank()) {
+        "Pictures/DZlog/$g1/$g2/"
+    } else {
+        "Pictures/DZlog/"
+    }
+}
+
+fun buildSavePathPreviewText(cells: List<TableCellState>, saveMode: SaveMode): String {
+    val base = buildGalleryBasePathPreview(cells)
+    val original = "${base}original/"
+    return when (saveMode) {
+        SaveMode.BOTH -> "$base\n  $original"
+        SaveMode.WATERMARK_ONLY -> base
+        SaveMode.ORIGINAL_ONLY -> original
+    }
+}
+
+fun buildDisplayNameBase(
+    cells: List<TableCellState>,
+    counter: Int,
+    counterDigits: Int,
+    fnDelim: String,
+    includeDate: Boolean,
+    includeTime: Boolean
+): String {
+    val delim = fnDelim.ifBlank { "_" }.take(3)
+    val counterText = counter.toString().padStart(counterDigits, '0')
+    val parts = cells
+        .asSequence()
+        .filter { it.kind == TableCellKind.INPUT && it.fileNameInclude }
+        .sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
+        .map { sanitizeFilePart(it.valueText) }
+        .filter { it.isNotBlank() }
+        .toMutableList()
+
+    parts.add(counterText)
+
+    if (includeDate || includeTime) {
+        val now = Date()
+        if (includeDate) parts.add(SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(now))
+        if (includeTime) parts.add(SimpleDateFormat("HHmmss", Locale.getDefault()).format(now))
+    }
+
+    val base = parts.joinToString(delim).ifBlank { counterText }
+    return if (base.endsWith(".jpg", true) || base.endsWith(".jpeg", true)) {
+        base
+    } else {
+        "$base.jpg"
+    }
+}
 fun sanitizeKey(input: String): String {
     val t = input.trim()
     if (t.isBlank()) return "default"

@@ -96,9 +96,7 @@ class DzlogRepositoryImpl(
                                 request.group2
                             )
 
-                            val counterText =
-                                request.counter.toString().padStart(request.counterDigits, '0')
-                            val displayName = ensureJpg("${request.displayNameBase}_$counterText")
+                            val displayName = ensureJpg(request.displayNameBase)
                             val capturedAt = Date()
 
                             when (request.saveMode) {
