@@ -98,7 +98,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.math.max
 import kotlin.math.roundToInt
 
 
@@ -1207,17 +1206,20 @@ private fun WatermarkPreviewBitmapOverlay(
         kotlinx.coroutines.delay(120)
         // ✅ 슬라이더 드래그 시 과도 렌더 방지
         val resolution = captureResolution ?: return@LaunchedEffect
-        val previewResolution = if (previewSize.width > 0 && previewSize.height > 0) {
+        val previewResolution = cropResolutionForAspect(resolution, request.captureAspect)
+        val renderResolution = if (previewResolution.width > 0 && previewResolution.height > 0) {
+            previewResolution
+        } else if (previewSize.width > 0 && previewSize.height > 0) {
             previewSize
         } else {
-            cropResolutionForAspect(resolution, request.captureAspect)
+            return@LaunchedEffect
         }
 
         // ✅ 프리뷰는 "빈 원본 이미지" 위에 실제 워터마크 렌더를 그대로 올림
         // (실제 저장과 동일한 renderWatermarkForRequest 사용)
         val src = android.graphics.Bitmap.createBitmap(
-            previewResolution.width,
-            previewResolution.height,
+            renderResolution.width,
+            renderResolution.height,
             android.graphics.Bitmap.Config.ARGB_8888
         ).apply {
             eraseColor(android.graphics.Color.TRANSPARENT)
@@ -1235,29 +1237,6 @@ private fun WatermarkPreviewBitmapOverlay(
 
     val bmp = previewBmp ?: return
 
-    val resolution = captureResolution
-
-    val previewResolution = resolution?.let { cropResolutionForAspect(it, request.captureAspect) }
-    val scale = if (previewResolution != null && previewSize.width > 0 && previewSize.height > 0) {
-        max(
-            previewSize.width.toFloat() / previewResolution.width.toFloat(),
-            previewSize.height.toFloat() / previewResolution.height.toFloat()
-        )
-    } else {
-        1f
-    }
-    val translateX = if (previewResolution != null) {
-        (previewSize.width - previewResolution.width * scale) / 2f
-    } else {
-        0f
-    }
-    val translateY = if (previewResolution != null) {
-        (previewSize.height - previewResolution.height * scale) / 2f
-    } else {
-        0f
-    }
-
-
     // ✅ 화면 전체를 덮지 말고 "표 영역만" 보이게: 투명 배경 비트맵 그대로 overlay
     Box(
         modifier = Modifier
@@ -1269,13 +1248,9 @@ private fun WatermarkPreviewBitmapOverlay(
             bitmap = bmp.asImageBitmap(),
             contentDescription = null,
             modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    translationX = translateX
-                    translationY = translateY
-                }
+                .fillMaxSize(),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            alignment = Alignment.Center
         )
     }
 }
