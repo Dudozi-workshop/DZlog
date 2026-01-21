@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -98,7 +99,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.max
-
+import kotlin.math.roundToInt
 
 
 // =========================================================
@@ -1204,13 +1205,14 @@ private fun WatermarkPreviewBitmapOverlay(
         kotlinx.coroutines.delay(120)
         // ✅ 슬라이더 드래그 시 과도 렌더 방지
         val resolution = captureResolution ?: return@LaunchedEffect
+        val previewResolution = cropResolutionForAspect(resolution, request.captureAspect)
 
 
         // ✅ 프리뷰는 "빈 원본 이미지" 위에 실제 워터마크 렌더를 그대로 올림
         // (실제 저장과 동일한 renderWatermarkForRequest 사용)
         val src = android.graphics.Bitmap.createBitmap(
-            resolution.width,
-            resolution.height,
+            previewResolution.width,
+            previewResolution.height,
             android.graphics.Bitmap.Config.ARGB_8888
         ).apply {
             eraseColor(android.graphics.Color.TRANSPARENT)
@@ -1228,21 +1230,24 @@ private fun WatermarkPreviewBitmapOverlay(
 
     val bmp = previewBmp ?: return
 
-    val scale = if (captureResolution != null && previewSize.width > 0 && previewSize.height > 0) {
+    val resolution = captureResolution
+
+    val previewResolution = resolution?.let { cropResolutionForAspect(it, request.captureAspect) }
+    val scale = if (previewResolution != null && previewSize.width > 0 && previewSize.height > 0) {
         max(
-            previewSize.width.toFloat() / captureResolution.width.toFloat(),
-            previewSize.height.toFloat() / captureResolution.height.toFloat()
+            previewSize.width.toFloat() / previewResolution.width.toFloat(),
+            previewSize.height.toFloat() / previewResolution.height.toFloat()
         )
     } else {
         1f
     }
-    val translateX = if (captureResolution != null) {
-        (previewSize.width - captureResolution.width * scale) / 2f
+    val translateX = if (previewResolution != null) {
+        (previewSize.width - previewResolution.width * scale) / 2f
     } else {
         0f
     }
-    val translateY = if (captureResolution != null) {
-        (previewSize.height - captureResolution.height * scale) / 2f
+    val translateY = if (previewResolution != null) {
+        (previewSize.height - previewResolution.height * scale) / 2f
     } else {
         0f
     }
@@ -1287,7 +1292,6 @@ private fun bindCamera(
         val cameraAspectRatio = aspect.toCameraXAspectRatio()
 
         val previewBuilder = Preview.Builder()
-
             .setTargetRotation(rotation)
         if (cameraAspectRatio != null) {
             previewBuilder.setTargetAspectRatio(cameraAspectRatio)
@@ -1358,18 +1362,24 @@ private fun sanitizePrefix(raw: String): String {
     val cleaned = trimmed.replace(Regex("""[\\/:*?"<>|]"""), "_")
     return cleaned.ifEmpty { "DZlog" }
 }
+private fun cropResolutionForAspect(resolution: IntSize, aspect: CaptureAspect): IntSize {
+    val targetRatio = aspect.w.toFloat() / aspect.h.toFloat()
+    val srcRatio = resolution.width.toFloat() / resolution.height.toFloat()
+    if (kotlin.math.abs(srcRatio - targetRatio) < 0.001f) return resolution
 
+    return if (srcRatio > targetRatio) {
+        val width = (resolution.height * targetRatio).roundToInt().coerceAtMost(resolution.width)
+        IntSize(width, resolution.height)
+    } else {
+        val height = (resolution.width / targetRatio).roundToInt().coerceAtMost(resolution.height)
+        IntSize(resolution.width, height)
+    }
+}
 
 
 
 // =========================================================
 // PART 4 — Setup Wizard Overlay (Settings UI) + Aspect(4:3/16:9/1:1) 저장
-// =========================================================
-// ✅ 범위
-// - SetupWizardOverlay: 설정 오버레이 UI
-// - "촬영 비율(4:3/16:9/1:1)" 선택 + DataStore 저장
-// - (가이드 on/off 토글은 여기서 스위치만 제공, 실제 가이드는 Part 5에서 1개만 유지)
-// ❌ 촬영 버튼/저장/워터마크 렌더링은 Part 5
 // =========================================================
 
 @Composable

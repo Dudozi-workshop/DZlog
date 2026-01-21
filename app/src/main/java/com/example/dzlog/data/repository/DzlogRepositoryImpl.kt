@@ -4,9 +4,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
-import android.view.Surface
 import androidx.camera.core.ImageCapture
 import androidx.core.content.ContextCompat
+import androidx.exifinterface.media.ExifInterface
 import com.example.dzlog.data.mediastore.MediaStoreSaver
 import com.example.dzlog.domain.model.CaptureRequest
 import com.example.dzlog.domain.model.CaptureAspect
@@ -79,11 +79,9 @@ class DzlogRepositoryImpl(
                         val result = runCatching {
                             val decodedBmp = BitmapFactory.decodeFile(tmpFile.absolutePath)
                                 ?: throw IllegalStateException("촬영 이미지 디코딩 실패")
-                            val rotatedBmp = rotateBitmap(
-                                source = decodedBmp,
-                                degrees = surfaceRotationToDegrees(imageCapture.targetRotation)
-                            )
-                            val originalBmp = cropToAspect(rotatedBmp, request.captureAspect)
+                            val exif = ExifInterface(tmpFile)
+                            val orientedBmp = applyExifOrientation(decodedBmp, exif)
+                            val originalBmp = cropToAspect(orientedBmp, request.captureAspect)
 
                             val baseRel = buildRelativePath(
                                 request.projectKey,
@@ -203,21 +201,32 @@ class DzlogRepositoryImpl(
         )
     }
 
-    private fun surfaceRotationToDegrees(rotation: Int): Int {
-        return when (rotation) {
-            Surface.ROTATION_0 -> 0
-            Surface.ROTATION_90 -> 90
-            Surface.ROTATION_180 -> 180
-            Surface.ROTATION_270 -> 270
-            else -> 0
+    private fun applyExifOrientation(source: Bitmap, exif: ExifInterface): Bitmap {
+        val orientation = exif.getAttributeInt(
+            ExifInterface.TAG_ORIENTATION,
+            ExifInterface.ORIENTATION_NORMAL
+        )
+        val matrix = Matrix()
+        when (orientation) {
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
+            ExifInterface.ORIENTATION_TRANSPOSE -> {
+                matrix.postRotate(90f)
+                matrix.postScale(-1f, 1f)
+            }
+            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+            ExifInterface.ORIENTATION_TRANSVERSE -> {
+                matrix.postRotate(270f)
+                matrix.postScale(-1f, 1f)
+            }
+            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+            else -> return source
         }
-    }
-
-    private fun rotateBitmap(source: Bitmap, degrees: Int): Bitmap {
-        if (degrees % 360 == 0) return source
-        val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
         return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
     }
+
+
 
     private fun cropToAspect(source: Bitmap, aspect: CaptureAspect): Bitmap {
         val targetRatio = aspect.w.toFloat() / aspect.h.toFloat()
@@ -245,6 +254,7 @@ class DzlogRepositoryImpl(
 
         return Bitmap.createBitmap(source, left, top, cropWidth, cropHeight)
     }
+
 
     private fun ensureJpg(name: String): String {
         val n = name.trim()
