@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.net.Uri
 import androidx.camera.core.ImageCapture
 import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
@@ -15,6 +16,7 @@ import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.watermark.WatermarkRenderer
 import com.example.dzlog.watermark.renderWatermarkForRequest
 import java.io.File
+import java.io.FileOutputStream
 import androidx.camera.core.ImageCaptureException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +35,7 @@ class DzlogRepositoryImpl(
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun buildRelativePath(projectKey: String, group1: String, group2: String): String {
-        return "Pictures/DZlog/$projectKey/$group1/$group2/"
+        return buildGalleryBasePath(group1, group2)
     }
 
     override fun buildOriginalRelativePath(
@@ -41,7 +43,7 @@ class DzlogRepositoryImpl(
         group1: String,
         group2: String
     ): String {
-        return "Pictures/DZlog/$projectKey/$group1/$group2/original/"
+        return "${buildGalleryBasePath(group1, group2)}original/"
     }
 
     override fun captureAndSave(
@@ -93,6 +95,12 @@ class DzlogRepositoryImpl(
                                 request.group1,
                                 request.group2
                             )
+                            val appBaseDir = buildAppStoreBaseDir(
+                                context,
+                                request.group1,
+                                request.group2
+                            )
+                            val appOriginalDir = File(appBaseDir, "original")
 
                             val counterText =
                                 request.counter.toString().padStart(request.counterDigits, '0')
@@ -108,16 +116,22 @@ class DzlogRepositoryImpl(
                                         capturedAt = capturedAt
                                     )
 
-                                    val saved = saver.saveJpeg(
-                                        context = context,
+                                    saveBitmapToAppStore(
                                         bitmap = wmBmp,
-                                        displayName = displayName,
-                                        relativePath = baseRel
+                                        dir = appBaseDir,
+                                        displayName = displayName
                                     )
-
+                                    val saved = kotlin.runCatching {
+                                        saver.saveJpeg(
+                                            context = context,
+                                            bitmap = wmBmp,
+                                            displayName = displayName,
+                                            relativePath = baseRel
+                                        )
+                                    }.getOrNull()
                                     LogEntry(
-                                        mediaStoreId = saved.mediaStoreId,
-                                        contentUri = saved.uri,
+                                        mediaStoreId = saved?.mediaStoreId ?: -1L,
+                                        contentUri = saved?.uri ?: Uri.EMPTY,
                                         createdAt = System.currentTimeMillis(),
                                         projectKey = request.projectKey,
                                         group1 = request.group1,
@@ -134,12 +148,25 @@ class DzlogRepositoryImpl(
                                         capturedAt = capturedAt
                                     )
 
-                                    val savedWm = saver.saveJpeg(
-                                        context = context,
+                                    saveBitmapToAppStore(
                                         bitmap = wmBmp,
-                                        displayName = displayName,
-                                        relativePath = baseRel
+                                        dir = appBaseDir,
+                                        displayName = displayName
                                     )
+                                    saveBitmapToAppStore(
+                                        bitmap = originalBmp,
+                                        dir = appOriginalDir,
+                                        displayName = displayName
+                                    )
+
+                                    val savedWm = kotlin.runCatching {
+                                        saver.saveJpeg(
+                                            context = context,
+                                            bitmap = wmBmp,
+                                            displayName = displayName,
+                                            relativePath = baseRel
+                                        )
+                                    }.getOrNull()
 
                                     // 2) 원본은 original/ 하위 (실패해도 워터마크는 이미 저장됨)
                                     kotlin.runCatching {
@@ -152,8 +179,8 @@ class DzlogRepositoryImpl(
                                     }
 
                                     LogEntry(
-                                        mediaStoreId = savedWm.mediaStoreId,
-                                        contentUri = savedWm.uri,
+                                        mediaStoreId = savedWm?.mediaStoreId ?: -1L,
+                                        contentUri = savedWm?.uri ?: Uri.EMPTY,
                                         createdAt = System.currentTimeMillis(),
                                         projectKey = request.projectKey,
                                         group1 = request.group1,
@@ -162,16 +189,23 @@ class DzlogRepositoryImpl(
                                 }
 
                                 SaveMode.ORIGINAL_ONLY -> {
-                                    val saved = saver.saveJpeg(
-                                        context = context,
+                                    saveBitmapToAppStore(
                                         bitmap = originalBmp,
-                                        displayName = displayName,
-                                        relativePath = origRel
+                                        dir = appOriginalDir,
+                                        displayName = displayName
                                     )
+                                    val saved = kotlin.runCatching {
+                                        saver.saveJpeg(
+                                            context = context,
+                                            bitmap = originalBmp,
+                                            displayName = displayName,
+                                            relativePath = origRel
+                                        )
+                                    }.getOrNull()
 
                                     LogEntry(
-                                        mediaStoreId = saved.mediaStoreId,
-                                        contentUri = saved.uri,
+                                        mediaStoreId = saved?.mediaStoreId ?: -1L,
+                                        contentUri = saved?.uri ?: Uri.EMPTY,
                                         createdAt = System.currentTimeMillis(),
                                         projectKey = request.projectKey,
                                         group1 = request.group1,
@@ -253,6 +287,38 @@ class DzlogRepositoryImpl(
         return Bitmap.createBitmap(source, left, top, cropWidth, cropHeight)
     }
 
+    private fun buildGalleryBasePath(group1: String, group2: String): String {
+        val g1 = group1.trim()
+        val g2 = group2.trim()
+        return if (g1.isNotEmpty() && g2.isNotEmpty()) {
+            "Pictures/DZlog/$g1/$g2/"
+        } else {
+            "Pictures/DZlog/"
+        }
+    }
+
+    private fun buildAppStoreBaseDir(context: Context, group1: String, group2: String): File {
+        val baseDir = File(context.filesDir, "DZlog")
+        val g1 = group1.trim()
+        val g2 = group2.trim()
+        return if (g1.isNotEmpty() && g2.isNotEmpty()) {
+            File(baseDir, "$g1/$g2")
+        } else {
+            baseDir
+        }
+    }
+
+    private fun saveBitmapToAppStore(bitmap: Bitmap, dir: File, displayName: String): File {
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw IllegalStateException("App store 디렉토리 생성 실패: ${dir.absolutePath}")
+        }
+        val file = File(dir, ensureJpg(displayName))
+        FileOutputStream(file).use { out ->
+            val ok = bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+            if (!ok) throw IllegalStateException("App store JPEG 저장 실패")
+        }
+        return file
+    }
 
     private fun ensureJpg(name: String): String {
         val n = name.trim()
