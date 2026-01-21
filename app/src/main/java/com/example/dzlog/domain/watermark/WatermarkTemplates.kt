@@ -8,6 +8,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private const val DEFAULT_DATE_PATTERN = "yyyy.MM.dd"
+private const val DEFAULT_TIME_PATTERN = "HH:mm:ss"
+
 // ===== Cell & Source (domain/watermark 단일 정의) =====
 data class CellDef(
     val label: String,
@@ -95,6 +98,13 @@ fun resolveCellsFromTemplate(
     emptyPolicy: EmptyValuePolicy,
     emptyCustomText: String
 ): List<ResolvedCell> {
+    fun safeFormat(pattern: String, fallback: String, date: Date): String {
+        return try {
+            SimpleDateFormat(pattern, Locale.getDefault()).format(date)
+        } catch (_: Exception) {
+            SimpleDateFormat(fallback, Locale.getDefault()).format(date)
+        }
+    }
 
     fun applyEmpty(raw: String): String {
         val v = raw.trim()
@@ -106,10 +116,16 @@ fun resolveCellsFromTemplate(
         }
     }
 
-    val dateText =
-        if (showDate) SimpleDateFormat(datePattern, Locale.getDefault()).format(capturedAt) else ""
-    val timeText =
-        if (showTime) SimpleDateFormat(timePattern, Locale.getDefault()).format(capturedAt) else ""
+    val dateText = if (showDate) {
+        safeFormat(datePattern, DEFAULT_DATE_PATTERN, capturedAt)
+    } else {
+        ""
+    }
+    val timeText = if (showTime) {
+        safeFormat(timePattern, DEFAULT_TIME_PATTERN, capturedAt)
+    } else {
+        ""
+    }
 
     return template.map { def ->
         val raw = when (val src = def.source) {
