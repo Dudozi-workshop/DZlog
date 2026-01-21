@@ -1,7 +1,10 @@
 package com.example.dzlog.data.repository
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.view.Surface
 import androidx.camera.core.ImageCapture
 import androidx.core.content.ContextCompat
 import com.example.dzlog.data.mediastore.MediaStoreSaver
@@ -33,7 +36,11 @@ class DzlogRepositoryImpl(
         return "Pictures/DZlog/$projectKey/$group1/$group2/"
     }
 
-    override fun buildOriginalRelativePath(projectKey: String, group1: String, group2: String): String {
+    override fun buildOriginalRelativePath(
+        projectKey: String,
+        group1: String,
+        group2: String
+    ): String {
         return "Pictures/DZlog/$projectKey/$group1/$group2/original/"
     }
 
@@ -64,13 +71,26 @@ class DzlogRepositoryImpl(
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                     ioScope.launch {
                         val result = runCatching {
-                            val originalBmp = BitmapFactory.decodeFile(tmpFile.absolutePath)
+                            val decodedBmp = BitmapFactory.decodeFile(tmpFile.absolutePath)
                                 ?: throw IllegalStateException("촬영 이미지 디코딩 실패")
+                            val originalBmp = rotateBitmap(
+                                source = decodedBmp,
+                                degrees = surfaceRotationToDegrees(imageCapture.targetRotation)
+                            )
 
-                            val baseRel = buildRelativePath(request.projectKey, request.group1, request.group2)
-                            val origRel = buildOriginalRelativePath(request.projectKey, request.group1, request.group2)
+                            val baseRel = buildRelativePath(
+                                request.projectKey,
+                                request.group1,
+                                request.group2
+                            )
+                            val origRel = buildOriginalRelativePath(
+                                request.projectKey,
+                                request.group1,
+                                request.group2
+                            )
 
-                            val counterText = request.counter.toString().padStart(request.counterDigits, '0')
+                            val counterText =
+                                request.counter.toString().padStart(request.counterDigits, '0')
                             val displayName = ensureJpg("${request.displayNameBase}_$counterText")
                             val capturedAt = Date()
                             val cells = buildResolvedCells(request, capturedAt)
@@ -194,6 +214,7 @@ class DzlogRepositoryImpl(
             }
         )
     }
+
     // =====================================================
     // ✅ 워터마크 표에 들어갈 ResolvedCell 만들기
     // - 기존 resolveCellsFromTemplate 흐름을 Repository에서 호출
@@ -231,6 +252,22 @@ class DzlogRepositoryImpl(
             emptyPolicy = wm.emptyPolicy,
             emptyCustomText = wm.emptyCustomText
         )
+    }
+
+    private fun surfaceRotationToDegrees(rotation: Int): Int {
+        return when (rotation) {
+            Surface.ROTATION_0 -> 0
+            Surface.ROTATION_90 -> 90
+            Surface.ROTATION_180 -> 180
+            Surface.ROTATION_270 -> 270
+            else -> 0
+        }
+    }
+
+    private fun rotateBitmap(source: Bitmap, degrees: Int): Bitmap {
+        if (degrees % 360 == 0) return source
+        val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
+        return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
     }
 
 

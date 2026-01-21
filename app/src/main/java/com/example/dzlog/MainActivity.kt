@@ -9,10 +9,6 @@ package com.example.dzlog
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.Typeface
 import android.os.Bundle
 import android.util.Rational
 import android.widget.Toast
@@ -71,7 +67,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -97,14 +96,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.example.dzlog.domain.model.ResolvedCell
-import com.example.dzlog.watermark.drawWatermarkTableFromResolvedCells
-import com.example.dzlog.domain.model.WatermarkTemplatePreset
-import com.example.dzlog.domain.watermark.CellDef
-import com.example.dzlog.domain.watermark.templateForPreset
-import com.example.dzlog.domain.model.EmptyValuePolicy
-
-
+import kotlin.math.max
 
 
 
@@ -629,6 +621,46 @@ fun CameraPreview(
                         factory = { _: Context -> previewView },
                         update = { it.scaleType = PreviewView.ScaleType.FILL_CENTER }
                     )
+                    val previewRequest = com.example.dzlog.domain.model.CaptureRequest(
+                        projectKey = projectKeyNow,
+                        group1 = group1Now,
+                        group2 = group2Now,
+                        displayNameBase = sanitizePrefix(filePrefix),
+                        counter = counter,
+                        counterDigits = counterDigits,
+                        saveMode = saveMode,
+                        watermark = com.example.dzlog.domain.model.WatermarkConfig(
+                            showLabel = true,
+                            showDate = true,
+                            showTime = true,
+                            datePattern = "yyyy-MM-dd",
+                            timePattern = "HH:mm",
+                            templatePreset = com.example.dzlog.domain.model.WatermarkTemplatePreset.values()[0],
+                            gridPreset = com.example.dzlog.domain.model.WatermarkGridPreset.values()[0],
+                            anchor = wmTableAnchor,
+                            offsetXRatio = wmOffsetXRatio,
+                            offsetYRatio = wmOffsetYRatio,
+                            tableWidthRatio = wmTableWidthRatio,
+                            tableHeightRatio = wmTableHeightRatio,
+                            tableBgAlpha = wmBgAlpha,
+                            labelScale = wmLabelScale,
+                            valueScale = wmValueScale,
+                            memo1 = "",
+                            memo2 = "",
+                            memo3 = "",
+                            emptyPolicy = com.example.dzlog.domain.model.EmptyValuePolicy.BLANK,
+                            emptyCustomText = "",
+                            treatment = treatment,
+                            strain = strain,
+                            folder2Text = group2Now
+                        )
+                    )
+
+                    WatermarkPreviewBitmapOverlay(
+                        enabled = showWmPreview,
+                        request = previewRequest,
+                        imageCapture = boundImageCapture
+                    )
                 }
             }
         }
@@ -1124,17 +1156,25 @@ fun CameraPreview(
 @Composable
 private fun WatermarkPreviewBitmapOverlay(
     enabled: Boolean,
-    request: com.example.dzlog.domain.model.CaptureRequest
+    request: com.example.dzlog.domain.model.CaptureRequest,
+    imageCapture: ImageCapture?
 ) {
     if (!enabled) return
 
-    val ctx = LocalContext.current
+    val watermarkRenderer = remember { WatermarkRendererImpl() }
+    val captureResolution = remember(imageCapture) {
+        imageCapture?.resolutionInfo?.resolution
+            ?: imageCapture?.attachedSurfaceResolution
+    }
+    var previewSize by remember { mutableStateOf(IntSize.Zero) }
 
     // ✅ 프리뷰용 비트맵 캐시
     var previewBmp by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
 
     // ✅ 설정값이 바뀔 때만 다시 렌더 (너무 자주면 렉 -> 살짝 딜레이)
     LaunchedEffect(
+        captureResolution?.width,
+        captureResolution?.height,
         request.watermark.anchor,
         request.watermark.offsetXRatio,
         request.watermark.offsetYRatio,
@@ -1149,12 +1189,17 @@ private fun WatermarkPreviewBitmapOverlay(
         request.counterDigits,
         request.counter
     ) {
-        kotlinx.coroutines.delay(120) // ✅ 슬라이더 드래그 시 과도 렌더 방지
+        kotlinx.coroutines.delay(120)
+        // ✅ 슬라이더 드래그 시 과도 렌더 방지
+        val resolution = captureResolution ?: return@LaunchedEffect
+
 
         // ✅ 프리뷰는 "빈 원본 이미지" 위에 실제 워터마크 렌더를 그대로 올림
         // (실제 저장과 동일한 drawWatermarkTableFromResolvedCells 사용)
         val src = android.graphics.Bitmap.createBitmap(
-            2000, 2000, android.graphics.Bitmap.Config.ARGB_8888
+            resolution.width,
+            resolution.height,
+            android.graphics.Bitmap.Config.ARGB_8888
         ).apply {
             eraseColor(android.graphics.Color.TRANSPARENT)
         }
@@ -1173,9 +1218,8 @@ private fun WatermarkPreviewBitmapOverlay(
             template = template
         )
 
-
-        val out = com.example.dzlog.watermark.drawWatermarkTableFromResolvedCells(
-            src = src,
+        val out = watermarkRenderer.renderTable(
+            originalBmp = src,
             cells = cells,
             rows = request.watermark.gridPreset.rows,
             cols = request.watermark.gridPreset.cols,
@@ -1195,12 +1239,45 @@ private fun WatermarkPreviewBitmapOverlay(
 
     val bmp = previewBmp ?: return
 
+    val scale = if (captureResolution != null && previewSize.width > 0 && previewSize.height > 0) {
+        max(
+            previewSize.width.toFloat() / captureResolution.width.toFloat(),
+            previewSize.height.toFloat() / captureResolution.height.toFloat()
+        )
+    } else {
+        1f
+    }
+    val translateX = if (captureResolution != null) {
+        (previewSize.width - captureResolution.width * scale) / 2f
+    } else {
+        0f
+    }
+    val translateY = if (captureResolution != null) {
+        (previewSize.height - captureResolution.height * scale) / 2f
+    } else {
+        0f
+    }
+
+
     // ✅ 화면 전체를 덮지 말고 "표 영역만" 보이게: 투명 배경 비트맵 그대로 overlay
-    androidx.compose.foundation.Image(
-        bitmap = bmp.asImageBitmap(),
-        contentDescription = null,
-        modifier = Modifier.fillMaxSize()
-    )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged { previewSize = it }
+    ) {
+        androidx.compose.foundation.Image(
+            bitmap = bmp.asImageBitmap(),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    translationX = translateX
+                    translationY = translateY
+                }
+        )
+    }
 }
 
 private fun bindCamera(
@@ -1548,5 +1625,3 @@ fun extractCounterFromNameWithDelim(
     val target = tokens.firstOrNull { it.matches(Regex("""\d{$digits}""")) } ?: return null
     return target.toIntOrNull()
 }
-
-
