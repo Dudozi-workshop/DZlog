@@ -760,6 +760,13 @@ fun CameraPreview(
                             request = req,
                             onDone = { entry ->
                                 counter = counter + 1   // ✅ 이 줄이 없으면 평생 001
+                                if (entry.isNameAdjusted) {
+                                    Toast.makeText(
+                                        context,
+                                        "중복 파일명으로 ${entry.displayName} 저장됨",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                                 Toast.makeText(context, "저장 완료", Toast.LENGTH_SHORT).show()
                             },
                             onFail = { msg ->

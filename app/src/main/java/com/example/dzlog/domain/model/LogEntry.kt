@@ -5,6 +5,8 @@ import android.net.Uri
 data class LogEntry(
     val mediaStoreId: Long,
     val contentUri: Uri,
+    val displayName: String,
+    val isNameAdjusted: Boolean,
     val createdAt: Long,
     val projectKey: String,
     val group1: String,

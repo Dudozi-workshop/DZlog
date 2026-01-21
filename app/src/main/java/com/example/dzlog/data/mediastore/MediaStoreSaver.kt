@@ -6,8 +6,9 @@ import android.net.Uri
 
 data class SavedMedia(
     val uri: Uri,
-    val mediaStoreId: Long
-)
+    val mediaStoreId: Long,
+    val displayName: String,
+    val isNameAdjusted: Boolean)
 
 interface MediaStoreSaver {
     fun saveJpeg(

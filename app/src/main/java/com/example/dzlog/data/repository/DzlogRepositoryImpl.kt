@@ -95,12 +95,6 @@ class DzlogRepositoryImpl(
                                 request.group1,
                                 request.group2
                             )
-                            val appBaseDir = buildAppStoreBaseDir(
-                                context,
-                                request.group1,
-                                request.group2
-                            )
-                            val appOriginalDir = File(appBaseDir, "original")
 
                             val counterText =
                                 request.counter.toString().padStart(request.counterDigits, '0')
@@ -116,11 +110,6 @@ class DzlogRepositoryImpl(
                                         capturedAt = capturedAt
                                     )
 
-                                    saveBitmapToAppStore(
-                                        bitmap = wmBmp,
-                                        dir = appBaseDir,
-                                        displayName = displayName
-                                    )
                                     val saved = kotlin.runCatching {
                                         saver.saveJpeg(
                                             context = context,
@@ -132,6 +121,8 @@ class DzlogRepositoryImpl(
                                     LogEntry(
                                         mediaStoreId = saved?.mediaStoreId ?: -1L,
                                         contentUri = saved?.uri ?: Uri.EMPTY,
+                                        displayName = saved?.displayName ?: displayName,
+                                        isNameAdjusted = saved?.isNameAdjusted ?: false,
                                         createdAt = System.currentTimeMillis(),
                                         projectKey = request.projectKey,
                                         group1 = request.group1,
@@ -146,17 +137,6 @@ class DzlogRepositoryImpl(
                                         originalBmp = originalBmp,
                                         request = request,
                                         capturedAt = capturedAt
-                                    )
-
-                                    saveBitmapToAppStore(
-                                        bitmap = wmBmp,
-                                        dir = appBaseDir,
-                                        displayName = displayName
-                                    )
-                                    saveBitmapToAppStore(
-                                        bitmap = originalBmp,
-                                        dir = appOriginalDir,
-                                        displayName = displayName
                                     )
 
                                     val savedWm = kotlin.runCatching {
@@ -181,6 +161,8 @@ class DzlogRepositoryImpl(
                                     LogEntry(
                                         mediaStoreId = savedWm?.mediaStoreId ?: -1L,
                                         contentUri = savedWm?.uri ?: Uri.EMPTY,
+                                        displayName = savedWm?.displayName ?: displayName,
+                                        isNameAdjusted = savedWm?.isNameAdjusted ?: false,
                                         createdAt = System.currentTimeMillis(),
                                         projectKey = request.projectKey,
                                         group1 = request.group1,
@@ -189,11 +171,6 @@ class DzlogRepositoryImpl(
                                 }
 
                                 SaveMode.ORIGINAL_ONLY -> {
-                                    saveBitmapToAppStore(
-                                        bitmap = originalBmp,
-                                        dir = appOriginalDir,
-                                        displayName = displayName
-                                    )
                                     val saved = kotlin.runCatching {
                                         saver.saveJpeg(
                                             context = context,
@@ -206,6 +183,8 @@ class DzlogRepositoryImpl(
                                     LogEntry(
                                         mediaStoreId = saved?.mediaStoreId ?: -1L,
                                         contentUri = saved?.uri ?: Uri.EMPTY,
+                                        displayName = saved?.displayName ?: displayName,
+                                        isNameAdjusted = saved?.isNameAdjusted ?: false,
                                         createdAt = System.currentTimeMillis(),
                                         projectKey = request.projectKey,
                                         group1 = request.group1,
@@ -249,11 +228,13 @@ class DzlogRepositoryImpl(
                 matrix.postRotate(90f)
                 matrix.postScale(-1f, 1f)
             }
+
             ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
             ExifInterface.ORIENTATION_TRANSVERSE -> {
                 matrix.postRotate(270f)
                 matrix.postScale(-1f, 1f)
             }
+
             ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
             else -> return source
         }
@@ -295,29 +276,6 @@ class DzlogRepositoryImpl(
         } else {
             "Pictures/DZlog/"
         }
-    }
-
-    private fun buildAppStoreBaseDir(context: Context, group1: String, group2: String): File {
-        val baseDir = File(context.filesDir, "DZlog")
-        val g1 = group1.trim()
-        val g2 = group2.trim()
-        return if (g1.isNotEmpty() && g2.isNotEmpty()) {
-            File(baseDir, "$g1/$g2")
-        } else {
-            baseDir
-        }
-    }
-
-    private fun saveBitmapToAppStore(bitmap: Bitmap, dir: File, displayName: String): File {
-        if (!dir.exists() && !dir.mkdirs()) {
-            throw IllegalStateException("App store 디렉토리 생성 실패: ${dir.absolutePath}")
-        }
-        val file = File(dir, ensureJpg(displayName))
-        FileOutputStream(file).use { out ->
-            val ok = bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
-            if (!ok) throw IllegalStateException("App store JPEG 저장 실패")
-        }
-        return file
     }
 
     private fun ensureJpg(name: String): String {

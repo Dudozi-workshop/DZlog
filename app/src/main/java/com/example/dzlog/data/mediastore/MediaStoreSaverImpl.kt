@@ -84,11 +84,17 @@ class MediaStoreSaverImpl : MediaStoreSaver {
         relativePath: String
     ): SavedMedia {
         val resolver = context.contentResolver
+        val normalizedRelativePath = normalizeRelativePath(relativePath)
+        val (resolvedName, isNameAdjusted) = resolveUniqueDisplayName(
+            resolver = resolver,
+            relativePath = normalizedRelativePath,
+            displayName = ensureJpg(displayName)
+        )
 
         val values = ContentValues().apply {
-            put(MediaStore.Images.Media.DISPLAY_NAME, ensureJpg(displayName))
+            put(MediaStore.Images.Media.DISPLAY_NAME, resolvedName)
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-            put(MediaStore.Images.Media.RELATIVE_PATH, normalizeRelativePath(relativePath))
+            put(MediaStore.Images.Media.RELATIVE_PATH, normalizedRelativePath)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 put(MediaStore.Images.Media.IS_PENDING, 1)
             }
@@ -113,7 +119,12 @@ class MediaStoreSaverImpl : MediaStoreSaver {
             }
 
             val id = ContentUris.parseId(uri)
-            return SavedMedia(uri = uri, mediaStoreId = id)
+            return SavedMedia(
+                uri = uri,
+                mediaStoreId = id,
+                displayName = resolvedName,
+                isNameAdjusted = isNameAdjusted
+            )
 
         } catch (e: Exception) {
             // 실패 시 흔적 제거
@@ -122,6 +133,60 @@ class MediaStoreSaverImpl : MediaStoreSaver {
         }
     }
 
+    private fun resolveUniqueDisplayName(
+        resolver: android.content.ContentResolver,
+        relativePath: String,
+        displayName: String
+    ): Pair<String, Boolean> {
+        if (!doesNameExist(resolver, relativePath, displayName)) {
+            return displayName to false
+        }
+
+        val (stem, ext) = splitFileName(displayName)
+        var suffix = 2
+        while (true) {
+            val candidate = if (ext.isEmpty()) {
+                "$stem ($suffix)"
+            } else {
+                "$stem ($suffix).$ext"
+            }
+            if (!doesNameExist(resolver, relativePath, candidate)) {
+                return candidate to true
+            }
+            suffix++
+        }
+    }
+
+    private fun doesNameExist(
+        resolver: android.content.ContentResolver,
+        relativePath: String,
+        displayName: String
+    ): Boolean {
+        val projection = arrayOf(MediaStore.Images.Media._ID)
+        val selection = "${MediaStore.Images.Media.RELATIVE_PATH}=? AND " +
+                "${MediaStore.Images.Media.DISPLAY_NAME}=?"
+        val selectionArgs = arrayOf(relativePath, displayName)
+        resolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            null
+        )?.use { cursor ->
+            return cursor.moveToFirst()
+        }
+        return false
+    }
+
+    private fun splitFileName(displayName: String): Pair<String, String> {
+        val dot = displayName.lastIndexOf('.')
+        if (dot <= 0 || dot == displayName.length - 1) {
+            return displayName to ""
+        }
+        val stem = displayName.substring(0, dot)
+        val ext = displayName.substring(dot + 1)
+        return stem to ext
+    }
     override fun deleteByUri(context: Context, uri: Uri): Boolean {
         return try {
             val rows = context.contentResolver.delete(uri, null, null)
