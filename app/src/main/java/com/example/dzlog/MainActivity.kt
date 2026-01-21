@@ -70,7 +70,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -418,8 +417,7 @@ fun CameraPreview(
     setOrientationMode: (OrientationMode) -> Unit
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return;    val scope = rememberCoroutineScope()
     // ✅ 임시(나중에 Wizard 설정값으로 대체)
     val projectKeyNow = "default"
     val group1Now = "G1"
