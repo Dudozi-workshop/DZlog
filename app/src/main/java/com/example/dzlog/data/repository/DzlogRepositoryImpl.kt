@@ -24,7 +24,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Date
 
 
 class DzlogRepositoryImpl(
@@ -98,15 +97,12 @@ class DzlogRepositoryImpl(
                             )
 
                             val displayName = request.displayName
-                            val capturedAt = Date()
-
                             when (request.saveMode) {
                                 SaveMode.WATERMARK_ONLY -> {
                                     val wmBmp = renderWatermarkForRequest(
                                         renderer = watermarkRenderer,
                                         originalBmp = originalBmp,
-                                        request = request,
-                                        capturedAt = capturedAt
+                                        request = request
                                     )
 
                                     val saved = kotlin.runCatching {
@@ -134,8 +130,7 @@ class DzlogRepositoryImpl(
                                     val wmBmp = renderWatermarkForRequest(
                                         renderer = watermarkRenderer,
                                         originalBmp = originalBmp,
-                                        request = request,
-                                        capturedAt = capturedAt
+                                        request = request
                                     )
 
                                     val savedWm = kotlin.runCatching {

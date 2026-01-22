@@ -26,7 +26,6 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -80,7 +79,6 @@ import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
@@ -95,19 +93,13 @@ import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellKind
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
-import com.example.dzlog.domain.model.WatermarkGridPreset
 import com.example.dzlog.domain.model.WatermarkTableAnchor
-import com.example.dzlog.domain.model.WatermarkTemplatePreset
 import com.example.dzlog.domain.naming.buildDisplayName
 import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.watermark.WatermarkRendererImpl
 import com.example.dzlog.watermark.renderWatermarkForRequest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import kotlin.math.roundToInt
 
 // =========================================================
 // App Navigation
@@ -142,15 +134,9 @@ private val Context.dataStore by preferencesDataStore(name = "dzlog_prefs")
 // Basic Keys
 // =========================================================
 
-val KEY_TREATMENT = stringPreferencesKey("treatment_value")
-val KEY_STRAIN = stringPreferencesKey("strain_value")
-val KEY_WIZARD_COMPLETED = booleanPreferencesKey("wizard_completed")
-val KEY_FOLDER2_SOURCE = intPreferencesKey("folder2_source")
-val KEY_FOLDER2_MANUAL = stringPreferencesKey("folder2_manual_value")
 val KEY_COUNTER_DIGITS = intPreferencesKey("counter_digits")
 val KEY_CAPTURE_ASPECT = intPreferencesKey("capture_aspect")
 val KEY_SAVE_MODE = intPreferencesKey("save_mode")
-val KEY_ORIGINAL_SPLIT_BY_TREATMENT = booleanPreferencesKey("original_split_by_treatment")
 val KEY_HIDE_WATERMARK_GALLERY = booleanPreferencesKey("hide_watermark_gallery")
 val KEY_ORIENTATION_MODE = intPreferencesKey("orientation_mode")
 val KEY_SHOW_WM_PREVIEW = intPreferencesKey("show_wm_preview") // 0/1
@@ -168,23 +154,6 @@ val KEY_WM_VALUE_SCALE = intPreferencesKey("wm_value_scale") // 60~160
 // =========================================================
 // Folder / Counter
 // =========================================================
-
-enum class Folder2Source(val v: Int) {
-    MANUAL(0),
-    STRAIN(1),
-    COUNTER(2);
-
-    companion object {
-        fun from(v: Int) = entries.firstOrNull { it.v == v } ?: MANUAL
-    }
-}
-
-
-fun counterKeyFor(treatmentKey: String, folder2Key: String) =
-    intPreferencesKey("counter_${treatmentKey}_${folder2Key}")
-
-fun legacyCounterKeyFor(treatmentKey: String) =
-    intPreferencesKey("counter_$treatmentKey")
 
 const val COUNTER_DIGITS_DEFAULT = 4
 
@@ -213,38 +182,6 @@ enum class OrientationMode(val v: Int, val label: String) {
 // Watermark Core
 // =========================================================
 
-
-
-// =========================================================
-// Clamp / Utils
-// =========================================================
-
-fun clampHeightRatio(v: Int) = v.coerceIn(10, 35)
-fun clampWidthRatio(v: Int) = v.coerceIn(40, 100)
-fun clampAlpha(v: Int) = v.coerceIn(0, 255)
-fun clampScale(v: Int) = v.coerceIn(70, 160)
-fun clampRatio01(v: Int) = v.coerceIn(0, 100)
-
-// =========================================================
-// Date / Time Utils
-// =========================================================
-
-const val WM_DEFAULT_DATE_PATTERN = "yyyy.MM.dd"
-const val WM_DEFAULT_TIME_PATTERN = "HH:mm:ss"
-
-fun resolveDate(date: Date, pattern: String): String =
-    try {
-        SimpleDateFormat(pattern, Locale.getDefault()).format(date)
-    } catch (_: Exception) {
-        SimpleDateFormat(WM_DEFAULT_DATE_PATTERN, Locale.getDefault()).format(date)
-    }
-
-fun resolveTime(date: Date, pattern: String): String =
-    try {
-        SimpleDateFormat(pattern, Locale.getDefault()).format(date)
-    } catch (_: Exception) {
-        SimpleDateFormat(WM_DEFAULT_TIME_PATTERN, Locale.getDefault()).format(date)
-    }
 
 
 // =========================================================
@@ -501,8 +438,6 @@ fun CameraPreview(
     var counter by remember { mutableStateOf(1) }
 
     // ✅ 추가: 워터마크에 들어갈 값
-    var treatment by remember { mutableStateOf("T1") }
-    var strain by remember { mutableStateOf("S1") }
 
     // ✅ Wizard 시작 여부
     var showWizard by remember { mutableStateOf(startWithWizard) }
@@ -522,9 +457,7 @@ fun CameraPreview(
     // 글씨 크기 변경
     var wmLabelScale by remember { mutableStateOf(100) } // 60~160
     var wmValueScale by remember { mutableStateOf(100) } // 60~160
-    var fnDelim by remember { mutableStateOf("_") }
-    var fnIncDate by remember { mutableStateOf(false) }
-    var fnIncTime by remember { mutableStateOf(false) }
+    val fnDelim = "_"
 
     val tableCells = tableTemplateState.cells
 
@@ -569,24 +502,12 @@ fun CameraPreview(
             // ✅ 자릿수는 1~6 사이로 클램프
             counterDigits = (prefs[KEY_COUNTER_DIGITS] ?: 4).coerceIn(1, 6)
 
-            // ✅ 워터마크 값
-            treatment = prefs[KEY_TREATMENT] ?: "T1"
-            strain = prefs[KEY_STRAIN] ?: "S1"
-
             showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
-            val synced = updateCellAt(
-                updateCellAt(tableTemplateState, 1, 0) { it.copy(valueText = treatment) },
-                1,
-                1
-            ) { it.copy(valueText = strain) }
-            onTableTemplateChange(synced)
 
         } catch (_: Exception) {
             captureAspect = CaptureAspect.R3_4
             saveMode = SaveMode.WATERMARK_ONLY
             counterDigits = 4
-            treatment = "T1"
-            strain = "S1"
             showWmPreview = true
             wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
             //표 크기 수정
@@ -638,7 +559,6 @@ fun CameraPreview(
                         .fillMaxWidth()
                         .aspectRatio(captureAspect.ratioF)
                         .background(Color.Black)
-                        .border(2.dp, Color.Red)
                         .clipToBounds() // ✅ 액자 밖은 잘라냄(크롭 강제)
                 ) {
                     // =================================================
@@ -680,21 +600,16 @@ fun CameraPreview(
                             counter = counter,
                             counterDigits = counterDigits,
                             fnDelim = fnDelim,
-                            includeDate = fnIncDate,
-                            includeTime = fnIncTime
+                            includeDate = false,
+                            includeTime = false
                         ),
                         counter = counter,
                         counterDigits = counterDigits,
                         saveMode = saveMode,
                         captureAspect = captureAspect,
+                        tableTemplate = tableTemplateState,
                         watermark = com.example.dzlog.domain.model.WatermarkConfig(
                             showLabel = true,
-                            showDate = true,
-                            showTime = true,
-                            datePattern = "yyyy-MM-dd",
-                            timePattern = "HH:mm",
-                            templatePreset = WatermarkTemplatePreset.entries[0],
-                            gridPreset = WatermarkGridPreset.entries[0],
                             anchor = wmTableAnchor,
                             offsetXRatio = wmOffsetXRatio,
                             offsetYRatio = wmOffsetYRatio,
@@ -702,15 +617,7 @@ fun CameraPreview(
                             tableHeightRatio = wmTableHeightRatio,
                             tableBgAlpha = wmBgAlpha,
                             labelScale = wmLabelScale,
-                            valueScale = wmValueScale,
-                            memo1 = "",
-                            memo2 = "",
-                            memo3 = "",
-                            emptyPolicy = com.example.dzlog.domain.model.EmptyValuePolicy.BLANK,
-                            emptyCustomText = "",
-                            treatment = treatment,
-                            strain = strain,
-                            folder2Text = resolveGroupValue(tableCells, GroupLevel.G2)
+                            valueScale = wmValueScale
                         )
                     )
 
@@ -773,21 +680,16 @@ fun CameraPreview(
                                 counter = counter,
                                 counterDigits = counterDigits,
                                 fnDelim = fnDelim,
-                                includeDate = fnIncDate,
-                                includeTime = fnIncTime
+                                includeDate = false,
+                                includeTime = false
                             ),
                             counter = counter,
                             counterDigits = counterDigits,
                             saveMode = saveMode,
                             captureAspect = captureAspect,
+                            tableTemplate = tableTemplateState,
                             watermark = com.example.dzlog.domain.model.WatermarkConfig(
                                 showLabel = true,
-                                showDate = true,
-                                showTime = true,
-                                datePattern = "yyyy-MM-dd",
-                                timePattern = "HH:mm",
-                                templatePreset = WatermarkTemplatePreset.entries[0],
-                                gridPreset = WatermarkGridPreset.entries[0],
                                 anchor = wmTableAnchor,
                                 offsetXRatio = wmOffsetXRatio,
                                 offsetYRatio = wmOffsetYRatio,
@@ -795,15 +697,7 @@ fun CameraPreview(
                                 tableHeightRatio = wmTableHeightRatio,
                                 tableBgAlpha = wmBgAlpha,
                                 labelScale = wmLabelScale,
-                                valueScale = wmValueScale,
-                                memo1 = "",
-                                memo2 = "",
-                                memo3 = "",
-                                emptyPolicy = com.example.dzlog.domain.model.EmptyValuePolicy.BLANK,
-                                emptyCustomText = "",
-                                treatment = treatment,
-                                strain = strain,
-                                folder2Text = resolveGroupValue(tableCells, GroupLevel.G2)
+                                valueScale = wmValueScale
                             )
                         )
 
@@ -1089,46 +983,6 @@ fun CameraPreview(
 
 
 // =============================
-// ✅ Treatment / Strain 입력
-// =============================
-                        Text("Treatment", color = Color.White)
-                        Spacer(Modifier.height(6.dp))
-                        TextField(
-                            value = treatment,
-                            onValueChange = {
-                                treatment = it
-                                onTableTemplateChange(
-                                    updateCellAt(tableTemplateState, 1, 0) { cell ->
-                                        cell.copy(valueText = it)
-                                    }
-                                )
-                                scope.launch { context.dataStore.edit { prefs -> prefs[KEY_TREATMENT] = it } }
-                            },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Spacer(Modifier.height(12.dp))
-
-                        Text("Strain", color = Color.White)
-                        Spacer(Modifier.height(6.dp))
-                        TextField(
-                            value = strain,
-                            onValueChange = {
-                                strain = it
-                                onTableTemplateChange(
-                                    updateCellAt(tableTemplateState, 1, 1) { cell ->
-                                        cell.copy(valueText = it)
-                                    }
-                                )
-                                scope.launch { context.dataStore.edit { prefs -> prefs[KEY_STRAIN] = it } }
-                            },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Spacer(Modifier.height(20.dp))
-// =============================
 // ✅ 저장 모드 설정
 // =============================
                         Text("저장 모드", color = Color.White)
@@ -1252,8 +1106,7 @@ private fun WatermarkPreviewBitmapOverlay(
         request.watermark.labelScale,
         request.watermark.valueScale,
         request.watermark.showLabel,
-        request.watermark.treatment,
-        request.watermark.strain,
+        request.tableTemplate,
         request.counterDigits,
         request.counter
     ) {
@@ -1261,7 +1114,6 @@ private fun WatermarkPreviewBitmapOverlay(
         // ✅ 슬라이더 드래그 시 과도 렌더 방지
         val resolution = captureResolution ?: return@LaunchedEffect
 
-        val renderResolution = cropResolutionForAspect(resolution, request.captureAspect)
         // ✅ 프리뷰는 "빈 원본 이미지" 위에 실제 워터마크 렌더를 그대로 올림
         // (실제 저장과 동일한 renderWatermarkForRequest 사용)
         val src = android.graphics.Bitmap.createBitmap(
@@ -1277,8 +1129,7 @@ private fun WatermarkPreviewBitmapOverlay(
         previewBmp = renderWatermarkForRequest(
             renderer = watermarkRenderer,
             originalBmp = src,
-            request = request,
-            capturedAt = Date()
+            request = request
         )
     }
 
@@ -1298,20 +1149,6 @@ private fun WatermarkPreviewBitmapOverlay(
             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
             alignment = Alignment.Center
         )
-    }
-}
-
-private fun cropResolutionForAspect(resolution: IntSize, aspect: CaptureAspect): IntSize {
-    val targetRatio = aspect.w.toFloat() / aspect.h.toFloat()
-    val srcRatio = resolution.width.toFloat() / resolution.height.toFloat()
-    if (kotlin.math.abs(srcRatio - targetRatio) < 0.001f) return resolution
-
-    return if (srcRatio > targetRatio) {
-        val width = (resolution.height * targetRatio).roundToInt().coerceAtMost(resolution.width)
-        IntSize(width, resolution.height)
-    } else {
-        val height = (resolution.width / targetRatio).roundToInt().coerceAtMost(resolution.height)
-        IntSize(resolution.width, height)
     }
 }
 
@@ -1471,11 +1308,22 @@ private fun TableEditorScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (cell != null) {
-                                    Text(
-                                        text = cell.label.ifBlank { "R${row + 1}C${col + 1}" },
-                                        color = Color.Black,
-                                        fontSize = 12.sp
-                                    )
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        if (cell.label.isNotBlank()) {
+                                            Text(
+                                                text = cell.label,
+                                                color = Color.Black,
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                        if (cell.valueText.isNotBlank()) {
+                                            Text(
+                                                text = cell.valueText,
+                                                color = Color.DarkGray,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1692,17 +1540,6 @@ private fun updateCell(
         }
     )
 }
-private fun updateCellAt(
-    templateState: TableTemplateState,
-    rowIndex: Int,
-    colIndex: Int,
-    transform: (TableCellState) -> TableCellState
-): TableTemplateState {
-    val cell = templateState.cells.firstOrNull {
-        it.rowIndex == rowIndex && it.colIndex == colIndex
-    } ?: return templateState
-    return updateCell(templateState, cell.cellId, transform)
-}
 
 private fun updateGroupLevel(
     templateState: TableTemplateState,
@@ -1765,7 +1602,7 @@ private fun isCellUnassigned(cell: TableCellState): Boolean {
 
 private fun defaultTableTemplateState(): TableTemplateState {
     val rows = 2
-    val cols = 3
+    val cols = 4
     return TableTemplateState(
         rows = rows,
         cols = cols,
@@ -1773,18 +1610,20 @@ private fun defaultTableTemplateState(): TableTemplateState {
             TableCellState(
                 rowIndex = 0,
                 colIndex = 0,
-                kind = TableCellKind.BASE,
-                valueText = "G1",
+                kind = TableCellKind.INPUT,
+                valueText = "T1",
+                fileNameInclude = true,
                 groupLevel = GroupLevel.G1,
-                label = "Group 1"
+                label = "Treatment"
             ),
             TableCellState(
                 rowIndex = 0,
                 colIndex = 1,
-                kind = TableCellKind.BASE,
-                valueText = "G2",
+                kind = TableCellKind.INPUT,
+                valueText = "S1",
+                fileNameInclude = true,
                 groupLevel = GroupLevel.G2,
-                label = "Group 2"
+                label = "Strain"
             ),
             TableCellState(
                 rowIndex = 0,
@@ -1795,28 +1634,36 @@ private fun defaultTableTemplateState(): TableTemplateState {
                 label = "Prefix"
             ),
             TableCellState(
+                rowIndex = 0,
+                colIndex = 3,
+                kind = TableCellKind.INPUT,
+                valueText = "B3",
+                fileNameInclude = false,
+                label = "Batch"
+            ),
+            TableCellState(
                 rowIndex = 1,
                 colIndex = 0,
                 kind = TableCellKind.INPUT,
-                valueText = "T1",
-                fileNameInclude = true,
-                label = "Treatment"
+                valueText = "",
+                fileNameInclude = false,
+                label = "Note"
             ),
             TableCellState(
                 rowIndex = 1,
                 colIndex = 1,
                 kind = TableCellKind.INPUT,
-                valueText = "S1",
-                fileNameInclude = true,
-                label = "Strain"
+                valueText = "",
+                fileNameInclude = false,
+                label = "Sample"
             ),
             TableCellState(
                 rowIndex = 1,
                 colIndex = 2,
                 kind = TableCellKind.INPUT,
-                valueText = "B3",
+                valueText = "",
                 fileNameInclude = false,
-                label = "Batch"
+
             )
         )
     )
