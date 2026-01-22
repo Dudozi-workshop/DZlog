@@ -9,9 +9,10 @@ package com.example.dzlog
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.RectF
 import android.os.Bundle
 import android.util.Rational
-import android.view.Surface
+import android.view.View
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -42,6 +43,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -57,6 +60,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -68,9 +72,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -81,6 +83,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dzlog.data.counter.CounterSyncImpl
@@ -96,8 +99,9 @@ import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.buildDisplayName
 import com.example.dzlog.domain.naming.resolveGroupValue
+import com.example.dzlog.domain.watermark.resolveCellsFromTableTemplate
 import com.example.dzlog.watermark.WatermarkRendererImpl
-import com.example.dzlog.watermark.renderWatermarkForRequest
+import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -572,6 +576,28 @@ fun CameraPreview(
                             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                         }
                     }
+                    var previewContentRect by remember { mutableStateOf<RectF?>(null) }
+
+                    fun updatePreviewContentRect() {
+                        previewContentRect = resolvePreviewContentRect(previewView)
+                    }
+
+                    DisposableEffect(previewView, lifecycleOwner) {
+                        val layoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                            updatePreviewContentRect()
+                        }
+                        val streamObserver = Observer<PreviewView.StreamState> { state ->
+                            if (state == PreviewView.StreamState.STREAMING) {
+                                updatePreviewContentRect()
+                            }
+                        }
+                        previewView.addOnLayoutChangeListener(layoutListener)
+                        previewView.previewStreamState.observe(lifecycleOwner, streamObserver)
+                        onDispose {
+                            previewView.removeOnLayoutChangeListener(layoutListener)
+                            previewView.previewStreamState.removeObserver(streamObserver)
+                        }
+                    }
 
 // captureAspect 변경 시에만 CameraX 재바인딩
                     LaunchedEffect(captureAspect) {
@@ -621,10 +647,10 @@ fun CameraPreview(
                         )
                     )
 
-                    WatermarkPreviewBitmapOverlay(
+                    WatermarkPreviewOverlay(
                         enabled = showWmPreview,
                         request = previewRequest,
-                        imageCapture = boundImageCapture
+                        previewContentRect = previewContentRect
                     )
                 }
             }
@@ -1071,84 +1097,42 @@ fun CameraPreview(
     }
 } //CameraPreview 함수 끝
 @Composable
-private fun WatermarkPreviewBitmapOverlay(
+private fun WatermarkPreviewOverlay(
     enabled: Boolean,
     request: com.example.dzlog.domain.model.CaptureRequest,
-    imageCapture: ImageCapture?
+    previewContentRect: RectF?
 ) {
-    if (!enabled) return
+    if (!enabled || previewContentRect == null) return
 
-    val watermarkRenderer = remember { WatermarkRendererImpl() }
-    var captureResolution by remember { mutableStateOf<IntSize?>(null) }
-    LaunchedEffect(imageCapture) {
-        captureResolution = resolveRenderSize(imageCapture)
-        if (captureResolution == null && imageCapture != null) {
-            repeat(3) {
-                kotlinx.coroutines.delay(120)
-                captureResolution = resolveRenderSize(imageCapture)
-                if (captureResolution != null) return@LaunchedEffect
-            }
-        }
-    }
-    // ✅ 프리뷰용 비트맵 캐시
-    var previewBmp by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    val cells = resolveCellsFromTableTemplate(
+        request.tableTemplate.cells,
+        request.tableTemplate.rows,
+        request.tableTemplate.cols
+    )
 
-    // ✅ 설정값이 바뀔 때만 다시 렌더 (너무 자주면 렉 -> 살짝 딜레이)
-    LaunchedEffect(
-        captureResolution?.width,
-        captureResolution?.height,
-        request.watermark.anchor,
-        request.watermark.offsetXRatio,
-        request.watermark.offsetYRatio,
-        request.watermark.tableWidthRatio,
-        request.watermark.tableHeightRatio,
-        request.watermark.tableBgAlpha,
-        request.watermark.labelScale,
-        request.watermark.valueScale,
-        request.watermark.showLabel,
-        request.tableTemplate,
-        request.counterDigits,
-        request.counter
-    ) {
-        kotlinx.coroutines.delay(120)
-        // ✅ 슬라이더 드래그 시 과도 렌더 방지
-        val resolution = captureResolution ?: return@LaunchedEffect
-
-        // ✅ 프리뷰는 "빈 원본 이미지" 위에 실제 워터마크 렌더를 그대로 올림
-        // (실제 저장과 동일한 renderWatermarkForRequest 사용)
-        val src = android.graphics.Bitmap.createBitmap(
-            resolution.width,
-            resolution.height,
-            android.graphics.Bitmap.Config.ARGB_8888
-        ).apply {
-            eraseColor(android.graphics.Color.TRANSPARENT)
-        }
-
-
-
-        previewBmp = renderWatermarkForRequest(
-            renderer = watermarkRenderer,
-            originalBmp = src,
-            request = request
-        )
-    }
-
-    val bmp = previewBmp ?: return
-
-    // ✅ 화면 전체를 덮지 말고 "표 영역만" 보이게: 투명 배경 비트맵 그대로 overlay
-    Box(
+    androidx.compose.foundation.Canvas(
         modifier = Modifier
             .fillMaxSize()
             .zIndex(1f)
     ) {
-        androidx.compose.foundation.Image(
-            bitmap = bmp.asImageBitmap(),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize(),
-            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-            alignment = Alignment.Center
-        )
+        drawIntoCanvas { canvas ->
+            drawWatermarkTableOnCanvas(
+                canvas = canvas.nativeCanvas,
+                bounds = previewContentRect,
+                cells = cells,
+                rows = request.tableTemplate.rows,
+                cols = request.tableTemplate.cols,
+                showLabel = request.watermark.showLabel,
+                anchor = request.watermark.anchor,
+                offsetXRatio = request.watermark.offsetXRatio,
+                offsetYRatio = request.watermark.offsetYRatio,
+                tableHeightRatio = request.watermark.tableHeightRatio,
+                tableWidthRatio = request.watermark.tableWidthRatio,
+                bgAlpha = request.watermark.tableBgAlpha,
+                labelScale = request.watermark.labelScale,
+                valueScale = request.watermark.valueScale
+            )
+        }
     }
 }
 
@@ -1211,24 +1195,11 @@ private fun bindCamera(
     }, ContextCompat.getMainExecutor(context))
 }
 
-private fun resolveRenderSize(imageCapture: ImageCapture?): IntSize? {
-    val resolution = imageCapture?.resolutionInfo?.resolution ?: return null
-    val degrees = surfaceRotationToDegrees(imageCapture.targetRotation)
-    return if (degrees % 180 == 0) {
-        IntSize(resolution.width, resolution.height)
-    } else {
-        IntSize(resolution.height, resolution.width)
-    }
-}
-
-private fun surfaceRotationToDegrees(rotation: Int): Int {
-    return when (rotation) {
-        Surface.ROTATION_0 -> 0
-        Surface.ROTATION_90 -> 90
-        Surface.ROTATION_180 -> 180
-        Surface.ROTATION_270 -> 270
-        else -> 0
-    }
+private fun resolvePreviewContentRect(previewView: PreviewView): RectF? {
+    val width = previewView.width
+    val height = previewView.height
+    if (width <= 0 || height <= 0) return null
+    return RectF(0f, 0f, width.toFloat(), height.toFloat())
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1663,6 +1634,15 @@ private fun defaultTableTemplateState(): TableTemplateState {
                 kind = TableCellKind.INPUT,
                 valueText = "",
                 fileNameInclude = false,
+                label = "Memo 1"
+            ),
+            TableCellState(
+                rowIndex = 1,
+                colIndex = 3,
+                kind = TableCellKind.INPUT,
+                valueText = "",
+                fileNameInclude = false,
+                label = "Memo 2"
 
             )
         )

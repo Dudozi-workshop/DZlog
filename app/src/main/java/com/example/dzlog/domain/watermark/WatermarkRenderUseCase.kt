@@ -2,9 +2,7 @@ package com.example.dzlog.watermark
 
 import android.graphics.Bitmap
 import com.example.dzlog.domain.model.CaptureRequest
-import com.example.dzlog.domain.model.ResolvedCell
-import com.example.dzlog.domain.model.TableCellState
-
+import com.example.dzlog.domain.watermark.resolveCellsFromTableTemplate
 fun renderWatermarkForRequest(
     renderer: WatermarkRenderer,
     originalBmp: Bitmap,
@@ -32,20 +30,4 @@ fun renderWatermarkForRequest(
         labelScale = wm.labelScale,
         valueScale = wm.valueScale
     )
-}
-
-private fun resolveCellsFromTableTemplate(
-    cells: List<TableCellState>,
-    rows: Int,
-    cols: Int
-): List<ResolvedCell> {
-    return (0 until rows).flatMap { row ->
-        (0 until cols).map { col ->
-            val cell = cells.firstOrNull { it.rowIndex == row && it.colIndex == col }
-            ResolvedCell(
-                label = cell?.label.orEmpty(),
-                valueText = cell?.valueText.orEmpty()
-            )
-        }
-    }
 }
