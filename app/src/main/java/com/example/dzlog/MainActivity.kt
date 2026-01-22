@@ -68,7 +68,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -104,7 +103,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.math.roundToInt
 
 
 // =========================================================
@@ -211,22 +209,6 @@ enum class OrientationMode(val v: Int, val label: String) {
 // =========================================================
 
 
-enum class WatermarkGridPreset(
-    val v: Int,
-    val label: String,
-    val rows: Int,
-    val cols: Int
-) {
-    G2X3(0, "2x3", 2, 3),
-    G2X4(1, "2x4", 2, 4),
-    G3X3(2, "3x3", 3, 3);
-
-    val totalCells: Int get() = rows * cols
-
-    companion object {
-        fun from(v: Int) = values().firstOrNull { it.v == v } ?: G2X3
-    }
-}
 
 // =========================================================
 // Clamp / Utils
@@ -1249,8 +1231,6 @@ private fun WatermarkPreviewBitmapOverlay(
             }
         }
     }
-    var previewSize by remember { mutableStateOf(IntSize.Zero) }
-
     // ✅ 프리뷰용 비트맵 캐시
     var previewBmp by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
 
@@ -1258,8 +1238,6 @@ private fun WatermarkPreviewBitmapOverlay(
     LaunchedEffect(
         captureResolution?.width,
         captureResolution?.height,
-        previewSize.width,
-        previewSize.height,
         request.watermark.anchor,
         request.watermark.offsetXRatio,
         request.watermark.offsetYRatio,
@@ -1277,20 +1255,12 @@ private fun WatermarkPreviewBitmapOverlay(
         kotlinx.coroutines.delay(120)
         // ✅ 슬라이더 드래그 시 과도 렌더 방지
         val resolution = captureResolution ?: return@LaunchedEffect
-        val previewResolution = cropResolutionForAspect(resolution, request.captureAspect)
-        val renderResolution = if (previewResolution.width > 0 && previewResolution.height > 0) {
-            previewResolution
-        } else if (previewSize.width > 0 && previewSize.height > 0) {
-            previewSize
-        } else {
-            return@LaunchedEffect
-        }
 
         // ✅ 프리뷰는 "빈 원본 이미지" 위에 실제 워터마크 렌더를 그대로 올림
         // (실제 저장과 동일한 renderWatermarkForRequest 사용)
         val src = android.graphics.Bitmap.createBitmap(
-            renderResolution.width,
-            renderResolution.height,
+            resolution.width,
+            resolution.height,
             android.graphics.Bitmap.Config.ARGB_8888
         ).apply {
             eraseColor(android.graphics.Color.TRANSPARENT)
@@ -1312,7 +1282,6 @@ private fun WatermarkPreviewBitmapOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .onSizeChanged { previewSize = it }
             .zIndex(1f)
     ) {
         androidx.compose.foundation.Image(
@@ -1832,22 +1801,6 @@ private fun defaultTableTemplateState(): TableTemplateState {
         )
     )
 }
-
-private fun cropResolutionForAspect(resolution: IntSize, aspect: CaptureAspect): IntSize {
-    val targetRatio = aspect.w.toFloat() / aspect.h.toFloat()
-    val srcRatio = resolution.width.toFloat() / resolution.height.toFloat()
-    if (kotlin.math.abs(srcRatio - targetRatio) < 0.001f) return resolution
-
-    return if (srcRatio > targetRatio) {
-        val width = (resolution.height * targetRatio).roundToInt().coerceAtMost(resolution.width)
-        IntSize(width, resolution.height)
-    } else {
-        val height = (resolution.width / targetRatio).roundToInt().coerceAtMost(resolution.height)
-        IntSize(resolution.width, height)
-    }
-}
-
-
 
 // =========================================================
 // PART 4 — Setup Wizard Overlay (Settings UI) + Aspect(4:3/16:9/1:1) 저장
