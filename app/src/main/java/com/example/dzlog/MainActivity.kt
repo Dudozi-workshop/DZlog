@@ -24,6 +24,8 @@ import androidx.camera.core.UseCaseGroup
 import androidx.camera.core.ViewPort
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,19 +46,22 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -79,6 +84,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -114,7 +121,21 @@ import kotlin.math.roundToInt
 
 enum class AppScreen {
     HOME,
-    CAMERA
+    CAMERA,
+    TABLE_EDITOR
+}
+
+class TableTemplateViewModel : ViewModel() {
+    var tableTemplateState by mutableStateOf(defaultTableTemplateState())
+        private set
+
+    fun update(state: TableTemplateState) {
+        tableTemplateState = state
+    }
+
+    fun reset() {
+        tableTemplateState = defaultTableTemplateState()
+    }
 }
 
 // =========================================================
@@ -270,8 +291,11 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppRoot() {
     var screen by remember { mutableStateOf(AppScreen.HOME) }
+    var previousScreen by remember { mutableStateOf(AppScreen.HOME) }
     var startWithWizard by remember { mutableStateOf(false) }
     var orientationMode by remember { mutableStateOf(OrientationMode.PORTRAIT_LOCK) }
+    val tableTemplateViewModel: TableTemplateViewModel = viewModel()
+    val tableTemplateState = tableTemplateViewModel.tableTemplateState
 
     val context = LocalContext.current
     val activity = context as? android.app.Activity
@@ -304,6 +328,10 @@ fun AppRoot() {
                 startWithWizard = true
                 screen = AppScreen.CAMERA
             },
+            onOpenTableEditor = {
+                previousScreen = screen
+                screen = AppScreen.TABLE_EDITOR
+            },
             onStartCamera = {
                 startWithWizard = false
                 screen = AppScreen.CAMERA
@@ -316,7 +344,22 @@ fun AppRoot() {
                 startWithWizard = startWithWizard,
                 onExitToHome = { screen = AppScreen.HOME },
                 orientationMode = orientationMode,
-                setOrientationMode = { orientationMode = it }
+                setOrientationMode = { orientationMode = it },
+                tableTemplateState = tableTemplateState,
+                onTableTemplateChange = tableTemplateViewModel::update,
+                onOpenTableEditor = {
+                    previousScreen = screen
+                    screen = AppScreen.TABLE_EDITOR
+                }
+            )
+        }
+
+        AppScreen.TABLE_EDITOR -> {
+            TableEditorScreen(
+                templateState = tableTemplateState,
+                onTemplateChange = tableTemplateViewModel::update,
+                onReset = tableTemplateViewModel::reset,
+                onBack = { screen = previousScreen }
             )
         }
     }
@@ -329,8 +372,9 @@ fun AppRoot() {
 @Composable
 fun HomeScreen(
     onOpenSettings: () -> Unit,
-    onStartCamera: () -> Unit
-) {
+    onStartCamera: () -> Unit,
+    onOpenTableEditor: () -> Unit
+    ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -353,6 +397,19 @@ fun HomeScreen(
             Button(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) {
                 Text("설정")
             }
+            Spacer(Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenTableEditor)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("표 상세설정", fontSize = 16.sp)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Table Editor", fontSize = 12.sp, color = Color.Gray)
+                }
+            }
         }
     }
 }
@@ -371,7 +428,10 @@ fun CameraScreen(
     startWithWizard: Boolean,
     onExitToHome: () -> Unit,
     orientationMode: OrientationMode,
-    setOrientationMode: (OrientationMode) -> Unit
+    setOrientationMode: (OrientationMode) -> Unit,
+    tableTemplateState: TableTemplateState,
+    onTableTemplateChange: (TableTemplateState) -> Unit,
+    onOpenTableEditor: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -400,7 +460,10 @@ fun CameraScreen(
                 startWithWizard = startWithWizard,
                 onExitToHome = onExitToHome,
                 orientationMode = orientationMode,
-                setOrientationMode = setOrientationMode
+                setOrientationMode = setOrientationMode,
+                tableTemplateState = tableTemplateState,
+                onTableTemplateChange = onTableTemplateChange,
+                onOpenTableEditor = onOpenTableEditor
             )
         } else {
             Text(
@@ -422,16 +485,17 @@ fun CameraPreview(
     startWithWizard: Boolean,
     onExitToHome: () -> Unit,
     orientationMode: OrientationMode,
-    setOrientationMode: (OrientationMode) -> Unit
-) {
+    setOrientationMode: (OrientationMode) -> Unit,
+    tableTemplateState: TableTemplateState,
+    onTableTemplateChange: (TableTemplateState) -> Unit,
+    onOpenTableEditor: () -> Unit
+    ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return;
     val scope = rememberCoroutineScope()
 
     // ✅ 임시(나중에 Wizard 설정값으로 대체)
     val projectKeyNow = "default"
-    val group1Now = "G1"
-    val group2Now = "G2"
 
 
     val repository = remember {
@@ -464,9 +528,6 @@ fun CameraPreview(
 
     // ✅ Wizard 시작 여부
     var showWizard by remember { mutableStateOf(startWithWizard) }
-    var showTableEditor by remember { mutableStateOf(false) }
-    val initialTemplateState = remember { defaultTableTemplateState() }
-    var tableTemplateState by remember { mutableStateOf(initialTemplateState) }
 
     // 파일명 초기값 설정
     var filePrefix by remember { mutableStateOf("DZlog") }
@@ -489,52 +550,7 @@ fun CameraPreview(
     var fnIncDate by remember { mutableStateOf(false) }
     var fnIncTime by remember { mutableStateOf(false) }
 
-    val tableCells = remember(treatment, strain, filePrefix, group1Now, group2Now) {
-        listOf(
-            TableCellState(
-                rowIndex = 0,
-                colIndex = 0,
-                kind = TableCellKind.BASE,
-                valueText = group1Now,
-                groupLevel = GroupLevel.G1
-            ),
-            TableCellState(
-                rowIndex = 0,
-                colIndex = 1,
-                kind = TableCellKind.BASE,
-                valueText = group2Now,
-                groupLevel = GroupLevel.G2
-            ),
-            TableCellState(
-                rowIndex = 0,
-                colIndex = 2,
-                kind = TableCellKind.INPUT,
-                valueText = filePrefix,
-                fileNameInclude = true
-            ),
-            TableCellState(
-                rowIndex = 1,
-                colIndex = 0,
-                kind = TableCellKind.INPUT,
-                valueText = treatment,
-                fileNameInclude = true
-            ),
-            TableCellState(
-                rowIndex = 1,
-                colIndex = 1,
-                kind = TableCellKind.INPUT,
-                valueText = strain,
-                fileNameInclude = true
-            ),
-            TableCellState(
-                rowIndex = 1,
-                colIndex = 2,
-                kind = TableCellKind.INPUT,
-                valueText = "B3",
-                fileNameInclude = false
-            )
-        )
-    }
+    val tableCells = tableTemplateState.cells
 
     // ---------- Load captureAspect from DataStore ----------
     LaunchedEffect(Unit) {
@@ -584,6 +600,16 @@ fun CameraPreview(
             // ✅ 파일명 접두어
             filePrefix = prefs[KEY_FILENAME_PREFIX] ?: "DZlog"
             showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
+            val synced = updateCellAt(
+                updateCellAt(
+                    updateCellAt(tableTemplateState, 0, 2) { it.copy(valueText = filePrefix) },
+                    1,
+                    0
+                ) { it.copy(valueText = treatment) },
+                1,
+                1
+            ) { it.copy(valueText = strain) }
+            onTableTemplateChange(synced)
 
         } catch (_: Exception) {
             captureAspect = CaptureAspect.R3_4
@@ -924,7 +950,10 @@ fun CameraPreview(
                             Text("촬영 화면에 워터마크 미리보기 표시", color = Color.White)
                         }
                         Spacer(Modifier.height(12.dp))
-                        Button(onClick = { showTableEditor = true }) {
+                        Button(onClick = {
+                            showWizard = false
+                            onOpenTableEditor()
+                        }) {
                             Text("표 편집")
                         }
                         Text(
@@ -1143,6 +1172,9 @@ fun CameraPreview(
                             value = filePrefix,
                             onValueChange = { v ->
                                 filePrefix = v
+                                onTableTemplateChange(
+                                    updateCellAt(tableTemplateState, 0, 2) { it.copy(valueText = v) }
+                                )
                                 scope.launch {
                                     context.dataStore.edit { prefs ->
                                         prefs[KEY_FILENAME_PREFIX] = v
@@ -1164,6 +1196,11 @@ fun CameraPreview(
                             value = treatment,
                             onValueChange = {
                                 treatment = it
+                                onTableTemplateChange(
+                                    updateCellAt(tableTemplateState, 1, 0) { cell ->
+                                        cell.copy(valueText = it)
+                                    }
+                                )
                                 scope.launch { context.dataStore.edit { prefs -> prefs[KEY_TREATMENT] = it } }
                             },
                             singleLine = true,
@@ -1178,6 +1215,11 @@ fun CameraPreview(
                             value = strain,
                             onValueChange = {
                                 strain = it
+                                onTableTemplateChange(
+                                    updateCellAt(tableTemplateState, 1, 1) { cell ->
+                                        cell.copy(valueText = it)
+                                    }
+                                )
                                 scope.launch { context.dataStore.edit { prefs -> prefs[KEY_STRAIN] = it } }
                             },
                             singleLine = true,
@@ -1266,14 +1308,6 @@ fun CameraPreview(
                     }
                 },
                 containerColor = Color(0xFF1A1A1A)
-            )
-        }
-        if (showTableEditor) {
-            TableEditorBottomSheet(
-                templateState = tableTemplateState,
-                onTemplateChange = { tableTemplateState = it },
-                onReset = { tableTemplateState = initialTemplateState },
-                onDismissRequest = { showTableEditor = false }
             )
         }
 
@@ -1459,31 +1493,44 @@ private fun surfaceRotationToDegrees(rotation: Int): Int {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TableEditorBottomSheet(
+private fun TableEditorScreen(
     templateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
     onReset: () -> Unit,
-    onDismissRequest: () -> Unit
-) {
+    onBack: () -> Unit
+    ) {
     val context = LocalContext.current
     var selectedCellId by remember { mutableStateOf(templateState.cells.firstOrNull()?.cellId) }
+    val scrollState = rememberScrollState()
 
     if (selectedCellId == null && templateState.cells.isNotEmpty()) {
         selectedCellId = templateState.cells.first().cellId
     }
 
+
     val hasUnassignedCells = templateState.cells.any { isCellUnassigned(it) }
     val selectedCell = templateState.cells.firstOrNull { it.cellId == selectedCellId }
 
-    ModalBottomSheet(onDismissRequest = onDismissRequest) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("표 상세설정") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { padding ->
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(scrollState)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Table Editor", fontSize = 18.sp, color = Color.Black)
-
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1742,6 +1789,17 @@ private fun updateCell(
         }
     )
 }
+private fun updateCellAt(
+    templateState: TableTemplateState,
+    rowIndex: Int,
+    colIndex: Int,
+    transform: (TableCellState) -> TableCellState
+): TableTemplateState {
+    val cell = templateState.cells.firstOrNull {
+        it.rowIndex == rowIndex && it.colIndex == colIndex
+    } ?: return templateState
+    return updateCell(templateState, cell.cellId, transform)
+}
 
 private fun updateGroupLevel(
     templateState: TableTemplateState,
@@ -1808,11 +1866,56 @@ private fun defaultTableTemplateState(): TableTemplateState {
     return TableTemplateState(
         rows = rows,
         cols = cols,
-        cells = List(rows * cols) { index ->
-            val row = index / cols
-            val col = index % cols
-            TableCellState(rowIndex = row, colIndex = col)
-        }
+        cells = listOf(
+            TableCellState(
+                rowIndex = 0,
+                colIndex = 0,
+                kind = TableCellKind.BASE,
+                valueText = "G1",
+                groupLevel = GroupLevel.G1,
+                label = "Group 1"
+            ),
+            TableCellState(
+                rowIndex = 0,
+                colIndex = 1,
+                kind = TableCellKind.BASE,
+                valueText = "G2",
+                groupLevel = GroupLevel.G2,
+                label = "Group 2"
+            ),
+            TableCellState(
+                rowIndex = 0,
+                colIndex = 2,
+                kind = TableCellKind.INPUT,
+                valueText = "DZlog",
+                fileNameInclude = true,
+                label = "Prefix"
+            ),
+            TableCellState(
+                rowIndex = 1,
+                colIndex = 0,
+                kind = TableCellKind.INPUT,
+                valueText = "T1",
+                fileNameInclude = true,
+                label = "Treatment"
+            ),
+            TableCellState(
+                rowIndex = 1,
+                colIndex = 1,
+                kind = TableCellKind.INPUT,
+                valueText = "S1",
+                fileNameInclude = true,
+                label = "Strain"
+            ),
+            TableCellState(
+                rowIndex = 1,
+                colIndex = 2,
+                kind = TableCellKind.INPUT,
+                valueText = "B3",
+                fileNameInclude = false,
+                label = "Batch"
+            )
+        )
     )
 }
 
