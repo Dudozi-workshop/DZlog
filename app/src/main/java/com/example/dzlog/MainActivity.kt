@@ -26,6 +26,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,6 +60,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -93,7 +95,9 @@ import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellKind
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
+import com.example.dzlog.domain.model.WatermarkGridPreset
 import com.example.dzlog.domain.model.WatermarkTableAnchor
+import com.example.dzlog.domain.model.WatermarkTemplatePreset
 import com.example.dzlog.domain.naming.buildDisplayName
 import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.watermark.WatermarkRendererImpl
@@ -103,7 +107,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
+import kotlin.math.roundToInt
 
 // =========================================================
 // App Navigation
@@ -171,7 +175,7 @@ enum class Folder2Source(val v: Int) {
     COUNTER(2);
 
     companion object {
-        fun from(v: Int) = values().firstOrNull { it.v == v } ?: MANUAL
+        fun from(v: Int) = entries.firstOrNull { it.v == v } ?: MANUAL
     }
 }
 
@@ -200,9 +204,10 @@ enum class OrientationMode(val v: Int, val label: String) {
     AUTO_ROTATE(1, "자동 회전");
 
     companion object {
-        fun from(v: Int) = values().firstOrNull { it.v == v } ?: PORTRAIT_LOCK
+        fun from(v: Int) = entries.firstOrNull { it.v == v } ?: PORTRAIT_LOCK
     }
 }
+
 
 // =========================================================
 // Watermark Core
@@ -464,7 +469,7 @@ fun CameraPreview(
     onOpenTableEditor: () -> Unit
     ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return;
+    val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
     val scope = rememberCoroutineScope()
 
     // ✅ 임시(나중에 Wizard 설정값으로 대체)
@@ -513,7 +518,7 @@ fun CameraPreview(
     var wmOffsetXRatio by remember { mutableStateOf(0) } // 0~100
     var wmOffsetYRatio by remember { mutableStateOf(0) } // 0~100
 // 표 투명도
-    var wmBgAlpha by remember { mutableStateOf(80) } // 0~255 (기본 80 추천)
+    var wmBgAlpha by remember { mutableIntStateOf(80) } // 0~255 (기본 80 추천)
     // 글씨 크기 변경
     var wmLabelScale by remember { mutableStateOf(100) } // 60~160
     var wmValueScale by remember { mutableStateOf(100) } // 60~160
@@ -688,8 +693,8 @@ fun CameraPreview(
                             showTime = true,
                             datePattern = "yyyy-MM-dd",
                             timePattern = "HH:mm",
-                            templatePreset = com.example.dzlog.domain.model.WatermarkTemplatePreset.values()[0],
-                            gridPreset = com.example.dzlog.domain.model.WatermarkGridPreset.values()[0],
+                            templatePreset = WatermarkTemplatePreset.entries[0],
+                            gridPreset = WatermarkGridPreset.entries[0],
                             anchor = wmTableAnchor,
                             offsetXRatio = wmOffsetXRatio,
                             offsetYRatio = wmOffsetYRatio,
@@ -781,8 +786,8 @@ fun CameraPreview(
                                 showTime = true,
                                 datePattern = "yyyy-MM-dd",
                                 timePattern = "HH:mm",
-                                templatePreset = com.example.dzlog.domain.model.WatermarkTemplatePreset.values()[0],
-                                gridPreset = com.example.dzlog.domain.model.WatermarkGridPreset.values()[0],
+                                templatePreset = WatermarkTemplatePreset.entries[0],
+                                gridPreset = WatermarkGridPreset.entries[0],
                                 anchor = wmTableAnchor,
                                 offsetXRatio = wmOffsetXRatio,
                                 offsetYRatio = wmOffsetYRatio,
@@ -1256,6 +1261,7 @@ private fun WatermarkPreviewBitmapOverlay(
         // ✅ 슬라이더 드래그 시 과도 렌더 방지
         val resolution = captureResolution ?: return@LaunchedEffect
 
+        val renderResolution = cropResolutionForAspect(resolution, request.captureAspect)
         // ✅ 프리뷰는 "빈 원본 이미지" 위에 실제 워터마크 렌더를 그대로 올림
         // (실제 저장과 동일한 renderWatermarkForRequest 사용)
         val src = android.graphics.Bitmap.createBitmap(
@@ -1292,6 +1298,20 @@ private fun WatermarkPreviewBitmapOverlay(
             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
             alignment = Alignment.Center
         )
+    }
+}
+
+private fun cropResolutionForAspect(resolution: IntSize, aspect: CaptureAspect): IntSize {
+    val targetRatio = aspect.w.toFloat() / aspect.h.toFloat()
+    val srcRatio = resolution.width.toFloat() / resolution.height.toFloat()
+    if (kotlin.math.abs(srcRatio - targetRatio) < 0.001f) return resolution
+
+    return if (srcRatio > targetRatio) {
+        val width = (resolution.height * targetRatio).roundToInt().coerceAtMost(resolution.width)
+        IntSize(width, resolution.height)
+    } else {
+        val height = (resolution.width / targetRatio).roundToInt().coerceAtMost(resolution.height)
+        IntSize(resolution.width, height)
     }
 }
 
@@ -1577,7 +1597,7 @@ private fun TableEditorScreen(
 
                     Text("Group", color = Color.Black)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        GroupLevel.values().forEach { level ->
+                        GroupLevel.entries.forEach { level ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 RadioButton(
                                     selected = selectedCell.groupLevel == level,
