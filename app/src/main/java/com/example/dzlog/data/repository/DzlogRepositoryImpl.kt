@@ -9,6 +9,7 @@ import androidx.camera.core.ImageCapture
 import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
 import com.example.dzlog.data.mediastore.MediaStoreSaver
+import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.model.CaptureRequest
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.LogEntry
@@ -35,7 +36,7 @@ class DzlogRepositoryImpl(
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun buildRelativePath(projectKey: String, group1: String, group2: String): String {
-        return buildGalleryBasePath(group1, group2)
+        return buildGalleryRelativePath(group1, group2)
     }
 
     override fun buildOriginalRelativePath(
@@ -43,7 +44,7 @@ class DzlogRepositoryImpl(
         group1: String,
         group2: String
     ): String {
-        return "${buildGalleryBasePath(group1, group2)}original/"
+        return "${buildGalleryRelativePath(group1, group2)}original/"
     }
 
     override fun captureAndSave(
@@ -264,15 +265,5 @@ class DzlogRepositoryImpl(
         val top = ((srcHeight - cropHeight) / 2f).toInt().coerceAtLeast(0)
 
         return Bitmap.createBitmap(source, left, top, cropWidth, cropHeight)
-    }
-
-    private fun buildGalleryBasePath(group1: String, group2: String): String {
-        val g1 = group1.trim()
-        val g2 = group2.trim()
-        return if (g1.isNotEmpty() && g2.isNotEmpty()) {
-            "Pictures/DZlog/$g1/$g2/"
-        } else {
-            "Pictures/DZlog/"
-        }
     }
 }
