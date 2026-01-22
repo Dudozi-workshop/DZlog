@@ -7,7 +7,7 @@ data class CaptureRequest(
     val group2: String,
 
     // 파일명은 그룹과 무관
-    val displayNameBase: String,
+    val displayName: String,
 
     // 카운터(촬영 시점 값)
     val counter: Int,

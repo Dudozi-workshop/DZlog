@@ -24,8 +24,6 @@ import androidx.camera.core.UseCaseGroup
 import androidx.camera.core.ViewPort
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -158,7 +156,6 @@ val KEY_CAPTURE_ASPECT = intPreferencesKey("capture_aspect")
 val KEY_SAVE_MODE = intPreferencesKey("save_mode")
 val KEY_ORIGINAL_SPLIT_BY_TREATMENT = booleanPreferencesKey("original_split_by_treatment")
 val KEY_HIDE_WATERMARK_GALLERY = booleanPreferencesKey("hide_watermark_gallery")
-val KEY_FILENAME_PREFIX = stringPreferencesKey("filename_prefix")
 val KEY_ORIENTATION_MODE = intPreferencesKey("orientation_mode")
 val KEY_SHOW_WM_PREVIEW = intPreferencesKey("show_wm_preview") // 0/1
 val KEY_WM_TABLE_ANCHOR = intPreferencesKey("wm_table_anchor") // 0~4
@@ -529,8 +526,6 @@ fun CameraPreview(
     // ✅ Wizard 시작 여부
     var showWizard by remember { mutableStateOf(startWithWizard) }
 
-    // 파일명 초기값 설정
-    var filePrefix by remember { mutableStateOf("DZlog") }
     //프리뷰 표시 설정
     var showWmPreview by remember { mutableStateOf(true) } // 기본 켜짐(원하면 false)
     //표 위치 변경
@@ -597,15 +592,9 @@ fun CameraPreview(
             treatment = prefs[KEY_TREATMENT] ?: "T1"
             strain = prefs[KEY_STRAIN] ?: "S1"
 
-            // ✅ 파일명 접두어
-            filePrefix = prefs[KEY_FILENAME_PREFIX] ?: "DZlog"
             showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
             val synced = updateCellAt(
-                updateCellAt(
-                    updateCellAt(tableTemplateState, 0, 2) { it.copy(valueText = filePrefix) },
-                    1,
-                    0
-                ) { it.copy(valueText = treatment) },
+                updateCellAt(tableTemplateState, 1, 0) { it.copy(valueText = treatment) },
                 1,
                 1
             ) { it.copy(valueText = strain) }
@@ -617,7 +606,6 @@ fun CameraPreview(
             counterDigits = 4
             treatment = "T1"
             strain = "S1"
-            filePrefix = "DZlog"
             showWmPreview = true
             wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
             //표 크기 수정
@@ -714,7 +702,7 @@ fun CameraPreview(
                         projectKey = projectKeyNow,
                         group1 = resolveGroupValue(tableCells, GroupLevel.G1),
                         group2 = resolveGroupValue(tableCells, GroupLevel.G2),
-                        displayNameBase = buildDisplayNameBase(
+                        displayName = buildDisplayName(
                             cells = tableCells,
                             counter = counter,
                             counterDigits = counterDigits,
@@ -800,7 +788,7 @@ fun CameraPreview(
                 fontSize = 12.sp
             )
             Text(
-                text = "Filename Preview: ${buildDisplayNameBase(
+                text = "Filename Preview: ${buildDisplayName(
                     cells = tableCells,
                     counter = counter,
                     counterDigits = counterDigits,
@@ -841,7 +829,7 @@ fun CameraPreview(
                             projectKey = projectKeyNow,
                             group1 = resolveGroupValue(tableCells, GroupLevel.G1),
                             group2 = resolveGroupValue(tableCells, GroupLevel.G2),
-                            displayNameBase = buildDisplayNameBase(
+                            displayName = buildDisplayName(
                                 cells = tableCells,
                                 counter = counter,
                                 counterDigits = counterDigits,
@@ -1160,32 +1148,6 @@ fun CameraPreview(
                             )
                         }
 
-//파일명 접두어
-                        Spacer(Modifier.height(16.dp))
-
-                        Text("파일명 접두어", color = Color.White)
-                        Text("예: DZlog → DZlog_0001.jpg", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
-
-                        Spacer(Modifier.height(6.dp))
-
-                        TextField(
-                            value = filePrefix,
-                            onValueChange = { v ->
-                                filePrefix = v
-                                onTableTemplateChange(
-                                    updateCellAt(tableTemplateState, 0, 2) { it.copy(valueText = v) }
-                                )
-                                scope.launch {
-                                    context.dataStore.edit { prefs ->
-                                        prefs[KEY_FILENAME_PREFIX] = v
-                                    }
-                                }
-                            },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Spacer(Modifier.height(16.dp))
 
 // =============================
 // ✅ Treatment / Strain 입력
@@ -1516,9 +1478,9 @@ private fun TableEditorScreen(
             TopAppBar(
                 title = { Text("표 상세설정") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
+                    TextButton(onClick = onBack) {
+                        Text("Back")
+                     }
                 }
             )
         }
@@ -1919,14 +1881,6 @@ private fun defaultTableTemplateState(): TableTemplateState {
     )
 }
 
-private fun sanitizePrefix(raw: String): String {
-    val trimmed = raw.trim()
-    if (trimmed.isEmpty()) return "DZlog"
-
-    // 파일명에서 위험한 문자만 최소 제거
-    val cleaned = trimmed.replace(Regex("""[\\/:*?"<>|]"""), "_")
-    return cleaned.ifEmpty { "DZlog" }
-}
 private fun cropResolutionForAspect(resolution: IntSize, aspect: CaptureAspect): IntSize {
     val targetRatio = aspect.w.toFloat() / aspect.h.toFloat()
     val srcRatio = resolution.width.toFloat() / resolution.height.toFloat()
@@ -2201,7 +2155,7 @@ fun buildSavePathPreviewText(cells: List<TableCellState>, saveMode: SaveMode): S
     }
 }
 
-fun buildDisplayNameBase(
+fun buildDisplayName(
     cells: List<TableCellState>,
     counter: Int,
     counterDigits: Int,
@@ -2233,54 +2187,4 @@ fun buildDisplayNameBase(
     } else {
         "$base.jpg"
     }
-}
-fun sanitizeKey(input: String): String {
-    val t = input.trim()
-    if (t.isBlank()) return "default"
-    val illegal = Regex("[^a-zA-Z0-9가-힣_]+")
-    val cleaned = t.replace(" ", "_").replace(illegal, "_")
-    return cleaned.take(40).ifBlank { "default" }
-}
-
-fun buildBaseName(
-    treatment: String,
-    strain: String,
-    counterText: String,
-    fnIncTreatment: Boolean,
-    fnIncStrain: Boolean,
-    fnIncDate: Boolean,
-    fnIncTime: Boolean,
-    fnDelim: String
-): String {
-    val delim = fnDelim.ifBlank { "_" }.take(3)
-    val parts = mutableListOf<String>()
-
-    if (fnIncTreatment && treatment.isNotBlank()) parts.add(sanitizeFolderName(treatment))
-    if (fnIncStrain && strain.isNotBlank()) parts.add(sanitizeFolderName(strain))
-
-    parts.add(counterText)
-
-    if (fnIncDate || fnIncTime) {
-        val now = Date()
-        if (fnIncDate) parts.add(SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(now))
-        if (fnIncTime) parts.add(SimpleDateFormat("HHmmss", Locale.getDefault()).format(now))
-    }
-
-    return parts.filter { it.isNotBlank() }.joinToString(delim).ifBlank { counterText }
-}
-
-fun extractCounterFromNameWithDelim(
-    displayName: String,
-    digits: Int,
-    fnDelim: String
-): Int? {
-    val base = displayName
-        .removeSuffix(".jpg").removeSuffix(".jpeg")
-        .removeSuffix(".JPG").removeSuffix(".JPEG")
-
-    val delim = fnDelim.ifBlank { "_" }.take(3)
-    val tokens = base.split(delim).map { it.trim() }
-
-    val target = tokens.firstOrNull { it.matches(Regex("""\d{$digits}""")) } ?: return null
-    return target.toIntOrNull()
 }

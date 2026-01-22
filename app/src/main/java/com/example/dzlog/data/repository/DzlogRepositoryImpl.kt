@@ -96,7 +96,7 @@ class DzlogRepositoryImpl(
                                 request.group2
                             )
 
-                            val displayName = ensureJpg(request.displayNameBase)
+                            val displayName = request.displayName
                             val capturedAt = Date()
 
                             when (request.saveMode) {
@@ -274,10 +274,5 @@ class DzlogRepositoryImpl(
         } else {
             "Pictures/DZlog/"
         }
-    }
-
-    private fun ensureJpg(name: String): String {
-        val n = name.trim()
-        return if (n.endsWith(".jpg", true) || n.endsWith(".jpeg", true)) n else "$n.jpg"
     }
 }
