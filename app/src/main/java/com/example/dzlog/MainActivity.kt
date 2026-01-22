@@ -96,7 +96,6 @@ import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.buildDisplayName
-import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.watermark.WatermarkRendererImpl
 import com.example.dzlog.watermark.renderWatermarkForRequest
@@ -659,14 +658,6 @@ fun CameraPreview(
                     // AndroidView(PreviewView) + CameraX bind (UseCaseGroup)
                     // =================================================
 
-                    Text(
-                        text = "UI=${captureAspect.label}  w/h=${captureAspect.w}/${captureAspect.h}",
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(top = 44.dp, start = 16.dp),
-                        color = Color.Yellow
-                    )
-
 // PreviewView는 1회 생성 + context 변경 시만 재생성
                     val previewView = remember(context) {
                         PreviewView(context).apply {
@@ -760,40 +751,6 @@ fun CameraPreview(
                 .padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
             Text("설정", color = Color.White)
-        }
-        Text(
-            text = "ASPECT = ${captureAspect.label}",
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp),
-            color = Color.White
-        )
-        Column(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(top = 40.dp, start = 16.dp)
-        ) {
-            val savePathPreview = buildSavePathPreviewText(
-                cells = tableCells,
-                saveMode = saveMode
-            )
-            Text(
-                text = "Save Path Preview: $savePathPreview",
-                color = Color.White,
-                fontSize = 12.sp
-            )
-            Text(
-                text = "Filename Preview: ${buildDisplayName(
-                    cells = tableCells,
-                    counter = counter,
-                    counterDigits = counterDigits,
-                    fnDelim = fnDelim,
-                    includeDate = fnIncDate,
-                    includeTime = fnIncTime
-                )}",
-                color = Color.White,
-                fontSize = 12.sp
-            )
         }
         // =====================================================
         // 촬영 버튼(FAB) - 화면 하단 중앙
@@ -2100,22 +2057,5 @@ private fun persistCaptureAspect(context: Context, aspect: CaptureAspect) {
             }
         } catch (_: Exception) {
         }
-    }
-}
-
-
-// =========================================================
-// Part 7. Naming / Scan Utils
-// (❗ Part6 바로 아래에 그대로 붙여넣기)
-// =========================================================
-
-
-fun buildSavePathPreviewText(cells: List<TableCellState>, saveMode: SaveMode): String {
-    val base = buildGalleryRelativePath(cells)
-    val original = "${base}original/"
-    return when (saveMode) {
-        SaveMode.BOTH -> "$base\n  $original"
-        SaveMode.WATERMARK_ONLY -> base
-        SaveMode.ORIGINAL_ONLY -> original
     }
 }
