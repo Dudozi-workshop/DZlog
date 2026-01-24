@@ -11,6 +11,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.RectF
 import android.os.Bundle
+import android.util.Log
 import android.util.Rational
 import android.view.View
 import android.widget.Toast
@@ -97,6 +98,7 @@ import com.example.dzlog.domain.model.TableCellKind
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
+import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.naming.buildDisplayName
 import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.watermark.resolveCellsFromTableTemplate
@@ -464,6 +466,7 @@ fun CameraPreview(
     val fnDelim = "_"
 
     val tableCells = tableTemplateState.cells
+    var previewLogged by remember { mutableStateOf(false) }
 
     // ---------- Load captureAspect from DataStore ----------
     LaunchedEffect(Unit) {
@@ -580,6 +583,16 @@ fun CameraPreview(
 
                     fun updatePreviewContentRect() {
                         previewContentRect = resolvePreviewContentRect(previewView)
+                        if (!previewLogged) {
+                            val rect = previewContentRect
+                            if (rect != null) {
+                                Log.d(
+                                    "DZlogPreview",
+                                    "Preview size=${rect.width().toInt()}x${rect.height().toInt()} aspect=${captureAspect.label} overlay-only (no bitmap)"
+                                )
+                                previewLogged = true
+                            }
+                        }
                     }
 
                     DisposableEffect(previewView, lifecycleOwner) {
@@ -1221,6 +1234,16 @@ private fun TableEditorScreen(
 
     val hasUnassignedCells = templateState.cells.any { isCellUnassigned(it) }
     val selectedCell = templateState.cells.firstOrNull { it.cellId == selectedCellId }
+    val hasGroup1 = templateState.cells.any { it.groupLevel == GroupLevel.G1 }
+    val savePathPreview = buildGalleryRelativePath(templateState.cells)
+    val filenamePreview = buildDisplayName(
+        cells = templateState.cells,
+        counter = 1,
+        counterDigits = COUNTER_DIGITS_DEFAULT,
+        fnDelim = "_",
+        includeDate = false,
+        includeTime = false
+    )
 
     Scaffold(
         topBar = {
@@ -1249,6 +1272,21 @@ private fun TableEditorScreen(
                     .padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFEFEAE0))
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("Save Path Preview", fontSize = 12.sp, color = Color.DarkGray)
+                    Text(savePathPreview, color = Color.Black)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Filename Preview", fontSize = 12.sp, color = Color.DarkGray)
+                    Text(filenamePreview, color = Color.Black)
+                }
+
                 repeat(templateState.rows) { row ->
                     Row(modifier = Modifier.fillMaxWidth()) {
                         repeat(templateState.cols) { col ->
@@ -1271,7 +1309,9 @@ private fun TableEditorScreen(
                                     .background(cellBackground)
                                     .border(
                                         width = if (isSelected) 2.dp else 1.dp,
-                                        color = if (isSelected) Color(0xFF5B7F60) else Color(0xFFB5B0A8)
+                                        color = if (isSelected) Color(0xFF5B7F60) else Color(
+                                            0xFFB5B0A8
+                                        )
                                     )
                                     .clickable(enabled = cell != null) {
                                         selectedCellId = cell?.cellId
@@ -1279,22 +1319,11 @@ private fun TableEditorScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (cell != null) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        if (cell.label.isNotBlank()) {
-                                            Text(
-                                                text = cell.label,
-                                                color = Color.Black,
-                                                fontSize = 12.sp
-                                            )
-                                        }
-                                        if (cell.valueText.isNotBlank()) {
-                                            Text(
-                                                text = cell.valueText,
-                                                color = Color.DarkGray,
-                                                fontSize = 11.sp
-                                            )
-                                        }
-                                    }
+                                    Text(
+                                        text = cell.valueText.ifBlank { cell.label.ifBlank { "R${row + 1}C${col + 1}" } },
+                                        color = Color.Black,
+                                        fontSize = 12.sp
+                                    )
                                 }
                             }
                         }
@@ -1417,66 +1446,52 @@ private fun TableEditorScreen(
                     Text("Group", color = Color.Black)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         GroupLevel.entries.forEach { level ->
+                            val enabled = level != GroupLevel.G2 || hasGroup1
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 RadioButton(
                                     selected = selectedCell.groupLevel == level,
+                                    enabled = enabled,
                                     onClick = {
-                                        val hadExisting = templateState.cells.any {
-                                            it.cellId != selectedCell.cellId && it.groupLevel == level
-                                        }
-                                        val updated = updateGroupLevel(
-                                            templateState = templateState,
-                                            cellId = selectedCell.cellId,
-                                            level = level
-                                        )
-                                        onTemplateChange(updated)
-                                        if (hadExisting && level != GroupLevel.NONE) {
-                                            Toast.makeText(
-                                                context,
-                                                "${level.name} moved to selected cell",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
+                                        if (enabled) {
+                                            val hadExisting = templateState.cells.any {
+                                                it.cellId != selectedCell.cellId && it.groupLevel == level
+                                            }
+                                            val updated = updateGroupLevel(
+                                                templateState = templateState,
+                                                cellId = selectedCell.cellId,
+                                                level = level
+                                            )
+                                            onTemplateChange(updated)
+                                            if (hadExisting && level != GroupLevel.NONE) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "${level.name} moved to selected cell",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
                                         }
                                     }
                                 )
-                                Text(level.name, color = Color.Black)
+                                Text(level.name, color = if (enabled) Color.Black else Color.LightGray)
                                 Spacer(Modifier.width(8.dp))
                             }
                         }
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = selectedCell.fileNameInclude,
-                            enabled = selectedCell.kind == TableCellKind.INPUT,
-                            onCheckedChange = { checked ->
-                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                    cell.copy(
-                                        fileNameInclude = if (cell.kind == TableCellKind.INPUT) {
-                                            checked
-                                        } else {
-                                            false
-                                        }
-                                    )
+                    if (selectedCell.kind == TableCellKind.INPUT) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = selectedCell.fileNameInclude,
+                                onCheckedChange = { checked ->
+                                    val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                        cell.copy(fileNameInclude = checked)
+                                    }
+                                    onTemplateChange(updated)
                                 }
-                                onTemplateChange(updated)
-                            }
-                        )
-                        Text("Filename include", color = Color.Black)
+                            )
+                            Text("Filename include", color = Color.Black)
+                        }
                     }
-
-                    TextField(
-                        value = selectedCell.label,
-                        onValueChange = { value ->
-                            val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                cell.copy(label = value)
-                            }
-                            onTemplateChange(updated)
-                        },
-                        singleLine = true,
-                        label = { Text("Label") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
 
                     TextField(
                         value = selectedCell.valueText,
