@@ -7,6 +7,7 @@ package com.example.dzlog
 // =========================================================
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.RectF
@@ -79,7 +80,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -143,7 +143,6 @@ private val Context.dataStore by preferencesDataStore(name = "dzlog_prefs")
 val KEY_COUNTER_DIGITS = intPreferencesKey("counter_digits")
 val KEY_CAPTURE_ASPECT = intPreferencesKey("capture_aspect")
 val KEY_SAVE_MODE = intPreferencesKey("save_mode")
-val KEY_HIDE_WATERMARK_GALLERY = booleanPreferencesKey("hide_watermark_gallery")
 val KEY_ORIENTATION_MODE = intPreferencesKey("orientation_mode")
 val KEY_SHOW_WM_PREVIEW = intPreferencesKey("show_wm_preview") // 0/1
 val KEY_WM_TABLE_ANCHOR = intPreferencesKey("wm_table_anchor") // 0~4
@@ -165,18 +164,13 @@ const val COUNTER_DIGITS_DEFAULT = 4
 
 fun clampCounterDigits(v: Int) = v.coerceIn(2, 6)
 
-fun formatCounter(counter: Int, digits: Int): String {
-    val d = clampCounterDigits(digits)
-    return counter.toString().padStart(d, '0')
-}
-
 // =========================================================
 // Save / Orientation
 // =========================================================
 
-enum class OrientationMode(val v: Int, val label: String) {
-    PORTRAIT_LOCK(0, "세로 고정"),
-    AUTO_ROTATE(1, "자동 회전");
+enum class OrientationMode(val v: Int) {
+    PORTRAIT_LOCK(0),
+    AUTO_ROTATE(1);
 
     companion object {
         fun from(v: Int) = entries.firstOrNull { it.v == v } ?: PORTRAIT_LOCK
@@ -264,10 +258,7 @@ fun AppRoot() {
             CameraScreen(
                 startWithWizard = startWithWizard,
                 onExitToHome = { screen = AppScreen.HOME },
-                orientationMode = orientationMode,
-                setOrientationMode = { orientationMode = it },
                 tableTemplateState = tableTemplateState,
-                onTableTemplateChange = tableTemplateViewModel::update,
                 onOpenTableEditor = {
                     previousScreen = screen
                     screen = AppScreen.TABLE_EDITOR
@@ -348,10 +339,7 @@ fun HomeScreen(
 fun CameraScreen(
     startWithWizard: Boolean,
     onExitToHome: () -> Unit,
-    orientationMode: OrientationMode,
-    setOrientationMode: (OrientationMode) -> Unit,
     tableTemplateState: TableTemplateState,
-    onTableTemplateChange: (TableTemplateState) -> Unit,
     onOpenTableEditor: () -> Unit
 ) {
     val context = LocalContext.current
@@ -380,10 +368,7 @@ fun CameraScreen(
             CameraPreview(
                 startWithWizard = startWithWizard,
                 onExitToHome = onExitToHome,
-                orientationMode = orientationMode,
-                setOrientationMode = setOrientationMode,
                 tableTemplateState = tableTemplateState,
-                onTableTemplateChange = onTableTemplateChange,
                 onOpenTableEditor = onOpenTableEditor
             )
         } else {
@@ -405,12 +390,9 @@ fun CameraScreen(
 fun CameraPreview(
     startWithWizard: Boolean,
     onExitToHome: () -> Unit,
-    orientationMode: OrientationMode,
-    setOrientationMode: (OrientationMode) -> Unit,
     tableTemplateState: TableTemplateState,
-    onTableTemplateChange: (TableTemplateState) -> Unit,
     onOpenTableEditor: () -> Unit
-    ) {
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
     val scope = rememberCoroutineScope()
@@ -745,7 +727,7 @@ fun CameraPreview(
                             imageCapture = cap,
                             request = req,
                             onDone = { entry ->
-                                counter = counter + 1   // ✅ 이 줄이 없으면 평생 001
+                                counter += 1   // ✅ 이 줄이 없으면 평생 001
                                 if (entry.isNameAdjusted) {
                                     Toast.makeText(
                                         context,
@@ -1171,7 +1153,7 @@ private fun bindCamera(
             previewBuilder.setTargetAspectRatio(cameraAspectRatio)
         }
         val preview = previewBuilder.build()
-            .apply { setSurfaceProvider(previewView.surfaceProvider) }
+            .apply { surfaceProvider = previewView.surfaceProvider }
 
         val imageCaptureBuilder = ImageCapture.Builder()
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
@@ -1668,6 +1650,7 @@ private fun defaultTableTemplateState(): TableTemplateState {
 // PART 4 — Setup Wizard Overlay (Settings UI) + Aspect(4:3/16:9/1:1) 저장
 // =========================================================
 
+@SuppressLint("AutoboxingStateCreation")
 @Composable
 fun SetupWizardOverlay(
     context: Context,
