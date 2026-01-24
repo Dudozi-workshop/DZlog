@@ -114,7 +114,8 @@ import kotlinx.coroutines.launch
 enum class AppScreen {
     HOME,
     CAMERA,
-    TABLE_EDITOR
+    TABLE_EDITOR,
+    SETTINGS
 }
 
 class TableTemplateViewModel : ViewModel() {
@@ -239,7 +240,7 @@ fun AppRoot() {
     when (screen) {
         AppScreen.HOME -> HomeScreen(
             onOpenSettings = {
-                screen = AppScreen.CAMERA
+                screen = AppScreen.SETTINGS
             },
             onOpenTableEditor = {
                 previousScreen = screen
@@ -269,8 +270,12 @@ fun AppRoot() {
                 onBack = { screen = previousScreen }
             )
         }
+        AppScreen.SETTINGS -> SettingsScreen(
+            onBack = { screen = AppScreen.HOME }
+        )
     }
 }
+
 
 // =========================================================
 // Part 2-C. HomeScreen
@@ -318,6 +323,13 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+@Composable
+fun SettingsScreen(onBack: () -> Unit) {
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
+        Text("설정 화면(준비중)")
+        Button(onClick = onBack) { Text("Back") }
     }
 }
 
