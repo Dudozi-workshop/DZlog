@@ -236,29 +236,32 @@ fun AppRoot() {
                 android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
+// 화면 전환을 단일 진입점으로 통일하여 lint 경고(Assigned value is never read) 제거
+    fun navigateTo(target: AppScreen) {
+     previousScreen = screen
+      screen = target
+       }
 
     when (screen) {
         AppScreen.HOME -> HomeScreen(
             onOpenSettings = {
-                screen = AppScreen.SETTINGS
+                navigateTo(AppScreen.SETTINGS)
             },
             onOpenTableEditor = {
-                previousScreen = screen
-                screen = AppScreen.TABLE_EDITOR
+                navigateTo(AppScreen.TABLE_EDITOR)
             },
             onStartCamera = {
-                screen = AppScreen.CAMERA
+                navigateTo(AppScreen.CAMERA)
             }
         )
 
         AppScreen.CAMERA -> {
             // ✅ CameraScreen은 Part 3에서 제공됨
             CameraScreen(
-                onExitToHome = { screen = AppScreen.HOME }, // [수정됨-뒤로-1]
+                onExitToHome = { navigateTo(AppScreen.HOME) },
                 tableTemplateState = tableTemplateState,
                 onOpenTableEditor = {
-                    previousScreen = screen
-                    screen = AppScreen.TABLE_EDITOR
+                    navigateTo(AppScreen.TABLE_EDITOR)
                 }
             )
         }
