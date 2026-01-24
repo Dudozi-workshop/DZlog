@@ -56,7 +56,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -257,7 +257,6 @@ fun AppRoot() {
             // ✅ CameraScreen은 Part 3에서 제공됨
             CameraScreen(
                 startWithWizard = startWithWizard,
-                onExitToHome = { screen = AppScreen.HOME },
                 tableTemplateState = tableTemplateState,
                 onOpenTableEditor = {
                     previousScreen = screen
@@ -338,7 +337,6 @@ fun HomeScreen(
 @Composable
 fun CameraScreen(
     startWithWizard: Boolean,
-    onExitToHome: () -> Unit,
     tableTemplateState: TableTemplateState,
     onOpenTableEditor: () -> Unit
 ) {
@@ -367,7 +365,6 @@ fun CameraScreen(
         if (hasPermission) {
             CameraPreview(
                 startWithWizard = startWithWizard,
-                onExitToHome = onExitToHome,
                 tableTemplateState = tableTemplateState,
                 onOpenTableEditor = onOpenTableEditor
             )
@@ -389,7 +386,6 @@ fun CameraScreen(
 @Composable
 fun CameraPreview(
     startWithWizard: Boolean,
-    onExitToHome: () -> Unit,
     tableTemplateState: TableTemplateState,
     onOpenTableEditor: () -> Unit
 ) {
@@ -1699,7 +1695,7 @@ fun SetupWizardOverlay(
 
                 Spacer(Modifier.height(8.dp))
 
-                TabRow(selectedTabIndex = tabIndex) {
+                SecondaryTabRow(selectedTabIndex = tabIndex) {
                     tabTitles.forEachIndexed { idx, title ->
                         Tab(
                             selected = tabIndex == idx,
