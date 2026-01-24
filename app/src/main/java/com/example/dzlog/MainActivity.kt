@@ -207,7 +207,6 @@ class MainActivity : ComponentActivity() {
 fun AppRoot() {
     var screen by remember { mutableStateOf(AppScreen.HOME) }
     var previousScreen by remember { mutableStateOf(AppScreen.HOME) }
-    var startWithWizard by remember { mutableStateOf(false) }
     var orientationMode by remember { mutableStateOf(OrientationMode.PORTRAIT_LOCK) }
     val tableTemplateViewModel: TableTemplateViewModel = viewModel()
     val tableTemplateState = tableTemplateViewModel.tableTemplateState
@@ -240,7 +239,6 @@ fun AppRoot() {
     when (screen) {
         AppScreen.HOME -> HomeScreen(
             onOpenSettings = {
-                startWithWizard = true
                 screen = AppScreen.CAMERA
             },
             onOpenTableEditor = {
@@ -248,7 +246,6 @@ fun AppRoot() {
                 screen = AppScreen.TABLE_EDITOR
             },
             onStartCamera = {
-                startWithWizard = false
                 screen = AppScreen.CAMERA
             }
         )
@@ -256,7 +253,6 @@ fun AppRoot() {
         AppScreen.CAMERA -> {
             // ✅ CameraScreen은 Part 3에서 제공됨
             CameraScreen(
-                startWithWizard = startWithWizard,
                 tableTemplateState = tableTemplateState,
                 onOpenTableEditor = {
                     previousScreen = screen
@@ -336,7 +332,6 @@ fun HomeScreen(
 
 @Composable
 fun CameraScreen(
-    startWithWizard: Boolean,
     tableTemplateState: TableTemplateState,
     onOpenTableEditor: () -> Unit
 ) {
@@ -364,7 +359,6 @@ fun CameraScreen(
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         if (hasPermission) {
             CameraPreview(
-                startWithWizard = startWithWizard,
                 tableTemplateState = tableTemplateState,
                 onOpenTableEditor = onOpenTableEditor
             )
@@ -385,7 +379,6 @@ fun CameraScreen(
 
 @Composable
 fun CameraPreview(
-    startWithWizard: Boolean,
     tableTemplateState: TableTemplateState,
     onOpenTableEditor: () -> Unit
 ) {
@@ -424,7 +417,7 @@ fun CameraPreview(
     // ✅ 추가: 워터마크에 들어갈 값
 
     // ✅ Wizard 시작 여부
-    var showWizard by remember { mutableStateOf(startWithWizard) }
+    var showWizard by remember { mutableStateOf(false) }
 
     //프리뷰 표시 설정
     var showWmPreview by remember { mutableStateOf(true) } // 기본 켜짐(원하면 false)
