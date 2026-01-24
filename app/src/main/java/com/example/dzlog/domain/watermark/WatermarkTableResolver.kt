@@ -12,7 +12,7 @@ fun resolveCellsFromTableTemplate(
         (0 until cols).map { col ->
             val cell = cells.firstOrNull { it.rowIndex == row && it.colIndex == col }
             ResolvedCell(
-                label = cell?.label.orEmpty(),
+                label = "", // ← 항상 비움
                 valueText = cell?.valueText.orEmpty()
             )
         }
