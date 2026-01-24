@@ -102,10 +102,16 @@ import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.naming.buildDisplayName
 import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.watermark.resolveCellsFromTableTemplate
+import com.example.dzlog.domain.preview.TimeSystem
+import com.example.dzlog.domain.preview.decideTickUnit
+import com.example.dzlog.domain.preview.computeNextDelayMillis
+import com.example.dzlog.domain.preview.resolvePreviewCellText
 import com.example.dzlog.watermark.WatermarkRendererImpl
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import java.util.Date
 
 // =========================================================
 // App Navigation
@@ -163,7 +169,7 @@ val KEY_WM_VALUE_SCALE = intPreferencesKey("wm_value_scale") // 60~160
 
 const val COUNTER_DIGITS_DEFAULT = 4
 
-fun clampCounterDigits(v: Int) = v.coerceIn(2, 6)
+fun clampCounterDigits(v: Int) = v.coerceIn(1, 6) // [각주 1]
 
 // =========================================================
 // Save / Orientation
@@ -497,8 +503,7 @@ fun CameraPreview(
             }
 
             // ✅ 자릿수는 1~6 사이로 클램프
-            counterDigits = (prefs[KEY_COUNTER_DIGITS] ?: 4).coerceIn(1, 6)
-
+            counterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
             showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
 
         } catch (_: Exception) {
@@ -1080,7 +1085,7 @@ fun CameraPreview(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Button(
                                 onClick = {
-                                    val next = (counterDigits - 1).coerceIn(1, 6)
+                                    val next = clampCounterDigits(counterDigits - 1)
                                     counterDigits = next
                                     scope.launch { context.dataStore.edit { it[KEY_COUNTER_DIGITS] = next } }
                                 }
@@ -1092,7 +1097,7 @@ fun CameraPreview(
 
                             Button(
                                 onClick = {
-                                    val next = (counterDigits + 1).coerceIn(1, 6)
+                                    val next = clampCounterDigits(counterDigits + 1)
                                     counterDigits = next
                                     scope.launch { context.dataStore.edit { it[KEY_COUNTER_DIGITS] = next } }
                                 }
@@ -1239,15 +1244,61 @@ private fun TableEditorScreen(
     val hasUnassignedCells = templateState.cells.any { isCellUnassigned(it) }
     val selectedCell = templateState.cells.firstOrNull { it.cellId == selectedCellId }
     val hasGroup1 = templateState.cells.any { it.groupLevel == GroupLevel.G1 }
-    val savePathPreview = buildGalleryRelativePath(templateState.cells)
-    val filenamePreview = buildDisplayName(
-        cells = templateState.cells,
-        counter = 1,
-        counterDigits = COUNTER_DIGITS_DEFAULT,
-        fnDelim = "_",
-        includeDate = false,
-        includeTime = false
-    )
+    // TableEditor용 저장 경로 미리보기
+    val savePathPreview = remember(templateState.cells) {
+        buildGalleryRelativePath(templateState.cells)
+    }
+
+    // --- Preview settings (1차: 하드코딩, 추후 프리셋 전역 설정으로 이관) ---
+        val dateFormat = "yyyy.MM.dd"
+        val timeFormat = "HH.mm.ss"
+        val timeSystem = TimeSystem.H24
+
+        // [각주 6] counterDigits는 촬영설정(DataStore) 값을 읽어 미리보기/실저장 규칙과 맞춘다.
+        var previewCounterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
+        LaunchedEffect(Unit) {
+                runCatching {
+                        val prefs = context.dataStore.data.first()
+                        previewCounterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
+                    }.onFailure {
+                        previewCounterDigits = COUNTER_DIGITS_DEFAULT
+                    }
+            }
+
+        // [각주 7] 폴더 기준 nextCounter 계산 (Camera에서 쓰는 CounterSync 재사용)
+        var previewNextCounter by remember { mutableIntStateOf(1) }
+        val counterSync = remember { CounterSyncImpl(MediaStoreSaverImpl()) }
+        LaunchedEffect(savePathPreview, previewCounterDigits) {
+                counterSync.syncNextCounter(
+                        context = context,
+                        relativePath = savePathPreview,
+                        counterDigits = previewCounterDigits,
+                        fnDelim = "_",
+                        onResult = { next -> previewNextCounter = next },
+                        onFail = { _ -> previewNextCounter = 1 }
+                            )
+            }
+
+        // [각주 8] timeFormat/dateFormat에 따라 갱신 단위를 자동 결정
+        var previewNow by remember { mutableStateOf(Date()) }
+        LaunchedEffect(dateFormat, timeFormat) {
+                val unit = decideTickUnit(dateFormat, timeFormat)
+                while (true) {
+                        val delayMs = computeNextDelayMillis(unit)
+                        delay(delayMs)
+                        previewNow = Date()
+                    }
+            }
+
+        // 파일명 미리보기: nextCounter + counterDigits 반영(우선 카운터만 정확히)
+        val filenamePreview = buildDisplayName(
+                cells = templateState.cells,
+                counter = previewNextCounter,
+                counterDigits = previewCounterDigits,
+                fnDelim = "_",
+                includeDate = false,
+                includeTime = false
+                    )
 
     Scaffold(
         topBar = {
@@ -1323,8 +1374,17 @@ private fun TableEditorScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (cell != null) {
+                                    val display = resolvePreviewCellText(
+                                        cell = cell,
+                                        now = previewNow,
+                                        nextCounter = previewNextCounter,
+                                        counterDigits = previewCounterDigits,
+                                        dateFormat = dateFormat,
+                                        timeFormat = timeFormat,
+                                        timeSystem = timeSystem
+                                    )
                                     Text(
-                                        text = cell.valueText.ifBlank { cell.label.ifBlank { "R${row + 1}C${col + 1}" } },
+                                        text = display.ifBlank { cell.label.ifBlank { "R${row + 1}C${col + 1}" } },
                                         color = Color.Black,
                                         fontSize = 12.sp
                                     )
@@ -1445,6 +1505,41 @@ private fun TableEditorScreen(
                             }
                         )
                         Text("NUMBER", color = Color.Black)
+                    }
+
+                    // [각주 9] 1차 확장: DATE/TIME/COUNTER 선택 UI 추가(값 입력은 아직 TEXT 필드로 남겨둠)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = selectedCell.dataType == TableCellDataType.DATE,
+                            onClick = {
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                    cell.copy(dataType = TableCellDataType.DATE)
+                                }
+                                onTemplateChange(updated)
+                            }
+                        )
+                        Text("DATE", color = Color.Black)
+                        Spacer(Modifier.width(12.dp))
+                        RadioButton(
+                            selected = selectedCell.dataType == TableCellDataType.TIME,
+                            onClick = {
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell -> cell.copy(dataType = TableCellDataType.TIME)
+                                }
+                                onTemplateChange(updated)
+                            }
+                        )
+                        Text("TIME", color = Color.Black)
+                        Spacer(Modifier.width(12.dp))
+                        RadioButton(
+                            selected = selectedCell.dataType == TableCellDataType.COUNTER,
+                            onClick = {
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                    cell.copy(dataType = TableCellDataType.COUNTER)
+                                }
+                                onTemplateChange(updated)
+                            }
+                        )
+                        Text("COUNTER", color = Color.Black)
                     }
 
                     Text("Group", color = Color.Black)

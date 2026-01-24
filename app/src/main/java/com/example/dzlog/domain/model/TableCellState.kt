@@ -23,7 +23,10 @@ enum class TableCellKind {
 
 enum class TableCellDataType {
     TEXT,
-    NUMBER
+    NUMBER,
+    DATE,
+    TIME,
+    COUNTER
 }
 
 enum class GroupLevel {
