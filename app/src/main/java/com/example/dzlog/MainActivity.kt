@@ -254,6 +254,7 @@ fun AppRoot() {
         AppScreen.CAMERA -> {
             // ✅ CameraScreen은 Part 3에서 제공됨
             CameraScreen(
+                onExitToHome = { screen = AppScreen.HOME }, // [수정됨-뒤로-1]
                 tableTemplateState = tableTemplateState,
                 onOpenTableEditor = {
                     previousScreen = screen
@@ -344,6 +345,7 @@ fun SettingsScreen(onBack: () -> Unit) {
 
 @Composable
 fun CameraScreen(
+    onExitToHome: () -> Unit,                // [수정됨-뒤로-2]
     tableTemplateState: TableTemplateState,
     onOpenTableEditor: () -> Unit
 ) {
@@ -371,6 +373,7 @@ fun CameraScreen(
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         if (hasPermission) {
             CameraPreview(
+                onExitToHome = onExitToHome,             // [수정됨-뒤로-3]
                 tableTemplateState = tableTemplateState,
                 onOpenTableEditor = onOpenTableEditor
             )
@@ -391,6 +394,7 @@ fun CameraScreen(
 
 @Composable
 fun CameraPreview(
+    onExitToHome: () -> Unit,                // [수정됨-뒤로-4]
     tableTemplateState: TableTemplateState,
     onOpenTableEditor: () -> Unit
 ) {
@@ -655,19 +659,33 @@ fun CameraPreview(
         // =====================================================
         // 상단 UI(테스트용) - 지금은 설정만
         // =====================================================
-        Box(
+        Row(
             modifier = Modifier
-                .padding(16.dp)
-                .align(Alignment.TopEnd)
-                .background(Color(0x66000000))
-                .clickable {
-                    showWizard = true
-                    Toast.makeText(context, "설정 열기", Toast.LENGTH_SHORT).show()
-                }
-                .padding(horizontal = 10.dp, vertical = 6.dp)
+                .padding(top = 40.dp, start = 16.dp, end = 16.dp) // [수정됨-UI-1] 버튼 위치 아래로
+                .align(Alignment.TopCenter)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("설정", color = Color.White)
+            Box(
+                modifier = Modifier
+                    .background(Color(0x66000000))
+                    .clickable { onExitToHome() }                  // [수정됨-UI-2] 뒤로가기
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text("뒤로", color = Color.White)
+            }
+
+            Box(
+                modifier = Modifier
+                    .background(Color(0x66000000))
+                    .clickable { showWizard = true }               // [수정됨-UI-3] 촬영 설정 열기
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text("촬영 설정", color = Color.White)
+            }
         }
+
         // =====================================================
         // 촬영 버튼(FAB) - 화면 하단 중앙
         // =====================================================
