@@ -63,6 +63,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -1273,6 +1274,16 @@ private fun TableEditorScreen(
     var editingValue by remember { mutableStateOf("") }
     var editingOriginalValue by remember { mutableStateOf("") }
 
+    // [Phase1-A1] 포커스 아웃/외부 클릭 저장을 위한 커밋 헬퍼
+    fun commitInlineEditIfNeeded() {
+        val id = editingCellId ?: return
+        val updated = updateCell(templateState, id) { c ->
+            c.copy(valueText = editingValue)
+        }
+        onTemplateChange(updated)
+        editingCellId = null
+    }
+
     if (selectedCellId == null && templateState.cells.isNotEmpty()) {
         selectedCellId = templateState.cells.first().cellId
     }
@@ -1408,10 +1419,10 @@ private fun TableEditorScreen(
                                     .clickable(enabled = cell != null) {
                                         if (cell == null) return@clickable
 
-                                        // 다른 셀로 이동하면 편집 종료
+                                        // 다른 셀로 이동하면(편집 중이면) 자동 저장 후 이동
                                         if (selectedCellId != cell.cellId) {
+                                            commitInlineEditIfNeeded()
                                             selectedCellId = cell.cellId
-                                            editingCellId = null
                                             return@clickable
                                         }
 
@@ -1464,14 +1475,17 @@ private fun TableEditorScreen(
                                                 ),
                                                 keyboardActions = KeyboardActions(
                                                     onDone = {
-                                                        val updated = updateCell(templateState, cell.cellId) { c ->
-                                                            c.copy(valueText = editingValue)
-                                                        }
-                                                        onTemplateChange(updated)
-                                                        editingCellId = null
+                                                        commitInlineEditIfNeeded()
                                                     }
                                                 ),
-                                                modifier = Modifier.fillMaxWidth()
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .onFocusChanged { state ->
+                                                        if (!state.isFocused) {
+                                                            // 포커스를 잃으면 자동 저장
+                                                            commitInlineEditIfNeeded()
+                                                        }
+                                                    }
                                             )
 
                                             Row(
