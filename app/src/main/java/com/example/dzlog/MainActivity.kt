@@ -1356,6 +1356,19 @@ private fun TableEditorScreen(
                             )
             }
 
+
+    // [Phase2] COUNTER 셀(valueText)이 숫자면 그 값을 nextCounter로 우선 적용(오버라이드)
+        val counterOverride: Int? = remember(templateState) {
+            templateState.cells
+                .firstOrNull { it.dataType == TableCellDataType.COUNTER }
+                ?.valueText
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?.toIntOrNull()
+                ?.takeIf { it >= 0 } // counter는 0 이상만 허용(원하면 1 이상으로 변경 가능)
+        }
+        val effectiveNextCounter = counterOverride ?: previewNextCounter
+
         // [각주 8] timeFormat/dateFormat에 따라 갱신 단위를 자동 결정
         var previewNow by remember { mutableStateOf(Date()) }
         LaunchedEffect(dateFormat, timeFormat) {
@@ -1458,7 +1471,9 @@ private fun TableEditorScreen(
                                         // 같은 셀을 다시 클릭하면(TEXT/NUMBER + INPUT) 인플레이스 편집 진입
                                         val canInlineEdit =
                                             cell.kind == TableCellKind.INPUT &&
-                                                    (cell.dataType == TableCellDataType.TEXT || cell.dataType == TableCellDataType.NUMBER)
+                                            (cell.dataType == TableCellDataType.TEXT ||
+                                             cell.dataType == TableCellDataType.NUMBER ||
+                                             cell.dataType == TableCellDataType.COUNTER)
 
                                         if (canInlineEdit) {
                                             editingCellId = cell.cellId
@@ -1472,7 +1487,7 @@ private fun TableEditorScreen(
                                     val display = resolvePreviewCellText(
                                         cell = cell,
                                         now = previewNow,
-                                        nextCounter = previewNextCounter,
+                                        nextCounter = effectiveNextCounter,
                                         counterDigits = previewCounterDigits,
                                         dateFormat = dateFormat,
                                         timeFormat = timeFormat,
@@ -1481,7 +1496,9 @@ private fun TableEditorScreen(
                                     val isEditing = (editingCellId == cell.cellId)
                                     val canInlineEdit =
                                         cell.kind == TableCellKind.INPUT &&
-                                        (cell.dataType == TableCellDataType.TEXT || cell.dataType == TableCellDataType.NUMBER)
+                                        (cell.dataType == TableCellDataType.TEXT ||
+                                         cell.dataType == TableCellDataType.NUMBER ||
+                                         cell.dataType == TableCellDataType.COUNTER)
 
                                     if (isEditing && canInlineEdit) {
                                         Column(
@@ -1491,8 +1508,11 @@ private fun TableEditorScreen(
                                             verticalArrangement = Arrangement.spacedBy(4.dp),
                                             horizontalAlignment = Alignment.CenterHorizontally
                                         ) {
-                                            val keyboardType = if (cell.dataType == TableCellDataType.NUMBER)
-                                                KeyboardType.Decimal else KeyboardType.Text
+                                            val keyboardType = when (cell.dataType) {
+                                                TableCellDataType.NUMBER -> KeyboardType.Decimal // 음수/소수 허용(필터링 없음)
+                                                TableCellDataType.COUNTER -> KeyboardType.Number // counter는 정수
+                                                else -> KeyboardType.Text
+                                            }
 
                                             TextField(
                                                 value = editingValue,
@@ -1538,8 +1558,15 @@ private fun TableEditorScreen(
 
                                                 TextButton(
                                                     onClick = {
+                                                        val v = editingValue.trim()
+                                                        if (cell.dataType == TableCellDataType.COUNTER) {
+                                                            if (v.isNotEmpty() && v.toIntOrNull()?.let { it >= 0 } != true) {
+                                                                // counter는 0 이상 정수만 허용 (원하면 Toast로 안내 가능)
+                                                                return@TextButton
+                                                            }
+                                                        }
                                                         val updated = updateCell(templateState, cell.cellId) { c ->
-                                                            c.copy(valueText = editingValue)
+                                                            c.copy(valueText = v)
                                                         }
                                                         onTemplateChange(updated)
                                                         editingCellId = null
