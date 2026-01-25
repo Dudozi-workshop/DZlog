@@ -471,6 +471,39 @@ fun CameraPreview(
     val fnDelim = "_"
 
     val tableCells = tableTemplateState.cells
+
+    // [Phase2] Camera에서도 저장 경로 기준 nextCounter 계산(폴더 스캔)
+    val savePathNow = remember(tableCells) { buildGalleryRelativePath(tableCells) }
+    val cameraCounterSync = remember { CounterSyncImpl(MediaStoreSaverImpl()) }
+    var folderNextCounter by remember { mutableIntStateOf(1) }
+
+    LaunchedEffect(savePathNow, counterDigits) {
+        cameraCounterSync.syncNextCounter(
+            context = context,
+            relativePath = savePathNow,
+            counterDigits = counterDigits,
+            fnDelim = "_",
+            onResult = { next -> folderNextCounter = next },
+            onFail = { _ -> folderNextCounter = 1 }
+        )
+    }
+
+    // COUNTER 오버라이드(있으면 우선)
+    val counterOverride: Int? = remember(tableCells) {
+        tableCells
+            .firstOrNull { it.dataType == TableCellDataType.COUNTER }
+            ?.valueText
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?.toIntOrNull()
+            ?.takeIf { it >= 0 }
+    }
+
+    // 저장 카운터 초기화(경로/자릿수/오버라이드가 바뀔 때만 동기화)
+    LaunchedEffect(savePathNow, counterDigits, counterOverride, folderNextCounter) {
+        counter = counterOverride ?: folderNextCounter
+    }
+
     var previewLogged by remember { mutableStateOf(false) }
 
     // ---------- Load captureAspect from DataStore ----------
@@ -1355,17 +1388,15 @@ private fun TableEditorScreen(
                         onFail = { _ -> previewNextCounter = 1 }
                             )
             }
-
-
-    // [Phase2] COUNTER 셀(valueText)이 숫자면 그 값을 nextCounter로 우선 적용(오버라이드)
-        val counterOverride: Int? = remember(templateState) {
+    // [Phase2] COUNTER 셀에 입력된 시작값이 있으면(정수) 그것을 우선 적용
+        val counterOverride: Int? = remember(templateState.cells) {
             templateState.cells
                 .firstOrNull { it.dataType == TableCellDataType.COUNTER }
                 ?.valueText
                 ?.trim()
                 ?.takeIf { it.isNotEmpty() }
                 ?.toIntOrNull()
-                ?.takeIf { it >= 0 } // counter는 0 이상만 허용(원하면 1 이상으로 변경 가능)
+                ?.takeIf { it >= 0 }
         }
         val effectiveNextCounter = counterOverride ?: previewNextCounter
 
@@ -1382,13 +1413,13 @@ private fun TableEditorScreen(
 
         // 파일명 미리보기: nextCounter + counterDigits 반영(우선 카운터만 정확히)
         val filenamePreview = buildDisplayName(
-                cells = templateState.cells,
-                counter = previewNextCounter,
-                counterDigits = previewCounterDigits,
-                fnDelim = "_",
-                includeDate = false,
-                includeTime = false
-                    )
+            cells = templateState.cells,
+            counter = effectiveNextCounter,
+            counterDigits = previewCounterDigits,
+            fnDelim = "_",
+            includeDate = false,
+            includeTime = false
+        )
 
     Scaffold(
         topBar = {
