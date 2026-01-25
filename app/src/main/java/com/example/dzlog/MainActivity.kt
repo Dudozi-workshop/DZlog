@@ -95,7 +95,6 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.dzlog.data.counter.CounterSyncImpl
 import com.example.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.example.dzlog.data.repository.DzlogRepositoryImpl
 import com.example.dzlog.domain.model.CaptureAspect
@@ -106,14 +105,14 @@ import com.example.dzlog.domain.model.TableCellKind
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
+import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
-import com.example.dzlog.domain.naming.buildDisplayName
 import com.example.dzlog.domain.naming.resolveGroupValue
-import com.example.dzlog.domain.watermark.resolveCellsFromTableTemplate
-import com.example.dzlog.domain.preview.TimeSystem
 import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.preview.computeNextDelayMillis
-import com.example.dzlog.domain.preview.resolvePreviewCellText
+import com.example.dzlog.domain.table.TableResolver
+import com.example.dzlog.domain.table.applyPatch
+import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.watermark.WatermarkRendererImpl
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 import kotlinx.coroutines.flow.first
@@ -274,6 +273,7 @@ fun AppRoot() {
             CameraScreen(
                 onExitToHome = { navigateTo(AppScreen.HOME) },
                 tableTemplateState = tableTemplateState,
+                onTemplateChange = tableTemplateViewModel::update,
                 onOpenTableEditor = {
                     navigateTo(AppScreen.TABLE_EDITOR)
                 }
@@ -364,6 +364,7 @@ fun SettingsScreen(onBack: () -> Unit) {
 fun CameraScreen(
     onExitToHome: () -> Unit,                // [수정됨-뒤로-2]
     tableTemplateState: TableTemplateState,
+    onTemplateChange: (TableTemplateState) -> Unit,
     onOpenTableEditor: () -> Unit
 ) {
     val context = LocalContext.current
@@ -392,6 +393,7 @@ fun CameraScreen(
             CameraPreview(
                 onExitToHome = onExitToHome,             // [수정됨-뒤로-3]
                 tableTemplateState = tableTemplateState,
+                onTemplateChange = onTemplateChange,
                 onOpenTableEditor = onOpenTableEditor
             )
         } else {
@@ -414,6 +416,7 @@ fun CameraScreen(
 fun CameraPreview(
     onExitToHome: () -> Unit,                // [수정됨-뒤로-4]
     tableTemplateState: TableTemplateState,
+    onTemplateChange: (TableTemplateState) -> Unit,
     onOpenTableEditor: () -> Unit
 ) {
     val context = LocalContext.current
@@ -428,7 +431,6 @@ fun CameraPreview(
         val saver = MediaStoreSaverImpl()
         DzlogRepositoryImpl(
             saver = saver,
-            counterSync = CounterSyncImpl(saver),
             watermarkRenderer = WatermarkRendererImpl()
         )
     }
@@ -445,10 +447,8 @@ fun CameraPreview(
     var saveMode by remember { mutableStateOf(SaveMode.WATERMARK_ONLY) }
     var counterDigits by remember { mutableIntStateOf(4) } // 기본 0001 형태
 
-    // ✅ 추가: 촬영 카운터(파일명/표에 들어갈 숫자)
-    var counter by remember { mutableIntStateOf(1) }
-
-    // ✅ 추가: 워터마크에 들어갈 값
+    // ✅ 단일 진실의 원천: TableResolver
+    val tableResolver = remember { TableResolver() }
 
     // ✅ Wizard 시작 여부
     var showWizard by remember { mutableStateOf(false) }
@@ -472,36 +472,18 @@ fun CameraPreview(
 
     val tableCells = tableTemplateState.cells
 
-    // [Phase2] Camera에서도 저장 경로 기준 nextCounter 계산(폴더 스캔)
-    val savePathNow = remember(tableCells) { buildGalleryRelativePath(tableCells) }
-    val cameraCounterSync = remember { CounterSyncImpl(MediaStoreSaverImpl()) }
-    var folderNextCounter by remember { mutableIntStateOf(1) }
-
-    LaunchedEffect(savePathNow, counterDigits) {
-        cameraCounterSync.syncNextCounter(
-            context = context,
-            relativePath = savePathNow,
-            counterDigits = counterDigits,
-            fnDelim = "_",
-            onResult = { next -> folderNextCounter = next },
-            onFail = { _ -> folderNextCounter = 1 }
-        )
-    }
-
-    // COUNTER 오버라이드(있으면 우선)
-    val counterOverride: Int? = remember(tableCells) {
-        tableCells
-            .firstOrNull { it.dataType == TableCellDataType.COUNTER }
-            ?.valueText
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
-            ?.toIntOrNull()
-            ?.takeIf { it >= 0 }
-    }
-
-    // 저장 카운터 초기화(경로/자릿수/오버라이드가 바뀔 때만 동기화)
-    LaunchedEffect(savePathNow, counterDigits, counterOverride, folderNextCounter) {
-        counter = counterOverride ?: folderNextCounter
+    // DATE/TIME 미리보기와 저장(클릭 시 captureNow) 일치 보장:
+    // - 미리보기에서 사용 중인 now를 클릭 시 그대로 captureNow로 사용한다.
+    val dateFormat = "yyyy.MM.dd"
+    val timeFormat = "HH.mm.ss"
+    var now by remember { mutableStateOf(Date()) }
+    LaunchedEffect(dateFormat, timeFormat) {
+        val unit = decideTickUnit(dateFormat, timeFormat)
+        while (true) {
+            val delayMs = computeNextDelayMillis(unit)
+            delay(delayMs)
+            now = Date()
+        }
     }
 
     var previewLogged by remember { mutableStateOf(false) }
@@ -667,25 +649,36 @@ fun CameraPreview(
                         factory = { _: Context -> previewView },
                         update = { it.scaleType = PreviewView.ScaleType.FILL_CENTER }
                     )
+                    val plan = remember(tableCells, now, counterDigits, dateFormat, timeFormat) {
+                        tableResolver.plan(
+                            cells = tableCells,
+                            captureNow = now,
+                            config = TableResolver.Config(
+                                counterDigits = counterDigits,
+                                dateFormat = dateFormat,
+                                timeFormat = timeFormat
+                            )
+                        )
+                    }
+
                     val previewRequest = com.example.dzlog.domain.model.CaptureRequest(
                         projectKey = projectKeyNow,
-                        group1 = resolveGroupValue(tableCells, GroupLevel.G1),
-                        group2 = resolveGroupValue(tableCells, GroupLevel.G2),
-                        displayName = buildDisplayName(
-                            cells = tableCells,
-                            counter = counter,
-                            counterDigits = counterDigits,
+                        group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
+                        group2 = resolveGroupValue(plan.resolvedCells, GroupLevel.G2),
+                        displayName = buildDisplayNameFromResolvedCells(
+                            resolvedCells = plan.resolvedCells,
                             fnDelim = fnDelim,
                             includeDate = false,
-                            includeTime = false
+                            includeTime = false,
+                            now = now
                         ),
-                        counter = counter,
-                        counterDigits = counterDigits,
+                        resolvedCells = plan.resolvedCells,
+                        watermarkCells = WatermarkBuilder.buildTableCells(plan.resolvedCells),
                         saveMode = saveMode,
                         captureAspect = captureAspect,
                         tableTemplate = tableTemplateState,
                         watermark = com.example.dzlog.domain.model.WatermarkConfig(
-                            showLabel = true,
+                            showLabel = false, // Fixed Contract: value(resolvedText)만 출력
                             anchor = wmTableAnchor,
                             offsetXRatio = wmOffsetXRatio,
                             offsetYRatio = wmOffsetYRatio,
@@ -700,10 +693,7 @@ fun CameraPreview(
                     WatermarkPreviewOverlay(
                         enabled = showWmPreview,
                         request = previewRequest,
-                        previewContentRect = previewContentRect,
-                        dateFormat = "yyyy.MM.dd",
-                        timeFormat = "HH.mm.ss",
-                        timeSystem = TimeSystem.H24
+                        previewContentRect = previewContentRect
                     )
                 }
             }
@@ -764,25 +754,35 @@ fun CameraPreview(
                             return@clickable
                         }
 
+                        val captureNow = now
+                        val planForCapture = tableResolver.plan(
+                            cells = tableCells,
+                            captureNow = captureNow,
+                            config = TableResolver.Config(
+                                counterDigits = counterDigits,
+                                dateFormat = dateFormat,
+                                timeFormat = timeFormat
+                            )
+                        )
+
                         val req = com.example.dzlog.domain.model.CaptureRequest(
                             projectKey = projectKeyNow,
-                            group1 = resolveGroupValue(tableCells, GroupLevel.G1),
-                            group2 = resolveGroupValue(tableCells, GroupLevel.G2),
-                            displayName = buildDisplayName(
-                                cells = tableCells,
-                                counter = counter,
-                                counterDigits = counterDigits,
+                            group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
+                            group2 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G2),
+                            displayName = buildDisplayNameFromResolvedCells(
+                                resolvedCells = planForCapture.resolvedCells,
                                 fnDelim = fnDelim,
                                 includeDate = false,
-                                includeTime = false
+                                includeTime = false,
+                                now = captureNow
                             ),
-                            counter = counter,
-                            counterDigits = counterDigits,
+                            resolvedCells = planForCapture.resolvedCells,
+                            watermarkCells = WatermarkBuilder.buildTableCells(planForCapture.resolvedCells),
                             saveMode = saveMode,
                             captureAspect = captureAspect,
                             tableTemplate = tableTemplateState,
                             watermark = com.example.dzlog.domain.model.WatermarkConfig(
-                                showLabel = true,
+                                showLabel = false, // Fixed Contract: value(resolvedText)만 출력
                                 anchor = wmTableAnchor,
                                 offsetXRatio = wmOffsetXRatio,
                                 offsetYRatio = wmOffsetYRatio,
@@ -799,7 +799,8 @@ fun CameraPreview(
                             imageCapture = cap,
                             request = req,
                             onDone = { entry ->
-                                counter += 1   // ✅ 이 줄이 없으면 평생 001
+                                // 저장 성공 후에만 patch 커밋
+                                onTemplateChange(tableTemplateState.applyPatch(planForCapture.patch))
                                 if (entry.isNameAdjusted) {
                                     Toast.makeText(
                                         context,
@@ -1176,54 +1177,11 @@ fun CameraPreview(
 private fun WatermarkPreviewOverlay(
     enabled: Boolean,
     request: com.example.dzlog.domain.model.CaptureRequest,
-    previewContentRect: RectF?,
-    dateFormat: String,
-    timeFormat: String,
-    timeSystem: TimeSystem
-    ) {
+    previewContentRect: RectF?
+) {
     if (!enabled || previewContentRect == null) return
 
-    val cells = resolveCellsFromTableTemplate(
-        request.tableTemplate.cells,
-        request.tableTemplate.rows,
-        request.tableTemplate.cols
-    )
-
-    // TIME/DATE가 “현재 시각” 기준으로 보이도록 tick
-    var now by remember { mutableStateOf(Date()) }
-    LaunchedEffect(dateFormat, timeFormat) {
-        val unit = decideTickUnit(dateFormat, timeFormat)
-        while (true) {
-            val delayMs = computeNextDelayMillis(unit)
-            delay(delayMs)
-            now = Date()
-        }
-    }
-
-    // 워터마크에 실제로 그릴 “표시용” 셀 값 치환
-    val resolvedCells = remember(
-        cells,
-        now,
-        request.counter,
-        request.counterDigits,
-        dateFormat,
-        timeFormat,
-        timeSystem
-    ) {
-        cells.map { cell ->
-            val display = resolvePreviewCellText(
-                cell = cell,
-                now = now,
-                nextCounter = request.counter,
-                counterDigits = request.counterDigits,
-                dateFormat = dateFormat,
-                timeFormat = timeFormat,
-                timeSystem = timeSystem
-            )
-            // 표에는 value 영역에 표시(라벨은 기존 label 유지)
-            cell.copy(valueText = display)
-        }
-    }
+    val cells = request.watermarkCells
 
 
     androidx.compose.foundation.Canvas(
@@ -1235,7 +1193,7 @@ private fun WatermarkPreviewOverlay(
             drawWatermarkTableOnCanvas(
                 canvas = canvas.nativeCanvas,
                 bounds = previewContentRect,
-                cells = resolvedCells,
+                cells = cells,
                 rows = request.tableTemplate.rows,
                 cols = request.tableTemplate.cols,
                 showLabel = request.watermark.showLabel,
@@ -1403,66 +1361,51 @@ private fun TableEditorScreen(
     }
 
     // --- Preview settings (1차: 하드코딩, 추후 프리셋 전역 설정으로 이관) ---
-        val dateFormat = "yyyy.MM.dd"
-        val timeFormat = "HH.mm.ss"
-        val timeSystem = TimeSystem.H24
+    val dateFormat = "yyyy.MM.dd"
+    val timeFormat = "HH.mm.ss"
 
-        // [각주 6] counterDigits는 촬영설정(DataStore) 값을 읽어 미리보기/실저장 규칙과 맞춘다.
-        var previewCounterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
-        LaunchedEffect(Unit) {
-                runCatching {
-                        val prefs = context.dataStore.data.first()
-                        previewCounterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
-                    }.onFailure {
-                        previewCounterDigits = COUNTER_DIGITS_DEFAULT
-                    }
-            }
-
-        // [각주 7] 폴더 기준 nextCounter 계산 (Camera에서 쓰는 CounterSync 재사용)
-        var previewNextCounter by remember { mutableIntStateOf(1) }
-        val counterSync = remember { CounterSyncImpl(MediaStoreSaverImpl()) }
-        LaunchedEffect(savePathPreview, previewCounterDigits) {
-                counterSync.syncNextCounter(
-                        context = context,
-                        relativePath = savePathPreview,
-                        counterDigits = previewCounterDigits,
-                        fnDelim = "_",
-                        onResult = { next -> previewNextCounter = next },
-                        onFail = { _ -> previewNextCounter = 1 }
-                            )
-            }
-    // [Phase2] COUNTER 셀에 입력된 시작값이 있으면(정수) 그것을 우선 적용
-        val counterOverride: Int? = remember(templateState.cells) {
-            templateState.cells
-                .firstOrNull { it.dataType == TableCellDataType.COUNTER }
-                ?.valueText
-                ?.trim()
-                ?.takeIf { it.isNotEmpty() }
-                ?.toIntOrNull()
-                ?.takeIf { it >= 0 }
+    // counterDigits는 촬영설정(DataStore) 값을 읽어 미리보기/실저장 규칙과 맞춘다.
+    var previewCounterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
+    LaunchedEffect(Unit) {
+        runCatching {
+            val prefs = context.dataStore.data.first()
+            previewCounterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
+        }.onFailure {
+            previewCounterDigits = COUNTER_DIGITS_DEFAULT
         }
-        val effectiveNextCounter = counterOverride ?: previewNextCounter
+    }
 
-        // [각주 8] timeFormat/dateFormat에 따라 갱신 단위를 자동 결정
-        var previewNow by remember { mutableStateOf(Date()) }
-        LaunchedEffect(dateFormat, timeFormat) {
-                val unit = decideTickUnit(dateFormat, timeFormat)
-                while (true) {
-                        val delayMs = computeNextDelayMillis(unit)
-                        delay(delayMs)
-                        previewNow = Date()
-                    }
-            }
+    // DATE/TIME는 "현재 시각"이 아니라, plan(captureNow)을 기준으로 출력되도록 동일한 now를 공유한다.
+    var previewNow by remember { mutableStateOf(Date()) }
+    LaunchedEffect(dateFormat, timeFormat) {
+        val unit = decideTickUnit(dateFormat, timeFormat)
+        while (true) {
+            val delayMs = computeNextDelayMillis(unit)
+            delay(delayMs)
+            previewNow = Date()
+        }
+    }
 
-        // 파일명 미리보기: nextCounter + counterDigits 반영(우선 카운터만 정확히)
-        val filenamePreview = buildDisplayName(
+    val tableResolver = remember { TableResolver() }
+    val plan = remember(templateState.cells, previewNow, previewCounterDigits, dateFormat, timeFormat) {
+        tableResolver.plan(
             cells = templateState.cells,
-            counter = effectiveNextCounter,
-            counterDigits = previewCounterDigits,
-            fnDelim = "_",
-            includeDate = false,
-            includeTime = false
+            captureNow = previewNow,
+            config = TableResolver.Config(
+                counterDigits = previewCounterDigits,
+                dateFormat = dateFormat,
+                timeFormat = timeFormat
+            )
         )
+    }
+
+    val filenamePreview = buildDisplayNameFromResolvedCells(
+        resolvedCells = plan.resolvedCells,
+        fnDelim = "_",
+        includeDate = false,
+        includeTime = false,
+        now = previewNow
+    )
 
     Scaffold(
         topBar = {
@@ -1558,15 +1501,10 @@ private fun TableEditorScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (cell != null) {
-                                    val display = resolvePreviewCellText(
-                                        cell = cell,
-                                        now = previewNow,
-                                        nextCounter = effectiveNextCounter,
-                                        counterDigits = previewCounterDigits,
-                                        dateFormat = dateFormat,
-                                        timeFormat = timeFormat,
-                                        timeSystem = timeSystem
-                                    )
+                                    val display = plan.resolvedCells
+                                        .firstOrNull { it.id == cell.cellId }
+                                        ?.resolvedText
+                                        .orEmpty()
                                     val isEditing = (editingCellId == cell.cellId)
                                     val canInlineEdit =
                                         cell.kind == TableCellKind.INPUT &&

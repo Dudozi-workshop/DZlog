@@ -1,13 +1,13 @@
 package com.example.dzlog.watermark
 
 import android.graphics.Bitmap
-import com.example.dzlog.domain.model.ResolvedCell
+import com.example.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 
 class WatermarkRendererImpl : WatermarkRenderer {
     override fun renderTable(
         originalBmp: Bitmap,
-        cells: List<ResolvedCell>,
+        cells: List<WatermarkCell>,
         rows: Int,
         cols: Int,
         showLabel: Boolean,

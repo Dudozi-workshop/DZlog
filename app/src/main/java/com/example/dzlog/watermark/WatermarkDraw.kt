@@ -1,13 +1,13 @@
 package com.example.dzlog.watermark
 
 import android.graphics.*
-import com.example.dzlog.domain.model.ResolvedCell
+import com.example.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 
 
 fun drawWatermarkTableFromResolvedCells(
     src: Bitmap,
-    cells: List<com.example.dzlog.domain.model.ResolvedCell>,
+    cells: List<WatermarkCell>,
     rows: Int,
     cols: Int,
     showLabel: Boolean,
@@ -113,7 +113,7 @@ fun drawWatermarkTableFromResolvedCells(
 fun drawWatermarkTableOnCanvas(
     canvas: Canvas,
     bounds: RectF,
-    cells: List<ResolvedCell>,
+    cells: List<WatermarkCell>,
     rows: Int,
     cols: Int,
     showLabel: Boolean,

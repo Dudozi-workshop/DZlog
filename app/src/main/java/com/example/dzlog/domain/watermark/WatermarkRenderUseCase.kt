@@ -2,18 +2,13 @@ package com.example.dzlog.watermark
 
 import android.graphics.Bitmap
 import com.example.dzlog.domain.model.CaptureRequest
-import com.example.dzlog.domain.watermark.resolveCellsFromTableTemplate
 fun renderWatermarkForRequest(
     renderer: WatermarkRenderer,
     originalBmp: Bitmap,
     request: CaptureRequest
 ): Bitmap {
     val wm = request.watermark
-    val cells = resolveCellsFromTableTemplate(
-        request.tableTemplate.cells,
-        request.tableTemplate.rows,
-        request.tableTemplate.cols
-    )
+    val cells = request.watermarkCells
 
     return renderer.renderTable(
         originalBmp = originalBmp,

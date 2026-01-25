@@ -28,7 +28,6 @@ import kotlinx.coroutines.withContext
 
 class DzlogRepositoryImpl(
     private val saver: MediaStoreSaver,
-    private val counterSync: com.example.dzlog.data.counter.CounterSync,
     private val watermarkRenderer: WatermarkRenderer
 ) : DzlogRepository {
 
