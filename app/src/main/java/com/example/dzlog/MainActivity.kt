@@ -22,6 +22,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCaseGroup
 import androidx.camera.core.ViewPort
@@ -36,7 +38,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -55,8 +56,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Tab
-import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -111,6 +110,7 @@ import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import java.util.Date
 
 // =========================================================
@@ -401,6 +401,7 @@ fun CameraScreen(
 // CameraPreview 함수 (CameraX Bind Core)
 // =========================================================
 
+@SuppressLint("AutoboxingStateCreation")
 @Composable
 fun CameraPreview(
     onExitToHome: () -> Unit,                // [수정됨-뒤로-4]
@@ -434,10 +435,10 @@ fun CameraPreview(
 
     // ✅ 추가: 저장모드/자릿수 (기본값은 안전하게)
     var saveMode by remember { mutableStateOf(SaveMode.WATERMARK_ONLY) }
-    var counterDigits by remember { mutableStateOf(4) } // 기본 0001 형태
+    var counterDigits by remember { mutableIntStateOf(4) } // 기본 0001 형태
 
     // ✅ 추가: 촬영 카운터(파일명/표에 들어갈 숫자)
-    var counter by remember { mutableStateOf(1) }
+    var counter by remember { mutableIntStateOf(1) }
 
     // ✅ 추가: 워터마크에 들어갈 값
 
@@ -448,17 +449,17 @@ fun CameraPreview(
     var showWmPreview by remember { mutableStateOf(true) } // 기본 켜짐(원하면 false)
     //표 위치 변경
     var wmTableAnchor by remember {
-        mutableStateOf(com.example.dzlog.domain.model.WatermarkTableAnchor.BOTTOM_RIGHT)
+        mutableStateOf(WatermarkTableAnchor.BOTTOM_RIGHT)
     }    // 표 크기 변경
-    var wmTableWidthRatio by remember { mutableStateOf(40) }
-    var wmTableHeightRatio by remember { mutableStateOf(20) }
-    var wmOffsetXRatio by remember { mutableStateOf(0) } // 0~100
-    var wmOffsetYRatio by remember { mutableStateOf(0) } // 0~100
+    var wmTableWidthRatio by remember { mutableIntStateOf(40) }
+    var wmTableHeightRatio by remember { mutableIntStateOf(20) }
+    var wmOffsetXRatio by remember { mutableIntStateOf(0) } // 0~100
+    var wmOffsetYRatio by remember { mutableIntStateOf(0) } // 0~100
 // 표 투명도
     var wmBgAlpha by remember { mutableIntStateOf(80) } // 0~255 (기본 80 추천)
     // 글씨 크기 변경
-    var wmLabelScale by remember { mutableStateOf(100) } // 60~160
-    var wmValueScale by remember { mutableStateOf(100) } // 60~160
+    var wmLabelScale by remember { mutableIntStateOf(100) } // 60~160
+    var wmValueScale by remember { mutableIntStateOf(100) } // 60~160
     val fnDelim = "_"
 
     val tableCells = tableTemplateState.cells
@@ -924,7 +925,10 @@ fun CameraPreview(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(
                                 selected = (captureAspect == CaptureAspect.R3_4),
-                                onClick = { captureAspect = CaptureAspect.R3_4 }
+                                onClick = {
+                                    captureAspect = CaptureAspect.R3_4
+                                    scope.launch(Dispatchers.IO) { persistCaptureAspect(context, CaptureAspect.R3_4) }
+                                }
                             )
                             Text("3:4", color = Color.White)
                         }
@@ -933,7 +937,10 @@ fun CameraPreview(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(
                                 selected = (captureAspect == CaptureAspect.R9_16),
-                                onClick = { captureAspect = CaptureAspect.R9_16 }
+                                onClick = {
+                                    captureAspect = CaptureAspect.R9_16
+                                    scope.launch(Dispatchers.IO) { persistCaptureAspect(context, CaptureAspect.R9_16) }
+                                }
                             )
                             Text("9:16", color = Color.White)
                         }
@@ -942,7 +949,10 @@ fun CameraPreview(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(
                                 selected = (captureAspect == CaptureAspect.R1_1),
-                                onClick = { captureAspect = CaptureAspect.R1_1 }
+                                onClick = {
+                                    captureAspect = CaptureAspect.R1_1
+                                    scope.launch(Dispatchers.IO) { persistCaptureAspect(context, CaptureAspect.R1_1) }
+                                }
                             )
                             Text("1:1", color = Color.White)
                         }
@@ -1170,14 +1180,23 @@ private fun bindCamera(
         val cameraProvider = cameraProviderFuture.get()
 
         val rotation = previewView.display.rotation
-        android.util.Log.d("DZlog", "BIND aspect=${aspect.label} w/h=${aspect.w}/${aspect.h}")
+        Log.d("DZlog", "BIND aspect=${aspect.label} w/h=${aspect.w}/${aspect.h}")
 
         val cameraAspectRatio = aspect.toCameraXAspectRatio()
 
         val previewBuilder = Preview.Builder()
             .setTargetRotation(rotation)
         if (cameraAspectRatio != null) {
-            previewBuilder.setTargetAspectRatio(cameraAspectRatio)
+            previewBuilder.setResolutionSelector(
+                ResolutionSelector.Builder()
+                    .setAspectRatioStrategy(
+                        AspectRatioStrategy(
+                            cameraAspectRatio,
+                            AspectRatioStrategy.FALLBACK_RULE_AUTO
+                        )
+                    )
+                    .build()
+            )
         }
         val preview = previewBuilder.build()
             .apply { surfaceProvider = previewView.surfaceProvider }
@@ -1186,7 +1205,16 @@ private fun bindCamera(
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
             .setTargetRotation(rotation)
         if (cameraAspectRatio != null) {
-            imageCaptureBuilder.setTargetAspectRatio(cameraAspectRatio)
+            imageCaptureBuilder.setResolutionSelector(
+                ResolutionSelector.Builder()
+                    .setAspectRatioStrategy(
+                        AspectRatioStrategy(
+                            cameraAspectRatio,
+                            AspectRatioStrategy.FALLBACK_RULE_AUTO
+                        )
+                    )
+                    .build()
+            )
         }
         val imageCapture = imageCaptureBuilder.build()
 
@@ -1767,210 +1795,10 @@ private fun defaultTableTemplateState(): TableTemplateState {
 // PART 4 — Setup Wizard Overlay (Settings UI) + Aspect(4:3/16:9/1:1) 저장
 // =========================================================
 
-@SuppressLint("AutoboxingStateCreation")
-@Composable
-fun SetupWizardOverlay(
-    context: Context,
-    showWizard: Boolean,
-    onClose: () -> Unit,
-
-    // --- Aspect (what-you-see-is-what-you-get 핵심) ---
-    captureAspect: CaptureAspect,
-    setCaptureAspect: (CaptureAspect) -> Unit,
-
-    // --- Guide toggle (표 위치 가이드 on/off) ---
-    wmGuideEnabled: Boolean,
-    setWmGuideEnabled: (Boolean) -> Unit,
-
-    // --- Orientation mode (이미 AppRoot에서 적용 중이지만 설정 UI는 여기서) ---
-    orientationMode: OrientationMode,
-    setOrientationMode: (OrientationMode) -> Unit
-) {
-    if (!showWizard) return
-
-    val tabTitles = listOf("필수", "촬영비율", "가이드/고급")
-    var tabIndex by remember { mutableStateOf(0) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xCC000000)),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.94f)
-                .fillMaxHeight(0.92f)
-                .background(Color(0xFFF7F7F7))
-                .padding(12.dp)
-        ) {
-            Column(Modifier.fillMaxSize()) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("DZlog 설정", fontSize = 18.sp, color = Color.Black)
-                    TextButton(onClick = onClose) { Text("닫기") }
-                }
-
-                Spacer(Modifier.height(8.dp))
-
-                SecondaryTabRow(selectedTabIndex = tabIndex) {
-                    tabTitles.forEachIndexed { idx, title ->
-                        Tab(
-                            selected = tabIndex == idx,
-                            onClick = { tabIndex = idx },
-                            text = { Text(title, fontSize = 12.sp, color = Color.Black) }
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(10.dp))
-
-                val scroll = rememberScrollState()
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(scroll)
-                        .padding(bottom = 10.dp)
-                ) {
-                    when (tabIndex) {
-                        0 -> {
-                            Text("기본", color = Color.Black)
-                            Spacer(Modifier.height(8.dp))
-
-                            Text("화면 방향", color = Color.Black)
-                            Spacer(Modifier.height(6.dp))
-
-                            listOf(
-                                OrientationMode.PORTRAIT_LOCK to "세로 고정(권장)",
-                                OrientationMode.AUTO_ROTATE to "자동 회전 허용"
-                            ).forEach { (mode, label) ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { setOrientationMode(mode) }
-                                        .padding(vertical = 6.dp)
-                                ) {
-                                    RadioButton(
-                                        selected = orientationMode == mode,
-                                        onClick = { setOrientationMode(mode) }
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(label, color = Color.Black)
-                                }
-                            }
-
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                "※ 비율/가이드는 다음 탭에서 설정합니다.",
-                                fontSize = 12.sp,
-                                color = Color.DarkGray
-                            )
-                        }
-
-                        1 -> {
-                            Text("촬영 비율", color = Color.Black)
-                            Spacer(Modifier.height(8.dp))
-
-                            Text(
-                                "what-you-see-is-what-you-get",
-                                color = Color.DarkGray,
-                                fontSize = 12.sp
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                "이 설정은 '프리뷰 액자 비율'과 '실제 저장(크롭) 비율'을 동일하게 맞추기 위한 기준입니다.",
-                                color = Color.Black,
-                                fontSize = 13.sp
-                            )
-
-                            Spacer(Modifier.height(12.dp))
-
-                            listOf(
-                                CaptureAspect.R3_4 to "3:4 (기본)",
-                                CaptureAspect.R9_16 to "9:16",
-                                CaptureAspect.R1_1 to "1:1"
-                            ).forEach { (aspect, label) ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            setCaptureAspect(aspect)
-                                            persistCaptureAspect(context, aspect)
-                                        }
-                                        .padding(vertical = 6.dp)
-                                ) {
-                                    RadioButton(
-                                        selected = captureAspect == aspect,
-                                        onClick = {
-                                            setCaptureAspect(aspect)
-                                            persistCaptureAspect(context, aspect)
-                                        }
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(label, color = Color.Black)
-                                }
-                            }
-
-                            Spacer(Modifier.height(10.dp))
-                            Text(
-                                "※ 비율을 바꾸면 프리뷰가 즉시 바뀌며, 저장되는 사진도 같은 규칙으로 크롭됩니다.",
-                                fontSize = 12.sp,
-                                color = Color.DarkGray
-                            )
-                        }
-
-                        2 -> {
-                            Text("가이드/고급", color = Color.Black)
-                            Spacer(Modifier.height(8.dp))
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { setWmGuideEnabled(!wmGuideEnabled) }
-                                    .padding(vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = wmGuideEnabled,
-                                    onCheckedChange = { setWmGuideEnabled(it) }
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text("프리뷰에 표 위치 가이드 표시", color = Color.Black)
-                            }
-
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                "※ 가이드의 실제 크기/위치는 Part 5에서 '단일 가이드'로 정리해 맞춥니다.",
-                                fontSize = 12.sp,
-                                color = Color.DarkGray
-                            )
-                        }
-                    }
-                }
-
-                // 하단 저장/닫기
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Button(onClick = onClose) { Text("닫기") }
-                }
-            }
-        }
-    }
-}
-
-private fun persistCaptureAspect(context: Context, aspect: CaptureAspect) {
-    val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
-    scope.launch {
-        try {
-            context.dataStore.edit { prefs ->
-                prefs[KEY_CAPTURE_ASPECT] = aspect.v
-            }
-        } catch (_: Exception) {
+private suspend fun persistCaptureAspect(context: Context, aspect: CaptureAspect) {
+    runCatching {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_CAPTURE_ASPECT] = aspect.v
         }
     }
 }
