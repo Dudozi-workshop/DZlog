@@ -64,6 +64,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import kotlinx.coroutines.delay
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -114,7 +118,6 @@ import com.example.dzlog.watermark.WatermarkRendererImpl
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import java.util.Date
 
@@ -1269,13 +1272,39 @@ private fun TableEditorScreen(
     var selectedCellId by remember { mutableStateOf(templateState.cells.firstOrNull()?.cellId) }
     val scrollState = rememberScrollState()
 
-    // [Phase1] 인플레이스 편집 상태(TEXT/NUMBER 전용)
+    // =========================
+    // Phase 1: 인플레이스 편집 상태
+    // =========================
     var editingCellId by remember { mutableStateOf<String?>(null) }
     var editingValue by remember { mutableStateOf("") }
     var editingOriginalValue by remember { mutableStateOf("") }
 
+    // 포커스/키보드 제어
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val inlineFocusRequester = remember { FocusRequester() }
+
+    // 안전장치
+    var inlineHasFocusedOnce by remember { mutableStateOf(false) }
+    var suppressNextCommit by remember { mutableStateOf(false) }
+
+    // 편집 모드 진입 시 포커스 강제 요청
+    LaunchedEffect(editingCellId) {
+        inlineHasFocusedOnce = false
+        if (editingCellId != null) {
+            delay(30) // 레이아웃 안정화
+            inlineFocusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
+
     // [Phase1-A1] 포커스 아웃/외부 클릭 저장을 위한 커밋 헬퍼
     fun commitInlineEditIfNeeded() {
+        if (suppressNextCommit) {
+            suppressNextCommit = false
+            editingCellId = null   // ← 이 줄이 핵심
+            return
+        }
+
         val id = editingCellId ?: return
         val updated = updateCell(templateState, id) { c ->
             c.copy(valueText = editingValue)
@@ -1480,10 +1509,15 @@ private fun TableEditorScreen(
                                                 ),
                                                 modifier = Modifier
                                                     .fillMaxWidth()
+                                                    .focusRequester(inlineFocusRequester)
                                                     .onFocusChanged { state ->
-                                                        if (!state.isFocused) {
-                                                            // 포커스를 잃으면 자동 저장
-                                                            commitInlineEditIfNeeded()
+                                                        if (state.isFocused) {
+                                                            inlineHasFocusedOnce = true
+                                                        } else {
+                                                            // "진짜로 포커스를 받았다가 잃을 때만" 자동 저장
+                                                            if (inlineHasFocusedOnce) {
+                                                                commitInlineEditIfNeeded()
+                                                            }
                                                         }
                                                     }
                                             )
@@ -1495,6 +1529,8 @@ private fun TableEditorScreen(
                                                 TextButton(
                                                     onClick = {
                                                         // Cancel = 되돌림(변경 적용 전이므로 값 복구만 하고 종료)
+                                                        suppressNextCommit = true
+
                                                         editingValue = editingOriginalValue
                                                         editingCellId = null
                                                     }
