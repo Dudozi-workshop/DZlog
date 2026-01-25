@@ -51,10 +51,10 @@ fun buildGalleryRelativePath(cells: List<TableCellState>): String {
 fun buildGalleryRelativePath(group1: String, group2: String): String {
     val g1 = sanitizeFolderName(group1)
     val g2 = sanitizeFolderName(group2)
-    return if (g1.isNotBlank() && g2.isNotBlank()) {
-        "Pictures/DZlog/$g1/$g2/"
-    } else {
-        "Pictures/DZlog/"
+    return when {
+        g1.isBlank() -> "Pictures/DZlog/"
+        g2.isBlank() -> "Pictures/DZlog/$g1/"
+        else -> "Pictures/DZlog/$g1/$g2/"
     }
 }
 
