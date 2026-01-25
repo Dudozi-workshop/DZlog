@@ -59,6 +59,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -1264,6 +1268,11 @@ private fun TableEditorScreen(
     var selectedCellId by remember { mutableStateOf(templateState.cells.firstOrNull()?.cellId) }
     val scrollState = rememberScrollState()
 
+    // [Phase1] 인플레이스 편집 상태(TEXT/NUMBER 전용)
+    var editingCellId by remember { mutableStateOf<String?>(null) }
+    var editingValue by remember { mutableStateOf("") }
+    var editingOriginalValue by remember { mutableStateOf("") }
+
     if (selectedCellId == null && templateState.cells.isNotEmpty()) {
         selectedCellId = templateState.cells.first().cellId
     }
@@ -1397,7 +1406,25 @@ private fun TableEditorScreen(
                                         )
                                     )
                                     .clickable(enabled = cell != null) {
-                                        selectedCellId = cell?.cellId
+                                        if (cell == null) return@clickable
+
+                                        // 다른 셀로 이동하면 편집 종료
+                                        if (selectedCellId != cell.cellId) {
+                                            selectedCellId = cell.cellId
+                                            editingCellId = null
+                                            return@clickable
+                                        }
+
+                                        // 같은 셀을 다시 클릭하면(TEXT/NUMBER + INPUT) 인플레이스 편집 진입
+                                        val canInlineEdit =
+                                            cell.kind == TableCellKind.INPUT &&
+                                                    (cell.dataType == TableCellDataType.TEXT || cell.dataType == TableCellDataType.NUMBER)
+
+                                        if (canInlineEdit) {
+                                            editingCellId = cell.cellId
+                                            editingValue = cell.valueText
+                                            editingOriginalValue = cell.valueText
+                                        }
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -1411,11 +1438,72 @@ private fun TableEditorScreen(
                                         timeFormat = timeFormat,
                                         timeSystem = timeSystem
                                     )
-                                    Text(
-                                        text = display.ifBlank { cell.label.ifBlank { "R${row + 1}C${col + 1}" } },
-                                        color = Color.Black,
-                                        fontSize = 12.sp
-                                    )
+                                    val isEditing = (editingCellId == cell.cellId)
+                                    val canInlineEdit =
+                                        cell.kind == TableCellKind.INPUT &&
+                                        (cell.dataType == TableCellDataType.TEXT || cell.dataType == TableCellDataType.NUMBER)
+
+                                    if (isEditing && canInlineEdit) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(6.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            val keyboardType = if (cell.dataType == TableCellDataType.NUMBER)
+                                                KeyboardType.Decimal else KeyboardType.Text
+
+                                            TextField(
+                                                value = editingValue,
+                                                onValueChange = { editingValue = it }, // 음수/소수 허용: 필터링하지 않음
+                                                singleLine = true,
+                                                keyboardOptions = KeyboardOptions(
+                                                    keyboardType = keyboardType,
+                                                    imeAction = ImeAction.Done
+                                                ),
+                                                keyboardActions = KeyboardActions(
+                                                    onDone = {
+                                                        val updated = updateCell(templateState, cell.cellId) { c ->
+                                                            c.copy(valueText = editingValue)
+                                                        }
+                                                        onTemplateChange(updated)
+                                                        editingCellId = null
+                                                    }
+                                                ),
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                TextButton(
+                                                    onClick = {
+                                                        // Cancel = 되돌림(변경 적용 전이므로 값 복구만 하고 종료)
+                                                        editingValue = editingOriginalValue
+                                                        editingCellId = null
+                                                    }
+                                                ) { Text("Cancel") }
+
+                                                TextButton(
+                                                    onClick = {
+                                                        val updated = updateCell(templateState, cell.cellId) { c ->
+                                                            c.copy(valueText = editingValue)
+                                                        }
+                                                        onTemplateChange(updated)
+                                                        editingCellId = null
+                                                    }
+                                                ) { Text("OK") }
+                                            }
+                                        }
+                                    } else {
+                                        Text(
+                                            text = display.ifBlank { cell.label.ifBlank { "R${row + 1}C${col + 1}" } },
+                                            color = Color.Black,
+                                            fontSize = 12.sp
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1620,18 +1708,31 @@ private fun TableEditorScreen(
                         }
                     }
 
-                    TextField(
-                        value = selectedCell.valueText,
-                        onValueChange = { value ->
-                            val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                cell.copy(valueText = value)
-                            }
-                            onTemplateChange(updated)
-                        },
-                        singleLine = true,
-                        label = { Text("Value") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    val canInlineEditSelected =
+                        selectedCell.kind == TableCellKind.INPUT &&
+                                (selectedCell.dataType == TableCellDataType.TEXT || selectedCell.dataType == TableCellDataType.NUMBER)
+
+                    if (!canInlineEditSelected) {
+                        TextField(
+                            value = selectedCell.valueText,
+                            onValueChange = { value ->
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                    cell.copy(valueText = value)
+                                }
+                                onTemplateChange(updated)
+                            },
+                            singleLine = true,
+                            label = { Text("Value") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        Text(
+                            "TEXT/NUMBER는 셀을 다시 눌러 바로 입력하세요.",
+                            fontSize = 12.sp,
+                            color = Color.DarkGray
+                        )
+                    }
+
                 }
             }
         }
