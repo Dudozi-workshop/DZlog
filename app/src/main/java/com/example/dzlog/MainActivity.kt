@@ -700,7 +700,10 @@ fun CameraPreview(
                     WatermarkPreviewOverlay(
                         enabled = showWmPreview,
                         request = previewRequest,
-                        previewContentRect = previewContentRect
+                        previewContentRect = previewContentRect,
+                        dateFormat = "yyyy.MM.dd",
+                        timeFormat = "HH.mm.ss",
+                        timeSystem = TimeSystem.H24
                     )
                 }
             }
@@ -1173,8 +1176,11 @@ fun CameraPreview(
 private fun WatermarkPreviewOverlay(
     enabled: Boolean,
     request: com.example.dzlog.domain.model.CaptureRequest,
-    previewContentRect: RectF?
-) {
+    previewContentRect: RectF?,
+    dateFormat: String,
+    timeFormat: String,
+    timeSystem: TimeSystem
+    ) {
     if (!enabled || previewContentRect == null) return
 
     val cells = resolveCellsFromTableTemplate(
@@ -1182,6 +1188,43 @@ private fun WatermarkPreviewOverlay(
         request.tableTemplate.rows,
         request.tableTemplate.cols
     )
+
+    // TIME/DATE가 “현재 시각” 기준으로 보이도록 tick
+    var now by remember { mutableStateOf(Date()) }
+    LaunchedEffect(dateFormat, timeFormat) {
+        val unit = decideTickUnit(dateFormat, timeFormat)
+        while (true) {
+            val delayMs = computeNextDelayMillis(unit)
+            delay(delayMs)
+            now = Date()
+        }
+    }
+
+    // 워터마크에 실제로 그릴 “표시용” 셀 값 치환
+    val resolvedCells = remember(
+        cells,
+        now,
+        request.counter,
+        request.counterDigits,
+        dateFormat,
+        timeFormat,
+        timeSystem
+    ) {
+        cells.map { cell ->
+            val display = resolvePreviewCellText(
+                cell = cell,
+                now = now,
+                nextCounter = request.counter,
+                counterDigits = request.counterDigits,
+                dateFormat = dateFormat,
+                timeFormat = timeFormat,
+                timeSystem = timeSystem
+            )
+            // 표에는 value 영역에 표시(라벨은 기존 label 유지)
+            cell.copy(valueText = display)
+        }
+    }
+
 
     androidx.compose.foundation.Canvas(
         modifier = Modifier
@@ -1192,7 +1235,7 @@ private fun WatermarkPreviewOverlay(
             drawWatermarkTableOnCanvas(
                 canvas = canvas.nativeCanvas,
                 bounds = previewContentRect,
-                cells = cells,
+                cells = resolvedCells,
                 rows = request.tableTemplate.rows,
                 cols = request.tableTemplate.cols,
                 showLabel = request.watermark.showLabel,
