@@ -91,6 +91,8 @@ import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import org.json.JSONArray
+import org.json.JSONObject
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
@@ -119,6 +121,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import java.util.Date
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.MutablePreferences
+
 
 // =========================================================
 // App Navigation
@@ -167,7 +172,7 @@ val KEY_WM_OFFSET_Y = intPreferencesKey("wm_offset_y_ratio") // 0~100
 val KEY_WM_BG_ALPHA = intPreferencesKey("wm_bg_alpha") // 0~255
 val KEY_WM_LABEL_SCALE = intPreferencesKey("wm_label_scale") // 60~160
 val KEY_WM_VALUE_SCALE = intPreferencesKey("wm_value_scale") // 60~160
-
+val KEY_TABLE_TEMPLATE_JSON = stringPreferencesKey("table_template_json")
 
 
 // =========================================================
@@ -235,6 +240,19 @@ fun AppRoot() {
             OrientationMode.from(prefs[KEY_ORIENTATION_MODE] ?: OrientationMode.PORTRAIT_LOCK.v)
         } catch (_: Exception) {
             OrientationMode.PORTRAIT_LOCK
+        }
+    }
+
+// ✅ Load table template from DataStore (persisted editor result)
+    LaunchedEffect(Unit) {
+        runCatching {
+            val prefs = context.dataStore.data.first()
+            val json = prefs[KEY_TABLE_TEMPLATE_JSON]
+            if (!json.isNullOrBlank()) {
+                tableTemplateStateFromJson(json)?.let { loaded ->
+                    tableTemplateViewModel.update(loaded)
+                }
+            }
         }
     }
 
@@ -856,7 +874,7 @@ fun CameraPreview(
                                 onCheckedChange = { checked ->
                                     showWmPreview = checked
                                     scope.launch {
-                                        context.dataStore.edit { prefs ->
+                                        context.dataStore.edit { prefs: MutablePreferences ->
                                             prefs[KEY_SHOW_WM_PREVIEW] = if (checked) 1 else 0
                                         }
                                     }
@@ -1306,6 +1324,8 @@ private fun TableEditorScreen(
     var selectedCellId by remember { mutableStateOf(templateState.cells.firstOrNull()?.cellId) }
     val scrollState = rememberScrollState()
 
+    val scope = rememberCoroutineScope()
+    var isSavingTemplate by remember { mutableStateOf(false) }
     // =========================
     // Phase 1: 인플레이스 편집 상태
     // =========================
@@ -1458,7 +1478,7 @@ private fun TableEditorScreen(
                             val cellUnassigned = cell?.let { isCellUnassigned(it) } ?: false
                             val isSelected = cell?.cellId == selectedCellId
                             val cellBackground = if (cellUnassigned) {
-                                Color(0xFFFFE1E1)
+                                Color(0xFFFFF3CD)
                             } else {
                                 Color(0xFFF7F4EE)
                             }
@@ -1645,8 +1665,23 @@ private fun TableEditorScreen(
                 Button(
                     onClick = {
                         Toast.makeText(context, "Saved (stub)", Toast.LENGTH_SHORT).show()
-                    },
-                    enabled = !hasUnassignedCells
+                        commitInlineEditIfNeeded()
+            isSavingTemplate = true
+            scope.launch {
+                runCatching {
+                    context.dataStore.edit { prefs ->
+                        prefs[KEY_TABLE_TEMPLATE_JSON] = templateState.toJsonString()
+                    }
+                }.onFailure {
+                    Toast.makeText(context, "Save failed: ${it.message}", Toast.LENGTH_SHORT).show()
+                }.onSuccess {
+                    Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
+                    onBack()
+                }
+                isSavingTemplate = false
+            }
+                              },
+                    enabled = !isSavingTemplate
                 ) { Text("Save") }
                 Button(onClick = onReset) { Text("Reset") }
             }
@@ -1901,6 +1936,60 @@ private fun removeColumn(templateState: TableTemplateState): TableTemplateState 
 
 private fun isCellUnassigned(cell: TableCellState): Boolean {
     return cell.label.isBlank()
+}
+
+private fun TableTemplateState.toJsonString(): String {
+    val root = JSONObject()
+    root.put("rows", rows)
+    root.put("cols", cols)
+    val arr = JSONArray()
+    for (c in cells) {
+        val o = JSONObject()
+        o.put("rowIndex", c.rowIndex)
+        o.put("colIndex", c.colIndex)
+        o.put("kind", c.kind.name)
+        o.put("valueText", c.valueText)
+        o.put("fileNameInclude", c.fileNameInclude)
+        o.put("groupLevel", c.groupLevel.name)
+        o.put("cellId", c.cellId)
+        o.put("rowSpan", c.rowSpan)
+        o.put("colSpan", c.colSpan)
+        o.put("dataType", c.dataType.name)
+        o.put("label", c.label)
+        arr.put(o)
+    }
+    root.put("cells", arr)
+    return root.toString()
+}
+
+private fun tableTemplateStateFromJson(json: String): TableTemplateState? {
+    return runCatching {
+        val root = JSONObject(json)
+        val rows = root.getInt("rows")
+        val cols = root.getInt("cols")
+        val arr = root.getJSONArray("cells")
+        val cells = buildList {
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                add(
+                    TableCellState(
+                        rowIndex = o.getInt("rowIndex"),
+                        colIndex = o.getInt("colIndex"),
+                        kind = TableCellKind.valueOf(o.getString("kind")),
+                        valueText = o.optString("valueText", ""),
+                        fileNameInclude = o.optBoolean("fileNameInclude", false),
+                        groupLevel = GroupLevel.valueOf(o.optString("groupLevel", GroupLevel.NONE.name)),
+                        cellId = o.optString("cellId", java.util.UUID.randomUUID().toString()),
+                        rowSpan = o.optInt("rowSpan", 1),
+                        colSpan = o.optInt("colSpan", 1),
+                        dataType = TableCellDataType.valueOf(o.optString("dataType", TableCellDataType.TEXT.name)),
+                        label = o.optString("label", "")
+                    )
+                )
+            }
+        }
+        TableTemplateState(rows = rows, cols = cols, cells = cells)
+    }.getOrNull()
 }
 
 private fun defaultTableTemplateState(): TableTemplateState {
