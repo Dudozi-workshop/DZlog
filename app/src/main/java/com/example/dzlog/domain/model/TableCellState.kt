@@ -13,8 +13,9 @@ data class TableCellState(
     val rowSpan: Int = 1,
     val colSpan: Int = 1,
     val dataType: TableCellDataType = TableCellDataType.TEXT,
-    val label: String = ""
-    )
+    val label: String = "",
+    // DATE/TIME 전용 포맷(빈값이면 Resolver Config 기본값 사용)
+    val formatPattern: String = ""    )
 
 enum class TableCellKind {
     BASE,

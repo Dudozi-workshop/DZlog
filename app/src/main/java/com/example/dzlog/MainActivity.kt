@@ -18,6 +18,7 @@ import android.util.Rational
 import android.view.View
 import android.widget.Toast
 import android.provider.MediaStore
+import androidx.compose.runtime.derivedStateOf
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -213,26 +214,46 @@ private fun parseCounterFromDisplayName(displayName: String): Int? {
     return if (v >= 0) v else null
 }
 
-private suspend fun scanUsedCountersFromMediaStore(context: Context): Set<Int> {
-    // RELATIVE_PATH는 Android Q에서만 안정적으로 사용
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return emptySet()
-
-    val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-    val projection = arrayOf(
-        MediaStore.Images.Media.DISPLAY_NAME,
-        MediaStore.Images.Media.RELATIVE_PATH
-    )
-    val selection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
-    val selectionArgs = arrayOf("Pictures/DZlog/%")
-
+private suspend fun scanUsedCountersFromMediaStore(
+    context: Context,
+    relativePathPrefix: String // 예: "Pictures/DZlog/G1/G2/" 또는 "Pictures/DZlog/G1/" 또는 "Pictures/DZlog/"
+): Set<Int> {
     val out = mutableSetOf<Int>()
-    context.contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
+    val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val projection = arrayOf(
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.RELATIVE_PATH
+        )
+        val selection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
+        val selectionArgs = arrayOf("$relativePathPrefix%")
+
+        context.contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
+            val nameIdx = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+            val pathIdx = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+            while (cursor.moveToNext()) {
+                val rel = if (pathIdx >= 0) cursor.getString(pathIdx) else ""
+                if (!rel.startsWith(relativePathPrefix)) continue
+                val name = if (nameIdx >= 0) cursor.getString(nameIdx) else ""
+                parseCounterFromDisplayName(name)?.let(out::add)
+            }
+        }
+        return out
+    }
+
+    // Android < Q fallback: DATA(absolute path) 사용 (deprecated지만 레거시 대응)
+    @Suppress("DEPRECATION")
+    val dataCol = MediaStore.Images.Media.DATA
+    val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME, dataCol)
+    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
         val nameIdx = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-        val pathIdx = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+        val dataIdx = cursor.getColumnIndex(dataCol)
         while (cursor.moveToNext()) {
-            val rel = if (pathIdx >= 0) cursor.getString(pathIdx) else ""
-            if (!rel.startsWith("Pictures/DZlog/")) continue
             val name = if (nameIdx >= 0) cursor.getString(nameIdx) else ""
+            val abs = if (dataIdx >= 0) cursor.getString(dataIdx) else ""
+            // abs 예: /storage/emulated/0/Pictures/DZlog/...
+            if (!abs.contains("/$relativePathPrefix")) continue
             parseCounterFromDisplayName(name)?.let(out::add)
         }
     }
@@ -1383,6 +1404,16 @@ private fun TableEditorScreen(
     val scope = rememberCoroutineScope()
     var isSavingTemplate by remember { mutableStateOf(false) }
 
+    // DATE/TIME format picker
+    var showFormatDialog by remember { mutableStateOf(false) }
+    var formatTargetCellId by remember { mutableStateOf<String?>(null) }
+    var formatTargetType by remember { mutableStateOf<TableCellDataType?>(null) }
+
+    val dateFormatOptions = listOf("yyyy-MM-dd", "yy-MM-dd", "MM-dd")
+    // 24h + 12h(AM/PM). (12/24 토글이 더 복잡하니 옵션으로 제공)
+    val timeFormatOptions = listOf("HH:mm", "HH:mm:ss", "hh:mm a", "hh:mm:ss a")
+
+
     // COUNTER used-values (MediaStore scan = truth, DataStore = cache)
     var usedCounters by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var showCounterDupDialog by remember { mutableStateOf(false) }
@@ -1390,12 +1421,20 @@ private fun TableEditorScreen(
     var pendingCounterCommitText by remember { mutableStateOf("") }
     var pendingCounterLatestValue by remember { mutableStateOf(0) }
 
-    LaunchedEffect(Unit) {
-        val prefs = runCatching { context.dataStore.data.first() }.getOrNull()
+// 현재 저장 경로(그룹값) 바뀌면 usedCounters 재스캔
+    val currentRelativePath by remember(templateState.cells) {
+        derivedStateOf {
+            // buildGalleryRelativePath 는 "Pictures/DZlog/..." 형태로 반환(트레일링 / 포함)
+            buildGalleryRelativePath(templateState.cells)
+        }
+    }
+
+    LaunchedEffect(currentRelativePath) {
+    val prefs = runCatching { context.dataStore.data.first() }.getOrNull()
         val cached = decodeCounterSetJson(prefs?.get(KEY_USED_COUNTER_VALUES_JSON))
 
         // 스캔 성공 여부를 null로 구분 (빈 set도 “성공”임)
-        val scanned: Set<Int>? = runCatching { scanUsedCountersFromMediaStore(context) }.getOrNull()
+        val scanned: Set<Int>? = runCatching { scanUsedCountersFromMediaStore(context, currentRelativePath) }.getOrNull()
         val effective: Set<Int> = scanned ?: cached
 
         usedCounters = effective
@@ -1581,6 +1620,49 @@ private fun TableEditorScreen(
         )
     }
 
+    // DATE/TIME format dialog (TableEditorScreen 끝나기 직전)
+    if (showFormatDialog) {
+        val targetId = formatTargetCellId
+        val targetType = formatTargetType
+        val targetCell = templateState.cells.firstOrNull { it.cellId == targetId }
+        val options = if (targetType == TableCellDataType.DATE) dateFormatOptions else timeFormatOptions
+
+        AlertDialog(
+            onDismissRequest = {
+                showFormatDialog = false
+                formatTargetCellId = null
+                formatTargetType = null
+            },
+            title = { Text(if (targetType == TableCellDataType.DATE) "DATE 형식" else "TIME 형식") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val current = targetCell?.formatPattern.orEmpty()
+                    options.forEach { p ->
+                        TextButton(
+                            onClick = {
+                                if (targetId != null) {
+                                    val updated = updateCell(templateState, targetId) { c ->
+                                        c.copy(formatPattern = p)
+                                    }
+                                    onTemplateChange(updated)
+                                }
+                                showFormatDialog = false
+                                formatTargetCellId = null
+                                formatTargetType = null
+                            }
+                        ) { Text(if (current == p) "✓  $p" else p) }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showFormatDialog = false
+                    formatTargetCellId = null
+                    formatTargetType = null
+                }) { Text("닫기") }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -1658,6 +1740,16 @@ private fun TableEditorScreen(
                                             (cell.dataType == TableCellDataType.TEXT ||
                                              cell.dataType == TableCellDataType.NUMBER ||
                                              cell.dataType == TableCellDataType.COUNTER)
+
+                                        // DATE/TIME: 더블클릭 시 형식 팝업
+                                        if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
+                                            // 편집 중이면 먼저 커밋 정리
+                                            commitInlineEditIfNeeded()
+                                            formatTargetCellId = cell.cellId
+                                            formatTargetType = cell.dataType
+                                            showFormatDialog = true
+                                            return@clickable
+                                        }
 
                                         if (canInlineEdit) {
                                             editingCellId = cell.cellId
@@ -2107,6 +2199,7 @@ private fun TableTemplateState.toJsonString(): String {
         o.put("colSpan", c.colSpan)
         o.put("dataType", c.dataType.name)
         o.put("label", c.label)
+        o.put("formatPattern", c.formatPattern)
         arr.put(o)
     }
     root.put("cells", arr)
@@ -2134,7 +2227,9 @@ private fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         rowSpan = o.optInt("rowSpan", 1),
                         colSpan = o.optInt("colSpan", 1),
                         dataType = TableCellDataType.valueOf(o.optString("dataType", TableCellDataType.TEXT.name)),
-                        label = o.optString("label", "")
+                        label = o.optString("label", ""),
+                        formatPattern = o.optString("formatPattern", "")
+
                     )
                 )
             }

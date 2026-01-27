@@ -34,17 +34,18 @@ class TableResolver {
         val counterResolved = currentCounter.toString().padStart(config.counterDigits.coerceIn(1, 6), '0')
         val nextCounter = currentCounter + 1
 
-        val dateSdf = SimpleDateFormat(config.dateFormat, config.locale)
-        val timeSdf = SimpleDateFormat(config.timeFormat, config.locale)
-        val dateText = dateSdf.format(captureNow)
-        val timeText = timeSdf.format(captureNow)
+        val defaultDateText = SimpleDateFormat(config.dateFormat, config.locale).format(captureNow)
+        val defaultTimeText = SimpleDateFormat(config.timeFormat, config.locale).format(captureNow)
+
 
         val resolved = ordered.map { cell ->
             resolveCell(
                 cell = cell,
                 counterResolved = counterResolved,
-                dateText = dateText,
-                timeText = timeText
+                captureNow = captureNow,
+                config = config,
+                defaultDateText = defaultDateText,
+                defaultTimeText = defaultTimeText
             )
         }
 
@@ -60,8 +61,10 @@ class TableResolver {
     private fun resolveCell(
         cell: TableCellState,
         counterResolved: String,
-        dateText: String,
-        timeText: String
+        captureNow: Date,
+        config: Config,
+        defaultDateText: String,
+        defaultTimeText: String
     ): ResolvedCell {
         val rawText = cell.valueText
 
@@ -99,7 +102,10 @@ class TableResolver {
             }
 
             TableCellDataType.DATE -> {
-                val resolved = if (rawText.isBlank()) dateText else rawText.trim()
+                val resolved = if (rawText.isBlank()) {
+                    val pattern = cell.formatPattern.ifBlank { config.dateFormat }
+                    SimpleDateFormat(pattern, config.locale).format(captureNow)
+                } else rawText.trim()
                 ResolvedCell(
                     id = cell.cellId,
                     type = cell.dataType,
@@ -110,7 +116,10 @@ class TableResolver {
             }
 
             TableCellDataType.TIME -> {
-                val resolved = if (rawText.isBlank()) timeText else rawText.trim()
+                val resolved = if (rawText.isBlank()) {
+                    val pattern = cell.formatPattern.ifBlank { config.timeFormat }
+                    SimpleDateFormat(pattern, config.locale).format(captureNow)
+                } else rawText.trim()
                 ResolvedCell(
                     id = cell.cellId,
                     type = cell.dataType,
