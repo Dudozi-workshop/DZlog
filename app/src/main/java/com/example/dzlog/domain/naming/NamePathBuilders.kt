@@ -1,7 +1,6 @@
 package com.example.dzlog.domain.naming
 
 import com.example.dzlog.domain.model.GroupLevel
-import com.example.dzlog.domain.model.TableCellKind
 import com.example.dzlog.domain.model.TableCellState
 import kotlin.jvm.JvmName
 import com.example.dzlog.domain.table.ResolvedCell
@@ -73,7 +72,7 @@ fun buildDisplayNameFromResolvedCells(
         .asSequence()
         .filter { rc ->
             val raw = rc.raw
-            raw != null && raw.kind == TableCellKind.INPUT && raw.fileNameInclude
+            raw != null && raw.fileNameInclude
         }
         .map { sanitizeFilePart(it.resolvedText) }
         .filter { it.isNotBlank() }

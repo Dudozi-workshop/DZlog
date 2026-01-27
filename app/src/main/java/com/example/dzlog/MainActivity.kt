@@ -123,6 +123,8 @@ import kotlinx.coroutines.Dispatchers
 import java.util.Date
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.MutablePreferences
+import androidx.compose.material3.Switch
+
 
 
 // =========================================================
@@ -1475,13 +1477,8 @@ private fun TableEditorScreen(
                             val cell = templateState.cells.firstOrNull {
                                 it.rowIndex == row && it.colIndex == col
                             }
-                            val cellUnassigned = cell?.let { isCellUnassigned(it) } ?: false
+                            val cellBackground = Color(0xFFF7F4EE)
                             val isSelected = cell?.cellId == selectedCellId
-                            val cellBackground = if (cellUnassigned) {
-                                Color(0xFFFFF3CD)
-                            } else {
-                                Color(0xFFF7F4EE)
-                            }
 
                             Box(
                                 modifier = Modifier
@@ -1491,10 +1488,8 @@ private fun TableEditorScreen(
                                     .background(cellBackground)
                                     .border(
                                         width = if (isSelected) 2.dp else 1.dp,
-                                        color = if (isSelected) Color(0xFF5B7F60) else Color(
-                                            0xFFB5B0A8
-                                        )
-                                    )
+                                        color = if (isSelected) Color(0xFF5B7F60) else Color(0xFFBDBDBD)
+                                                                      )
                                     .clickable(enabled = cell != null) {
                                         if (cell == null) return@clickable
 
@@ -1507,7 +1502,6 @@ private fun TableEditorScreen(
 
                                         // 같은 셀을 다시 클릭하면(TEXT/NUMBER + INPUT) 인플레이스 편집 진입
                                         val canInlineEdit =
-                                            cell.kind == TableCellKind.INPUT &&
                                             (cell.dataType == TableCellDataType.TEXT ||
                                              cell.dataType == TableCellDataType.NUMBER ||
                                              cell.dataType == TableCellDataType.COUNTER)
@@ -1527,10 +1521,9 @@ private fun TableEditorScreen(
                                         .orEmpty()
                                     val isEditing = (editingCellId == cell.cellId)
                                     val canInlineEdit =
-                                        cell.kind == TableCellKind.INPUT &&
                                         (cell.dataType == TableCellDataType.TEXT ||
-                                         cell.dataType == TableCellDataType.NUMBER ||
-                                         cell.dataType == TableCellDataType.COUNTER)
+                                                cell.dataType == TableCellDataType.NUMBER ||
+                                                cell.dataType == TableCellDataType.COUNTER)
 
                                     if (isEditing && canInlineEdit) {
                                         Column(
@@ -1625,12 +1618,15 @@ private fun TableEditorScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
+                    modifier = Modifier.weight(1f),
                     onClick = {
                         val updated = addRow(templateState)
                         onTemplateChange(updated)
                     }
-                ) { Text("+Row") }
+                ) { Text("+Row", fontSize = 12.sp, maxLines = 1, softWrap = false) }
+
                 Button(
+                    modifier = Modifier.weight(1f),
                     onClick = {
                         val updated = removeRow(templateState)
                         onTemplateChange(updated)
@@ -1639,14 +1635,16 @@ private fun TableEditorScreen(
                         }
                     },
                     enabled = templateState.rows > 1
-                ) { Text("-Row") }
+                ) { Text("-Row", fontSize = 12.sp, maxLines = 1, softWrap = false) }
                 Button(
+                    modifier = Modifier.weight(1f),
                     onClick = {
                         val updated = addColumn(templateState)
                         onTemplateChange(updated)
                     }
-                ) { Text("+Col") }
+                ) { Text("+Col", fontSize = 12.sp, maxLines = 1, softWrap = false) }
                 Button(
+                    modifier = Modifier.weight(1f),
                     onClick = {
                         val updated = removeColumn(templateState)
                         onTemplateChange(updated)
@@ -1655,7 +1653,7 @@ private fun TableEditorScreen(
                         }
                     },
                     enabled = templateState.cols > 1
-                ) { Text("-Col") }
+                ) { Text("-Col", fontSize = 12.sp, maxLines = 1, softWrap = false) }
             }
 
             Row(
@@ -1697,29 +1695,22 @@ private fun TableEditorScreen(
                 if (selectedCell == null) {
                     Text("셀을 선택하세요.", color = Color.DarkGray)
                 } else {
-                    Text("Kind", color = Color.Black)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(
-                            selected = selectedCell.kind == TableCellKind.BASE,
-                            onClick = {
+                    Text("Filename include", color = Color.Black)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(if (selectedCell.fileNameInclude) "ON" else "OFF", color = Color.DarkGray)
+                        Switch(
+                            checked = selectedCell.fileNameInclude,
+                            onCheckedChange = { checked ->
                                 val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                    cell.copy(kind = TableCellKind.BASE, fileNameInclude = false)
+                                    cell.copy(fileNameInclude = checked)
                                 }
                                 onTemplateChange(updated)
                             }
                         )
-                        Text("BASE", color = Color.Black)
-                        Spacer(Modifier.width(12.dp))
-                        RadioButton(
-                            selected = selectedCell.kind == TableCellKind.INPUT,
-                            onClick = {
-                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                    cell.copy(kind = TableCellKind.INPUT)
-                                }
-                                onTemplateChange(updated)
-                            }
-                        )
-                        Text("INPUT", color = Color.Black)
                     }
 
                     Text("Data Type", color = Color.Black)
@@ -1817,26 +1808,10 @@ private fun TableEditorScreen(
                         }
                     }
 
-                    if (selectedCell.kind == TableCellKind.INPUT) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = selectedCell.fileNameInclude,
-                                onCheckedChange = { checked ->
-                                    val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                        cell.copy(fileNameInclude = checked)
-                                    }
-                                    onTemplateChange(updated)
-                                }
-                            )
-                            Text("Filename include", color = Color.Black)
-                        }
-                    }
-
                     val canInlineEditSelected =
-                        selectedCell.kind == TableCellKind.INPUT &&
-                                (selectedCell.dataType == TableCellDataType.TEXT ||
-                                        selectedCell.dataType == TableCellDataType.NUMBER ||
-                                        selectedCell.dataType == TableCellDataType.COUNTER)
+                        (selectedCell.dataType == TableCellDataType.TEXT ||
+                         selectedCell.dataType == TableCellDataType.NUMBER ||
+                         selectedCell.dataType == TableCellDataType.COUNTER)
 
                     when {
                         canInlineEditSelected -> {
