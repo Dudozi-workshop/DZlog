@@ -1440,8 +1440,10 @@ private fun TableEditorScreen(
         }
 
         val id = editingCellId ?: return
-
         val cell = templateState.cells.firstOrNull { it.cellId == id }
+
+
+
         if (cell != null && cell.dataType == TableCellDataType.COUNTER) {
             val newV = editingValue.trim().toIntOrNull()
             val oldV = editingOriginalValue.trim().toIntOrNull()
@@ -1458,9 +1460,23 @@ private fun TableEditorScreen(
             }
         }
 
-        val updated = updateCell(templateState, id) { c ->
-            c.copy(valueText = editingValue)
+        val target = templateState.cells.firstOrNull { it.cellId == id }
+        val normalizedValueText = if (target?.dataType == TableCellDataType.COUNTER) {
+            val v = editingValue.trim().toIntOrNull()
+            if (v == null || v < 0) {
+                // 유효하지 않은 COUNTER 입력이면 커밋하지 않고 편집 종료
+                editingCellId = null
+                return
+            }
+            v.toString() // ✅ normalize: "0008" -> "8"
+        } else {
+            editingValue
         }
+
+        val updated = updateCell(templateState, id) { c ->
+            c.copy(valueText = normalizedValueText)
+        }
+
         onTemplateChange(updated)
         editingCellId = null
     }
