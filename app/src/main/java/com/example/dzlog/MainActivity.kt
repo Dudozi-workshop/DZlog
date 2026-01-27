@@ -1528,14 +1528,8 @@ private fun TableEditorScreen(
     if (showCounterDupDialog) {
         AlertDialog(
             onDismissRequest = {
-                // dismiss = 취소와 동일(최신값 적용)
-                val id = editingCellId
-                if (id != null) {
-                    val updated = updateCell(templateState, id) { c ->
-                        c.copy(valueText = pendingCounterLatestValue.toString())
-                    }
-                    onTemplateChange(updated)
-                }
+                // 취소 = 이전 값으로 복귀
+                editingValue = editingOriginalValue
                 showCounterDupDialog = false
                 editingCellId = null
             },
@@ -1562,13 +1556,8 @@ private fun TableEditorScreen(
             },
             dismissButton = {
                 TextButton(onClick = {
-                    val id = editingCellId
-                    if (id != null) {
-                        val updated = updateCell(templateState, id) { c ->
-                            c.copy(valueText = pendingCounterLatestValue.toString())
-                        }
-                        onTemplateChange(updated)
-                    }
+                    // 취소 = 이전 값으로 복귀
+                    editingValue = editingOriginalValue
                     showCounterDupDialog = false
                     editingCellId = null
                 }) { Text("취소") }
