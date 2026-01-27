@@ -12,10 +12,12 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.RectF
 import android.os.Bundle
+import android.os.Build
 import android.util.Log
 import android.util.Rational
 import android.view.View
 import android.widget.Toast
+import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -90,6 +92,7 @@ import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import org.json.JSONArray
 import org.json.JSONObject
@@ -175,6 +178,7 @@ val KEY_WM_BG_ALPHA = intPreferencesKey("wm_bg_alpha") // 0~255
 val KEY_WM_LABEL_SCALE = intPreferencesKey("wm_label_scale") // 60~160
 val KEY_WM_VALUE_SCALE = intPreferencesKey("wm_value_scale") // 60~160
 val KEY_TABLE_TEMPLATE_JSON = stringPreferencesKey("table_template_json")
+val KEY_USED_COUNTER_VALUES_JSON = stringPreferencesKey("used_counter_values_json")
 
 
 // =========================================================
@@ -184,6 +188,56 @@ val KEY_TABLE_TEMPLATE_JSON = stringPreferencesKey("table_template_json")
 const val COUNTER_DIGITS_DEFAULT = 4
 
 fun clampCounterDigits(v: Int) = v.coerceIn(1, 6) // [각주 1]
+
+private fun encodeCounterSetJson(values: Set<Int>): String {
+    val arr = JSONArray()
+    values.sorted().forEach { arr.put(it) }
+    return arr.toString()
+}
+
+private fun decodeCounterSetJson(json: String?): MutableSet<Int> {
+    if (json.isNullOrBlank()) return mutableSetOf()
+    return runCatching {
+        val arr = JSONArray(json)
+        val out = mutableSetOf<Int>()
+        for (i in 0 until arr.length()) out.add(arr.getInt(i))
+        out
+    }.getOrElse { mutableSetOf() }
+}
+
+// COUNTER는 파일명 마지막 토큰으로 고정: ..._<COUNTER>.jpg
+private fun parseCounterFromDisplayName(displayName: String): Int? {
+    val base = displayName.substringBeforeLast('.', displayName)
+    val token = base.substringAfterLast('_', missingDelimiterValue = "").trim()
+    val v = token.toIntOrNull() ?: return null
+    return if (v >= 0) v else null
+}
+
+private suspend fun scanUsedCountersFromMediaStore(context: Context): Set<Int> {
+    // RELATIVE_PATH는 Android Q에서만 안정적으로 사용
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return emptySet()
+
+    val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+    val projection = arrayOf(
+        MediaStore.Images.Media.DISPLAY_NAME,
+        MediaStore.Images.Media.RELATIVE_PATH
+    )
+    val selection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
+    val selectionArgs = arrayOf("Pictures/DZlog/%")
+
+    val out = mutableSetOf<Int>()
+    context.contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
+        val nameIdx = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+        val pathIdx = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+        while (cursor.moveToNext()) {
+            val rel = if (pathIdx >= 0) cursor.getString(pathIdx) else ""
+            if (!rel.startsWith("Pictures/DZlog/")) continue
+            val name = if (nameIdx >= 0) cursor.getString(nameIdx) else ""
+            parseCounterFromDisplayName(name)?.let(out::add)
+        }
+    }
+    return out
+}
 
 // =========================================================
 // Save / Orientation
@@ -1328,6 +1382,30 @@ private fun TableEditorScreen(
 
     val scope = rememberCoroutineScope()
     var isSavingTemplate by remember { mutableStateOf(false) }
+
+    // COUNTER used-values (MediaStore scan = truth, DataStore = cache)
+    var usedCounters by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var showCounterDupDialog by remember { mutableStateOf(false) }
+    var pendingCounterCommitValue by remember { mutableIntStateOf(0) }
+    var pendingCounterCommitText by remember { mutableStateOf("") }
+    var pendingCounterLatestValue by remember { mutableStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        val prefs = runCatching { context.dataStore.data.first() }.getOrNull()
+        val cached = decodeCounterSetJson(prefs?.get(KEY_USED_COUNTER_VALUES_JSON))
+
+        // 스캔 성공 여부를 null로 구분 (빈 set도 “성공”임)
+        val scanned: Set<Int>? = runCatching { scanUsedCountersFromMediaStore(context) }.getOrNull()
+        val effective: Set<Int> = scanned ?: cached
+
+        usedCounters = effective
+
+        // Reconcile cache to truth (scan 결과가 있으면 그걸로 정정)
+        runCatching {
+            context.dataStore.edit { it[KEY_USED_COUNTER_VALUES_JSON] = encodeCounterSetJson(effective) }
+        }
+    }
+
     // =========================
     // Phase 1: 인플레이스 편집 상태
     // =========================
@@ -1362,6 +1440,24 @@ private fun TableEditorScreen(
         }
 
         val id = editingCellId ?: return
+
+        val cell = templateState.cells.firstOrNull { it.cellId == id }
+        if (cell != null && cell.dataType == TableCellDataType.COUNTER) {
+            val newV = editingValue.trim().toIntOrNull()
+            val oldV = editingOriginalValue.trim().toIntOrNull()
+            if (newV == null || newV < 0) return
+
+            val isChanged = (oldV == null) || (newV != oldV)
+            if (isChanged && usedCounters.contains(newV)) {
+                pendingCounterCommitValue = newV
+                pendingCounterCommitText = editingValue.trim()
+                pendingCounterLatestValue = (usedCounters.maxOrNull() ?: 0) + 1
+
+                showCounterDupDialog = true
+                return
+            }
+        }
+
         val updated = updateCell(templateState, id) { c ->
             c.copy(valueText = editingValue)
         }
@@ -1428,6 +1524,58 @@ private fun TableEditorScreen(
         includeTime = false,
         now = previewNow
     )
+
+    if (showCounterDupDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                // dismiss = 취소와 동일(최신값 적용)
+                val id = editingCellId
+                if (id != null) {
+                    val updated = updateCell(templateState, id) { c ->
+                        c.copy(valueText = pendingCounterLatestValue.toString())
+                    }
+                    onTemplateChange(updated)
+                }
+                showCounterDupDialog = false
+                editingCellId = null
+            },
+            title = { Text("중복 카운터") },
+            text = {
+                Text(
+                    "이미 저장된 번호: ${pendingCounterCommitValue}\n" +
+                            "현재 최신 추천: ${pendingCounterLatestValue}\n\n" +
+                            "그래도 적용할까요?"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val id = editingCellId
+                    if (id != null) {
+                        val updated = updateCell(templateState, id) { c ->
+                            c.copy(valueText = pendingCounterCommitText)
+                        }
+                        onTemplateChange(updated)
+                    }
+                    showCounterDupDialog = false
+                    editingCellId = null
+                }) { Text("적용") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    val id = editingCellId
+                    if (id != null) {
+                        val updated = updateCell(templateState, id) { c ->
+                            c.copy(valueText = pendingCounterLatestValue.toString())
+                        }
+                        onTemplateChange(updated)
+                    }
+                    showCounterDupDialog = false
+                    editingCellId = null
+                }) { Text("취소") }
+            }
+        )
+    }
+
 
     Scaffold(
         topBar = {
