@@ -1834,29 +1834,34 @@ private fun TableEditorScreen(
 
                     val canInlineEditSelected =
                         selectedCell.kind == TableCellKind.INPUT &&
-                                (selectedCell.dataType == TableCellDataType.TEXT || selectedCell.dataType == TableCellDataType.NUMBER)
+                                (selectedCell.dataType == TableCellDataType.TEXT ||
+                                        selectedCell.dataType == TableCellDataType.NUMBER ||
+                                        selectedCell.dataType == TableCellDataType.COUNTER)
 
-                    if (!canInlineEditSelected) {
-                        TextField(
-                            value = selectedCell.valueText,
-                            onValueChange = { value ->
-                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                    cell.copy(valueText = value)
-                                }
-                                onTemplateChange(updated)
-                            },
-                            singleLine = true,
-                            label = { Text("Value") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    } else {
-                        Text(
-                            "TEXT/NUMBER는 셀을 다시 눌러 바로 입력하세요.",
-                            fontSize = 12.sp,
-                            color = Color.DarkGray
-                        )
+                    when {
+                        canInlineEditSelected -> {
+                            Text(
+                                "값 입력: 셀을 다시 눌러(더블클릭) 입력",
+                                fontSize = 12.sp,
+                                color = Color.DarkGray
+                            )
+                        }
+                        selectedCell.dataType == TableCellDataType.DATE || selectedCell.dataType == TableCellDataType.TIME -> {
+                            Text(
+                                "DATE/TIME: 저장 시각(captureNow) 기준 자동 적용됨\n(형식 팝업 설정은 추후 디벨롭)",
+                                fontSize = 12.sp,
+                                color = Color.DarkGray
+                            )
+                        }
+                        else -> {
+                            // BASE 등: 값 입력 대상 아님
+                            Text(
+                                "이 셀은 값 입력 대상이 아님",
+                                fontSize = 12.sp,
+                                color = Color.DarkGray
+                            )
+                        }
                     }
-
                 }
             }
         }
@@ -1899,7 +1904,16 @@ private fun updateGroupLevel(
 private fun addRow(templateState: TableTemplateState): TableTemplateState {
     val newRowIndex = templateState.rows
     val newCells = (0 until templateState.cols).map { col ->
-        TableCellState(rowIndex = newRowIndex, colIndex = col)
+        TableCellState(
+            rowIndex = newRowIndex,
+            colIndex = col,
+            kind = TableCellKind.INPUT,
+            dataType = TableCellDataType.TEXT,
+            valueText = "",
+            fileNameInclude = false,
+            groupLevel = GroupLevel.NONE,
+            label = "" // 빈 라벨 허용(저장 막지 않음)
+        )
     }
     return templateState.copy(
         rows = templateState.rows + 1,
@@ -1918,7 +1932,16 @@ private fun removeRow(templateState: TableTemplateState): TableTemplateState {
 private fun addColumn(templateState: TableTemplateState): TableTemplateState {
     val newColIndex = templateState.cols
     val newCells = (0 until templateState.rows).map { row ->
-        TableCellState(rowIndex = row, colIndex = newColIndex)
+        TableCellState(
+            rowIndex = row,
+            colIndex = newColIndex,
+            kind = TableCellKind.INPUT,
+            dataType = TableCellDataType.TEXT,
+            valueText = "",
+            fileNameInclude = false,
+            groupLevel = GroupLevel.NONE,
+            label = "" // 빈 라벨 허용(저장 막지 않음)
+        )
     }
     return templateState.copy(
         cols = templateState.cols + 1,
