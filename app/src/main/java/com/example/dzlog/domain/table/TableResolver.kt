@@ -1,13 +1,13 @@
 package com.example.dzlog.domain.table
 
-import com.example.dzlog.domain.model.TableCellDataType
-import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.HourSystem
+import com.example.dzlog.domain.model.TableCellDataType
+import com.example.dzlog.domain.model.TableCellState
+import com.example.dzlog.domain.model.TimeSeparator
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 /**
  * Fixed Contract:
@@ -33,9 +33,12 @@ class TableResolver {
         val ordered = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
 
         val counterCell = ordered.firstOrNull { it.dataType == TableCellDataType.COUNTER }
-        val currentCounter = parseCounter(counterCell) ?: 1
+        val currentCounter = parseCounterSeed(counterCell) ?: 1
         val counterResolved = currentCounter.toString().padStart(config.counterDigits.coerceIn(1, 6), '0')
         val nextCounter = currentCounter + 1
+
+        // NOTE: DATE/TIME은 셀의 원본 텍스트(rawText)를 신뢰하지 않는다.
+        //       항상 captureNow 기준으로 포맷하여 표시/저장한다.
 
         val resolved = ordered.map { cell ->
             resolveCell(
@@ -46,7 +49,11 @@ class TableResolver {
             )
         }
 
-        val patch = if (counterCell != null) TablePatch(mapOf(counterCell.cellId to nextCounter.toString())) else TablePatch.EMPTY
+        val patch = if (counterCell != null) {
+            TablePatch(mapOf(counterCell.cellId to nextCounter.toString()))
+        } else {
+            TablePatch.EMPTY
+        }
 
         return ResolvePlan(resolvedCells = resolved, patch = patch)
     }
@@ -57,75 +64,83 @@ class TableResolver {
         captureNow: Date,
         config: Config
     ): ResolvedCell {
-
         return when (cell.dataType) {
             TableCellDataType.TEXT -> {
                 val t = cell.rawText.trim()
-                ResolvedCell(id = cell.cellId, type = cell.dataType, raw = cell, resolvedText = t, isEmpty = t.isBlank())
+                ResolvedCell(
+                    id = cell.cellId,
+                    type = cell.dataType,
+                    raw = cell,
+                    resolvedText = t,
+                    isEmpty = t.isBlank()
+                )
             }
 
             TableCellDataType.NUMBER -> {
                 val t = cell.rawText.trim()
-                ResolvedCell(id = cell.cellId, type = cell.dataType, raw = cell, resolvedText = t, isEmpty = t.isBlank())
+                ResolvedCell(
+                    id = cell.cellId,
+                    type = cell.dataType,
+                    raw = cell,
+                    resolvedText = t,
+                    isEmpty = t.isBlank()
+                )
             }
 
             TableCellDataType.COUNTER -> {
-                ResolvedCell(id = cell.cellId, type = cell.dataType, raw = cell, resolvedText = counterResolved, isEmpty = false)
+                ResolvedCell(
+                    id = cell.cellId,
+                    type = cell.dataType,
+                    raw = cell,
+                    resolvedText = counterResolved,
+                    isEmpty = false
+                )
             }
 
             TableCellDataType.DATE -> {
-                // 정책: DATE는 항상 현재(captureNow)를 사용.
+                // DATE는 항상 현재(captureNow) 기준으로 표시한다.
                 val pattern = cell.formatPattern.ifBlank { config.dateFormat }
-                val dateSdf = SimpleDateFormat(pattern, config.locale)
-                val resolved = dateSdf.format(captureNow)
-                ResolvedCell(id = cell.cellId, type = cell.dataType, raw = cell, resolvedText = resolved, isEmpty = resolved.isBlank())
+                val resolved = SimpleDateFormat(pattern, config.locale).format(captureNow)
+                ResolvedCell(
+                    id = cell.cellId,
+                    type = cell.dataType,
+                    raw = cell,
+                    resolvedText = resolved,
+                    isEmpty = resolved.isBlank()
+                )
             }
 
             TableCellDataType.TIME -> {
-                // 정책: TIME은 항상 현재(captureNow)를 사용.
-                val resolved = formatTimeFromNow(captureNow = captureNow, options = cell.timeFormatOptions, locale = config.locale)
-                ResolvedCell(id = cell.cellId, type = cell.dataType, raw = cell, resolvedText = resolved, isEmpty = resolved.isBlank())
+                // TIME은 항상 현재(captureNow) 기준으로 표시한다.
+                // NOTE: Step3에서 UI 토글(timeFormatOptions)로 완전 전환한다.
+                val pattern = cell.timeFormatOptions?.toTimePattern()
+                    ?: cell.formatPattern.ifBlank { config.timeFormat }
+
+                val resolved = SimpleDateFormat(pattern, config.locale).format(captureNow)
+                ResolvedCell(
+                    id = cell.cellId,
+                    type = cell.dataType,
+                    raw = cell,
+                    resolvedText = resolved,
+                    isEmpty = resolved.isBlank()
+                )
             }
         }
     }
 
-    private fun parseCounter(cell: TableCellState?): Int? {
+    private fun parseCounterSeed(cell: TableCellState?): Int? {
         if (cell == null) return null
-        return when (val tv = cell.typedValue) {
-            is CellValue.Counter -> tv.value.takeIf { it >= 0 }
-            else -> cell.rawText.trim().toIntOrNull()?.takeIf { it >= 0 }
-        }
+        val seed = (cell.typedValue as? CellValue.CounterSeed)?.start
+        return seed?.takeIf { it >= 0 }
     }
 
-    private fun formatTimeFromNow(captureNow: Date, options: com.example.dzlog.domain.model.TimeFormatOptions, locale: Locale): String {
-        val totalSeconds = TimeUnit.MILLISECONDS.toSeconds(captureNow.time)
-        val secOfDay = ((totalSeconds % 86400) + 86400) % 86400
-        val hh24 = (secOfDay / 3600).toInt()
-        val mm = ((secOfDay % 3600) / 60).toInt()
-        val ss = (secOfDay % 60).toInt()
-
-        val sep = options.separator.ch
-        return when (options.hourSystem) {
-            HourSystem.H24 -> {
-                if (options.includeSeconds) {
-                    String.format(locale, "%02d%c%02d%c%02d", hh24, sep, mm, sep, ss)
-                } else {
-                    String.format(locale, "%02d%c%02d", hh24, sep, mm)
-                }
-            }
-
-            HourSystem.H12 -> {
-                val am = hh24 < 12
-                val hh12 = when (val h = hh24 % 12) { 0 -> 12; else -> h }
-                val base = if (options.includeSeconds) {
-                    String.format(locale, "%02d%c%02d%c%02d", hh12, sep, mm, sep, ss)
-                } else {
-                    String.format(locale, "%02d%c%02d", hh12, sep, mm)
-                }
-                // Locale-sensitive AM/PM
-                val ampm = SimpleDateFormat("a", locale).format(captureNow)
-                "$base $ampm"
-            }
+    private fun com.example.dzlog.domain.model.TimeFormatOptions.toTimePattern(): String {
+        val sep = this.separator.ch
+        val base = when (this.hourSystem) {
+            HourSystem.H24 -> "HH${sep}mm"
+            HourSystem.H12 -> "hh${sep}mm"
         }
+        val withSec = if (this.includeSeconds) "$base${sep}ss" else base
+        return if (this.hourSystem == HourSystem.H12) "$withSec a" else withSec
     }
 }

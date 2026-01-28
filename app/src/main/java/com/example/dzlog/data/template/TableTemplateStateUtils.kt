@@ -1,18 +1,16 @@
 package com.example.dzlog.data.template
 
+import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.GroupLevel
+import com.example.dzlog.domain.model.HourSystem
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellKind
-import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.TimeFormatOptions
+import com.example.dzlog.domain.model.TimeSeparator
 import org.json.JSONArray
 import org.json.JSONObject
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneId
-import java.util.Date
 
 fun tableTemplateStateFromJson(json: String): TableTemplateState? {
     return runCatching {
@@ -20,14 +18,36 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
         val rows = root.getInt("rows")
         val cols = root.getInt("cols")
         val arr = root.getJSONArray("cells")
-        val now = Date()
-        val zone = ZoneId.systemDefault()
         val cells = buildList {
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
-                val dataType = TableCellDataType.valueOf(o.optString("dataType", TableCellDataType.TEXT.name))
-                val rawText = o.optString("rawText", o.optString("valueText", ""))
-                val typedValue = buildTypedValueForLoad(dataType = dataType, rawText = rawText, now = now, zone = zone)
+
+                val dataType = TableCellDataType.valueOf(
+                    o.optString("dataType", TableCellDataType.TEXT.name)
+                )
+
+                val rawText = o.optString("rawText", "")
+
+                // typedValue는 최소 저장만 하고, 대부분 dataType/rawText로 복원한다.
+                val typedValue: CellValue = when (dataType) {
+                    TableCellDataType.COUNTER -> {
+                        val seed = o.optInt("counterSeed", 1).coerceAtLeast(0)
+                        CellValue.CounterSeed(seed)
+                    }
+                    TableCellDataType.TEXT -> CellValue.Text(rawText)
+                    TableCellDataType.NUMBER -> CellValue.Number(rawText)
+                    else -> CellValue.Auto
+                }
+
+                val timeOpts = if (o.has("timeFormatOptions")) {
+                    val t = o.getJSONObject("timeFormatOptions")
+                    TimeFormatOptions(
+                        hourSystem = HourSystem.valueOf(t.optString("hourSystem", HourSystem.H24.name)),
+                        includeSeconds = t.optBoolean("includeSeconds", false),
+                        separator = TimeSeparator.valueOf(t.optString("separator", TimeSeparator.COLON.name))
+                    )
+                } else null
+
                 add(
                     TableCellState(
                         rowIndex = o.getInt("rowIndex"),
@@ -35,6 +55,7 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         kind = TableCellKind.valueOf(o.getString("kind")),
                         rawText = rawText,
                         typedValue = typedValue,
+                        timeFormatOptions = timeOpts,
                         fileNameInclude = o.optBoolean("fileNameInclude", false),
                         groupLevel = GroupLevel.valueOf(o.optString("groupLevel", GroupLevel.NONE.name)),
                         cellId = o.optString("cellId", java.util.UUID.randomUUID().toString()),
@@ -42,45 +63,13 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         colSpan = o.optInt("colSpan", 1),
                         dataType = dataType,
                         label = o.optString("label", ""),
-                        formatPattern = o.optString("formatPattern", ""),
-                        timeFormatOptions = o.optJSONObject("timeFormatOptions")?.let { tf ->
-                            TimeFormatOptions(
-                                hourSystem = runCatching {
-                                    com.example.dzlog.domain.model.HourSystem.valueOf(tf.optString("hourSystem"))
-                                }.getOrDefault(com.example.dzlog.domain.model.HourSystem.H24),
-                                includeSeconds = tf.optBoolean("includeSeconds", false),
-                                separator = runCatching {
-                                    com.example.dzlog.domain.model.TimeSeparator.valueOf(tf.optString("separator"))
-                                }.getOrDefault(com.example.dzlog.domain.model.TimeSeparator.COLON)
-                            )
-                        } ?: TimeFormatOptions.DEFAULT
+                        formatPattern = o.optString("formatPattern", "")
                     )
                 )
             }
         }
         TableTemplateState(rows = rows, cols = cols, cells = cells)
     }.getOrNull()
-}
-
-private fun buildTypedValueForLoad(
-    dataType: TableCellDataType,
-    rawText: String,
-    now: Date,
-    zone: ZoneId
-): CellValue {
-    return when (dataType) {
-        TableCellDataType.TEXT -> CellValue.Text(rawText)
-        TableCellDataType.NUMBER -> CellValue.Number(rawText)
-        TableCellDataType.COUNTER -> CellValue.Counter(rawText.trim().toIntOrNull()?.takeIf { it >= 0 } ?: 1)
-        TableCellDataType.DATE -> {
-            val epochDay = LocalDate.ofInstant(now.toInstant(), zone).toEpochDay().toInt()
-            CellValue.Date(epochDay)
-        }
-        TableCellDataType.TIME -> {
-            val t = LocalTime.ofInstant(now.toInstant(), zone)
-            CellValue.Time(t.toSecondOfDay())
-        }
-    }
 }
 
 fun defaultTableTemplateState(): TableTemplateState {
@@ -187,12 +176,22 @@ fun TableTemplateState.toJsonString(): String {
         o.put("dataType", c.dataType.name)
         o.put("label", c.label)
         o.put("formatPattern", c.formatPattern)
-        // TIME formatting options (structured)
-        val tf = JSONObject()
-        tf.put("hourSystem", c.timeFormatOptions.hourSystem.name)
-        tf.put("includeSeconds", c.timeFormatOptions.includeSeconds)
-        tf.put("separator", c.timeFormatOptions.separator.name)
-        o.put("timeFormatOptions", tf)
+
+        // COUNTER seed 저장
+        if (c.dataType == TableCellDataType.COUNTER) {
+            val seed = (c.typedValue as? CellValue.CounterSeed)?.start ?: 1
+            o.put("counterSeed", seed)
+        }
+
+        // TIME 옵션 저장
+        c.timeFormatOptions?.let { t ->
+            val tj = JSONObject()
+            tj.put("hourSystem", t.hourSystem.name)
+            tj.put("includeSeconds", t.includeSeconds)
+            tj.put("separator", t.separator.name)
+            o.put("timeFormatOptions", tj)
+        }
+
         arr.put(o)
     }
     root.put("cells", arr)

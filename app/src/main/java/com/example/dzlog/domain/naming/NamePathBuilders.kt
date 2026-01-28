@@ -33,7 +33,7 @@ fun resolveGroupValue(cells: List<TableCellState>, level: GroupLevel): String {
 fun resolveGroupValue(resolvedCells: List<ResolvedCell>, level: GroupLevel): String {
     return resolvedCells
         .asSequence()
-        .filter { it.raw?.groupLevel == level }
+        .filter { (it.raw?.groupLevel ?: GroupLevel.NONE) == level }
         .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
         .map { sanitizeFolderName(it.resolvedText) }
         .firstOrNull { it.isNotBlank() }

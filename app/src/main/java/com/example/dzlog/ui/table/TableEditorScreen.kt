@@ -62,14 +62,11 @@ import com.example.dzlog.data.preferences.KEY_USED_COUNTER_VALUES_JSON
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.toJsonString
 import com.example.dzlog.domain.model.GroupLevel
+import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellKind
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
-import com.example.dzlog.domain.model.CellValue
-import com.example.dzlog.domain.model.HourSystem
-import com.example.dzlog.domain.model.TimeSeparator
-import com.example.dzlog.domain.model.TimeFormatOptions
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.preview.computeNextDelayMillis
@@ -99,6 +96,7 @@ fun TableEditorScreen(
     var formatTargetType by remember { mutableStateOf<TableCellDataType?>(null) }
 
     val dateFormatOptions = listOf("yyyy-MM-dd", "yy-MM-dd", "MM-dd")
+    val timeFormatOptions = listOf("HH:mm", "HH:mm:ss", "hh:mm a", "hh:mm:ss a")
 
     var usedCounters by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var showCounterDupDialog by remember { mutableStateOf(false) }
@@ -184,7 +182,15 @@ fun TableEditorScreen(
         }
 
         val updated = updateCell(templateState, id) { c ->
-            applyUserEditableText(c, normalizedValueText)
+            when (c.dataType) {
+            TableCellDataType.TEXT -> c.copy(rawText = normalizedValueText, typedValue = CellValue.Text(normalizedValueText))
+            TableCellDataType.NUMBER -> c.copy(rawText = normalizedValueText, typedValue = CellValue.Number(normalizedValueText))
+            TableCellDataType.COUNTER -> {
+                val seed = normalizedValueText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
+                c.copy(typedValue = CellValue.CounterSeed(seed))
+            }
+            else -> c
+        }
         }
 
         onTemplateChange(updated)
@@ -265,7 +271,7 @@ fun TableEditorScreen(
                     val id = editingCellId
                     if (id != null) {
                         val updated = updateCell(templateState, id) { c ->
-                            applyUserEditableText(c, pendingCounterCommitText)
+                            c.copy(typedValue = CellValue.CounterSeed(pendingCounterCommitText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0))
                         }
                         onTemplateChange(updated)
                     }
@@ -287,6 +293,7 @@ fun TableEditorScreen(
         val targetId = formatTargetCellId
         val targetType = formatTargetType
         val targetCell = templateState.cells.firstOrNull { it.cellId == targetId }
+        val options = if (targetType == TableCellDataType.DATE) dateFormatOptions else timeFormatOptions
 
         AlertDialog(
             onDismissRequest = {
@@ -294,102 +301,24 @@ fun TableEditorScreen(
                 formatTargetCellId = null
                 formatTargetType = null
             },
-            title = {
-                Text(if (targetType == TableCellDataType.DATE) "DATE 형식" else "TIME 형식")
-            },
+            title = { Text(if (targetType == TableCellDataType.DATE) "DATE 형식" else "TIME 형식") },
             text = {
-                if (targetType == TableCellDataType.TIME) {
-                    // TIME: 구조화 옵션(초/12-24/구분자)
-                    val current = targetCell?.timeFormatOptions ?: TimeFormatOptions.DEFAULT
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("초 포함", color = Color.Black)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(if (current.includeSeconds) "ON" else "OFF", color = Color.DarkGray)
-                            Switch(
-                                checked = current.includeSeconds,
-                                onCheckedChange = { checked ->
-                                    if (targetId != null) {
-                                        val updated = updateCell(templateState, targetId) { c ->
-                                            c.copy(timeFormatOptions = c.timeFormatOptions.copy(includeSeconds = checked))
-                                        }
-                                        onTemplateChange(updated)
-                                    }
-                                }
-                            )
-                        }
-
-                        Text("시간제", color = Color.Black)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(
-                                selected = current.hourSystem == HourSystem.H24,
-                                onClick = {
-                                    if (targetId != null) {
-                                        val updated = updateCell(templateState, targetId) { c ->
-                                            c.copy(timeFormatOptions = c.timeFormatOptions.copy(hourSystem = HourSystem.H24))
-                                        }
-                                        onTemplateChange(updated)
-                                    }
-                                }
-                            )
-                            Text("24H", color = Color.Black)
-                            Spacer(Modifier.width(12.dp))
-                            RadioButton(
-                                selected = current.hourSystem == HourSystem.H12,
-                                onClick = {
-                                    if (targetId != null) {
-                                        val updated = updateCell(templateState, targetId) { c ->
-                                            c.copy(timeFormatOptions = c.timeFormatOptions.copy(hourSystem = HourSystem.H12))
-                                        }
-                                        onTemplateChange(updated)
-                                    }
-                                }
-                            )
-                            Text("12H", color = Color.Black)
-                        }
-
-                        Text("구분자", color = Color.Black)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            listOf(TimeSeparator.COLON, TimeSeparator.DOT, TimeSeparator.DASH).forEach { sep ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(
-                                        selected = current.separator == sep,
-                                        onClick = {
-                                            if (targetId != null) {
-                                                val updated = updateCell(templateState, targetId) { c ->
-                                                    c.copy(timeFormatOptions = c.timeFormatOptions.copy(separator = sep))
-                                                }
-                                                onTemplateChange(updated)
-                                            }
-                                        }
-                                    )
-                                    Text(sep.ch.toString(), color = Color.Black)
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    // DATE: 기존 패턴 목록 방식 유지
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     val current = targetCell?.formatPattern.orEmpty()
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        dateFormatOptions.forEach { p ->
-                            TextButton(
-                                onClick = {
-                                    if (targetId != null) {
-                                        val updated = updateCell(templateState, targetId) { c ->
-                                            c.copy(formatPattern = p)
-                                        }
-                                        onTemplateChange(updated)
+                    options.forEach { p ->
+                        TextButton(
+                            onClick = {
+                                if (targetId != null) {
+                                    val updated = updateCell(templateState, targetId) { c ->
+                                        c.copy(formatPattern = p)
                                     }
-                                    showFormatDialog = false
-                                    formatTargetCellId = null
-                                    formatTargetType = null
+                                    onTemplateChange(updated)
                                 }
-                            ) { Text(if (current == p) "✓  $p" else p) }
-                        }
+                                showFormatDialog = false
+                                formatTargetCellId = null
+                                formatTargetType = null
+                            }
+                        ) { Text(if (current == p) "✓  $p" else p) }
                     }
                 }
             },
@@ -488,9 +417,8 @@ fun TableEditorScreen(
 
                                         if (canInlineEdit) {
                                             editingCellId = cell.cellId
-                                            val t = getEditableText(cell)
-                                            editingValue = t
-                                            editingOriginalValue = t
+                                            editingValue = cell.toEditableText()
+                                            editingOriginalValue = cell.toEditableText()
                                         }
                                     },
                                 contentAlignment = Alignment.Center
@@ -569,7 +497,12 @@ fun TableEditorScreen(
                                                             }
                                                         }
                                                         val updated = updateCell(templateState, cell.cellId) { c ->
-                                                            applyUserEditableText(c, v)
+                                                            when (c.dataType) {
+                                                            TableCellDataType.TEXT -> c.copy(rawText = v, typedValue = CellValue.Text(v))
+                                                            TableCellDataType.NUMBER -> c.copy(rawText = v, typedValue = CellValue.Number(v))
+                                                            TableCellDataType.COUNTER -> c.copy(typedValue = CellValue.CounterSeed(v.toIntOrNull()?.coerceAtLeast(0) ?: 0))
+                                                            else -> c
+                                                        }
                                                         }
                                                         onTemplateChange(updated)
                                                         editingCellId = null
@@ -697,7 +630,7 @@ fun TableEditorScreen(
                             selected = selectedCell.dataType == TableCellDataType.TEXT,
                             onClick = {
                                 val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                    applyDataTypeChange(cell, TableCellDataType.TEXT, previewNow)
+                                    cell.copy(dataType = TableCellDataType.TEXT)
                                 }
                                 onTemplateChange(updated)
                             }
@@ -708,7 +641,7 @@ fun TableEditorScreen(
                             selected = selectedCell.dataType == TableCellDataType.NUMBER,
                             onClick = {
                                 val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                    applyDataTypeChange(cell, TableCellDataType.NUMBER, previewNow)
+                                    cell.copy(dataType = TableCellDataType.NUMBER)
                                 }
                                 onTemplateChange(updated)
                             }
@@ -721,7 +654,7 @@ fun TableEditorScreen(
                             selected = selectedCell.dataType == TableCellDataType.DATE,
                             onClick = {
                                 val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                    applyDataTypeChange(cell, TableCellDataType.DATE, previewNow)
+                                    cell.copy(dataType = TableCellDataType.DATE)
                                 }
                                 onTemplateChange(updated)
                             }
@@ -732,7 +665,7 @@ fun TableEditorScreen(
                             selected = selectedCell.dataType == TableCellDataType.TIME,
                             onClick = {
                                 val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                    applyDataTypeChange(cell, TableCellDataType.TIME, previewNow)
+                                    cell.copy(dataType = TableCellDataType.TIME)
                                 }
                                 onTemplateChange(updated)
                             }
@@ -743,7 +676,7 @@ fun TableEditorScreen(
                             selected = selectedCell.dataType == TableCellDataType.COUNTER,
                             onClick = {
                                 val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                    applyDataTypeChange(cell, TableCellDataType.COUNTER, previewNow)
+                                    cell.copy(dataType = TableCellDataType.COUNTER)
                                 }
                                 onTemplateChange(updated)
                             }
@@ -837,61 +770,6 @@ private fun updateCell(
     )
 }
 
-/**
- * Inline-edit가 가능한 셀에서 편집창에 보여줄 텍스트.
- */
-private fun getEditableText(cell: TableCellState): String {
-    return when (cell.dataType) {
-        TableCellDataType.COUNTER -> (cell.typedValue as? CellValue.Counter)?.value?.toString() ?: cell.rawText
-        TableCellDataType.TEXT, TableCellDataType.NUMBER -> cell.rawText
-        else -> ""
-    }
-}
-
-/**
- * TEXT/NUMBER/COUNTER 입력 커밋용.
- * - DATE/TIME은 자동값이므로 여기서 변경하지 않는다.
- */
-private fun applyUserEditableText(cell: TableCellState, newText: String): TableCellState {
-    return when (cell.dataType) {
-        TableCellDataType.TEXT -> cell.copy(rawText = newText, typedValue = CellValue.Text(newText))
-        TableCellDataType.NUMBER -> cell.copy(rawText = newText, typedValue = CellValue.Number(newText))
-        TableCellDataType.COUNTER -> {
-            val v = newText.trim().toIntOrNull()?.takeIf { it >= 0 } ?: 1
-            cell.copy(rawText = v.toString(), typedValue = CellValue.Counter(v))
-        }
-        else -> cell
-    }
-}
-
-/**
- * 데이터 타입 변경 정책을 강제한다.
- *
- * 요구사항:
- * - 기존에 TEXT가 있어도 DATE/TIME 선택 시 즉시 날짜/시간이 표시되어야 한다.
- * - 다시 TEXT를 선택하면 기존 TEXT(rawText)가 복원되어야 한다.
- */
-private fun applyDataTypeChange(cell: TableCellState, newType: TableCellDataType, now: java.util.Date): TableCellState {
-    return when (newType) {
-        TableCellDataType.TEXT -> cell.copy(dataType = newType, typedValue = CellValue.Text(cell.rawText))
-        TableCellDataType.NUMBER -> cell.copy(dataType = newType, typedValue = CellValue.Number(cell.rawText))
-        TableCellDataType.COUNTER -> {
-            val v = cell.rawText.trim().toIntOrNull()?.takeIf { it >= 0 } ?: 1
-            cell.copy(dataType = newType, rawText = v.toString(), typedValue = CellValue.Counter(v))
-        }
-        TableCellDataType.DATE -> {
-            val epochDay = java.time.LocalDate.ofInstant(now.toInstant(), java.time.ZoneId.systemDefault()).toEpochDay().toInt()
-            // rawText 보존(복원용)
-            cell.copy(dataType = newType, typedValue = CellValue.Date(epochDay))
-        }
-        TableCellDataType.TIME -> {
-            val t = java.time.LocalTime.ofInstant(now.toInstant(), java.time.ZoneId.systemDefault())
-            // rawText 보존(복원용)
-            cell.copy(dataType = newType, typedValue = CellValue.Time(t.toSecondOfDay()))
-        }
-    }
-}
-
 private fun updateGroupLevel(
     templateState: TableTemplateState,
     cellId: String,
@@ -917,8 +795,8 @@ private fun addRow(templateState: TableTemplateState): TableTemplateState {
             colIndex = col,
             kind = TableCellKind.INPUT,
             dataType = TableCellDataType.TEXT,
-	            rawText = "",
-	            typedValue = CellValue.Text(""),
+            rawText = "",
+            typedValue = CellValue.Text(""),
             fileNameInclude = false,
             groupLevel = GroupLevel.NONE,
             label = ""
@@ -946,8 +824,8 @@ private fun addColumn(templateState: TableTemplateState): TableTemplateState {
             colIndex = newColIndex,
             kind = TableCellKind.INPUT,
             dataType = TableCellDataType.TEXT,
-	            rawText = "",
-	            typedValue = CellValue.Text(""),
+            rawText = "",
+            typedValue = CellValue.Text(""),
             fileNameInclude = false,
             groupLevel = GroupLevel.NONE,
             label = ""

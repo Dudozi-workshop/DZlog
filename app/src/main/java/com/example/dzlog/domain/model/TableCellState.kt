@@ -2,68 +2,88 @@ package com.example.dzlog.domain.model
 
 import java.util.UUID
 
+/**
+ * Core Rule:
+ * - rawText는 사용자가 TEXT 편집으로 입력한 "원본 텍스트"를 보존한다. (타입 변경으로 자동 변경 금지)
+ * - 실제 표시/저장용 값은 dataType/typedValue/options + captureNow(날짜/시간) 등으로 계산한다.
+ */
 data class TableCellState(
     val rowIndex: Int,
     val colIndex: Int,
     val kind: TableCellKind = TableCellKind.BASE,
-    /**
-     * Original text written by the user.
-     *
-     * 정책:
-     * - TEXT로 돌아갈 때 이 값을 복원한다.
-     * - DATE/TIME 선택 시에도 이 값은 보존된다.
-     */
+
+    /** 사용자가 TEXT 편집에서 입력한 원본 텍스트(복원용). */
     val rawText: String = "",
-    /**
-     * Typed value for the cell.
-     *
-     * - TEXT/NUMBER/COUNTER는 사용자가 입력한 값을 보관한다.
-     * - DATE/TIME은 "현재"를 표시/해결(resolution)하기 위해 주로 Resolver가 사용한다.
-     */
-    val typedValue: CellValue = CellValue.Text(""),
+
+    /** 타입별 값(정석형). TEXT/NUMBER/COUNTER seed 등 "의미값" 보관. */
+    val typedValue: CellValue = CellValue.Auto,
+
+    /** TIME 표시 옵션(토글 UI 연결용). TIME에서만 사용. */
+    val timeFormatOptions: TimeFormatOptions? = null,
+
     val fileNameInclude: Boolean = false,
     val groupLevel: GroupLevel = GroupLevel.NONE,
     val cellId: String = UUID.randomUUID().toString(),
     val rowSpan: Int = 1,
     val colSpan: Int = 1,
     val dataType: TableCellDataType = TableCellDataType.TEXT,
+
     /**
-     * Optional display/parse pattern for DATE/TIME cells.
-     * Example: "yyyy.MM.dd" or "HH.mm.ss".
+     * Optional display pattern (currently used for DATE; TIME는 향후 timeFormatOptions로 완전 대체).
+     * Example: "yyyy.MM.dd"
      */
     val formatPattern: String = "",
-    /**
-     * TIME 형식 옵션(초 포함, 12/24, 구분자).
-     * - TIME 타입에서 사용한다.
-     */
-    val timeFormatOptions: TimeFormatOptions = TimeFormatOptions.DEFAULT,
-    val label: String = ""
-    )
 
-sealed interface CellValue {
-    data class Text(val text: String) : CellValue
-    data class Number(val text: String) : CellValue
-    data class Counter(val value: Int) : CellValue
-    data class Date(val epochDay: Int) : CellValue
-    data class Time(val secondsOfDay: Int) : CellValue
+    val label: String = ""
+) {
+    /**
+     * UI에서 TextField에 넣을 "편집용 문자열"을 반환.
+     *
+     * NOTE
+     * - DATE/TIME은 값 자체를 TextField로 직접 편집하지 않고(현재값 자동),
+     *   옵션 팝업으로만 다루는 정책이므로 빈 문자열 반환.
+     */
+    fun toEditableText(): String {
+        return when (dataType) {
+            TableCellDataType.TEXT -> rawText
+
+            TableCellDataType.NUMBER -> when (val v = typedValue) {
+                is CellValue.Number -> v.text
+                is CellValue.Text -> v.text
+                else -> rawText
+            }
+
+            TableCellDataType.COUNTER -> when (val v = typedValue) {
+                is CellValue.CounterSeed -> v.start.toString()
+                else -> "1"
+            }
+
+            TableCellDataType.DATE,
+            TableCellDataType.TIME -> ""
+        }
+    }
 }
 
-enum class HourSystem { H12, H24 }
+sealed interface CellValue {
+    /** DATE/TIME 등 "자동 적용" 타입(저장된 값이 없음). */
+    data object Auto : CellValue
 
-enum class TimeSeparator(val ch: Char) {
-    COLON(':'),
-    DOT('.'),
-    DASH('-')
+    data class Text(val text: String) : CellValue
+    data class Number(val text: String) : CellValue
+
+    /** COUNTER 시작값(seed). 저장 성공 시 patch로 증가되며 업데이트됨. */
+    data class CounterSeed(val start: Int) : CellValue
 }
 
 data class TimeFormatOptions(
     val hourSystem: HourSystem = HourSystem.H24,
     val includeSeconds: Boolean = false,
     val separator: TimeSeparator = TimeSeparator.COLON
-) {
-    companion object {
-        val DEFAULT = TimeFormatOptions()
-    }
+)
+
+enum class HourSystem { H12, H24 }
+enum class TimeSeparator(val ch: Char) {
+    COLON(':'), DOT('.'), DASH('-')
 }
 
 enum class TableCellKind {
