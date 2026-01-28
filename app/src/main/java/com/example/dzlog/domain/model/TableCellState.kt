@@ -13,6 +13,7 @@ data class TableCellState(
     val rowSpan: Int = 1,
     val colSpan: Int = 1,
     val dataType: TableCellDataType = TableCellDataType.TEXT,
+    val formatPattern: String = "",
     val label: String = ""
     )
 

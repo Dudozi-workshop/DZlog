@@ -1,0 +1,830 @@
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
+
+package com.example.dzlog.ui.table
+
+import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.edit
+import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
+import com.example.dzlog.data.counter.clampCounterDigits
+import com.example.dzlog.data.counter.decodeCounterSet
+import com.example.dzlog.data.counter.encodeCounterSet
+import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
+import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
+import com.example.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
+import com.example.dzlog.data.preferences.KEY_USED_COUNTER_VALUES_JSON
+import com.example.dzlog.data.preferences.dataStore
+import com.example.dzlog.data.template.toJsonString
+import com.example.dzlog.domain.model.GroupLevel
+import com.example.dzlog.domain.model.TableCellDataType
+import com.example.dzlog.domain.model.TableCellKind
+import com.example.dzlog.domain.model.TableCellState
+import com.example.dzlog.domain.model.TableTemplateState
+import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
+import com.example.dzlog.domain.naming.buildGalleryRelativePath
+import com.example.dzlog.domain.preview.computeNextDelayMillis
+import com.example.dzlog.domain.preview.decideTickUnit
+import com.example.dzlog.domain.table.TableResolver
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import java.util.Date
+
+@Composable
+fun TableEditorScreen(
+    templateState: TableTemplateState,
+    onTemplateChange: (TableTemplateState) -> Unit,
+    onReset: () -> Unit,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    var selectedCellId by remember { mutableStateOf(templateState.cells.firstOrNull()?.cellId) }
+    val scrollState = rememberScrollState()
+
+    val scope = rememberCoroutineScope()
+    var isSavingTemplate by remember { mutableStateOf(false) }
+
+    var showFormatDialog by remember { mutableStateOf(false) }
+    var formatTargetCellId by remember { mutableStateOf<String?>(null) }
+    var formatTargetType by remember { mutableStateOf<TableCellDataType?>(null) }
+
+    val dateFormatOptions = listOf("yyyy-MM-dd", "yy-MM-dd", "MM-dd")
+    val timeFormatOptions = listOf("HH:mm", "HH:mm:ss", "hh:mm a", "hh:mm:ss a")
+
+    var usedCounters by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var showCounterDupDialog by remember { mutableStateOf(false) }
+    var pendingCounterCommitValue by remember { mutableIntStateOf(0) }
+    var pendingCounterCommitText by remember { mutableStateOf("") }
+    var pendingCounterLatestValue by remember { mutableStateOf(0) }
+
+    val currentRelativePath by remember(templateState.cells) {
+        derivedStateOf {
+            buildGalleryRelativePath(templateState.cells)
+        }
+    }
+
+    LaunchedEffect(currentRelativePath) {
+        val prefs = runCatching { context.dataStore.data.first() }.getOrNull()
+        val cached = decodeCounterSet(prefs?.get(KEY_USED_COUNTER_VALUES_JSON))
+
+        val scanned: Set<Int>? = runCatching { scanUsedCountersFromMediaStore(context, currentRelativePath) }.getOrNull()
+        val effective: Set<Int> = scanned ?: cached
+
+        usedCounters = effective
+
+        runCatching {
+            context.dataStore.edit { it[KEY_USED_COUNTER_VALUES_JSON] = encodeCounterSet(effective) }
+        }
+    }
+
+    var editingCellId by remember { mutableStateOf<String?>(null) }
+    var editingValue by remember { mutableStateOf("") }
+    var editingOriginalValue by remember { mutableStateOf("") }
+
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val inlineFocusRequester = remember { FocusRequester() }
+
+    var inlineHasFocusedOnce by remember { mutableStateOf(false) }
+    var suppressNextCommit by remember { mutableStateOf(false) }
+
+    LaunchedEffect(editingCellId) {
+        inlineHasFocusedOnce = false
+        if (editingCellId != null) {
+            delay(30)
+            inlineFocusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
+
+    fun commitInlineEditIfNeeded() {
+        if (suppressNextCommit) {
+            suppressNextCommit = false
+            editingCellId = null
+            return
+        }
+
+        val id = editingCellId ?: return
+        val cell = templateState.cells.firstOrNull { it.cellId == id }
+
+        if (cell != null && cell.dataType == TableCellDataType.COUNTER) {
+            val newV = editingValue.trim().toIntOrNull()
+            val oldV = editingOriginalValue.trim().toIntOrNull()
+            if (newV == null || newV < 0) return
+
+            val isChanged = (oldV == null) || (newV != oldV)
+            if (isChanged && usedCounters.contains(newV)) {
+                pendingCounterCommitValue = newV
+                pendingCounterCommitText = editingValue.trim()
+                pendingCounterLatestValue = (usedCounters.maxOrNull() ?: 0) + 1
+
+                showCounterDupDialog = true
+                return
+            }
+        }
+
+        val target = templateState.cells.firstOrNull { it.cellId == id }
+        val normalizedValueText = if (target?.dataType == TableCellDataType.COUNTER) {
+            val v = editingValue.trim().toIntOrNull()
+            if (v == null || v < 0) {
+                editingCellId = null
+                return
+            }
+            v.toString()
+        } else {
+            editingValue
+        }
+
+        val updated = updateCell(templateState, id) { c ->
+            c.copy(valueText = normalizedValueText)
+        }
+
+        onTemplateChange(updated)
+        editingCellId = null
+    }
+
+    if (selectedCellId == null && templateState.cells.isNotEmpty()) {
+        selectedCellId = templateState.cells.first().cellId
+    }
+
+    val selectedCell = templateState.cells.firstOrNull { it.cellId == selectedCellId }
+    val hasGroup1 = templateState.cells.any { it.groupLevel == GroupLevel.G1 }
+    val savePathPreview = remember(templateState.cells) {
+        buildGalleryRelativePath(templateState.cells)
+    }
+
+    val dateFormat = "yyyy.MM.dd"
+    val timeFormat = "HH.mm.ss"
+
+    var previewCounterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
+    LaunchedEffect(Unit) {
+        runCatching {
+            val prefs = context.dataStore.data.first()
+            previewCounterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
+        }.onFailure {
+            previewCounterDigits = COUNTER_DIGITS_DEFAULT
+        }
+    }
+
+    var previewNow by remember { mutableStateOf(Date()) }
+    LaunchedEffect(dateFormat, timeFormat) {
+        val unit = decideTickUnit(dateFormat, timeFormat)
+        while (true) {
+            val delayMs = computeNextDelayMillis(unit)
+            delay(delayMs)
+            previewNow = Date()
+        }
+    }
+
+    val tableResolver = remember { TableResolver() }
+    val plan = remember(templateState.cells, previewNow, previewCounterDigits, dateFormat, timeFormat) {
+        tableResolver.plan(
+            cells = templateState.cells,
+            captureNow = previewNow,
+            config = TableResolver.Config(
+                counterDigits = previewCounterDigits,
+                dateFormat = dateFormat,
+                timeFormat = timeFormat
+            )
+        )
+    }
+
+    val filenamePreview = buildDisplayNameFromResolvedCells(
+        resolvedCells = plan.resolvedCells,
+        fnDelim = "_",
+        includeDate = false,
+        includeTime = false,
+        now = previewNow
+    )
+
+    if (showCounterDupDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                editingValue = editingOriginalValue
+                showCounterDupDialog = false
+                editingCellId = null
+            },
+            title = { Text("중복 카운터") },
+            text = {
+                Text(
+                    "이미 저장된 번호: ${pendingCounterCommitValue}\n" +
+                            "현재 최신 추천: ${pendingCounterLatestValue}\n\n" +
+                            "그래도 적용할까요?"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val id = editingCellId
+                    if (id != null) {
+                        val updated = updateCell(templateState, id) { c ->
+                            c.copy(valueText = pendingCounterCommitText)
+                        }
+                        onTemplateChange(updated)
+                    }
+                    showCounterDupDialog = false
+                    editingCellId = null
+                }) { Text("적용") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    editingValue = editingOriginalValue
+                    showCounterDupDialog = false
+                    editingCellId = null
+                }) { Text("취소") }
+            }
+        )
+    }
+
+    if (showFormatDialog) {
+        val targetId = formatTargetCellId
+        val targetType = formatTargetType
+        val targetCell = templateState.cells.firstOrNull { it.cellId == targetId }
+        val options = if (targetType == TableCellDataType.DATE) dateFormatOptions else timeFormatOptions
+
+        AlertDialog(
+            onDismissRequest = {
+                showFormatDialog = false
+                formatTargetCellId = null
+                formatTargetType = null
+            },
+            title = { Text(if (targetType == TableCellDataType.DATE) "DATE 형식" else "TIME 형식") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val current = targetCell?.formatPattern.orEmpty()
+                    options.forEach { p ->
+                        TextButton(
+                            onClick = {
+                                if (targetId != null) {
+                                    val updated = updateCell(templateState, targetId) { c ->
+                                        c.copy(formatPattern = p)
+                                    }
+                                    onTemplateChange(updated)
+                                }
+                                showFormatDialog = false
+                                formatTargetCellId = null
+                                formatTargetType = null
+                            }
+                        ) { Text(if (current == p) "✓  $p" else p) }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showFormatDialog = false
+                    formatTargetCellId = null
+                    formatTargetType = null
+                }) { Text("닫기") }
+            }
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("표 상세설정") },
+                navigationIcon = {
+                    TextButton(onClick = onBack) {
+                        Text("Back")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(scrollState)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFF1EDE3))
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFEFEAE0))
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("Save Path Preview", fontSize = 12.sp, color = Color.DarkGray)
+                    Text(savePathPreview, color = Color.Black)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Filename Preview", fontSize = 12.sp, color = Color.DarkGray)
+                    Text(filenamePreview, color = Color.Black)
+                }
+
+                repeat(templateState.rows) { row ->
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        repeat(templateState.cols) { col ->
+                            val cell = templateState.cells.firstOrNull {
+                                it.rowIndex == row && it.colIndex == col
+                            }
+                            val cellBackground = Color(0xFFF7F4EE)
+                            val isSelected = cell?.cellId == selectedCellId
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(64.dp)
+                                    .padding(2.dp)
+                                    .background(cellBackground)
+                                    .border(
+                                        width = if (isSelected) 2.dp else 1.dp,
+                                        color = if (isSelected) Color(0xFF5B7F60) else Color(0xFFBDBDBD)
+                                    )
+                                    .clickable(enabled = cell != null) {
+                                        if (cell == null) return@clickable
+
+                                        if (selectedCellId != cell.cellId) {
+                                            commitInlineEditIfNeeded()
+                                            selectedCellId = cell.cellId
+                                            return@clickable
+                                        }
+
+                                        val canInlineEdit =
+                                            (cell.dataType == TableCellDataType.TEXT ||
+                                                    cell.dataType == TableCellDataType.NUMBER ||
+                                                    cell.dataType == TableCellDataType.COUNTER)
+
+                                        if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
+                                            commitInlineEditIfNeeded()
+                                            formatTargetCellId = cell.cellId
+                                            formatTargetType = cell.dataType
+                                            showFormatDialog = true
+                                            return@clickable
+                                        }
+
+                                        if (canInlineEdit) {
+                                            editingCellId = cell.cellId
+                                            editingValue = cell.valueText
+                                            editingOriginalValue = cell.valueText
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (cell != null) {
+                                    val display = plan.resolvedCells
+                                        .firstOrNull { it.id == cell.cellId }
+                                        ?.resolvedText
+                                        .orEmpty()
+                                    val isEditing = (editingCellId == cell.cellId)
+                                    val canInlineEdit =
+                                        (cell.dataType == TableCellDataType.TEXT ||
+                                                cell.dataType == TableCellDataType.NUMBER ||
+                                                cell.dataType == TableCellDataType.COUNTER)
+
+                                    if (isEditing && canInlineEdit) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(6.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            val keyboardType = when (cell.dataType) {
+                                                TableCellDataType.NUMBER -> KeyboardType.Decimal
+                                                TableCellDataType.COUNTER -> KeyboardType.Number
+                                                else -> KeyboardType.Text
+                                            }
+
+                                            TextField(
+                                                value = editingValue,
+                                                onValueChange = { editingValue = it },
+                                                singleLine = true,
+                                                keyboardOptions = KeyboardOptions(
+                                                    keyboardType = keyboardType,
+                                                    imeAction = ImeAction.Done
+                                                ),
+                                                keyboardActions = KeyboardActions(
+                                                    onDone = {
+                                                        commitInlineEditIfNeeded()
+                                                    }
+                                                ),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .focusRequester(inlineFocusRequester)
+                                                    .onFocusChanged { state ->
+                                                        if (state.isFocused) {
+                                                            inlineHasFocusedOnce = true
+                                                        } else {
+                                                            if (inlineHasFocusedOnce) {
+                                                                commitInlineEditIfNeeded()
+                                                            }
+                                                        }
+                                                    }
+                                            )
+
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                TextButton(
+                                                    onClick = {
+                                                        suppressNextCommit = true
+
+                                                        editingValue = editingOriginalValue
+                                                        editingCellId = null
+                                                    }
+                                                ) { Text("Cancel") }
+
+                                                TextButton(
+                                                    onClick = {
+                                                        val v = editingValue.trim()
+                                                        if (cell.dataType == TableCellDataType.COUNTER) {
+                                                            if (v.isNotEmpty() && v.toIntOrNull()?.let { it >= 0 } != true) {
+                                                                return@TextButton
+                                                            }
+                                                        }
+                                                        val updated = updateCell(templateState, cell.cellId) { c ->
+                                                            c.copy(valueText = v)
+                                                        }
+                                                        onTemplateChange(updated)
+                                                        editingCellId = null
+                                                    }
+                                                ) { Text("OK") }
+                                            }
+                                        }
+                                    } else {
+                                        Text(
+                                            text = display.ifBlank { cell.label.ifBlank { "R${row + 1}C${col + 1}" } },
+                                            color = Color.Black,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        val updated = addRow(templateState)
+                        onTemplateChange(updated)
+                    }
+                ) { Text("+Row", fontSize = 12.sp, maxLines = 1, softWrap = false) }
+
+                Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        val updated = removeRow(templateState)
+                        onTemplateChange(updated)
+                        if (updated.cells.none { it.cellId == selectedCellId }) {
+                            selectedCellId = updated.cells.firstOrNull()?.cellId
+                        }
+                    },
+                    enabled = templateState.rows > 1
+                ) { Text("-Row", fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        val updated = addColumn(templateState)
+                        onTemplateChange(updated)
+                    }
+                ) { Text("+Col", fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        val updated = removeColumn(templateState)
+                        onTemplateChange(updated)
+                        if (updated.cells.none { it.cellId == selectedCellId }) {
+                            selectedCellId = updated.cells.firstOrNull()?.cellId
+                        }
+                    },
+                    enabled = templateState.cols > 1
+                ) { Text("-Col", fontSize = 12.sp, maxLines = 1, softWrap = false) }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        Toast.makeText(context, "Saved (stub)", Toast.LENGTH_SHORT).show()
+                        commitInlineEditIfNeeded()
+                        isSavingTemplate = true
+                        scope.launch {
+                            runCatching {
+                                context.dataStore.edit { prefs ->
+                                    prefs[KEY_TABLE_TEMPLATE_JSON] = templateState.toJsonString()
+                                }
+                            }.onFailure {
+                                Toast.makeText(context, "Save failed: ${it.message}", Toast.LENGTH_SHORT).show()
+                            }.onSuccess {
+                                Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
+                                onBack()
+                            }
+                            isSavingTemplate = false
+                        }
+                    },
+                    enabled = !isSavingTemplate
+                ) { Text("Save") }
+                Button(onClick = onReset) { Text("Reset") }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFF7F4EE))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("Cell Detail Panel", fontSize = 16.sp, color = Color.Black)
+                if (selectedCell == null) {
+                    Text("셀을 선택하세요.", color = Color.DarkGray)
+                } else {
+                    Text("Filename include", color = Color.Black)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(if (selectedCell.fileNameInclude) "ON" else "OFF", color = Color.DarkGray)
+                        Switch(
+                            checked = selectedCell.fileNameInclude,
+                            onCheckedChange = { checked ->
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                    cell.copy(fileNameInclude = checked)
+                                }
+                                onTemplateChange(updated)
+                            }
+                        )
+                    }
+
+                    Text("Data Type", color = Color.Black)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = selectedCell.dataType == TableCellDataType.TEXT,
+                            onClick = {
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                    cell.copy(dataType = TableCellDataType.TEXT)
+                                }
+                                onTemplateChange(updated)
+                            }
+                        )
+                        Text("TEXT", color = Color.Black)
+                        Spacer(Modifier.width(12.dp))
+                        RadioButton(
+                            selected = selectedCell.dataType == TableCellDataType.NUMBER,
+                            onClick = {
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                    cell.copy(dataType = TableCellDataType.NUMBER)
+                                }
+                                onTemplateChange(updated)
+                            }
+                        )
+                        Text("NUMBER", color = Color.Black)
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = selectedCell.dataType == TableCellDataType.DATE,
+                            onClick = {
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                    cell.copy(dataType = TableCellDataType.DATE)
+                                }
+                                onTemplateChange(updated)
+                            }
+                        )
+                        Text("DATE", color = Color.Black)
+                        Spacer(Modifier.width(12.dp))
+                        RadioButton(
+                            selected = selectedCell.dataType == TableCellDataType.TIME,
+                            onClick = {
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                    cell.copy(dataType = TableCellDataType.TIME)
+                                }
+                                onTemplateChange(updated)
+                            }
+                        )
+                        Text("TIME", color = Color.Black)
+                        Spacer(Modifier.width(12.dp))
+                        RadioButton(
+                            selected = selectedCell.dataType == TableCellDataType.COUNTER,
+                            onClick = {
+                                val updated = updateCell(templateState, selectedCell.cellId) { cell ->
+                                    cell.copy(dataType = TableCellDataType.COUNTER)
+                                }
+                                onTemplateChange(updated)
+                            }
+                        )
+                        Text("COUNTER", color = Color.Black)
+                    }
+
+                    Text("Group", color = Color.Black)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        GroupLevel.entries.forEach { level ->
+                            val enabled = level != GroupLevel.G2 || hasGroup1
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = selectedCell.groupLevel == level,
+                                    enabled = enabled,
+                                    onClick = {
+                                        if (enabled) {
+                                            val hadExisting = templateState.cells.any {
+                                                it.cellId != selectedCell.cellId && it.groupLevel == level
+                                            }
+                                            val updated = updateGroupLevel(
+                                                templateState = templateState,
+                                                cellId = selectedCell.cellId,
+                                                level = level
+                                            )
+                                            onTemplateChange(updated)
+                                            if (hadExisting && level != GroupLevel.NONE) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "${level.name} moved to selected cell",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                    }
+                                )
+                                Text(level.name, color = if (enabled) Color.Black else Color.LightGray)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                        }
+                    }
+
+                    val canInlineEditSelected =
+                        (selectedCell.dataType == TableCellDataType.TEXT ||
+                                selectedCell.dataType == TableCellDataType.NUMBER ||
+                                selectedCell.dataType == TableCellDataType.COUNTER)
+
+                    when {
+                        canInlineEditSelected -> {
+                            Text(
+                                "값 입력: 셀을 다시 눌러(더블클릭) 입력",
+                                fontSize = 12.sp,
+                                color = Color.DarkGray
+                            )
+                        }
+                        selectedCell.dataType == TableCellDataType.DATE || selectedCell.dataType == TableCellDataType.TIME -> {
+                            Text(
+                                "DATE/TIME: 저장 시각(captureNow) 기준 자동 적용됨\n(형식 팝업 설정은 추후 디벨롭)",
+                                fontSize = 12.sp,
+                                color = Color.DarkGray
+                            )
+                        }
+                        else -> {
+                            Text(
+                                "이 셀은 값 입력 대상이 아님",
+                                fontSize = 12.sp,
+                                color = Color.DarkGray
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+private fun updateCell(
+    templateState: TableTemplateState,
+    cellId: String,
+    transform: (TableCellState) -> TableCellState
+): TableTemplateState {
+    return templateState.copy(
+        cells = templateState.cells.map { cell ->
+            if (cell.cellId == cellId) {
+                transform(cell)
+            } else {
+                cell
+            }
+        }
+    )
+}
+
+private fun updateGroupLevel(
+    templateState: TableTemplateState,
+    cellId: String,
+    level: GroupLevel
+): TableTemplateState {
+    return templateState.copy(
+        cells = templateState.cells.map { cell ->
+            when {
+                cell.cellId == cellId -> cell.copy(groupLevel = level)
+                level == GroupLevel.G1 && cell.groupLevel == GroupLevel.G1 -> cell.copy(groupLevel = GroupLevel.NONE)
+                level == GroupLevel.G2 && cell.groupLevel == GroupLevel.G2 -> cell.copy(groupLevel = GroupLevel.NONE)
+                else -> cell
+            }
+        }
+    )
+}
+
+private fun addRow(templateState: TableTemplateState): TableTemplateState {
+    val newRowIndex = templateState.rows
+    val newCells = (0 until templateState.cols).map { col ->
+        TableCellState(
+            rowIndex = newRowIndex,
+            colIndex = col,
+            kind = TableCellKind.INPUT,
+            dataType = TableCellDataType.TEXT,
+            valueText = "",
+            fileNameInclude = false,
+            groupLevel = GroupLevel.NONE,
+            label = ""
+        )
+    }
+    return templateState.copy(
+        rows = templateState.rows + 1,
+        cells = templateState.cells + newCells
+    )
+}
+
+private fun removeRow(templateState: TableTemplateState): TableTemplateState {
+    val lastRowIndex = templateState.rows - 1
+    return templateState.copy(
+        rows = templateState.rows - 1,
+        cells = templateState.cells.filterNot { it.rowIndex == lastRowIndex }
+    )
+}
+
+private fun addColumn(templateState: TableTemplateState): TableTemplateState {
+    val newColIndex = templateState.cols
+    val newCells = (0 until templateState.rows).map { row ->
+        TableCellState(
+            rowIndex = row,
+            colIndex = newColIndex,
+            kind = TableCellKind.INPUT,
+            dataType = TableCellDataType.TEXT,
+            valueText = "",
+            fileNameInclude = false,
+            groupLevel = GroupLevel.NONE,
+            label = ""
+        )
+    }
+    return templateState.copy(
+        cols = templateState.cols + 1,
+        cells = templateState.cells + newCells
+    )
+}
+
+private fun removeColumn(templateState: TableTemplateState): TableTemplateState {
+    val lastColIndex = templateState.cols - 1
+    return templateState.copy(
+        cols = templateState.cols - 1,
+        cells = templateState.cells.filterNot { it.colIndex == lastColIndex }
+    )
+}
