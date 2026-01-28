@@ -135,7 +135,7 @@ class TableResolver {
     }
 
     private fun com.example.dzlog.domain.model.TimeFormatOptions.toTimePattern(): String {
-        val sep = this.separator.ch
+        val sep = this.separator.token
         val base = when (this.hourSystem) {
             HourSystem.H24 -> "HH${sep}mm"
             HourSystem.H12 -> "hh${sep}mm"

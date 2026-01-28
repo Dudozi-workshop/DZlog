@@ -439,7 +439,8 @@ fun CameraPreview(
                             return@clickable
                         }
 
-                        val captureNow = now
+                        // Use a single timestamp for this capture so watermark / file name are consistent.
+                        val captureNow = Date()
                         val planForCapture = tableResolver.plan(
                             cells = tableCells,
                             captureNow = captureNow,

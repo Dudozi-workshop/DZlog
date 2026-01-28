@@ -63,10 +63,13 @@ import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.toJsonString
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.CellValue
+import com.example.dzlog.domain.model.HourSystem
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellKind
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
+import com.example.dzlog.domain.model.TimeFormatOptions
+import com.example.dzlog.domain.model.TimeSeparator
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.preview.computeNextDelayMillis
@@ -95,8 +98,8 @@ fun TableEditorScreen(
     var formatTargetCellId by remember { mutableStateOf<String?>(null) }
     var formatTargetType by remember { mutableStateOf<TableCellDataType?>(null) }
 
-    val dateFormatOptions = listOf("yyyy-MM-dd", "yy-MM-dd", "MM-dd")
-    val timeFormatOptions = listOf("HH:mm", "HH:mm:ss", "hh:mm a", "hh:mm:ss a")
+    val dateFormatOptions = listOf("yyyy.MM.dd", "yyyy_MM_dd", "yyyyMMdd")
+    // TIME 형식은 Step3부터 토글 UI(12/24, 초, 구분자)로 설정한다.
 
     var usedCounters by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var showCounterDupDialog by remember { mutableStateOf(false) }
@@ -293,7 +296,8 @@ fun TableEditorScreen(
         val targetId = formatTargetCellId
         val targetType = formatTargetType
         val targetCell = templateState.cells.firstOrNull { it.cellId == targetId }
-        val options = if (targetType == TableCellDataType.DATE) dateFormatOptions else timeFormatOptions
+        val isDate = (targetType == TableCellDataType.DATE)
+        val isTime = (targetType == TableCellDataType.TIME)
 
         AlertDialog(
             onDismissRequest = {
@@ -301,24 +305,134 @@ fun TableEditorScreen(
                 formatTargetCellId = null
                 formatTargetType = null
             },
-            title = { Text(if (targetType == TableCellDataType.DATE) "DATE 형식" else "TIME 형식") },
+            title = {
+                Text(
+                    when {
+                        isDate -> "DATE 형식"
+                        isTime -> "TIME 형식"
+                        else -> "형식"
+                    }
+                )
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val current = targetCell?.formatPattern.orEmpty()
-                    options.forEach { p ->
-                        TextButton(
-                            onClick = {
-                                if (targetId != null) {
-                                    val updated = updateCell(templateState, targetId) { c ->
-                                        c.copy(formatPattern = p)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    when {
+                        isDate -> {
+                            val current = targetCell?.formatPattern.orEmpty()
+                            dateFormatOptions.forEach { p ->
+                                TextButton(
+                                    onClick = {
+                                        if (targetId != null) {
+                                            val updated = updateCell(templateState, targetId) { c ->
+                                                c.copy(formatPattern = p)
+                                            }
+                                            onTemplateChange(updated)
+                                        }
+                                        showFormatDialog = false
+                                        formatTargetCellId = null
+                                        formatTargetType = null
                                     }
-                                    onTemplateChange(updated)
-                                }
-                                showFormatDialog = false
-                                formatTargetCellId = null
-                                formatTargetType = null
+                                ) { Text(if (current == p) "✓  $p" else p) }
                             }
-                        ) { Text(if (current == p) "✓  $p" else p) }
+                        }
+
+                        isTime -> {
+                            // 초기값: 셀에 저장된 옵션이 없으면 기본값 사용
+                            val initial = targetCell?.timeFormatOptions ?: TimeFormatOptions()
+
+                            var hourSystem by remember(targetId) { mutableStateOf(initial.hourSystem) }
+                            var includeSeconds by remember(targetId) { mutableStateOf(initial.includeSeconds) }
+                            var separator by remember(targetId) { mutableStateOf(initial.separator) }
+
+                            fun apply() {
+                                if (targetId == null) return
+                                val updated = updateCell(templateState, targetId) { c ->
+                                    c.copy(
+                                        timeFormatOptions = TimeFormatOptions(
+                                            hourSystem = hourSystem,
+                                            includeSeconds = includeSeconds,
+                                            separator = separator
+                                        ),
+                                        // TIME은 formatPattern을 직접 쓰지 않는 방향(옵션으로 생성)으로 통일
+                                        formatPattern = ""
+                                    )
+                                }
+                                onTemplateChange(updated)
+                            }
+
+                            Text("시간 표시 설정", fontSize = 14.sp)
+
+                            // 12/24
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("시간제", modifier = Modifier.width(72.dp))
+                                RadioButton(
+                                    selected = hourSystem == HourSystem.H24,
+                                    onClick = {
+                                        hourSystem = HourSystem.H24
+                                        apply()
+                                    }
+                                )
+                                Text("24h")
+                                Spacer(Modifier.width(12.dp))
+                                RadioButton(
+                                    selected = hourSystem == HourSystem.H12,
+                                    onClick = {
+                                        hourSystem = HourSystem.H12
+                                        apply()
+                                    }
+                                )
+                                Text("12h")
+                            }
+
+                            // seconds
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("초 포함", modifier = Modifier.width(72.dp))
+                                Switch(
+                                    checked = includeSeconds,
+                                    onCheckedChange = {
+                                        includeSeconds = it
+                                        apply()
+                                    }
+                                )
+                            }
+
+                            // separator
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("구분자", modifier = Modifier.width(72.dp))
+
+                                listOf(TimeSeparator.COLON, TimeSeparator.NONE).forEach { s ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        RadioButton(
+                                            selected = separator == s,
+                                            onClick = {
+                                                separator = s
+                                                apply()
+                                            }
+                                        )
+                                        Text(if (s == TimeSeparator.NONE) "붙이기" else s.token)
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                            }
+
+                            val preview = buildString {
+                                append(if (hourSystem == HourSystem.H24) "HH" else "hh")
+                                append(separator.token)
+                                append("mm")
+                                if (includeSeconds) {
+                                    append(separator.token)
+                                    append("ss")
+                                }
+                                if (hourSystem == HourSystem.H12) {
+                                    append(" a")
+                                }
+                            }
+                            Text("미리보기: $preview", fontSize = 12.sp, color = Color.DarkGray)
+                        }
+
+                        else -> {
+                            Text("지원되지 않는 타입")
+                        }
                     }
                 }
             },
@@ -630,7 +744,7 @@ fun TableEditorScreen(
                             selected = selectedCell.dataType == TableCellDataType.TEXT,
                             onClick = {
                                 val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                    cell.copy(dataType = TableCellDataType.TEXT)
+                                    cell.withDataType(TableCellDataType.TEXT)
                                 }
                                 onTemplateChange(updated)
                             }
@@ -641,7 +755,7 @@ fun TableEditorScreen(
                             selected = selectedCell.dataType == TableCellDataType.NUMBER,
                             onClick = {
                                 val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                    cell.copy(dataType = TableCellDataType.NUMBER)
+                                    cell.withDataType(TableCellDataType.NUMBER)
                                 }
                                 onTemplateChange(updated)
                             }
@@ -654,7 +768,7 @@ fun TableEditorScreen(
                             selected = selectedCell.dataType == TableCellDataType.DATE,
                             onClick = {
                                 val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                    cell.copy(dataType = TableCellDataType.DATE)
+                                    cell.withDataType(TableCellDataType.DATE)
                                 }
                                 onTemplateChange(updated)
                             }
@@ -665,7 +779,7 @@ fun TableEditorScreen(
                             selected = selectedCell.dataType == TableCellDataType.TIME,
                             onClick = {
                                 val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                    cell.copy(dataType = TableCellDataType.TIME)
+                                    cell.withDataType(TableCellDataType.TIME)
                                 }
                                 onTemplateChange(updated)
                             }
@@ -676,7 +790,7 @@ fun TableEditorScreen(
                             selected = selectedCell.dataType == TableCellDataType.COUNTER,
                             onClick = {
                                 val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                    cell.copy(dataType = TableCellDataType.COUNTER)
+                                    cell.withDataType(TableCellDataType.COUNTER)
                                 }
                                 onTemplateChange(updated)
                             }
@@ -734,7 +848,7 @@ fun TableEditorScreen(
                         }
                         selectedCell.dataType == TableCellDataType.DATE || selectedCell.dataType == TableCellDataType.TIME -> {
                             Text(
-                                "DATE/TIME: 저장 시각(captureNow) 기준 자동 적용됨\n(형식 팝업 설정은 추후 디벨롭)",
+                                "DATE/TIME: 저장 시각(captureNow) 기준 자동 적용됨\n(더블클릭: 형식 설정)",
                                 fontSize = 12.sp,
                                 color = Color.DarkGray
                             )
@@ -843,4 +957,48 @@ private fun removeColumn(templateState: TableTemplateState): TableTemplateState 
         cols = templateState.cols - 1,
         cells = templateState.cells.filterNot { it.colIndex == lastColIndex }
     )
+}
+
+/**
+ * DataType 변경 시 공통 규칙(일관 UX)
+ * - rawText는 절대 자동 변경하지 않는다 (사용자가 TEXT 편집할 때만 변경)
+ * - TEXT/NUMBER로 전환 시 typedValue를 rawText 기반으로 동기화
+ * - DATE/TIME은 captureNow 기준 자동 적용(typedValue=Auto)
+ * - TIME은 옵션이 없으면 기본 옵션을 부여
+ * - COUNTER는 seed가 없으면 1로 초기화
+ */
+private fun TableCellState.withDataType(newType: TableCellDataType): TableCellState {
+    if (this.dataType == newType) return this
+
+    return when (newType) {
+        TableCellDataType.TEXT -> this.copy(
+            dataType = newType,
+            typedValue = CellValue.Text(this.rawText),
+            timeFormatOptions = null
+        )
+
+        TableCellDataType.NUMBER -> this.copy(
+            dataType = newType,
+            typedValue = CellValue.Number(this.rawText),
+            timeFormatOptions = null
+        )
+
+        TableCellDataType.DATE -> this.copy(
+            dataType = newType,
+            typedValue = CellValue.Auto,
+            timeFormatOptions = null
+        )
+
+        TableCellDataType.TIME -> this.copy(
+            dataType = newType,
+            typedValue = CellValue.Auto,
+            timeFormatOptions = this.timeFormatOptions ?: TimeFormatOptions()
+        )
+
+        TableCellDataType.COUNTER -> this.copy(
+            dataType = newType,
+            typedValue = (this.typedValue as? CellValue.CounterSeed) ?: CellValue.CounterSeed(1),
+            timeFormatOptions = null
+        )
+    }
 }

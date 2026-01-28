@@ -37,27 +37,20 @@ data class TableCellState(
     val label: String = ""
 ) {
     /**
-     * UI에서 TextField에 넣을 "편집용 문자열"을 반환.
+     * UI(TextField)에 넣을 "편집용 문자열".
      *
-     * NOTE
-     * - DATE/TIME은 값 자체를 TextField로 직접 편집하지 않고(현재값 자동),
-     *   옵션 팝업으로만 다루는 정책이므로 빈 문자열 반환.
+     * 정책:
+     * - TEXT/NUMBER/COUNTER만 인라인 편집 대상으로 본다.
+     * - DATE/TIME은 값 자체를 타이핑으로 편집하지 않고(captureNow 자동), 옵션 팝업으로만 설정한다.
      */
     fun toEditableText(): String {
         return when (dataType) {
             TableCellDataType.TEXT -> rawText
-
-            TableCellDataType.NUMBER -> when (val v = typedValue) {
-                is CellValue.Number -> v.text
-                is CellValue.Text -> v.text
-                else -> rawText
-            }
-
+            TableCellDataType.NUMBER -> rawText
             TableCellDataType.COUNTER -> when (val v = typedValue) {
                 is CellValue.CounterSeed -> v.start.toString()
                 else -> "1"
             }
-
             TableCellDataType.DATE,
             TableCellDataType.TIME -> ""
         }
@@ -82,8 +75,9 @@ data class TimeFormatOptions(
 )
 
 enum class HourSystem { H12, H24 }
-enum class TimeSeparator(val ch: Char) {
-    COLON(':'), DOT('.'), DASH('-')
+enum class TimeSeparator(val token: String) {
+    COLON(":"),
+    NONE("")
 }
 
 enum class TableCellKind {

@@ -44,7 +44,7 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                     TimeFormatOptions(
                         hourSystem = HourSystem.valueOf(t.optString("hourSystem", HourSystem.H24.name)),
                         includeSeconds = t.optBoolean("includeSeconds", false),
-                        separator = TimeSeparator.valueOf(t.optString("separator", TimeSeparator.COLON.name))
+                        separator = runCatching { TimeSeparator.valueOf(t.optString("separator", TimeSeparator.COLON.name)) }.getOrDefault(TimeSeparator.COLON)
                     )
                 } else null
 

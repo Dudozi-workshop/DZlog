@@ -17,7 +17,32 @@ fun sanitizeFolderName(input: String): String {
     return cleaned.trim().trim('.')
 }
 
-fun sanitizeFilePart(input: String): String = sanitizeFolderName(input)
+
+/**
+ * File-name sanitizer for generic (non date/time) parts.
+ *
+ * Policy:
+ * - Replace illegal characters with '_'.
+ * - Trim leading/trailing dots.
+ */
+
+fun sanitizeFilePart(input: String): String {
+    val trimmed = input.trim()
+    if (trimmed.isBlank()) return ""
+
+    // Replace illegal characters for file names across major platforms.
+    val illegal = Regex("[\\\\/:*?\"<>|]")
+    val cleaned = trimmed.replace(illegal, "_")
+
+    return cleaned.trim().trim('.')
+}
+
+
+private fun digitsOnly(input: String): String {
+    val trimmed = input.trim()
+    if (trimmed.isBlank()) return ""
+    return trimmed.filter { it.isDigit() }
+}
 
 @JvmName("resolveGroupValueFromStates")
 fun resolveGroupValue(cells: List<TableCellState>, level: GroupLevel): String {
@@ -73,7 +98,14 @@ fun buildDisplayNameFromResolvedCells(
             val raw = rc.raw
             raw != null && raw.fileNameInclude
         }
-        .map { sanitizeFilePart(it.resolvedText) }
+        .map { rc ->
+            val raw = rc.raw
+            if (raw != null && (raw.dataType == TableCellDataType.DATE || raw.dataType == TableCellDataType.TIME)) {
+                digitsOnly(rc.resolvedText)
+            } else {
+                sanitizeFilePart(rc.resolvedText)
+            }
+        }
         .filter { it.isNotBlank() }
         .toMutableList()
 
