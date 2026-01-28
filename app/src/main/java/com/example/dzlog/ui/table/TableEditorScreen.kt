@@ -5,8 +5,7 @@ package com.example.dzlog.ui.table
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,7 +40,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.focus.FocusRequester
@@ -498,9 +496,14 @@ fun TableEditorScreen(
                             val cell = templateState.cells.firstOrNull {
                                 it.rowIndex == row && it.colIndex == col
                             }
-                            val cellBackground = Color(0xFFF7F4EE)
-// ✅ 선택된 셀 뿐 아니라 "편집 중인 셀"도 강조되게
-                            val isSelected = (cell?.cellId == selectedCellId) || (cell?.cellId == editingCellId)
+                            // ✅ 상태는 먼저 계산
+                            val isSelectedCell = cell?.cellId == selectedCellId
+                            val isEditingCell = cell?.cellId == editingCellId
+                            // ✅ 편집 중 배경 강조
+                            val cellBackground =
+                                if (isEditingCell) Color(0xFFEAF3EC)   // ✨ 편집 중: 연한 강조
+                                else Color(0xFFF7F4EE)
+
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -508,42 +511,69 @@ fun TableEditorScreen(
                                     .padding(2.dp)
                                     .background(cellBackground)
                                     .border(
-                                        width = if (isSelected) 2.dp else 1.dp,
-                                        color = if (isSelected) Color(0xFF5B7F60) else Color(0xFFBDBDBD)
+                                        width = when {
+                                            isEditingCell -> 2.dp
+                                            isSelectedCell -> 2.dp
+                                            else -> 1.dp
+                                        },
+                                        color = when {
+                                            isEditingCell -> Color(0xFF3F7D4C)   // ✨ 편집 중: 조금 더 진한 색
+                                            isSelectedCell -> Color(0xFF5B7F60)
+                                            else -> Color(0xFFBDBDBD)
+                                        }
                                     )
-                                    // 단일 탭: 셀 선택만
-                                    .clickable(enabled = cell != null) {
-                                        if (cell != null) selectedCellId = cell.cellId
-                                    }
-                                    // 더블 탭: 편집 진입(텍스트처럼 보이는 입력) 또는 형식 팝업
-                                    .pointerInput(cell?.cellId) {
-                                        detectTapGestures(
-                                            onDoubleTap = {
-                                                if (cell == null) return@detectTapGestures
 
-                                                // ✅ 더블탭으로 편집 진입 시에도 선택 상태를 해당 셀로 동기화
+                                    // ✅ 단일/더블을 한 곳에서 처리 (저장/전환 안정화)
+                                    .combinedClickable(
+                                        enabled = (cell != null),
+                                        onClick = {
+                                            if (cell == null) return@combinedClickable
+
+                                            // ✅ 편집 중 다른 셀로 이동이면 "항상 저장"
+                                            if (editingCellId != null && editingCellId != cell.cellId) {
+                                                commitInlineEditIfNeeded()
+                                                // counter 중복 다이얼로그 등으로 commit이 보류되면 이동/선택도 막는다
+                                                if (editingCellId != null) return@combinedClickable
+                                            }
+
+                                            selectedCellId = cell.cellId
+                                        },
+                                        onDoubleClick = {
+                                            if (cell == null) return@combinedClickable
+
+                                            // ✅ MVP 정책(B):
+                                            // 편집 중에 "다른 셀 더블클릭"은 편집 전환을 하지 않고
+                                            // 단일 선택 동작(저장  선택)으로만 처리한다.
+                                            if (editingCellId != null && editingCellId != cell.cellId) {
+                                                commitInlineEditIfNeeded()
+                                                // commit이 보류(예: 카운터 중복 다이얼로그)면 이동/선택도 막음
+                                                if (editingCellId != null) return@combinedClickable
                                                 selectedCellId = cell.cellId
-                                                val canInline = (
-                                                    cell.dataType == TableCellDataType.TEXT ||
-                                                        cell.dataType == TableCellDataType.NUMBER ||
-                                                        cell.dataType == TableCellDataType.COUNTER
-                                                )
+                                                return@combinedClickable
+                                            }
 
-                                                if (canInline) {
-                                                    editingCellId = cell.cellId
-                                                    editingValue = cell.toEditableText()
-                                                    editingOriginalValue = editingValue
-                                                } else {
-                                                    // DATE/TIME: 형식 설정 팝업
-                                                    if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
-                                                        formatTargetCellId = cell.cellId
-                                                        formatTargetType = cell.dataType
-                                                        showFormatDialog = true
-                                                    }
+                                            // (편집 중이 아니거나, 같은 셀 더블클릭이면) 정상 더블클릭 처리
+                                            selectedCellId = cell.cellId
+
+                                            val canInline = (
+                                                    cell.dataType == TableCellDataType.TEXT ||
+                                                            cell.dataType == TableCellDataType.NUMBER ||
+                                                            cell.dataType == TableCellDataType.COUNTER
+                                                    )
+
+                                            if (canInline) {
+                                                editingCellId = cell.cellId
+                                                editingValue = cell.toEditableText()
+                                                editingOriginalValue = editingValue
+                                            } else {
+                                                if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
+                                                    formatTargetCellId = cell.cellId
+                                                    formatTargetType = cell.dataType
+                                                    showFormatDialog = true
                                                 }
                                             }
-                                        )
-                                    },
+                                        }
+                                    ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (cell != null) {
