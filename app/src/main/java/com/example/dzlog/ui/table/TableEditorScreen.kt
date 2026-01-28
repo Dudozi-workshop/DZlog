@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -27,7 +29,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,6 +41,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -495,8 +499,8 @@ fun TableEditorScreen(
                                 it.rowIndex == row && it.colIndex == col
                             }
                             val cellBackground = Color(0xFFF7F4EE)
-                            val isSelected = cell?.cellId == selectedCellId
-
+// ✅ 선택된 셀 뿐 아니라 "편집 중인 셀"도 강조되게
+                            val isSelected = (cell?.cellId == selectedCellId) || (cell?.cellId == editingCellId)
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -507,33 +511,38 @@ fun TableEditorScreen(
                                         width = if (isSelected) 2.dp else 1.dp,
                                         color = if (isSelected) Color(0xFF5B7F60) else Color(0xFFBDBDBD)
                                     )
+                                    // 단일 탭: 셀 선택만
                                     .clickable(enabled = cell != null) {
-                                        if (cell == null) return@clickable
+                                        if (cell != null) selectedCellId = cell.cellId
+                                    }
+                                    // 더블 탭: 편집 진입(텍스트처럼 보이는 입력) 또는 형식 팝업
+                                    .pointerInput(cell?.cellId) {
+                                        detectTapGestures(
+                                            onDoubleTap = {
+                                                if (cell == null) return@detectTapGestures
 
-                                        if (selectedCellId != cell.cellId) {
-                                            commitInlineEditIfNeeded()
-                                            selectedCellId = cell.cellId
-                                            return@clickable
-                                        }
+                                                // ✅ 더블탭으로 편집 진입 시에도 선택 상태를 해당 셀로 동기화
+                                                selectedCellId = cell.cellId
+                                                val canInline = (
+                                                    cell.dataType == TableCellDataType.TEXT ||
+                                                        cell.dataType == TableCellDataType.NUMBER ||
+                                                        cell.dataType == TableCellDataType.COUNTER
+                                                )
 
-                                        val canInlineEdit =
-                                            (cell.dataType == TableCellDataType.TEXT ||
-                                                    cell.dataType == TableCellDataType.NUMBER ||
-                                                    cell.dataType == TableCellDataType.COUNTER)
-
-                                        if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
-                                            commitInlineEditIfNeeded()
-                                            formatTargetCellId = cell.cellId
-                                            formatTargetType = cell.dataType
-                                            showFormatDialog = true
-                                            return@clickable
-                                        }
-
-                                        if (canInlineEdit) {
-                                            editingCellId = cell.cellId
-                                            editingValue = cell.toEditableText()
-                                            editingOriginalValue = cell.toEditableText()
-                                        }
+                                                if (canInline) {
+                                                    editingCellId = cell.cellId
+                                                    editingValue = cell.toEditableText()
+                                                    editingOriginalValue = editingValue
+                                                } else {
+                                                    // DATE/TIME: 형식 설정 팝업
+                                                    if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
+                                                        formatTargetCellId = cell.cellId
+                                                        formatTargetType = cell.dataType
+                                                        showFormatDialog = true
+                                                    }
+                                                }
+                                            }
+                                        )
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -552,122 +561,66 @@ fun TableEditorScreen(
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxSize()
-                                                .padding(6.dp)
+                                                .padding(horizontal = 6.dp, vertical = 4.dp)
                                         ) {
-                                            // 🔹 상단 상태 배지(표시 전용)
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                verticalAlignment = Alignment.CenterVertically
+                                            // 🔹 Header 고정
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(14.dp),
+                                                contentAlignment = Alignment.CenterStart
                                             ) {
                                                 CellHeaderBadges(cell)
                                             }
 
-                                            Spacer(Modifier.height(4.dp))
-
-                                            // 🔹 편집 UI는 중앙 영역에 유지
+                                            // 🔹 Editor 영역: 남은 공간 (TextField ❌ / BasicTextField ⭕)
                                             Box(
-                                                modifier = Modifier.fillMaxSize(),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .weight(1f),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Column(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                                                    horizontalAlignment = Alignment.CenterHorizontally
-                                                ) {
-
-                                                    val keyboardType = when (cell.dataType) {
-                                                        TableCellDataType.NUMBER -> KeyboardType.Decimal
-                                                        TableCellDataType.COUNTER -> KeyboardType.Number
-                                                        else -> KeyboardType.Text
-                                                    }
-
-                                                    TextField(
-                                                        value = editingValue,
-                                                        onValueChange = { editingValue = it },
-                                                        singleLine = true,
-                                                        keyboardOptions = KeyboardOptions(
-                                                            keyboardType = keyboardType,
-                                                            imeAction = ImeAction.Done
-                                                        ),
-                                                        keyboardActions = KeyboardActions(
-                                                            onDone = {
-                                                                commitInlineEditIfNeeded()
-                                                            }
-                                                        ),
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .focusRequester(inlineFocusRequester)
-                                                            .onFocusChanged { state ->
-                                                                if (state.isFocused) {
-                                                                    inlineHasFocusedOnce = true
-                                                                } else {
-                                                                    if (inlineHasFocusedOnce) {
-                                                                        commitInlineEditIfNeeded()
-                                                                    }
-                                                                }
-                                                            }
-                                                    )
-
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.SpaceBetween
-                                                    ) {
-                                                        TextButton(
-                                                            onClick = {
-                                                                suppressNextCommit = true
-
-                                                                editingValue = editingOriginalValue
-                                                                editingCellId = null
-                                                            }
-                                                        ) { Text("Cancel") }
-
-                                                        TextButton(
-                                                            onClick = {
-                                                                val v = editingValue.trim()
-                                                                if (cell.dataType == TableCellDataType.COUNTER) {
-                                                                    if (v.isNotEmpty() && v.toIntOrNull()
-                                                                            ?.let { it >= 0 } != true
-                                                                    ) {
-                                                                        return@TextButton
-                                                                    }
-                                                                }
-                                                                val updated = updateCell(
-                                                                    templateState,
-                                                                    cell.cellId
-                                                                ) { c ->
-                                                                    when (c.dataType) {
-                                                                        TableCellDataType.TEXT -> c.copy(
-                                                                            rawText = v,
-                                                                            typedValue = CellValue.Text(
-                                                                                v
-                                                                            )
-                                                                        )
-
-                                                                        TableCellDataType.NUMBER -> c.copy(
-                                                                            rawText = v,
-                                                                            typedValue = CellValue.Number(
-                                                                                v
-                                                                            )
-                                                                        )
-
-                                                                        TableCellDataType.COUNTER -> c.copy(
-                                                                            typedValue = CellValue.CounterSeed(
-                                                                                v.toIntOrNull()
-                                                                                    ?.coerceAtLeast(
-                                                                                        0
-                                                                                    ) ?: 0
-                                                                            )
-                                                                        )
-
-                                                                        else -> c
-                                                                    }
-                                                                }
-                                                                onTemplateChange(updated)
-                                                                editingCellId = null
-                                                            }
-                                                        ) { Text("OK") }
-                                                    }
+                                                val keyboardType = when (cell.dataType) {
+                                                    TableCellDataType.NUMBER -> KeyboardType.Decimal
+                                                    TableCellDataType.COUNTER -> KeyboardType.Number
+                                                    else -> KeyboardType.Text
                                                 }
+
+                                                BasicTextField(
+                                                    value = editingValue,
+                                                    onValueChange = { editingValue = it },
+                                                    singleLine = true,
+                                                    textStyle = TextStyle(
+                                                        fontSize = 12.sp,
+                                                        color = Color.Black
+                                                    ),
+                                                    cursorBrush = SolidColor(Color(0xFF5B7F60)),
+                                                    keyboardOptions = KeyboardOptions(
+                                                        keyboardType = keyboardType,
+                                                        imeAction = ImeAction.Done
+                                                    ),
+                                                    keyboardActions = KeyboardActions(
+                                                        onDone = {
+                                                            commitInlineEditIfNeeded()
+                                                            editingCellId = null
+                                                            keyboardController?.hide()
+                                                        }
+                                                    ),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 2.dp, vertical = 2.dp)
+                                                        .focusRequester(inlineFocusRequester)
+                                                        .onFocusChanged { state ->
+                                                            if (state.isFocused) {
+                                                                inlineHasFocusedOnce = true
+                                                            } else {
+                                                                if (inlineHasFocusedOnce) {
+                                                                    commitInlineEditIfNeeded()
+                                                                    editingCellId = null
+                                                                }
+                                                            }
+                                                        }
+                                                )
                                             }
                                         }
 
@@ -676,22 +629,29 @@ fun TableEditorScreen(
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxSize()
-                                                .padding(6.dp)
+                                                .padding(horizontal = 6.dp, vertical = 4.dp)
                                         ) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                verticalAlignment = Alignment.CenterVertically
+                                            // Header: 고정 높이로 확보 (아이콘이 있어도 콘텐츠 영역 안 침범)
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(14.dp),
+                                                contentAlignment =
+                                                    Alignment.CenterStart
                                             ) {
                                                 CellHeaderBadges(cell)
                                             }
-                                            Spacer(Modifier.height(4.dp))
+                                            // Content: 남은 공간만 사용
                                             Box(
-                                                modifier = Modifier.fillMaxSize(),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .weight(1f),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(display, fontSize = 12.sp, color = Color.Black)
                                             }
                                         }
+
                                     }
                                 }
                             }

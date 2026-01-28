@@ -19,7 +19,7 @@ sealed class DzIcon {
         override fun Render() {
             Text(
                 text = "📁$index",
-                fontSize = 11.sp,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -30,7 +30,7 @@ sealed class DzIcon {
         override fun Render() {
             Text(
                 text = "🏷",
-                fontSize = 11.sp
+                fontSize = 10.sp
             )
         }
     }
