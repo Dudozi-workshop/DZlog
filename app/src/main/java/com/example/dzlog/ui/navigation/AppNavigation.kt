@@ -19,6 +19,9 @@ import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.ui.camera.CameraScreen
 import com.example.dzlog.ui.home.HomeScreen
 import com.example.dzlog.ui.home.SettingsScreen
+import com.example.dzlog.ui.log.LogG1Screen
+import com.example.dzlog.ui.log.LogG2Screen
+import com.example.dzlog.ui.log.LogGridScreen
 import com.example.dzlog.ui.table.TableEditorScreen
 import kotlinx.coroutines.flow.first
 
@@ -26,7 +29,10 @@ enum class AppScreen {
     HOME,
     CAMERA,
     TABLE_EDITOR,
-    SETTINGS
+    SETTINGS,
+    LOG_G1,
+    LOG_G2,
+    LOG_GRID
 }
 
 class TableTemplateViewModel : ViewModel() {
@@ -46,6 +52,8 @@ class TableTemplateViewModel : ViewModel() {
 fun AppRoot() {
     var screen by remember { mutableStateOf(AppScreen.HOME) }
     var previousScreen by remember { mutableStateOf(AppScreen.HOME) }
+    var selectedG1 by remember { mutableStateOf<String?>(null) }
+    var selectedG2 by remember { mutableStateOf<String?>(null) }
     var orientationMode by remember { mutableStateOf(OrientationMode.PORTRAIT_LOCK) }
     val tableTemplateViewModel: TableTemplateViewModel = viewModel()
     val tableTemplateState = tableTemplateViewModel.tableTemplateState
@@ -94,7 +102,12 @@ fun AppRoot() {
         AppScreen.HOME -> HomeScreen(
             onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
             onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
-            onStartCamera = { navigateTo(AppScreen.CAMERA) }
+            onStartCamera = { navigateTo(AppScreen.CAMERA) },
+            onOpenLog = {
+                selectedG1 = null
+                selectedG2 = null
+                navigateTo(AppScreen.LOG_G1)
+            }
         )
 
         AppScreen.CAMERA -> {
@@ -118,5 +131,47 @@ fun AppRoot() {
         AppScreen.SETTINGS -> SettingsScreen(
             onBack = { screen = AppScreen.HOME }
         )
+
+        AppScreen.LOG_G1 -> {
+            LogG1Screen(
+                onBack = { screen = AppScreen.HOME },
+                onSelectG1 = { g1 ->
+                    selectedG1 = g1
+                    selectedG2 = null
+                    navigateTo(AppScreen.LOG_G2)
+                }
+            )
+        }
+
+        AppScreen.LOG_G2 -> {
+            val g1 = selectedG1
+            if (g1 == null) {
+                // 방어: 상태가 없으면 G1 화면으로 복귀
+                screen = AppScreen.LOG_G1
+            } else {
+                LogG2Screen(
+                    g1 = g1,
+                    onBack = { screen = AppScreen.LOG_G1 },
+                    onSelectG2 = { g2 ->
+                        selectedG2 = g2
+                        navigateTo(AppScreen.LOG_GRID)
+                    }
+                )
+            }
+        }
+
+        AppScreen.LOG_GRID -> {
+            val g1 = selectedG1
+            val g2 = selectedG2
+            if (g1 == null || g2 == null) {
+                screen = AppScreen.LOG_G1
+            } else {
+                LogGridScreen(
+                    g1 = g1,
+                    g2 = g2,
+                    onBack = { screen = AppScreen.LOG_G2 }
+                )
+            }
+        }
     }
 }

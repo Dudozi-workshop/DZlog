@@ -23,7 +23,8 @@ import androidx.compose.ui.unit.sp
 fun HomeScreen(
     onOpenSettings: () -> Unit,
     onStartCamera: () -> Unit,
-    onOpenTableEditor: () -> Unit
+    onOpenTableEditor: () -> Unit,
+    onOpenLog: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -40,6 +41,12 @@ fun HomeScreen(
 
             Button(onClick = onStartCamera, modifier = Modifier.fillMaxWidth()) {
                 Text("촬영 시작")
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            Button(onClick = onOpenLog, modifier = Modifier.fillMaxWidth()) {
+                Text("앱 내 로그")
             }
 
             Spacer(Modifier.height(12.dp))
