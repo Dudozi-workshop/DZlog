@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.example.dzlog.domain.model.LogGroupSummary
 
 @Composable
 fun LogG1Screen(
@@ -33,13 +33,13 @@ fun LogG1Screen(
     val context = LocalContext.current
     val reader = remember { DzlogMediaStoreReader(context.contentResolver) }
 
-    var g1List by remember { mutableStateOf<List<String>>(emptyList()) }
+    var g1Summaries by remember { mutableStateOf<List<LogGroupSummary>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        runCatching { reader.loadG1List() }
+        runCatching { reader.loadG1Summaries() }
             .onSuccess {
-                g1List = it
+                g1Summaries = it
                 error = null
             }
             .onFailure { e ->
@@ -63,12 +63,12 @@ fun LogG1Screen(
             Spacer(Modifier.height(12.dp))
             Button(onClick = {
                 error = null
-                g1List = emptyList()
+                g1Summaries = emptyList()
             }) { Text("닫기") }
             return@Column
         }
 
-        if (g1List.isEmpty()) {
+        if (g1Summaries.isEmpty()) {
             Text("저장된 DZlog 결과물이 없습니다.")
             Spacer(Modifier.height(6.dp))
             Text("(Pictures/DZlog/ 하위에 저장된 사진이 있어야 표시됩니다.)")
@@ -76,19 +76,14 @@ fun LogG1Screen(
         }
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(g1List) { g1 ->
-                Card(
+            items(g1Summaries, key = { it.name }) { summary ->
+                LogGroupCard(
+                    summary = summary,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 6.dp)
-                        .clickable { onSelectG1(g1) }
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text(g1)
-                        Spacer(Modifier.height(4.dp))
-                        Text("탭해서 2단 폴더 보기")
-                    }
-                }
+                        .padding(vertical = 8.dp)
+                        .clickable { onSelectG1(summary.name) }
+                )
             }
         }
     }

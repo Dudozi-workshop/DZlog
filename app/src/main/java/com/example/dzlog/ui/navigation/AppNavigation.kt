@@ -22,6 +22,7 @@ import com.example.dzlog.ui.home.SettingsScreen
 import com.example.dzlog.ui.log.LogG1Screen
 import com.example.dzlog.ui.log.LogG2Screen
 import com.example.dzlog.ui.log.LogGridScreen
+import com.example.dzlog.ui.log.LogViewerScreen
 import com.example.dzlog.ui.table.TableEditorScreen
 import kotlinx.coroutines.flow.first
 
@@ -32,7 +33,8 @@ enum class AppScreen {
     SETTINGS,
     LOG_G1,
     LOG_G2,
-    LOG_GRID
+    LOG_GRID,
+    LOG_VIEWER
 }
 
 class TableTemplateViewModel : ViewModel() {
@@ -54,6 +56,12 @@ fun AppRoot() {
     var previousScreen by remember { mutableStateOf(AppScreen.HOME) }
     var selectedG1 by remember { mutableStateOf<String?>(null) }
     var selectedG2 by remember { mutableStateOf<String?>(null) }
+
+    // 로그 화면 상태(그리드/뷰어 공통)
+    var logItems by remember { mutableStateOf(emptyList<com.example.dzlog.domain.model.MediaImageItem>()) }
+    var logIsSelectionMode by remember { mutableStateOf(false) }
+    var logSelectedIds by remember { mutableStateOf(setOf<Long>()) }
+    var logViewerStartIndex by remember { mutableStateOf(0) }
     var orientationMode by remember { mutableStateOf(OrientationMode.PORTRAIT_LOCK) }
     val tableTemplateViewModel: TableTemplateViewModel = viewModel()
     val tableTemplateState = tableTemplateViewModel.tableTemplateState
@@ -96,6 +104,11 @@ fun AppRoot() {
     fun navigateTo(target: AppScreen) {
         previousScreen = screen
         screen = target
+    }
+
+    fun resetLogSelectionState() {
+        logIsSelectionMode = false
+        logSelectedIds = emptySet()
     }
 
     when (screen) {
@@ -154,6 +167,8 @@ fun AppRoot() {
                     onBack = { screen = AppScreen.LOG_G1 },
                     onSelectG2 = { g2 ->
                         selectedG2 = g2
+                        logItems = emptyList()
+                        resetLogSelectionState()
                         navigateTo(AppScreen.LOG_GRID)
                     }
                 )
@@ -169,7 +184,61 @@ fun AppRoot() {
                 LogGridScreen(
                     g1 = g1,
                     g2 = g2,
-                    onBack = { screen = AppScreen.LOG_G2 }
+                    items = logItems,
+                    isSelectionMode = logIsSelectionMode,
+                    selectedIds = logSelectedIds,
+                    onItemsLoaded = { loaded -> logItems = loaded },
+                    onBack = {
+                        // 그룹을 빠져나갈 때는 선택 상태를 초기화
+                        resetLogSelectionState()
+                        screen = AppScreen.LOG_G2
+                    },
+                    onOpenViewer = { startIndex ->
+                        logViewerStartIndex = startIndex
+                        navigateTo(AppScreen.LOG_VIEWER)
+                    },
+                    onToggleSelection = { id ->
+                        logSelectedIds = if (logSelectedIds.contains(id)) logSelectedIds - id else logSelectedIds + id
+                    },
+                    onEnterSelectionWith = { id ->
+                        logIsSelectionMode = true
+                        logSelectedIds = logSelectedIds + id
+                    },
+                    onExitSelection = { resetLogSelectionState() },
+                    onSelectAll = {
+                        logIsSelectionMode = true
+                        logSelectedIds = logItems.map { it.id }.toSet()
+                    }
+                )
+            }
+        }
+
+        AppScreen.LOG_VIEWER -> {
+            val g1 = selectedG1
+            val g2 = selectedG2
+            if (g1 == null || g2 == null) {
+                screen = AppScreen.LOG_G1
+            } else {
+                LogViewerScreen(
+                    g1 = g1,
+                    g2 = g2,
+                    items = logItems,
+                    startIndex = logViewerStartIndex,
+                    isSelectionMode = logIsSelectionMode,
+                    selectedIds = logSelectedIds,
+                    onBack = { screen = AppScreen.LOG_GRID },
+                    onEnterSelectionWith = { id ->
+                        logIsSelectionMode = true
+                        logSelectedIds = logSelectedIds + id
+                    },
+                    onToggleSelection = { id ->
+                        logSelectedIds = if (logSelectedIds.contains(id)) logSelectedIds - id else logSelectedIds + id
+                    },
+                    onExitSelection = { resetLogSelectionState() },
+                    onSelectAll = {
+                        logIsSelectionMode = true
+                        logSelectedIds = logItems.map { it.id }.toSet()
+                    }
                 )
             }
         }
