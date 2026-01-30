@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -144,7 +145,6 @@ fun TableEditorScreen(
     val inlineFocusRequester = remember { FocusRequester() }
 
     var inlineHasFocusedOnce by remember { mutableStateOf(false) }
-    var suppressNextCommit by remember { mutableStateOf(false) }
 
     LaunchedEffect(editingCellId) {
         inlineHasFocusedOnce = false
@@ -156,12 +156,6 @@ fun TableEditorScreen(
     }
 
     fun commitInlineEditIfNeeded() {
-        if (suppressNextCommit) {
-            suppressNextCommit = false
-            editingCellId = null
-            return
-        }
-
         val id = editingCellId ?: return
         val cell = templateState.cells.firstOrNull { it.cellId == id }
 
@@ -286,12 +280,15 @@ fun TableEditorScreen(
         now = previewNow
     )
 
+    fun closeCounterDupDialog() {
+        showCounterDupDialog = false
+        editingCellId = null
+    }
+
     if (showCounterDupDialog) {
         AlertDialog(
             onDismissRequest = {
-                editingValue = editingOriginalValue
-                showCounterDupDialog = false
-                editingCellId = null
+                closeCounterDupDialog()
             },
             title = { Text("중복 카운터") },
             text = {
@@ -310,15 +307,12 @@ fun TableEditorScreen(
                         }
                         onTemplateChange(updated)
                     }
-                    showCounterDupDialog = false
-                    editingCellId = null
+                    closeCounterDupDialog()
                 }) { Text("적용") }
             },
             dismissButton = {
                 TextButton(onClick = {
-                    editingValue = editingOriginalValue
-                    showCounterDupDialog = false
-                    editingCellId = null
+                    closeCounterDupDialog()
                 }) { Text("취소") }
             }
         )
@@ -593,7 +587,10 @@ fun TableEditorScreen(
                         }
 
                         // 크기: 기존 width/height ratio를 비율 유지(기본 40:20)로 함께 조절
-                        Text("표 크기 (${wmWidthRatio}%)", color = Color.Black)
+                        Text(
+                            text = "표 크기 (가로 ${wmWidthRatio}%, 세로 ${wmHeightRatio}%)",
+                            color = Color.Black
+                        )
                         Slider(
                             value = wmWidthRatio.toFloat(),
                             onValueChange = { v ->
@@ -870,27 +867,67 @@ fun TableEditorScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
+                    modifier = Modifier.weight(1f),
                     onClick = {
-                        Toast.makeText(context, "Saved (stub)", Toast.LENGTH_SHORT).show()
                         commitInlineEditIfNeeded()
                         isSavingTemplate = true
+
                         scope.launch {
                             runCatching {
                                 context.dataStore.edit { prefs ->
-                                    prefs[KEY_TABLE_TEMPLATE_JSON] = templateState.toJsonString()
+                                    prefs[KEY_TABLE_TEMPLATE_JSON] =
+                                        templateState.toJsonString()
                                 }
                             }.onFailure {
-                                Toast.makeText(context, "Save failed: ${it.message}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(
+                                    context,
+                                    "Save failed: ${it.message}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                isSavingTemplate = false
                             }.onSuccess {
-                                Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(
+                                    context,
+                                    "Saved",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                                 onBack()
                             }
-                            isSavingTemplate = false
                         }
                     },
                     enabled = !isSavingTemplate
-                ) { Text("Save") }
-                Button(onClick = onReset) { Text("Reset") }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (isSavingTemplate) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Text(
+                                text = "Saving...",
+                                fontSize = 12.sp
+                            )
+                        } else {
+                            Text(
+                                text = "Save",
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+
+                Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = onReset
+                ) {
+                    Text(
+                        text = "Reset",
+                        fontSize = 12.sp
+                    )
+                }
             }
 
             Column(
