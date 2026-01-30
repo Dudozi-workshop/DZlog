@@ -4,8 +4,8 @@ import com.example.dzlog.domain.table.ResolvedCell
 import com.example.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 
 data class CaptureRequest(
-    // 프로젝트 = 저장 경로(Pictures/DZlog/...)
-    // group1/group2 값으로 buildGalleryRelativePath()를 통해 최종 경로를 결정함.
+    // 폴더 결정(=Group)
+    val projectKey: String,
     val group1: String,
     val group2: String,
 

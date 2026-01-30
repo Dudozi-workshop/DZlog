@@ -33,11 +33,12 @@ class DzlogRepositoryImpl(
 
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    override fun buildRelativePath(group1: String, group2: String): String {
+    override fun buildRelativePath(projectKey: String, group1: String, group2: String): String {
         return buildGalleryRelativePath(group1, group2)
     }
 
     override fun buildOriginalRelativePath(
+        projectKey: String,
         group1: String,
         group2: String
     ): String {
@@ -83,8 +84,16 @@ class DzlogRepositoryImpl(
                             val orientedBmp = applyExifOrientation(decodedBmp, exif)
                             val originalBmp = cropToAspect(orientedBmp, request.captureAspect)
 
-                            val baseRel = buildRelativePath(request.group1, request.group2)
-                            val origRel = buildOriginalRelativePath(request.group1, request.group2)
+                            val baseRel = buildRelativePath(
+                                request.projectKey,
+                                request.group1,
+                                request.group2
+                            )
+                            val origRel = buildOriginalRelativePath(
+                                request.projectKey,
+                                request.group1,
+                                request.group2
+                            )
 
                             val displayName = request.displayName
                             when (request.saveMode) {
@@ -109,7 +118,8 @@ class DzlogRepositoryImpl(
                                         displayName = saved?.displayName ?: displayName,
                                         isNameAdjusted = saved?.isNameAdjusted ?: false,
                                         createdAt = System.currentTimeMillis(),
-group1 = request.group1,
+                                        projectKey = request.projectKey,
+                                        group1 = request.group1,
                                         group2 = request.group2
                                     )
                                 }
@@ -147,7 +157,8 @@ group1 = request.group1,
                                         displayName = savedWm?.displayName ?: displayName,
                                         isNameAdjusted = savedWm?.isNameAdjusted ?: false,
                                         createdAt = System.currentTimeMillis(),
-group1 = request.group1,
+                                        projectKey = request.projectKey,
+                                        group1 = request.group1,
                                         group2 = request.group2
                                     )
                                 }
@@ -168,7 +179,8 @@ group1 = request.group1,
                                         displayName = saved?.displayName ?: displayName,
                                         isNameAdjusted = saved?.isNameAdjusted ?: false,
                                         createdAt = System.currentTimeMillis(),
-group1 = request.group1,
+                                        projectKey = request.projectKey,
+                                        group1 = request.group1,
                                         group2 = request.group2
                                     )
                                 }

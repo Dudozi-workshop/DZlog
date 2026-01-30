@@ -165,6 +165,9 @@ fun CameraPreview(
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
     val scope = rememberCoroutineScope()
+
+    val projectKeyNow = "default"
+
     val repository = remember {
         val saver = MediaStoreSaverImpl()
         DzlogRepositoryImpl(
@@ -350,7 +353,8 @@ fun CameraPreview(
                     }
 
                     val previewRequest = com.example.dzlog.domain.model.CaptureRequest(
-group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
+                        projectKey = projectKeyNow,
+                        group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
                         group2 = resolveGroupValue(plan.resolvedCells, GroupLevel.G2),
                         displayName = buildDisplayNameFromResolvedCells(
                             resolvedCells = plan.resolvedCells,
@@ -448,7 +452,8 @@ group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
                         )
 
                         val req = com.example.dzlog.domain.model.CaptureRequest(
-group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
+                            projectKey = projectKeyNow,
+                            group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                             group2 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G2),
                             displayName = buildDisplayNameFromResolvedCells(
                                 resolvedCells = planForCapture.resolvedCells,
