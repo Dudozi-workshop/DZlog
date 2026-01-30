@@ -94,6 +94,18 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
+import android.graphics.RectF
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
+import com.example.dzlog.domain.model.CaptureAspect
+import com.example.dzlog.domain.watermark.WatermarkBuilder
+import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 
 @Composable
 fun TableEditorScreen(
@@ -267,6 +279,10 @@ fun TableEditorScreen(
     var wmWidthRatio by remember { mutableIntStateOf(40) }
     var wmHeightRatio by remember { mutableIntStateOf(20) }
 
+    // ✅ 촬영 프레임 비율(탭1 미리보기에서 사용)
+    var captureAspect by remember { mutableStateOf(CaptureAspect.R3_4) }
+
+
     LaunchedEffect(Unit) {
         runCatching {
             val prefs = context.dataStore.data.first()
@@ -278,6 +294,10 @@ fun TableEditorScreen(
             }
             wmWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(40, 100)
             wmHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 35)
+
+            captureAspect = CaptureAspect.from(
+                prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v
+            )
         }
     }
 
@@ -1014,29 +1034,16 @@ fun TableEditorScreen(
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // (임시) 촬영느낌 미리보기 영역 placeholder
-                        // 다음 덩이에서: 캡처 비율/프레임 + 워터마크 표 오버레이를 여기에 구현
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFF111111))
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text("촬영 미리보기(임시)", color = Color.White, fontSize = 13.sp)
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(220.dp)
-                                    .background(Color(0xFF2A2A2A))
-                                    .border(1.dp, Color(0xFF444444))
-                            )
-                            Text(
-                                "※ 다음 단계에서 캡처 비율 반영 + 워터마크 표 오버레이로 교체",
-                                color = Color(0xFFBBBBBB),
-                                fontSize = 11.sp
-                            )
-                        }
+                        // ✅ 촬영느낌 미리보기(비율 반영 워터마크 표 오버레이)
+                        CameraLikeWatermarkPlacementPreview(
+                            captureAspect = captureAspect,
+                            rows = templateState.rows,
+                            cols = templateState.cols,
+                            watermarkCells = WatermarkBuilder.buildTableCells(plan.resolvedCells),
+                            anchor = wmAnchor,
+                            tableWidthRatio = wmWidthRatio,
+                            tableHeightRatio = wmHeightRatio
+                        )
 
                         // ✅ 표 위치/크기 설정 (기존 덩이 C를 탭1로 이식)
                         Column(
@@ -1120,6 +1127,83 @@ fun TableEditorScreen(
                 }
             }
         }
+    }
+}
+@Composable
+private fun CameraLikeWatermarkPlacementPreview(
+    captureAspect: CaptureAspect,
+    rows: Int,
+    cols: Int,
+    watermarkCells: List<WatermarkBuilder.WatermarkCell>,
+    anchor: WatermarkTableAnchor,
+    tableWidthRatio: Int,
+    tableHeightRatio: Int
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF111111))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("촬영 미리보기", color = Color.White, fontSize = 13.sp)
+
+        // 카메라 프레임(비율 반영) 박스
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(captureAspect.ratioF)
+                .background(Color.Black)
+                .border(1.dp, Color(0xFF333333))
+                .clipToBounds()
+        ) {
+            // 실제 카메라 영상 대신 “프레임 느낌” 배경 (단색+가이드 정도)
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                // 아주 약한 가이드(중앙 십자선) – 원하면 나중에 제거 가능
+                val w = size.width
+                val h = size.height
+
+                // center lines
+                drawRect(
+                    color = Color(0x22FFFFFF),
+                    topLeft = Offset(w / 2f - 0.5f, 0f),
+                    size = Size(1f, h)
+                )
+                drawRect(
+                    color = Color(0x22FFFFFF),
+                    topLeft = Offset(0f, h / 2f - 0.5f),
+                    size = Size(w, 1f)
+                )
+
+                // 워터마크 표 오버레이 (CameraScreen과 동일 엔진)
+                drawIntoCanvas { canvas ->
+                    val bounds = RectF(0f, 0f, w, h)
+
+                    drawWatermarkTableOnCanvas(
+                        canvas = canvas.nativeCanvas,
+                        bounds = bounds,
+                        cells = watermarkCells,
+                        rows = rows.coerceAtLeast(1),
+                        cols = cols.coerceAtLeast(1),
+                        showLabel = false,
+                        anchor = anchor,
+                        offsetXRatio = 0,
+                        offsetYRatio = 0,
+                        tableHeightRatio = tableHeightRatio,
+                        tableWidthRatio = tableWidthRatio,
+                        bgAlpha = 80,
+                        labelScale = 100,
+                        valueScale = 100
+                    )
+                }
+            }
+        }
+
+        Text(
+            "비율: ${captureAspect.label} / 위치: ${anchor.name} / 크기: ${tableWidthRatio}%×${tableHeightRatio}%",
+            color = Color(0xFFBBBBBB),
+            fontSize = 11.sp
+        )
     }
 }
 
