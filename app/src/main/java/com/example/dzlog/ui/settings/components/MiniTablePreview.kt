@@ -8,7 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.TableTemplateState
-import com.example.dzlog.ui.common.TableOnlyPreview
+import com.example.dzlog.ui.common.DisplayTablePreview
 import java.util.Date
 
 /**
@@ -33,12 +33,10 @@ fun MiniTablePreview(
             .aspectRatio(cols / rows.toFloat())
             .heightIn(min = 96.dp, max = 200.dp)
     ) {
-        TableOnlyPreview(
+        DisplayTablePreview(
             templateState = templateState,
             counterDigits = counterDigits,
             now = now,
-            // SettingsRoot 미리보기는 표만(셀 내부 값) 노출
-            showLabel = false,
             modifier = Modifier.fillMaxWidth()
         )
     }

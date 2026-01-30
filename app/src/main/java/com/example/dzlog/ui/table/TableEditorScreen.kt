@@ -26,6 +26,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -63,6 +64,9 @@ import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_COUNTER_SUFFIX_ENABLED
 import com.example.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
 import com.example.dzlog.data.preferences.KEY_USED_COUNTER_VALUES_JSON
+import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
+import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
+import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.toJsonString
 import com.example.dzlog.domain.model.GroupLevel
@@ -74,12 +78,12 @@ import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.TimeFormatOptions
 import com.example.dzlog.domain.model.TimeSeparator
+import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
-import com.example.dzlog.ui.common.TableOnlyPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -228,6 +232,25 @@ fun TableEditorScreen(
         }.onFailure {
             previewCounterDigits = COUNTER_DIGITS_DEFAULT
             previewCounterSuffixEnabled = true
+        }
+    }
+
+    // ✅ 표 위치/크기(촬영 워터마크 표 렌더 파라미터)
+    // - 촬영설정에서 제거하고, 표 상세설정에서만 조절하도록 이동 (MVP: 4분면 + 크기)
+    var wmAnchor by remember { mutableStateOf(WatermarkTableAnchor.BOTTOM_RIGHT) }
+    var wmWidthRatio by remember { mutableIntStateOf(40) }
+    var wmHeightRatio by remember { mutableIntStateOf(20) }
+    LaunchedEffect(Unit) {
+        runCatching {
+            val prefs = context.dataStore.data.first()
+            wmAnchor = when (prefs[KEY_WM_TABLE_ANCHOR] ?: 3) {
+                0 -> WatermarkTableAnchor.TOP_LEFT
+                1 -> WatermarkTableAnchor.TOP_RIGHT
+                2 -> WatermarkTableAnchor.BOTTOM_LEFT
+                else -> WatermarkTableAnchor.BOTTOM_RIGHT
+            }
+            wmWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(40, 100)
+            wmHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 35)
         }
     }
 
@@ -501,18 +524,96 @@ fun TableEditorScreen(
                     Text(filenamePreview, color = Color.Black)
 
                     Spacer(Modifier.height(10.dp))
+                    // ✅ 표 상세설정은 "편집형" 미리보기(배지/스티커 포함)로 표시
+                    // - 홈/촬영/설정의 미리보기(표+값만)와 UI를 분리
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(170.dp)
                     ) {
-                        TableOnlyPreview(
+                        EditorTableMiniPreview(
                             templateState = templateState,
-                            counterDigits = previewCounterDigits,
-                            now = previewNow,
-                            // 표 상세설정(편집) 화면에서는 라벨을 함께 보여 편집 맥락을 유지
-                            showLabel = true,
+                            plan = plan,
                             modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    // ✅ 표 위치/크기 설정 (MVP: 4분면 + 크기)
+                    // - 촬영설정에서 제거하고, 표 상세설정에서만 조절
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF5F1E8))
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text("표 위치/크기", fontSize = 13.sp, color = Color.DarkGray)
+
+                        fun persistAnchor(a: WatermarkTableAnchor) {
+                            wmAnchor = a
+                            scope.launch {
+                                context.dataStore.edit { prefs ->
+                                    prefs[KEY_WM_TABLE_ANCHOR] = when (a) {
+                                        WatermarkTableAnchor.TOP_LEFT -> 0
+                                        WatermarkTableAnchor.TOP_RIGHT -> 1
+                                        WatermarkTableAnchor.BOTTOM_LEFT -> 2
+                                        else -> 3
+                                    }
+                                }
+                            }
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = wmAnchor == WatermarkTableAnchor.TOP_LEFT,
+                                onClick = { persistAnchor(WatermarkTableAnchor.TOP_LEFT) }
+                            )
+                            Text("좌상", color = Color.Black)
+                            Spacer(Modifier.width(8.dp))
+                            RadioButton(
+                                selected = wmAnchor == WatermarkTableAnchor.TOP_RIGHT,
+                                onClick = { persistAnchor(WatermarkTableAnchor.TOP_RIGHT) }
+                            )
+                            Text("우상", color = Color.Black)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = wmAnchor == WatermarkTableAnchor.BOTTOM_LEFT,
+                                onClick = { persistAnchor(WatermarkTableAnchor.BOTTOM_LEFT) }
+                            )
+                            Text("좌하", color = Color.Black)
+                            Spacer(Modifier.width(8.dp))
+                            RadioButton(
+                                selected = wmAnchor == WatermarkTableAnchor.BOTTOM_RIGHT,
+                                onClick = { persistAnchor(WatermarkTableAnchor.BOTTOM_RIGHT) }
+                            )
+                            Text("우하", color = Color.Black)
+                        }
+
+                        // 크기: 기존 width/height ratio를 비율 유지(기본 40:20)로 함께 조절
+                        Text("표 크기 (${wmWidthRatio}%)", color = Color.Black)
+                        Slider(
+                            value = wmWidthRatio.toFloat(),
+                            onValueChange = { v ->
+                                val nv = v.toInt().coerceIn(40, 100)
+                                val nh = ((nv * 0.5f).toInt()).coerceIn(10, 35)
+                                wmWidthRatio = nv
+                                wmHeightRatio = nh
+                                scope.launch {
+                                    context.dataStore.edit { prefs ->
+                                        prefs[KEY_WM_TABLE_WIDTH] = nv
+                                        prefs[KEY_WM_TABLE_HEIGHT] = nh
+                                    }
+                                }
+                            },
+                            valueRange = 40f..100f
+                        )
+                        Text(
+                            text = "※ 촬영 화면/홈/설정 미리보기에는 동일하게 반영됨",
+                            fontSize = 11.sp,
+                            color = Color.DarkGray
                         )
                     }
                 }

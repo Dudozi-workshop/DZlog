@@ -30,7 +30,7 @@ import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.MediaImageItem
-import com.example.dzlog.ui.common.TableOnlyPreview
+import com.example.dzlog.ui.common.DisplayTablePreview
 import com.example.dzlog.ui.log.DzThumbnail
 import com.example.dzlog.ui.log.dzFormatDate
 import kotlinx.coroutines.Dispatchers
@@ -118,12 +118,10 @@ fun HomeScreen(
                                 .fillMaxWidth()
                                 .weight(1f)
                         ) {
-                            TableOnlyPreview(
+                            DisplayTablePreview(
                                 templateState = tableTemplateState,
                                 counterDigits = settings.counterPadding,
                                 now = Date(),
-                                // 홈에서는 표만(셀 내부 값) 노출
-                                showLabel = false,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
