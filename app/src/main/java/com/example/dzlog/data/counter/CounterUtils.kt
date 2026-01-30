@@ -5,9 +5,10 @@ import android.os.Build
 import android.provider.MediaStore
 import org.json.JSONArray
 
-const val COUNTER_DIGITS_DEFAULT = 4
+// 0 = no padding (e.g., _1, _10, _5021)
+const val COUNTER_DIGITS_DEFAULT = 0
 
-fun clampCounterDigits(v: Int) = v.coerceIn(1, 6)
+fun clampCounterDigits(v: Int) = v.coerceIn(0, 6)
 
 private fun encodeCounterSetJson(values: Set<Int>): String {
     val arr = JSONArray()

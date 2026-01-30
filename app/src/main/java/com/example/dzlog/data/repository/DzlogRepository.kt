@@ -15,7 +15,7 @@ interface DzlogRepository {
         onFail: (String) -> Unit
     )
 
-    fun buildRelativePath(projectKey: String, group1: String, group2: String): String
+    fun buildRelativePath(group1: String, group2: String): String
 
-    fun buildOriginalRelativePath(projectKey: String, group1: String, group2: String): String
+    fun buildOriginalRelativePath(group1: String, group2: String): String
 }

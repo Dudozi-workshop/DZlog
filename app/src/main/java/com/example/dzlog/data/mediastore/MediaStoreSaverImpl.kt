@@ -213,6 +213,13 @@ class MediaStoreSaverImpl : MediaStoreSaver {
 
         // 가장 흔한 패턴: delim 뒤에 digits
         val token = base.substringAfterLast(fnDelim, missingDelimiterValue = "")
+        // counterDigits == 0: no padding mode. Accept any digit length.
+        if (counterDigits == 0) {
+            if (token.isBlank()) return 0
+            if (!token.all { it.isDigit() }) return 0
+            return token.toIntOrNull() ?: 0
+        }
+
         if (token.length != counterDigits) return 0
         if (!token.all { it.isDigit() }) return 0
         return token.toIntOrNull() ?: 0

@@ -86,6 +86,7 @@ fun buildDisplayNameFromResolvedCells(
     fnDelim: String,
     includeDate: Boolean,
     includeTime: Boolean,
+    counterSuffixEnabled: Boolean = true,
     now: Date = Date()
 ): String {
     val delim = fnDelim.ifBlank { "_" }.take(3)
@@ -113,14 +114,16 @@ fun buildDisplayNameFromResolvedCells(
     val counterText = ordered.firstOrNull { it.type == TableCellDataType.COUNTER }?.resolvedText
         ?.takeIf { it.isNotBlank() }
         .orEmpty()
-    if (counterText.isNotBlank()) parts.add(counterText)
+    if (counterSuffixEnabled && counterText.isNotBlank()) parts.add(counterText)
 
     if (includeDate || includeTime) {
         if (includeDate) parts.add(SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(now))
         if (includeTime) parts.add(SimpleDateFormat("HHmmss", Locale.getDefault()).format(now))
     }
 
-    val base = parts.joinToString(delim).ifBlank { counterText.ifBlank { "0001" } }
+    val base = parts.joinToString(delim).ifBlank {
+        if (counterSuffixEnabled) counterText.ifBlank { "1" } else "image"
+    }
     val withExt = if (base.endsWith(".jpg", true) || base.endsWith(".jpeg", true)) base else "$base.jpg"
     return sanitizeFilePart(withExt)
 }

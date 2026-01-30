@@ -34,7 +34,12 @@ class TableResolver {
 
         val counterCell = ordered.firstOrNull { it.dataType == TableCellDataType.COUNTER }
         val currentCounter = parseCounterSeed(counterCell) ?: 1
-        val counterResolved = currentCounter.toString().padStart(config.counterDigits.coerceIn(1, 6), '0')
+        val digits = config.counterDigits.coerceIn(0, 6)
+        val counterResolved = if (digits == 0) {
+            currentCounter.toString()
+        } else {
+            currentCounter.toString().padStart(digits, '0')
+        }
         val nextCounter = currentCounter + 1
 
         // NOTE: DATE/TIME은 셀의 원본 텍스트(rawText)를 신뢰하지 않는다.

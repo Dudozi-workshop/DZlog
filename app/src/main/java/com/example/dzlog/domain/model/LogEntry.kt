@@ -8,7 +8,6 @@ data class LogEntry(
     val displayName: String,
     val isNameAdjusted: Boolean,
     val createdAt: Long,
-    val projectKey: String,
-    val group1: String,
+val group1: String,
     val group2: String,
 )

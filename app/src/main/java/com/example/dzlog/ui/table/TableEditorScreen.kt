@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -59,6 +60,7 @@ import com.example.dzlog.data.counter.decodeCounterSet
 import com.example.dzlog.data.counter.encodeCounterSet
 import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
+import com.example.dzlog.data.preferences.KEY_COUNTER_SUFFIX_ENABLED
 import com.example.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
 import com.example.dzlog.data.preferences.KEY_USED_COUNTER_VALUES_JSON
 import com.example.dzlog.data.preferences.dataStore
@@ -77,6 +79,7 @@ import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
+import com.example.dzlog.ui.common.TableOnlyPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -216,12 +219,15 @@ fun TableEditorScreen(
     val timeFormat = "HH.mm.ss"
 
     var previewCounterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
+    var previewCounterSuffixEnabled by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) {
         runCatching {
             val prefs = context.dataStore.data.first()
             previewCounterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
+            previewCounterSuffixEnabled = prefs[KEY_COUNTER_SUFFIX_ENABLED] ?: true
         }.onFailure {
             previewCounterDigits = COUNTER_DIGITS_DEFAULT
+            previewCounterSuffixEnabled = true
         }
     }
 
@@ -253,6 +259,7 @@ fun TableEditorScreen(
         fnDelim = "_",
         includeDate = false,
         includeTime = false,
+        counterSuffixEnabled = previewCounterSuffixEnabled,
         now = previewNow
     )
 
@@ -487,11 +494,34 @@ fun TableEditorScreen(
                     Text(savePathPreview, color = Color.Black)
                     Spacer(Modifier.height(6.dp))
                     Text("Filename Preview", fontSize = 12.sp, color = Color.DarkGray)
+                    val templateHasCounter = templateState.cells.any { it.dataType == TableCellDataType.COUNTER }
+                    if (previewCounterSuffixEnabled && templateHasCounter) {
+                        Text("COUNTER 태그 부착", fontSize = 11.sp, color = Color(0xFF3F7D4C))
+                    }
                     Text(filenamePreview, color = Color.Black)
+
+                    Spacer(Modifier.height(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(170.dp)
+                    ) {
+                        TableOnlyPreview(
+                            templateState = templateState,
+                            counterDigits = previewCounterDigits,
+                            now = previewNow,
+                            // 표 상세설정(편집) 화면에서는 라벨을 함께 보여 편집 맥락을 유지
+                            showLabel = true,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
 
-                repeat(templateState.rows) { row ->
-                    Row(modifier = Modifier.fillMaxWidth()) {
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val cellW = maxWidth / templateState.cols.coerceAtLeast(1)
+
+                    repeat(templateState.rows) { row ->
+                        Row(modifier = Modifier.fillMaxWidth()) {
                         repeat(templateState.cols) { col ->
                             val cell = templateState.cells.firstOrNull {
                                 it.rowIndex == row && it.colIndex == col
@@ -506,7 +536,7 @@ fun TableEditorScreen(
 
                             Box(
                                 modifier = Modifier
-                                    .weight(1f)
+                                    .width(cellW)
                                     .height(64.dp)
                                     .padding(2.dp)
                                     .background(cellBackground)
@@ -688,6 +718,7 @@ fun TableEditorScreen(
                         }
                     }
                 }
+            }
             }
 
             Row(

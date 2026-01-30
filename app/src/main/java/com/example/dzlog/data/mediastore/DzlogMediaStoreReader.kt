@@ -228,6 +228,51 @@ class DzlogMediaStoreReader(
         return out
     }
 
+    /**
+     * DZlog 전체 결과물 중 "가장 최근" 1장.
+     * - Pictures/DZlog/ 하위
+     * - .../original/ 제외
+     */
+    fun loadLatestImage(): MediaImageItem? {
+        val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.RELATIVE_PATH,
+            MediaStore.Images.Media.DATE_ADDED
+        )
+        val selection = (
+            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND " +
+                "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?"
+            )
+        val args = arrayOf(dzlogBaseLike, "%/original/%")
+        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+
+        contentResolver.query(uri, projection, selection, args, sortOrder)?.use { c ->
+            if (!c.moveToFirst()) return null
+            val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val nameIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+            val relIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
+            val dateIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+
+            val id = c.getLong(idIdx)
+            val displayName = c.getString(nameIdx).orEmpty()
+            val rp = c.getString(relIdx).orEmpty()
+            val dateAdded = c.getLong(dateIdx)
+
+            if (isOriginalPath(rp)) return null
+            val contentUri = ContentUris.withAppendedId(uri, id)
+            return MediaImageItem(
+                id = id,
+                uri = contentUri,
+                displayName = displayName,
+                relativePath = rp,
+                dateAddedSeconds = dateAdded
+            )
+        }
+        return null
+    }
+
     // -------------------------
     // Internal helpers
     // -------------------------

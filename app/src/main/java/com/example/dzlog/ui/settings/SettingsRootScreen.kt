@@ -1,0 +1,476 @@
+package com.example.dzlog.ui.settings
+
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.Divider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.datastore.preferences.core.edit
+import com.example.dzlog.data.counter.encodeCounterSet
+import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
+import com.example.dzlog.data.datastore.AppSettingsStore
+import com.example.dzlog.data.preferences.KEY_USED_COUNTER_VALUES_JSON
+import com.example.dzlog.data.preferences.KEY_COUNTER_SUFFIX_ENABLED
+import com.example.dzlog.data.preferences.dataStore
+import com.example.dzlog.domain.model.ContinuousPreviewMode
+import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.naming.buildGalleryRelativePath
+import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
+import com.example.dzlog.domain.model.GroupLevel
+import com.example.dzlog.domain.naming.resolveGroupValue
+import com.example.dzlog.domain.table.TableResolver
+import com.example.dzlog.ui.settings.components.MiniTablePreview
+import com.example.dzlog.ui.settings.components.SegmentedControl
+import kotlinx.coroutines.launch
+import java.util.Date
+
+/**
+ * SettingsRootScreen (MVP)
+ * - 상태 요약 + 빠른 조정 + 상세 화면 이동
+ * - 값 입력(Active Values)은 여기서 하지 않는다.
+ */
+@Composable
+fun SettingsRootScreen(
+    tableTemplateStateProvider: () -> com.example.dzlog.domain.model.TableTemplateState,
+    onBack: () -> Unit,
+    onOpenTableDetail: () -> Unit,
+    onOpenCaptureSettings: () -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val settings by AppSettingsStore.flow(context).collectAsState(
+        initial = com.example.dzlog.data.datastore.AppSettings(
+            saveMode = SaveMode.BOTH,
+            continuousPreviewMode = ContinuousPreviewMode.OFF,
+            counterPadding = 0,
+            counterSuffixEnabled = true,
+            resetCounterOnPathChange = true,
+            toastEnabled = true,
+            hapticEnabled = true,
+            blankWarningEnabled = true,
+            usedCounterValuesJson = null
+        )
+    )
+
+    val templateState = tableTemplateStateProvider()
+
+    // A) 상단 상태 요약(읽기 전용)
+    val nowForPreview = remember { Date() }
+
+    val (projectPathPreview, nextFilenamePreview) = remember(templateState, settings) {
+        val relPath = runCatching { buildGalleryRelativePath(templateState.cells) }.getOrElse { "" }
+        val resolver = TableResolver()
+        val now = nowForPreview
+        val counterDigits = settings.counterPadding
+        val plan = runCatching {
+            resolver.plan(
+                cells = templateState.cells,
+                captureNow = now,
+                config = TableResolver.Config(
+                    counterDigits = counterDigits,
+                    dateFormat = "yyyy.MM.dd",
+                    timeFormat = "HHmm"
+                )
+            )
+        }.getOrNull()
+
+        val name = plan?.let {
+            buildDisplayNameFromResolvedCells(
+                resolvedCells = it.resolvedCells,
+                fnDelim = "_",
+                includeDate = false,
+                includeTime = false,
+                counterSuffixEnabled = settings.counterSuffixEnabled,
+                now = now
+            )
+        } ?: "DZlog"
+
+        relPath to name
+    }
+
+    var showCounterOffConfirm by remember { mutableStateOf(false) }
+
+    val isStorageGranted = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.checkSelfPermission(android.Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
+        } else {
+            context.checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        // Header
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text("설정", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onBack) { Text("Back") }
+        }
+        Spacer(Modifier.height(8.dp))
+
+        StatusBarCard(
+            projectPath = projectPathPreview,
+            nextFilename = nextFilenamePreview
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        // B) Quick Controls
+        QuickControlsCard(
+            saveMode = settings.saveMode,
+            continuousPreviewMode = settings.continuousPreviewMode,
+            counterPadding = settings.counterPadding,
+            counterSuffixEnabled = settings.counterSuffixEnabled,
+            resetCounterOnPathChange = settings.resetCounterOnPathChange,
+            toastEnabled = settings.toastEnabled,
+            onSaveModeChange = { mode ->
+                scope.launch {
+                    AppSettingsStore.setSaveMode(context, mode)
+                    if (settings.toastEnabled) Toast.makeText(context, "저장 대상: ${mode.name}", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onContinuousPreviewModeChange = { mode ->
+                scope.launch {
+                    AppSettingsStore.setContinuousPreviewMode(context, mode)
+                    if (settings.toastEnabled) Toast.makeText(context, "미리보기: ${mode.name}", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onCounterPaddingChange = { digits ->
+                scope.launch {
+                    AppSettingsStore.setCounterPadding(context, digits)
+                    if (settings.toastEnabled) {
+                        val msg = if (digits == 0) "카운터 패딩: 없음" else "카운터 자릿수: $digits"
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onCounterSuffixEnabledChange = { enabled ->
+                if (!enabled) {
+                    showCounterOffConfirm = true
+                } else {
+                    scope.launch {
+                        AppSettingsStore.setCounterSuffixEnabled(context, true)
+                        if (settings.toastEnabled) Toast.makeText(context, "카운터 자동부착: ON", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onResetCounterSync = {
+                scope.launch {
+                    val relPathPrefix = buildGalleryRelativePath(templateState.cells)
+                    val scanned = runCatching { scanUsedCountersFromMediaStore(context, relPathPrefix) }.getOrNull()
+                    val effective = scanned ?: emptySet()
+                    // 캐시 업데이트(다음 dup 판단/동기화 기준)
+                    runCatching {
+                        context.dataStore.edit { it[KEY_USED_COUNTER_VALUES_JSON] = encodeCounterSet(effective) }
+                    }
+                    if (settings.toastEnabled) {
+                        val max = effective.maxOrNull() ?: 0
+                        Toast.makeText(context, "카운터 동기화 완료 (max=$max)", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onResetCounterOnPathChangeChange = { enabled ->
+                scope.launch {
+                    AppSettingsStore.setResetCounterOnPathChange(context, enabled)
+                    if (settings.toastEnabled) Toast.makeText(context, "경로 변경 시 카운터 초기화: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+
+        if (showCounterOffConfirm) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showCounterOffConfirm = false },
+                title = { Text("카운터 자동 부착 끄기") },
+                text = { Text("파일명 끝에 자동으로 붙는 카운터(_1, _10 …)가 비활성화됩니다. 계속할까요?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showCounterOffConfirm = false
+                        scope.launch {
+                            AppSettingsStore.setCounterSuffixEnabled(context, false)
+                            if (settings.toastEnabled) Toast.makeText(context, "카운터 자동부착: OFF", Toast.LENGTH_SHORT).show()
+                        }
+                    }) { Text("끄기") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCounterOffConfirm = false }) { Text("취소") }
+                }
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // C) Template / Table
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp)) {
+                Text("Template / Table", fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Text("현재 템플릿", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(8.dp))
+                MiniTablePreview(
+                    templateState = templateState,
+                    counterDigits = settings.counterPadding,
+                    now = nowForPreview,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = onOpenTableDetail, modifier = Modifier.fillMaxWidth()) {
+                    Text("표 상세설정으로 이동")
+                }
+                // 템플릿 변경 버튼은 아직 구현이 없으므로 숨김(MVP)
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // D) Capture Settings
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp)) {
+                Text("Capture Settings", fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                val previewLabel = when (settings.continuousPreviewMode) {
+                    ContinuousPreviewMode.OFF -> "연속촬영/미리보기: Off"
+                    ContinuousPreviewMode.SHORT -> "연속촬영/미리보기: Short"
+                    ContinuousPreviewMode.HOLD -> "연속촬영/미리보기: Hold"
+                }
+                Text(previewLabel)
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = onOpenCaptureSettings, modifier = Modifier.fillMaxWidth()) {
+                    Text("촬영설정으로 이동")
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // E) System & App
+        SystemAppCard(
+            toastEnabled = settings.toastEnabled,
+            hapticEnabled = settings.hapticEnabled,
+            blankWarningEnabled = settings.blankWarningEnabled,
+            isStorageGranted = isStorageGranted,
+            onToastEnabledChange = { enabled ->
+                scope.launch {
+                    AppSettingsStore.setToastEnabled(context, enabled)
+                    if (enabled) Toast.makeText(context, "토스트 피드백 ON", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onHapticEnabledChange = { enabled ->
+                scope.launch {
+                    AppSettingsStore.setHapticEnabled(context, enabled)
+                    if (settings.toastEnabled != false) Toast.makeText(context, "진동: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onBlankWarningEnabledChange = { enabled ->
+                scope.launch {
+                    AppSettingsStore.setBlankWarningEnabled(context, enabled)
+                    if (settings.toastEnabled != false) Toast.makeText(context, "공백 경고: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun StatusBarCard(projectPath: String, nextFilename: String) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text("STATUS", fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
+            Text("Project Path: $projectPath")
+            Text("Next Filename: $nextFilename")
+        }
+    }
+}
+
+@Composable
+private fun QuickControlsCard(
+    saveMode: SaveMode,
+    continuousPreviewMode: ContinuousPreviewMode,
+    counterPadding: Int,
+    counterSuffixEnabled: Boolean,
+    resetCounterOnPathChange: Boolean,
+    toastEnabled: Boolean,
+    onSaveModeChange: (SaveMode) -> Unit,
+    onContinuousPreviewModeChange: (ContinuousPreviewMode) -> Unit,
+    onCounterPaddingChange: (Int) -> Unit,
+    onCounterSuffixEnabledChange: (Boolean) -> Unit,
+    onResetCounterSync: () -> Unit,
+    onResetCounterOnPathChangeChange: (Boolean) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text("Quick Controls", fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(10.dp))
+
+            Text("저장 대상")
+            SegmentedControl(
+                options = listOf("Original", "Watermark", "Both"),
+                selectedIndex = when (saveMode) {
+                    SaveMode.ORIGINAL_ONLY -> 0
+                    SaveMode.WATERMARK_ONLY -> 1
+                    SaveMode.BOTH -> 2
+                },
+                onSelect = { idx ->
+                    val m = when (idx) {
+                        0 -> SaveMode.ORIGINAL_ONLY
+                        1 -> SaveMode.WATERMARK_ONLY
+                        else -> SaveMode.BOTH
+                    }
+                    onSaveModeChange(m)
+                }
+            )
+
+            Spacer(Modifier.height(10.dp))
+            Text("연속 촬영 미리보기")
+            SegmentedControl(
+                options = listOf("Off", "Short", "Hold"),
+                selectedIndex = when (continuousPreviewMode) {
+                    ContinuousPreviewMode.OFF -> 0
+                    ContinuousPreviewMode.SHORT -> 1
+                    ContinuousPreviewMode.HOLD -> 2
+                },
+                onSelect = { idx ->
+                    val m = when (idx) {
+                        0 -> ContinuousPreviewMode.OFF
+                        1 -> ContinuousPreviewMode.SHORT
+                        else -> ContinuousPreviewMode.HOLD
+                    }
+                    onContinuousPreviewModeChange(m)
+                }
+            )
+
+            Spacer(Modifier.height(10.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("파일명 카운터 자동부착")
+                }
+                Switch(
+                    checked = counterSuffixEnabled,
+                    onCheckedChange = onCounterSuffixEnabledChange
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.weight(1f)) {
+                    Text("카운터 패딩")
+                    SegmentedControl(
+                        options = listOf("0", "2", "3", "4"),
+                        selectedIndex = when (counterPadding) {
+                            0 -> 0
+                            2 -> 1
+                            3 -> 2
+                            else -> 3
+                        },
+                        onSelect = { idx ->
+                            val d = when (idx) {
+                                0 -> 0
+                                1 -> 2
+                                2 -> 3
+                                else -> 4
+                            }
+                            onCounterPaddingChange(d)
+                        }
+                    )
+                }
+                Spacer(Modifier.height(0.dp))
+                TextButton(onClick = onResetCounterSync) { Text("Reset") }
+            }
+
+            Spacer(Modifier.height(10.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("경로 변경 시 카운터 초기화")
+                }
+                Switch(checked = resetCounterOnPathChange, onCheckedChange = onResetCounterOnPathChangeChange)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SystemAppCard(
+    toastEnabled: Boolean,
+    hapticEnabled: Boolean,
+    blankWarningEnabled: Boolean,
+    isStorageGranted: Boolean,
+    onToastEnabledChange: (Boolean) -> Unit,
+    onHapticEnabledChange: (Boolean) -> Unit,
+    onBlankWarningEnabledChange: (Boolean) -> Unit
+) {
+    val context = LocalContext.current
+    val pkg = context.packageManager
+    val verName = runCatching { pkg.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "-"
+    val verCode = if (Build.VERSION.SDK_INT >= 28) {
+        runCatching { pkg.getPackageInfo(context.packageName, 0).longVersionCode }.getOrNull()?.toString() ?: "-"
+    } else {
+        @Suppress("DEPRECATION")
+        runCatching { pkg.getPackageInfo(context.packageName, 0).versionCode }.getOrNull()?.toString() ?: "-"
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text("System & App", fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(10.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.weight(1f)) { Text("토스트 피드백") }
+                Switch(checked = toastEnabled, onCheckedChange = onToastEnabledChange)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.weight(1f)) { Text("진동") }
+                Switch(checked = hapticEnabled, onCheckedChange = onHapticEnabledChange)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.weight(1f)) { Text("공백 경고") }
+                Switch(checked = blankWarningEnabled, onCheckedChange = onBlankWarningEnabledChange)
+            }
+
+            Spacer(Modifier.height(10.dp))
+            Divider()
+            Spacer(Modifier.height(10.dp))
+
+            Text("저장 권한: ${if (isStorageGranted) "OK" else "NOT GRANTED"}")
+            Text("앱 버전: $verName ($verCode)")
+        }
+    }
+}

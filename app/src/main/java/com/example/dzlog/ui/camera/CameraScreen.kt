@@ -75,6 +75,7 @@ import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
+import com.example.dzlog.data.preferences.KEY_COUNTER_SUFFIX_ENABLED
 import com.example.dzlog.data.preferences.KEY_SAVE_MODE
 import com.example.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
 import com.example.dzlog.data.preferences.KEY_WM_BG_ALPHA
@@ -165,9 +166,6 @@ fun CameraPreview(
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
     val scope = rememberCoroutineScope()
-
-    val projectKeyNow = "default"
-
     val repository = remember {
         val saver = MediaStoreSaverImpl()
         DzlogRepositoryImpl(
@@ -180,6 +178,7 @@ fun CameraPreview(
     var captureAspect by remember { mutableStateOf(CaptureAspect.R3_4) }
     var saveMode by remember { mutableStateOf(SaveMode.WATERMARK_ONLY) }
     var counterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
+    var counterSuffixEnabled by remember { mutableStateOf(true) }
 
     val tableResolver = remember { TableResolver() }
     var showWizard by remember { mutableStateOf(false) }
@@ -242,11 +241,13 @@ fun CameraPreview(
             }
 
             counterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
+            counterSuffixEnabled = prefs[KEY_COUNTER_SUFFIX_ENABLED] ?: true
             showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
         } catch (_: Exception) {
             captureAspect = CaptureAspect.R3_4
             saveMode = SaveMode.WATERMARK_ONLY
             counterDigits = COUNTER_DIGITS_DEFAULT
+            counterSuffixEnabled = true
             showWmPreview = true
             wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
             wmTableWidthRatio = 40
@@ -353,14 +354,14 @@ fun CameraPreview(
                     }
 
                     val previewRequest = com.example.dzlog.domain.model.CaptureRequest(
-                        projectKey = projectKeyNow,
-                        group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
+group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
                         group2 = resolveGroupValue(plan.resolvedCells, GroupLevel.G2),
                         displayName = buildDisplayNameFromResolvedCells(
                             resolvedCells = plan.resolvedCells,
                             fnDelim = fnDelim,
                             includeDate = false,
                             includeTime = false,
+                            counterSuffixEnabled = counterSuffixEnabled,
                             now = now
                         ),
                         resolvedCells = plan.resolvedCells,
@@ -452,14 +453,14 @@ fun CameraPreview(
                         )
 
                         val req = com.example.dzlog.domain.model.CaptureRequest(
-                            projectKey = projectKeyNow,
-                            group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
+group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                             group2 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G2),
                             displayName = buildDisplayNameFromResolvedCells(
                                 resolvedCells = planForCapture.resolvedCells,
                                 fnDelim = fnDelim,
                                 includeDate = false,
                                 includeTime = false,
+                                counterSuffixEnabled = counterSuffixEnabled,
                                 now = captureNow
                             ),
                             resolvedCells = planForCapture.resolvedCells,
