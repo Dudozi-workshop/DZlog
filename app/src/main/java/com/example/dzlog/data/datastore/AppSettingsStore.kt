@@ -2,7 +2,6 @@ package com.example.dzlog.data.datastore
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.Preferences
 import com.example.dzlog.data.preferences.KEY_BLANK_WARNING_ENABLED
 import com.example.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS

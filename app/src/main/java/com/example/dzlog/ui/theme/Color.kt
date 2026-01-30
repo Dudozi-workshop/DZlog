@@ -2,10 +2,21 @@ package com.example.dzlog.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Base (Beige)
+val Beige50  = Color(0xFFFBF7EF)
+val Beige100 = Color(0xFFF5EBDD)
+val Beige200 = Color(0xFFEADCC7)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// Primary (Light Brown)
+val SandBrown = Color(0xFFC8A67A)
+val LatteBrown = Color(0xFFB89063)
+val CocoaBrown = Color(0xFF7B5A3A)
+
+// Secondary (Sage Green)
+val SageGreen = Color(0xFF8FA98B)
+val SageGreenDark = Color(0xFF6F8E6B)
+
+// Neutral text
+val BrownGray900 = Color(0xFF2D241C)
+val BrownGray700 = Color(0xFF4A3C30)
+val BrownGray500 = Color(0xFF6B5B4B)

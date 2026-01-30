@@ -11,7 +11,7 @@ fun drawWatermarkTableFromResolvedCells(
     rows: Int,
     cols: Int,
     showLabel: Boolean,
-    anchor: com.example.dzlog.domain.model.WatermarkTableAnchor,
+    anchor: WatermarkTableAnchor,
     offsetXRatio: Int,
     offsetYRatio: Int,
     tableHeightRatio: Int,
@@ -56,7 +56,7 @@ fun drawWatermarkTableFromResolvedCells(
     }
 
     val bgPaint = Paint().apply {
-        color = android.graphics.Color.argb(bgAlpha.coerceIn(0, 255), 0, 0, 0)
+        color = Color.argb(bgAlpha.coerceIn(0, 255), 0, 0, 0)
     }
 
     canvas.drawRect(left, top, left + tableW, top + tableH, bgPaint)
@@ -65,12 +65,12 @@ fun drawWatermarkTableFromResolvedCells(
     val cellH = tableH / rows.coerceAtLeast(1)
 
     val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.LTGRAY
+        color = Color.LTGRAY
         textSize = (tableH * 0.12f * (labelScale / 100f)).coerceAtLeast(14f)
     }
 
     val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.WHITE
+        color = Color.WHITE
         typeface = Typeface.DEFAULT_BOLD
         textSize = (tableH * 0.16f * (valueScale / 100f)).coerceAtLeast(18f)
     }
@@ -154,7 +154,7 @@ fun drawWatermarkTableOnCanvas(
     }
 
     val bgPaint = Paint().apply {
-        color = android.graphics.Color.argb(bgAlpha.coerceIn(0, 255), 0, 0, 0)
+        color = Color.argb(bgAlpha.coerceIn(0, 255), 0, 0, 0)
     }
 
     canvas.drawRect(left, top, left + tableW, top + tableH, bgPaint)
@@ -163,12 +163,12 @@ fun drawWatermarkTableOnCanvas(
     val cellH = tableH / rows.coerceAtLeast(1)
 
     val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.LTGRAY
+        color = Color.LTGRAY
         textSize = (tableH * 0.12f * (labelScale / 100f)).coerceAtLeast(14f)
     }
 
     val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.WHITE
+        color = Color.WHITE
         typeface = Typeface.DEFAULT_BOLD
         textSize = (tableH * 0.16f * (valueScale / 100f)).coerceAtLeast(18f)
     }

@@ -33,7 +33,7 @@ private fun parseCounterFromDisplayName(displayName: String): Int? {
     return if (v >= 0) v else null
 }
 
-suspend fun scanUsedCountersFromMediaStore(
+fun scanUsedCountersFromMediaStore(
     context: Context,
     relativePathPrefix: String
 ): Set<Int> {

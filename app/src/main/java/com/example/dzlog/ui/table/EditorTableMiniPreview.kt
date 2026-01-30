@@ -44,6 +44,7 @@ fun EditorTableMiniPreview(
             .background(containerBg)
             .padding(6.dp)
     ) {
+        @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val cols = templateState.cols.coerceAtLeast(1)
             val rows = templateState.rows.coerceAtLeast(1)
