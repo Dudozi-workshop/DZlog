@@ -108,6 +108,19 @@ fun TableEditorScreen(
     var formatTargetCellId by remember { mutableStateOf<String?>(null) }
     var formatTargetType by remember { mutableStateOf<TableCellDataType?>(null) }
 
+    fun closeFormatDialog() {
+        showFormatDialog = false
+        formatTargetCellId = null
+        formatTargetType = null
+    }
+
+    fun openFormatDialog(targetCellId: String, targetType: TableCellDataType) {
+        formatTargetCellId = targetCellId
+        formatTargetType = targetType
+        showFormatDialog = true
+    }
+
+
     val dateFormatOptions = listOf("yyyy.MM.dd", "yyyy_MM_dd", "yyyyMMdd")
     // TIME 형식은 Step3부터 토글 UI(12/24, 초, 구분자)로 설정한다.
 
@@ -115,7 +128,7 @@ fun TableEditorScreen(
     var showCounterDupDialog by remember { mutableStateOf(false) }
     var pendingCounterCommitValue by remember { mutableIntStateOf(0) }
     var pendingCounterCommitText by remember { mutableStateOf("") }
-    var pendingCounterLatestValue by remember { mutableStateOf(0) }
+    var pendingCounterLatestValue by remember { mutableIntStateOf(0) }
 
     val currentRelativePath by remember(templateState.cells) {
         derivedStateOf {
@@ -327,9 +340,7 @@ fun TableEditorScreen(
 
         AlertDialog(
             onDismissRequest = {
-                showFormatDialog = false
-                formatTargetCellId = null
-                formatTargetType = null
+                closeFormatDialog()
             },
             title = {
                 Text(
@@ -354,9 +365,7 @@ fun TableEditorScreen(
                                             }
                                             onTemplateChange(updated)
                                         }
-                                        showFormatDialog = false
-                                        formatTargetCellId = null
-                                        formatTargetType = null
+                                        closeFormatDialog()
                                     }
                                 ) { Text(if (current == p) "✓  $p" else p) }
                             }
@@ -464,9 +473,7 @@ fun TableEditorScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    showFormatDialog = false
-                    formatTargetCellId = null
-                    formatTargetType = null
+                    closeFormatDialog()
                 }) { Text("닫기") }
             }
         )
@@ -615,8 +622,12 @@ fun TableEditorScreen(
                     }
                 }
 
+                @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                    val cellW = maxWidth / templateState.cols.coerceAtLeast(1)
+                    val safeCols = templateState.cols.coerceAtLeast(1)
+                    val cellW = remember(maxWidth, safeCols) {
+                        maxWidth / safeCols
+                    }
 
                     repeat(templateState.rows) { row ->
                         Row(modifier = Modifier.fillMaxWidth()) {
@@ -695,9 +706,10 @@ fun TableEditorScreen(
                                                 editingOriginalValue = editingValue
                                             } else {
                                                 if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
-                                                    formatTargetCellId = cell.cellId
-                                                    formatTargetType = cell.dataType
-                                                    showFormatDialog = true
+                                                    openFormatDialog(
+                                                        targetCellId = cell.cellId,
+                                                        targetType = cell.dataType
+                                                    )
                                                 }
                                             }
                                         }

@@ -9,7 +9,6 @@ import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -73,7 +73,11 @@ fun LogGridScreen(
 
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var pendingDeleteUris by remember { mutableStateOf<List<android.net.Uri>>(emptyList()) }
-    var pendingDeleteCount by remember { mutableStateOf(0) }
+    var pendingDeleteCount by remember { mutableIntStateOf(0) }
+
+    fun closeDeleteConfirmDialog() {
+    showDeleteConfirm = false
+}
 
     val deleteLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
@@ -230,27 +234,29 @@ fun LogGridScreen(
 
     if (showDeleteConfirm) {
         AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
+            onDismissRequest = {
+                closeDeleteConfirmDialog()
+                               },
             title = { Text("삭제 확인") },
             text = { Text("선택한 사진 $pendingDeleteCount 장을 삭제합니다. 계속할까요?") },
             confirmButton = {
                 Button(onClick = {
-                    showDeleteConfirm = false
+                    closeDeleteConfirmDialog()
                     startDeleteRequest(pendingDeleteUris)
                 }) { Text("삭제") }
             },
             dismissButton = {
-                Button(onClick = { showDeleteConfirm = false }) { Text("취소") }
+                Button(onClick = { closeDeleteConfirmDialog() }) { Text("취소") }
             }
         )
     }
 }
 
 private fun buildRelativePathFromG1G2(g1: String, g2: String): String {
-    val DEFAULT = "(기본)"
+    val default = "(기본)"
     return when {
-        g1 == DEFAULT -> "Pictures/DZlog/"
-        g2 == DEFAULT -> "Pictures/DZlog/$g1/"
+        g1 == default -> "Pictures/DZlog/"
+        g2 == default -> "Pictures/DZlog/$g1/"
         else -> "Pictures/DZlog/$g1/$g2/"
     }
 }
