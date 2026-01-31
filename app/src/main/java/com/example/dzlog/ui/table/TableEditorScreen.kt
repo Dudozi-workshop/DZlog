@@ -550,11 +550,9 @@ fun TableEditorScreen(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 CompactPathHeader(
-                                savePath = savePathPreview,
-                                fileName = filenamePreview,
-                                showCounterBadge = previewCounterSuffixEnabled &&
-                                        templateState.cells.any { it.dataType == TableCellDataType.COUNTER }
-                            )
+                                    savePath = savePathPreview,
+                                     fileName = filenamePreview
+                                 )
 
                             Spacer(Modifier.height(10.dp))
                             // ✅ Grid 영역: 스샷처럼 "섹션 카드" 안에, 높이 제한
@@ -702,10 +700,6 @@ fun TableEditorScreen(
                                 modifier = Modifier.align(Alignment.BottomCenter),
                                 cell = selectedCell,
                                 hasGroup1 = hasGroup1,
-                                onClose = {
-                                    commitInlineEditIfNeeded()
-                                    showCellSettingsPanel = false
-                                },
                                 onSetFileNameInclude = { checked ->
                                     val updated = updateCell(templateState, selectedCell.cellId) { c ->
                                         c.copy(fileNameInclude = checked)
@@ -847,8 +841,7 @@ fun TableEditorScreen(
 @Composable
 private fun CompactPathHeader(
     savePath: String,
-    fileName: String,
-    showCounterBadge: Boolean
+    fileName: String
     ) {
     Column(
         modifier = Modifier
@@ -1097,7 +1090,6 @@ private fun CellSettingsBottomPanel(
     modifier: Modifier,
     cell: TableCellState,
     hasGroup1: Boolean,
-    onClose: () -> Unit,
     onSetFileNameInclude: (Boolean) -> Unit,
     onSetGroupEnabled: (Boolean) -> Unit,
     onSetGroupLevel: (GroupLevel) -> Unit,
@@ -1112,15 +1104,19 @@ private fun CellSettingsBottomPanel(
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // 상단 핸들 닫기
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        // ✅ 상단 핸들(중앙만) - 공간 최소화
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 2.dp, bottom = 2.dp),
+            contentAlignment = Alignment.Center
+        ) {
             Box(
                 modifier = Modifier
-                    .width(46.dp)
+                    .width(42.dp)
                     .height(4.dp)
                     .background(Color(0xFFCCCCCC), RoundedCornerShape(4.dp))
             )
-            TextButton(onClick = onClose) { Text("닫기") }
         }
 
         // ✅ 파일명 그룹 (한 줄 병기)
