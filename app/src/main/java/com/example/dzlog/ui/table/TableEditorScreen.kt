@@ -106,14 +106,13 @@ import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
+import com.example.dzlog.ui.common.DDZSectionHeader
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 
 @Composable
@@ -561,12 +560,7 @@ fun TableEditorScreen(
 
                             Spacer(Modifier.height(10.dp))
                             // ✅ Grid 영역: 스샷처럼 "섹션 카드" 안에, 높이 제한
-                            Text(
-                                text = "GRID LAYOUT",
-                                fontSize = 11.sp,
-                                color = Color.DarkGray,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                                DDZSectionHeader(title = "GRID LAYOUT")
                             Spacer(Modifier.height(6.dp))
 
                             Box(
