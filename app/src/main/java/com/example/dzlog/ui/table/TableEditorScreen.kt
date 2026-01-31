@@ -598,11 +598,6 @@ fun TableEditorScreen(
                                             showCellSettingsPanel = true
                                     },
                                     onDoubleClickCell = { cell ->
-                                        Toast.makeText(
-                                            context,
-                                            "DOUBLE: type=${cell.dataType} id=${cell.cellId}",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
 
                                         if (editingCellId != null && editingCellId != cell.cellId) {
                                             commitInlineEditIfNeeded()
@@ -700,7 +695,7 @@ fun TableEditorScreen(
                         }
 
                         // ✅ 셀 설정 패널(오버레이): 하단바를 덮는 방식
-                        if (showCellSettingsPanel && selectedCell != null) {
+                        if (showCellSettingsPanel && selectedCell != null && editingCellId == null) {
                             // 배경 터치로 닫기
                             Box(
                                 modifier = Modifier
@@ -1017,6 +1012,10 @@ private fun TableGridArea(
                                                 else -> KeyboardType.Text
                                             }
 
+                                            var hasEverFocused by remember(cell.cellId) {
+                                                mutableStateOf(false)
+                                            }
+
                                             BasicTextField(
                                                 value = editingValue,
                                                 onValueChange = onEditingValueChange,
@@ -1033,7 +1032,12 @@ private fun TableGridArea(
                                                     .padding(horizontal = 2.dp, vertical = 2.dp)
                                                     .focusRequester(inlineFocusRequester)
                                                     .onFocusChanged { state ->
-                                                        if (!state.isFocused) {
+                                                        if (state.isFocused) {
+                                                            if (!hasEverFocused) {
+                                                                hasEverFocused = true
+                                                            }
+                                                        }
+                                                        else if (hasEverFocused) {
                                                             onInlineFocusLostCommit()
                                                         }
                                                     }
