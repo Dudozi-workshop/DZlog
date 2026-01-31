@@ -5,26 +5,32 @@
 
 package com.example.dzlog.ui.table
 
+import android.graphics.RectF
 import android.widget.Toast
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -48,14 +54,20 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -66,6 +78,7 @@ import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.counter.decodeCounterSet
 import com.example.dzlog.data.counter.encodeCounterSet
 import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
+import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_COUNTER_SUFFIX_ENABLED
 import com.example.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
@@ -75,8 +88,9 @@ import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.toJsonString
-import com.example.dzlog.domain.model.GroupLevel
+import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
+import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.HourSystem
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellKind
@@ -90,22 +104,12 @@ import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
+import com.example.dzlog.domain.watermark.WatermarkBuilder
+import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
-import android.graphics.RectF
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
-import com.example.dzlog.domain.model.CaptureAspect
-import com.example.dzlog.domain.watermark.WatermarkBuilder
-import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 
 @Composable
 fun TableEditorScreen(
@@ -120,9 +124,9 @@ fun TableEditorScreen(
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
     var selectedCellId by remember { mutableStateOf(templateState.cells.firstOrNull()?.cellId) }
+    // ✅ 탭0: 셀 설정 패널 표시 여부
+    var showCellSettingsPanel by remember { mutableStateOf(false) }
 
-    // 탭0 스크롤
-    val scrollState = rememberScrollState()
     // 탭1 스크롤 (분리)
     val previewTabScrollState = rememberScrollState()
 
@@ -180,10 +184,8 @@ fun TableEditorScreen(
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val inlineFocusRequester = remember { FocusRequester() }
-    var inlineHasFocusedOnce by remember { mutableStateOf(false) }
 
     LaunchedEffect(editingCellId) {
-        inlineHasFocusedOnce = false
         if (editingCellId != null) {
             delay(30)
             inlineFocusRequester.requestFocus()
@@ -535,293 +537,133 @@ fun TableEditorScreen(
             when (selectedTabIndex) {
                 0 -> {
                     // ==========================
-                    // 탭0: 표 구조설정
+                    // 탭0: 표 구조설정 (헤더 고정 그리드 영역 하단 고정바 셀 패널 오버레이)
                     // ==========================
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(scrollState)
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
+                    Box(modifier = Modifier.fillMaxSize()) {
                         Column(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF1EDE3))
-                                .padding(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
                         ) {
-
-                            // 상단 프리뷰(경로/파일명)
+                            // ✅ (변경) 상단/중앙은 스크롤 없음. (스크롤은 그리드 내부에서만)
                             Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                CompactPathHeader(
+                                savePath = savePathPreview,
+                                fileName = filenamePreview,
+                                showCounterBadge = previewCounterSuffixEnabled &&
+                                        templateState.cells.any { it.dataType == TableCellDataType.COUNTER }
+                            )
+
+                            Spacer(Modifier.height(10.dp))
+                            // ✅ Grid 영역: 스샷처럼 "섹션 카드" 안에, 높이 제한
+                            Text(
+                                text = "GRID LAYOUT",
+                                fontSize = 11.sp,
+                                color = Color.DarkGray,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(Modifier.height(6.dp))
+
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFFEFEAE0))
-                                    .padding(10.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    .heightIn(max = 320.dp) // ✅ 여기로 영역 제한 (원하면 360/480으로 조정)
+                                    .background(Color(0xFFF5F1E8), RoundedCornerShape(14.dp))
+                                    .padding(10.dp)
                             ) {
-                                Text("Save Path Preview", fontSize = 12.sp, color = Color.DarkGray)
-                                Text(savePathPreview, color = Color.Black)
-                                Spacer(Modifier.height(6.dp))
-                                Text("Filename Preview", fontSize = 12.sp, color = Color.DarkGray)
 
-                                val templateHasCounter =
-                                    templateState.cells.any { it.dataType == TableCellDataType.COUNTER }
-                                if (previewCounterSuffixEnabled && templateHasCounter) {
-                                    Text("COUNTER 태그 부착", fontSize = 11.sp, color = Color(0xFF3F7D4C))
-                                }
-                                Text(filenamePreview, color = Color.Black)
-                            }
+                            TableGridArea(
+                                    templateState = templateState,
+                                    displayTextProvider = { cellId ->
+                                        plan.resolvedCells
+                                            .firstOrNull { it.id == cellId }
+                                            ?.resolvedText
+                                            .orEmpty()
+                                    },
+                                    selectedCellId = selectedCellId,
+                                    editingCellId = editingCellId,
+                                    onSelectCell = { id ->
+                                        if (editingCellId != null && editingCellId != id) {
+                                            commitInlineEditIfNeeded()
+                                            if (editingCellId != null) return@TableGridArea
+                                        }
+                                        selectedCellId = id
+                                        showCellSettingsPanel = true
+                                    },
+                                    onDoubleClickCell = { cell ->
+                                        if (editingCellId != null && editingCellId != cell.cellId) {
+                                            commitInlineEditIfNeeded()
+                                            if (editingCellId != null) return@TableGridArea
+                                            selectedCellId = cell.cellId
+                                            showCellSettingsPanel = true
+                                            return@TableGridArea
+                                        }
 
-                            // ✅ 표 그리드 (버그 수정: Column 래핑으로 행이 겹치지 않게)
-                            @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
-                            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                                val safeCols = templateState.cols.coerceAtLeast(1)
-                                val cellW = remember(maxWidth, safeCols) { maxWidth / safeCols }
+                                        selectedCellId = cell.cellId
+                                        val canInline =
+                                            (cell.dataType == TableCellDataType.TEXT ||
+                                                    cell.dataType == TableCellDataType.NUMBER ||
+                                                    cell.dataType == TableCellDataType.COUNTER)
 
-                                Column {
-                                    repeat(templateState.rows) { row ->
-                                        Row(modifier = Modifier.fillMaxWidth()) {
-                                            repeat(templateState.cols) { col ->
-                                                val cell = templateState.cells.firstOrNull {
-                                                    it.rowIndex == row && it.colIndex == col
-                                                }
-
-                                                val isSelectedCell = cell?.cellId == selectedCellId
-                                                val isEditingCell = cell?.cellId == editingCellId
-
-                                                val cellBackground =
-                                                    if (isEditingCell) Color(0xFFEAF3EC)
-                                                    else Color(0xFFF7F4EE)
-
-                                                Box(
-                                                    modifier = Modifier
-                                                        .width(cellW)
-                                                        .height(64.dp)
-                                                        .padding(2.dp)
-                                                        .background(cellBackground)
-                                                        .border(
-                                                            width = when {
-                                                                isEditingCell -> 2.dp
-                                                                isSelectedCell -> 2.dp
-                                                                else -> 1.dp
-                                                            },
-                                                            color = when {
-                                                                isEditingCell -> Color(0xFF3F7D4C)
-                                                                isSelectedCell -> Color(0xFF5B7F60)
-                                                                else -> Color(0xFFBDBDBD)
-                                                            }
-                                                        )
-                                                        .combinedClickable(
-                                                            enabled = (cell != null),
-                                                            onClick = {
-                                                                if (cell == null) return@combinedClickable
-
-                                                                if (editingCellId != null && editingCellId != cell.cellId) {
-                                                                    commitInlineEditIfNeeded()
-                                                                    if (editingCellId != null) return@combinedClickable
-                                                                }
-
-                                                                selectedCellId = cell.cellId
-                                                            },
-                                                            onDoubleClick = {
-                                                                if (cell == null) return@combinedClickable
-
-                                                                if (editingCellId != null && editingCellId != cell.cellId) {
-                                                                    commitInlineEditIfNeeded()
-                                                                    if (editingCellId != null) return@combinedClickable
-                                                                    selectedCellId = cell.cellId
-                                                                    return@combinedClickable
-                                                                }
-
-                                                                selectedCellId = cell.cellId
-
-                                                                val canInline =
-                                                                    (cell.dataType == TableCellDataType.TEXT ||
-                                                                            cell.dataType == TableCellDataType.NUMBER ||
-                                                                            cell.dataType == TableCellDataType.COUNTER)
-
-                                                                if (canInline) {
-                                                                    editingCellId = cell.cellId
-                                                                    editingValue = cell.toEditableText()
-                                                                    editingOriginalValue = editingValue
-                                                                } else {
-                                                                    if (cell.dataType == TableCellDataType.DATE ||
-                                                                        cell.dataType == TableCellDataType.TIME
-                                                                    ) {
-                                                                        openFormatDialog(cell.cellId, cell.dataType)
-                                                                    }
-                                                                }
-                                                            }
-                                                        ),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    if (cell != null) {
-                                                        val display = plan.resolvedCells
-                                                            .firstOrNull { it.id == cell.cellId }
-                                                            ?.resolvedText
-                                                            .orEmpty()
-
-                                                        val isEditing = (editingCellId == cell.cellId)
-                                                        val canInlineEdit =
-                                                            (cell.dataType == TableCellDataType.TEXT ||
-                                                                    cell.dataType == TableCellDataType.NUMBER ||
-                                                                    cell.dataType == TableCellDataType.COUNTER)
-
-                                                        if (isEditing && canInlineEdit) {
-                                                            Column(
-                                                                modifier = Modifier
-                                                                    .fillMaxSize()
-                                                                    .padding(horizontal = 6.dp, vertical = 4.dp)
-                                                            ) {
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .fillMaxWidth()
-                                                                        .height(14.dp),
-                                                                    contentAlignment = Alignment.CenterStart
-                                                                ) {
-                                                                    CellHeaderBadges(cell)
-                                                                }
-
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .fillMaxWidth()
-                                                                        .weight(1f),
-                                                                    contentAlignment = Alignment.Center
-                                                                ) {
-                                                                    val keyboardType = when (cell.dataType) {
-                                                                        TableCellDataType.NUMBER -> KeyboardType.Decimal
-                                                                        TableCellDataType.COUNTER -> KeyboardType.Number
-                                                                        else -> KeyboardType.Text
-                                                                    }
-
-                                                                    BasicTextField(
-                                                                        value = editingValue,
-                                                                        onValueChange = { editingValue = it },
-                                                                        singleLine = true,
-                                                                        textStyle = TextStyle(
-                                                                            fontSize = 12.sp,
-                                                                            color = Color.Black
-                                                                        ),
-                                                                        cursorBrush = SolidColor(Color(0xFF5B7F60)),
-                                                                        keyboardOptions = KeyboardOptions(
-                                                                            keyboardType = keyboardType,
-                                                                            imeAction = ImeAction.Done
-                                                                        ),
-                                                                        keyboardActions = KeyboardActions(
-                                                                            onDone = {
-                                                                                commitInlineEditIfNeeded()
-                                                                                editingCellId = null
-                                                                                keyboardController?.hide()
-                                                                            }
-                                                                        ),
-                                                                        modifier = Modifier
-                                                                            .fillMaxWidth()
-                                                                            .padding(horizontal = 2.dp, vertical = 2.dp)
-                                                                            .focusRequester(inlineFocusRequester)
-                                                                            .onFocusChanged { state ->
-                                                                                if (state.isFocused) {
-                                                                                    inlineHasFocusedOnce = true
-                                                                                } else {
-                                                                                    if (inlineHasFocusedOnce) {
-                                                                                        commitInlineEditIfNeeded()
-                                                                                        editingCellId = null
-                                                                                    }
-                                                                                }
-                                                                            }
-                                                                    )
-                                                                }
-                                                            }
-                                                        } else {
-                                                            Column(
-                                                                modifier = Modifier
-                                                                    .fillMaxSize()
-                                                                    .padding(horizontal = 6.dp, vertical = 4.dp)
-                                                            ) {
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .fillMaxWidth()
-                                                                        .height(14.dp),
-                                                                    contentAlignment = Alignment.CenterStart
-                                                                ) {
-                                                                    CellHeaderBadges(cell)
-                                                                }
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .fillMaxWidth()
-                                                                        .weight(1f),
-                                                                    contentAlignment = Alignment.Center
-                                                                ) {
-                                                                    Text(display, fontSize = 12.sp, color = Color.Black)
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
+                                        if (canInline) {
+                                            editingCellId = cell.cellId
+                                            editingValue = cell.toEditableText()
+                                            editingOriginalValue = editingValue
+                                        } else {
+                                            if (cell.dataType == TableCellDataType.DATE ||
+                                                cell.dataType == TableCellDataType.TIME
+                                            ) {
+                                                openFormatDialog(cell.cellId, cell.dataType)
+                                            } else {
+                                                showCellSettingsPanel = true
                                             }
                                         }
+                                    },
+                                    editingValue = editingValue,
+                                    onEditingValueChange = { editingValue = it },
+                                    onCommitInline = {
+                                        commitInlineEditIfNeeded()
+                                        editingCellId = null
+                                        keyboardController?.hide()
+                                    },
+                                    inlineFocusRequester = inlineFocusRequester,
+                                    onInlineFocusLostCommit = {
+                                        commitInlineEditIfNeeded()
+                                        editingCellId = null
                                     }
-                                }
+                                )
                             }
-                        }
 
-                        // 하단 버튼(+Row/-Row/+Col/-Col)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    val updated = addRow(templateState)
-                                    onTemplateChange(updated)
-                                }
-                            ) { Text("+Row", fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                            Spacer(Modifier.height(10.dp))
+                            } // ✅ (변경) 상단/중앙 영역 끝
 
-                            Button(
-                                modifier = Modifier.weight(1f),
-                                onClick = {
+                            // ✅ 하단 고정 액션바(A 구성)
+                            BottomFixedActionBar(
+                                rows = templateState.rows,
+                                cols = templateState.cols,
+                                isSaving = isSavingTemplate,
+                                onAddRow = { onTemplateChange(addRow(templateState)) },
+                                onRemoveRow = {
                                     val updated = removeRow(templateState)
                                     onTemplateChange(updated)
                                     if (updated.cells.none { it.cellId == selectedCellId }) {
                                         selectedCellId = updated.cells.firstOrNull()?.cellId
                                     }
                                 },
-                                enabled = templateState.rows > 1
-                            ) { Text("-Row", fontSize = 12.sp, maxLines = 1, softWrap = false) }
-
-                            Button(
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    val updated = addColumn(templateState)
-                                    onTemplateChange(updated)
-                                }
-                            ) { Text("+Col", fontSize = 12.sp, maxLines = 1, softWrap = false) }
-
-                            Button(
-                                modifier = Modifier.weight(1f),
-                                onClick = {
+                                onAddCol = { onTemplateChange(addColumn(templateState)) },
+                                onRemoveCol = {
                                     val updated = removeColumn(templateState)
                                     onTemplateChange(updated)
                                     if (updated.cells.none { it.cellId == selectedCellId }) {
                                         selectedCellId = updated.cells.firstOrNull()?.cellId
                                     }
                                 },
-                                enabled = templateState.cols > 1
-                            ) { Text("-Col", fontSize = 12.sp, maxLines = 1, softWrap = false) }
-                        }
-
-                        // Save / Reset
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                modifier = Modifier.weight(1f),
-                                onClick = {
+                                onReset = onReset,
+                                onSave = {
                                     commitInlineEditIfNeeded()
                                     isSavingTemplate = true
-
                                     scope.launch {
                                         runCatching {
                                             context.dataStore.edit { prefs ->
@@ -839,186 +681,58 @@ fun TableEditorScreen(
                                             onBack()
                                         }
                                     }
-                                },
-                                enabled = !isSavingTemplate
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    if (isSavingTemplate) {
-                                        androidx.compose.material3.CircularProgressIndicator(
-                                            modifier = Modifier.size(14.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                        Text(text = "Saving...", fontSize = 12.sp)
-                                    } else {
-                                        Text(text = "Save", fontSize = 12.sp)
-                                    }
                                 }
-                            }
-
-                            Button(
-                                modifier = Modifier.weight(1f),
-                                onClick = onReset
-                            ) { Text(text = "Reset", fontSize = 12.sp) }
+                            )
                         }
 
-                        // Cell Detail Panel
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF7F4EE))
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text("Cell Detail Panel", fontSize = 16.sp, color = Color.Black)
-                            if (selectedCell == null) {
-                                Text("셀을 선택하세요.", color = Color.DarkGray)
-                            } else {
-                                Text("Filename include", color = Color.Black)
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(if (selectedCell.fileNameInclude) "ON" else "OFF", color = Color.DarkGray)
-                                    Switch(
-                                        checked = selectedCell.fileNameInclude,
-                                        onCheckedChange = { checked ->
-                                            val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                                cell.copy(fileNameInclude = checked)
-                                            }
-                                            onTemplateChange(updated)
-                                        }
-                                    )
-                                }
-
-                                Text("Data Type", color = Color.Black)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(
-                                        selected = selectedCell.dataType == TableCellDataType.TEXT,
-                                        onClick = {
-                                            val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                                cell.withDataType(TableCellDataType.TEXT)
-                                            }
-                                            onTemplateChange(updated)
-                                        }
-                                    )
-                                    Text("TEXT", color = Color.Black)
-                                    Spacer(Modifier.width(12.dp))
-                                    RadioButton(
-                                        selected = selectedCell.dataType == TableCellDataType.NUMBER,
-                                        onClick = {
-                                            val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                                cell.withDataType(TableCellDataType.NUMBER)
-                                            }
-                                            onTemplateChange(updated)
-                                        }
-                                    )
-                                    Text("NUMBER", color = Color.Black)
-                                }
-
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(
-                                        selected = selectedCell.dataType == TableCellDataType.DATE,
-                                        onClick = {
-                                            val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                                cell.withDataType(TableCellDataType.DATE)
-                                            }
-                                            onTemplateChange(updated)
-                                        }
-                                    )
-                                    Text("DATE", color = Color.Black)
-                                    Spacer(Modifier.width(12.dp))
-                                    RadioButton(
-                                        selected = selectedCell.dataType == TableCellDataType.TIME,
-                                        onClick = {
-                                            val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                                cell.withDataType(TableCellDataType.TIME)
-                                            }
-                                            onTemplateChange(updated)
-                                        }
-                                    )
-                                    Text("TIME", color = Color.Black)
-                                    Spacer(Modifier.width(12.dp))
-                                    RadioButton(
-                                        selected = selectedCell.dataType == TableCellDataType.COUNTER,
-                                        onClick = {
-                                            val updated = updateCell(templateState, selectedCell.cellId) { cell ->
-                                                cell.withDataType(TableCellDataType.COUNTER)
-                                            }
-                                            onTemplateChange(updated)
-                                        }
-                                    )
-                                    Text("COUNTER", color = Color.Black)
-                                }
-
-                                Text("Group", color = Color.Black)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    GroupLevel.entries.forEach { level ->
-                                        val enabled = level != GroupLevel.G2 || hasGroup1
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            RadioButton(
-                                                selected = selectedCell.groupLevel == level,
-                                                enabled = enabled,
-                                                onClick = {
-                                                    if (enabled) {
-                                                        val hadExisting = templateState.cells.any {
-                                                            it.cellId != selectedCell.cellId && it.groupLevel == level
-                                                        }
-                                                        val updated = updateGroupLevel(
-                                                            templateState = templateState,
-                                                            cellId = selectedCell.cellId,
-                                                            level = level
-                                                        )
-                                                        onTemplateChange(updated)
-                                                        if (hadExisting && level != GroupLevel.NONE) {
-                                                            Toast.makeText(
-                                                                context,
-                                                                "${level.name} moved to selected cell",
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
-                                                        }
-                                                    }
-                                                }
-                                            )
-                                            Text(level.name, color = if (enabled) Color.Black else Color.LightGray)
-                                            Spacer(Modifier.width(8.dp))
-                                        }
+                        // ✅ 셀 설정 패널(오버레이): 하단바를 덮는 방식
+                        if (showCellSettingsPanel && selectedCell != null) {
+                            // 배경 터치로 닫기
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color(0x66000000))
+                                    .clickable {
+                                        commitInlineEditIfNeeded()
+                                        showCellSettingsPanel = false
                                     }
-                                }
+                            )
 
-                                val canInlineEditSelected =
-                                    (selectedCell.dataType == TableCellDataType.TEXT ||
-                                            selectedCell.dataType == TableCellDataType.NUMBER ||
-                                            selectedCell.dataType == TableCellDataType.COUNTER)
-
-                                when {
-                                    canInlineEditSelected -> {
-                                        Text(
-                                            "값 입력: 셀을 다시 눌러(더블클릭) 입력",
-                                            fontSize = 12.sp,
-                                            color = Color.DarkGray
-                                        )
+                            CellSettingsBottomPanel(
+                                modifier = Modifier.align(Alignment.BottomCenter),
+                                cell = selectedCell,
+                                hasGroup1 = hasGroup1,
+                                onClose = {
+                                    commitInlineEditIfNeeded()
+                                    showCellSettingsPanel = false
+                                },
+                                onSetFileNameInclude = { checked ->
+                                    val updated = updateCell(templateState, selectedCell.cellId) { c ->
+                                        c.copy(fileNameInclude = checked)
                                     }
-                                    selectedCell.dataType == TableCellDataType.DATE ||
-                                            selectedCell.dataType == TableCellDataType.TIME -> {
-                                        Text(
-                                            "DATE/TIME: 저장 시각(captureNow) 기준 자동 적용됨\n(더블클릭: 형식 설정)",
-                                            fontSize = 12.sp,
-                                            color = Color.DarkGray
-                                        )
+                                    onTemplateChange(updated)
+                                },
+                                onSetGroupEnabled = { enabled ->
+                                    if (!enabled) {
+                                        val updated = updateGroupLevel(templateState, selectedCell.cellId, GroupLevel.NONE)
+                                        onTemplateChange(updated)
+                                    } else {
+                                        // ON 시 기본값은 G1 (MVP)
+                                        val updated = updateGroupLevel(templateState, selectedCell.cellId, GroupLevel.G1)
+                                        onTemplateChange(updated)
                                     }
-                                    else -> {
-                                        Text(
-                                            "이 셀은 값 입력 대상이 아님",
-                                            fontSize = 12.sp,
-                                            color = Color.DarkGray
-                                        )
+                                },
+                                onSetGroupLevel = { level ->
+                                    val updated = updateGroupLevel(templateState, selectedCell.cellId, level)
+                                    onTemplateChange(updated)
+                                },
+                                onSetDataType = { type ->
+                                    val updated = updateCell(templateState, selectedCell.cellId) { c ->
+                                        c.withDataType(type)
                                     }
+                                    onTemplateChange(updated)
                                 }
-                            }
+                            )
                         }
                     }
                 }
@@ -1129,6 +843,408 @@ fun TableEditorScreen(
         }
     }
 }
+
+@Composable
+private fun CompactPathHeader(
+    savePath: String,
+    fileName: String,
+    showCounterBadge: Boolean
+    ) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFEFEAE0), RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text("SAVE PATH", fontSize = 10.sp, color = Color.DarkGray, fontWeight = FontWeight.SemiBold)
+        Text(
+            savePath,
+            fontSize = 12.sp,
+            color = Color.Black,
+            maxLines = 2
+        )
+        Spacer(Modifier.height(2.dp))
+        Text("FILENAME", fontSize = 10.sp, color = Color.DarkGray, fontWeight = FontWeight.SemiBold)
+        Text(
+            fileName,
+            fontSize = 12.sp,
+            color = Color.Black,
+            maxLines = 2
+        )
+    }
+    }
+
+@Composable
+private fun TableGridArea(
+    templateState: TableTemplateState,
+    displayTextProvider: (String) -> String,
+    selectedCellId: String?,
+    editingCellId: String?,
+    onSelectCell: (String) -> Unit,
+    onDoubleClickCell: (TableCellState) -> Unit,
+    editingValue: String,
+    onEditingValueChange: (String) -> Unit,
+    onCommitInline: () -> Unit,
+    inlineFocusRequester: FocusRequester,
+    onInlineFocusLostCommit: () -> Unit
+    ) {
+    @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val safeCols = templateState.cols.coerceAtLeast(1)
+        val cellW = remember(maxWidth, safeCols) { maxWidth / safeCols }
+
+        // ===== Grid 가시성 정책 =====
+        val minCellHeight = 48.dp
+        val defaultCellHeight = 64.dp
+
+        // 현재 화면에서 허용 가능한 최대 행 수 계산
+        val maxVisibleRows =
+            (maxHeight / minCellHeight).toInt().coerceAtLeast(1)
+
+        val needsVerticalScroll = templateState.rows > maxVisibleRows
+
+        val gridScrollState = rememberScrollState()
+
+        // NOTE: 세로는 rows가 많아지면 다 안 보일 수 있으므로,
+        // 여기서는 "가능한 범위 내 전체 가시"를 우선하고,
+        // 추후 임계치 기반 scale/scroll 정책을 이 영역에 적용한다.
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (needsVerticalScroll)
+                        Modifier.verticalScroll(gridScrollState)
+                    else Modifier
+                )
+        ) {
+            repeat(templateState.rows) { row ->
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    repeat(templateState.cols) { col ->
+                        val cell = templateState.cells.firstOrNull {
+                            it.rowIndex == row && it.colIndex == col
+                        }
+
+                        val isSelectedCell = cell?.cellId == selectedCellId
+                        val isEditingCell = cell?.cellId == editingCellId
+
+                        val cellBackground =
+                            if (isEditingCell) Color(0xFFEAF3EC) else Color(0xFFF7F4EE)
+
+                        Box(
+                            modifier = Modifier
+                                .width(cellW)
+                                .height(defaultCellHeight)
+                                .padding(2.dp)
+                                .background(cellBackground, RoundedCornerShape(8.dp))
+                                .border(
+                                    width = when {
+                                        isEditingCell -> 2.dp
+                                        isSelectedCell -> 2.dp
+                                        else -> 1.dp
+                                    },
+                                    color = when {
+                                        isEditingCell -> Color(0xFF3F7D4C)
+                                        isSelectedCell -> Color(0xFF5B7F60)
+                                        else -> Color(0xFFBDBDBD)
+                                    },
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .combinedClickable(
+                                    enabled = (cell != null),
+                                    onClick = {
+                                        if (cell != null) onSelectCell(cell.cellId)
+                                    },
+                                    onDoubleClick = {
+                                        if (cell != null) onDoubleClickCell(cell)
+                                    }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (cell != null) {
+                                val display = displayTextProvider(cell.cellId)
+
+                                val canInlineEdit =
+                                    (cell.dataType == TableCellDataType.TEXT ||
+                                            cell.dataType == TableCellDataType.NUMBER ||
+                                            cell.dataType == TableCellDataType.COUNTER)
+
+                                if (isEditingCell && canInlineEdit) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 6.dp, vertical = 4.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(14.dp),
+                                            contentAlignment = Alignment.CenterStart
+                                        ) { CellHeaderBadges(cell) }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .weight(1f),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            val keyboardType = when (cell.dataType) {
+                                                TableCellDataType.NUMBER -> KeyboardType.Decimal
+                                                TableCellDataType.COUNTER -> KeyboardType.Number
+                                                else -> KeyboardType.Text
+                                            }
+
+                                            BasicTextField(
+                                                value = editingValue,
+                                                onValueChange = onEditingValueChange,
+                                                singleLine = true,
+                                                textStyle = TextStyle(fontSize = 12.sp, color = Color.Black),
+                                                cursorBrush = SolidColor(Color(0xFF5B7F60)),
+                                                keyboardOptions = KeyboardOptions(
+                                                    keyboardType = keyboardType,
+                                                    imeAction = ImeAction.Done
+                                                ),
+                                                keyboardActions = KeyboardActions(onDone = { onCommitInline() }),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 2.dp, vertical = 2.dp)
+                                                    .focusRequester(inlineFocusRequester)
+                                                    .onFocusChanged { state ->
+                                                        if (!state.isFocused) {
+                                                            onInlineFocusLostCommit()
+                                                        }
+                                                    }
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 6.dp, vertical = 4.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(14.dp),
+                                            contentAlignment = Alignment.CenterStart
+                                        ) { CellHeaderBadges(cell) }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .weight(1f),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(display, fontSize = 12.sp, color = Color.Black)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BottomFixedActionBar(
+    rows: Int,
+    cols: Int,
+    isSaving: Boolean,
+    onAddRow: () -> Unit,
+    onRemoveRow: () -> Unit,
+    onAddCol: () -> Unit,
+    onRemoveCol: () -> Unit,
+    onReset: () -> Unit,
+    onSave: () -> Unit
+    ) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF7F4EE), RoundedCornerShape(14.dp))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(modifier = Modifier.weight(1f), onClick = onAddRow) { Text("+Row", fontSize = 12.sp) }
+            Button(modifier = Modifier.weight(1f), onClick = onRemoveRow, enabled = rows > 1) { Text("-Row", fontSize = 12.sp) }
+            Button(modifier = Modifier.weight(1f), onClick = onAddCol) { Text("+Col", fontSize = 12.sp) }
+            Button(modifier = Modifier.weight(1f), onClick = onRemoveCol, enabled = cols > 1) { Text("-Col", fontSize = 12.sp) }
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(modifier = Modifier.weight(1f), onClick = onReset) { Text("Reset", fontSize = 12.sp) }
+            Button(modifier = Modifier.weight(1f), onClick = onSave, enabled = !isSaving) {
+                if (isSaving) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Saving...", fontSize = 12.sp)
+                } else {
+                    Text("Save", fontSize = 12.sp)
+                }
+            }
+        }
+    }
+    }
+
+@Composable
+private fun CellSettingsBottomPanel(
+    modifier: Modifier,
+    cell: TableCellState,
+    hasGroup1: Boolean,
+    onClose: () -> Unit,
+    onSetFileNameInclude: (Boolean) -> Unit,
+    onSetGroupEnabled: (Boolean) -> Unit,
+    onSetGroupLevel: (GroupLevel) -> Unit,
+    onSetDataType: (TableCellDataType) -> Unit
+    ) {
+    val groupEnabled = cell.groupLevel == GroupLevel.G1 || cell.groupLevel == GroupLevel.G2
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF7F4EE), RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // 상단 핸들 닫기
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .width(46.dp)
+                    .height(4.dp)
+                    .background(Color(0xFFCCCCCC), RoundedCornerShape(4.dp))
+            )
+            TextButton(onClick = onClose) { Text("닫기") }
+        }
+
+        // ✅ 파일명 그룹 (한 줄 병기)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("파일명 포함", fontSize = 12.sp, color = Color.DarkGray)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (cell.fileNameInclude) "ON" else "OFF", color = Color.Black)
+                    Switch(
+                        checked = cell.fileNameInclude,
+                        onCheckedChange = onSetFileNameInclude
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text("그룹 사용", fontSize = 12.sp, color = Color.DarkGray)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (groupEnabled) "ON" else "OFF", color = Color.Black)
+                    Switch(
+                        checked = groupEnabled,
+                        onCheckedChange = onSetGroupEnabled
+                    )
+                }
+            }
+        }
+
+        // ✅ Group ON일 때만 G1/G2 세그먼트 노출
+        if (groupEnabled) {
+            val g2Enabled = hasGroup1 || cell.groupLevel == GroupLevel.G2
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFEFEAE0), RoundedCornerShape(12.dp))
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val isG1 = cell.groupLevel == GroupLevel.G1
+                val isG2 = cell.groupLevel == GroupLevel.G2
+
+                // 세그먼트 버튼 (단순 구현: Button 2개)
+                Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSetGroupLevel(GroupLevel.G1) },
+                    enabled = true
+                ) { Text(if (isG1) "G1 ✓" else "G1") }
+
+                Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSetGroupLevel(GroupLevel.G2) },
+                    enabled = g2Enabled
+                ) { Text(if (isG2) "G2 ✓" else "G2") }
+            }
+            if (!g2Enabled) {
+                Text("※ G2는 G1 설정 후 사용 가능", fontSize = 11.sp, color = Color.DarkGray)
+            }
+        }
+
+        // ✅ Data Format: 카드형 3열
+        Text("데이터 형식", fontSize = 13.sp, color = Color.Black, fontWeight = FontWeight.SemiBold)
+        DataTypeCardGrid3(
+            selected = cell.dataType,
+            onSelect = onSetDataType
+        )
+    }
+}
+
+@Composable
+private fun DataTypeCardGrid3(
+    selected: TableCellDataType,
+    onSelect: (TableCellDataType) -> Unit
+    ) {
+    val items = listOf(
+        TableCellDataType.TEXT to "Text",
+        TableCellDataType.NUMBER to "Number",
+        TableCellDataType.DATE to "Date",
+        TableCellDataType.TIME to "Time",
+        TableCellDataType.COUNTER to "Counter"
+    )
+
+    val rows = items.chunked(3)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        rows.forEach { row ->
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { (type, label) ->
+                    val isSelected = selected == type
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(74.dp)
+                            .background(
+                                color = if (isSelected) Color(0xFFEAF3EC) else Color(0xFFFFFFFF),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .border(
+                                width = if (isSelected) 2.dp else 1.dp,
+                                color = if (isSelected) Color(0xFF3F7D4C) else Color(0xFFE0E0E0),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .clickable { onSelect(type) }
+                            .padding(10.dp)
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Text(label, fontSize = 12.sp, color = Color.Black, fontWeight = FontWeight.SemiBold)
+                            Text(type.name, fontSize = 10.sp, color = Color.DarkGray)
+                        }
+                    }
+                }
+                // 3열 맞추기: row가 3개 미만이면 빈 칸 채움
+                repeat(3 - row.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun CameraLikeWatermarkPlacementPreview(
     captureAspect: CaptureAspect,
