@@ -111,6 +111,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 @Composable
@@ -895,10 +898,11 @@ private fun TableGridArea(
     inlineFocusRequester: FocusRequester,
     onInlineFocusLostCommit: () -> Unit
     ) {
-// ✅ 단일 클릭은 "더블클릭 여부 판정" 이후 실행되게 지연
+    // ✅ 셀 단일/더블 클릭 경쟁 제거:
+    // 단일 클릭은 더블탭 타임아웃 이후 실행, 더블 클릭이 오면 단일 클릭 예약 취소
     val vc = LocalViewConfiguration.current
     val scope = rememberCoroutineScope()
-    var pendingSingleClickJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var pendingSingleClickJob by remember { mutableStateOf<Job?>(null) }
 
     @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -962,12 +966,12 @@ private fun TableGridArea(
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .combinedClickable(
-                                    enabled = (cell != null),
+                                    enabled = (cell != null && !isEditingCell),
                                     onClick = {
                                         if (cell == null) return@combinedClickable
                                         pendingSingleClickJob?.cancel()
                                         pendingSingleClickJob = scope.launch {
-                                            delay(vc.doubleTapTimeoutMillis)
+                                            delay(vc.doubleTapTimeoutMillis.toLong())
                                             onSelectCell(cell.cellId)
                                         }
                                     },
