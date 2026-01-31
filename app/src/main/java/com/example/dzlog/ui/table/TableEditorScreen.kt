@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -110,6 +111,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
+
 
 @Composable
 fun TableEditorScreen(
@@ -583,14 +585,22 @@ fun TableEditorScreen(
                                     selectedCellId = selectedCellId,
                                     editingCellId = editingCellId,
                                     onSelectCell = { id ->
+
                                         if (editingCellId != null && editingCellId != id) {
                                             commitInlineEditIfNeeded()
                                             if (editingCellId != null) return@TableGridArea
                                         }
                                         selectedCellId = id
-                                        showCellSettingsPanel = true
+
+                                            showCellSettingsPanel = true
                                     },
                                     onDoubleClickCell = { cell ->
+                                        Toast.makeText(
+                                            context,
+                                            "DOUBLE: type=${cell.dataType} id=${cell.cellId}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+
                                         if (editingCellId != null && editingCellId != cell.cellId) {
                                             commitInlineEditIfNeeded()
                                             if (editingCellId != null) return@TableGridArea
@@ -606,6 +616,9 @@ fun TableEditorScreen(
                                                     cell.dataType == TableCellDataType.COUNTER)
 
                                         if (canInline) {
+                                            // ✅ 인라인 편집은 그리드 안에서 보여야 하므로,
+                                            // 패널이 떠 있는 상태면 가려져서 "안 되는 것처럼" 보임 → 강제 닫기
+                                            showCellSettingsPanel = false
                                             editingCellId = cell.cellId
                                             editingValue = cell.toEditableText()
                                             editingOriginalValue = editingValue
@@ -882,6 +895,11 @@ private fun TableGridArea(
     inlineFocusRequester: FocusRequester,
     onInlineFocusLostCommit: () -> Unit
     ) {
+// ✅ 단일 클릭은 "더블클릭 여부 판정" 이후 실행되게 지연
+    val vc = LocalViewConfiguration.current
+    val scope = rememberCoroutineScope()
+    var pendingSingleClickJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+
     @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val safeCols = templateState.cols.coerceAtLeast(1)
@@ -946,10 +964,18 @@ private fun TableGridArea(
                                 .combinedClickable(
                                     enabled = (cell != null),
                                     onClick = {
-                                        if (cell != null) onSelectCell(cell.cellId)
+                                        if (cell == null) return@combinedClickable
+                                        pendingSingleClickJob?.cancel()
+                                        pendingSingleClickJob = scope.launch {
+                                            delay(vc.doubleTapTimeoutMillis)
+                                            onSelectCell(cell.cellId)
+                                        }
                                     },
                                     onDoubleClick = {
-                                        if (cell != null) onDoubleClickCell(cell)
+                                        if (cell == null) return@combinedClickable
+                                        pendingSingleClickJob?.cancel()
+                                        pendingSingleClickJob = null
+                                        onDoubleClickCell(cell)
                                     }
                                 ),
                             contentAlignment = Alignment.Center
