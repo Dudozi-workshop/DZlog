@@ -60,19 +60,15 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalViewConfiguration
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
@@ -107,6 +103,8 @@ import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.ui.common.DDZSectionHeader
+import com.example.dzlog.ui.theme.DDZColor
+import com.example.dzlog.ui.theme.DDZTypography
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -371,10 +369,12 @@ fun TableEditorScreen(
                         onTemplateChange(updated)
                     }
                     closeCounterDupDialog()
-                }) { Text("적용") }
-            },
+                }) { Text("적용", style = DDZTypography.ButtonText) }
+                            },
             dismissButton = {
-                TextButton(onClick = { closeCounterDupDialog() }) { Text("취소") }
+                TextButton(onClick = { closeCounterDupDialog() }) {
+                    Text("취소", style = DDZTypography.ButtonText)
+                }
             }
         )
     }
@@ -413,7 +413,9 @@ fun TableEditorScreen(
                                         }
                                         closeFormatDialog()
                                     }
-                                ) { Text(if (current == p) "✓  $p" else p) }
+                                ) {
+                                    Text(if (current == p) "✓  $p" else p, style = DDZTypography.ButtonText)
+                                }
                             }
                         }
 
@@ -438,7 +440,7 @@ fun TableEditorScreen(
                                 onTemplateChange(updated)
                             }
 
-                            Text("시간 표시 설정", fontSize = 14.sp)
+                            Text("시간 표시 설정", style = DDZTypography.SectionTitle)
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("시간제", modifier = Modifier.width(72.dp))
@@ -487,14 +489,18 @@ fun TableEditorScreen(
                                 }
                                 if (hourSystem == HourSystem.H12) append(" a")
                             }
-                            Text("미리보기: $preview", fontSize = 12.sp, color = Color.DarkGray)
+                            Text("미리보기: $preview", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                         }
 
                         else -> Text("지원되지 않는 타입")
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { closeFormatDialog() }) { Text("닫기") } }
+            confirmButton = {
+                TextButton(onClick = { closeFormatDialog() }) {
+                    Text("닫기", style = DDZTypography.ButtonText)
+                }
+            }
         )
     }
 
@@ -513,9 +519,11 @@ fun TableEditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("표 상세설정") },
+                title = { Text("표 상세설정", style = DDZTypography.ScreenTitle) },
                 navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Back") }
+                    TextButton(onClick = onBack) {
+                        Text("Back", style = DDZTypography.ButtonText)
+                    }
                 }
             )
         }
@@ -567,7 +575,7 @@ fun TableEditorScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(max = 320.dp) // ✅ 여기로 영역 제한 (원하면 360/480으로 조정)
-                                    .background(Color(0xFFF5F1E8), RoundedCornerShape(14.dp))
+                                    .background(DDZColor.Card, RoundedCornerShape(14.dp))
                                     .padding(10.dp)
                             ) {
 
@@ -694,7 +702,7 @@ fun TableEditorScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(Color(0x66000000))
+                                    .background(DDZColor.PrimaryDark.copy(alpha = 0.4f))
                                     .clickable {
                                         commitInlineEditIfNeeded()
                                         showCellSettingsPanel = false
@@ -762,11 +770,11 @@ fun TableEditorScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0xFFF5F1E8))
+                                .background(DDZColor.Card)
                                 .padding(10.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("표 위치/크기", fontSize = 13.sp, color = Color.DarkGray)
+                            Text("표 위치/크기", style = DDZTypography.CardTitle, color = DDZColor.TextMuted)
 
                             fun persistAnchor(a: WatermarkTableAnchor) {
                                 wmAnchor = a
@@ -787,13 +795,13 @@ fun TableEditorScreen(
                                     selected = wmAnchor == WatermarkTableAnchor.TOP_LEFT,
                                     onClick = { persistAnchor(WatermarkTableAnchor.TOP_LEFT) }
                                 )
-                                Text("좌상", color = Color.Black)
+                                Text("좌상", color = DDZColor.TextPrimary)
                                 Spacer(Modifier.width(8.dp))
                                 RadioButton(
                                     selected = wmAnchor == WatermarkTableAnchor.TOP_RIGHT,
                                     onClick = { persistAnchor(WatermarkTableAnchor.TOP_RIGHT) }
                                 )
-                                Text("우상", color = Color.Black)
+                                Text("우상", color = DDZColor.TextPrimary)
                             }
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -801,18 +809,18 @@ fun TableEditorScreen(
                                     selected = wmAnchor == WatermarkTableAnchor.BOTTOM_LEFT,
                                     onClick = { persistAnchor(WatermarkTableAnchor.BOTTOM_LEFT) }
                                 )
-                                Text("좌하", color = Color.Black)
+                                Text("좌하", color = DDZColor.TextPrimary)
                                 Spacer(Modifier.width(8.dp))
                                 RadioButton(
                                     selected = wmAnchor == WatermarkTableAnchor.BOTTOM_RIGHT,
                                     onClick = { persistAnchor(WatermarkTableAnchor.BOTTOM_RIGHT) }
                                 )
-                                Text("우하", color = Color.Black)
+                                Text("우하", color = DDZColor.TextPrimary)
                             }
 
                             Text(
                                 text = "표 크기 (가로 ${wmWidthRatio}%, 세로 ${wmHeightRatio}%)",
-                                color = Color.Black
+                                color = DDZColor.TextPrimary
                             )
                             Slider(
                                 value = wmWidthRatio.toFloat(),
@@ -832,8 +840,8 @@ fun TableEditorScreen(
                             )
                             Text(
                                 text = "※ 촬영 화면/홈/설정 미리보기에는 동일하게 반영됨",
-                                fontSize = 11.sp,
-                                color = Color.DarkGray
+                                style = DDZTypography.Caption,
+                                color = DDZColor.TextMuted
                             )
                         }
                     }
@@ -851,23 +859,23 @@ private fun CompactPathHeader(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFEFEAE0), RoundedCornerShape(12.dp))
+            .background(DDZColor.Card, RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text("SAVE PATH", fontSize = 10.sp, color = Color.DarkGray, fontWeight = FontWeight.SemiBold)
+        Text("SAVE PATH", style = DDZTypography.Caption, color = DDZColor.TextMuted)
         Text(
             savePath,
-            fontSize = 12.sp,
-            color = Color.Black,
+            style = DDZTypography.Body,
+            color = DDZColor.TextPrimary,
             maxLines = 2
         )
         Spacer(Modifier.height(2.dp))
-        Text("FILENAME", fontSize = 10.sp, color = Color.DarkGray, fontWeight = FontWeight.SemiBold)
+        Text("FILENAME", style = DDZTypography.Caption, color = DDZColor.TextMuted)
         Text(
             fileName,
-            fontSize = 12.sp,
-            color = Color.Black,
+            style = DDZTypography.Body,
+            color = DDZColor.TextPrimary,
             maxLines = 2
         )
     }
@@ -933,7 +941,7 @@ private fun TableGridArea(
                         val isEditingCell = cell?.cellId == editingCellId
 
                         val cellBackground =
-                            if (isEditingCell) Color(0xFFEAF3EC) else Color(0xFFF7F4EE)
+                            if (isEditingCell) DDZColor.Success.copy(alpha = 0.2f) else DDZColor.Card
 
                         Box(
                             modifier = Modifier
@@ -948,9 +956,9 @@ private fun TableGridArea(
                                         else -> 1.dp
                                     },
                                     color = when {
-                                        isEditingCell -> Color(0xFF3F7D4C)
-                                        isSelectedCell -> Color(0xFF5B7F60)
-                                        else -> Color(0xFFBDBDBD)
+                                        isEditingCell -> DDZColor.Success
+                                        isSelectedCell -> DDZColor.Primary
+                                        else -> DDZColor.Border
                                     },
                                     shape = RoundedCornerShape(8.dp)
                                 )
@@ -1014,8 +1022,8 @@ private fun TableGridArea(
                                                 value = editingValue,
                                                 onValueChange = onEditingValueChange,
                                                 singleLine = true,
-                                                textStyle = TextStyle(fontSize = 12.sp, color = Color.Black),
-                                                cursorBrush = SolidColor(Color(0xFF5B7F60)),
+                                                textStyle = DDZTypography.Caption.copy(color = DDZColor.TextPrimary),
+                                                cursorBrush = SolidColor(DDZColor.Success),
                                                 keyboardOptions = KeyboardOptions(
                                                     keyboardType = keyboardType,
                                                     imeAction = ImeAction.Done
@@ -1057,7 +1065,7 @@ private fun TableGridArea(
                                                 .weight(1f),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text(display, fontSize = 12.sp, color = Color.Black)
+                                            Text(display, style = DDZTypography.Caption, color = DDZColor.TextPrimary)
                                         }
                                     }
                                 }
@@ -1085,18 +1093,28 @@ private fun BottomFixedActionBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFF7F4EE), RoundedCornerShape(14.dp))
+            .background(DDZColor.Surface, RoundedCornerShape(14.dp))
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(modifier = Modifier.weight(1f), onClick = onAddRow) { Text("+Row", fontSize = 12.sp) }
-            Button(modifier = Modifier.weight(1f), onClick = onRemoveRow, enabled = rows > 1) { Text("-Row", fontSize = 12.sp) }
-            Button(modifier = Modifier.weight(1f), onClick = onAddCol) { Text("+Col", fontSize = 12.sp) }
-            Button(modifier = Modifier.weight(1f), onClick = onRemoveCol, enabled = cols > 1) { Text("-Col", fontSize = 12.sp) }
+            Button(modifier = Modifier.weight(1f), onClick = onAddRow) {
+                Text("+Row", style = DDZTypography.ButtonText)
+            }
+            Button(modifier = Modifier.weight(1f), onClick = onRemoveRow, enabled = rows > 1) {
+                Text("-Row", style = DDZTypography.ButtonText)
+            }
+            Button(modifier = Modifier.weight(1f), onClick = onAddCol) {
+                Text("+Col", style = DDZTypography.ButtonText)
+            }
+            Button(modifier = Modifier.weight(1f), onClick = onRemoveCol, enabled = cols > 1) {
+                Text("-Col", style = DDZTypography.ButtonText)
+            }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(modifier = Modifier.weight(1f), onClick = onReset) { Text("Reset", fontSize = 12.sp) }
+            Button(modifier = Modifier.weight(1f), onClick = onReset) {
+                Text("Reset", style = DDZTypography.ButtonText)
+            }
             Button(modifier = Modifier.weight(1f), onClick = onSave, enabled = !isSaving) {
                 if (isSaving) {
                     androidx.compose.material3.CircularProgressIndicator(
@@ -1104,9 +1122,9 @@ private fun BottomFixedActionBar(
                         strokeWidth = 2.dp
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text("Saving...", fontSize = 12.sp)
+                    Text("Saving...", style = DDZTypography.ButtonText)
                 } else {
-                    Text("Save", fontSize = 12.sp)
+                    Text("Save", style = DDZTypography.ButtonText)
                 }
             }
         }
@@ -1128,7 +1146,7 @@ private fun CellSettingsBottomPanel(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xFFF7F4EE), RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+            .background(DDZColor.Surface, RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -1143,7 +1161,7 @@ private fun CellSettingsBottomPanel(
                 modifier = Modifier
                     .width(42.dp)
                     .height(4.dp)
-                    .background(Color(0xFFCCCCCC), RoundedCornerShape(4.dp))
+                    .background(DDZColor.Border, RoundedCornerShape(4.dp))
             )
         }
 
@@ -1154,9 +1172,9 @@ private fun CellSettingsBottomPanel(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("파일명 포함", fontSize = 12.sp, color = Color.DarkGray)
+                Text("파일명 포함", style = DDZTypography.Body, color = DDZColor.TextMuted)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (cell.fileNameInclude) "ON" else "OFF", color = Color.Black)
+                    Text(if (cell.fileNameInclude) "ON" else "OFF", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                     Switch(
                         checked = cell.fileNameInclude,
                         onCheckedChange = onSetFileNameInclude
@@ -1165,9 +1183,9 @@ private fun CellSettingsBottomPanel(
             }
 
             Column(modifier = Modifier.weight(1f)) {
-                Text("그룹 사용", fontSize = 12.sp, color = Color.DarkGray)
+                Text("그룹 사용", style = DDZTypography.Body, color = DDZColor.TextMuted)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (groupEnabled) "ON" else "OFF", color = Color.Black)
+                    Text(if (groupEnabled) "ON" else "OFF", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                     Switch(
                         checked = groupEnabled,
                         onCheckedChange = onSetGroupEnabled
@@ -1182,7 +1200,7 @@ private fun CellSettingsBottomPanel(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFEFEAE0), RoundedCornerShape(12.dp))
+                    .background(DDZColor.Card, RoundedCornerShape(12.dp))
                     .padding(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -1194,21 +1212,21 @@ private fun CellSettingsBottomPanel(
                     modifier = Modifier.weight(1f),
                     onClick = { onSetGroupLevel(GroupLevel.G1) },
                     enabled = true
-                ) { Text(if (isG1) "G1 ✓" else "G1") }
+                ) { Text(if (isG1) "G1 ✓" else "G1", style = DDZTypography.ButtonText) }
 
                 Button(
                     modifier = Modifier.weight(1f),
                     onClick = { onSetGroupLevel(GroupLevel.G2) },
                     enabled = g2Enabled
-                ) { Text(if (isG2) "G2 ✓" else "G2") }
+                ) { Text(if (isG2) "G2 ✓" else "G2", style = DDZTypography.ButtonText) }
             }
             if (!g2Enabled) {
-                Text("※ G2는 G1 설정 후 사용 가능", fontSize = 11.sp, color = Color.DarkGray)
+                Text("※ G2는 G1 설정 후 사용 가능", style = DDZTypography.Caption, color = DDZColor.TextMuted)
             }
         }
 
         // ✅ Data Format: 카드형 3열
-        Text("데이터 형식", fontSize = 13.sp, color = Color.Black, fontWeight = FontWeight.SemiBold)
+        Text("데이터 형식", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
         DataTypeCardGrid3(
             selected = cell.dataType,
             onSelect = onSetDataType
@@ -1240,12 +1258,12 @@ private fun DataTypeCardGrid3(
                             .weight(1f)
                             .height(74.dp)
                             .background(
-                                color = if (isSelected) Color(0xFFEAF3EC) else Color(0xFFFFFFFF),
+                                color = if (isSelected) DDZColor.Success.copy(alpha = 0.2f) else DDZColor.Surface,
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .border(
                                 width = if (isSelected) 2.dp else 1.dp,
-                                color = if (isSelected) Color(0xFF3F7D4C) else Color(0xFFE0E0E0),
+                                color = if (isSelected) DDZColor.Success else DDZColor.Border,
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .clickable { onSelect(type) }
@@ -1255,8 +1273,8 @@ private fun DataTypeCardGrid3(
                             verticalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            Text(label, fontSize = 12.sp, color = Color.Black, fontWeight = FontWeight.SemiBold)
-                            Text(type.name, fontSize = 10.sp, color = Color.DarkGray)
+                            Text(label, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                            Text(type.name, style = DDZTypography.Caption, color = DDZColor.TextMuted)
                         }
                     }
                 }
@@ -1282,19 +1300,19 @@ private fun CameraLikeWatermarkPlacementPreview(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF111111))
+            .background(DDZColor.PrimaryDark)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text("촬영 미리보기", color = Color.White, fontSize = 13.sp)
+        Text("촬영 미리보기", color = DDZColor.Surface, style = DDZTypography.CardTitle)
 
         // 카메라 프레임(비율 반영) 박스
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(captureAspect.ratioF)
-                .background(Color.Black)
-                .border(1.dp, Color(0xFF333333))
+                .background(DDZColor.PrimaryDark)
+                .border(1.dp, DDZColor.Border)
                 .clipToBounds()
         ) {
             // 실제 카메라 영상 대신 “프레임 느낌” 배경 (단색+가이드 정도)
@@ -1305,12 +1323,12 @@ private fun CameraLikeWatermarkPlacementPreview(
 
                 // center lines
                 drawRect(
-                    color = Color(0x22FFFFFF),
+                    color = DDZColor.Surface.copy(alpha = 0.13f),
                     topLeft = Offset(w / 2f - 0.5f, 0f),
                     size = Size(1f, h)
                 )
                 drawRect(
-                    color = Color(0x22FFFFFF),
+                    color = DDZColor.Surface.copy(alpha = 0.13f),
                     topLeft = Offset(0f, h / 2f - 0.5f),
                     size = Size(w, 1f)
                 )
@@ -1341,8 +1359,8 @@ private fun CameraLikeWatermarkPlacementPreview(
 
         Text(
             "비율: ${captureAspect.label} / 위치: ${anchor.name} / 크기: ${tableWidthRatio}%×${tableHeightRatio}%",
-            color = Color(0xFFBBBBBB),
-            fontSize = 11.sp
+            color = DDZColor.IconMuted,
+            style = DDZTypography.Caption
         )
     }
 }
