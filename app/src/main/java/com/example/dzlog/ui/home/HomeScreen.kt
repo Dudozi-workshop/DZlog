@@ -2,6 +2,7 @@ package com.example.dzlog.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,8 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,16 +21,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.example.dzlog.domain.model.MediaImageItem
 import com.example.dzlog.domain.model.TableTemplateState
+import com.example.dzlog.ui.common.DDZButton
+import com.example.dzlog.ui.common.DDZButtonStyle
+import com.example.dzlog.ui.common.DDZCard
 import com.example.dzlog.ui.common.DisplayTablePreview
 import com.example.dzlog.ui.log.DzThumbnail
 import com.example.dzlog.ui.log.dzFormatDate
+import com.example.dzlog.ui.theme.DDZColor
+import com.example.dzlog.ui.theme.DDZSpacing
+import com.example.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Date
@@ -82,18 +85,33 @@ fun HomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0B0C0D))
-            .padding(16.dp)
+            .background(DDZColor.Background)
+            .padding(DDZSpacing.screenPadding)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Text("DZlog", fontSize = 24.sp, color = Color.White)
-            Spacer(Modifier.height(14.dp))
+            Text("DZlog", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
+            Spacer(Modifier.height(DDZSpacing.sectionGap))
 
-            Button(onClick = onStartCamera, modifier = Modifier.fillMaxWidth()) { Text("촬영 시작") }
-            Spacer(Modifier.height(10.dp))
-            Button(onClick = onOpenLog, modifier = Modifier.fillMaxWidth()) { Text("앱 내 로그") }
-            Spacer(Modifier.height(10.dp))
-            Button(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) { Text("설정") }
+            DDZButton(
+                text = "촬영 시작",
+                onClick = onStartCamera,
+                modifier = Modifier.fillMaxWidth(),
+                style = DDZButtonStyle.Primary
+            )
+            Spacer(Modifier.height(DDZSpacing.itemGap))
+            DDZButton(
+                text = "앱 내 로그",
+                onClick = onOpenLog,
+                modifier = Modifier.fillMaxWidth(),
+                style = DDZButtonStyle.Secondary
+            )
+            Spacer(Modifier.height(DDZSpacing.itemGap))
+            DDZButton(
+                text = "설정",
+                onClick = onOpenSettings,
+                modifier = Modifier.fillMaxWidth(),
+                style = DDZButtonStyle.Secondary
+            )
 
             Spacer(Modifier.weight(1f))
 
@@ -103,15 +121,15 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .height(200.dp),
             ) {
-                Card(
+                DDZCard(
                     modifier = Modifier
                         .weight(0.6f)
                         .fillMaxHeight()
                         .clickable(onClick = onOpenTableEditor)
                 ) {
-                    Column(modifier = Modifier.padding(10.dp)) {
-                        Text("표 상세설정", fontSize = 14.sp)
-                        Spacer(Modifier.height(6.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
+                        Text("표 상세설정", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -129,7 +147,7 @@ fun HomeScreen(
 
                 Spacer(Modifier.weight(0.04f))
 
-                Card(
+                DDZCard(
                     modifier = Modifier
                         .weight(0.36f)
                         .fillMaxHeight()
@@ -143,22 +161,25 @@ fun HomeScreen(
                             }
                         }
                 ) {
-                    Column(modifier = Modifier.padding(10.dp)) {
-                        Text("최근 로그", fontSize = 14.sp)
-                        Spacer(Modifier.height(6.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
+                        Text("최근 로그", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
                         val it = latest
                         if (it == null) {
-                            Text("최근 항목 없음", fontSize = 12.sp, color = Color.Gray)
+                            Text("최근 항목 없음", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                         } else {
                             Box(modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)) {
                                 DzThumbnail(it.uri.toString())
                             }
-                            Spacer(Modifier.height(6.dp))
-                            Text(dzFormatDate(it.dateAddedSeconds), fontSize = 11.sp, color = Color.Gray)
-                            val (g1, g2) = extractG1G2(it.relativePath)
-                            Text("$g1 / $g2", fontSize = 12.sp)
+                            Spacer(Modifier.height(DDZSpacing.itemGap))
+                            Text(
+                                dzFormatDate(it.dateAddedSeconds),
+                                style = DDZTypography.Caption,
+                                color = DDZColor.TextMuted
+                            )
+                           val (g1, g2) = extractG1G2(it.relativePath)
+                            Text("$g1 / $g2", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                         }
                     }
                 }

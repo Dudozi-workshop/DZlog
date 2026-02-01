@@ -12,10 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Divider
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,7 +28,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counter.encodeCounterSet
@@ -47,8 +43,15 @@ import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.table.TableResolver
+import com.example.dzlog.ui.common.DDZButton
+import com.example.dzlog.ui.common.DDZButtonStyle
+import com.example.dzlog.ui.common.DDZCard
+import com.example.dzlog.ui.common.DDZSectionHeader
 import com.example.dzlog.ui.settings.components.MiniTablePreview
 import com.example.dzlog.ui.settings.components.SegmentedControl
+import com.example.dzlog.ui.theme.DDZColor
+import com.example.dzlog.ui.theme.DDZSpacing
+import com.example.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.launch
 import java.util.Date
 
@@ -129,22 +132,22 @@ fun SettingsRootScreen(
     Column(
         modifier = Modifier
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(DDZSpacing.screenPadding)
     ) {
         // Header
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text("설정", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("설정", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onBack) { Text("Back") }
+            TextButton(onClick = onBack) { Text("Back", style = DDZTypography.ButtonText) }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(DDZSpacing.itemGap))
 
         StatusBarCard(
             projectPath = projectPathPreview,
             nextFilename = nextFilenamePreview
         )
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(DDZSpacing.sectionGap))
 
         // B) Quick Controls
         QuickControlsCard(
@@ -209,69 +212,78 @@ fun SettingsRootScreen(
         )
 
         if (showCounterOffConfirm) {
-            androidx.compose.material3.AlertDialog(
+            AlertDialog(
                 onDismissRequest = { showCounterOffConfirm = false },
-                title = { Text("카운터 자동 부착 끄기") },
-                text = { Text("파일명 끝에 자동으로 붙는 카운터(_1, _10 …)가 비활성화됩니다. 계속할까요?") },
-                confirmButton = {
+                title = { Text("카운터 자동 부착 끄기", style = DDZTypography.CardTitle) },
+                text = {
+                    Text(
+                        "파일명 끝에 자동으로 붙는 카운터(_1, _10 …)가 비활성화됩니다. 계속할까요?",
+                        style = DDZTypography.Body
+                    )
+                },
+                 confirmButton = {
                     TextButton(onClick = {
                         showCounterOffConfirm = false
                         scope.launch {
                             AppSettingsStore.setCounterSuffixEnabled(context, false)
                             if (settings.toastEnabled) Toast.makeText(context, "카운터 자동부착: OFF", Toast.LENGTH_SHORT).show()
                         }
-                    }) { Text("끄기") }
-                },
+                    }) { Text("끄기", style = DDZTypography.ButtonText) }
+                                 },
                 dismissButton = {
-                    TextButton(onClick = { showCounterOffConfirm = false }) { Text("취소") }
+                    TextButton(onClick = { showCounterOffConfirm = false }) {
+                        Text("취소", style = DDZTypography.ButtonText)
+                    }
                 }
             )
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(DDZSpacing.sectionGap))
 
         // C) Template / Table
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(12.dp)) {
-                Text("Template / Table", fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(6.dp))
-                Text("현재 템플릿", style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(8.dp))
+        DDZCard(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
+                DDZSectionHeader(title = "Template / Table")
+                Text("현재 템플릿", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                 MiniTablePreview(
                     templateState = templateState,
                     counterDigits = settings.counterPadding,
                     now = nowForPreview,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(Modifier.height(8.dp))
-                Button(onClick = onOpenTableDetail, modifier = Modifier.fillMaxWidth()) {
-                    Text("표 상세설정으로 이동")
-                }
+                DDZButton(
+                    text = "표 상세설정으로 이동",
+                    onClick = onOpenTableDetail,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = DDZButtonStyle.Primary
+                )
                 // 템플릿 변경 버튼은 아직 구현이 없으므로 숨김(MVP)
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(DDZSpacing.sectionGap))
 
         // D) Capture Settings
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(12.dp)) {
-                Text("Capture Settings", fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(6.dp))
+        DDZCard(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
+                DDZSectionHeader(title = "Capture Settings")
+
                 val previewLabel = when (settings.continuousPreviewMode) {
                     ContinuousPreviewMode.OFF -> "연속촬영/미리보기: Off"
                     ContinuousPreviewMode.SHORT -> "연속촬영/미리보기: Short"
                     ContinuousPreviewMode.HOLD -> "연속촬영/미리보기: Hold"
                 }
-                Text(previewLabel)
-                Spacer(Modifier.height(8.dp))
-                Button(onClick = onOpenCaptureSettings, modifier = Modifier.fillMaxWidth()) {
-                    Text("촬영설정으로 이동")
-                }
+                Text(previewLabel, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                DDZButton(
+                    text = "촬영설정으로 이동",
+                    onClick = onOpenCaptureSettings,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = DDZButtonStyle.Primary
+                )
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(DDZSpacing.sectionGap))
 
         // E) System & App
         SystemAppCard(
@@ -299,18 +311,17 @@ fun SettingsRootScreen(
             }
         )
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(DDZSpacing.itemGap))
     }
 }
 
 @Composable
 private fun StatusBarCard(projectPath: String, nextFilename: String) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            Text("STATUS", fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(6.dp))
-            Text("Project Path: $projectPath")
-            Text("Next Filename: $nextFilename")
+    DDZCard(modifier = Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
+            DDZSectionHeader(title = "STATUS")
+            Text("Project Path: $projectPath", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+            Text("Next Filename: $nextFilename", style = DDZTypography.Body, color = DDZColor.TextPrimary)
         }
     }
 }
@@ -330,12 +341,11 @@ private fun QuickControlsCard(
     onResetCounterSync: () -> Unit,
     onResetCounterOnPathChangeChange: (Boolean) -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            Text("Quick Controls", fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(10.dp))
+    DDZCard(modifier = Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.sectionGap)) {
+            DDZSectionHeader(title = "Quick Controls")
 
-            Text("저장 대상")
+            Text("저장 대상", style = DDZTypography.Body, color = DDZColor.TextPrimary)
             SegmentedControl(
                 options = listOf("Original", "Watermark", "Both"),
                 selectedIndex = when (saveMode) {
@@ -353,8 +363,7 @@ private fun QuickControlsCard(
                 }
             )
 
-            Spacer(Modifier.height(10.dp))
-            Text("연속 촬영 미리보기")
+            Text("연속 촬영 미리보기", style = DDZTypography.Body, color = DDZColor.TextPrimary)
             SegmentedControl(
                 options = listOf("Off", "Short", "Hold"),
                 selectedIndex = when (continuousPreviewMode) {
@@ -372,13 +381,12 @@ private fun QuickControlsCard(
                 }
             )
 
-            Spacer(Modifier.height(10.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("파일명 카운터 자동부착")
+                    Text("파일명 카운터 자동부착", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                 }
                 Switch(
                     checked = counterSuffixEnabled,
@@ -386,10 +394,9 @@ private fun QuickControlsCard(
                 )
             }
 
-            Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.weight(1f)) {
-                    Text("카운터 패딩")
+                    Text("카운터 패딩", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                     SegmentedControl(
                         options = listOf("0", "2", "3", "4"),
                         selectedIndex = when (counterPadding) {
@@ -410,16 +417,17 @@ private fun QuickControlsCard(
                     )
                 }
                 Spacer(Modifier.height(0.dp))
-                TextButton(onClick = onResetCounterSync) { Text("Reset") }
+                TextButton(onClick = onResetCounterSync) {
+                    Text("Reset", style = DDZTypography.ButtonText)
+                }
             }
 
-            Spacer(Modifier.height(10.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("경로 변경 시 카운터 초기화")
+                    Text("경로 변경 시 카운터 초기화", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                 }
                 Switch(checked = resetCounterOnPathChange, onCheckedChange = onResetCounterOnPathChangeChange)
             }
@@ -447,30 +455,35 @@ private fun SystemAppCard(
         runCatching { pkg.getPackageInfo(context.packageName, 0).versionCode }.getOrNull()?.toString() ?: "-"
     }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            Text("System & App", fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(10.dp))
+    DDZCard(modifier = Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.sectionGap)) {
+            DDZSectionHeader(title = "System & App")
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.weight(1f)) { Text("토스트 피드백") }
+                Column(Modifier.weight(1f)) { Text("토스트 피드백", style = DDZTypography.Body, color = DDZColor.TextPrimary) }
                 Switch(checked = toastEnabled, onCheckedChange = onToastEnabledChange)
             }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.weight(1f)) { Text("진동") }
+                Column(Modifier.weight(1f)) { Text("진동", style = DDZTypography.Body, color = DDZColor.TextPrimary) }
                 Switch(checked = hapticEnabled, onCheckedChange = onHapticEnabledChange)
             }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.weight(1f)) { Text("공백 경고") }
+                Column(Modifier.weight(1f)) { Text("공백 경고", style = DDZTypography.Body, color = DDZColor.TextPrimary) }
                 Switch(checked = blankWarningEnabled, onCheckedChange = onBlankWarningEnabledChange)
             }
 
-            Spacer(Modifier.height(10.dp))
-            Divider()
-            Spacer(Modifier.height(10.dp))
+            Divider(color = DDZColor.Border)
 
-            Text("저장 권한: ${if (isStorageGranted) "OK" else "NOT GRANTED"}")
-            Text("앱 버전: $verName ($verCode)")
+            Text(
+                "저장 권한: ${if (isStorageGranted) "OK" else "NOT GRANTED"}",
+                style = DDZTypography.Body,
+                color = DDZColor.TextPrimary
+            )
+            Text(
+                "앱 버전: $verName ($verCode)",
+                style = DDZTypography.Body,
+                color = DDZColor.TextPrimary
+            )
         }
     }
 }

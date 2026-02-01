@@ -57,12 +57,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
@@ -101,6 +99,11 @@ import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.table.applyPatch
 import com.example.dzlog.domain.watermark.WatermarkBuilder
+import com.example.dzlog.ui.common.DDZButton
+import com.example.dzlog.ui.common.DDZButtonStyle
+import com.example.dzlog.ui.theme.DDZColor
+import com.example.dzlog.ui.theme.DDZSpacing
+import com.example.dzlog.ui.theme.DDZTypography
 import com.example.dzlog.watermark.WatermarkRendererImpl
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 import kotlinx.coroutines.Dispatchers
@@ -137,7 +140,7 @@ fun CameraScreen(
         if (!hasPermission) launcher.launch(Manifest.permission.CAMERA)
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+    Box(modifier = Modifier.fillMaxSize().background(DDZColor.PrimaryDark)) {
         if (hasPermission) {
             CameraPreview(
                 onExitToHome = onExitToHome,
@@ -149,7 +152,7 @@ fun CameraScreen(
             Text(
                 text = "카메라 권한이 필요합니다.\n설정에서 권한을 허용해주세요.",
                 modifier = Modifier.align(Alignment.Center),
-                color = Color.White
+                color = DDZColor.Surface
             )
         }
     }
@@ -263,14 +266,14 @@ fun CameraPreview(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(DDZColor.PrimaryDark)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(0.18f)
-                    .background(Color.Black)
+                    .background(DDZColor.PrimaryDark)
             )
 
             Box(
@@ -283,7 +286,7 @@ fun CameraPreview(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(captureAspect.ratioF)
-                        .background(Color.Black)
+                        .background(DDZColor.PrimaryDark)
                         .clipToBounds()
                 ) {
                     val previewView = remember(context) {
@@ -393,7 +396,11 @@ group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
 
         Row(
             modifier = Modifier
-                .padding(top = 40.dp, start = 16.dp, end = 16.dp)
+                .padding(
+                    top = DDZSpacing.screenPadding + DDZSpacing.sectionGap + DDZSpacing.itemGap,
+                    start = DDZSpacing.screenPadding,
+                    end = DDZSpacing.screenPadding
+                )
                 .align(Alignment.TopCenter)
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -401,27 +408,27 @@ group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
         ) {
             Box(
                 modifier = Modifier
-                    .background(Color(0x66000000))
+                    .background(DDZColor.PrimaryDark.copy(alpha = 0.4f))
                     .clickable { onExitToHome() }
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
             ) {
-                Text("뒤로", color = Color.White)
+                Text("뒤로", style = DDZTypography.ButtonText, color = DDZColor.Surface)
             }
 
             Box(
                 modifier = Modifier
-                    .background(Color(0x66000000))
+                    .background(DDZColor.PrimaryDark.copy(alpha = 0.4f))
                     .clickable { showWizard = true }
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
             ) {
-                Text("촬영 설정", color = Color.White)
+                Text("촬영 설정", style = DDZTypography.ButtonText, color = DDZColor.Surface)
             }
         }
 
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 26.dp),
+                .padding(bottom = DDZSpacing.screenPadding + DDZSpacing.itemGap),
             contentAlignment = Alignment.Center
         ) {
             val enabledNow = boundImageCapture != null
@@ -430,7 +437,7 @@ group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
                 modifier = Modifier
                     .size(78.dp)
                     .background(
-                        color = if (enabledNow) Color.White else Color(0xFF777777),
+                        color = if (enabledNow) DDZColor.Surface else DDZColor.IconMuted,
                         shape = androidx.compose.foundation.shape.CircleShape
                     )
                     .clickable(enabled = enabledNow) {
@@ -507,15 +514,15 @@ group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                     modifier = Modifier
                         .size(64.dp)
                         .background(
-                            color = if (enabledNow) Color(0xFF0B0C0D) else Color(0xFF555555),
+                            color = if (enabledNow) DDZColor.PrimaryDark else DDZColor.Border,
                             shape = androidx.compose.foundation.shape.CircleShape
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "●",
-                        color = if (enabledNow) Color.White else Color(0xFFDDDDDD),
-                        fontSize = 18.sp
+                        color = if (enabledNow) DDZColor.Surface else DDZColor.TextMuted,
+                        style = DDZTypography.CardTitle
                     )
                 }
             }
@@ -524,14 +531,13 @@ group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
         if (showWizard) {
             AlertDialog(
                 onDismissRequest = { showWizard = false },
-                title = { Text("설정", color = Color.White) },
+                title = { Text("설정", style = DDZTypography.ScreenTitle, color = DDZColor.Surface) },
                 text = {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-
+                        verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(
@@ -545,31 +551,37 @@ group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                                     }
                                 }
                             )
-                            Text("촬영 화면에 워터마크 미리보기 표시", color = Color.White)
+                            Text(
+                                "촬영 화면에 워터마크 미리보기 표시",
+                                style = DDZTypography.Body,
+                                color = DDZColor.Surface
+                            )
                         }
-                        Spacer(Modifier.height(12.dp))
-                        Button(onClick = {
-                            showWizard = false
-                            onOpenTableEditor()
-                        }) {
-                            Text("표 편집")
-                        }
+                        Spacer(Modifier.height(DDZSpacing.sectionGap))
+                        DDZButton(
+                            text = "표 편집",
+                            onClick = {
+                                showWizard = false
+                                onOpenTableEditor()
+                            },
+                            style = DDZButtonStyle.Primary
+                        )
                         Text(
                             text = "셀 속성/그룹/G1·G2 설정",
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 12.sp
+                            color = DDZColor.Surface.copy(alpha = 0.7f),
+                            style = DDZTypography.Caption
                         )
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(DDZSpacing.screenPadding))
 
                         Text(
                             "표 위치/크기/스타일은 표 상세설정에서 변경",
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 12.sp
+                            color = DDZColor.Surface.copy(alpha = 0.7f),
+                            style = DDZTypography.Caption
                         )
 
-                        Spacer(Modifier.height(20.dp))
+                        Spacer(Modifier.height(DDZSpacing.sectionGap + DDZSpacing.itemGap))
 
-                        Text("촬영 비율", color = Color.White)
+                        Text("촬영 비율", style = DDZTypography.Body, color = DDZColor.Surface)
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(
@@ -579,7 +591,7 @@ group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                                     scope.launch(Dispatchers.IO) { persistCaptureAspect(context, CaptureAspect.R3_4) }
                                 }
                             )
-                            Text("3:4", color = Color.White)
+                            Text("3:4", style = DDZTypography.Body, color = DDZColor.Surface)
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -590,7 +602,7 @@ group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                                     scope.launch(Dispatchers.IO) { persistCaptureAspect(context, CaptureAspect.R9_16) }
                                 }
                             )
-                            Text("9:16", color = Color.White)
+                            Text("9:16", style = DDZTypography.Body, color = DDZColor.Surface)
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -601,12 +613,12 @@ group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                                     scope.launch(Dispatchers.IO) { persistCaptureAspect(context, CaptureAspect.R1_1) }
                                 }
                             )
-                            Text("1:1", color = Color.White)
+                            Text("1:1", style = DDZTypography.Body, color = DDZColor.Surface)
                         }
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(DDZSpacing.screenPadding))
 
-                        Text("저장 모드", color = Color.White)
-                        Spacer(Modifier.height(8.dp))
+                        Text("저장 모드", style = DDZTypography.Body, color = DDZColor.Surface)
+                        Spacer(Modifier.height(DDZSpacing.itemGap))
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(
@@ -616,7 +628,7 @@ group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                                     scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = 0 } }
                                 }
                             )
-                            Text("워터마크만", color = Color.White)
+                            Text("워터마크만", style = DDZTypography.Body, color = DDZColor.Surface)
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -631,7 +643,7 @@ group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                                     }
                                 }
                             )
-                            Text("원본+워터마크", color = Color.White)
+                            Text("원본+워터마크", style = DDZTypography.Body, color = DDZColor.Surface)
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -642,14 +654,18 @@ group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                                     scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = 2 } }
                                 }
                             )
-                            Text("원본만", color = Color.White)
+                            Text("원본만", style = DDZTypography.Body, color = DDZColor.Surface)
                         }
 
-                        Spacer(Modifier.height(20.dp))
+                        Spacer(Modifier.height(DDZSpacing.sectionGap + DDZSpacing.itemGap))
 
-                        Text("카운터 자릿수", color = Color.White)
-                        Text("예: 4자리면 0001", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
-                        Spacer(Modifier.height(8.dp))
+                        Text("카운터 자릿수", style = DDZTypography.Body, color = DDZColor.Surface)
+                        Text(
+                            "예: 4자리면 0001",
+                            color = DDZColor.Surface.copy(alpha = 0.7f),
+                            style = DDZTypography.Caption
+                        )
+                        Spacer(Modifier.height(DDZSpacing.itemGap))
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Button(
@@ -658,11 +674,11 @@ group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                                     counterDigits = next
                                     scope.launch { context.dataStore.edit { it[KEY_COUNTER_DIGITS] = next } }
                                 }
-                            ) { Text("-", color = Color.White) }
+                            ) { Text("-", style = DDZTypography.ButtonText, color = DDZColor.Surface) }
 
-                            Spacer(Modifier.width(12.dp))
-                            Text(counterDigits.toString(), color = Color.White, fontSize = 18.sp)
-                            Spacer(Modifier.width(12.dp))
+                            Spacer(Modifier.width(DDZSpacing.sectionGap))
+                            Text(counterDigits.toString(), style = DDZTypography.CardTitle, color = DDZColor.Surface)
+                            Spacer(Modifier.width(DDZSpacing.sectionGap))
 
                             Button(
                                 onClick = {
@@ -670,16 +686,16 @@ group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                                     counterDigits = next
                                     scope.launch { context.dataStore.edit { it[KEY_COUNTER_DIGITS] = next } }
                                 }
-                            ) { Text("+", color = Color.White) }
+                            ) { Text("+", style = DDZTypography.ButtonText, color = DDZColor.Surface) }
                         }
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = { showWizard = false }) {
-                        Text("닫기")
+                        Text("닫기", style = DDZTypography.ButtonText)
                     }
                 },
-                containerColor = Color(0xFF1A1A1A)
+                containerColor = DDZColor.PrimaryDark
             )
         }
     }
