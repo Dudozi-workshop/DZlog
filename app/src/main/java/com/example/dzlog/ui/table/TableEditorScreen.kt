@@ -43,6 +43,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -517,12 +518,27 @@ fun TableEditorScreen(
     }
 
     Scaffold(
+        containerColor = DDZColor.Background,
         topBar = {
             TopAppBar(
-                title = { Text("표 상세설정", style = DDZTypography.ScreenTitle) },
+                title = {
+                    Text(
+                        "표 상세설정",
+                        style = DDZTypography.ScreenTitle,
+                        color = DDZColor.TextPrimary
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = DDZColor.Background,
+                    navigationIconContentColor = DDZColor.TextPrimary
+                ),
                 navigationIcon = {
                     TextButton(onClick = onBack) {
-                        Text("Back", style = DDZTypography.ButtonText)
+                        Text(
+                            "Back",
+                            style = DDZTypography.ButtonText,
+                            color = DDZColor.TextPrimary
+                        )
                     }
                 }
             )
@@ -533,17 +549,25 @@ fun TableEditorScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            TabRow(selectedTabIndex = selectedTabIndex) {
+            TabRow(
+                selectedTabIndex = selectedTabIndex,
+                containerColor = DDZColor.Surface,
+                contentColor = DDZColor.TextPrimary
+            ) {
                 Tab(
                     selected = selectedTabIndex == 0,
                     onClick = { requestTabSwitch(0) },
-                    text = { Text("표 구조설정") }
-                )
+                    text = { Text("표 구조설정", style = DDZTypography.Body) },
+                    selectedContentColor = DDZColor.TextPrimary,
+                    unselectedContentColor = DDZColor.TextMuted
+                    )
                 Tab(
                     selected = selectedTabIndex == 1,
                     onClick = { requestTabSwitch(1) },
-                    text = { Text("표 미리보기") }
-                )
+                    text = { Text("표 미리보기", style = DDZTypography.Body) },
+                    selectedContentColor = DDZColor.TextPrimary,
+                    unselectedContentColor = DDZColor.TextMuted
+                    )
             }
 
             when (selectedTabIndex) {
