@@ -41,10 +41,6 @@ extensions.configure<ApplicationExtension> {
         compose = true
     }
 
-    // ✅ Kotlin 2.0에서는 compose compiler plugin이 관리하므로
-    // kotlinCompilerExtensionVersion을 명시하지 않아도 된다(오히려 충돌 원인).
-    // composeOptions 블록은 제거.
-
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -84,4 +80,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     kapt(libs.androidx.room.compiler)
+
+    // Image Loading
+    implementation("io.coil-kt:coil-compose:2.7.0")
 }

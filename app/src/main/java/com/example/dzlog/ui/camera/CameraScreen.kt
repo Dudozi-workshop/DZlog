@@ -7,6 +7,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.RectF
+import android.net.Uri
 import android.util.Log
 import android.util.Rational
 import android.view.View
@@ -23,6 +24,7 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +39,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -56,9 +59,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -68,10 +74,12 @@ import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Observer
+import coil.compose.AsyncImage
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
+import com.example.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_COUNTER_SUFFIX_ENABLED
 import com.example.dzlog.data.preferences.KEY_SAVE_MODE
@@ -88,6 +96,7 @@ import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.preferences.persistCaptureAspect
 import com.example.dzlog.data.repository.DzlogRepositoryImpl
 import com.example.dzlog.domain.model.CaptureAspect
+import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.model.TableTemplateState
@@ -180,6 +189,7 @@ fun CameraPreview(
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var captureAspect by remember { mutableStateOf(CaptureAspect.R3_4) }
     var saveMode by remember { mutableStateOf(SaveMode.WATERMARK_ONLY) }
+    var continuousPreviewMode by remember { mutableStateOf(ContinuousPreviewMode.OFF) }
     var counterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
     var counterSuffixEnabled by remember { mutableStateOf(true) }
 
@@ -213,6 +223,16 @@ fun CameraPreview(
 
     var previewLogged by remember { mutableStateOf(false) }
 
+    // ✅ 결과 미리보기용 상태
+    var capturedUri by remember { mutableStateOf<Uri?>(null) }
+
+    LaunchedEffect(capturedUri, continuousPreviewMode) {
+        if (capturedUri != null && continuousPreviewMode == ContinuousPreviewMode.SHORT) {
+            delay(1500)
+            capturedUri = null
+        }
+    }
+
     LaunchedEffect(Unit) {
         try {
             val prefs = context.dataStore.data.first()
@@ -243,12 +263,17 @@ fun CameraPreview(
                 else -> SaveMode.ORIGINAL_ONLY
             }
 
+            continuousPreviewMode = ContinuousPreviewMode.from(
+                prefs[KEY_CONTINUOUS_PREVIEW_MODE] ?: ContinuousPreviewMode.OFF.v
+            )
+
             counterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
             counterSuffixEnabled = prefs[KEY_COUNTER_SUFFIX_ENABLED] ?: true
             showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
         } catch (_: Exception) {
             captureAspect = CaptureAspect.R3_4
             saveMode = SaveMode.WATERMARK_ONLY
+            continuousPreviewMode = ContinuousPreviewMode.OFF
             counterDigits = COUNTER_DIGITS_DEFAULT
             counterSuffixEnabled = true
             showWmPreview = true
@@ -357,7 +382,7 @@ fun CameraPreview(
                     }
 
                     val previewRequest = com.example.dzlog.domain.model.CaptureRequest(
-group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
+                        group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
                         group2 = resolveGroupValue(plan.resolvedCells, GroupLevel.G2),
                         displayName = buildDisplayNameFromResolvedCells(
                             resolvedCells = plan.resolvedCells,
@@ -390,6 +415,59 @@ group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
                         request = previewRequest,
                         previewContentRect = previewContentRect
                     )
+
+                    // ✅ 촬영 결과물 오버레이 (Continuous Preview - 팝업 축소 버전)
+                    if (capturedUri != null && continuousPreviewMode != ContinuousPreviewMode.OFF) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.5f)) // 약한 반투명 검은 배경
+                                .clickable { capturedUri = null }
+                                .zIndex(10f),
+                            contentAlignment = Alignment.TopCenter // 조금 더 위쪽으로 배치
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(top = 60.dp) // 상단 여백 조절
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.72f) // 72% 크기 (중앙 위치 통일용)
+                                        .aspectRatio(captureAspect.ratioF)
+                                        .clip(RoundedCornerShape(8.dp)) // 테두리 안쪽 클리핑 (사진 잘림 방지)
+                                        .border(2.dp, Color.White, RoundedCornerShape(8.dp))
+                                        .background(Color.Black)
+                                ) {
+                                    AsyncImage(
+                                        model = capturedUri,
+                                        contentDescription = "Captured result",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Fit // 사진이 잘리지 않도록 Fit 유지
+                                    )
+                                }
+
+                                Spacer(Modifier.height(DDZSpacing.itemGap))
+                                
+                                val hintText = if (continuousPreviewMode == ContinuousPreviewMode.HOLD) {
+                                    "화면을 터치하면 닫힙니다"
+                                } else {
+                                    "저장 완료"
+                                }
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .background(DDZColor.PrimaryDark.copy(alpha = 0.8f), shape = RoundedCornerShape(20.dp))
+                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        hintText,
+                                        color = DDZColor.Surface,
+                                        style = DDZTypography.Caption
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -431,7 +509,7 @@ group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
                 .padding(bottom = DDZSpacing.screenPadding + DDZSpacing.itemGap),
             contentAlignment = Alignment.Center
         ) {
-            val enabledNow = boundImageCapture != null
+            val enabledNow = (boundImageCapture != null && capturedUri == null)
 
             Box(
                 modifier = Modifier
@@ -460,7 +538,7 @@ group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
                         )
 
                         val req = com.example.dzlog.domain.model.CaptureRequest(
-group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
+                            group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                             group2 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G2),
                             displayName = buildDisplayNameFromResolvedCells(
                                 resolvedCells = planForCapture.resolvedCells,
@@ -501,7 +579,13 @@ group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
-                                Toast.makeText(context, "저장 완료", Toast.LENGTH_SHORT).show()
+                                
+                                // ✅ 촬영 후 미리보기 설정 적용
+                                if (continuousPreviewMode != ContinuousPreviewMode.OFF) {
+                                    capturedUri = entry.contentUri
+                                } else {
+                                    Toast.makeText(context, "저장 완료", Toast.LENGTH_SHORT).show()
+                                }
                             },
                             onFail = { msg ->
                                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
@@ -557,6 +641,25 @@ group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                                 color = DDZColor.Surface
                             )
                         }
+                        Spacer(Modifier.height(DDZSpacing.sectionGap))
+                        
+                        Text("연속 촬영 미리보기", style = DDZTypography.Body, color = DDZColor.Surface)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            ContinuousPreviewMode.entries.forEach { mode ->
+                                RadioButton(
+                                    selected = continuousPreviewMode == mode,
+                                    onClick = {
+                                        continuousPreviewMode = mode
+                                        scope.launch {
+                                            context.dataStore.edit { it[KEY_CONTINUOUS_PREVIEW_MODE] = mode.v }
+                                        }
+                                    }
+                                )
+                                Text(mode.name, style = DDZTypography.Body, color = DDZColor.Surface)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                        }
+
                         Spacer(Modifier.height(DDZSpacing.sectionGap))
                         DDZButton(
                             text = "표 편집",
