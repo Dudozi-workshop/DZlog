@@ -8,6 +8,8 @@ import android.net.Uri
 import androidx.camera.core.ImageCapture
 import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
+import com.example.dzlog.data.log.LogEntity
+import com.example.dzlog.data.log.LogRepository
 import com.example.dzlog.data.mediastore.MediaStoreSaver
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.model.CaptureRequest
@@ -17,7 +19,6 @@ import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.watermark.WatermarkRenderer
 import com.example.dzlog.watermark.renderWatermarkForRequest
 import java.io.File
-import java.io.FileOutputStream
 import androidx.camera.core.ImageCaptureException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -103,15 +104,17 @@ class DzlogRepositoryImpl(
                                             relativePath = baseRel
                                         )
                                     }.getOrNull()
-                                    LogEntry(
+                                    val entry = LogEntry(
                                         mediaStoreId = saved?.mediaStoreId ?: -1L,
                                         contentUri = saved?.uri ?: Uri.EMPTY,
                                         displayName = saved?.displayName ?: displayName,
                                         isNameAdjusted = saved?.isNameAdjusted ?: false,
                                         createdAt = System.currentTimeMillis(),
-group1 = request.group1,
+                                        group1 = request.group1,
                                         group2 = request.group2
                                     )
+                                    insertLogEntry(context, entry, saved?.uri, displayName, baseRel)
+                                    entry
                                 }
 
                                 SaveMode.BOTH -> {
@@ -140,16 +143,17 @@ group1 = request.group1,
                                             relativePath = origRel
                                         )
                                     }
-
-                                    LogEntry(
+                                    val entry = LogEntry(
                                         mediaStoreId = savedWm?.mediaStoreId ?: -1L,
                                         contentUri = savedWm?.uri ?: Uri.EMPTY,
                                         displayName = savedWm?.displayName ?: displayName,
                                         isNameAdjusted = savedWm?.isNameAdjusted ?: false,
                                         createdAt = System.currentTimeMillis(),
-group1 = request.group1,
+                                        group1 = request.group1,
                                         group2 = request.group2
                                     )
+                                    insertLogEntry(context, entry, savedWm?.uri, displayName, baseRel)
+                                    entry
                                 }
 
                                 SaveMode.ORIGINAL_ONLY -> {
@@ -193,6 +197,27 @@ group1 = request.group1,
                 }
             }
         )
+    }
+
+    private suspend fun insertLogEntry(
+        context: Context,
+        entry: LogEntry,
+        uri: Uri?,
+        fileName: String,
+        relativePath: String
+    ) {
+        val imageUri = uri?.toString().orEmpty()
+        if (imageUri.isBlank()) return
+        val log = LogEntity(
+            createdAt = entry.createdAt,
+            imageUri = imageUri,
+            fileName = fileName,
+            relativePath = relativePath,
+            templateId = null,
+            templateName = null,
+            valuesJson = null
+        )
+        LogRepository.getInstance(context).insert(log)
     }
 
     private fun applyExifOrientation(source: Bitmap, exif: ExifInterface): Bitmap {

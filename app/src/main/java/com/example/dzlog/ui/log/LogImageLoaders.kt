@@ -39,7 +39,10 @@ fun DzThumbnail(uriString: String) {
 }
 
 @Composable
-fun DzFullImage(uriString: String) {
+fun DzFullImage(
+    uriString: String,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     var bmp by remember(uriString) { mutableStateOf<android.graphics.Bitmap?>(null) }
 
@@ -47,7 +50,7 @@ fun DzFullImage(uriString: String) {
         bmp = runCatching { decodeSampledBitmap(context, uriString, reqSize = 1600) }.getOrNull()
     }
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         if (bmp != null) {
             Image(
                 bitmap = bmp!!.asImageBitmap(),

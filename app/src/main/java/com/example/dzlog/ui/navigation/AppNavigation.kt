@@ -25,10 +25,8 @@ import com.example.dzlog.ui.camera.CameraScreen
 import com.example.dzlog.ui.home.HomeScreen
 import com.example.dzlog.ui.home.SettingsScreen
 import com.example.dzlog.ui.settings.CaptureSettingsScreen
-import com.example.dzlog.ui.log.LogG1Screen
-import com.example.dzlog.ui.log.LogG2Screen
-import com.example.dzlog.ui.log.LogGridScreen
-import com.example.dzlog.ui.log.LogViewerScreen
+import com.example.dzlog.ui.log.LogDetailScreen
+import com.example.dzlog.ui.log.LogListScreen
 import com.example.dzlog.ui.table.TableEditorScreen
 import kotlinx.coroutines.flow.first
 
@@ -39,10 +37,8 @@ enum class AppScreen {
     TABLE_EDITOR,
     SETTINGS,
     CAPTURE_SETTINGS,
-    LOG_G1,
-    LOG_G2,
-    LOG_GRID,
-    LOG_VIEWER
+    LOG_LIST,
+    LOG_DETAIL
 }
 
 class TableTemplateViewModel : ViewModel() {
@@ -62,14 +58,7 @@ class TableTemplateViewModel : ViewModel() {
 fun AppRoot() {
     var screen by remember { mutableStateOf(AppScreen.HOME) }
     var previousScreen by remember { mutableStateOf(AppScreen.HOME) }
-    var selectedG1 by remember { mutableStateOf<String?>(null) }
-    var selectedG2 by remember { mutableStateOf<String?>(null) }
-
-    // 로그 화면 상태(그리드/뷰어 공통)
-    var logItems by remember { mutableStateOf(emptyList<com.example.dzlog.domain.model.MediaImageItem>()) }
-    var logIsSelectionMode by remember { mutableStateOf(false) }
-    var logSelectedIds by remember { mutableStateOf(setOf<Long>()) }
-    var logViewerStartIndex by remember { mutableStateOf(0) }
+    var selectedLogId by remember { mutableStateOf<Long?>(null) }
     var orientationMode by remember { mutableStateOf(OrientationMode.PORTRAIT_LOCK) }
     val tableTemplateViewModel: TableTemplateViewModel = viewModel()
     val tableTemplateState = tableTemplateViewModel.tableTemplateState
@@ -130,19 +119,8 @@ fun AppRoot() {
         screen = target
     }
 
-    fun resetLogSelectionState() {
-        logIsSelectionMode = false
-        logSelectedIds = emptySet()
-    }
-
     BackHandler(enabled = true) {
-        // 1) 멀티 선택 모드라면: 먼저 선택 모드 종료
-        if (logIsSelectionMode && (screen == AppScreen.LOG_GRID || screen == AppScreen.LOG_VIEWER)) {
-            resetLogSelectionState()
-            return@BackHandler
-        }
-
-        // 2) 기본 내비게이션(화면 기준)
+        // 기본 내비게이션(화면 기준)
         when (screen) {
             AppScreen.HOME -> {
                 val now = System.currentTimeMillis()
@@ -161,10 +139,8 @@ fun AppRoot() {
             AppScreen.TABLE_EDITOR -> screen = previousScreen
             AppScreen.CAMERA -> screen = AppScreen.HOME
 
-            AppScreen.LOG_G1 -> screen = AppScreen.HOME
-            AppScreen.LOG_G2 -> screen = AppScreen.LOG_G1
-            AppScreen.LOG_GRID -> screen = AppScreen.LOG_G2
-            AppScreen.LOG_VIEWER -> screen = AppScreen.LOG_GRID
+            AppScreen.LOG_LIST -> screen = AppScreen.HOME
+            AppScreen.LOG_DETAIL -> screen = AppScreen.LOG_LIST
         }
     }
 
@@ -175,16 +151,12 @@ fun AppRoot() {
             onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
             onStartCamera = { navigateTo(AppScreen.CAMERA) },
             onOpenLog = {
-                selectedG1 = null
-                selectedG2 = null
-                navigateTo(AppScreen.LOG_G1)
+                selectedLogId = null
+                navigateTo(AppScreen.LOG_LIST)
             },
-            onOpenLogFor = { g1, g2 ->
-                selectedG1 = g1
-                selectedG2 = g2
-                logItems = emptyList()
-                resetLogSelectionState()
-                navigateTo(AppScreen.LOG_GRID)
+            onOpenLogDetail = { id ->
+                selectedLogId = id
+                navigateTo(AppScreen.LOG_DETAIL)
             }
         )
 
@@ -217,99 +189,27 @@ fun AppRoot() {
             CaptureSettingsScreen(onBack = { screen = AppScreen.SETTINGS })
         }
 
-        AppScreen.LOG_G1 -> {
-            LogG1Screen(
+        AppScreen.LOG_LIST -> {
+            LogListScreen(
                 onBack = { screen = AppScreen.HOME },
-                onSelectG1 = { g1 ->
-                    selectedG1 = g1
-                    selectedG2 = null
-                    navigateTo(AppScreen.LOG_G2)
+                onOpenDetail = { id ->
+                    selectedLogId = id
+                    navigateTo(AppScreen.LOG_DETAIL)
                 }
             )
         }
 
-        AppScreen.LOG_G2 -> {
-            val g1 = selectedG1
-            if (g1 == null) {
-                // 방어: 상태가 없으면 G1 화면으로 복귀
-                screen = AppScreen.LOG_G1
+        AppScreen.LOG_DETAIL -> {
+            val logId = selectedLogId
+            if (logId == null) {
+                screen = AppScreen.LOG_LIST
             } else {
-                LogG2Screen(
-                    g1 = g1,
-                    onBack = { screen = AppScreen.LOG_G1 },
-                    onSelectG2 = { g2 ->
-                        selectedG2 = g2
-                        logItems = emptyList()
-                        resetLogSelectionState()
-                        navigateTo(AppScreen.LOG_GRID)
-                    }
-                )
-            }
-        }
-
-        AppScreen.LOG_GRID -> {
-            val g1 = selectedG1
-            val g2 = selectedG2
-            if (g1 == null || g2 == null) {
-                screen = AppScreen.LOG_G1
-            } else {
-                LogGridScreen(
-                    g1 = g1,
-                    g2 = g2,
-                    items = logItems,
-                    isSelectionMode = logIsSelectionMode,
-                    selectedIds = logSelectedIds,
-                    onItemsLoaded = { loaded -> logItems = loaded },
-                    onBack = {
-                        // 그룹을 빠져나갈 때는 선택 상태를 초기화
-                        resetLogSelectionState()
-                        screen = AppScreen.LOG_G2
-                    },
-                    onOpenViewer = { startIndex ->
-                        logViewerStartIndex = startIndex
-                        navigateTo(AppScreen.LOG_VIEWER)
-                    },
-                    onToggleSelection = { id ->
-                        logSelectedIds = if (logSelectedIds.contains(id)) logSelectedIds - id else logSelectedIds + id
-                    },
-                    onEnterSelectionWith = { id ->
-                        logIsSelectionMode = true
-                        logSelectedIds = logSelectedIds + id
-                    },
-                    onExitSelection = { resetLogSelectionState() },
-                    onSelectAll = {
-                        logIsSelectionMode = true
-                        logSelectedIds = logItems.map { it.id }.toSet()
-                    }
-                )
-            }
-        }
-
-        AppScreen.LOG_VIEWER -> {
-            val g1 = selectedG1
-            val g2 = selectedG2
-            if (g1 == null || g2 == null) {
-                screen = AppScreen.LOG_G1
-            } else {
-                LogViewerScreen(
-                    g1 = g1,
-                    g2 = g2,
-                    items = logItems,
-                    startIndex = logViewerStartIndex,
-                    isSelectionMode = logIsSelectionMode,
-                    selectedIds = logSelectedIds,
-                    onBack = { screen = AppScreen.LOG_GRID },
-                    onEnterSelectionWith = { id ->
-                        logIsSelectionMode = true
-                        logSelectedIds = logSelectedIds + id
-                    },
-                    onToggleSelection = { id ->
-                        logSelectedIds = if (logSelectedIds.contains(id)) logSelectedIds - id else logSelectedIds + id
-                    },
-                    onExitSelection = { resetLogSelectionState() },
-                    onSelectAll = {
-                        logIsSelectionMode = true
-                        logSelectedIds = logItems.map { it.id }.toSet()
+                LogDetailScreen(
+                    logId = logId,
+                    onBack = { screen = AppScreen.LOG_LIST },
+                    onDeleted = {
+                        selectedLogId = null
+                        screen = AppScreen.LOG_LIST
                     }
                 )
             }

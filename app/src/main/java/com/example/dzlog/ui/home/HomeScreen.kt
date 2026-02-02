@@ -23,8 +23,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.data.datastore.AppSettingsStore
-import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
-import com.example.dzlog.domain.model.MediaImageItem
+import com.example.dzlog.data.log.LogEntity
+import com.example.dzlog.data.log.LogRepository
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.ui.common.DDZButton
 import com.example.dzlog.ui.common.DDZButtonStyle
@@ -46,9 +46,10 @@ fun HomeScreen(
     onStartCamera: () -> Unit,
     onOpenTableEditor: () -> Unit,
     onOpenLog: () -> Unit,
-    onOpenLogFor: (g1: String, g2: String) -> Unit
+    onOpenLogDetail: (Long) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val logRepository = remember { LogRepository.getInstance(context) }
     val settings by AppSettingsStore.flow(context).collectAsState(
         initial = com.example.dzlog.data.datastore.AppSettings(
             saveMode = com.example.dzlog.domain.model.SaveMode.BOTH,
@@ -63,23 +64,11 @@ fun HomeScreen(
         )
     )
 
-    var latest by remember { mutableStateOf<MediaImageItem?>(null) }
+    var latest by remember { mutableStateOf<LogEntity?>(null) }
     LaunchedEffect(Unit) {
         latest = withContext(Dispatchers.IO) {
-            runCatching { DzlogMediaStoreReader(context.contentResolver).loadLatestImage() }.getOrNull()
+            runCatching { logRepository.getLatest() }.getOrNull()
         }
-    }
-
-    fun extractG1G2(relativePath: String): Pair<String, String> {
-        val norm = if (relativePath.endsWith('/')) relativePath else "$relativePath/"
-        val prefix = "Pictures/DZlog/"
-        if (!norm.startsWith(prefix)) return DzlogMediaStoreReader.DEFAULT_G1 to DzlogMediaStoreReader.DEFAULT_G2
-        val rest = norm.removePrefix(prefix).trim('/' )
-        if (rest.isBlank()) return DzlogMediaStoreReader.DEFAULT_G1 to DzlogMediaStoreReader.DEFAULT_G2
-        val parts = rest.split('/').filter { it.isNotBlank() }
-        val g1 = parts.getOrNull(0) ?: DzlogMediaStoreReader.DEFAULT_G1
-        val g2 = parts.getOrNull(1) ?: DzlogMediaStoreReader.DEFAULT_G2
-        return g1 to g2
     }
 
     Box(
@@ -154,8 +143,7 @@ fun HomeScreen(
                         .clickable {
                             val it = latest
                             if (it != null) {
-                                val (g1, g2) = extractG1G2(it.relativePath)
-                                onOpenLogFor(g1, g2)
+                                onOpenLogDetail(it.id)
                             } else {
                                 onOpenLog()
                             }
@@ -170,16 +158,16 @@ fun HomeScreen(
                             Box(modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)) {
-                                DzThumbnail(it.uri.toString())
+                                DzThumbnail(it.imageUri)
                             }
                             Spacer(Modifier.height(DDZSpacing.itemGap))
                             Text(
-                                dzFormatDate(it.dateAddedSeconds),
+                                dzFormatDate(it.createdAt / 1000L),
                                 style = DDZTypography.Caption,
                                 color = DDZColor.TextMuted
                             )
-                           val (g1, g2) = extractG1G2(it.relativePath)
-                            Text("$g1 / $g2", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                            val path = it.relativePath ?: "-"
+                            Text(path, style = DDZTypography.Body, color = DDZColor.TextPrimary)
                         }
                     }
                 }

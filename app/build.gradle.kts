@@ -7,6 +7,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     // ✅ Kotlin 2.0+ 필수
     id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.kapt")
 }
 
 extensions.configure<ApplicationExtension> {
@@ -78,4 +79,9 @@ dependencies {
     // Lifecycle Compose (LocalLifecycleOwner)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+
+    // Room
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    kapt(libs.androidx.room.compiler)
 }
