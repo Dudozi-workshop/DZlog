@@ -6,6 +6,9 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import android.provider.MediaStore
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,6 +39,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,6 +48,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.example.dzlog.domain.model.MediaImageItem
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * 그룹 내부 그리드 화면
@@ -71,6 +79,24 @@ fun LogGridScreen(
     var error by remember { mutableStateOf<String?>(null) }
     val relativePath = remember(g1, g2) { buildRelativePathFromG1G2(g1, g2) }
 
+    val scope = rememberCoroutineScope()
+
+    fun reloadImages(reason: String) {
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching { reader.loadImages(relativePath) }
+            }
+            result
+                .onSuccess {
+                    onItemsLoaded(it)
+                    error = null
+                }
+                .onFailure { e ->
+                    error = e.message ?: "불러오기 실패"
+                }
+        }
+    }
+
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var pendingDeleteUris by remember { mutableStateOf<List<android.net.Uri>>(emptyList()) }
     var pendingDeleteCount by remember { mutableIntStateOf(0) }
@@ -83,14 +109,7 @@ fun LogGridScreen(
         ActivityResultContracts.StartIntentSenderForResult()
     ) {
         // 시스템 삭제 요청 결과에 상관없이 목록 재조회
-        runCatching { reader.loadImages(relativePath) }
-            .onSuccess {
-                onItemsLoaded(it)
-                error = null
-            }
-            .onFailure { e ->
-                error = e.message ?: "불러오기 실패"
-            }
+        reloadImages("deleteLauncher")
         onExitSelection()
     }
 
@@ -109,22 +128,36 @@ fun LogGridScreen(
             runCatching { resolver.delete(uri, null, null) }
         }
         // 재조회
-        runCatching { reader.loadImages(relativePath) }
-            .onSuccess { onItemsLoaded(it) }
+        reloadImages("deleteLegacy")
         onExitSelection()
     }
 
     LaunchedEffect(relativePath) {
-        // 이미 로딩된 상태면 재조회하지 않음(뷰어->그리드 왕복 시 깜빡임 방지)
-        if (items.isNotEmpty()) return@LaunchedEffect
-        runCatching { reader.loadImages(relativePath) }
-            .onSuccess {
-                onItemsLoaded(it)
-                error = null
+        // 최초 진입 시 1회 로드
+        if (items.isEmpty()) {
+            reloadImages("firstEnter")
+        }
+    }
+
+    // ✅ 앱 밖 변경(휴지통 복구/삭제 등)을 앱이 즉시 반영하도록 MediaStore 변경 감지
+    DisposableEffect(relativePath) {
+        val handler = Handler(Looper.getMainLooper())
+        val observer = object : ContentObserver(handler) {
+            override fun onChange(selfChange: Boolean) {
+                // 외부 갤러리에서 복구/삭제/이동 등 발생 시 재조회
+                reloadImages("contentObserver")
             }
-            .onFailure { e ->
-                error = e.message ?: "불러오기 실패"
-            }
+        }
+
+        resolver.registerContentObserver(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            true,
+            observer
+        )
+
+        onDispose {
+            resolver.unregisterContentObserver(observer)
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {

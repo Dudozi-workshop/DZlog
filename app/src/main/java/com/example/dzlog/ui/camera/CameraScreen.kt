@@ -268,13 +268,15 @@ fun CameraPreview(
             )
 
             counterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
-            counterSuffixEnabled = prefs[KEY_COUNTER_SUFFIX_ENABLED] ?: true
+// MVP 정책: 카운터 suffix ON/OFF 미지원 → 항상 ON
+            counterSuffixEnabled = true
             showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
         } catch (_: Exception) {
             captureAspect = CaptureAspect.R3_4
             saveMode = SaveMode.WATERMARK_ONLY
             continuousPreviewMode = ContinuousPreviewMode.OFF
             counterDigits = COUNTER_DIGITS_DEFAULT
+// MVP 정책: 항상 ON
             counterSuffixEnabled = true
             showWmPreview = true
             wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT

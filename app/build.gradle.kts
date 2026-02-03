@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+
     // ✅ Kotlin 2.0+ 필수
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.kapt")

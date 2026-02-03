@@ -346,7 +346,7 @@ class DzlogMediaStoreReader(
 
 private fun trashClause(): String {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        " AND ${MediaStore.Images.Media.IS_TRASHED} = 0"
+        " AND (${MediaStore.Images.Media.IS_TRASHED} = 0 OR ${MediaStore.Images.Media.IS_TRASHED} IS NULL)"
     } else {
         ""
     }

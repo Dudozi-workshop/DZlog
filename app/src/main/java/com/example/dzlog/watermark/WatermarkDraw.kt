@@ -27,8 +27,11 @@ fun drawWatermarkTableFromResolvedCells(
     val w = out.width.toFloat()
     val h = out.height.toFloat()
 
-    val tableW = w * (tableWidthRatio.coerceIn(40, 100) / 100f)
-    val tableH = h * (tableHeightRatio.coerceIn(10, 35) / 100f)
+    // ✅ 비율(3:4/9:16/1:1)에 상관없이 "표 크기"가 동일해야 하므로
+    // 표 크기 계산 기준을 width(가로)로 통일한다.
+    val base = w
+    val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
+    val tableH = base * (tableHeightRatio.coerceIn(10, 35) / 100f)
 
     val maxX = (w - tableW).coerceAtLeast(0f)
     val maxY = (h - tableH).coerceAtLeast(0f)
@@ -129,8 +132,11 @@ fun drawWatermarkTableOnCanvas(
     val w = bounds.width()
     val h = bounds.height()
 
-    val tableW = w * (tableWidthRatio.coerceIn(40, 100) / 100f)
-    val tableH = h * (tableHeightRatio.coerceIn(10, 35) / 100f)
+    // ✅ 비율에 따른 높이 변화에 영향을 받지 않도록
+    // 표 크기 계산 기준을 width(가로)로 통일한다.
+    val base = w
+    val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
+    val tableH = base * (tableHeightRatio.coerceIn(10, 35) / 100f)
 
     val maxX = (w - tableW).coerceAtLeast(0f)
     val maxY = (h - tableH).coerceAtLeast(0f)
