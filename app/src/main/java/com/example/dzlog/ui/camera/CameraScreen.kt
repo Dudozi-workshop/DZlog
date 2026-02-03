@@ -391,7 +391,6 @@ fun CameraPreview(
                             fnDelim = fnDelim,
                             includeDate = false,
                             includeTime = false,
-                            counterSuffixEnabled = counterSuffixEnabled,
                             now = now
                         ),
                         resolvedCells = plan.resolvedCells,
@@ -547,7 +546,6 @@ fun CameraPreview(
                                 fnDelim = fnDelim,
                                 includeDate = false,
                                 includeTime = false,
-                                counterSuffixEnabled = counterSuffixEnabled,
                                 now = captureNow
                             ),
                             resolvedCells = planForCapture.resolvedCells,

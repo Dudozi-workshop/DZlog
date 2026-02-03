@@ -16,15 +16,11 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -34,14 +30,11 @@ import com.example.dzlog.data.counter.encodeCounterSet
 import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
 import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.data.preferences.KEY_USED_COUNTER_VALUES_JSON
-import com.example.dzlog.data.preferences.KEY_COUNTER_SUFFIX_ENABLED
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
-import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
-import com.example.dzlog.domain.model.GroupLevel
-import com.example.dzlog.domain.naming.resolveGroupValue
+import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.ui.common.DDZButton
 import com.example.dzlog.ui.common.DDZButtonStyle
@@ -111,15 +104,12 @@ fun SettingsRootScreen(
                 fnDelim = "_",
                 includeDate = false,
                 includeTime = false,
-                counterSuffixEnabled = settings.counterSuffixEnabled,
                 now = now
             )
         } ?: "DZlog"
 
         relPath to name
     }
-
-    var showCounterOffConfirm by remember { mutableStateOf(false) }
 
     val isStorageGranted = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -154,9 +144,7 @@ fun SettingsRootScreen(
             saveMode = settings.saveMode,
             continuousPreviewMode = settings.continuousPreviewMode,
             counterPadding = settings.counterPadding,
-            counterSuffixEnabled = settings.counterSuffixEnabled,
             resetCounterOnPathChange = settings.resetCounterOnPathChange,
-            toastEnabled = settings.toastEnabled,
             onSaveModeChange = { mode ->
                 scope.launch {
                     AppSettingsStore.setSaveMode(context, mode)
@@ -178,16 +166,7 @@ fun SettingsRootScreen(
                     }
                 }
             },
-            onCounterSuffixEnabledChange = { enabled ->
-                if (!enabled) {
-                    showCounterOffConfirm = true
-                } else {
-                    scope.launch {
-                        AppSettingsStore.setCounterSuffixEnabled(context, true)
-                        if (settings.toastEnabled) Toast.makeText(context, "카운터 자동부착: ON", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            },
+
             onResetCounterSync = {
                 scope.launch {
                     val relPathPrefix = buildGalleryRelativePath(templateState.cells)
@@ -210,33 +189,6 @@ fun SettingsRootScreen(
                 }
             }
         )
-
-        if (showCounterOffConfirm) {
-            AlertDialog(
-                onDismissRequest = { showCounterOffConfirm = false },
-                title = { Text("카운터 자동 부착 끄기", style = DDZTypography.CardTitle) },
-                text = {
-                    Text(
-                        "파일명 끝에 자동으로 붙는 카운터(_1, _10 …)가 비활성화됩니다. 계속할까요?",
-                        style = DDZTypography.Body
-                    )
-                },
-                 confirmButton = {
-                    TextButton(onClick = {
-                        showCounterOffConfirm = false
-                        scope.launch {
-                            AppSettingsStore.setCounterSuffixEnabled(context, false)
-                            if (settings.toastEnabled) Toast.makeText(context, "카운터 자동부착: OFF", Toast.LENGTH_SHORT).show()
-                        }
-                    }) { Text("끄기", style = DDZTypography.ButtonText) }
-                                 },
-                dismissButton = {
-                    TextButton(onClick = { showCounterOffConfirm = false }) {
-                        Text("취소", style = DDZTypography.ButtonText)
-                    }
-                }
-            )
-        }
 
         Spacer(Modifier.height(DDZSpacing.sectionGap))
 
@@ -331,13 +283,10 @@ private fun QuickControlsCard(
     saveMode: SaveMode,
     continuousPreviewMode: ContinuousPreviewMode,
     counterPadding: Int,
-    counterSuffixEnabled: Boolean,
     resetCounterOnPathChange: Boolean,
-    toastEnabled: Boolean,
     onSaveModeChange: (SaveMode) -> Unit,
     onContinuousPreviewModeChange: (ContinuousPreviewMode) -> Unit,
     onCounterPaddingChange: (Int) -> Unit,
-    onCounterSuffixEnabledChange: (Boolean) -> Unit,
     onResetCounterSync: () -> Unit,
     onResetCounterOnPathChangeChange: (Boolean) -> Unit
 ) {
@@ -380,19 +329,7 @@ private fun QuickControlsCard(
                     onContinuousPreviewModeChange(m)
                 }
             )
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("파일명 카운터 자동부착", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                }
-                Switch(
-                    checked = counterSuffixEnabled,
-                    onCheckedChange = onCounterSuffixEnabledChange
-                )
-            }
+            // MVP 정책: 카운터 자동부착 ON 고정 → UI 제거
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.weight(1f)) {

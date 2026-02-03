@@ -76,6 +76,7 @@ import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.counter.decodeCounterSet
 import com.example.dzlog.data.counter.encodeCounterSet
 import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
+import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_COUNTER_SUFFIX_ENABLED
@@ -166,18 +167,32 @@ fun TableEditorScreen(
     }
 
     LaunchedEffect(currentRelativePath) {
-        val prefs = runCatching { context.dataStore.data.first() }.getOrNull()
-        val cached = decodeCounterSet(prefs?.get(KEY_USED_COUNTER_VALUES_JSON))
+        val repo = CounterIndexRepository.getInstance(context)
 
-        val scanned: Set<Int>? = runCatching {
+        // 1) Room(CounterIndex) 우선
+        val fromDb: Set<Int> = runCatching {
+            repo.getUsedCounters(currentRelativePath)
+        }.getOrDefault(emptySet())
+
+        if (fromDb.isNotEmpty()) {
+            usedCounters = fromDb
+            return@LaunchedEffect
+        }
+
+        // 2) DB가 비어있으면, 기존 사진(과거 데이터)용으로 MediaStore 스캔 후 placeholder 백필
+        val scanned: Set<Int> = runCatching {
             scanUsedCountersFromMediaStore(context, currentRelativePath)
-        }.getOrNull()
-        val effective: Set<Int> = scanned ?: cached
+        }.getOrDefault(emptySet())
 
-        usedCounters = effective
+        usedCounters = scanned
 
         runCatching {
-            context.dataStore.edit { it[KEY_USED_COUNTER_VALUES_JSON] = encodeCounterSet(effective) }
+            context.dataStore.edit { it[KEY_USED_COUNTER_VALUES_JSON] = encodeCounterSet(scanned) }
+        }
+
+        // placeholder(mediaId=-1)로 DB에 예약해둬서 이후 중복/리셋이 DB 기반으로 동작하도록 함
+        runCatching {
+            repo.backfillPlaceholders(currentRelativePath, scanned)
         }
     }
 
@@ -335,7 +350,6 @@ fun TableEditorScreen(
         fnDelim = "_",
         includeDate = false,
         includeTime = false,
-        counterSuffixEnabled = previewCounterSuffixEnabled,
         now = previewNow
     )
 

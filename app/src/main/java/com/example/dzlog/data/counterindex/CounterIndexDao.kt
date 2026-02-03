@@ -1,0 +1,34 @@
+package com.example.dzlog.data.counterindex
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+
+@Dao
+interface CounterIndexDao {
+
+    /** 캡처 시점 기록. (중복이면 무시) */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIgnore(entity: CounterIndexEntity): Long
+
+    /** 경로별 사용된 카운터 목록 */
+    @Query("SELECT counterValue FROM counter_index WHERE relativePath = :relativePath")
+    suspend fun listCountersByPath(relativePath: String): List<Int>
+
+    /** 경로별 최대 카운터 */
+    @Query("SELECT MAX(counterValue) FROM counter_index WHERE relativePath = :relativePath")
+    suspend fun maxCounterByPath(relativePath: String): Int?
+
+    /** 중복 여부 */
+    @Query("SELECT EXISTS(SELECT 1 FROM counter_index WHERE relativePath = :relativePath AND counterValue = :counterValue)")
+    suspend fun existsCounter(relativePath: String, counterValue: Int): Boolean
+
+    /** mediaId 기반 정리(삭제/동기화) */
+    @Query("DELETE FROM counter_index WHERE mediaId = :mediaId")
+    suspend fun deleteByMediaId(mediaId: Long)
+
+    /** 특정 경로 placeholder(mediaId=-1) 정리용 */
+    @Query("DELETE FROM counter_index WHERE relativePath = :relativePath AND mediaId = -1")
+    suspend fun deletePlaceholdersByPath(relativePath: String)
+}

@@ -86,10 +86,10 @@ fun buildDisplayNameFromResolvedCells(
     fnDelim: String,
     includeDate: Boolean,
     includeTime: Boolean,
-    counterSuffixEnabled: Boolean = true,
     now: Date = Date()
 ): String {
-    val delim = fnDelim.ifBlank { "_" }.take(3)
+// MVP 정책: 구분자는 '_'로 고정
+    val delim = "_"
     val ordered = resolvedCells
         .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
 
@@ -97,7 +97,8 @@ fun buildDisplayNameFromResolvedCells(
         .asSequence()
         .filter { rc ->
             val raw = rc.raw
-            raw != null && raw.fileNameInclude
+            // COUNTER는 항상 suffix로만 붙인다(중복 방지)
+            raw != null && raw.fileNameInclude && raw.dataType != TableCellDataType.COUNTER
         }
         .map { rc ->
             val raw = rc.raw
@@ -110,20 +111,26 @@ fun buildDisplayNameFromResolvedCells(
         .filter { it.isNotBlank() }
         .toMutableList()
 
-    // COUNTER는 resolver가 padding까지 완료한 값을 제공한다.
-    val counterText = ordered.firstOrNull { it.type == TableCellDataType.COUNTER }?.resolvedText
-        ?.takeIf { it.isNotBlank() }
-        .orEmpty()
-    if (counterSuffixEnabled && counterText.isNotBlank()) parts.add(counterText)
-
     if (includeDate || includeTime) {
         if (includeDate) parts.add(SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(now))
         if (includeTime) parts.add(SimpleDateFormat("HHmmss", Locale.getDefault()).format(now))
     }
 
-    val base = parts.joinToString(delim).ifBlank {
-        if (counterSuffixEnabled) counterText.ifBlank { "1" } else "image"
-    }
+    // COUNTER는 resolver가 padding까지 완료한 값을 제공한다.
+    val counterText = ordered.firstOrNull { it.type == TableCellDataType.COUNTER }?.resolvedText
+        ?.takeIf { it.isNotBlank() }
+        .orEmpty()
+
+    // MVP 정책: 표에 카운터 셀이 있든 없든 파일명 끝에는 항상 카운터가 붙는다.
+    // counterText가 비어있으면 기본값 '1'을 사용한다.
+    val counterFinal = counterText.ifBlank { "1" }
+
+    // prefix(카운터 제외)가 공백이면 "DZlog"를 붙인다.
+    if (parts.isEmpty()) parts.add("DZlog")
+
+    parts.add(counterFinal)
+
+    val base = parts.joinToString(delim)
     val withExt = if (base.endsWith(".jpg", true) || base.endsWith(".jpeg", true)) base else "$base.jpg"
     return sanitizeFilePart(withExt)
 }

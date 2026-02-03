@@ -157,9 +157,7 @@ fun LogViewerScreen(
         if (uiVisible) {
             if (isSelectionMode) {
                 SelectionTopBar(
-                    selectedCount = selectedIds.size,
-                    onClose = onExitSelection,
-                    onSelectAll = onSelectAll
+                    selectedCount = selectedIds.size
                 )
             } else {
                 ViewerTopBar(
@@ -176,8 +174,30 @@ fun LogViewerScreen(
 // ✅ 하단 바 (공유/삭제) + 삭제 확인 다이얼로그
             Box(modifier = Modifier.align(Alignment.BottomCenter)) {
 
+                // ✅ 선택모드: Close/All을 하단으로 이동 (상단 겹침 방지)
+                if (isSelectionMode) {
+                    SelectionBottomBar(
+                        onClose = onExitSelection,
+                        onSelectAll = onSelectAll,
+                        onShare = {
+                            val toShare = items.filter { selectedIds.contains(it.id) }
+                            shareImages(context, toShare)
+                        },
+                        shareEnabled = selectedIds.isNotEmpty(),
+                        onDelete = if (selectedIds.isNotEmpty()) {
+                            {
+                                val toDelete = items.filter { selectedIds.contains(it.id) }
+                                pendingDeleteCount = toDelete.size
+                                pendingDeleteUris = toDelete.map { it.uri }
+                                showDeleteConfirm = true
+                            }
+                        } else null
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+
                 // 1) 하단 액션 바(공유/삭제) — ViewerBottomBar는 딱 1번만 호출
-                ViewerBottomBar(
+                if (!isSelectionMode) ViewerBottomBar(
                     enabled = if (isSelectionMode) selectedIds.isNotEmpty() else items.isNotEmpty(),
                     onShare = {
                         val toShare: List<MediaImageItem> = if (isSelectionMode) {

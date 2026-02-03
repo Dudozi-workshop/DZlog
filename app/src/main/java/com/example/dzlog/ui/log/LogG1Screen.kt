@@ -1,6 +1,7 @@
 package com.example.dzlog.ui.log
 
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,16 +35,20 @@ fun LogG1Screen(
     val reader = remember { DzlogMediaStoreReader(context.contentResolver) }
 
     var g1Summaries by remember { mutableStateOf<List<LogGroupSummary>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
+        isLoading = true
         runCatching { reader.loadG1Summaries() }
             .onSuccess {
                 g1Summaries = it
                 error = null
+                isLoading = false
             }
             .onFailure { e ->
                 error = e.message ?: "불러오기 실패"
+                isLoading = false
             }
     }
 
@@ -57,6 +62,11 @@ fun LogG1Screen(
         }
 
         Spacer(Modifier.height(12.dp))
+
+        if (isLoading) {
+            CircularProgressIndicator()
+            return@Column
+        }
 
         if (error != null) {
             Text("오류: $error")

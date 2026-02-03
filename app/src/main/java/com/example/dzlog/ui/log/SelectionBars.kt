@@ -15,8 +15,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SelectionTopBar(
     selectedCount: Int,
-    onClose: () -> Unit,
-    onSelectAll: () -> Unit,
+    // 선택모드에서 상단 버튼이 겹치는 문제 방지: 상단은 카운트만 표시
 ) {
     Row(
         modifier = Modifier
@@ -25,14 +24,14 @@ fun SelectionTopBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Button(onClick = onClose) { Text("X") }
         Text("$selectedCount selected")
-        Button(onClick = onSelectAll) { Text("Select All") }
     }
 }
 
 @Composable
 fun SelectionBottomBar(
+    onClose: () -> Unit,
+    onSelectAll: (() -> Unit)? = null,
     onShare: () -> Unit,
     shareEnabled: Boolean = true,
     onDelete: (() -> Unit)? = null,
@@ -46,6 +45,8 @@ fun SelectionBottomBar(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
+            Button(onClick = onClose) { Text("Close") }
+            Button(onClick = { onSelectAll?.invoke() }, enabled = onSelectAll != null) { Text("All") }
             Button(onClick = onShare, enabled = shareEnabled) { Text("Share") }
             Button(onClick = { onDelete?.invoke() }, enabled = onDelete != null) { Text("Delete") }
         }

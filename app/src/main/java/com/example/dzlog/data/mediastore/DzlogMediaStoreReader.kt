@@ -3,9 +3,9 @@ package com.example.dzlog.data.mediastore
 import android.content.ContentResolver
 import android.content.ContentUris
 import android.os.Build
-import android.provider.MediaStore
 import com.example.dzlog.domain.model.MediaImageItem
 import com.example.dzlog.domain.model.LogGroupSummary
+import android.provider.MediaStore
 
 /**
  * DZlog 결과물(워터마크 이미지)만 조회하기 위한 MediaStore Reader.
@@ -43,12 +43,14 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATE_ADDED
         )
+
         val selection = (
-            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND " +
-                    "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
-                trashClause()
-            )
+                "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND " +
+        "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
+        trashClause()
+        )
         val args = arrayOf(dzlogBaseLike, "%/original/%")
+
 
         data class Agg(var count: Int, var latestSec: Long, var latestId: Long)
         val map = linkedMapOf<String, Agg>()
@@ -191,12 +193,19 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.DATE_ADDED
         )
 
+        // A-2: exact match만 허용 (하위 폴더 포함 LIKE 제거)
         val selection = (
-            "(${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?) AND " +
-                    "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
-                    trashClause()
+                "(" +
+                        "(${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?) " +
+                        ") AND " +
+                        "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
+                        trashClause()
                 )
-        val args = arrayOf(relWithSlash, relNoSlash, "%/original/%")
+        val args = arrayOf(
+            relWithSlash,
+            relNoSlash,
+            "%/original/%"
+        )
 
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI

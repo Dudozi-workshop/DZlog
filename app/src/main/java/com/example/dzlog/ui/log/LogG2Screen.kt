@@ -1,6 +1,7 @@
 package com.example.dzlog.ui.log
 
 import android.app.PendingIntent
+import androidx.compose.material3.CircularProgressIndicator
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -52,6 +53,7 @@ fun LogG2Screen(
     val reader = remember { DzlogMediaStoreReader(resolver) }
 
     var g2Summaries by remember { mutableStateOf<List<LogGroupSummary>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
 
     var isSelectionMode by remember { mutableStateOf(false) }
@@ -67,13 +69,16 @@ fun LogG2Screen(
     }
 
     fun reload() {
+        isLoading = true
         runCatching { reader.loadG2Summaries(g1) }
             .onSuccess {
                 g2Summaries = it
                 error = null
+                isLoading = false
             }
             .onFailure { e ->
                 error = e.message ?: "불러오기 실패"
+                isLoading = false
             }
     }
 
@@ -126,6 +131,11 @@ fun LogG2Screen(
 
         Spacer(Modifier.height(12.dp))
 
+        if (isLoading) {
+            CircularProgressIndicator()
+            return@Column
+        }
+
         if (error != null) {
             Text("오류: $error")
             return@Column
@@ -139,11 +149,7 @@ fun LogG2Screen(
         // 선택 모드 UI
         if (isSelectionMode) {
             SelectionTopBar(
-                selectedCount = selectedG2.size,
-                onClose = { resetSelection() },
-                onSelectAll = {
-                    selectedG2 = g2Summaries.map { it.name }.toSet()
-                }
+                selectedCount = selectedG2.size
             )
         }
 
@@ -182,21 +188,17 @@ fun LogG2Screen(
         // 하단 선택 액션바
         if (isSelectionMode) {
             SelectionBottomBar(
+                onClose = { resetSelection() },
+                onSelectAll = {
+                    selectedG2 = g2Summaries.map { it.name }.toSet()
+                },
                 onShare = { /* G2 단위 공유는 MVP에서는 미사용 */ },
                 shareEnabled = false,
                 onDelete = if (selectedG2.isNotEmpty()) {
                     {
-                        // 삭제 대상 URI 수집
-                        val allUris = mutableListOf<android.net.Uri>()
-                        var total = 0
-                        selectedG2.forEach { g2 ->
-                            val rel = buildGalleryRelativePath(g1, if (g2 == "(기본)") "" else g2)
-                            val imgs = reader.loadImages(rel)
-                            total += imgs.size
-                            allUris.addAll(imgs.map { it.uri })
-                        }
-                        pendingDeleteUris = allUris
-                        pendingDeleteCount = total
+                        // ✅ 확인 전에는 불러오기(쿼리) 하지 않음
+                        pendingDeleteUris = emptyList()
+                        pendingDeleteCount = 0
                         showDeleteConfirm = true
                     }
                 } else null
@@ -208,11 +210,19 @@ fun LogG2Screen(
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("삭제 확인") },
-            text = { Text("선택한 G2 폴더의 결과물 사진 $pendingDeleteCount 장을 삭제합니다. 계속할까요?") },
+// ✅ 장수 표시를 위해 미리 불러오지 않음(버벅임 제거). 문구 단순화
+            text = { Text("선택한 G2 폴더의 결과물 사진을 삭제합니다. 계속할까요?") },
             confirmButton = {
                 Button(onClick = {
+                    // ✅ 여기서만 실제 URI 수집(불러오기)
+                    val allUris = mutableListOf<android.net.Uri>()
+                    selectedG2.forEach { g2 ->
+                        val rel = buildGalleryRelativePath(g1, if (g2 == "(기본)") "" else g2)
+                        val imgs = reader.loadImages(rel)
+                        allUris.addAll(imgs.map { it.uri })
+                    }
                     showDeleteConfirm = false
-                    startDeleteRequest(pendingDeleteUris)
+                    startDeleteRequest(allUris)
                 }) { Text("삭제") }
             },
             dismissButton = {
