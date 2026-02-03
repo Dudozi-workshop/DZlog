@@ -62,7 +62,7 @@ fun LogListScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("앱 내 로그", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
+            Text("앨범", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
             Button(onClick = onBack) { Text("Back") }
         }
 

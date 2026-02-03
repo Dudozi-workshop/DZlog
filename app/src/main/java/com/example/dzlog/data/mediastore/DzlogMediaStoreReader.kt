@@ -2,6 +2,7 @@ package com.example.dzlog.data.mediastore
 
 import android.content.ContentResolver
 import android.content.ContentUris
+import android.os.Build
 import android.provider.MediaStore
 import com.example.dzlog.domain.model.MediaImageItem
 import com.example.dzlog.domain.model.LogGroupSummary
@@ -44,7 +45,8 @@ class DzlogMediaStoreReader(
         )
         val selection = (
             "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND " +
-                "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?"
+                    "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
+                trashClause()
             )
         val args = arrayOf(dzlogBaseLike, "%/original/%")
 
@@ -128,8 +130,9 @@ class DzlogMediaStoreReader(
         val like = if (g1Norm == DEFAULT_G1) dzlogBaseLike else "Pictures/DZlog/$g1Norm/%"
         val selection = (
             "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND " +
-                "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?"
-            )
+                    "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
+                trashClause()
+                )
         val args = arrayOf(like, "%/original/%")
 
         data class Agg(var count: Int, var latestSec: Long, var latestId: Long)
@@ -190,8 +193,9 @@ class DzlogMediaStoreReader(
 
         val selection = (
             "(${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?) AND " +
-                "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?"
-            )
+                    "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
+                    trashClause()
+                )
         val args = arrayOf(relWithSlash, relNoSlash, "%/original/%")
 
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
@@ -243,8 +247,9 @@ class DzlogMediaStoreReader(
         )
         val selection = (
             "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND " +
-                "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?"
-            )
+                    "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
+                    trashClause()
+                )
         val args = arrayOf(dzlogBaseLike, "%/original/%")
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
@@ -281,8 +286,9 @@ class DzlogMediaStoreReader(
         val projection = arrayOf(MediaStore.Images.Media.RELATIVE_PATH)
         val selection = (
             "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND " +
-                "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?"
-            )
+                    "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
+                    trashClause()
+                )
         val args = arrayOf(like, "%/original/%")
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
 
@@ -335,5 +341,13 @@ class DzlogMediaStoreReader(
     companion object {
         const val DEFAULT_G1 = "(기본)"
         const val DEFAULT_G2 = "(기본)"
+    }
+}
+
+private fun trashClause(): String {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        " AND ${MediaStore.Images.Media.IS_TRASHED} = 0"
+    } else {
+        ""
     }
 }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,14 +23,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.dzlog.data.datastore.AppSettingsStore
-import com.example.dzlog.data.log.LogEntity
-import com.example.dzlog.data.log.LogRepository
+import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.example.dzlog.domain.model.MediaImageItem
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.ui.common.DDZButton
 import com.example.dzlog.ui.common.DDZButtonStyle
 import com.example.dzlog.ui.common.DDZCard
-import com.example.dzlog.ui.common.DisplayTablePreview
 import com.example.dzlog.ui.log.DzThumbnail
 import com.example.dzlog.ui.log.dzFormatDate
 import com.example.dzlog.ui.theme.DDZColor
@@ -45,29 +44,16 @@ fun HomeScreen(
     onOpenSettings: () -> Unit,
     onStartCamera: () -> Unit,
     onOpenTableEditor: () -> Unit,
-    onOpenLog: () -> Unit,
-    onOpenLogDetail: (Long) -> Unit
+    onOpenAlbum: () -> Unit,
+    onOpenRecentCaptureGrid: (g1: String, g2: String, startIndex: Int) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val logRepository = remember { LogRepository.getInstance(context) }
-    val settings by AppSettingsStore.flow(context).collectAsState(
-        initial = com.example.dzlog.data.datastore.AppSettings(
-            saveMode = com.example.dzlog.domain.model.SaveMode.BOTH,
-            continuousPreviewMode = com.example.dzlog.domain.model.ContinuousPreviewMode.OFF,
-            counterPadding = 0,
-            counterSuffixEnabled = true,
-            resetCounterOnPathChange = true,
-            toastEnabled = true,
-            hapticEnabled = true,
-            blankWarningEnabled = true,
-            usedCounterValuesJson = null
-        )
-    )
 
-    var latest by remember { mutableStateOf<LogEntity?>(null) }
+    var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
     LaunchedEffect(Unit) {
-        latest = withContext(Dispatchers.IO) {
-            runCatching { logRepository.getLatest() }.getOrNull()
+        latestImage = withContext(Dispatchers.IO) {
+            val reader = DzlogMediaStoreReader(context.contentResolver)
+            runCatching { reader.loadLatestImage() }.getOrNull()
         }
     }
 
@@ -89,13 +75,6 @@ fun HomeScreen(
             )
             Spacer(Modifier.height(DDZSpacing.itemGap))
             DDZButton(
-                text = "앱 내 로그",
-                onClick = onOpenLog,
-                modifier = Modifier.fillMaxWidth(),
-                style = DDZButtonStyle.Secondary
-            )
-            Spacer(Modifier.height(DDZSpacing.itemGap))
-            DDZButton(
                 text = "설정",
                 onClick = onOpenSettings,
                 modifier = Modifier.fillMaxWidth(),
@@ -104,7 +83,7 @@ fun HomeScreen(
 
             Spacer(Modifier.weight(1f))
 
-            // 하단: 6:4 (표 상세설정 / 최근 로그)
+// 하단: 좌(표 전체 미리보기) / 우(최근 촬영 + 앨범)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -116,60 +95,66 @@ fun HomeScreen(
                         .fillMaxHeight()
                         .clickable(onClick = onOpenTableEditor)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
-                        Text("표 상세설정", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                        ) {
-                            DisplayTablePreview(
-                                templateState = tableTemplateState,
-                                counterDigits = settings.counterPadding,
-                                now = Date(),
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    }
+                    MiniTablePreview(
+                        templateState = tableTemplateState,
+                        modifier = Modifier.fillMaxSize(),
+                        onClick = onOpenTableEditor
+                    )
                 }
 
                 Spacer(Modifier.weight(0.04f))
 
-                DDZCard(
+                Column(
                     modifier = Modifier
                         .weight(0.36f)
-                        .fillMaxHeight()
-                        .clickable {
-                            val it = latest
-                            if (it != null) {
-                                onOpenLogDetail(it.id)
-                            } else {
-                                onOpenLog()
-                            }
-                        }
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
-                        Text("최근 로그", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
-                        val it = latest
-                        if (it == null) {
-                            Text("최근 항목 없음", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                        } else {
-                            Box(modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)) {
-                                DzThumbnail(it.imageUri)
+                    DDZCard(
+                        modifier = Modifier
+                            .weight(0.75f, fill = true)
+                            .fillMaxWidth()
+                            .clickable {
+                                val it = latestImage
+                                if (it == null) {
+                                    onOpenAlbum()
+                                } else {
+                                    val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
+                                    onOpenRecentCaptureGrid(g1, g2, 0)
+                                }
                             }
-                            Spacer(Modifier.height(DDZSpacing.itemGap))
-                            Text(
-                                dzFormatDate(it.createdAt / 1000L),
-                                style = DDZTypography.Caption,
-                                color = DDZColor.TextMuted
-                            )
-                            val path = it.relativePath ?: "-"
-                            Text(path, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
+                            Text("최근 촬영", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+                            val it = latestImage
+                            if (it == null) {
+                                Text("최근 항목 없음", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(1f)
+                                ) {
+                                    DzThumbnail(it.uri.toString())
+                                }
+                                Text(
+                                    dzFormatDate(it.dateAddedSeconds),
+                                    style = DDZTypography.Caption,
+                                    color = DDZColor.TextMuted
+                                )
+                                Text(it.relativePath, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                            }
                         }
                     }
+
+                    DDZButton(
+                        text = "앨범",
+                        onClick = onOpenAlbum,
+                        modifier = Modifier
+                            .weight(0.25f, fill = true)
+                            .fillMaxWidth(),
+                        style = DDZButtonStyle.Secondary
+                    )
                 }
             }
         }
@@ -190,3 +175,25 @@ fun SettingsScreen(
         onOpenCaptureSettings = onOpenCaptureSettings
     )
 }
+
+/**
+ * relativePath 예: "Pictures/DZlog/G1/G2/"
+ * - G1/G2가 없으면 "(기본)"으로 채움
+ */
+private fun parseG1G2FromRelativePath(relativePath: String): Pair<String, String> {
+    val default = "(기본)"
+    // 슬래시 정리
+    val p = relativePath.trim()
+    // DZlog 이후 경로를 뽑는다
+    val idx = p.indexOf("DZlog/")
+    if (idx < 0) return default to default
+
+    val tail = p.substring(idx,  "DZlog/".length).trim('/')
+    if (tail.isBlank()) return default to default
+
+    val parts = tail.split('/').filter { it.isNotBlank() }
+    val g1 = parts.getOrNull(0) ?: default
+    val g2 = parts.getOrNull(1) ?: default
+    return g1 to g2
+}
+

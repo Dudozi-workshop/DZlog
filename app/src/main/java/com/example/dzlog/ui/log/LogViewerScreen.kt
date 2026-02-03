@@ -2,6 +2,7 @@
 
 package com.example.dzlog.ui.log
 
+import android.app.PendingIntent
 import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -31,12 +32,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.MediaImageItem
+import android.os.Build
+import android.provider.MediaStore
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.mutableIntStateOf
+import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
 
 /**
  * 사진 뷰어
  * - 좌/우 스와이프: 같은 그룹 내 이동
  * - 탭: UI 숨김/표시
  * - 길게누르기: 선택 모드 진입(현재 사진 선택)
+ * * - 하단: 공유 / 삭제
  */
 @Composable
 fun LogViewerScreen(
@@ -51,8 +61,49 @@ fun LogViewerScreen(
     onToggleSelection: (id: Long) -> Unit,
     onExitSelection: () -> Unit,
     onSelectAll: () -> Unit,
+    onItemsReloaded: (List<MediaImageItem>) -> Unit,
+    onRequestCloseViewer: () -> Unit,
 ) {
     val context = LocalContext.current
+    val resolver = context.contentResolver
+    val reader = remember { DzlogMediaStoreReader(resolver) }
+
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var pendingDeleteUris by remember { mutableStateOf<List<android.net.Uri>>(emptyList()) }
+    var pendingDeleteCount by remember { mutableIntStateOf(0) }
+
+    fun reloadAfterDelete() {
+        val relativePath = buildRelativePathFromG1G2(g1, g2)
+        runCatching { reader.loadImages(relativePath) }
+            .onSuccess { reloaded ->
+                onItemsReloaded(reloaded)
+                if (reloaded.isEmpty()) {
+                    onRequestCloseViewer()
+                }
+            }
+        onExitSelection()
+    }
+
+    val deleteLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) {
+        reloadAfterDelete()
+    }
+
+    fun startDeleteRequest(uris: List<android.net.Uri>) {
+        if (uris.isEmpty()) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val pi: PendingIntent = MediaStore.createDeleteRequest(resolver, uris)
+            val req = IntentSenderRequest.Builder(pi.intentSender).build()
+            deleteLauncher.launch(req)
+            return
+        }
+        uris.forEach { uri ->
+            runCatching { resolver.delete(uri, null, null) }
+        }
+        reloadAfterDelete()
+    }
+
     val safeStart = startIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
     val pagerState = rememberPagerState(initialPage = safeStart, pageCount = { items.size })
 
@@ -122,18 +173,52 @@ fun LogViewerScreen(
 
             Spacer(Modifier.height(6.dp))
 
+// ✅ 하단 바 (공유/삭제) + 삭제 확인 다이얼로그
             Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+
+                // 1) 하단 액션 바(공유/삭제) — ViewerBottomBar는 딱 1번만 호출
                 ViewerBottomBar(
                     enabled = if (isSelectionMode) selectedIds.isNotEmpty() else items.isNotEmpty(),
                     onShare = {
-                        val toShare = if (isSelectionMode) {
+                        val toShare: List<MediaImageItem> = if (isSelectionMode) {
                             items.filter { selectedIds.contains(it.id) }
                         } else {
-                            listOf(items.getOrNull(pagerState.currentPage) ?: return@ViewerBottomBar)
+                            val current = items.getOrNull(pagerState.currentPage) ?: return@ViewerBottomBar
+                            listOf(current)
                         }
                         shareImages(context, toShare)
+                    },
+                    onDelete = {
+                        val toDelete: List<MediaImageItem> = if (isSelectionMode) {
+                            items.filter { selectedIds.contains(it.id) }
+                        } else {
+                            val current = items.getOrNull(pagerState.currentPage) ?: return@ViewerBottomBar
+                            listOf(current)
+                        }
+
+                        pendingDeleteCount = toDelete.size
+                        pendingDeleteUris = toDelete.map { it.uri }
+                        showDeleteConfirm = true
                     }
                 )
+
+                // 2) 삭제 확인 다이얼로그 — ViewerBottomBar 밖에 있어야 함
+                if (showDeleteConfirm) {
+                    AlertDialog(
+                        onDismissRequest = { showDeleteConfirm = false },
+                        title = { Text("삭제 확인") },
+                        text = { Text("선택한 사진 $pendingDeleteCount 장을 삭제합니다. 계속할까요?") },
+                        confirmButton = {
+                            Button(onClick = {
+                                showDeleteConfirm = false
+                                startDeleteRequest(pendingDeleteUris)
+                            }) { Text("삭제") }
+                        },
+                        dismissButton = {
+                            Button(onClick = { showDeleteConfirm = false }) { Text("취소") }
+                        }
+                    )
+                }
             }
         }
     }
@@ -170,15 +255,26 @@ private fun ViewerTopBar(
 private fun ViewerBottomBar(
     enabled: Boolean,
     onShare: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color(0x66000000))
             .padding(12.dp),
-        horizontalArrangement = Arrangement.Center
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
     ) {
         Button(onClick = onShare, enabled = enabled) { Text("Share") }
+        Button(onClick = onDelete, enabled = enabled) { Text("Delete") }
+    }
+}
+
+private fun buildRelativePathFromG1G2(g1: String, g2: String): String {
+    val default = "(기본)"
+    return when {
+        g1 == default -> "Pictures/DZlog/"
+        g2 == default -> "Pictures/DZlog/$g1/"
+        else -> "Pictures/DZlog/$g1/$g2/"
     }
 }
 

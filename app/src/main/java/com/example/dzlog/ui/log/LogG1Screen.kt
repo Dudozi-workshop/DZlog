@@ -52,7 +52,7 @@ fun LogG1Screen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("앱 내 로그")
+            Text("앨범")
             Button(onClick = onBack) { Text("Back") }
         }
 

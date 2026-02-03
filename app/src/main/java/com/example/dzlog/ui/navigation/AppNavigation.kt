@@ -25,8 +25,10 @@ import com.example.dzlog.ui.camera.CameraScreen
 import com.example.dzlog.ui.home.HomeScreen
 import com.example.dzlog.ui.home.SettingsScreen
 import com.example.dzlog.ui.settings.CaptureSettingsScreen
-import com.example.dzlog.ui.log.LogDetailScreen
-import com.example.dzlog.ui.log.LogListScreen
+import com.example.dzlog.ui.log.LogG1Screen
+import com.example.dzlog.ui.log.LogG2Screen
+import com.example.dzlog.ui.log.LogGridScreen
+import com.example.dzlog.ui.log.LogViewerScreen
 import com.example.dzlog.ui.table.TableEditorScreen
 import kotlinx.coroutines.flow.first
 
@@ -37,8 +39,10 @@ enum class AppScreen {
     TABLE_EDITOR,
     SETTINGS,
     CAPTURE_SETTINGS,
-    LOG_LIST,
-    LOG_DETAIL
+    ALBUM_G1,
+    ALBUM_G2,
+    ALBUM_GRID,
+    ALBUM_VIEWER
 }
 
 class TableTemplateViewModel : ViewModel() {
@@ -58,7 +62,17 @@ class TableTemplateViewModel : ViewModel() {
 fun AppRoot() {
     var screen by remember { mutableStateOf(AppScreen.HOME) }
     var previousScreen by remember { mutableStateOf(AppScreen.HOME) }
-    var selectedLogId by remember { mutableStateOf<Long?>(null) }
+
+// 앨범(G1/G2/그리드/뷰어) 상태
+    var selectedG1 by remember { mutableStateOf<String?>(null) }
+    var selectedG2 by remember { mutableStateOf<String?>(null) }
+    var gridItems by remember { mutableStateOf<List<com.example.dzlog.domain.model.MediaImageItem>>(emptyList()) }
+    var isSelectionMode by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var viewerStartIndex by remember { mutableStateOf(0) }
+
+    // 기존 상태
+
     var orientationMode by remember { mutableStateOf(OrientationMode.PORTRAIT_LOCK) }
     val tableTemplateViewModel: TableTemplateViewModel = viewModel()
     val tableTemplateState = tableTemplateViewModel.tableTemplateState
@@ -139,8 +153,17 @@ fun AppRoot() {
             AppScreen.TABLE_EDITOR -> screen = previousScreen
             AppScreen.CAMERA -> screen = AppScreen.HOME
 
-            AppScreen.LOG_LIST -> screen = AppScreen.HOME
-            AppScreen.LOG_DETAIL -> screen = AppScreen.LOG_LIST
+            AppScreen.ALBUM_GRID -> {
+                if (isSelectionMode) {
+                    isSelectionMode = false
+                    selectedIds = emptySet()
+                } else {
+                    screen = AppScreen.ALBUM_G2
+                }
+            }
+            AppScreen.ALBUM_VIEWER -> screen = AppScreen.ALBUM_GRID
+            AppScreen.ALBUM_G1 -> screen = AppScreen.HOME
+        AppScreen.ALBUM_G2 -> screen = AppScreen.ALBUM_G1
         }
     }
 
@@ -148,15 +171,25 @@ fun AppRoot() {
         AppScreen.HOME -> HomeScreen(
             tableTemplateState = tableTemplateState,
             onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
-            onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
             onStartCamera = { navigateTo(AppScreen.CAMERA) },
-            onOpenLog = {
-                selectedLogId = null
-                navigateTo(AppScreen.LOG_LIST)
+            onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
+            onOpenAlbum = {
+                selectedG1 = null
+                selectedG2 = null
+                gridItems = emptyList()
+                isSelectionMode = false
+                selectedIds = emptySet()
+                viewerStartIndex = 0
+                navigateTo(AppScreen.ALBUM_G1)
             },
-            onOpenLogDetail = { id ->
-                selectedLogId = id
-                navigateTo(AppScreen.LOG_DETAIL)
+            onOpenRecentCaptureGrid = { g1, g2, startIndex ->
+                selectedG1 = g1
+                selectedG2 = g2
+                gridItems = emptyList()
+                isSelectionMode = false
+                selectedIds = emptySet()
+                viewerStartIndex = startIndex
+                navigateTo(AppScreen.ALBUM_GRID)
             }
         )
 
@@ -188,28 +221,122 @@ fun AppRoot() {
         AppScreen.CAPTURE_SETTINGS -> {
             CaptureSettingsScreen(onBack = { screen = AppScreen.SETTINGS })
         }
-
-        AppScreen.LOG_LIST -> {
-            LogListScreen(
+        AppScreen.ALBUM_G1 -> {
+            LogG1Screen(
                 onBack = { screen = AppScreen.HOME },
-                onOpenDetail = { id ->
-                    selectedLogId = id
-                    navigateTo(AppScreen.LOG_DETAIL)
+                onSelectG1 = { g1 ->
+                    selectedG1 = g1
+                    selectedG2 = null
+                    gridItems = emptyList()
+                    isSelectionMode = false
+                    selectedIds = emptySet()
+                    screen = AppScreen.ALBUM_G2
                 }
             )
         }
 
-        AppScreen.LOG_DETAIL -> {
-            val logId = selectedLogId
-            if (logId == null) {
-                screen = AppScreen.LOG_LIST
+        AppScreen.ALBUM_G2 -> {
+            val g1 = selectedG1
+            if (g1 == null) {
+                screen = AppScreen.ALBUM_G1
             } else {
-                LogDetailScreen(
-                    logId = logId,
-                    onBack = { screen = AppScreen.LOG_LIST },
-                    onDeleted = {
-                        selectedLogId = null
-                        screen = AppScreen.LOG_LIST
+                LogG2Screen(
+                    g1 = g1,
+                    onBack = {
+                        selectedG2 = null
+                        screen = AppScreen.ALBUM_G1
+                    },
+                    onSelectG2 = { g2 ->
+                        selectedG2 = g2
+                        gridItems = emptyList()
+                        isSelectionMode = false
+                        selectedIds = emptySet()
+                        screen = AppScreen.ALBUM_GRID
+                    }
+                )
+            }
+        }
+        // 📸 앨범 내 사진 목록 화면
+        AppScreen.ALBUM_GRID -> {
+            val g1 = selectedG1
+            val g2 = selectedG2
+            if (g1 == null || g2 == null) {
+                screen = if (g1 == null) AppScreen.ALBUM_G1 else AppScreen.ALBUM_G2
+            } else {
+                LogGridScreen(
+                    g1 = g1,
+                    g2 = g2,
+                    items = gridItems,
+                    isSelectionMode = isSelectionMode,
+                    selectedIds = selectedIds,
+                    onItemsLoaded = { gridItems = it },
+                    onBack = {
+                        isSelectionMode = false
+                        selectedIds = emptySet()
+                        screen = AppScreen.ALBUM_G2
+                    },
+                    onOpenViewer = { idx ->
+                        viewerStartIndex = idx
+                        screen = AppScreen.ALBUM_VIEWER
+                    },
+                    onToggleSelection = { id ->
+                        selectedIds =
+                            if (selectedIds.contains(id)) selectedIds - id else selectedIds + id
+                        if (selectedIds.isEmpty()) isSelectionMode = false
+                    },
+                    onEnterSelectionWith = { id ->
+                        isSelectionMode = true
+                        selectedIds = selectedIds + id
+                    },
+                    onExitSelection = {
+                        isSelectionMode = false
+                        selectedIds = emptySet()
+                    },
+                    onSelectAll = {
+                        isSelectionMode = true
+                        selectedIds = gridItems.map { it.id }.toSet()
+                    }
+                )
+            }
+        }
+
+// 📷 앨범 내 개별 사진 뷰어 화면
+        AppScreen.ALBUM_VIEWER -> {
+            val g1 = selectedG1
+            val g2 = selectedG2
+            if (g1 == null || g2 == null) {
+                screen = if (g1 == null) AppScreen.ALBUM_G1 else AppScreen.ALBUM_G2
+            } else {
+                LogViewerScreen(
+                    g1 = g1,
+                    g2 = g2,
+                    items = gridItems,
+                    startIndex = viewerStartIndex,
+                    isSelectionMode = isSelectionMode,
+                    selectedIds = selectedIds,
+                    onBack = { screen = AppScreen.ALBUM_GRID },
+                    onEnterSelectionWith = { id ->
+                        isSelectionMode = true
+                        selectedIds = selectedIds + id
+                    },
+                    onToggleSelection = { id ->
+                        selectedIds =
+                            if (selectedIds.contains(id)) selectedIds - id else selectedIds + id
+                        if (selectedIds.isEmpty()) isSelectionMode = false
+                    },
+                    onExitSelection = {
+                        isSelectionMode = false
+                        selectedIds = emptySet()
+                    },
+                    onSelectAll = {
+                        isSelectionMode = true
+                        selectedIds = gridItems.map { it.id }.toSet()
+                    },
+                    onItemsReloaded = { gridItems = it },
+                    onRequestCloseViewer = {
+                        isSelectionMode = false
+                        selectedIds = emptySet()
+                        screen = AppScreen.ALBUM_GRID
                     }
                 )
             }
