@@ -188,7 +188,7 @@ private fun parseG1G2FromRelativePath(relativePath: String): Pair<String, String
     val idx = p.indexOf("DZlog/")
     if (idx < 0) return default to default
 
-    val tail = p.substring(idx,  "DZlog/".length).trim('/')
+    val tail = p.substring(idx + "DZlog/".length).trim('/')
     if (tail.isBlank()) return default to default
 
     val parts = tail.split('/').filter { it.isNotBlank() }
