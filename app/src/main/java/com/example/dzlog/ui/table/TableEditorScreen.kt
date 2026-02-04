@@ -34,6 +34,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Divider
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -83,6 +84,7 @@ import com.example.dzlog.data.preferences.KEY_USED_COUNTER_VALUES_JSON
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
+import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.toJsonString
 import com.example.dzlog.domain.model.CaptureAspect
@@ -373,6 +375,8 @@ fun TableEditorScreen(
     var wmAnchor by remember { mutableStateOf(WatermarkTableAnchor.BOTTOM_RIGHT) }
     var wmWidthRatio by remember { mutableIntStateOf(40) }
     var wmHeightRatio by remember { mutableIntStateOf(20) }
+    // 0=BLACK, 1=WHITE, 2=TRANSPARENT
+    var wmBgStyle by remember { mutableIntStateOf(0) }
 
     // ✅ 촬영 프레임 비율(탭1 미리보기에서 사용)
     var captureAspect by remember { mutableStateOf(CaptureAspect.R3_4) }
@@ -389,6 +393,7 @@ fun TableEditorScreen(
             }
             wmWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(40, 100)
             wmHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 35)
+            wmBgStyle = (prefs[KEY_WM_TABLE_BG_STYLE] ?: 0).coerceIn(0, 2)
 
             captureAspect = CaptureAspect.from(
                 prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v
@@ -860,11 +865,22 @@ fun TableEditorScreen(
                             captureAspect = captureAspect,
                             rows = templateState.rows,
                             cols = templateState.cols,
+                            rowWeights = templateState.rowWeights,
+                            colWeights = templateState.colWeights,
                             watermarkCells = WatermarkBuilder.buildTableCells(plan.resolvedCells),
                             anchor = wmAnchor,
                             tableWidthRatio = wmWidthRatio,
-                            tableHeightRatio = wmHeightRatio
+                            tableHeightRatio = wmHeightRatio,
+                            bgStyle = wmBgStyle
                         )
+
+                        // ✅ Row/Col 크기(비율) 조절은 "표 미리보기" 탭에서 수행 (Stage 4)
+                        TableRowColSizeSection(
+                            templateState = templateState,
+                            onTemplateChange = onTemplateChange
+                        )
+
+                        Spacer(Modifier.height(4.dp))
 
                         // ✅ 표 위치/크기 설정 (기존 덩이 C를 탭1로 이식)
                         Column(
@@ -922,22 +938,68 @@ fun TableEditorScreen(
                                 text = "표 크기 (가로 ${wmWidthRatio}%, 세로 ${wmHeightRatio}%)",
                                 color = DDZColor.TextPrimary
                             )
+
+                            Text("가로", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                             Slider(
                                 value = wmWidthRatio.toFloat(),
                                 onValueChange = { v ->
                                     val nv = v.toInt().coerceIn(40, 100)
-                                    val nh = ((nv * 0.5f).toInt()).coerceIn(10, 35)
                                     wmWidthRatio = nv
-                                    wmHeightRatio = nh
                                     scope.launch {
                                         context.dataStore.edit { prefs ->
                                             prefs[KEY_WM_TABLE_WIDTH] = nv
-                                            prefs[KEY_WM_TABLE_HEIGHT] = nh
                                         }
                                     }
                                 },
                                 valueRange = 40f..100f
                             )
+
+                            Text("세로", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                            Slider(
+                                value = wmHeightRatio.toFloat(),
+                                onValueChange = { v ->
+                                    val nv = v.toInt().coerceIn(10, 35)
+                                    wmHeightRatio = nv
+                                    scope.launch {
+                                        context.dataStore.edit { prefs ->
+                                            prefs[KEY_WM_TABLE_HEIGHT] = nv
+                                        }
+                                    }
+                                },
+                                valueRange = 10f..35f
+                            )
+
+                            Divider()
+                            Text("배경", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = wmBgStyle == 0,
+                                    onClick = {
+                                        wmBgStyle = 0
+                                        scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = 0 } }
+                                    }
+                                )
+                                Text("검정", color = DDZColor.TextPrimary)
+                                Spacer(Modifier.width(10.dp))
+                                RadioButton(
+                                    selected = wmBgStyle == 1,
+                                    onClick = {
+                                        wmBgStyle = 1
+                                        scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = 1 } }
+                                    }
+                                )
+                                Text("하양", color = DDZColor.TextPrimary)
+                                Spacer(Modifier.width(10.dp))
+                                RadioButton(
+                                    selected = wmBgStyle == 2,
+                                    onClick = {
+                                        wmBgStyle = 2
+                                        scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = 2 } }
+                                    }
+                                )
+                                Text("투명", color = DDZColor.TextPrimary)
+                            }
+
                             Text(
                                 text = "※ 촬영 화면/홈/설정 미리보기에는 동일하게 반영됨",
                                 style = DDZTypography.Caption,
@@ -980,6 +1042,111 @@ private fun CompactPathHeader(
         )
     }
     }
+
+// =========================
+// Stage 4: Row/Col size controls (weights)
+// =========================
+private fun ensureRowWeights(state: TableTemplateState): List<Float> {
+    val n = state.rows.coerceAtLeast(1)
+    val w = state.rowWeights
+    return if (w == null || w.size != n) List(n) { 1f } else w
+}
+
+private fun ensureColWeights(state: TableTemplateState): List<Float> {
+    val n = state.cols.coerceAtLeast(1)
+    val w = state.colWeights
+    return if (w == null || w.size != n) List(n) { 1f } else w
+}
+
+@Composable
+private fun TableRowColSizeSection(
+    templateState: TableTemplateState,
+    onTemplateChange: (TableTemplateState) -> Unit
+) {
+    val rowWeights = ensureRowWeights(templateState)
+    val colWeights = ensureColWeights(templateState)
+    val innerScroll = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(DDZColor.Card, RoundedCornerShape(14.dp))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text("행/열 크기(비율)", style = DDZTypography.CardTitle, color = DDZColor.TextMuted)
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("균등 초기화", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+            TextButton(onClick = {
+                onTemplateChange(
+                    templateState.copy(
+                        rowWeights = List(templateState.rows.coerceAtLeast(1)) { 1f },
+                        colWeights = List(templateState.cols.coerceAtLeast(1)) { 1f }
+                    )
+                )
+            }) { Text("RESET", style = DDZTypography.ButtonText) }
+        }
+
+        // 행/열이 많을 때 레이아웃 섹션만 스크롤되도록 제한
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 260.dp)
+                .verticalScroll(innerScroll),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("행 높이", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+            for (r in 0 until templateState.rows.coerceAtLeast(1)) {
+                val v = rowWeights.getOrNull(r) ?: 1f
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("R${r + 1}", modifier = Modifier.width(34.dp), style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    Slider(
+                        value = v.coerceIn(0.3f, 3.0f),
+                        onValueChange = { nv ->
+                            val next = rowWeights.toMutableList()
+                            next[r] = nv.coerceIn(0.3f, 3.0f)
+                            onTemplateChange(templateState.copy(rowWeights = next))
+                        },
+                        valueRange = 0.3f..3.0f,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(String.format("%.2f", v), modifier = Modifier.width(52.dp), style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                }
+            }
+
+            Spacer(Modifier.height(6.dp))
+            Text("열 너비", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+            for (c in 0 until templateState.cols.coerceAtLeast(1)) {
+                val v = colWeights.getOrNull(c) ?: 1f
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("C${c + 1}", modifier = Modifier.width(34.dp), style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    Slider(
+                        value = v.coerceIn(0.3f, 3.0f),
+                        onValueChange = { nv ->
+                            val next = colWeights.toMutableList()
+                            next[c] = nv.coerceIn(0.3f, 3.0f)
+                            onTemplateChange(templateState.copy(colWeights = next))
+                        },
+                        valueRange = 0.3f..3.0f,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(String.format("%.2f", v), modifier = Modifier.width(52.dp), style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                }
+            }
+        }
+
+        Text(
+            "※ 값은 ‘비율’이며, 표 전체 크기 안에서 행/열 분배만 바뀜",
+            style = DDZTypography.Caption,
+            color = DDZColor.TextMuted
+        )
+    }
+}
 
 @Composable
 private fun TableGridArea(
@@ -1392,10 +1559,13 @@ private fun CameraLikeWatermarkPlacementPreview(
     captureAspect: CaptureAspect,
     rows: Int,
     cols: Int,
+    rowWeights: List<Float>?,
+    colWeights: List<Float>?,
     watermarkCells: List<WatermarkBuilder.WatermarkCell>,
     anchor: WatermarkTableAnchor,
     tableWidthRatio: Int,
-    tableHeightRatio: Int
+    tableHeightRatio: Int,
+    bgStyle: Int
 ) {
     Column(
         modifier = Modifier
@@ -1451,7 +1621,9 @@ private fun CameraLikeWatermarkPlacementPreview(
                         tableWidthRatio = tableWidthRatio,
                         bgAlpha = 80,
                         labelScale = 100,
-                        valueScale = 100
+                        valueScale = 100,
+                        rowWeights = rowWeights,
+                        colWeights = colWeights
                     )
                 }
             }

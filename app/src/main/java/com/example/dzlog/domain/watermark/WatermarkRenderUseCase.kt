@@ -23,6 +23,9 @@ fun renderWatermarkForRequest(
         tableWidthRatio = wm.tableWidthRatio,
         bgAlpha = wm.tableBgAlpha,
         labelScale = wm.labelScale,
-        valueScale = wm.valueScale
+        valueScale = wm.valueScale,
+        rowWeights = request.tableTemplate.rowWeights,
+        colWeights = request.tableTemplate.colWeights,
+        bgStyle = wm.bgStyle
     )
 }

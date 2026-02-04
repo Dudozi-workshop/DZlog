@@ -37,6 +37,7 @@ data class WatermarkConfig(
     val tableHeightRatio: Int,
     val tableWidthRatio: Int,
     val tableBgAlpha: Int,
+    val bgStyle: Int, // 0=BLACK, 1=WHITE, 2=TRANSPARENT
     val labelScale: Int,
     val valueScale: Int
 )

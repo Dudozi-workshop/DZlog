@@ -93,6 +93,8 @@ import com.example.dzlog.data.preferences.KEY_WM_OFFSET_Y
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
+import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
+import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.preferences.persistCaptureAspect

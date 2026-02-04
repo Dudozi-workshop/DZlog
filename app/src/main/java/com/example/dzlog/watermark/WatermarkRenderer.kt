@@ -18,6 +18,9 @@ interface WatermarkRenderer {
         tableWidthRatio: Int,
         bgAlpha: Int,
         labelScale: Int,
-        valueScale: Int
+        valueScale: Int,
+        rowWeights: List<Float>? = null,
+        colWeights: List<Float>? = null,
+        bgStyle: Int = 0
     ): Bitmap
 }

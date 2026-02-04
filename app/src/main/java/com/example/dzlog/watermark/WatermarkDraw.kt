@@ -5,6 +5,32 @@ import com.example.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import kotlin.math.abs
 
+private const val BG_STYLE_BLACK = 0
+private const val BG_STYLE_WHITE = 1
+private const val BG_STYLE_TRANSPARENT = 2
+
+private fun drawBackgroundRect(
+    canvas: Canvas,
+    left: Float,
+    top: Float,
+    tableW: Float,
+    tableH: Float,
+    bgAlpha: Int,
+    bgStyle: Int
+) {
+    if (bgStyle == BG_STYLE_TRANSPARENT) return
+    val a = bgAlpha.coerceIn(0, 255)
+    if (a <= 0) return
+
+    val (r, g, b) = if (bgStyle == BG_STYLE_WHITE) {
+        Triple(255, 255, 255)
+    } else {
+        Triple(0, 0, 0)
+    }
+    val bgPaint = Paint().apply { color = Color.argb(a, r, g, b) }
+    canvas.drawRect(left, top, left + tableW, top + tableH, bgPaint)
+}
+
 private fun resolveWeightsOrOnes(weights: List<Float>?, n: Int): List<Float> {
     if (n <= 0) return emptyList()
     if (weights == null || weights.size != n) return List(n) { 1f }
@@ -53,7 +79,8 @@ fun drawWatermarkTableFromResolvedCells(
     labelScale: Int,
     valueScale: Int,
     rowWeights: List<Float>? = null,
-    colWeights: List<Float>? = null
+    colWeights: List<Float>? = null,
+    bgStyle: Int = BG_STYLE_BLACK
 ): Bitmap {
     // ✅ 너가 준 함수 본문 그대로 붙여넣기
     val out = src.copy(Bitmap.Config.ARGB_8888, true)
@@ -92,12 +119,7 @@ fun drawWatermarkTableFromResolvedCells(
         WatermarkTableAnchor.CUSTOM ->
             maxY * (offsetYRatio.coerceIn(0, 100) / 100f)
     }
-
-    val bgPaint = Paint().apply {
-        color = Color.argb(bgAlpha.coerceIn(0, 255), 0, 0, 0)
-    }
-
-    canvas.drawRect(left, top, left + tableW, top + tableH, bgPaint)
+    drawBackgroundRect(canvas, left, top, tableW, tableH, bgAlpha, bgStyle)
 
     val safeRows = rows.coerceAtLeast(1)
     val safeCols = cols.coerceAtLeast(1)
@@ -172,7 +194,8 @@ fun drawWatermarkTableOnCanvas(
     labelScale: Int,
     valueScale: Int,
     rowWeights: List<Float>? = null,
-    colWeights: List<Float>? = null
+    colWeights: List<Float>? = null,
+    bgStyle: Int = BG_STYLE_BLACK
 ) {
     val w = bounds.width()
     val h = bounds.height()
@@ -203,12 +226,7 @@ fun drawWatermarkTableOnCanvas(
         WatermarkTableAnchor.CUSTOM ->
             maxY * (offsetYRatio.coerceIn(0, 100) / 100f)
     }
-
-    val bgPaint = Paint().apply {
-        color = Color.argb(bgAlpha.coerceIn(0, 255), 0, 0, 0)
-    }
-
-    canvas.drawRect(left, top, left + tableW, top + tableH, bgPaint)
+    drawBackgroundRect(canvas, left, top, tableW, tableH, bgAlpha, bgStyle)
 
     val safeRows = rows.coerceAtLeast(1)
     val safeCols = cols.coerceAtLeast(1)

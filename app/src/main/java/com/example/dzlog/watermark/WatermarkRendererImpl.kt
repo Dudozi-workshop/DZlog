@@ -18,7 +18,10 @@ class WatermarkRendererImpl : WatermarkRenderer {
         tableWidthRatio: Int,
         bgAlpha: Int,
         labelScale: Int,
-        valueScale: Int
+        valueScale: Int,
+        rowWeights: List<Float>?,
+        colWeights: List<Float>?,
+        bgStyle: Int
     ): Bitmap {
         return drawWatermarkTableFromResolvedCells(
             src = originalBmp,
@@ -33,7 +36,10 @@ class WatermarkRendererImpl : WatermarkRenderer {
             tableWidthRatio = tableWidthRatio,
             bgAlpha = bgAlpha,
             labelScale = labelScale,
-            valueScale = valueScale
+            valueScale = valueScale,
+            rowWeights = rowWeights,
+            colWeights = colWeights,
+            bgStyle = bgStyle
         )
     }
 }
