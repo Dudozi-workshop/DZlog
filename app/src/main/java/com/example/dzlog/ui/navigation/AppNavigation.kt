@@ -85,12 +85,10 @@ fun AppRoot() {
             saveMode = com.example.dzlog.domain.model.SaveMode.BOTH,
             continuousPreviewMode = com.example.dzlog.domain.model.ContinuousPreviewMode.OFF,
             counterPadding = 0,
-            counterSuffixEnabled = true,
             resetCounterOnPathChange = true,
             toastEnabled = true,
             hapticEnabled = true,
             blankWarningEnabled = true,
-            usedCounterValuesJson = null
         )
     )
 

@@ -26,10 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.edit
-import com.example.dzlog.data.counter.encodeCounterSet
 import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
+import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.datastore.AppSettingsStore
-import com.example.dzlog.data.preferences.KEY_USED_COUNTER_VALUES_JSON
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
@@ -68,12 +67,10 @@ fun SettingsRootScreen(
             saveMode = SaveMode.BOTH,
             continuousPreviewMode = ContinuousPreviewMode.OFF,
             counterPadding = 0,
-            counterSuffixEnabled = true,
             resetCounterOnPathChange = true,
             toastEnabled = true,
             hapticEnabled = true,
             blankWarningEnabled = true,
-            usedCounterValuesJson = null
         )
     )
 
@@ -204,7 +201,8 @@ fun SettingsRootScreen(
                     val effective = scanned ?: emptySet()
                     // 캐시 업데이트(다음 dup 판단/동기화 기준)
                     runCatching {
-                        context.dataStore.edit { it[KEY_USED_COUNTER_VALUES_JSON] = encodeCounterSet(effective) }
+                        val repo = CounterIndexRepository.getInstance(context)
+                        repo.backfillPlaceholders(relPathPrefix, prefix, effective)
                     }
                     if (settings.toastEnabled) {
                         val max = effective.maxOrNull() ?: 0

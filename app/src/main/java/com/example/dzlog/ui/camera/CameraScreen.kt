@@ -83,7 +83,6 @@ import com.example.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
-import com.example.dzlog.data.preferences.KEY_COUNTER_SUFFIX_ENABLED
 import com.example.dzlog.data.preferences.KEY_SAVE_MODE
 import com.example.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
 import com.example.dzlog.data.preferences.KEY_WM_BG_ALPHA
@@ -93,7 +92,6 @@ import com.example.dzlog.data.preferences.KEY_WM_OFFSET_Y
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
-import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
@@ -197,10 +195,9 @@ fun CameraPreview(
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var captureAspect by remember { mutableStateOf(CaptureAspect.R3_4) }
-    var saveMode by remember { mutableStateOf(SaveMode.WATERMARK_ONLY) }
+    var saveMode by remember { mutableStateOf(SaveMode.BOTH) }
     var continuousPreviewMode by remember { mutableStateOf(ContinuousPreviewMode.OFF) }
     var counterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
-    var counterSuffixEnabled by remember { mutableStateOf(true) }
 
     val tableResolver = remember { TableResolver() }
     var showWizard by remember { mutableStateOf(false) }
@@ -336,27 +333,20 @@ fun CameraPreview(
                 prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v
             )
 
-            saveMode = when (prefs[KEY_SAVE_MODE] ?: 0) {
-                0 -> SaveMode.WATERMARK_ONLY
-                1 -> SaveMode.BOTH
-                else -> SaveMode.ORIGINAL_ONLY
-            }
+            // 표준: 0=원본, 1=워터마크, 2=원본+워터마크
+            saveMode = SaveMode.from(prefs[KEY_SAVE_MODE] ?: SaveMode.BOTH.v)
 
             continuousPreviewMode = ContinuousPreviewMode.from(
                 prefs[KEY_CONTINUOUS_PREVIEW_MODE] ?: ContinuousPreviewMode.OFF.v
             )
 
             counterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
-// MVP 정책: 카운터 suffix ON/OFF 미지원 → 항상 ON
-            counterSuffixEnabled = true
             showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
         } catch (_: Exception) {
             captureAspect = CaptureAspect.R3_4
             saveMode = SaveMode.WATERMARK_ONLY
             continuousPreviewMode = ContinuousPreviewMode.OFF
             counterDigits = COUNTER_DIGITS_DEFAULT
-// MVP 정책: 항상 ON
-            counterSuffixEnabled = true
             showWmPreview = true
             wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
             wmTableWidthRatio = 40
@@ -821,7 +811,18 @@ fun CameraPreview(
                                     scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = 0 } }
                                 }
                             )
-                            Text("워터마크만", style = DDZTypography.Body, color = DDZColor.Surface)
+                            Text("워터마크", style = DDZTypography.Body, color = DDZColor.Surface)
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = saveMode == SaveMode.ORIGINAL_ONLY,
+                                onClick = {
+                                    saveMode = SaveMode.ORIGINAL_ONLY
+                                    scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = 2 } }
+                                }
+                            )
+                            Text("원본", style = DDZTypography.Body, color = DDZColor.Surface)
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -837,17 +838,6 @@ fun CameraPreview(
                                 }
                             )
                             Text("원본+워터마크", style = DDZTypography.Body, color = DDZColor.Surface)
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(
-                                selected = saveMode == SaveMode.ORIGINAL_ONLY,
-                                onClick = {
-                                    saveMode = SaveMode.ORIGINAL_ONLY
-                                    scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = 2 } }
-                                }
-                            )
-                            Text("원본만", style = DDZTypography.Body, color = DDZColor.Surface)
                         }
 
                         Spacer(Modifier.height(DDZSpacing.sectionGap + DDZSpacing.itemGap))
