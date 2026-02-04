@@ -229,7 +229,7 @@ fun CameraPreview(
         }
     }
 
-    val scopeKeyInfo = remember(tableCells, counterDigits) {
+    val scopeKeyInfo = remember(tableTemplateState, counterDigits) {
         val scopeNow = Date()
         val planForScope = tableResolver.plan(
             cells = tableCells,

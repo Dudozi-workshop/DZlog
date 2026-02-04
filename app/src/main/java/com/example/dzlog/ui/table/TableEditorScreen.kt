@@ -74,13 +74,11 @@ import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
-import com.example.dzlog.data.counter.encodeCounterSet
 import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
 import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
-import com.example.dzlog.data.preferences.KEY_USED_COUNTER_VALUES_JSON
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
@@ -170,7 +168,11 @@ fun TableEditorScreen(
     var pendingCounterCommitText by remember { mutableStateOf("") }
     var pendingCounterLatestValue by remember { mutableIntStateOf(0) }
 
-    val currentRelativePath by remember(templateState.cells) {
+    // NOTE:
+    // templateState.cells 리스트가 동일한 객체로 유지되면서 내부 값만 바뀌는 경우가 있어
+    // remember(templateState.cells)에만 의존하면 경로/프리픽스/카운터 동기화가 갱신되지 않을 수 있음.
+    // → templateState 자체를 키로 포함해 항상 재계산되도록 보장한다.
+    val currentRelativePath by remember(templateState) {
         derivedStateOf { buildGalleryRelativePath(templateState.cells) }
     }
 
@@ -195,7 +197,7 @@ fun TableEditorScreen(
     }
 
     val tableResolver = remember { TableResolver() }
-    val planForScope = remember(templateState.cells, previewNow, previewCounterDigits, dateFormat, timeFormat) {
+    val planForScope = remember(templateState, previewNow, previewCounterDigits, dateFormat, timeFormat) {
         tableResolver.plan(
             cells = templateState.cells,
             captureNow = previewNow,
@@ -269,10 +271,6 @@ fun TableEditorScreen(
                 c.copy(typedValue = CellValue.CounterSeed(desiredSeed))
             }
             onTemplateChange(updated)
-        }
-
-        runCatching {
-            context.dataStore.edit { it[KEY_USED_COUNTER_VALUES_JSON] = encodeCounterSet(scanned) }
         }
 
         // placeholder(mediaId=-1)로 DB에 예약해둬서 이후 중복/리셋이 DB 기반으로 동작하도록 함

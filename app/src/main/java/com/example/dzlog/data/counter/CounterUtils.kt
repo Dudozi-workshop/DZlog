@@ -3,28 +3,11 @@ package com.example.dzlog.data.counter
 import android.content.Context
 import android.os.Build
 import android.provider.MediaStore
-import org.json.JSONArray
 
 // 0 = no padding (e.g., _1, _10, _5021)
 const val COUNTER_DIGITS_DEFAULT = 0
 
 fun clampCounterDigits(v: Int) = v.coerceIn(0, 6)
-
-private fun encodeCounterSetJson(values: Set<Int>): String {
-    val arr = JSONArray()
-    values.sorted().forEach { arr.put(it) }
-    return arr.toString()
-}
-
-private fun decodeCounterSetJson(json: String?): MutableSet<Int> {
-    if (json.isNullOrBlank()) return mutableSetOf()
-    return runCatching {
-        val arr = JSONArray(json)
-        val out = mutableSetOf<Int>()
-        for (i in 0 until arr.length()) out.add(arr.getInt(i))
-        out
-    }.getOrElse { mutableSetOf() }
-}
 
 private fun parseCounterFromDisplayName(
     displayName: String,
@@ -89,7 +72,3 @@ fun scanUsedCountersFromMediaStore(
     }
     return out
 }
-
-fun decodeCounterSet(json: String?): MutableSet<Int> = decodeCounterSetJson(json)
-
-fun encodeCounterSet(values: Set<Int>): String = encodeCounterSetJson(values)
