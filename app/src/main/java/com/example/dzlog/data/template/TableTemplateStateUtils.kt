@@ -17,6 +17,16 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
         val root = JSONObject(json)
         val rows = root.getInt("rows")
         val cols = root.getInt("cols")
+
+        val rowWeights: List<Float>? = if (root.has("rowWeights")) {
+            val w = root.getJSONArray("rowWeights")
+            List(w.length()) { idx -> w.optDouble(idx, 1.0).toFloat() }
+        } else null
+
+        val colWeights: List<Float>? = if (root.has("colWeights")) {
+            val w = root.getJSONArray("colWeights")
+            List(w.length()) { idx -> w.optDouble(idx, 1.0).toFloat() }
+        } else null
         val arr = root.getJSONArray("cells")
         val cells = buildList {
             for (i in 0 until arr.length()) {
@@ -68,7 +78,7 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                 )
             }
         }
-        TableTemplateState(rows = rows, cols = cols, cells = cells)
+        TableTemplateState(rows = rows, cols = cols, cells = cells, rowWeights = rowWeights, colWeights = colWeights)
     }.getOrNull()
 }
 
@@ -161,6 +171,18 @@ fun TableTemplateState.toJsonString(): String {
     val root = JSONObject()
     root.put("rows", rows)
     root.put("cols", cols)
+    // Stage 1: row/col weights는 optional. 없으면 기존과 동일(균등 분할)이다.
+    rowWeights?.let { w ->
+        val jw = JSONArray()
+        w.forEach { jw.put(it.toDouble()) }
+        root.put("rowWeights", jw)
+    }
+    colWeights?.let { w ->
+        val jw = JSONArray()
+        w.forEach { jw.put(it.toDouble()) }
+        root.put("colWeights", jw)
+    }
+
     val arr = JSONArray()
     for (c in cells) {
         val o = JSONObject()

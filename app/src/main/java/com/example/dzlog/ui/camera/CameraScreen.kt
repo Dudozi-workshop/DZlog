@@ -283,9 +283,14 @@ fun CameraPreview(
 
         val nextSeed = (usedCounters.maxOrNull() ?: 0) + 1
         val normalizedSeed = if (nextSeed < 1) 1 else nextSeed
-        scopeNextCounter = normalizedSeed
-        if (counterCell != null && (currentSeed == null || currentSeed != normalizedSeed)) {
-            val patch = TablePatch(mapOf(counterCell.cellId to normalizedSeed.toString()))
+        val desiredSeed = if (counterCell != null && currentSeed != null) {
+            maxOf(normalizedSeed, currentSeed)
+        } else {
+            normalizedSeed
+        }
+        scopeNextCounter = desiredSeed
+        if (counterCell != null && (currentSeed == null || currentSeed != desiredSeed)) {
+            val patch = TablePatch(mapOf(counterCell.cellId to desiredSeed.toString()))
             onTemplateChange(tableTemplateState.applyPatch(patch))
         }
     }

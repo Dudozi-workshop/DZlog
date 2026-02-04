@@ -78,7 +78,6 @@ import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
 import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
-import com.example.dzlog.data.preferences.KEY_COUNTER_SUFFIX_ENABLED
 import com.example.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
 import com.example.dzlog.data.preferences.KEY_USED_COUNTER_VALUES_JSON
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
@@ -161,9 +160,9 @@ fun TableEditorScreen(
     val timeFormat = "HH.mm.ss"
 
     var previewCounterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
-    var previewCounterSuffixEnabled by remember { mutableStateOf(true) }
 
     var usedCounters by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var scopeNextCounter by remember { mutableIntStateOf(1) }
     var showCounterDupDialog by remember { mutableStateOf(false) }
     var pendingCounterCommitValue by remember { mutableIntStateOf(0) }
     var pendingCounterCommitText by remember { mutableStateOf("") }
@@ -188,10 +187,8 @@ fun TableEditorScreen(
         runCatching {
             val prefs = context.dataStore.data.first()
             previewCounterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
-            previewCounterSuffixEnabled = prefs[KEY_COUNTER_SUFFIX_ENABLED] ?: true
         }.onFailure {
             previewCounterDigits = COUNTER_DIGITS_DEFAULT
-            previewCounterSuffixEnabled = true
         }
     }
 
@@ -234,6 +231,17 @@ fun TableEditorScreen(
 
         if (fromDb.isNotEmpty()) {
             usedCounters = fromDb
+            val counterCell = templateState.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
+            val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start ?: 1
+            val nextByHistory = ((fromDb.maxOrNull() ?: 0) + 1).coerceAtLeast(1)
+            val desiredSeed = if (counterCell != null) maxOf(nextByHistory, currentSeed) else nextByHistory
+            scopeNextCounter = desiredSeed
+            if (counterCell != null && currentSeed != desiredSeed) {
+                val updated = updateCell(templateState, counterCell.cellId) { c ->
+                    c.copy(typedValue = CellValue.CounterSeed(desiredSeed))
+                }
+                onTemplateChange(updated)
+            }
             return@LaunchedEffect
         }
 
@@ -249,6 +257,17 @@ fun TableEditorScreen(
         }.getOrDefault(emptySet())
 
         usedCounters = scanned
+        val counterCell = templateState.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
+        val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start ?: 1
+        val nextByHistory = ((scanned.maxOrNull() ?: 0) + 1).coerceAtLeast(1)
+        val desiredSeed = if (counterCell != null) maxOf(nextByHistory, currentSeed) else nextByHistory
+        scopeNextCounter = desiredSeed
+        if (counterCell != null && currentSeed != desiredSeed) {
+            val updated = updateCell(templateState, counterCell.cellId) { c ->
+                c.copy(typedValue = CellValue.CounterSeed(desiredSeed))
+            }
+            onTemplateChange(updated)
+        }
 
         runCatching {
             context.dataStore.edit { it[KEY_USED_COUNTER_VALUES_JSON] = encodeCounterSet(scanned) }
@@ -273,6 +292,12 @@ fun TableEditorScreen(
             inlineFocusRequester.requestFocus()
             keyboardController?.show()
         }
+    }
+
+    fun startInlineEditing(cellId: String, value: String) {
+        editingCellId = cellId
+        editingValue = value
+        editingOriginalValue = value
     }
 
     fun commitInlineEditIfNeeded() {
@@ -326,6 +351,10 @@ fun TableEditorScreen(
         }
 
         onTemplateChange(updated)
+        if (target?.dataType == TableCellDataType.COUNTER) {
+            val seed = normalizedValueText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
+            scopeNextCounter = seed.coerceAtLeast(1)
+        }
         editingCellId = null
     }
 
@@ -384,6 +413,7 @@ fun TableEditorScreen(
         fnDelim = "_",
         includeDate = false,
         includeTime = false,
+        counterOverride = if (plan.resolvedCells.any { it.type == TableCellDataType.COUNTER }) null else scopeNextCounter,
         now = previewNow
     )
 
@@ -691,9 +721,7 @@ fun TableEditorScreen(
                                             // ✅ 인라인 편집은 그리드 안에서 보여야 하므로,
                                             // 패널이 떠 있는 상태면 가려져서 "안 되는 것처럼" 보임 → 강제 닫기
                                             showCellSettingsPanel = false
-                                            editingCellId = cell.cellId
-                                            editingValue = cell.toEditableText()
-                                            editingOriginalValue = editingValue
+                                            startInlineEditing(cell.cellId, cell.toEditableText())
                                         } else {
                                             if (cell.dataType == TableCellDataType.DATE ||
                                                 cell.dataType == TableCellDataType.TIME
@@ -1040,7 +1068,7 @@ private fun TableGridArea(
                                         if (cell == null) return@combinedClickable
                                         pendingSingleClickJob?.cancel()
                                         pendingSingleClickJob = scope.launch {
-                                            delay(vc.doubleTapTimeoutMillis.toLong())
+                                            delay(vc.doubleTapTimeoutMillis)
                                             onSelectCell(cell.cellId)
                                         }
                                     },
@@ -1481,17 +1509,28 @@ private fun addRow(templateState: TableTemplateState): TableTemplateState {
             label = ""
         )
     }
+
+    // Stage 1: rowWeights는 "행 단위 높이 비율"을 위한 데이터. 아직 렌더링에는 반영하지 않는다.
+    val baseRowWeights = templateState.rowWeights ?: List(templateState.rows.coerceAtLeast(1)) { 1f }
+    val nextRowWeights = baseRowWeights + 1f
+
     return templateState.copy(
         rows = templateState.rows + 1,
-        cells = templateState.cells + newCells
+        cells = templateState.cells + newCells,
+        rowWeights = nextRowWeights
     )
 }
 
 private fun removeRow(templateState: TableTemplateState): TableTemplateState {
     val lastRowIndex = templateState.rows - 1
+
+    val baseRowWeights = templateState.rowWeights ?: List(templateState.rows.coerceAtLeast(1)) { 1f }
+    val nextRowWeights = if (baseRowWeights.isNotEmpty()) baseRowWeights.dropLast(1) else baseRowWeights
+
     return templateState.copy(
         rows = templateState.rows - 1,
-        cells = templateState.cells.filterNot { it.rowIndex == lastRowIndex }
+        cells = templateState.cells.filterNot { it.rowIndex == lastRowIndex },
+        rowWeights = nextRowWeights
     )
 }
 
@@ -1510,17 +1549,28 @@ private fun addColumn(templateState: TableTemplateState): TableTemplateState {
             label = ""
         )
     }
+
+    // Stage 1: colWeights는 "열 단위 너비 비율"을 위한 데이터. 아직 렌더링에는 반영하지 않는다.
+    val baseColWeights = templateState.colWeights ?: List(templateState.cols.coerceAtLeast(1)) { 1f }
+    val nextColWeights = baseColWeights + 1f
+
     return templateState.copy(
         cols = templateState.cols + 1,
-        cells = templateState.cells + newCells
+        cells = templateState.cells + newCells,
+        colWeights = nextColWeights
     )
 }
 
 private fun removeColumn(templateState: TableTemplateState): TableTemplateState {
     val lastColIndex = templateState.cols - 1
+
+    val baseColWeights = templateState.colWeights ?: List(templateState.cols.coerceAtLeast(1)) { 1f }
+    val nextColWeights = if (baseColWeights.isNotEmpty()) baseColWeights.dropLast(1) else baseColWeights
+
     return templateState.copy(
         cols = templateState.cols - 1,
-        cells = templateState.cells.filterNot { it.colIndex == lastColIndex }
+        cells = templateState.cells.filterNot { it.colIndex == lastColIndex },
+        colWeights = nextColWeights
     )
 }
 

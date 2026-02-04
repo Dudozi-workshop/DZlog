@@ -3,7 +3,40 @@ package com.example.dzlog.watermark
 import android.graphics.*
 import com.example.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 import com.example.dzlog.domain.model.WatermarkTableAnchor
+import kotlin.math.abs
 
+private fun resolveWeightsOrOnes(weights: List<Float>?, n: Int): List<Float> {
+    if (n <= 0) return emptyList()
+    if (weights == null || weights.size != n) return List(n) { 1f }
+    return weights.map { it.coerceAtLeast(0f) }
+}
+
+private fun computeSizes(total: Float, weights: List<Float>): List<Float> {
+    val n = weights.size.coerceAtLeast(1)
+    val sum = weights.sum()
+    if (abs(sum) < 1e-6f) {
+        val each = total / n
+        val sizes = MutableList(n) { each }
+        val diff = total - sizes.sum()
+        sizes[n - 1] = sizes[n - 1] + diff
+        return sizes
+    }
+    val sizes = MutableList(n) { idx -> total * (weights[idx] / sum) }
+    val diff = total - sizes.sum()
+    sizes[n - 1] = sizes[n - 1] + diff
+    return sizes
+}
+
+private fun computeOffsets(sizes: List<Float>): List<Float> {
+    val offsets = ArrayList<Float>(sizes.size + 1)
+    var acc = 0f
+    offsets.add(0f)
+    for (s in sizes) {
+        acc += s
+        offsets.add(acc)
+    }
+    return offsets
+}
 
 fun drawWatermarkTableFromResolvedCells(
     src: Bitmap,
@@ -18,7 +51,9 @@ fun drawWatermarkTableFromResolvedCells(
     tableWidthRatio: Int,
     bgAlpha: Int,
     labelScale: Int,
-    valueScale: Int
+    valueScale: Int,
+    rowWeights: List<Float>? = null,
+    colWeights: List<Float>? = null
 ): Bitmap {
     // ✅ 너가 준 함수 본문 그대로 붙여넣기
     val out = src.copy(Bitmap.Config.ARGB_8888, true)
@@ -64,8 +99,15 @@ fun drawWatermarkTableFromResolvedCells(
 
     canvas.drawRect(left, top, left + tableW, top + tableH, bgPaint)
 
-    val cellW = tableW / cols.coerceAtLeast(1)
-    val cellH = tableH / rows.coerceAtLeast(1)
+    val safeRows = rows.coerceAtLeast(1)
+    val safeCols = cols.coerceAtLeast(1)
+
+    val rW = resolveWeightsOrOnes(rowWeights, safeRows)
+    val cW = resolveWeightsOrOnes(colWeights, safeCols)
+    val rowHeights = computeSizes(tableH, rW)
+    val colWidths = computeSizes(tableW, cW)
+    val rowOffsets = computeOffsets(rowHeights)
+    val colOffsets = computeOffsets(colWidths)
 
     val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.LTGRAY
@@ -80,14 +122,15 @@ fun drawWatermarkTableFromResolvedCells(
 
     val pad = (tableH * 0.08f).coerceIn(8f, 20f)
 
-    for (r in 0 until rows) {
-        for (c in 0 until cols) {
-            val idx = r * cols + c
+    for (r in 0 until safeRows) {
+        for (c in 0 until safeCols) {
+            val idx = r * safeCols + c
             if (idx !in cells.indices) continue
 
             val cell = cells[idx]
-            val x = left + c * cellW
-            val y = top + r * cellH
+            val cellH = rowHeights[r]
+            val x = left + colOffsets[c]
+            val y = top + rowOffsets[r]
 
             if (showLabel) {
                 canvas.drawText(
@@ -127,7 +170,9 @@ fun drawWatermarkTableOnCanvas(
     tableWidthRatio: Int,
     bgAlpha: Int,
     labelScale: Int,
-    valueScale: Int
+    valueScale: Int,
+    rowWeights: List<Float>? = null,
+    colWeights: List<Float>? = null
 ) {
     val w = bounds.width()
     val h = bounds.height()
@@ -165,8 +210,15 @@ fun drawWatermarkTableOnCanvas(
 
     canvas.drawRect(left, top, left + tableW, top + tableH, bgPaint)
 
-    val cellW = tableW / cols.coerceAtLeast(1)
-    val cellH = tableH / rows.coerceAtLeast(1)
+    val safeRows = rows.coerceAtLeast(1)
+    val safeCols = cols.coerceAtLeast(1)
+
+    val rW = resolveWeightsOrOnes(rowWeights, safeRows)
+    val cW = resolveWeightsOrOnes(colWeights, safeCols)
+    val rowHeights = computeSizes(tableH, rW)
+    val colWidths = computeSizes(tableW, cW)
+    val rowOffsets = computeOffsets(rowHeights)
+    val colOffsets = computeOffsets(colWidths)
 
     val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.LTGRAY
@@ -181,14 +233,15 @@ fun drawWatermarkTableOnCanvas(
 
     val pad = (tableH * 0.08f).coerceIn(8f, 20f)
 
-    for (r in 0 until rows) {
-        for (c in 0 until cols) {
-            val idx = r * cols + c
+    for (r in 0 until safeRows) {
+        for (c in 0 until safeCols) {
+            val idx = r * safeCols + c
             if (idx !in cells.indices) continue
 
             val cell = cells[idx]
-            val x = left + c * cellW
-            val y = top + r * cellH
+            val cellH = rowHeights[r]
+            val x = left + colOffsets[c]
+            val y = top + rowOffsets[r]
 
             if (showLabel) {
                 canvas.drawText(
