@@ -643,6 +643,12 @@ fun CameraPreview(
                             request = req,
                             onDone = { entry ->
                                 onTemplateChange(tableTemplateState.applyPatch(planForCapture.patch))
+                                if (!hasCounterCell) {
+                                    val base = entry.displayName.substringBeforeLast('.', entry.displayName)
+                                    val token = base.substringAfterLast('_', missingDelimiterValue = "").trim()
+                                    val parsed = if (token.all { it.isDigit() }) token.toIntOrNull() else null
+                                    scopeNextCounter = ((parsed ?: scopeNextCounter) + 1).coerceAtLeast(1)
+                                }
                                 if (entry.isNameAdjusted) {
                                     Toast.makeText(
                                         context,
