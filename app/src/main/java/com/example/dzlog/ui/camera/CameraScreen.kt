@@ -212,6 +212,8 @@ fun CameraPreview(
     var wmOffsetXRatio by remember { mutableIntStateOf(0) }
     var wmOffsetYRatio by remember { mutableIntStateOf(0) }
     var wmBgAlpha by remember { mutableIntStateOf(80) }
+    // 0=BLACK, 1=WHITE, 2=TRANSPARENT
+    var wmBgStyle by remember { mutableIntStateOf(0) }
     var wmLabelScale by remember { mutableIntStateOf(100) }
     var wmValueScale by remember { mutableIntStateOf(100) }
     val fnDelim = "_"
@@ -326,6 +328,7 @@ fun CameraPreview(
             wmOffsetYRatio = (prefs[KEY_WM_OFFSET_Y] ?: 0).coerceIn(0, 100)
 
             wmBgAlpha = (prefs[KEY_WM_BG_ALPHA] ?: 80).coerceIn(0, 255)
+            wmBgStyle = (prefs[KEY_WM_TABLE_BG_STYLE] ?: 0).coerceIn(0, 2)
             wmLabelScale = (prefs[KEY_WM_LABEL_SCALE] ?: 100).coerceIn(60, 160)
             wmValueScale = (prefs[KEY_WM_VALUE_SCALE] ?: 100).coerceIn(60, 160)
 
@@ -361,6 +364,7 @@ fun CameraPreview(
             wmOffsetXRatio = 0
             wmOffsetYRatio = 0
             wmBgAlpha = 80
+            wmBgStyle = 0
             wmLabelScale = 100
             wmValueScale = 100
         }
@@ -482,6 +486,7 @@ fun CameraPreview(
                             tableWidthRatio = wmTableWidthRatio,
                             tableHeightRatio = wmTableHeightRatio,
                             tableBgAlpha = wmBgAlpha,
+                            bgStyle = wmBgStyle,
                             labelScale = wmLabelScale,
                             valueScale = wmValueScale
                         )
@@ -639,6 +644,7 @@ fun CameraPreview(
                                 tableWidthRatio = wmTableWidthRatio,
                                 tableHeightRatio = wmTableHeightRatio,
                                 tableBgAlpha = wmBgAlpha,
+                                bgStyle = wmBgStyle,
                                 labelScale = wmLabelScale,
                                 valueScale = wmValueScale
                             )
