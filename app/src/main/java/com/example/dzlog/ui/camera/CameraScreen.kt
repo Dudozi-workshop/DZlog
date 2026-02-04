@@ -77,8 +77,6 @@ import androidx.lifecycle.Observer
 import coil.compose.AsyncImage
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
-import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
-import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
@@ -105,6 +103,7 @@ import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
+import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
@@ -240,56 +239,49 @@ fun CameraPreview(
                 timeFormat = timeFormat
             )
         )
-        val prefix = buildFileNamePrefixFromResolvedCells(
+        // ✅ counter 스트림 prefix: 날짜/시간 제외(파일명에는 붙어도 카운터에는 영향 없음)
+        val prefix = CounterManager.computeCounterPrefix(
             resolvedCells = planForScope.resolvedCells,
-            fnDelim = fnDelim,
-            includeDate = false,
-            includeTime = false,
-            now = scopeNow
+            fnDelim = fnDelim
         )
-        val relativePath = buildGalleryRelativePath(tableCells)
+
+        // ✅ 카운터 스트림키의 relativePath는 "실제 저장 경로"와 동일한 기준으로 계산해야 함
+        // (저장은 CaptureRequest.group1/group2 = resolvedCells 기반)
+        val g1 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G1)
+        val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
+        val relativePath = buildGalleryRelativePath(g1, g2)
         relativePath to prefix
     }
 
     val scopeRelativePath = scopeKeyInfo.first
     val scopePrefix = scopeKeyInfo.second
     var scopeNextCounter by remember { mutableIntStateOf(1) }
+    // ✅ 카운터 스트림 변경 감지용
+    var lastScopeKey by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(scopeRelativePath, scopePrefix, counterDigits) {
+        val scopeKey = "$scopeRelativePath|$scopePrefix"
         val counterCell = tableCells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
         val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start
 
-        val repo = CounterIndexRepository.getInstance(context)
-        val fromDb: Set<Int> = runCatching {
-            repo.getUsedCounters(scopeRelativePath, scopePrefix)
-        }.getOrDefault(emptySet())
-
-        val usedCounters = if (fromDb.isNotEmpty()) {
-            fromDb
-        } else {
-            val scanned = runCatching {
-                scanUsedCountersFromMediaStore(
-                    context = context,
-                    relativePathPrefix = scopeRelativePath,
-                    fileNamePrefix = scopePrefix,
-                    counterDigits = counterDigits,
-                    fnDelim = fnDelim
-                )
-            }.getOrDefault(emptySet())
-            runCatching {
-                repo.backfillPlaceholders(scopeRelativePath, scopePrefix, scanned)
-            }
-            scanned
-        }
-
-        val nextSeed = (usedCounters.maxOrNull() ?: 0) + 1
+        // ✅ 정책(스트림키=relativePathprefix) 기준 next counter 계산
+        val nextSeed = CounterManager.getNextCounter(
+            context = context,
+            relativePath = scopeRelativePath,
+            counterPrefix = scopePrefix,
+            counterDigits = counterDigits,
+            fnDelim = fnDelim
+        )
         val normalizedSeed = if (nextSeed < 1) 1 else nextSeed
-        val desiredSeed = if (counterCell != null && currentSeed != null) {
-            maxOf(normalizedSeed, currentSeed)
-        } else {
-            normalizedSeed
+        val isNewStream = (lastScopeKey != null && lastScopeKey != scopeKey)
+        val desiredSeed = when {
+            counterCell == null -> normalizedSeed
+            currentSeed == null -> normalizedSeed
+            isNewStream -> normalizedSeed
+            else -> maxOf(normalizedSeed, currentSeed)
         }
         scopeNextCounter = desiredSeed
+        lastScopeKey = scopeKey
         if (counterCell != null && (currentSeed == null || currentSeed != desiredSeed)) {
             val patch = TablePatch(mapOf(counterCell.cellId to desiredSeed.toString()))
             onTemplateChange(tableTemplateState.applyPatch(patch))

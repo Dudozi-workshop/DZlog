@@ -7,6 +7,7 @@ package com.example.dzlog.ui.table
 
 import android.graphics.RectF
 import android.widget.Toast
+import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -74,8 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
-import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
-import com.example.dzlog.data.counterindex.CounterIndexRepository
+import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
@@ -208,15 +208,12 @@ fun TableEditorScreen(
             )
         )
     }
-
     val currentPrefix by remember(planForScope.resolvedCells) {
         derivedStateOf {
-            buildFileNamePrefixFromResolvedCells(
+            // ✅ counter 스트림 prefix: 날짜/시간 제외(파일명에는 붙어도 카운터에는 영향 없음)
+            CounterManager.computeCounterPrefix(
                 resolvedCells = planForScope.resolvedCells,
-                fnDelim = "_",
-                includeDate = false,
-                includeTime = false,
-                now = previewNow
+                fnDelim = "_"
             )
         }
     }
@@ -225,57 +222,61 @@ fun TableEditorScreen(
         derivedStateOf { "$currentRelativePath|$currentPrefix" }
     }
 
-    LaunchedEffect(currentScopeKey, previewCounterDigits) {
-        val repo = CounterIndexRepository.getInstance(context)
+    // ✅ 스트림 변경 감지용 (스트림이 바뀌면 seed를 "새 스트림 next"로 강제 동기화)
+    var lastScopeKey by remember { mutableStateOf<String?>(null) }
 
-        // 1) Room(CounterIndex) 우선
-        val fromDb: Set<Int> = runCatching {
-            repo.getUsedCounters(currentRelativePath, currentPrefix)
-        }.getOrDefault(emptySet())
+    LaunchedEffect(currentScopeKey) {
+        Log.d(
+            "DZlogCounter",
+            "TableEditor scopeKey changed\n"+
+            "relativePath=$currentRelativePath\n"+
+            "counterPrefix=$currentPrefix\n"+
+            "scopeKey=$currentScopeKey"
+        )
+    }
 
-        if (fromDb.isNotEmpty()) {
-            usedCounters = fromDb
-            val counterCell = templateState.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
-            val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start ?: 1
-            val nextByHistory = ((fromDb.maxOrNull() ?: 0) + 1).coerceAtLeast(1)
-            val desiredSeed = if (counterCell != null) maxOf(nextByHistory, currentSeed) else nextByHistory
-            scopeNextCounter = desiredSeed
-            if (counterCell != null && currentSeed != desiredSeed) {
-                val updated = updateCell(templateState, counterCell.cellId) { c ->
-                    c.copy(typedValue = CellValue.CounterSeed(desiredSeed))
-                }
-                onTemplateChange(updated)
-            }
-            return@LaunchedEffect
-        }
+    LaunchedEffect(currentScopeKey, previewCounterDigits, templateState) {
+        // ✅ 정책(스트림키=relativePathprefix) 기준 usedCounters  nextCounter 계산
+        val used = CounterManager.getUsedCounters(
+            context = context,
+            relativePath = currentRelativePath,
+            counterPrefix = currentPrefix,
+            counterDigits = previewCounterDigits,
+            fnDelim = "_"
+        )
+        usedCounters = used
 
-        // 2) DB가 비어있으면, 기존 사진(과거 데이터)용으로 MediaStore 스캔 후 placeholder 백필
-        val scanned: Set<Int> = runCatching {
-            scanUsedCountersFromMediaStore(
-                context = context,
-                relativePathPrefix = currentRelativePath,
-                fileNamePrefix = currentPrefix,
-                counterDigits = previewCounterDigits,
-                fnDelim = "_"
-            )
-        }.getOrDefault(emptySet())
-
-        usedCounters = scanned
         val counterCell = templateState.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
         val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start ?: 1
-        val nextByHistory = ((scanned.maxOrNull() ?: 0) + 1).coerceAtLeast(1)
-        val desiredSeed = if (counterCell != null) maxOf(nextByHistory, currentSeed) else nextByHistory
+        val nextByHistory = ((used.maxOrNull() ?: 0) +  1).coerceAtLeast(1)
+
+        val isNewStream = (lastScopeKey != null && lastScopeKey != currentScopeKey)
+        // ✅ 스트림이 바뀌면 currentSeed를 무시하고 "새 스트림의 next"로 맞춘다.
+        // ✅ 같은 스트림이면 기존처럼 내려가지 않게 max() 유지
+        val desiredSeed = when {
+            counterCell == null -> nextByHistory
+            isNewStream -> nextByHistory
+            else -> maxOf(nextByHistory, currentSeed)
+        }
+
         scopeNextCounter = desiredSeed
+        lastScopeKey = currentScopeKey
+
+        Log.d(
+            "DZlogCounter",
+            "TableEditor counter sync\n"+
+            "usedCounters=$usedCounters\n"+
+            "currentSeed=$currentSeed\n"+
+            "nextByHistory=$nextByHistory\n"+
+            "scopeNextCounter=$scopeNextCounter"
+        )
+
+        // ✅ 표시 ON/OFF와 무관하게, COUNTER 셀이 존재하면 seed는 정책 기준으로 항상 최신으로 맞춰둔다.
         if (counterCell != null && currentSeed != desiredSeed) {
             val updated = updateCell(templateState, counterCell.cellId) { c ->
                 c.copy(typedValue = CellValue.CounterSeed(desiredSeed))
             }
             onTemplateChange(updated)
-        }
-
-        // placeholder(mediaId=-1)로 DB에 예약해둬서 이후 중복/리셋이 DB 기반으로 동작하도록 함
-        runCatching {
-            repo.backfillPlaceholders(currentRelativePath, currentPrefix, scanned)
         }
     }
 

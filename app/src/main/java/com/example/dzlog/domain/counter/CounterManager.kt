@@ -44,18 +44,18 @@ object CounterManager {
     }
 
     /**
-     * 해당 스트림(relativePath + counterPrefix)의 다음 카운터 값을 계산한다.
+     * 해당 스트림(relativePath  counterPrefix)에서 사용된 카운터 집합을 반환한다.
      *
-     * - Room(DB)에 값이 있으면: max + 1
-     * - 없으면: MediaStore 스캔 → Room backfill → max + 1
+     * - Room(DB)에 값이 있으면: DB 그대로 반환
+     * - 없으면: MediaStore 스캔 → Room backfill → 스캔 결과 반환
      */
-    suspend fun getNextCounter(
+    suspend fun getUsedCounters(
         context: Context,
         relativePath: String,
         counterPrefix: String,
         counterDigits: Int,
         fnDelim: String
-    ): Int {
+    ): Set<Int> {
         val repo = CounterIndexRepository.getInstance(context)
 
         // 1) Room 기준 조회
@@ -63,9 +63,7 @@ object CounterManager {
             repo.getUsedCounters(relativePath, counterPrefix)
         }.getOrDefault(emptySet())
 
-        if (fromDb.isNotEmpty()) {
-            return (fromDb.maxOrNull() ?: 0) + 1
-        }
+        if (fromDb.isNotEmpty()) return fromDb
 
         // 2) MediaStore 스캔 fallback
         val scanned: Set<Int> = runCatching {
@@ -83,6 +81,29 @@ object CounterManager {
             repo.backfillPlaceholders(relativePath, counterPrefix, scanned)
         }
 
-        return (scanned.maxOrNull() ?: 0) + 1
+        return scanned
+    }
+
+    /**
+     * 해당 스트림(relativePath + counterPrefix)의 다음 카운터 값을 계산한다.
+     *
+     * - Room(DB)에 값이 있으면: max + 1
+     * - 없으면: MediaStore 스캔 → Room backfill → max + 1
+     */
+    suspend fun getNextCounter(
+        context: Context,
+        relativePath: String,
+        counterPrefix: String,
+        counterDigits: Int,
+        fnDelim: String
+    ): Int {
+        val used = getUsedCounters(
+            context = context,
+            relativePath = relativePath,
+            counterPrefix = counterPrefix,
+            counterDigits = counterDigits,
+            fnDelim = fnDelim
+        )
+        return (used.maxOrNull() ?: 0) + 1
     }
 }
