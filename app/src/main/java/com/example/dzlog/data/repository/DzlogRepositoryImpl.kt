@@ -12,6 +12,7 @@ import com.example.dzlog.data.log.LogEntity
 import com.example.dzlog.data.log.LogRepository
 import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.mediastore.MediaStoreSaver
+import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.model.CaptureRequest
 import com.example.dzlog.domain.model.CaptureAspect
@@ -254,11 +255,18 @@ group1 = request.group1,
     ) {
         if (mediaStoreId <= 0L) return
         val counter = extractCounterValue(request) ?: return
+        val prefix = buildFileNamePrefixFromResolvedCells(
+            resolvedCells = request.resolvedCells,
+            fnDelim = "_",
+            includeDate = false,
+            includeTime = false
+        )
         val repo = CounterIndexRepository.getInstance(context)
         val dateAddedSeconds = System.currentTimeMillis() / 1000L
         runCatching {
             repo.record(
                 relativePath = relativePath,
+                prefix = prefix,
                 mediaId = mediaStoreId,
                 counterValue = counter,
                 dateAddedSeconds = dateAddedSeconds
@@ -273,9 +281,16 @@ group1 = request.group1,
             ?.trim()
             .orEmpty()
 
-        if (counterText.isBlank()) return null
-        val digitsOnly = counterText.filter { it.isDigit() }
-        return digitsOnly.toIntOrNull()
+        if (counterText.isNotBlank()) {
+            val digitsOnly = counterText.filter { it.isDigit() }
+            return digitsOnly.toIntOrNull()
+        }
+
+        val base = request.displayName.substringBeforeLast('.', request.displayName)
+        val token = base.substringAfterLast('_', missingDelimiterValue = "").trim()
+        if (token.isBlank()) return null
+        if (!token.all { it.isDigit() }) return null
+        return token.toIntOrNull()
     }
 
     private fun applyExifOrientation(source: Bitmap, exif: ExifInterface): Bitmap {

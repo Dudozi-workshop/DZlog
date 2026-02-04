@@ -26,16 +26,29 @@ private fun decodeCounterSetJson(json: String?): MutableSet<Int> {
     }.getOrElse { mutableSetOf() }
 }
 
-private fun parseCounterFromDisplayName(displayName: String): Int? {
+private fun parseCounterFromDisplayName(
+    displayName: String,
+    fileNamePrefix: String,
+    counterDigits: Int,
+    fnDelim: String
+): Int? {
     val base = displayName.substringBeforeLast('.', displayName)
-    val token = base.substringAfterLast('_', missingDelimiterValue = "").trim()
+    val prefixToken = "${fileNamePrefix}${fnDelim}"
+    if (!base.startsWith(prefixToken)) return null
+    val token = base.removePrefix(prefixToken).trim()
+    if (token.isBlank()) return null
+    if (!token.all { it.isDigit() }) return null
+    if (counterDigits != 0 && token.length != counterDigits) return null
     val v = token.toIntOrNull() ?: return null
     return if (v >= 0) v else null
 }
 
 fun scanUsedCountersFromMediaStore(
     context: Context,
-    relativePathPrefix: String
+    relativePathPrefix: String,
+    fileNamePrefix: String,
+    counterDigits: Int,
+    fnDelim: String
 ): Set<Int> {
     val out = mutableSetOf<Int>()
     val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
@@ -55,7 +68,7 @@ fun scanUsedCountersFromMediaStore(
                 val rel = if (pathIdx >= 0) cursor.getString(pathIdx) else ""
                 if (!rel.startsWith(relativePathPrefix)) continue
                 val name = if (nameIdx >= 0) cursor.getString(nameIdx) else ""
-                parseCounterFromDisplayName(name)?.let(out::add)
+                parseCounterFromDisplayName(name, fileNamePrefix, counterDigits, fnDelim)?.let(out::add)
             }
         }
         return out
@@ -71,7 +84,7 @@ fun scanUsedCountersFromMediaStore(
             val name = if (nameIdx >= 0) cursor.getString(nameIdx) else ""
             val abs = if (dataIdx >= 0) cursor.getString(dataIdx) else ""
             if (!abs.contains("/$relativePathPrefix")) continue
-            parseCounterFromDisplayName(name)?.let(out::add)
+            parseCounterFromDisplayName(name, fileNamePrefix, counterDigits, fnDelim)?.let(out::add)
         }
     }
     return out

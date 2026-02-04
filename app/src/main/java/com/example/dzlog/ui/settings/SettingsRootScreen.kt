@@ -34,6 +34,7 @@ import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
+import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.ui.common.DDZButton
@@ -170,7 +171,36 @@ fun SettingsRootScreen(
             onResetCounterSync = {
                 scope.launch {
                     val relPathPrefix = buildGalleryRelativePath(templateState.cells)
-                    val scanned = runCatching { scanUsedCountersFromMediaStore(context, relPathPrefix) }.getOrNull()
+                    val resolver = TableResolver()
+                    val plan = runCatching {
+                        resolver.plan(
+                            cells = templateState.cells,
+                            captureNow = nowForPreview,
+                            config = TableResolver.Config(
+                                counterDigits = settings.counterPadding,
+                                dateFormat = "yyyy.MM.dd",
+                                timeFormat = "HHmm"
+                            )
+                        )
+                    }.getOrNull()
+                    val prefix = plan?.let {
+                        buildFileNamePrefixFromResolvedCells(
+                            resolvedCells = it.resolvedCells,
+                            fnDelim = "_",
+                            includeDate = false,
+                            includeTime = false,
+                            now = nowForPreview
+                        )
+                    } ?: "DZlog"
+                    val scanned = runCatching {
+                        scanUsedCountersFromMediaStore(
+                            context = context,
+                            relativePathPrefix = relPathPrefix,
+                            fileNamePrefix = prefix,
+                            counterDigits = settings.counterPadding,
+                            fnDelim = "_"
+                        )
+                    }.getOrNull()
                     val effective = scanned ?: emptySet()
                     // 캐시 업데이트(다음 dup 판단/동기화 기준)
                     runCatching {

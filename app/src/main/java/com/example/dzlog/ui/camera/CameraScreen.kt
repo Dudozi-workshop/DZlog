@@ -77,6 +77,8 @@ import androidx.lifecycle.Observer
 import coil.compose.AsyncImage
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
+import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
+import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
@@ -96,15 +98,20 @@ import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.preferences.persistCaptureAspect
 import com.example.dzlog.data.repository.DzlogRepositoryImpl
 import com.example.dzlog.domain.model.CaptureAspect
+import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
+import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
+import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
+import com.example.dzlog.domain.table.TablePatch
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.table.applyPatch
 import com.example.dzlog.domain.watermark.WatermarkBuilder
@@ -218,6 +225,68 @@ fun CameraPreview(
             val delayMs = computeNextDelayMillis(unit)
             delay(delayMs)
             now = Date()
+        }
+    }
+
+    val scopeKeyInfo = remember(tableCells, counterDigits) {
+        val scopeNow = Date()
+        val planForScope = tableResolver.plan(
+            cells = tableCells,
+            captureNow = scopeNow,
+            config = TableResolver.Config(
+                counterDigits = counterDigits,
+                dateFormat = dateFormat,
+                timeFormat = timeFormat
+            )
+        )
+        val prefix = buildFileNamePrefixFromResolvedCells(
+            resolvedCells = planForScope.resolvedCells,
+            fnDelim = fnDelim,
+            includeDate = false,
+            includeTime = false,
+            now = scopeNow
+        )
+        val relativePath = buildGalleryRelativePath(tableCells)
+        relativePath to prefix
+    }
+
+    val scopeRelativePath = scopeKeyInfo.first
+    val scopePrefix = scopeKeyInfo.second
+    var scopeNextCounter by remember { mutableIntStateOf(1) }
+
+    LaunchedEffect(scopeRelativePath, scopePrefix, counterDigits) {
+        val counterCell = tableCells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
+        val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start
+
+        val repo = CounterIndexRepository.getInstance(context)
+        val fromDb: Set<Int> = runCatching {
+            repo.getUsedCounters(scopeRelativePath, scopePrefix)
+        }.getOrDefault(emptySet())
+
+        val usedCounters = if (fromDb.isNotEmpty()) {
+            fromDb
+        } else {
+            val scanned = runCatching {
+                scanUsedCountersFromMediaStore(
+                    context = context,
+                    relativePathPrefix = scopeRelativePath,
+                    fileNamePrefix = scopePrefix,
+                    counterDigits = counterDigits,
+                    fnDelim = fnDelim
+                )
+            }.getOrDefault(emptySet())
+            runCatching {
+                repo.backfillPlaceholders(scopeRelativePath, scopePrefix, scanned)
+            }
+            scanned
+        }
+
+        val nextSeed = (usedCounters.maxOrNull() ?: 0) + 1
+        val normalizedSeed = if (nextSeed < 1) 1 else nextSeed
+        scopeNextCounter = normalizedSeed
+        if (counterCell != null && (currentSeed == null || currentSeed != normalizedSeed)) {
+            val patch = TablePatch(mapOf(counterCell.cellId to normalizedSeed.toString()))
+            onTemplateChange(tableTemplateState.applyPatch(patch))
         }
     }
 
@@ -538,6 +607,7 @@ fun CameraPreview(
                             )
                         )
 
+                        val hasCounterCell = planForCapture.resolvedCells.any { it.type == TableCellDataType.COUNTER }
                         val req = com.example.dzlog.domain.model.CaptureRequest(
                             group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
                             group2 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G2),
@@ -546,6 +616,7 @@ fun CameraPreview(
                                 fnDelim = fnDelim,
                                 includeDate = false,
                                 includeTime = false,
+                                counterOverride = if (hasCounterCell) null else scopeNextCounter,
                                 now = captureNow
                             ),
                             resolvedCells = planForCapture.resolvedCells,

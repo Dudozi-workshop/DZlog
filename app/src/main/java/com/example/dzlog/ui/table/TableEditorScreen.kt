@@ -73,7 +73,6 @@ import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
-import com.example.dzlog.data.counter.decodeCounterSet
 import com.example.dzlog.data.counter.encodeCounterSet
 import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
 import com.example.dzlog.data.counterindex.CounterIndexRepository
@@ -99,6 +98,7 @@ import com.example.dzlog.domain.model.TimeFormatOptions
 import com.example.dzlog.domain.model.TimeSeparator
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
+import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
@@ -156,6 +156,13 @@ fun TableEditorScreen(
     val dateFormatOptions = listOf("yyyy.MM.dd", "yyyy_MM_dd", "yyyyMMdd")
     // TIME 형식은 Step3부터 토글 UI(12/24, 초, 구분자)로 설정한다.
 
+    // NOTE: formatPattern 기반이 아니라 현재는 고정값. (기존 코드 유지)
+    val dateFormat = "yyyy.MM.dd"
+    val timeFormat = "HH.mm.ss"
+
+    var previewCounterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
+    var previewCounterSuffixEnabled by remember { mutableStateOf(true) }
+
     var usedCounters by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var showCounterDupDialog by remember { mutableStateOf(false) }
     var pendingCounterCommitValue by remember { mutableIntStateOf(0) }
@@ -166,12 +173,63 @@ fun TableEditorScreen(
         derivedStateOf { buildGalleryRelativePath(templateState.cells) }
     }
 
-    LaunchedEffect(currentRelativePath) {
+    var previewNow by remember { mutableStateOf(Date()) }
+
+    LaunchedEffect(dateFormat, timeFormat) {
+        val unit = decideTickUnit(dateFormat, timeFormat)
+        while (true) {
+            val delayMs = computeNextDelayMillis(unit)
+            delay(delayMs)
+            previewNow = Date()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        runCatching {
+            val prefs = context.dataStore.data.first()
+            previewCounterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
+            previewCounterSuffixEnabled = prefs[KEY_COUNTER_SUFFIX_ENABLED] ?: true
+        }.onFailure {
+            previewCounterDigits = COUNTER_DIGITS_DEFAULT
+            previewCounterSuffixEnabled = true
+        }
+    }
+
+    val tableResolver = remember { TableResolver() }
+    val planForScope = remember(templateState.cells, previewNow, previewCounterDigits, dateFormat, timeFormat) {
+        tableResolver.plan(
+            cells = templateState.cells,
+            captureNow = previewNow,
+            config = TableResolver.Config(
+                counterDigits = previewCounterDigits,
+                dateFormat = dateFormat,
+                timeFormat = timeFormat
+            )
+        )
+    }
+
+    val currentPrefix by remember(planForScope.resolvedCells) {
+        derivedStateOf {
+            buildFileNamePrefixFromResolvedCells(
+                resolvedCells = planForScope.resolvedCells,
+                fnDelim = "_",
+                includeDate = false,
+                includeTime = false,
+                now = previewNow
+            )
+        }
+    }
+
+    val currentScopeKey by remember(currentRelativePath, currentPrefix) {
+        derivedStateOf { "$currentRelativePath|$currentPrefix" }
+    }
+
+    LaunchedEffect(currentScopeKey, previewCounterDigits) {
         val repo = CounterIndexRepository.getInstance(context)
 
         // 1) Room(CounterIndex) 우선
         val fromDb: Set<Int> = runCatching {
-            repo.getUsedCounters(currentRelativePath)
+            repo.getUsedCounters(currentRelativePath, currentPrefix)
         }.getOrDefault(emptySet())
 
         if (fromDb.isNotEmpty()) {
@@ -181,7 +239,13 @@ fun TableEditorScreen(
 
         // 2) DB가 비어있으면, 기존 사진(과거 데이터)용으로 MediaStore 스캔 후 placeholder 백필
         val scanned: Set<Int> = runCatching {
-            scanUsedCountersFromMediaStore(context, currentRelativePath)
+            scanUsedCountersFromMediaStore(
+                context = context,
+                relativePathPrefix = currentRelativePath,
+                fileNamePrefix = currentPrefix,
+                counterDigits = previewCounterDigits,
+                fnDelim = "_"
+            )
         }.getOrDefault(emptySet())
 
         usedCounters = scanned
@@ -192,7 +256,7 @@ fun TableEditorScreen(
 
         // placeholder(mediaId=-1)로 DB에 예약해둬서 이후 중복/리셋이 DB 기반으로 동작하도록 함
         runCatching {
-            repo.backfillPlaceholders(currentRelativePath, scanned)
+            repo.backfillPlaceholders(currentRelativePath, currentPrefix, scanned)
         }
     }
 
@@ -276,24 +340,6 @@ fun TableEditorScreen(
         buildGalleryRelativePath(templateState.cells)
     }
 
-    // NOTE: formatPattern 기반이 아니라 현재는 고정값. (기존 코드 유지)
-    val dateFormat = "yyyy.MM.dd"
-    val timeFormat = "HH.mm.ss"
-
-    var previewCounterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
-    var previewCounterSuffixEnabled by remember { mutableStateOf(true) }
-
-    LaunchedEffect(Unit) {
-        runCatching {
-            val prefs = context.dataStore.data.first()
-            previewCounterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
-            previewCounterSuffixEnabled = prefs[KEY_COUNTER_SUFFIX_ENABLED] ?: true
-        }.onFailure {
-            previewCounterDigits = COUNTER_DIGITS_DEFAULT
-            previewCounterSuffixEnabled = true
-        }
-    }
-
     // ✅ 표 위치/크기(촬영 워터마크 표 렌더 파라미터) - 탭1에서 조절
     var wmAnchor by remember { mutableStateOf(WatermarkTableAnchor.BOTTOM_RIGHT) }
     var wmWidthRatio by remember { mutableIntStateOf(40) }
@@ -321,18 +367,6 @@ fun TableEditorScreen(
         }
     }
 
-    var previewNow by remember { mutableStateOf(Date()) }
-
-    LaunchedEffect(dateFormat, timeFormat) {
-        val unit = decideTickUnit(dateFormat, timeFormat)
-        while (true) {
-            val delayMs = computeNextDelayMillis(unit)
-            delay(delayMs)
-            previewNow = Date()
-        }
-    }
-
-    val tableResolver = remember { TableResolver() }
     val plan = remember(templateState.cells, previewNow, previewCounterDigits, dateFormat, timeFormat) {
         tableResolver.plan(
             cells = templateState.cells,

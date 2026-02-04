@@ -86,9 +86,44 @@ fun buildDisplayNameFromResolvedCells(
     fnDelim: String,
     includeDate: Boolean,
     includeTime: Boolean,
+    counterOverride: Int? = null,
     now: Date = Date()
 ): String {
-// MVP 정책: 구분자는 '_'로 고정
+    val ordered = resolvedCells
+        .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
+
+    val prefix = buildFileNamePrefixFromResolvedCells(
+        resolvedCells = resolvedCells,
+        fnDelim = fnDelim,
+        includeDate = includeDate,
+        includeTime = includeTime,
+        now = now
+    )
+
+    // COUNTER는 resolver가 padding까지 완료한 값을 제공한다.
+    val counterText = ordered.firstOrNull { it.type == TableCellDataType.COUNTER }?.resolvedText
+        ?.takeIf { it.isNotBlank() }
+        .orEmpty()
+
+    // MVP 정책: 표에 카운터 셀이 있든 없든 파일명 끝에는 항상 카운터가 붙는다.
+    // counterText가 비어있으면 기본값 '1'을 사용한다.
+    val counterFinal = counterText.ifBlank {
+        counterOverride?.takeIf { it >= 0 }?.toString() ?: "1"
+    }
+
+    val base = "${prefix}_${counterFinal}"
+    val withExt = if (base.endsWith(".jpg", true) || base.endsWith(".jpeg", true)) base else "$base.jpg"
+    return sanitizeFilePart(withExt)
+}
+
+fun buildFileNamePrefixFromResolvedCells(
+    resolvedCells: List<ResolvedCell>,
+    fnDelim: String,
+    includeDate: Boolean,
+    includeTime: Boolean,
+    now: Date = Date()
+): String {
+    // MVP 정책: 구분자는 '_'로 고정
     val delim = "_"
     val ordered = resolvedCells
         .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
@@ -116,21 +151,8 @@ fun buildDisplayNameFromResolvedCells(
         if (includeTime) parts.add(SimpleDateFormat("HHmmss", Locale.getDefault()).format(now))
     }
 
-    // COUNTER는 resolver가 padding까지 완료한 값을 제공한다.
-    val counterText = ordered.firstOrNull { it.type == TableCellDataType.COUNTER }?.resolvedText
-        ?.takeIf { it.isNotBlank() }
-        .orEmpty()
-
-    // MVP 정책: 표에 카운터 셀이 있든 없든 파일명 끝에는 항상 카운터가 붙는다.
-    // counterText가 비어있으면 기본값 '1'을 사용한다.
-    val counterFinal = counterText.ifBlank { "1" }
-
     // prefix(카운터 제외)가 공백이면 "DZlog"를 붙인다.
     if (parts.isEmpty()) parts.add("DZlog")
 
-    parts.add(counterFinal)
-
-    val base = parts.joinToString(delim)
-    val withExt = if (base.endsWith(".jpg", true) || base.endsWith(".jpeg", true)) base else "$base.jpg"
-    return sanitizeFilePart(withExt)
+    return parts.joinToString(delim)
 }

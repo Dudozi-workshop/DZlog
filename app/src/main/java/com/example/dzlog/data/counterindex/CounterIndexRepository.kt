@@ -12,27 +12,35 @@ class CounterIndexRepository private constructor(
     private val dao: CounterIndexDao
 ) {
 
-    suspend fun getUsedCounters(relativePath: String): Set<Int> =
-        dao.listCountersByPath(relativePath).toSet()
+    suspend fun getUsedCounters(relativePath: String, prefix: String): Set<Int> =
+        dao.listCountersByPath(relativePath, prefix).toSet()
 
-    suspend fun getMaxCounter(relativePath: String): Int =
-        dao.maxCounterByPath(relativePath) ?: 0
+    suspend fun getMaxCounter(relativePath: String, prefix: String): Int =
+        dao.maxCounterByPath(relativePath, prefix) ?: 0
 
-    suspend fun isDuplicate(relativePath: String, counterValue: Int): Boolean =
-        dao.existsCounter(relativePath, counterValue)
+    suspend fun isDuplicate(relativePath: String, prefix: String, counterValue: Int): Boolean =
+        dao.existsCounter(relativePath, prefix, counterValue)
 
     /**
      * 촬영 시점 기록.
      * - 중복이면 무시(이미 사용된 카운터라는 의미)
      */
-    suspend fun record(relativePath: String, mediaId: Long, counterValue: Int, dateAddedSeconds: Long) {
+    suspend fun record(
+        relativePath: String,
+        prefix: String,
+        mediaId: Long,
+        counterValue: Int,
+        dateAddedSeconds: Long
+    ) {
         if (relativePath.isBlank()) return
+        if (prefix.isBlank()) return
         if (mediaId <= 0L) return
         if (counterValue < 0) return
         dao.insertIgnore(
             CounterIndexEntity(
                 mediaId = mediaId,
                 relativePath = relativePath,
+                prefix = prefix,
                 counterValue = counterValue,
                 dateAddedSeconds = dateAddedSeconds
             )
@@ -43,8 +51,9 @@ class CounterIndexRepository private constructor(
      * 기존 사진 백필(backfill)용.
      * - mediaId를 모르거나 굳이 저장할 필요가 없을 때 mediaId=-1로 예약해둔다.
      */
-    suspend fun backfillPlaceholders(relativePath: String, counters: Set<Int>) {
+    suspend fun backfillPlaceholders(relativePath: String, prefix: String, counters: Set<Int>) {
         if (relativePath.isBlank()) return
+        if (prefix.isBlank()) return
         if (counters.isEmpty()) return
 
         val nowSec = System.currentTimeMillis() / 1000L
@@ -54,6 +63,7 @@ class CounterIndexRepository private constructor(
                 CounterIndexEntity(
                     mediaId = -1L,
                     relativePath = relativePath,
+                    prefix = prefix,
                     counterValue = c,
                     dateAddedSeconds = nowSec
                 )

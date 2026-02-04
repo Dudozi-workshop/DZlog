@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.dzlog.data.counterindex.CounterIndexDao
 import com.example.dzlog.data.counterindex.CounterIndexEntity
 
-@Database(entities = [LogEntity::class, CounterIndexEntity::class], version = 2)
+@Database(entities = [LogEntity::class, CounterIndexEntity::class], version = 3)
 abstract class LogDatabase : RoomDatabase() {
     abstract fun logDao(): LogDao
     abstract fun counterIndexDao(): CounterIndexDao
@@ -43,6 +43,19 @@ abstract class LogDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE counter_index ADD COLUMN prefix TEXT NOT NULL DEFAULT ''")
+                db.execSQL("DROP INDEX IF EXISTS index_counter_index_relativePath_counterValue")
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_counter_index_relativePath_prefix_counterValue ON counter_index(relativePath, prefix, counterValue)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_counter_index_relativePath_prefix ON counter_index(relativePath, prefix)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): LogDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -50,7 +63,7 @@ abstract class LogDatabase : RoomDatabase() {
                     LogDatabase::class.java,
                     "dzlog.db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build().also { INSTANCE = it }
             }
         }

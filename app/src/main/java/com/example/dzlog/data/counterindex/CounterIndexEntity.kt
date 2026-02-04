@@ -17,8 +17,8 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "counter_index",
     indices = [
-        Index(value = ["relativePath", "counterValue"], unique = true),
-        Index(value = ["relativePath"]),
+        Index(value = ["relativePath", "prefix", "counterValue"], unique = true),
+        Index(value = ["relativePath", "prefix"]),
         Index(value = ["mediaId"])
     ]
 )
@@ -27,6 +27,7 @@ data class CounterIndexEntity(
     val id: Long = 0L,
     val mediaId: Long,
     val relativePath: String,
+    val prefix: String,
     val counterValue: Int,
     val dateAddedSeconds: Long
 )
