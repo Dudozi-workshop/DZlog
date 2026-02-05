@@ -98,6 +98,7 @@ import com.example.dzlog.domain.model.TimeSeparator
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
+import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
@@ -220,6 +221,23 @@ fun TableEditorScreen(
 
     val currentScopeKey by remember(currentRelativePath, currentPrefix) {
         derivedStateOf { "$currentRelativePath|$currentPrefix" }
+    }
+
+    LaunchedEffect(currentScopeKey) {
+        val g1 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G1)
+        val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
+
+        Log.d(
+            "DZlogCounter",
+            """
+        [STEP1 scopeKey changed]
+        g1=$g1
+        g2=$g2
+        relativePath=$currentRelativePath
+        counterPrefix=$currentPrefix
+        scopeKey=$currentScopeKey
+        """.trimIndent()
+        )
     }
 
     // ✅ 스트림 변경 감지용 (스트림이 바뀌면 seed를 "새 스트림 next"로 강제 동기화)
@@ -1161,12 +1179,6 @@ private fun TableGridArea(
     inlineFocusRequester: FocusRequester,
     onInlineFocusLostCommit: () -> Unit
     ) {
-    // ✅ 셀 단일/더블 클릭 경쟁 제거:
-    // 단일 클릭은 더블탭 타임아웃 이후 실행, 더블 클릭이 오면 단일 클릭 예약 취소
-    val vc = LocalViewConfiguration.current
-    val scope = rememberCoroutineScope()
-    var pendingSingleClickJob by remember { mutableStateOf<Job?>(null) }
-
     @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val safeCols = templateState.cols.coerceAtLeast(1)
@@ -1232,16 +1244,10 @@ private fun TableGridArea(
                                     enabled = (cell != null && !isEditingCell),
                                     onClick = {
                                         if (cell == null) return@combinedClickable
-                                        pendingSingleClickJob?.cancel()
-                                        pendingSingleClickJob = scope.launch {
-                                            delay(vc.doubleTapTimeoutMillis)
-                                            onSelectCell(cell.cellId)
-                                        }
+                                        onSelectCell(cell.cellId)
                                     },
                                     onDoubleClick = {
                                         if (cell == null) return@combinedClickable
-                                        pendingSingleClickJob?.cancel()
-                                        pendingSingleClickJob = null
                                         onDoubleClickCell(cell)
                                     }
                                 ),
@@ -1566,6 +1572,10 @@ private fun CameraLikeWatermarkPlacementPreview(
     tableHeightRatio: Int,
     bgStyle: Int
 ) {
+    // bgStyle: 워터마크 표 배경 스타일
+    // - 0: BLACK
+    // - 1: WHITE
+    // - 2: TRANSPARENT (배경 렌더링 안 함)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1619,6 +1629,7 @@ private fun CameraLikeWatermarkPlacementPreview(
                         tableHeightRatio = tableHeightRatio,
                         tableWidthRatio = tableWidthRatio,
                         bgAlpha = 80,
+                        bgStyle = bgStyle,
                         labelScale = 100,
                         valueScale = 100,
                         rowWeights = rowWeights,
