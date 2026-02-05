@@ -105,6 +105,8 @@ import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.ui.common.DDZSectionHeader
+import com.example.dzlog.ui.table.section.TableStyleSection
+import com.example.dzlog.ui.table.section.WatermarkPlacementSection
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
@@ -899,7 +901,7 @@ fun TableEditorScreen(
 
                         Spacer(Modifier.height(4.dp))
 
-                        // ✅ 표 위치/크기 설정 (기존 덩이 C를 탭1로 이식)
+                        // ✅ 표 위치/크기/스타일 설정 (상태는 화면에서 유지)
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -907,60 +909,25 @@ fun TableEditorScreen(
                                 .padding(10.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("표 위치/크기", style = DDZTypography.CardTitle, color = DDZColor.TextMuted)
-
-                            fun persistAnchor(a: WatermarkTableAnchor) {
-                                wmAnchor = a
-                                scope.launch {
-                                    context.dataStore.edit { prefs ->
-                                        prefs[KEY_WM_TABLE_ANCHOR] = when (a) {
-                                            WatermarkTableAnchor.TOP_LEFT -> 0
-                                            WatermarkTableAnchor.TOP_RIGHT -> 1
-                                            WatermarkTableAnchor.BOTTOM_LEFT -> 2
-                                            else -> 3
+                            WatermarkPlacementSection(
+                                wmAnchor = wmAnchor,
+                                wmWidthRatio = wmWidthRatio,
+                                wmHeightRatio = wmHeightRatio,
+                                onAnchorChange = { anchor ->
+                                    wmAnchor = anchor
+                                    scope.launch {
+                                        context.dataStore.edit { prefs ->
+                                            prefs[KEY_WM_TABLE_ANCHOR] = when (anchor) {
+                                                WatermarkTableAnchor.TOP_LEFT -> 0
+                                                WatermarkTableAnchor.TOP_RIGHT -> 1
+                                                WatermarkTableAnchor.BOTTOM_LEFT -> 2
+                                                else -> 3
+                                            }
                                         }
                                     }
-                                }
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                RadioButton(
-                                    selected = wmAnchor == WatermarkTableAnchor.TOP_LEFT,
-                                    onClick = { persistAnchor(WatermarkTableAnchor.TOP_LEFT) }
-                                )
-                                Text("좌상", color = DDZColor.TextPrimary)
-                                Spacer(Modifier.width(8.dp))
-                                RadioButton(
-                                    selected = wmAnchor == WatermarkTableAnchor.TOP_RIGHT,
-                                    onClick = { persistAnchor(WatermarkTableAnchor.TOP_RIGHT) }
-                                )
-                                Text("우상", color = DDZColor.TextPrimary)
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                RadioButton(
-                                    selected = wmAnchor == WatermarkTableAnchor.BOTTOM_LEFT,
-                                    onClick = { persistAnchor(WatermarkTableAnchor.BOTTOM_LEFT) }
-                                )
-                                Text("좌하", color = DDZColor.TextPrimary)
-                                Spacer(Modifier.width(8.dp))
-                                RadioButton(
-                                    selected = wmAnchor == WatermarkTableAnchor.BOTTOM_RIGHT,
-                                    onClick = { persistAnchor(WatermarkTableAnchor.BOTTOM_RIGHT) }
-                                )
-                                Text("우하", color = DDZColor.TextPrimary)
-                            }
-
-                            Text(
-                                text = "표 크기 (가로 ${wmWidthRatio}%, 세로 ${wmHeightRatio}%)",
-                                color = DDZColor.TextPrimary
-                            )
-
-                            Text("가로", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                            Slider(
-                                value = wmWidthRatio.toFloat(),
-                                onValueChange = { v ->
-                                    val nv = v.toInt().coerceIn(40, 100)
+                                },
+                                onWidthRatioChange = { width ->
+                                    val nv = width.coerceIn(40, 100)
                                     wmWidthRatio = nv
                                     scope.launch {
                                         context.dataStore.edit { prefs ->
@@ -968,59 +935,27 @@ fun TableEditorScreen(
                                         }
                                     }
                                 },
-                                valueRange = 40f..100f
-                            )
-
-                            Text("세로", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                            Slider(
-                                value = wmHeightRatio.toFloat(),
-                                onValueChange = { v ->
-                                    val nv = v.toInt().coerceIn(10, 35)
+                                onHeightRatioChange = { height ->
+                                    val nv = height.coerceIn(10, 35)
                                     wmHeightRatio = nv
                                     scope.launch {
                                         context.dataStore.edit { prefs ->
                                             prefs[KEY_WM_TABLE_HEIGHT] = nv
                                         }
                                     }
-                                },
-                                valueRange = 10f..35f
+                                }
                             )
 
                             Divider()
-                            Text("배경", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                RadioButton(
-                                    selected = wmBgStyle == 0,
-                                    onClick = {
-                                        wmBgStyle = 0
-                                        scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = 0 } }
-                                    }
-                                )
-                                Text("검정", color = DDZColor.TextPrimary)
-                                Spacer(Modifier.width(10.dp))
-                                RadioButton(
-                                    selected = wmBgStyle == 1,
-                                    onClick = {
-                                        wmBgStyle = 1
-                                        scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = 1 } }
-                                    }
-                                )
-                                Text("하양", color = DDZColor.TextPrimary)
-                                Spacer(Modifier.width(10.dp))
-                                RadioButton(
-                                    selected = wmBgStyle == 2,
-                                    onClick = {
-                                        wmBgStyle = 2
-                                        scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = 2 } }
-                                    }
-                                )
-                                Text("투명", color = DDZColor.TextPrimary)
-                            }
 
-                            Text(
-                                text = "※ 촬영 화면/홈/설정 미리보기에는 동일하게 반영됨",
-                                style = DDZTypography.Caption,
-                                color = DDZColor.TextMuted
+                            TableStyleSection(
+                                wmBgStyle = wmBgStyle,
+                                onBgStyleChange = { bgStyle ->
+                                    wmBgStyle = bgStyle
+                                    scope.launch {
+                                        context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = bgStyle }
+                                    }
+                                }
                             )
                         }
                     }
