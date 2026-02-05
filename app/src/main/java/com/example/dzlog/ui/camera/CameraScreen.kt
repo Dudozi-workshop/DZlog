@@ -905,6 +905,7 @@ private fun WatermarkPreviewOverlay(
                 tableHeightRatio = request.watermark.tableHeightRatio,
                 tableWidthRatio = request.watermark.tableWidthRatio,
                 bgAlpha = request.watermark.tableBgAlpha,
+                bgStyle = request.watermark.bgStyle,
                 labelScale = request.watermark.labelScale,
                 valueScale = request.watermark.valueScale
             )
