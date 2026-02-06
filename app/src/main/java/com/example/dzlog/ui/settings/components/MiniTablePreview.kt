@@ -1,7 +1,5 @@
 package com.example.dzlog.ui.settings.components
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
@@ -9,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.ui.common.DisplayTablePreview
+import com.example.dzlog.ui.common.TablePreviewFrame
 import java.util.Date
 
 /**
@@ -27,17 +26,17 @@ fun MiniTablePreview(
     val rows = templateState.rows.coerceAtLeast(1)
     val cols = templateState.cols.coerceAtLeast(1)
 
-    Box(
+    TablePreviewFrame(
+        aspectRatio = cols / rows.toFloat(),
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(cols / rows.toFloat())
             .heightIn(min = 96.dp, max = 200.dp)
-    ) {
+    ) { innerModifier ->
         DisplayTablePreview(
             templateState = templateState,
             counterDigits = counterDigits,
             now = now,
-            modifier = Modifier.fillMaxWidth()
+            modifier = innerModifier
         )
     }
 }

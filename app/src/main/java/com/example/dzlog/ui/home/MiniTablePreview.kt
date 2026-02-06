@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
+import com.example.dzlog.ui.common.TablePreviewFrame
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 
@@ -59,23 +59,30 @@ fun MiniTablePreview(
                 .border(1.dp, DDZColor.Border, RoundedCornerShape(10.dp))
                 .padding(6.dp)
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                repeat(rows) { r ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        repeat(cols) { c ->
-                            val cell = cellMap["$r:$c"]
-                            MiniCell(
-                                cell = cell,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(18.dp)
-                            )
+            TablePreviewFrame(
+                aspectRatio = cols / rows.toFloat(),
+                modifier = Modifier.fillMaxSize()
+            ) { innerModifier ->
+                Column(
+                    modifier = innerModifier,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    repeat(rows) { r ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = true),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            repeat(cols) { c ->
+                                val cell = cellMap["$r:$c"]
+                                MiniCell(
+                                    cell = cell,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxSize()
+                                )
+                            }
                         }
                     }
                 }
