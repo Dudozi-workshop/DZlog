@@ -1,0 +1,74 @@
+PATH GROUP RULES (Source of Truth)
+RULE_VERSION: 2026-02-06
+
+1) Allowed states
+- Cell group state must be one of:
+  - NONE
+  - G1
+  - G2
+- G2-only template state is forbidden.
+
+2) Global uniqueness invariants
+- Across the full template:
+  - G1 count <= 1
+  - G2 count <= 1
+- All actions must preserve these invariants.
+
+3) Trigger policy
+- Path-group state changes are allowed ONLY on explicit segment-button click actions.
+- Opening a panel or selecting a cell must not mutate G1/G2.
+
+4) Segment action semantics
+- Segment target scope: currently selected cell only.
+
+[없음] / NONE
+- Set current cell to NONE only.
+- Do not directly mutate other cells.
+- If this causes a G2-only state, apply rule (5).
+
+[G1]
+- Set current cell to G1.
+- Existing G1 on another cell becomes NONE.
+- If current cell was G2, that G2 assignment is cleared by reassignment.
+
+[G2]
+- Preconditions:
+  - A G1 cell must already exist.
+  - Current cell must not be G1.
+- Set current cell to G2.
+- Existing G2 on another cell becomes NONE.
+- If preconditions fail, action is no-op.
+
+5) G2-only forbidden normalization
+- Any resulting state with (no G1 + existing G2) must be normalized to:
+  - no G1 + no G2
+
+6) Invalid input / no-op policy
+- targetCellId not found -> no-op.
+- Action G2 without existing G1 -> no-op.
+- Action G2 targeting the current G1 cell -> no-op.
+- Reducer must never crash; it must return either:
+  - unchanged state (no-op), or
+  - normalized valid state.
+
+7) Deterministic conflict resolution (legacy recovery)
+- If legacy/broken state contains multiple G1 or G2 assignments,
+  normalization must keep exactly one using a deterministic tie-breaker.
+- Preferred tie-breaker order:
+  1) preferred/target cell id (if provided and present)
+  2) lexicographically smallest cellId
+- All non-selected duplicates are demoted to NONE.
+- Even if a G2 candidate is selected, if no G1 remains after normalization,
+  all G2 assignments must be cleared.
+
+8) Path composition rule
+- buildGalleryRelativePath(cells) must always compose in order: G1 -> G2.
+- Expected outputs:
+  - G1 only: Pictures/DZlog/<G1>/
+  - G1 + G2: Pictures/DZlog/<G1>/<G2>/
+
+9) Synchronization requirement
+- Any rule change must update together:
+  - PATH_GROUP_RULES.txt
+  - reducer/normalize implementation comments (with RULE_VERSION)
+  - reducer unit tests

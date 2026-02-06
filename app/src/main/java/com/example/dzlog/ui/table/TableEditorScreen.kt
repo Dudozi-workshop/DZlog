@@ -12,10 +12,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,9 +27,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -60,17 +55,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalViewConfiguration
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
@@ -105,6 +96,9 @@ import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.ui.common.DDZSectionHeader
+import com.example.dzlog.ui.table.section.TableGridSection
+import com.example.dzlog.ui.table.section.TableStyleSection
+import com.example.dzlog.ui.table.section.WatermarkPlacementSection
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
@@ -113,6 +107,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
+
+private const val PATH_GROUP_RULE_VERSION = "2026-02-06"
+
 
 
 @Composable
@@ -123,6 +120,13 @@ fun TableEditorScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        val normalized = normalizePathGroups(templateState)
+        if (normalized != templateState) {
+            onTemplateChange(normalized)
+        }
+    }
 
     // ✅ 탭 상태
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -703,7 +707,7 @@ fun TableEditorScreen(
                                     .padding(10.dp)
                             ) {
 
-                            TableGridArea(
+                            TableGridSection(
                                     templateState = templateState,
                                     displayTextProvider = { cellId ->
                                         plan.resolvedCells
@@ -717,7 +721,7 @@ fun TableEditorScreen(
 
                                         if (editingCellId != null && editingCellId != id) {
                                             commitInlineEditIfNeeded()
-                                            if (editingCellId != null) return@TableGridArea
+                                            if (editingCellId != null) return@TableGridSection
                                         }
                                         selectedCellId = id
 
@@ -727,10 +731,10 @@ fun TableEditorScreen(
 
                                         if (editingCellId != null && editingCellId != cell.cellId) {
                                             commitInlineEditIfNeeded()
-                                            if (editingCellId != null) return@TableGridArea
+                                            if (editingCellId != null) return@TableGridSection
                                             selectedCellId = cell.cellId
                                             showCellSettingsPanel = true
-                                            return@TableGridArea
+                                            return@TableGridSection
                                         }
 
                                         selectedCellId = cell.cellId
@@ -841,19 +845,21 @@ fun TableEditorScreen(
                                     }
                                     onTemplateChange(updated)
                                 },
-                                onSetGroupEnabled = { enabled ->
-                                    if (!enabled) {
-                                        val updated = updateGroupLevel(templateState, selectedCell.cellId, GroupLevel.NONE)
-                                        onTemplateChange(updated)
-                                    } else {
-                                        // ON 시 기본값은 G1 (MVP)
-                                        val updated = updateGroupLevel(templateState, selectedCell.cellId, GroupLevel.G1)
-                                        onTemplateChange(updated)
-                                    }
-                                },
-                                onSetGroupLevel = { level ->
-                                    val updated = updateGroupLevel(templateState, selectedCell.cellId, level)
+                                onPathGroupAction = { action ->
+                                    val updated = applyPathGroupAction(
+                                        state = templateState,
+                                        targetCellId = selectedCell.cellId,
+                                        action = action
+                                    )
                                     onTemplateChange(updated)
+
+                                    val g1Value = updated.cells.firstOrNull { it.groupLevel == GroupLevel.G1 }?.toEditableText().orEmpty()
+                                    val g2Value = updated.cells.firstOrNull { it.groupLevel == GroupLevel.G2 }?.toEditableText().orEmpty()
+                                    val relativePath = buildGalleryRelativePath(updated.cells)
+                                    Log.d(
+                                        "PathGroupRule",
+                                        "[PathGroupRule][RULE_VERSION=$PATH_GROUP_RULE_VERSION] g1Value=$g1Value g2Value=$g2Value relativePath=$relativePath"
+                                    )
                                 },
                                 onSetDataType = { type ->
                                     val updated = updateCell(templateState, selectedCell.cellId) { c ->
@@ -899,7 +905,7 @@ fun TableEditorScreen(
 
                         Spacer(Modifier.height(4.dp))
 
-                        // ✅ 표 위치/크기 설정 (기존 덩이 C를 탭1로 이식)
+                        // ✅ 표 위치/크기/스타일 설정 (상태는 화면에서 유지)
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -907,60 +913,25 @@ fun TableEditorScreen(
                                 .padding(10.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("표 위치/크기", style = DDZTypography.CardTitle, color = DDZColor.TextMuted)
-
-                            fun persistAnchor(a: WatermarkTableAnchor) {
-                                wmAnchor = a
-                                scope.launch {
-                                    context.dataStore.edit { prefs ->
-                                        prefs[KEY_WM_TABLE_ANCHOR] = when (a) {
-                                            WatermarkTableAnchor.TOP_LEFT -> 0
-                                            WatermarkTableAnchor.TOP_RIGHT -> 1
-                                            WatermarkTableAnchor.BOTTOM_LEFT -> 2
-                                            else -> 3
+                            WatermarkPlacementSection(
+                                wmAnchor = wmAnchor,
+                                wmWidthRatio = wmWidthRatio,
+                                wmHeightRatio = wmHeightRatio,
+                                onAnchorChange = { anchor ->
+                                    wmAnchor = anchor
+                                    scope.launch {
+                                        context.dataStore.edit { prefs ->
+                                            prefs[KEY_WM_TABLE_ANCHOR] = when (anchor) {
+                                                WatermarkTableAnchor.TOP_LEFT -> 0
+                                                WatermarkTableAnchor.TOP_RIGHT -> 1
+                                                WatermarkTableAnchor.BOTTOM_LEFT -> 2
+                                                else -> 3
+                                            }
                                         }
                                     }
-                                }
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                RadioButton(
-                                    selected = wmAnchor == WatermarkTableAnchor.TOP_LEFT,
-                                    onClick = { persistAnchor(WatermarkTableAnchor.TOP_LEFT) }
-                                )
-                                Text("좌상", color = DDZColor.TextPrimary)
-                                Spacer(Modifier.width(8.dp))
-                                RadioButton(
-                                    selected = wmAnchor == WatermarkTableAnchor.TOP_RIGHT,
-                                    onClick = { persistAnchor(WatermarkTableAnchor.TOP_RIGHT) }
-                                )
-                                Text("우상", color = DDZColor.TextPrimary)
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                RadioButton(
-                                    selected = wmAnchor == WatermarkTableAnchor.BOTTOM_LEFT,
-                                    onClick = { persistAnchor(WatermarkTableAnchor.BOTTOM_LEFT) }
-                                )
-                                Text("좌하", color = DDZColor.TextPrimary)
-                                Spacer(Modifier.width(8.dp))
-                                RadioButton(
-                                    selected = wmAnchor == WatermarkTableAnchor.BOTTOM_RIGHT,
-                                    onClick = { persistAnchor(WatermarkTableAnchor.BOTTOM_RIGHT) }
-                                )
-                                Text("우하", color = DDZColor.TextPrimary)
-                            }
-
-                            Text(
-                                text = "표 크기 (가로 ${wmWidthRatio}%, 세로 ${wmHeightRatio}%)",
-                                color = DDZColor.TextPrimary
-                            )
-
-                            Text("가로", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                            Slider(
-                                value = wmWidthRatio.toFloat(),
-                                onValueChange = { v ->
-                                    val nv = v.toInt().coerceIn(40, 100)
+                                },
+                                onWidthRatioChange = { width ->
+                                    val nv = width.coerceIn(40, 100)
                                     wmWidthRatio = nv
                                     scope.launch {
                                         context.dataStore.edit { prefs ->
@@ -968,59 +939,27 @@ fun TableEditorScreen(
                                         }
                                     }
                                 },
-                                valueRange = 40f..100f
-                            )
-
-                            Text("세로", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                            Slider(
-                                value = wmHeightRatio.toFloat(),
-                                onValueChange = { v ->
-                                    val nv = v.toInt().coerceIn(10, 35)
+                                onHeightRatioChange = { height ->
+                                    val nv = height.coerceIn(10, 35)
                                     wmHeightRatio = nv
                                     scope.launch {
                                         context.dataStore.edit { prefs ->
                                             prefs[KEY_WM_TABLE_HEIGHT] = nv
                                         }
                                     }
-                                },
-                                valueRange = 10f..35f
+                                }
                             )
 
                             Divider()
-                            Text("배경", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                RadioButton(
-                                    selected = wmBgStyle == 0,
-                                    onClick = {
-                                        wmBgStyle = 0
-                                        scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = 0 } }
-                                    }
-                                )
-                                Text("검정", color = DDZColor.TextPrimary)
-                                Spacer(Modifier.width(10.dp))
-                                RadioButton(
-                                    selected = wmBgStyle == 1,
-                                    onClick = {
-                                        wmBgStyle = 1
-                                        scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = 1 } }
-                                    }
-                                )
-                                Text("하양", color = DDZColor.TextPrimary)
-                                Spacer(Modifier.width(10.dp))
-                                RadioButton(
-                                    selected = wmBgStyle == 2,
-                                    onClick = {
-                                        wmBgStyle = 2
-                                        scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = 2 } }
-                                    }
-                                )
-                                Text("투명", color = DDZColor.TextPrimary)
-                            }
 
-                            Text(
-                                text = "※ 촬영 화면/홈/설정 미리보기에는 동일하게 반영됨",
-                                style = DDZTypography.Caption,
-                                color = DDZColor.TextMuted
+                            TableStyleSection(
+                                wmBgStyle = wmBgStyle,
+                                onBgStyleChange = { bgStyle ->
+                                    wmBgStyle = bgStyle
+                                    scope.launch {
+                                        context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = bgStyle }
+                                    }
+                                }
                             )
                         }
                     }
@@ -1166,191 +1105,6 @@ private fun TableRowColSizeSection(
 }
 
 @Composable
-private fun TableGridArea(
-    templateState: TableTemplateState,
-    displayTextProvider: (String) -> String,
-    selectedCellId: String?,
-    editingCellId: String?,
-    onSelectCell: (String) -> Unit,
-    onDoubleClickCell: (TableCellState) -> Unit,
-    editingValue: String,
-    onEditingValueChange: (String) -> Unit,
-    onCommitInline: () -> Unit,
-    inlineFocusRequester: FocusRequester,
-    onInlineFocusLostCommit: () -> Unit
-    ) {
-    @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val safeCols = templateState.cols.coerceAtLeast(1)
-        val cellW = remember(maxWidth, safeCols) { maxWidth / safeCols }
-
-        // ===== Grid 가시성 정책 =====
-        val minCellHeight = 48.dp
-        val defaultCellHeight = 64.dp
-
-        // 현재 화면에서 허용 가능한 최대 행 수 계산
-        val maxVisibleRows =
-            (maxHeight / minCellHeight).toInt().coerceAtLeast(1)
-
-        val needsVerticalScroll = templateState.rows > maxVisibleRows
-
-        val gridScrollState = rememberScrollState()
-
-        // NOTE: 세로는 rows가 많아지면 다 안 보일 수 있으므로,
-        // 여기서는 "가능한 범위 내 전체 가시"를 우선하고,
-        // 추후 임계치 기반 scale/scroll 정책을 이 영역에 적용한다.
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(
-                    if (needsVerticalScroll)
-                        Modifier.verticalScroll(gridScrollState)
-                    else Modifier
-                )
-        ) {
-            repeat(templateState.rows) { row ->
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    repeat(templateState.cols) { col ->
-                        val cell = templateState.cells.firstOrNull {
-                            it.rowIndex == row && it.colIndex == col
-                        }
-
-                        val isSelectedCell = cell?.cellId == selectedCellId
-                        val isEditingCell = cell?.cellId == editingCellId
-
-                        val cellBackground =
-                            if (isEditingCell) DDZColor.Success.copy(alpha = 0.2f) else DDZColor.Card
-
-                        Box(
-                            modifier = Modifier
-                                .width(cellW)
-                                .height(defaultCellHeight)
-                                .padding(2.dp)
-                                .background(cellBackground, RoundedCornerShape(8.dp))
-                                .border(
-                                    width = when {
-                                        isEditingCell -> 2.dp
-                                        isSelectedCell -> 2.dp
-                                        else -> 1.dp
-                                    },
-                                    color = when {
-                                        isEditingCell -> DDZColor.Success
-                                        isSelectedCell -> DDZColor.Primary
-                                        else -> DDZColor.Border
-                                    },
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .combinedClickable(
-                                    enabled = (cell != null && !isEditingCell),
-                                    onClick = {
-                                        if (cell == null) return@combinedClickable
-                                        onSelectCell(cell.cellId)
-                                    },
-                                    onDoubleClick = {
-                                        if (cell == null) return@combinedClickable
-                                        onDoubleClickCell(cell)
-                                    }
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (cell != null) {
-                                val display = displayTextProvider(cell.cellId)
-
-                                val canInlineEdit =
-                                    (cell.dataType == TableCellDataType.TEXT ||
-                                            cell.dataType == TableCellDataType.NUMBER ||
-                                            cell.dataType == TableCellDataType.COUNTER)
-
-                                if (isEditingCell && canInlineEdit) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 6.dp, vertical = 4.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(14.dp),
-                                            contentAlignment = Alignment.CenterStart
-                                        ) { CellHeaderBadges(cell) }
-
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .weight(1f),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            val keyboardType = when (cell.dataType) {
-                                                TableCellDataType.NUMBER -> KeyboardType.Decimal
-                                                TableCellDataType.COUNTER -> KeyboardType.Number
-                                                else -> KeyboardType.Text
-                                            }
-
-                                            var hasEverFocused by remember(cell.cellId) {
-                                                mutableStateOf(false)
-                                            }
-
-                                            BasicTextField(
-                                                value = editingValue,
-                                                onValueChange = onEditingValueChange,
-                                                singleLine = true,
-                                                textStyle = DDZTypography.Caption.copy(color = DDZColor.TextPrimary),
-                                                cursorBrush = SolidColor(DDZColor.Success),
-                                                keyboardOptions = KeyboardOptions(
-                                                    keyboardType = keyboardType,
-                                                    imeAction = ImeAction.Done
-                                                ),
-                                                keyboardActions = KeyboardActions(onDone = { onCommitInline() }),
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 2.dp, vertical = 2.dp)
-                                                    .focusRequester(inlineFocusRequester)
-                                                    .onFocusChanged { state ->
-                                                        if (state.isFocused) {
-                                                            if (!hasEverFocused) {
-                                                                hasEverFocused = true
-                                                            }
-                                                        }
-                                                        else if (hasEverFocused) {
-                                                            onInlineFocusLostCommit()
-                                                        }
-                                                    }
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 6.dp, vertical = 4.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(14.dp),
-                                            contentAlignment = Alignment.CenterStart
-                                        ) { CellHeaderBadges(cell) }
-
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .weight(1f),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(display, style = DDZTypography.Caption, color = DDZColor.TextPrimary)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun BottomFixedActionBar(
     rows: Int,
     cols: Int,
@@ -1409,11 +1163,9 @@ private fun CellSettingsBottomPanel(
     cell: TableCellState,
     hasGroup1: Boolean,
     onSetFileNameInclude: (Boolean) -> Unit,
-    onSetGroupEnabled: (Boolean) -> Unit,
-    onSetGroupLevel: (GroupLevel) -> Unit,
+    onPathGroupAction: (PathGroupAction) -> Unit,
     onSetDataType: (TableCellDataType) -> Unit
     ) {
-    val groupEnabled = cell.groupLevel == GroupLevel.G1 || cell.groupLevel == GroupLevel.G2
 
     Column(
         modifier = modifier
@@ -1455,45 +1207,39 @@ private fun CellSettingsBottomPanel(
             }
 
             Column(modifier = Modifier.weight(1f)) {
-                Text("그룹 사용", style = DDZTypography.Body, color = DDZColor.TextMuted)
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (groupEnabled) "ON" else "OFF", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                    Switch(
-                        checked = groupEnabled,
-                        onCheckedChange = onSetGroupEnabled
-                    )
-                }
-            }
-        }
-
-        // ✅ Group ON일 때만 G1/G2 세그먼트 노출
-        if (groupEnabled) {
-            val g2Enabled = hasGroup1 || cell.groupLevel == GroupLevel.G2
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(DDZColor.Card, RoundedCornerShape(12.dp))
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+                Text("저장경로", style = DDZTypography.Body, color = DDZColor.TextMuted)
+                val canSelectG2 = hasGroup1 && cell.groupLevel != GroupLevel.G1
+                val isNone = cell.groupLevel == GroupLevel.NONE
                 val isG1 = cell.groupLevel == GroupLevel.G1
                 val isG2 = cell.groupLevel == GroupLevel.G2
 
-                // 세그먼트 버튼 (단순 구현: Button 2개)
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = { onSetGroupLevel(GroupLevel.G1) },
-                    enabled = true
-                ) { Text(if (isG1) "G1 ✓" else "G1", style = DDZTypography.ButtonText) }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(DDZColor.Card, RoundedCornerShape(12.dp))
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        modifier = Modifier.weight(1f),
+                        onClick = { onPathGroupAction(PathGroupAction.NONE) }
+                    ) { Text(if (isNone) "없음 ✓" else "없음", style = DDZTypography.ButtonText) }
 
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = { onSetGroupLevel(GroupLevel.G2) },
-                    enabled = g2Enabled
-                ) { Text(if (isG2) "G2 ✓" else "G2", style = DDZTypography.ButtonText) }
-            }
-            if (!g2Enabled) {
-                Text("※ G2는 G1 설정 후 사용 가능", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    Button(
+                        modifier = Modifier.weight(1f),
+                        onClick = { onPathGroupAction(PathGroupAction.G1) }
+                    ) { Text(if (isG1) "G1 ✓" else "G1", style = DDZTypography.ButtonText) }
+
+                    Button(
+                        modifier = Modifier.weight(1f),
+                        onClick = { onPathGroupAction(PathGroupAction.G2) },
+                        enabled = canSelectG2
+                    ) { Text(if (isG2) "G2 ✓" else "G2", style = DDZTypography.ButtonText) }
+                }
+
+                if (!canSelectG2) {
+                    Text("※ G2는 G1 설정 후 사용 가능 (현재 G1 셀에는 G2 설정 불가)", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                }
             }
         }
 
