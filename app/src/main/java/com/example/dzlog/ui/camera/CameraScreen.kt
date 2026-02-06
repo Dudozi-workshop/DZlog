@@ -460,8 +460,7 @@ fun CameraPreview(
                         saveMode = saveMode,
                         captureAspect = captureAspect,
                         tableTemplate = tableTemplateState,
-                        watermark = com.example.dzlog.domain.model.WatermarkConfig(
-                            showLabel = false,
+                        watermark = buildWatermarkConfig(
                             anchor = wmTableAnchor,
                             offsetXRatio = wmOffsetXRatio,
                             offsetYRatio = wmOffsetYRatio,
@@ -618,8 +617,7 @@ fun CameraPreview(
                             saveMode = saveMode,
                             captureAspect = captureAspect,
                             tableTemplate = tableTemplateState,
-                            watermark = com.example.dzlog.domain.model.WatermarkConfig(
-                                showLabel = false,
+                            watermark = buildWatermarkConfig(
                                 anchor = wmTableAnchor,
                                 offsetXRatio = wmOffsetXRatio,
                                 offsetYRatio = wmOffsetYRatio,
@@ -912,6 +910,32 @@ private fun WatermarkPreviewOverlay(
         }
     }
 }
+
+private fun buildWatermarkConfig(
+    anchor: WatermarkTableAnchor,
+    offsetXRatio: Int,
+    offsetYRatio: Int,
+    tableWidthRatio: Int,
+    tableHeightRatio: Int,
+    tableBgAlpha: Int,
+    bgStyle: Int,
+    labelScale: Int,
+    valueScale: Int
+): com.example.dzlog.domain.model.WatermarkConfig {
+    return com.example.dzlog.domain.model.WatermarkConfig(
+        showLabel = false,
+        anchor = anchor,
+        offsetXRatio = offsetXRatio,
+        offsetYRatio = offsetYRatio,
+        tableWidthRatio = tableWidthRatio,
+        tableHeightRatio = tableHeightRatio,
+        tableBgAlpha = tableBgAlpha,
+        bgStyle = bgStyle,
+        labelScale = labelScale,
+        valueScale = valueScale
+    )
+}
+
 
 private fun bindCamera(
     context: Context,

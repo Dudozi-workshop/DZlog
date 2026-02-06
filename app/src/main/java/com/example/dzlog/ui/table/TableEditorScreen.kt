@@ -12,10 +12,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,9 +27,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -60,17 +55,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalViewConfiguration
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
@@ -105,6 +96,7 @@ import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.ui.common.DDZSectionHeader
+import com.example.dzlog.ui.table.section.TableGridSection
 import com.example.dzlog.ui.table.section.TableStyleSection
 import com.example.dzlog.ui.table.section.WatermarkPlacementSection
 import com.example.dzlog.ui.theme.DDZColor
@@ -705,7 +697,7 @@ fun TableEditorScreen(
                                     .padding(10.dp)
                             ) {
 
-                            TableGridArea(
+                            TableGridSection(
                                     templateState = templateState,
                                     displayTextProvider = { cellId ->
                                         plan.resolvedCells
@@ -719,7 +711,7 @@ fun TableEditorScreen(
 
                                         if (editingCellId != null && editingCellId != id) {
                                             commitInlineEditIfNeeded()
-                                            if (editingCellId != null) return@TableGridArea
+                                            if (editingCellId != null) return@TableGridSection
                                         }
                                         selectedCellId = id
 
@@ -729,10 +721,10 @@ fun TableEditorScreen(
 
                                         if (editingCellId != null && editingCellId != cell.cellId) {
                                             commitInlineEditIfNeeded()
-                                            if (editingCellId != null) return@TableGridArea
+                                            if (editingCellId != null) return@TableGridSection
                                             selectedCellId = cell.cellId
                                             showCellSettingsPanel = true
-                                            return@TableGridArea
+                                            return@TableGridSection
                                         }
 
                                         selectedCellId = cell.cellId
@@ -1097,191 +1089,6 @@ private fun TableRowColSizeSection(
             style = DDZTypography.Caption,
             color = DDZColor.TextMuted
         )
-    }
-}
-
-@Composable
-private fun TableGridArea(
-    templateState: TableTemplateState,
-    displayTextProvider: (String) -> String,
-    selectedCellId: String?,
-    editingCellId: String?,
-    onSelectCell: (String) -> Unit,
-    onDoubleClickCell: (TableCellState) -> Unit,
-    editingValue: String,
-    onEditingValueChange: (String) -> Unit,
-    onCommitInline: () -> Unit,
-    inlineFocusRequester: FocusRequester,
-    onInlineFocusLostCommit: () -> Unit
-    ) {
-    @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val safeCols = templateState.cols.coerceAtLeast(1)
-        val cellW = remember(maxWidth, safeCols) { maxWidth / safeCols }
-
-        // ===== Grid 가시성 정책 =====
-        val minCellHeight = 48.dp
-        val defaultCellHeight = 64.dp
-
-        // 현재 화면에서 허용 가능한 최대 행 수 계산
-        val maxVisibleRows =
-            (maxHeight / minCellHeight).toInt().coerceAtLeast(1)
-
-        val needsVerticalScroll = templateState.rows > maxVisibleRows
-
-        val gridScrollState = rememberScrollState()
-
-        // NOTE: 세로는 rows가 많아지면 다 안 보일 수 있으므로,
-        // 여기서는 "가능한 범위 내 전체 가시"를 우선하고,
-        // 추후 임계치 기반 scale/scroll 정책을 이 영역에 적용한다.
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(
-                    if (needsVerticalScroll)
-                        Modifier.verticalScroll(gridScrollState)
-                    else Modifier
-                )
-        ) {
-            repeat(templateState.rows) { row ->
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    repeat(templateState.cols) { col ->
-                        val cell = templateState.cells.firstOrNull {
-                            it.rowIndex == row && it.colIndex == col
-                        }
-
-                        val isSelectedCell = cell?.cellId == selectedCellId
-                        val isEditingCell = cell?.cellId == editingCellId
-
-                        val cellBackground =
-                            if (isEditingCell) DDZColor.Success.copy(alpha = 0.2f) else DDZColor.Card
-
-                        Box(
-                            modifier = Modifier
-                                .width(cellW)
-                                .height(defaultCellHeight)
-                                .padding(2.dp)
-                                .background(cellBackground, RoundedCornerShape(8.dp))
-                                .border(
-                                    width = when {
-                                        isEditingCell -> 2.dp
-                                        isSelectedCell -> 2.dp
-                                        else -> 1.dp
-                                    },
-                                    color = when {
-                                        isEditingCell -> DDZColor.Success
-                                        isSelectedCell -> DDZColor.Primary
-                                        else -> DDZColor.Border
-                                    },
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .combinedClickable(
-                                    enabled = (cell != null && !isEditingCell),
-                                    onClick = {
-                                        if (cell == null) return@combinedClickable
-                                        onSelectCell(cell.cellId)
-                                    },
-                                    onDoubleClick = {
-                                        if (cell == null) return@combinedClickable
-                                        onDoubleClickCell(cell)
-                                    }
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (cell != null) {
-                                val display = displayTextProvider(cell.cellId)
-
-                                val canInlineEdit =
-                                    (cell.dataType == TableCellDataType.TEXT ||
-                                            cell.dataType == TableCellDataType.NUMBER ||
-                                            cell.dataType == TableCellDataType.COUNTER)
-
-                                if (isEditingCell && canInlineEdit) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 6.dp, vertical = 4.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(14.dp),
-                                            contentAlignment = Alignment.CenterStart
-                                        ) { CellHeaderBadges(cell) }
-
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .weight(1f),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            val keyboardType = when (cell.dataType) {
-                                                TableCellDataType.NUMBER -> KeyboardType.Decimal
-                                                TableCellDataType.COUNTER -> KeyboardType.Number
-                                                else -> KeyboardType.Text
-                                            }
-
-                                            var hasEverFocused by remember(cell.cellId) {
-                                                mutableStateOf(false)
-                                            }
-
-                                            BasicTextField(
-                                                value = editingValue,
-                                                onValueChange = onEditingValueChange,
-                                                singleLine = true,
-                                                textStyle = DDZTypography.Caption.copy(color = DDZColor.TextPrimary),
-                                                cursorBrush = SolidColor(DDZColor.Success),
-                                                keyboardOptions = KeyboardOptions(
-                                                    keyboardType = keyboardType,
-                                                    imeAction = ImeAction.Done
-                                                ),
-                                                keyboardActions = KeyboardActions(onDone = { onCommitInline() }),
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 2.dp, vertical = 2.dp)
-                                                    .focusRequester(inlineFocusRequester)
-                                                    .onFocusChanged { state ->
-                                                        if (state.isFocused) {
-                                                            if (!hasEverFocused) {
-                                                                hasEverFocused = true
-                                                            }
-                                                        }
-                                                        else if (hasEverFocused) {
-                                                            onInlineFocusLostCommit()
-                                                        }
-                                                    }
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 6.dp, vertical = 4.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(14.dp),
-                                            contentAlignment = Alignment.CenterStart
-                                        ) { CellHeaderBadges(cell) }
-
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .weight(1f),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(display, style = DDZTypography.Caption, color = DDZColor.TextPrimary)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
