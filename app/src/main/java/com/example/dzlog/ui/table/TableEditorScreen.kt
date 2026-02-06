@@ -835,18 +835,12 @@ fun TableEditorScreen(
                                     }
                                     onTemplateChange(updated)
                                 },
-                                onSetGroupEnabled = { enabled ->
-                                    if (!enabled) {
-                                        val updated = updateGroupLevel(templateState, selectedCell.cellId, GroupLevel.NONE)
-                                        onTemplateChange(updated)
-                                    } else {
-                                        // ON 시 기본값은 G1 (MVP)
-                                        val updated = updateGroupLevel(templateState, selectedCell.cellId, GroupLevel.G1)
-                                        onTemplateChange(updated)
-                                    }
-                                },
-                                onSetGroupLevel = { level ->
-                                    val updated = updateGroupLevel(templateState, selectedCell.cellId, level)
+                                onPathGroupAction = { action ->
+                                    val updated = applyPathGroupAction(
+                                        state = templateState,
+                                        targetCellId = selectedCell.cellId,
+                                        action = action
+                                    )
                                     onTemplateChange(updated)
                                 },
                                 onSetDataType = { type ->
@@ -1151,11 +1145,9 @@ private fun CellSettingsBottomPanel(
     cell: TableCellState,
     hasGroup1: Boolean,
     onSetFileNameInclude: (Boolean) -> Unit,
-    onSetGroupEnabled: (Boolean) -> Unit,
-    onSetGroupLevel: (GroupLevel) -> Unit,
+    onPathGroupAction: (PathGroupAction) -> Unit,
     onSetDataType: (TableCellDataType) -> Unit
     ) {
-    val groupEnabled = cell.groupLevel == GroupLevel.G1 || cell.groupLevel == GroupLevel.G2
 
     Column(
         modifier = modifier
@@ -1197,45 +1189,39 @@ private fun CellSettingsBottomPanel(
             }
 
             Column(modifier = Modifier.weight(1f)) {
-                Text("그룹 사용", style = DDZTypography.Body, color = DDZColor.TextMuted)
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (groupEnabled) "ON" else "OFF", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                    Switch(
-                        checked = groupEnabled,
-                        onCheckedChange = onSetGroupEnabled
-                    )
-                }
-            }
-        }
-
-        // ✅ Group ON일 때만 G1/G2 세그먼트 노출
-        if (groupEnabled) {
-            val g2Enabled = hasGroup1 || cell.groupLevel == GroupLevel.G2
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(DDZColor.Card, RoundedCornerShape(12.dp))
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+                Text("저장경로", style = DDZTypography.Body, color = DDZColor.TextMuted)
+                val canSelectG2 = hasGroup1 && cell.groupLevel != GroupLevel.G1
+                val isNone = cell.groupLevel == GroupLevel.NONE
                 val isG1 = cell.groupLevel == GroupLevel.G1
                 val isG2 = cell.groupLevel == GroupLevel.G2
 
-                // 세그먼트 버튼 (단순 구현: Button 2개)
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = { onSetGroupLevel(GroupLevel.G1) },
-                    enabled = true
-                ) { Text(if (isG1) "G1 ✓" else "G1", style = DDZTypography.ButtonText) }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(DDZColor.Card, RoundedCornerShape(12.dp))
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        modifier = Modifier.weight(1f),
+                        onClick = { onPathGroupAction(PathGroupAction.NONE) }
+                    ) { Text(if (isNone) "없음 ✓" else "없음", style = DDZTypography.ButtonText) }
 
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = { onSetGroupLevel(GroupLevel.G2) },
-                    enabled = g2Enabled
-                ) { Text(if (isG2) "G2 ✓" else "G2", style = DDZTypography.ButtonText) }
-            }
-            if (!g2Enabled) {
-                Text("※ G2는 G1 설정 후 사용 가능", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    Button(
+                        modifier = Modifier.weight(1f),
+                        onClick = { onPathGroupAction(PathGroupAction.G1) }
+                    ) { Text(if (isG1) "G1 ✓" else "G1", style = DDZTypography.ButtonText) }
+
+                    Button(
+                        modifier = Modifier.weight(1f),
+                        onClick = { onPathGroupAction(PathGroupAction.G2) },
+                        enabled = canSelectG2
+                    ) { Text(if (isG2) "G2 ✓" else "G2", style = DDZTypography.ButtonText) }
+                }
+
+                if (!canSelectG2) {
+                    Text("※ G2는 G1 설정 후 사용 가능 (현재 G1 셀에는 G2 설정 불가)", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                }
             }
         }
 
