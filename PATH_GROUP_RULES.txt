@@ -1,5 +1,5 @@
 PATH GROUP RULES (Source of Truth)
-RULE_VERSION: 2026-02-06
+RULE_VERSION: 2026-02-07
 
 1) Allowed states
 - Cell group state must be one of:
@@ -34,10 +34,16 @@ RULE_VERSION: 2026-02-06
 [G2]
 - Preconditions:
   - A G1 cell must already exist.
-  - Current cell must not be G1.
 - Set current cell to G2.
 - Existing G2 on another cell becomes NONE.
 - If preconditions fail, action is no-op.
+
+* Special swap rule (UX)
+- If the current cell is the G1 cell AND a G2 cell already exists,
+  clicking [G2] swaps the roles:
+  - current G1 -> G2
+  - existing G2 -> G1
+- If the current cell is the G1 cell BUT no G2 exists, action is no-op.
 
 5) G2-only forbidden normalization
 - Any resulting state with (no G1 + existing G2) must be normalized to:
@@ -46,7 +52,9 @@ RULE_VERSION: 2026-02-06
 6) Invalid input / no-op policy
 - targetCellId not found -> no-op.
 - Action G2 without existing G1 -> no-op.
-- Action G2 targeting the current G1 cell -> no-op.
+- Action G2 targeting the current G1 cell:
+  - if a G2 exists -> swap (see rule 4)
+  - else -> no-op
 - Reducer must never crash; it must return either:
   - unchanged state (no-op), or
   - normalized valid state.

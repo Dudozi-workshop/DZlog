@@ -1,9 +1,12 @@
 package com.example.dzlog.ui.table
 
+import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.GroupLevel
+import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 /**
@@ -32,14 +35,14 @@ class PathGroupReducerTest {
         id: String,
         group: GroupLevel = GroupLevel.NONE
     ) = TableCellState(
-        cellId = id,
         rowIndex = 0,
         colIndex = 0,
-        dataType = null,
         rawText = "",
-        typedValue = null,
+        typedValue = CellValue.Auto,
         groupLevel = group,
-        fileNameInclude = false
+        fileNameInclude = false,
+        cellId = id,
+        dataType = TableCellDataType.TEXT
     )
 
     private fun template(vararg cells: TableCellState) =
@@ -53,7 +56,7 @@ class PathGroupReducerTest {
     // 1️⃣ G1 유일성 테스트
     // -----------------------------
     @Test
-    fun only_one_G1_can_exist() {
+    fun only_one_g1_can_exist() {
         val state = template(
             cell("A", GroupLevel.G1),
             cell("B", GroupLevel.G1) // 잘못된 legacy 상태
@@ -73,7 +76,7 @@ class PathGroupReducerTest {
     // 2️⃣ G2 단독 금지 테스트
     // -----------------------------
     @Test
-    fun G2_cannot_exist_without_G1() {
+    fun g2_cannot_exist_without_g1() {
         val state = template(
             cell("A", GroupLevel.G2) // 불법 상태
         )
@@ -91,7 +94,7 @@ class PathGroupReducerTest {
     // 3️⃣ G1 ↔ G2 스왑 테스트 (핵심)
     // -----------------------------
     @Test
-    fun swap_G1_and_G2_when_G2_exists() {
+    fun swap_g1_and_g2_when_g2_exists() {
         val state = template(
             cell("A", GroupLevel.G1),
             cell("B", GroupLevel.G2)
@@ -108,6 +111,29 @@ class PathGroupReducerTest {
 
         assertEquals("G1 셀은 G2로 내려가야 한다", GroupLevel.G2, a.groupLevel)
         assertEquals("기존 G2 셀은 G1으로 올라가야 한다", GroupLevel.G1, b.groupLevel)
+    }
+
+    // -----------------------------
+    // 3-1️⃣ G1 셀에서 [G2] 클릭 (G2 미존재) → no-op
+    // -----------------------------
+    @Test
+    fun tapping_g2_on_g1_without_existing_g2_is_noop() {
+        val state = template(
+            cell("A", GroupLevel.G1),
+            cell("B", GroupLevel.NONE)
+        )
+
+        val result = applyPathGroupAction(
+            state = state,
+            targetCellId = "A", // 현재 G1 셀
+            action = PathGroupAction.G2
+        )
+
+        assertEquals(
+            "G2가 없는 상태에서 G1 셀을 [G2]로 누르면 스왑할 대상이 없으므로 상태가 변하지 않아야 한다",
+            state,
+            result
+        )
     }
 
     // -----------------------------
