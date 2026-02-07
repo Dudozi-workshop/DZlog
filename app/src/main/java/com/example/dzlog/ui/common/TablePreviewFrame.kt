@@ -13,14 +13,19 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.max
 
 /**
- * 표 프리뷰 컨테이너(프레임).
+ * TablePreviewFrame (내부 구현)
  *
- * - 부모 박스 크기가 화면마다 달라도, [aspectRatio]를 유지한 채 center-fit으로 그릴 수 있게 함
- * - 남는 공간은 레터박스(여백)로 두며, 실제 표는 중앙 정렬됨
- * - 렌더러(표를 그리는 컴포저블)는 "주어진 크기" 안에 그리기만 하면 됨
+ * ✅ 외부에서 직접 사용하지 말 것.
+ * - 공통 프리뷰 진입점(TablePreview)이 이 프레임을 사용한다.
+ * - 화면(Home/Settings 등)은 TablePreview를 호출한다.
+ *
+ * 기능:
+ * - 부모 박스 크기가 화면마다 달라도, [aspectRatio]를 유지한 채 center-fit으로 렌더 영역을 계산한다.
+ * - 남는 공간은 레터박스(여백)로 두며, 실제 표는 중앙 정렬된다.
+ * - 렌더러(TableRender)는 "주어진 크기" 안에 그리기만 하면 된다.
  */
 @Composable
-fun TablePreviewFrame(
+internal fun TablePreviewFrame(
     aspectRatio: Float,
     modifier: Modifier = Modifier,
     minInnerSize: Dp = 0.dp,
