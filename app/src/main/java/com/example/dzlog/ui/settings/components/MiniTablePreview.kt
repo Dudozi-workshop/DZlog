@@ -6,8 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.TableTemplateState
-import com.example.dzlog.ui.common.TableRender
-import com.example.dzlog.ui.common.TablePreviewFrame
+import com.example.dzlog.ui.common.TablePreview
 import java.util.Date
 
 /**
@@ -23,20 +22,13 @@ fun MiniTablePreview(
     now: Date,
     modifier: Modifier = Modifier
 ) {
-    val rows = templateState.rows.coerceAtLeast(1)
-    val cols = templateState.cols.coerceAtLeast(1)
-
-    TablePreviewFrame(
-        aspectRatio = cols / rows.toFloat(),
+    // 설정 화면도 동일 경로: TablePreview
+    TablePreview(
+        templateState = templateState,
+        counterDigits = counterDigits,
+        now = now,
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 96.dp, max = 200.dp)
-    ) { innerModifier ->
-        TableRender(
-            templateState = templateState,
-            counterDigits = counterDigits,
-            now = now,
-            modifier = innerModifier
-        )
-    }
+    )
 }
