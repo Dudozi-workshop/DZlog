@@ -25,11 +25,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
 import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.datastore.AppSettingsStore
-import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
@@ -40,7 +38,7 @@ import com.example.dzlog.ui.common.DDZButton
 import com.example.dzlog.ui.common.DDZButtonStyle
 import com.example.dzlog.ui.common.DDZCard
 import com.example.dzlog.ui.common.DDZSectionHeader
-import com.example.dzlog.ui.settings.components.MiniTablePreview
+import com.example.dzlog.ui.common.TablePreviewCard
 import com.example.dzlog.ui.settings.components.SegmentedControl
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
@@ -225,11 +223,13 @@ fun SettingsRootScreen(
             Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
                 DDZSectionHeader(title = "Template / Table")
                 Text("현재 템플릿", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                MiniTablePreview(
+                // 설정 화면도 TablePreviewCard로 통합 (크롬 없이 프리뷰만)
+                TablePreviewCard(
                     templateState = templateState,
-                    counterDigits = settings.counterPadding,
                     now = nowForPreview,
-                    modifier = Modifier.fillMaxWidth()
+                    counterDigits = settings.counterPadding,
+                    modifier = Modifier.fillMaxWidth(),
+                    chrome = false
                 )
                 DDZButton(
                     text = "표 상세설정으로 이동",

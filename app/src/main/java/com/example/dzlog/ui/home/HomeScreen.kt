@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +28,7 @@ import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.ui.common.DDZButton
 import com.example.dzlog.ui.common.DDZButtonStyle
 import com.example.dzlog.ui.common.DDZCard
+import com.example.dzlog.ui.common.TablePreviewCard
 import com.example.dzlog.ui.log.DzThumbnail
 import com.example.dzlog.ui.log.dzFormatDate
 import com.example.dzlog.ui.theme.DDZColor
@@ -95,10 +95,13 @@ fun HomeScreen(
                         .fillMaxHeight()
                         .clickable(onClick = onOpenTableEditor)
                 ) {
-                    MiniTablePreview(
+                    // 홈/설정 프리뷰 UI는 TablePreviewCard로 통합
+                    TablePreviewCard(
                         templateState = tableTemplateState,
-                        modifier = Modifier.fillMaxSize(),
-                        onClick = onOpenTableEditor
+                        counterDigits = 0,
+                        now = Date(),
+                        title = "표 미리보기",
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
 
