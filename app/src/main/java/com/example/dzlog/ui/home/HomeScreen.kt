@@ -106,6 +106,8 @@ fun HomeScreen(
                         now = Date(),
                         title = "표 미리보기",
                         wmBgStyle = previewSettings.wmBgStyle,
+                        wmBgAlpha = previewSettings.wmBgAlpha,
+                        wmValueScale = previewSettings.wmValueScale,
                         modifier = Modifier.fillMaxSize(),
                         // 홈 카드 영역은 높이 제약이 있으므로 프리뷰도 카드 전체를 채움
                         previewModifier = Modifier.fillMaxSize()

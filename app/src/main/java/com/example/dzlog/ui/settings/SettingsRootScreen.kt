@@ -240,6 +240,8 @@ fun SettingsRootScreen(
                     now = nowForPreview,
                     counterDigits = settings.counterPadding,
                     wmBgStyle = previewSettings.wmBgStyle,
+                    wmBgAlpha = previewSettings.wmBgAlpha,
+                    wmValueScale = previewSettings.wmValueScale,
                     modifier = Modifier.fillMaxWidth(),
                     chrome = false,
                     // 설정 화면은 높이 제약이 없는 스크롤 컬럼이므로 프리뷰 높이를 명시
