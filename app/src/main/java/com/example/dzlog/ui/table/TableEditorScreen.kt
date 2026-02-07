@@ -658,6 +658,42 @@ fun TableEditorScreen(
                 onTabSelected = { requestTabSwitch(it) }
             )
 
+            // ✅ 탭0 UI 분리용 콜백(동작/저장 로직은 여전히 Screen에 유지)
+            {
+                commitInlineEditIfNeeded()
+                editingCellId = null
+                keyboardController?.hide()
+            }
+            {
+                commitInlineEditIfNeeded()
+                editingCellId = null
+            }
+            {
+                commitInlineEditIfNeeded()
+                showCellSettingsPanel = false
+            }
+            {
+                commitInlineEditIfNeeded()
+                isSavingTemplate = true
+                scope.launch {
+                    runCatching {
+                        context.dataStore.edit { prefs ->
+                            prefs[KEY_TABLE_TEMPLATE_JSON] = templateState.toJsonString()
+                        }
+                    }.onFailure {
+                        Toast.makeText(
+                            context,
+                            "Save failed: ${it.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        isSavingTemplate = false
+                    }.onSuccess {
+                        Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
+                        onBack()
+                    }
+                }
+            }
+
             when (selectedTabIndex) {
                 0 -> {
                     // ==========================
@@ -973,7 +1009,7 @@ fun TableEditorScreen(
 }
 
 @Composable
-private fun CompactPathHeader(
+internal fun CompactPathHeader(
     savePath: String,
     fileName: String
     ) {
@@ -1108,7 +1144,7 @@ private fun TableRowColSizeSection(
 }
 
 @Composable
-private fun BottomFixedActionBar(
+internal fun BottomFixedActionBar(
     rows: Int,
     cols: Int,
     isSaving: Boolean,
@@ -1161,7 +1197,7 @@ private fun BottomFixedActionBar(
     }
 
 @Composable
-private fun CellSettingsBottomPanel(
+internal fun CellSettingsBottomPanel(
     modifier: Modifier,
     cell: TableCellState,
     hasGroup1: Boolean,
