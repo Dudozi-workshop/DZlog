@@ -1,6 +1,7 @@
 package com.example.dzlog.ui.common
 
 import android.graphics.RectF
+import androidx.annotation.IntRange
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -32,6 +33,8 @@ fun TableRender(
     modifier: Modifier = Modifier,
     // 배경이 투명/검정인 테이블도 항상 보이도록, 기본 배경은 밝은 회색
     bgColor: Color = Color(0xFFF2F2F2),
+    // 워터마크 표 배경 스타일(0=BLACK, 1=WHITE, 2=TRANSPARENT)
+    @IntRange(from = 0, to = 2) bgStyle: Int = 0,
     // 미리보기에서는 최대한 크게 보여주되, Canvas 경계 안에서만 fit
     tableWidthRatio: Int = 92,
     tableHeightRatio: Int = 92,
@@ -74,6 +77,7 @@ fun TableRender(
                     tableHeightRatio = tableHeightRatio,
                     tableWidthRatio = tableWidthRatio,
                     bgAlpha = bgAlpha,
+                    bgStyle = bgStyle,
                     // 라벨 비표시이므로 labelScale은 의미 없음
                     labelScale = 100,
                     valueScale = valueScale

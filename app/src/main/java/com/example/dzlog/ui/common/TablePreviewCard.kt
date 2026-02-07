@@ -33,6 +33,8 @@ fun TablePreviewCard(
     templateState: TableTemplateState,
     counterDigits: Int,
     now: Date,
+    // 워터마크 표 배경 스타일(0=BLACK, 1=WHITE, 2=TRANSPARENT)
+    wmBgStyle: Int = 0,
     modifier: Modifier = Modifier,
     title: String? = null,
     onClick: (() -> Unit)? = null,
@@ -69,6 +71,7 @@ fun TablePreviewCard(
                     templateState = templateState,
                     counterDigits = counterDigits,
                     now = now,
+                    wmBgStyle = wmBgStyle,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -84,6 +87,7 @@ fun TablePreviewCard(
                     templateState = templateState,
                     counterDigits = counterDigits,
                     now = now,
+                    wmBgStyle = wmBgStyle,
                     modifier = Modifier.fillMaxSize()
                 )
             }

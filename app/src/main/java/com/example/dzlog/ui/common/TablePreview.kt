@@ -2,6 +2,7 @@ package com.example.dzlog.ui.common
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -23,13 +24,20 @@ fun TablePreview(
     templateState: TableTemplateState,
     counterDigits: Int,
     now: Date,
+    // 워터마크 표 배경 스타일(0=BLACK, 1=WHITE, 2=TRANSPARENT)
+    wmBgStyle: Int = 0,
     modifier: Modifier = Modifier,
 ) {
-    val rows = templateState.rows.coerceAtLeast(1)
-    val cols = templateState.cols.coerceAtLeast(1)
+    // ✅ 프리뷰는 "표를 감싸는 내부 사각틀"이 실제 표 렌더 크기와 일치해야 한다.
+    // drawWatermarkTableOnCanvas는 tableH를 width(base) 기준으로 계산하며,
+    // tableHeightRatio는 (10..35)로 clamp 된다.
+    val previewTableWidthRatio = 100
+    val previewTableHeightRatio = 35
+    val frameAspectRatio = previewTableWidthRatio / previewTableHeightRatio.toFloat()
+    RoundedCornerShape(8.dp)
 
     TablePreviewFrame(
-        aspectRatio = cols / rows.toFloat(),
+        aspectRatio = frameAspectRatio,
         modifier = modifier
     ) { innerModifier ->
         // ✅ 프리뷰는 "내부 박스에 딱 맞는 표 + 최소 틈"을 목표로 함
@@ -39,11 +47,13 @@ fun TablePreview(
             templateState = templateState,
             counterDigits = counterDigits,
             now = now,
+            bgStyle = wmBgStyle.coerceIn(0, 2),
             modifier = innerModifier
                 .fillMaxSize()
-                .padding(2.dp),
-            tableWidthRatio = 100,
-            tableHeightRatio = 100,
+                // 표 가독성을 위한 미세 여백 (프리뷰 전용)
+                .padding(4.dp),
+            tableWidthRatio = previewTableWidthRatio,
+            tableHeightRatio = previewTableHeightRatio,
             offsetXRatio = 0,
             offsetYRatio = 0,
         )
