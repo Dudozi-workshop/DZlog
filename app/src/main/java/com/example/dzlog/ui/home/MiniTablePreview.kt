@@ -16,14 +16,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.TableTemplateState
-import com.example.dzlog.ui.common.DisplayTablePreview
+import com.example.dzlog.ui.common.TableRender
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 import java.util.Date
 
 /**
  * 홈 화면용 "표 미리보기"
- * - 표는 "하나의 덩어리"로 렌더링(설정 화면과 동일 계열 DisplayTablePreview)
+ * - 표는 "하나의 덩어리"로 렌더링(설정 화면과 동일 계열 TableRender)
  * - 박스 크기가 달라도 종횡비(aspectRatio) 유지 + center-fit
  */
 @Composable
@@ -67,7 +67,7 @@ fun MiniTablePreview(
                         .fillMaxWidth()
                         .aspectRatio(ratio)
                 ) {
-                    DisplayTablePreview(
+                    TableRender(
                         templateState = templateState,
                         counterDigits = 0,
                         now = Date(),

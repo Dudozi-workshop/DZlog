@@ -25,7 +25,7 @@ import com.example.dzlog.domain.table.ResolvePlan
 
 /**
  * 표 상세설정 전용 "편집형" 미리보기
- * - DisplayTablePreview(표+값만)와 달리, CellHeaderBadges(스티커/배지) 포함
+ * - TableRender(표+값만)와 달리, CellHeaderBadges(스티커/배지) 포함
  * - 편집/클릭/더블클릭 없음 (미리보기)
  * - 실제 편집 그리드와 같은 계산(행/열 기반)으로 그려서 "다른 표"처럼 보이지 않게 함
  */

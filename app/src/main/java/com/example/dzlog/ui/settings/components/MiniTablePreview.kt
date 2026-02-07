@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.TableTemplateState
-import com.example.dzlog.ui.common.DisplayTablePreview
+import com.example.dzlog.ui.common.TableRender
 import com.example.dzlog.ui.common.TablePreviewFrame
 import java.util.Date
 
@@ -32,7 +32,7 @@ fun MiniTablePreview(
             .fillMaxWidth()
             .heightIn(min = 96.dp, max = 200.dp)
     ) { innerModifier ->
-        DisplayTablePreview(
+        TableRender(
             templateState = templateState,
             counterDigits = counterDigits,
             now = now,

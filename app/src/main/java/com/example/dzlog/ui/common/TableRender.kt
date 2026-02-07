@@ -13,32 +13,29 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import com.example.dzlog.domain.model.TableTemplateState
+import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 import java.util.Date
 
 /**
- * "표만" 미리보기 렌더.
- * - 사진 합성 없음
- * - 카메라 오버레이와 동일한 워터마크 테이블 렌더러(drawWatermarkTableOnCanvas) 재사용
- * - 미리보기 컨테이너 배경은 밝은 회색으로 고정(가시성 확보)
+ * TableRender
+ * - "표 + 값" 만 보여주는 순수 렌더러 (홈/설정/촬영/로그 등 공용)
+ * - 라벨/배지/경고색/편집 UI는 절대 포함하지 않음
  */
 @Composable
-fun TableOnlyPreview(
+fun TableRender(
     templateState: TableTemplateState,
     counterDigits: Int,
     now: Date,
     modifier: Modifier = Modifier,
-    // 일반 미리보기(홈/설정/촬영 등)는 "실제 표"만 보여야 하므로 기본은 label 숨김.
-    // (표 상세설정 편집 화면에서만 showLabel=true 로 사용)
-    showLabel: Boolean = false,
+    // 배경이 투명/검정인 테이블도 항상 보이도록, 기본 배경은 밝은 회색
     bgColor: Color = Color(0xFFF2F2F2),
-    // 미리보기에서는 전체 영역에 표를 최대한 크게 보여주는 쪽이 직관적임
+    // 미리보기에서는 최대한 크게 보여주되, Canvas 경계 안에서만 fit
     tableWidthRatio: Int = 92,
     tableHeightRatio: Int = 92,
     bgAlpha: Int = 210,
-    labelScale: Int = 100,
     valueScale: Int = 100,
 ) {
     val resolver = remember { TableResolver() }
@@ -59,7 +56,6 @@ fun TableOnlyPreview(
     Box(modifier = modifier.background(bgColor)) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawIntoCanvas { canvas ->
-                // bounds: Canvas 전체
                 val bounds = RectF(0f, 0f, size.width, size.height)
                 drawWatermarkTableOnCanvas(
                     canvas = canvas.nativeCanvas,
@@ -67,14 +63,16 @@ fun TableOnlyPreview(
                     cells = cells,
                     rows = templateState.rows,
                     cols = templateState.cols,
-                    showLabel = showLabel,
-                    anchor = com.example.dzlog.domain.model.WatermarkTableAnchor.TOP_LEFT,
+                    // ✅ Display 전용: 라벨은 항상 숨김
+                    showLabel = false,
+                    anchor = WatermarkTableAnchor.TOP_LEFT,
                     offsetXRatio = 4,
                     offsetYRatio = 4,
                     tableHeightRatio = tableHeightRatio,
                     tableWidthRatio = tableWidthRatio,
                     bgAlpha = bgAlpha,
-                    labelScale = labelScale,
+                    // 라벨 비표시이므로 labelScale은 의미 없음
+                    labelScale = 100,
                     valueScale = valueScale
                 )
             }
