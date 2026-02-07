@@ -31,12 +31,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -95,6 +93,7 @@ import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.ui.common.DDZSectionHeader
+import com.example.dzlog.ui.table.section.TableEditorTabs
 import com.example.dzlog.ui.table.section.TableGridSection
 import com.example.dzlog.ui.table.section.TableOpacitySection
 import com.example.dzlog.ui.table.section.TableStyleSection
@@ -654,26 +653,10 @@ fun TableEditorScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            PrimaryTabRow(
+            TableEditorTabs(
                 selectedTabIndex = selectedTabIndex,
-                containerColor = DDZColor.Surface,
-                contentColor = DDZColor.TextPrimary
-            ) {
-                Tab(
-                    selected = selectedTabIndex == 0,
-                    onClick = { requestTabSwitch(0) },
-                    text = { Text("표 구조설정", style = DDZTypography.Body) },
-                    selectedContentColor = DDZColor.TextPrimary,
-                    unselectedContentColor = DDZColor.TextMuted
-                    )
-                Tab(
-                    selected = selectedTabIndex == 1,
-                    onClick = { requestTabSwitch(1) },
-                    text = { Text("표 미리보기", style = DDZTypography.Body) },
-                    selectedContentColor = DDZColor.TextPrimary,
-                    unselectedContentColor = DDZColor.TextMuted
-                    )
-            }
+                onTabSelected = { requestTabSwitch(it) }
+            )
 
             when (selectedTabIndex) {
                 0 -> {
