@@ -137,6 +137,66 @@ class PathGroupReducerTest {
     }
 
     // -----------------------------
+    // 3-1️⃣ G1 해제 시 G2 자동 해제(경계) 테스트
+    // -----------------------------
+    @Test
+    fun removing_g1_must_clear_g2_as_well() {
+        val state = template(
+            cell("A", GroupLevel.G1),
+            cell("B", GroupLevel.G2)
+        )
+
+        val result = applyPathGroupAction(
+            state = state,
+            targetCellId = "A", // G1 셀
+            action = PathGroupAction.NONE // G1 제거
+        )
+
+        val hasG1 = result.cells.any { it.groupLevel == GroupLevel.G1 }
+        val hasG2 = result.cells.any { it.groupLevel == GroupLevel.G2 }
+
+        assertFalse("G1을 제거하면 G1은 없어야 한다", hasG1)
+        assertFalse(
+            "G1 없이 G2만 남는 상태는 금지이므로, G2도 같이 제거되어야 한다",
+            hasG2
+        )
+    }
+
+    // -----------------------------
+    // 3-2️⃣ normalize 단독(결정적 tie-breaker + G2 유지 조건) 테스트
+    // -----------------------------
+    @Test
+    fun normalize_picks_preferred_candidate_and_keeps_g2_only_when_g1_exists() {
+        // legacy/오염 상태:
+        // - G1이 2개(B, C)
+        // - G2가 1개(A)
+        val dirty = template(
+            cell("A", GroupLevel.G2),
+            cell("B", GroupLevel.G1),
+            cell("C", GroupLevel.G1)
+        )
+
+        // preferredCellId가 G1 후보(C)에 포함되므로 C가 G1로 살아야 함
+        val normalized = normalizePathGroups(dirty, preferredCellId = "C")
+
+        val a = normalized.cells.first { it.cellId == "A" }
+        val b = normalized.cells.first { it.cellId == "B" }
+        val c = normalized.cells.first { it.cellId == "C" }
+
+        assertEquals("preferredCellId(C)가 G1 후보면 C가 G1로 선택되어야 한다", GroupLevel.G1, c.groupLevel)
+        assertEquals("나머지 G1 후보(B)는 정리되어야 한다", GroupLevel.NONE, b.groupLevel)
+        assertEquals("G1이 존재하는 상태에서는 G2(A)는 유지 가능", GroupLevel.G2, a.groupLevel)
+
+        // 그리고 G1이 사라지면, 어떤 이유로든 G2는 유지되면 안 됨
+        val noG1 = template(cell("A", GroupLevel.G2), cell("B", GroupLevel.NONE))
+        val normalizedNoG1 = normalizePathGroups(noG1, preferredCellId = "A")
+        assertFalse(
+            "G1 없이 G2만 남는 상태는 normalize로 반드시 제거되어야 한다",
+            normalizedNoG1.cells.any { it.groupLevel == GroupLevel.G2 }
+        )
+    }
+
+    // -----------------------------
     // 4️⃣ 무효 입력 no-op 테스트
     // -----------------------------
     @Test
