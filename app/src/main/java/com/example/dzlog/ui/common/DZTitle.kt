@@ -5,6 +5,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
+@Deprecated("Legacy UI. Use Text(style = DDZTypography.ScreenTitle, ...) instead.")
 @Composable
 fun DZTitle(
     text: String,
@@ -18,6 +19,7 @@ fun DZTitle(
     )
 }
 
+@Deprecated("Legacy UI. Use DDZSectionHeader instead.")
 @Composable
 fun DZSectionTitle(
     text: String,
