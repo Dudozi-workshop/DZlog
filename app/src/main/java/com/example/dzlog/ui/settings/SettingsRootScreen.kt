@@ -41,7 +41,7 @@ import com.example.dzlog.ui.common.DDZCard
 import com.example.dzlog.ui.common.DDZSectionHeader
 import com.example.dzlog.ui.common.DZTitle
 import com.example.dzlog.ui.common.TablePreviewCard
-import com.example.dzlog.ui.common.rememberWmBgStyle
+import com.example.dzlog.ui.common.rememberTablePreviewSettings
 import com.example.dzlog.ui.settings.components.SegmentedControl
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
@@ -80,8 +80,8 @@ fun SettingsRootScreen(
     // A) 상단 상태 요약(읽기 전용)
     val nowForPreview = remember { Date() }
 
-    // ✅ 즉시 반영(Flow 구독)
-    val wmBgStyle = rememberWmBgStyle()
+    // ✅ 즉시 반영(Flow 구독) - 표 프리뷰 설정 묶음
+    val previewSettings = rememberTablePreviewSettings()
 
     val (projectPathPreview, nextFilenamePreview) = remember(templateState, settings) {
         val relPath = runCatching { buildGalleryRelativePath(templateState.cells) }.getOrElse { "" }
@@ -239,7 +239,7 @@ fun SettingsRootScreen(
                     templateState = templateState,
                     now = nowForPreview,
                     counterDigits = settings.counterPadding,
-                    wmBgStyle = wmBgStyle,
+                    wmBgStyle = previewSettings.wmBgStyle,
                     modifier = Modifier.fillMaxWidth(),
                     chrome = false,
                     // 설정 화면은 높이 제약이 없는 스크롤 컬럼이므로 프리뷰 높이를 명시

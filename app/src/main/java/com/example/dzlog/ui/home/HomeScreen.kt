@@ -29,7 +29,7 @@ import com.example.dzlog.ui.common.DDZButton
 import com.example.dzlog.ui.common.DDZButtonStyle
 import com.example.dzlog.ui.common.DDZCard
 import com.example.dzlog.ui.common.TablePreviewCard
-import com.example.dzlog.ui.common.rememberWmBgStyle
+import com.example.dzlog.ui.common.rememberTablePreviewSettings
 import com.example.dzlog.ui.log.DzThumbnail
 import com.example.dzlog.ui.log.dzFormatDate
 import com.example.dzlog.ui.theme.DDZColor
@@ -50,8 +50,8 @@ fun HomeScreen(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    // ✅ 즉시 반영(Flow 구독)
-    val wmBgStyle = rememberWmBgStyle()
+    // ✅ 즉시 반영(Flow 구독) - 표 프리뷰 설정 묶음
+    val previewSettings = rememberTablePreviewSettings()
 
     var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
     LaunchedEffect(Unit) {
@@ -105,7 +105,7 @@ fun HomeScreen(
                         counterDigits = 0,
                         now = Date(),
                         title = "표 미리보기",
-                        wmBgStyle = wmBgStyle,
+                        wmBgStyle = previewSettings.wmBgStyle,
                         modifier = Modifier.fillMaxSize(),
                         // 홈 카드 영역은 높이 제약이 있으므로 프리뷰도 카드 전체를 채움
                         previewModifier = Modifier.fillMaxSize()
