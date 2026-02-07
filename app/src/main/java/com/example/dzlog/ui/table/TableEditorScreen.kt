@@ -30,7 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -107,6 +107,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
+import java.util.Locale
 
 
 @Composable
@@ -248,7 +249,7 @@ fun TableEditorScreen(
     }
 
     LaunchedEffect(currentScopeKey, previewCounterDigits, templateState) {
-        // ✅ 정책(스트림키=relativePathprefix) 기준 usedCounters  nextCounter 계산
+        // ✅ 정책(스트림키=relativePathPrefix) 기준 usedCounters  nextCounter 계산
         val used = CounterManager.getUsedCounters(
             context = context,
             relativePath = currentRelativePath,
@@ -273,6 +274,8 @@ fun TableEditorScreen(
 
         scopeNextCounter = desiredSeed
         lastScopeKey = currentScopeKey
+        // IDE 경고(Assigned value is never read) 방지: 다음 실행을 위한 상태를 즉시 한 번 읽어둔다.
+        val persistedScopeKey = lastScopeKey
 
         Log.d(
             "DZlogCounter",
@@ -280,7 +283,8 @@ fun TableEditorScreen(
             "usedCounters=$usedCounters\n"+
             "currentSeed=$currentSeed\n"+
             "nextByHistory=$nextByHistory\n"+
-            "scopeNextCounter=$scopeNextCounter"
+            "scopeNextCounter=$scopeNextCounter\n"+
+            "persistedScopeKey=$persistedScopeKey"
         )
 
         // ✅ 표시 ON/OFF와 무관하게, COUNTER 셀이 존재하면 seed는 정책 기준으로 항상 최신으로 맞춰둔다.
@@ -942,7 +946,7 @@ fun TableEditorScreen(
                                 }
                             )
 
-                            Divider()
+                            HorizontalDivider()
 
                             TableStyleSection(
                                 wmBgStyle = wmBgStyle,
@@ -954,7 +958,7 @@ fun TableEditorScreen(
                                 }
                             )
 
-                            Divider()
+                            HorizontalDivider()
 
                             TableOpacitySection(
                                 wmBgAlpha = wmBgAlpha,
@@ -965,7 +969,7 @@ fun TableEditorScreen(
                                 }
                             )
 
-                            Divider()
+                            HorizontalDivider()
 
                             TableValueTextSizeSection(
                                 wmValueScale = wmValueScale,
@@ -1087,7 +1091,7 @@ private fun TableRowColSizeSection(
                         valueRange = 0.3f..3.0f,
                         modifier = Modifier.weight(1f)
                     )
-                    Text(String.format("%.2f", v), modifier = Modifier.width(52.dp), style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    Text(String.format(Locale.US, "%.2f", v), modifier = Modifier.width(52.dp), style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 }
             }
 
@@ -1107,7 +1111,7 @@ private fun TableRowColSizeSection(
                         valueRange = 0.3f..3.0f,
                         modifier = Modifier.weight(1f)
                     )
-                    Text(String.format("%.2f", v), modifier = Modifier.width(52.dp), style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    Text(String.format(Locale.US, "%.2f", v), modifier = Modifier.width(52.dp), style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 }
             }
         }
@@ -1229,7 +1233,7 @@ private fun CellSettingsBottomPanel(
     // - G1이 반드시 존재해야 함
     // - 현재 셀이 G1이면: "G2가 이미 존재하는 경우에만" G1<->G2 스왑을 위해 허용
     val canSelectG2 = hasGroup1 && (
-        cell.groupLevel != GroupLevel.G1 || (cell.groupLevel == GroupLevel.G1 && hasGroup2)
+        cell.groupLevel != GroupLevel.G1 || hasGroup2
     )
                 val isNone = cell.groupLevel == GroupLevel.NONE
                 val isG1 = cell.groupLevel == GroupLevel.G1
@@ -1425,23 +1429,6 @@ private fun updateCell(
     return templateState.copy(
         cells = templateState.cells.map { cell ->
             if (cell.cellId == cellId) transform(cell) else cell
-        }
-    )
-}
-
-private fun updateGroupLevel(
-    templateState: TableTemplateState,
-    cellId: String,
-    level: GroupLevel
-): TableTemplateState {
-    return templateState.copy(
-        cells = templateState.cells.map { cell ->
-            when {
-                cell.cellId == cellId -> cell.copy(groupLevel = level)
-                level == GroupLevel.G1 && cell.groupLevel == GroupLevel.G1 -> cell.copy(groupLevel = GroupLevel.NONE)
-                level == GroupLevel.G2 && cell.groupLevel == GroupLevel.G2 -> cell.copy(groupLevel = GroupLevel.NONE)
-                else -> cell
-            }
         }
     )
 }
