@@ -67,10 +67,12 @@ import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
+import com.example.dzlog.data.preferences.KEY_WM_BG_ALPHA
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
+import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.toJsonString
 import com.example.dzlog.domain.counter.CounterManager
@@ -94,7 +96,9 @@ import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.ui.common.DDZSectionHeader
 import com.example.dzlog.ui.table.section.TableGridSection
+import com.example.dzlog.ui.table.section.TableOpacitySection
 import com.example.dzlog.ui.table.section.TableStyleSection
+import com.example.dzlog.ui.table.section.TableValueTextSizeSection
 import com.example.dzlog.ui.table.section.WatermarkPlacementSection
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
@@ -385,6 +389,10 @@ fun TableEditorScreen(
     var wmHeightRatio by remember { mutableIntStateOf(20) }
     // 0=BLACK, 1=WHITE, 2=TRANSPARENT
     var wmBgStyle by remember { mutableIntStateOf(0) }
+    // 0~255
+    var wmBgAlpha by remember { mutableIntStateOf(80) }
+    // 60~160 (기본 100)
+    var wmValueScale by remember { mutableIntStateOf(100) }
 
     // ✅ 촬영 프레임 비율(탭1 미리보기에서 사용)
     var captureAspect by remember { mutableStateOf(CaptureAspect.R3_4) }
@@ -402,6 +410,8 @@ fun TableEditorScreen(
             wmWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(40, 100)
             wmHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 35)
             wmBgStyle = (prefs[KEY_WM_TABLE_BG_STYLE] ?: 0).coerceIn(0, 2)
+            wmBgAlpha = (prefs[KEY_WM_BG_ALPHA] ?: 80).coerceIn(0, 255)
+            wmValueScale = (prefs[KEY_WM_VALUE_SCALE] ?: 100).coerceIn(60, 160)
 
             captureAspect = CaptureAspect.from(
                 prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v
@@ -874,7 +884,9 @@ fun TableEditorScreen(
                             anchor = wmAnchor,
                             tableWidthRatio = wmWidthRatio,
                             tableHeightRatio = wmHeightRatio,
-                            bgStyle = wmBgStyle
+                            bgStyle = wmBgStyle,
+                            bgAlpha = wmBgAlpha,
+                            valueScale = wmValueScale
                         )
 
                         // ✅ Row/Col 크기(비율) 조절은 "표 미리보기" 탭에서 수행 (Stage 4)
@@ -938,6 +950,30 @@ fun TableEditorScreen(
                                     wmBgStyle = bgStyle
                                     scope.launch {
                                         context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = bgStyle }
+                                    }
+                                }
+                            )
+
+                            Divider()
+
+                            TableOpacitySection(
+                                wmBgAlpha = wmBgAlpha,
+                                onBgAlphaChange = { alpha ->
+                                    val nv = alpha.coerceIn(0, 255)
+                                    wmBgAlpha = nv
+                                    scope.launch { context.dataStore.edit { it[KEY_WM_BG_ALPHA] = nv } }
+                                }
+                            )
+
+                            Divider()
+
+                            TableValueTextSizeSection(
+                                wmValueScale = wmValueScale,
+                                onValueScaleChange = { scale ->
+                                    val nv = scale.coerceIn(60, 160)
+                                    wmValueScale = nv
+                                    scope.launch {
+                                        context.dataStore.edit { it[KEY_WM_VALUE_SCALE] = nv }
                                     }
                                 }
                             )
@@ -1302,7 +1338,9 @@ private fun CameraLikeWatermarkPlacementPreview(
     anchor: WatermarkTableAnchor,
     tableWidthRatio: Int,
     tableHeightRatio: Int,
-    bgStyle: Int
+    bgStyle: Int,
+    bgAlpha: Int,
+    valueScale: Int
 ) {
     // bgStyle: 워터마크 표 배경 스타일
     // - 0: BLACK
@@ -1360,10 +1398,10 @@ private fun CameraLikeWatermarkPlacementPreview(
                         offsetYRatio = 0,
                         tableHeightRatio = tableHeightRatio,
                         tableWidthRatio = tableWidthRatio,
-                        bgAlpha = 80,
+                        bgAlpha = bgAlpha.coerceIn(0, 255),
                         bgStyle = bgStyle,
                         labelScale = 100,
-                        valueScale = 100,
+                        valueScale = valueScale.coerceIn(60, 160),
                         rowWeights = rowWeights,
                         colWeights = colWeights
                     )
