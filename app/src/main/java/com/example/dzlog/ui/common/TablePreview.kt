@@ -1,8 +1,10 @@
 package com.example.dzlog.ui.common
 
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.TableTemplateState
 import java.util.Date
 
@@ -30,11 +32,20 @@ fun TablePreview(
         aspectRatio = cols / rows.toFloat(),
         modifier = modifier
     ) { innerModifier ->
+        // ✅ 프리뷰는 "내부 박스에 딱 맞는 표 + 최소 틈"을 목표로 함
+        // - 렌더 내부 축소(92%)와 오프셋(4%)을 제거하고
+        // - 프리뷰 레벨의 dp padding으로만 미세 여백을 제공
         TableRender(
             templateState = templateState,
             counterDigits = counterDigits,
             now = now,
-            modifier = innerModifier.fillMaxSize()
+            modifier = innerModifier
+                .fillMaxSize()
+                .padding(2.dp),
+            tableWidthRatio = 100,
+            tableHeightRatio = 100,
+            offsetXRatio = 0,
+            offsetYRatio = 0,
         )
     }
 }

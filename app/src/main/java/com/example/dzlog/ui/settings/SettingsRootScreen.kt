@@ -225,6 +225,11 @@ fun SettingsRootScreen(
             Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
                 DDZSectionHeader(title = "Template / Table")
                 Text("현재 템플릿", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+
+                val rows = templateState.rows.coerceAtLeast(1)
+                val cols = templateState.cols.coerceAtLeast(1)
+                cols / rows.toFloat()
+
                 // 설정 화면도 TablePreviewCard로 통합 (크롬 없이 프리뷰만)
                 TablePreviewCard(
                     templateState = templateState,
