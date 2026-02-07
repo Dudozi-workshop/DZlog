@@ -6,7 +6,7 @@ import com.example.dzlog.domain.model.TableTemplateState
 
 /**
  * Source of truth: PATH_GROUP_RULES.txt
- * RULE_VERSION: 2026-02-06
+ * RULE_VERSION: 2026-02-07
  */
 enum class PathGroupAction {
     NONE,
@@ -20,7 +20,7 @@ enum class PathGroupAction {
  * No-op policy:
  * - targetCellId not found
  * - action=G2 while no G1 exists
- * - action=G2 targeting a G1 cell
+ * - action=G2 targeting a G1 cell while no G2 exists (swap requires an existing G2)
  */
 internal fun applyPathGroupAction(
     state: TableTemplateState,
@@ -45,19 +45,35 @@ internal fun applyPathGroupAction(
 
         PathGroupAction.G2 -> {
             val hasG1 = state.cells.any { it.groupLevel == GroupLevel.G1 }
-            if (!hasG1 || target.groupLevel == GroupLevel.G1) {
-                return state
-            }
+            if (!hasG1) return state
 
-            state.copy(
-                cells = state.cells.map { cell ->
-                    when {
-                        cell.cellId == targetCellId -> cell.copy(groupLevel = GroupLevel.G2)
-                        cell.groupLevel == GroupLevel.G2 -> cell.copy(groupLevel = GroupLevel.NONE)
-                        else -> cell
+            // Special rule: if target is the current G1 cell, allow G1<->G2 swap ONLY when a G2 exists.
+            // This enables the UX: on the G1 cell, tapping [G2] swaps the roles/paths.
+            if (target.groupLevel == GroupLevel.G1) {
+                val currentG2 = state.cells.firstOrNull { it.groupLevel == GroupLevel.G2 }
+                    ?: return state // no-op when there is no G2 to swap with
+
+                state.copy(
+                    cells = state.cells.map { cell ->
+                        when {
+                            cell.cellId == targetCellId -> cell.copy(groupLevel = GroupLevel.G2)
+                            cell.cellId == currentG2.cellId -> cell.copy(groupLevel = GroupLevel.G1)
+                            cell.groupLevel == GroupLevel.G2 -> cell.copy(groupLevel = GroupLevel.NONE)
+                            else -> cell
+                        }
                     }
-                }
-            )
+                )
+            } else {
+                state.copy(
+                    cells = state.cells.map { cell ->
+                        when {
+                            cell.cellId == targetCellId -> cell.copy(groupLevel = GroupLevel.G2)
+                            cell.groupLevel == GroupLevel.G2 -> cell.copy(groupLevel = GroupLevel.NONE)
+                            else -> cell
+                        }
+                    }
+                )
+            }
         }
     }
 
@@ -66,7 +82,7 @@ internal fun applyPathGroupAction(
 
 /**
  * Source of truth: PATH_GROUP_RULES.txt
- * RULE_VERSION: 2026-02-06
+ * RULE_VERSION: 2026-02-07
  *
  * Deterministic tie-breaker:
  * 1) preferredCellId (if candidate)
