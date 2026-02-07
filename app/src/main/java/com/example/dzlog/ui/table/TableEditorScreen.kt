@@ -6,8 +6,8 @@
 package com.example.dzlog.ui.table
 
 import android.graphics.RectF
-import android.widget.Toast
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -54,28 +54,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
-import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
+import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
-import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.toJsonString
+import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.GroupLevel
@@ -88,9 +86,8 @@ import com.example.dzlog.domain.model.TimeFormatOptions
 import com.example.dzlog.domain.model.TimeSeparator
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
-import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
-import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
+import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
@@ -102,7 +99,6 @@ import com.example.dzlog.ui.table.section.WatermarkPlacementSection
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -377,6 +373,7 @@ fun TableEditorScreen(
 
     val selectedCell = templateState.cells.firstOrNull { it.cellId == selectedCellId }
     val hasGroup1 = templateState.cells.any { it.groupLevel == GroupLevel.G1 }
+    val hasGroup2 = templateState.cells.any { it.groupLevel == GroupLevel.G2 }
 
     val savePathPreview = remember(templateState.cells) {
         buildGalleryRelativePath(templateState.cells)
@@ -829,6 +826,7 @@ fun TableEditorScreen(
                                 modifier = Modifier.align(Alignment.BottomCenter),
                                 cell = selectedCell,
                                 hasGroup1 = hasGroup1,
+                                hasGroup2 = hasGroup2,
                                 onSetFileNameInclude = { checked ->
                                     val updated = updateCell(templateState, selectedCell.cellId) { c ->
                                         c.copy(fileNameInclude = checked)
@@ -1144,6 +1142,7 @@ private fun CellSettingsBottomPanel(
     modifier: Modifier,
     cell: TableCellState,
     hasGroup1: Boolean,
+    hasGroup2: Boolean,
     onSetFileNameInclude: (Boolean) -> Unit,
     onPathGroupAction: (PathGroupAction) -> Unit,
     onSetDataType: (TableCellDataType) -> Unit
@@ -1190,7 +1189,12 @@ private fun CellSettingsBottomPanel(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text("저장경로", style = DDZTypography.Body, color = DDZColor.TextMuted)
-                val canSelectG2 = hasGroup1 && cell.groupLevel != GroupLevel.G1
+    // G2 선택 가능 조건
+    // - G1이 반드시 존재해야 함
+    // - 현재 셀이 G1이면: "G2가 이미 존재하는 경우에만" G1<->G2 스왑을 위해 허용
+    val canSelectG2 = hasGroup1 && (
+        cell.groupLevel != GroupLevel.G1 || (cell.groupLevel == GroupLevel.G1 && hasGroup2)
+    )
                 val isNone = cell.groupLevel == GroupLevel.NONE
                 val isG1 = cell.groupLevel == GroupLevel.G1
                 val isG2 = cell.groupLevel == GroupLevel.G2

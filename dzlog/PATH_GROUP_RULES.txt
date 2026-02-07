@@ -1,0 +1,33 @@
+PATH GROUP RULES (G1/G2)
+RULE_VERSION: 2026-02-07
+
+용어
+- GroupLevel.G1: 저장경로 상위(1단) 셀
+- GroupLevel.G2: 저장경로 하위(2단) 셀
+
+불변식
+1) 허용 상태: NONE, G1, G2
+2) 전역 유일성: 템플릿 전체에서 G1 최대 1개, G2 최대 1개
+3) G2 단독 금지: G1이 없으면 G2는 항상 NONE 처리
+
+세그먼트 버튼 동작 (선택된 셀 기준)
+- [없음]: 현재 셀만 NONE
+  - 결과로 G1이 사라져 G2만 남게 되면, G2도 자동 NONE 처리
+
+- [G1]: 현재 셀을 G1로 설정
+  - 기존 G1이 있으면 NONE 처리
+  - 현재 셀이 G2였다면, 현재 셀은 G1이 되고 G2는 비어있는 상태가 됨
+
+- [G2]: 전제조건: G1이 반드시 존재해야 함
+  - 일반 케이스(현재 셀이 G1이 아님): 현재 셀을 G2로 설정, 기존 G2는 NONE 처리
+  - 스왑 케이스(현재 셀이 G1임): G2가 이미 존재하는 경우에만 허용
+    - 현재(G1) 셀과 기존(G2) 셀의 groupLevel을 서로 교환 (G1<->G2)
+    - G2가 없으면 no-op
+
+no-op 정책
+- targetCellId가 존재하지 않으면 no-op
+- G1이 없는 상태에서 [G2] 요청은 no-op
+
+legacy/깨진 입력 normalize
+- 중복 G1/G2가 들어오면 deterministic tie-breaker(사전순 최소 cellId 유지)
+- normalize 결과는 항상 불변식을 만족해야 함
