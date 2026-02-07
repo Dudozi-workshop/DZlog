@@ -39,7 +39,6 @@ import com.example.dzlog.ui.common.DDZButton
 import com.example.dzlog.ui.common.DDZButtonStyle
 import com.example.dzlog.ui.common.DDZCard
 import com.example.dzlog.ui.common.DDZSectionHeader
-import com.example.dzlog.ui.common.DZTitle
 import com.example.dzlog.ui.common.TablePreviewCard
 import com.example.dzlog.ui.common.rememberTablePreviewSettings
 import com.example.dzlog.ui.settings.components.SegmentedControl
@@ -128,7 +127,11 @@ fun SettingsRootScreen(
     ) {
         // Header
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            DZTitle(text = "설정")
+            Text(
+                text = "설정",
+                style = DDZTypography.ScreenTitle,
+                color = DDZColor.TextPrimary
+            )
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onBack) { Text("Back", style = DDZTypography.ButtonText) }
         }
