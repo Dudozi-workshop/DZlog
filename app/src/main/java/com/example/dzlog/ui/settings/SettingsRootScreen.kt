@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -229,7 +230,9 @@ fun SettingsRootScreen(
                     now = nowForPreview,
                     counterDigits = settings.counterPadding,
                     modifier = Modifier.fillMaxWidth(),
-                    chrome = false
+                    chrome = false,
+                    // 설정 화면은 높이 제약이 없는 스크롤 컬럼이므로 프리뷰 높이를 명시
+                    previewModifier = Modifier.heightIn(min = 96.dp, max = 200.dp)
                 )
                 DDZButton(
                     text = "표 상세설정으로 이동",

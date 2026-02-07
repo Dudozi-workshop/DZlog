@@ -38,10 +38,15 @@ fun TablePreviewCard(
     onClick: (() -> Unit)? = null,
     // 홈은 박스(테두리/패딩) 스타일이 필요하고, 설정은 단순 프리뷰만 필요한 경우가 있어 옵션 제공
     chrome: Boolean = true,
+    // 프리뷰 영역의 높이/크기 제약을 화면별로 주입
+    // - 홈: Modifier.fillMaxSize()
+    // - 설정(스크롤 화면): Modifier.heightIn(...)
+    previewModifier: Modifier = Modifier,
 ) {
     val root = if (onClick != null) modifier.clickable(onClick = onClick) else modifier
+    val topPad = if (title != null) 8.dp else 0.dp
 
-    Column(modifier = root.fillMaxSize()) {
+    Column(modifier = root) {
         if (title != null) {
             Text(
                 text = title,
@@ -54,11 +59,11 @@ fun TablePreviewCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = if (title != null) 8.dp else 0.dp)
-                    .weight(1f, fill = true)
+                    .padding(top = topPad)
                     .background(DDZColor.Surface, RoundedCornerShape(10.dp))
                     .border(1.dp, DDZColor.Border, RoundedCornerShape(10.dp))
                     .padding(6.dp)
+                    .then(previewModifier)
             ) {
                 TablePreview(
                     templateState = templateState,
@@ -72,8 +77,8 @@ fun TablePreviewCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = if (title != null) 8.dp else 0.dp)
-                    .weight(1f, fill = true)
+                    .padding(top = topPad)
+                    .then(previewModifier)
             ) {
                 TablePreview(
                     templateState = templateState,
