@@ -12,7 +12,7 @@ import com.example.dzlog.ui.theme.DDZTypography
 @Composable
 fun TableOpacitySection(
     wmBgAlpha: Int,
-    onBgAlphaChange: (Int) -> Unit
+    onBgAlphaChange: (Int) -> Unit // 내부 저장은 0~255
 ) {
     // 내부값(0~255) → UI 퍼센트(0~100)
     val percent = (wmBgAlpha.coerceIn(0, 255) * 100) / 255
@@ -35,11 +35,5 @@ fun TableOpacitySection(
             onBgAlphaChange(alpha255.coerceIn(0, 255))
         },
         valueRange = 0f..100f
-    )
-
-    Slider(
-        value = wmBgAlpha.coerceIn(0, 255).toFloat(),
-        onValueChange = { onBgAlphaChange(it.toInt().coerceIn(0, 255)) },
-        valueRange = 0f..255f
     )
 }
