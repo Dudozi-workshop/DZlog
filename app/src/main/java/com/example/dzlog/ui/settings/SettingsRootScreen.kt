@@ -233,7 +233,10 @@ fun SettingsRootScreen(
                     modifier = Modifier.fillMaxWidth(),
                     chrome = false,
                     // 설정 화면은 높이 제약이 없는 스크롤 컬럼이므로 프리뷰 높이를 명시
-                    previewModifier = Modifier.heightIn(min = 96.dp, max = 200.dp)
+                    // 전체설정: 표가 영역을 꽉 채우도록(불필요한 여백 제거)
+                    previewModifier = Modifier
+                        .heightIn(min = 96.dp, max = 200.dp)
+                        .fillMaxWidth()
                 )
                 DDZButton(
                     text = "표 상세설정으로 이동",

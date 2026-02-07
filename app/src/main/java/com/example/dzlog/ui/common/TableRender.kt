@@ -35,6 +35,9 @@ fun TableRender(
     // 미리보기에서는 최대한 크게 보여주되, Canvas 경계 안에서만 fit
     tableWidthRatio: Int = 92,
     tableHeightRatio: Int = 92,
+    // 표를 bounds 안에서 살짝 띄워서(마진) 그릴 때 사용
+    offsetXRatio: Int = 4,
+    offsetYRatio: Int = 4,
     bgAlpha: Int = 210,
     valueScale: Int = 100,
 ) {
@@ -66,8 +69,8 @@ fun TableRender(
                     // ✅ Display 전용: 라벨은 항상 숨김
                     showLabel = false,
                     anchor = WatermarkTableAnchor.TOP_LEFT,
-                    offsetXRatio = 4,
-                    offsetYRatio = 4,
+                    offsetXRatio = offsetXRatio,
+                    offsetYRatio = offsetYRatio,
                     tableHeightRatio = tableHeightRatio,
                     tableWidthRatio = tableWidthRatio,
                     bgAlpha = bgAlpha,
