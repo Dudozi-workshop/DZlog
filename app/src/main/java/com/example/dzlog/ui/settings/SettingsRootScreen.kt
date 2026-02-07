@@ -18,13 +18,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -32,8 +29,6 @@ import androidx.compose.ui.unit.dp
 import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
 import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.datastore.AppSettingsStore
-import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
-import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
@@ -46,11 +41,11 @@ import com.example.dzlog.ui.common.DDZCard
 import com.example.dzlog.ui.common.DDZSectionHeader
 import com.example.dzlog.ui.common.DZTitle
 import com.example.dzlog.ui.common.TablePreviewCard
+import com.example.dzlog.ui.common.rememberWmBgStyle
 import com.example.dzlog.ui.settings.components.SegmentedControl
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
 import com.example.dzlog.ui.theme.DDZTypography
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
 
@@ -85,16 +80,8 @@ fun SettingsRootScreen(
     // A) 상단 상태 요약(읽기 전용)
     val nowForPreview = remember { Date() }
 
-    // ✅ 표 상세설정에서 저장한 "워터마크 표 배경 스타일"을 전체설정 프리뷰에도 반영
-    var wmBgStyle by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) {
-        runCatching {
-            val prefs = context.dataStore.data.first()
-            wmBgStyle = (prefs[KEY_WM_TABLE_BG_STYLE] ?: 0).coerceIn(0, 2)
-        }.onFailure {
-            wmBgStyle = 0
-        }
-    }
+    // ✅ 즉시 반영(Flow 구독)
+    val wmBgStyle = rememberWmBgStyle()
 
     val (projectPathPreview, nextFilenamePreview) = remember(templateState, settings) {
         val relPath = runCatching { buildGalleryRelativePath(templateState.cells) }.getOrElse { "" }
