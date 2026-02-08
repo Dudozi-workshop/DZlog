@@ -9,7 +9,6 @@ package com.example.dzlog.ui.camera
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -24,7 +23,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -82,7 +80,6 @@ import com.example.dzlog.watermark.WatermarkRendererImpl
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import java.util.Date
-import java.util.concurrent.atomic.AtomicBoolean
 
 // NOTE: buildWatermarkConfig는 다른 파일(핸들러)에서도 사용되므로 file-private 금지
 @Composable
@@ -152,25 +149,9 @@ fun CameraPreview(
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
-    var captureAspect by remember { mutableStateOf(CaptureAspect.R3_4) }
-    var saveMode by remember { mutableStateOf(SaveMode.BOTH) }
-    var continuousPreviewMode by remember { mutableStateOf(ContinuousPreviewMode.OFF) }
-    var counterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
+    val ui = remember { CameraUiState() }
 
     val tableResolver = remember { TableResolver() }
-    var showWizard by remember { mutableStateOf(false) }
-
-    var showWmPreview by remember { mutableStateOf(true) }
-    var wmTableAnchor by remember { mutableStateOf(WatermarkTableAnchor.BOTTOM_RIGHT) }
-    var wmTableWidthRatio by remember { mutableIntStateOf(40) }
-    var wmTableHeightRatio by remember { mutableIntStateOf(20) }
-    var wmOffsetXRatio by remember { mutableIntStateOf(0) }
-    var wmOffsetYRatio by remember { mutableIntStateOf(0) }
-    var wmBgAlpha by remember { mutableIntStateOf(80) }
-    // 0=BLACK, 1=WHITE, 2=TRANSPARENT
-    var wmBgStyle by remember { mutableIntStateOf(0) }
-    var wmLabelScale by remember { mutableIntStateOf(100) }
-    var wmValueScale by remember { mutableIntStateOf(100) }
     val fnDelim = "_"
 
     val tableCells = tableTemplateState.cells
@@ -178,24 +159,22 @@ fun CameraPreview(
     val dateFormat = "yyyy.MM.dd"
     val timeFormat = "HH.mm.ss"
 
-    var tapFocusUi by remember { mutableStateOf<TapFocusUiState?>(null) }
-    var now by remember { mutableStateOf(Date()) }
     LaunchedEffect(dateFormat, timeFormat) {
         val unit = decideTickUnit(dateFormat, timeFormat)
         while (true) {
             val delayMs = computeNextDelayMillis(unit)
             delay(delayMs)
-            now = Date()
+            ui.capture.now = Date()
         }
     }
 
-    val scopeKeyInfo = remember(tableTemplateState, counterDigits) {
+    val scopeKeyInfo = remember(tableTemplateState, ui.prefs.counterDigits) {
         val scopeNow = Date()
         val planForScope = tableResolver.plan(
             cells = tableCells,
             captureNow = scopeNow,
             config = TableResolver.Config(
-                counterDigits = counterDigits,
+                counterDigits = ui.prefs.counterDigits,
                 dateFormat = dateFormat,
                 timeFormat = timeFormat
             )
@@ -216,11 +195,8 @@ fun CameraPreview(
 
     val scopeRelativePath = scopeKeyInfo.first
     val scopePrefix = scopeKeyInfo.second
-    var scopeNextCounter by remember { mutableIntStateOf(1) }
-    // ✅ 카운터 스트림 변경 감지용
-    var lastScopeKey by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(scopeRelativePath, scopePrefix, counterDigits) {
+    LaunchedEffect(scopeRelativePath, scopePrefix, ui.prefs.counterDigits) {
         val scopeKey = "$scopeRelativePath|$scopePrefix"
         val counterCell = tableCells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
         val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start
@@ -229,46 +205,39 @@ fun CameraPreview(
             context = context,
             relativePath = scopeRelativePath,
             counterPrefix = scopePrefix,
-            counterDigits = counterDigits,
+            counterDigits = ui.prefs.counterDigits,
             fnDelim = fnDelim
         )
         val normalizedSeed = if (nextSeed < 1) 1 else nextSeed
-        val isNewStream = (lastScopeKey != null && lastScopeKey != scopeKey)
+        val isNewStream = (ui.counter.lastScopeKey != null && ui.counter.lastScopeKey != scopeKey)
         val desiredSeed = when {
             counterCell == null -> normalizedSeed
             currentSeed == null -> normalizedSeed
             isNewStream -> normalizedSeed
             else -> maxOf(normalizedSeed, currentSeed)
         }
-        scopeNextCounter = desiredSeed
+        ui.counter.scopeNextCounter = desiredSeed
         // 다음 실행에서 이전 스트림 비교에 사용됨
-        lastScopeKey = scopeKey
+        ui.counter.lastScopeKey = scopeKey
         // IDE inspection용 read (동작 영향 없음)
-        lastScopeKey
+        ui.counter.lastScopeKey
         if (counterCell != null && (currentSeed == null || currentSeed != desiredSeed)) {
             val patch = TablePatch(mapOf(counterCell.cellId to desiredSeed.toString()))
             onTemplateChange(tableTemplateState.applyPatch(patch))
         }
     }
 
-    // ✅ 결과 미리보기용 상태
-    var capturedUri by remember { mutableStateOf<Uri?>(null) }
-    // ✅ 촬영 중(in-flight) 상태: 중복 촬영 방지용
-    var isCapturing by remember { mutableStateOf(false) }
-    // ✅ 연타/동시 호출 방지 게이트(로직 레벨). UI 상태보다 우선함.
-    val captureGate = remember { AtomicBoolean(false) }
-
-    LaunchedEffect(capturedUri, continuousPreviewMode) {
-        if (capturedUri != null && continuousPreviewMode == ContinuousPreviewMode.SHORT) {
+    LaunchedEffect(ui.capture.capturedUri, ui.prefs.continuousPreviewMode) {
+        if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode == ContinuousPreviewMode.SHORT) {
             delay(1500)
-            capturedUri = null
+            ui.capture.capturedUri = null
         }
     }
 
     LaunchedEffect(Unit) {
         try {
             val prefs = context.dataStore.data.first()
-            wmTableAnchor = when (prefs[KEY_WM_TABLE_ANCHOR] ?: 3) {
+            ui.prefs.wmTableAnchor = when (prefs[KEY_WM_TABLE_ANCHOR] ?: 3) {
                 0 -> WatermarkTableAnchor.TOP_LEFT
                 1 -> WatermarkTableAnchor.TOP_RIGHT
                 2 -> WatermarkTableAnchor.BOTTOM_LEFT
@@ -276,44 +245,39 @@ fun CameraPreview(
                 else -> WatermarkTableAnchor.CUSTOM
             }
 
-            wmTableWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(40, 100)
-            wmTableHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 35)
-            wmOffsetXRatio = (prefs[KEY_WM_OFFSET_X] ?: 0).coerceIn(0, 100)
-            wmOffsetYRatio = (prefs[KEY_WM_OFFSET_Y] ?: 0).coerceIn(0, 100)
+            ui.prefs.wmTableWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(40, 100)
+            ui.prefs.wmTableHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 35)
+            ui.prefs.wmOffsetXRatio = (prefs[KEY_WM_OFFSET_X] ?: 0).coerceIn(0, 100)
+            ui.prefs.wmOffsetYRatio = (prefs[KEY_WM_OFFSET_Y] ?: 0).coerceIn(0, 100)
 
-            wmBgAlpha = (prefs[KEY_WM_BG_ALPHA] ?: 80).coerceIn(0, 255)
-            wmBgStyle = (prefs[KEY_WM_TABLE_BG_STYLE] ?: 0).coerceIn(0, 2)
-            wmLabelScale = (prefs[KEY_WM_LABEL_SCALE] ?: 100).coerceIn(60, 160)
-            wmValueScale = (prefs[KEY_WM_VALUE_SCALE] ?: 100).coerceIn(60, 160)
+            ui.prefs.wmBgAlpha = (prefs[KEY_WM_BG_ALPHA] ?: 80).coerceIn(0, 255)
+            ui.prefs.wmBgStyle = (prefs[KEY_WM_TABLE_BG_STYLE] ?: 0).coerceIn(0, 2)
+            ui.prefs.wmLabelScale = (prefs[KEY_WM_LABEL_SCALE] ?: 100).coerceIn(60, 160)
+            ui.prefs.wmValueScale = (prefs[KEY_WM_VALUE_SCALE] ?: 100).coerceIn(60, 160)
 
-            captureAspect = CaptureAspect.from(
+            ui.prefs.captureAspect = CaptureAspect.from(
                 prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v
             )
 
             // 표준: 0=원본, 1=워터마크, 2=원본+워터마크
-            saveMode = SaveMode.from(prefs[KEY_SAVE_MODE] ?: SaveMode.BOTH.v)
+            ui.prefs.saveMode = SaveMode.from(prefs[KEY_SAVE_MODE] ?: SaveMode.BOTH.v)
 
-            continuousPreviewMode = ContinuousPreviewMode.from(
+            ui.prefs.continuousPreviewMode = ContinuousPreviewMode.from(
                 prefs[KEY_CONTINUOUS_PREVIEW_MODE] ?: ContinuousPreviewMode.OFF.v
             )
 
-            counterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
-            showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
+            ui.prefs.counterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
+            ui.prefs.showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
         } catch (_: Exception) {
-            captureAspect = CaptureAspect.R3_4
-            saveMode = SaveMode.WATERMARK_ONLY
-            continuousPreviewMode = ContinuousPreviewMode.OFF
-            counterDigits = COUNTER_DIGITS_DEFAULT
-            showWmPreview = true
-            wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
-            wmTableWidthRatio = 40
-            wmTableHeightRatio = 20
-            wmOffsetXRatio = 0
-            wmOffsetYRatio = 0
-            wmBgAlpha = 80
-            wmBgStyle = 0
-            wmLabelScale = 100
-            wmValueScale = 100
+            ui.prefs.captureAspect = CaptureAspect.R3_4
+            ui.prefs.saveMode = SaveMode.WATERMARK_ONLY
+            ui.prefs.continuousPreviewMode = ContinuousPreviewMode.OFF
+            ui.prefs.counterDigits = COUNTER_DIGITS_DEFAULT
+            ui.prefs.showWmPreview = true
+            ui.prefs.wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
+            ui.prefs.wmTableWidthRatio = 40
+            ui.prefs.wmTableHeightRatio = 20
+            ui.prefs.wmOffsetXRatio = 0
         }
     }
 
@@ -340,52 +304,52 @@ fun CameraPreview(
                     context,
                     lifecycleOwner,
                     scope,
-                    captureAspect,
-                    saveMode,
-                    continuousPreviewMode,
-                    counterDigits,
+                    ui.prefs.captureAspect,
+                    ui.prefs.saveMode,
+                    ui.prefs.continuousPreviewMode,
+                    ui.prefs.counterDigits,
                     dateFormat,
                     timeFormat,
                     fnDelim,
                     tableTemplateState,
                     tableResolver,
-                    now,
-                    showWmPreview,
-                    wmTableAnchor,
-                    wmTableWidthRatio,
-                    wmTableHeightRatio,
-                    wmOffsetXRatio,
-                    wmOffsetYRatio,
-                    wmBgAlpha,
-                    wmBgStyle,
-                    wmLabelScale,
-                    wmValueScale
+                    ui.capture.now,
+                    ui.prefs.showWmPreview,
+                    ui.prefs.wmTableAnchor,
+                    ui.prefs.wmTableWidthRatio,
+                    ui.prefs.wmTableHeightRatio,
+                    ui.prefs.wmOffsetXRatio,
+                    ui.prefs.wmOffsetYRatio,
+                    ui.prefs.wmBgAlpha,
+                    ui.prefs.wmBgStyle,
+                    ui.prefs.wmLabelScale,
+                    ui.prefs.wmValueScale
                 ) {
                     CameraPreviewAreaArgs(
                         context = context,
                         lifecycleOwner = lifecycleOwner,
                         scope = scope,
-                        captureAspect = captureAspect,
-                        saveMode = saveMode,
-                        continuousPreviewMode = continuousPreviewMode,
-                        counterDigits = counterDigits,
+                        captureAspect = ui.prefs.captureAspect,
+                        saveMode = ui.prefs.saveMode,
+                        continuousPreviewMode = ui.prefs.continuousPreviewMode,
+                        counterDigits = ui.prefs.counterDigits,
                         dateFormat = dateFormat,
                         timeFormat = timeFormat,
                         fnDelim = fnDelim,
                         tableTemplateState = tableTemplateState,
                         tableResolver = tableResolver,
-                        now = now,
-                        showWmPreview = showWmPreview,
+                        now = ui.capture.now,
+                        showWmPreview = ui.prefs.showWmPreview,
                         watermarkUi = WatermarkUiArgs(
-                            anchor = wmTableAnchor,
-                            tableWidthRatio = wmTableWidthRatio,
-                            tableHeightRatio = wmTableHeightRatio,
-                            offsetXRatio = wmOffsetXRatio,
-                            offsetYRatio = wmOffsetYRatio,
-                            bgAlpha = wmBgAlpha,
-                            bgStyle = wmBgStyle,
-                            labelScale = wmLabelScale,
-                            valueScale = wmValueScale
+                            anchor = ui.prefs.wmTableAnchor,
+                            tableWidthRatio = ui.prefs.wmTableWidthRatio,
+                            tableHeightRatio = ui.prefs.wmTableHeightRatio,
+                            offsetXRatio = ui.prefs.wmOffsetXRatio,
+                            offsetYRatio = ui.prefs.wmOffsetYRatio,
+                            bgAlpha = ui.prefs.wmBgAlpha,
+                            bgStyle = ui.prefs.wmBgStyle,
+                            labelScale = ui.prefs.wmLabelScale,
+                            valueScale = ui.prefs.wmValueScale
                         )
                     )
                 }
@@ -395,10 +359,10 @@ fun CameraPreview(
                     boundCamera = boundCamera,
                     onBoundCameraChange = { boundCamera = it },
                     onBoundImageCaptureChange = { boundImageCapture = it },
-                    capturedUri = capturedUri,
-                    onDismissCaptured = { capturedUri = null },
-                    tapFocusUi = tapFocusUi,
-                    onTapFocusUiChange = { tapFocusUi = it }
+                    capturedUri = ui.capture.capturedUri,
+                    onDismissCaptured = { ui.capture.capturedUri = null },
+                    tapFocusUi = ui.capture.tapFocusUi,
+                    onTapFocusUiChange = { ui.capture.tapFocusUi = it }
                 )
             }
         }
@@ -408,7 +372,7 @@ fun CameraPreview(
         ) {
             CameraTopBarSection(
                 onExitToHome = onExitToHome,
-                onOpenSettings = { showWizard = true }
+                onOpenSettings = { ui.showWizard = true }
             )
         }
 
@@ -419,62 +383,62 @@ fun CameraPreview(
             contentAlignment = Alignment.Center
         ) {
             val enabledNow =
-                (boundImageCapture != null && capturedUri == null && !isCapturing)
+                (boundImageCapture != null && ui.capture.capturedUri == null && !ui.capture.isCapturing)
 
             CaptureButtonSection(
                 ready = enabledNow,
                 onClick = {
                     handleCaptureClick(
                         context = context,
-                        gate = captureGate,
+                        gate = ui.capture.captureGate,
                         imageCapture = boundImageCapture,
-                        capturedUriPresent = (capturedUri != null),
-                        continuousPreviewMode = continuousPreviewMode,
+                        capturedUriPresent = (ui.capture.capturedUri != null),
+                        continuousPreviewMode = ui.prefs.continuousPreviewMode,
                         tableResolver = tableResolver,
                         tableTemplateState = tableTemplateState,
-                        counterDigits = counterDigits,
+                        counterDigits = ui.prefs.counterDigits,
                         dateFormat = dateFormat,
                         timeFormat = timeFormat,
                         fnDelim = fnDelim,
-                        scopeNextCounter = scopeNextCounter,
-                        captureAspect = captureAspect,
-                        saveMode = saveMode,
-                        wmTableAnchor = wmTableAnchor,
-                        wmOffsetXRatio = wmOffsetXRatio,
-                        wmOffsetYRatio = wmOffsetYRatio,
-                        wmTableWidthRatio = wmTableWidthRatio,
-                        wmTableHeightRatio = wmTableHeightRatio,
-                        wmBgAlpha = wmBgAlpha,
-                        wmBgStyle = wmBgStyle,
-                        wmLabelScale = wmLabelScale,
-                        wmValueScale = wmValueScale,
+                        scopeNextCounter = ui.counter.scopeNextCounter,
+                        captureAspect = ui.prefs.captureAspect,
+                        saveMode = ui.prefs.saveMode,
+                        wmTableAnchor = ui.prefs.wmTableAnchor,
+                        wmOffsetXRatio = ui.prefs.wmOffsetXRatio,
+                        wmOffsetYRatio = ui.prefs.wmOffsetYRatio,
+                        wmTableWidthRatio = ui.prefs.wmTableWidthRatio,
+                        wmTableHeightRatio = ui.prefs.wmTableHeightRatio,
+                        wmBgAlpha = ui.prefs.wmBgAlpha,
+                        wmBgStyle = ui.prefs.wmBgStyle,
+                        wmLabelScale = ui.prefs.wmLabelScale,
+                        wmValueScale = ui.prefs.wmValueScale,
                         repository = repository,
                         buildWatermarkConfig = ::buildWatermarkConfig,
                         onApplyTemplatePatch = { onTemplateChange(it) },
-                        onUpdateScopeNextCounter = { scopeNextCounter = it },
-                        onSetCapturedUri = { capturedUri = it },
-                        onSetCapturing = { isCapturing = it }
+                        onUpdateScopeNextCounter = { ui.counter.scopeNextCounter = it },
+                        onSetCapturedUri = { ui.capture.capturedUri = it },
+                        onSetCapturing = { ui.capture.isCapturing = it }
                     )
                 }
             )
         }
 
-        if (showWizard) {
+        if (ui.showWizard) {
             CameraSettingsDialog(
                 context = context,
                 scope = scope,
-                showWmPreview = showWmPreview,
-                onShowWmPreviewChange = { showWmPreview = it },
-                continuousPreviewMode = continuousPreviewMode,
-                onContinuousPreviewModeChange = { continuousPreviewMode = it },
+                showWmPreview = ui.prefs.showWmPreview,
+                onShowWmPreviewChange = { ui.prefs.showWmPreview = it },
+                continuousPreviewMode = ui.prefs.continuousPreviewMode,
+                onContinuousPreviewModeChange = { ui.prefs.continuousPreviewMode = it },
                 onOpenTableEditor = onOpenTableEditor,
-                captureAspect = captureAspect,
-                onCaptureAspectChange = { captureAspect = it },
-                saveMode = saveMode,
-                onSaveModeChange = { saveMode = it },
-                counterDigits = counterDigits,
-                onCounterDigitsChange = { counterDigits = it },
-                onDismiss = { showWizard = false }
+                captureAspect = ui.prefs.captureAspect,
+                onCaptureAspectChange = { ui.prefs.captureAspect = it },
+                saveMode = ui.prefs.saveMode,
+                onSaveModeChange = { ui.prefs.saveMode = it },
+                counterDigits = ui.prefs.counterDigits,
+                onCounterDigitsChange = { ui.prefs.counterDigits = it },
+                onDismiss = { ui.showWizard = false }
             )
         }
     }
