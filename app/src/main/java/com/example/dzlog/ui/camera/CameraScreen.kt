@@ -74,8 +74,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -132,7 +130,6 @@ import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
 import com.example.dzlog.ui.theme.DDZTypography
 import com.example.dzlog.watermark.WatermarkRendererImpl
-import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
