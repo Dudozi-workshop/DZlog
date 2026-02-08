@@ -1,4 +1,4 @@
-package com.example.dzlog.ui.camera
+package com.example.dzlog.ui.camera.controls
 
 import android.content.Context
 import android.widget.Toast

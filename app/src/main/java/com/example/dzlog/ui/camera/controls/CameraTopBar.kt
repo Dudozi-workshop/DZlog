@@ -1,4 +1,4 @@
-package com.example.dzlog.ui.camera
+package com.example.dzlog.ui.camera.controls
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,13 +16,13 @@ import com.example.dzlog.ui.theme.DDZSpacing
 import com.example.dzlog.ui.theme.DDZTypography
 
 /**
- * [CameraTopBarSection]
- * - 목적: 촬영 화면 상단 네비게이션 UI(뒤로/촬영 설정)를 표시함
+ * [CameraTopBar]
+ * - 목적: 촬영 화면 상단의 네비게이션 UI(뒤로/촬영 설정)를 표시함
  * - 포함: 버튼 UI 렌더 + 클릭 콜백 연결
  * - 제외: CameraX/저장/상태 보유 로직 금지(표시 전용)
  */
 @Composable
-internal fun CameraTopBarSection(
+internal fun CameraTopBar(
     onExitToHome: () -> Unit,
     onOpenSettings: () -> Unit
 ) {

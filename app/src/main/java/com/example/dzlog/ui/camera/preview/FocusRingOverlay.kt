@@ -1,4 +1,4 @@
-package com.example.dzlog.ui.camera
+package com.example.dzlog.ui.camera.preview
 
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat

@@ -2,6 +2,10 @@
 
 package com.example.dzlog.ui.camera
 
+// NOTE: 패키지 이동(기계적 이동)으로 인해 참조 대상이 하위 패키지로 내려감
+
+// CameraX 바인딩 유틸은 controller로 이동됨(직접 호출이 남아있다면 이 import로 해결)
+
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
@@ -65,6 +69,13 @@ import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TablePatch
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.table.applyPatch
+import com.example.dzlog.ui.camera.controls.CameraTopBarSection
+import com.example.dzlog.ui.camera.controls.CaptureButtonSection
+import com.example.dzlog.ui.camera.controls.handleCaptureClick
+import com.example.dzlog.ui.camera.preview.CameraPreviewArea
+import com.example.dzlog.ui.camera.preview.CameraPreviewAreaArgs
+import com.example.dzlog.ui.camera.preview.WatermarkUiArgs
+import com.example.dzlog.ui.camera.settings.CameraSettingsDialog
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
 import com.example.dzlog.watermark.WatermarkRendererImpl
@@ -325,30 +336,62 @@ fun CameraPreview(
                     .weight(0.64f),
                 contentAlignment = Alignment.Center
             ) {
+                val previewAreaArgs = remember(
+                    context,
+                    lifecycleOwner,
+                    scope,
+                    captureAspect,
+                    saveMode,
+                    continuousPreviewMode,
+                    counterDigits,
+                    dateFormat,
+                    timeFormat,
+                    fnDelim,
+                    tableTemplateState,
+                    tableResolver,
+                    now,
+                    showWmPreview,
+                    wmTableAnchor,
+                    wmTableWidthRatio,
+                    wmTableHeightRatio,
+                    wmOffsetXRatio,
+                    wmOffsetYRatio,
+                    wmBgAlpha,
+                    wmBgStyle,
+                    wmLabelScale,
+                    wmValueScale
+                ) {
+                    CameraPreviewAreaArgs(
+                        context = context,
+                        lifecycleOwner = lifecycleOwner,
+                        scope = scope,
+                        captureAspect = captureAspect,
+                        saveMode = saveMode,
+                        continuousPreviewMode = continuousPreviewMode,
+                        counterDigits = counterDigits,
+                        dateFormat = dateFormat,
+                        timeFormat = timeFormat,
+                        fnDelim = fnDelim,
+                        tableTemplateState = tableTemplateState,
+                        tableResolver = tableResolver,
+                        now = now,
+                        showWmPreview = showWmPreview,
+                        watermarkUi = WatermarkUiArgs(
+                            anchor = wmTableAnchor,
+                            tableWidthRatio = wmTableWidthRatio,
+                            tableHeightRatio = wmTableHeightRatio,
+                            offsetXRatio = wmOffsetXRatio,
+                            offsetYRatio = wmOffsetYRatio,
+                            bgAlpha = wmBgAlpha,
+                            bgStyle = wmBgStyle,
+                            labelScale = wmLabelScale,
+                            valueScale = wmValueScale
+                        )
+                    )
+                }
+
                 CameraPreviewArea(
-                    context = context,
-                    lifecycleOwner = lifecycleOwner,
-                    scope = scope,
-                    captureAspect = captureAspect,
-                    saveMode = saveMode,
-                    continuousPreviewMode = continuousPreviewMode,
-                    counterDigits = counterDigits,
-                    dateFormat = dateFormat,
-                    timeFormat = timeFormat,
-                    fnDelim = fnDelim,
-                    tableTemplateState = tableTemplateState,
-                    tableResolver = tableResolver,
-                    now = now,
-                    showWmPreview = showWmPreview,
-                    wmTableAnchor = wmTableAnchor,
-                    wmTableWidthRatio = wmTableWidthRatio,
-                    wmTableHeightRatio = wmTableHeightRatio,
-                    wmOffsetXRatio = wmOffsetXRatio,
-                    wmOffsetYRatio = wmOffsetYRatio,
-                    wmBgAlpha = wmBgAlpha,
-                    wmBgStyle = wmBgStyle,
-                    wmLabelScale = wmLabelScale,
-                    wmValueScale = wmValueScale,
+                    args = previewAreaArgs,
                     boundCamera = boundCamera,
                     onBoundCameraChange = { boundCamera = it },
                     onBoundImageCaptureChange = { boundImageCapture = it },

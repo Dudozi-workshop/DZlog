@@ -1,8 +1,7 @@
 @file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 
-package com.example.dzlog.ui.camera
+package com.example.dzlog.ui.camera.preview
 
-import android.content.Context
 import android.graphics.RectF
 import android.util.Log
 import android.view.MotionEvent
@@ -23,25 +22,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Observer
-import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CaptureRequest
-import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.GroupLevel
-import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.model.TableCellDataType
-import com.example.dzlog.domain.model.TableTemplateState
-import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
+import com.example.dzlog.ui.camera.buildWatermarkConfig
+import com.example.dzlog.ui.camera.controller.bindCamera
+import com.example.dzlog.ui.camera.controller.resolvePreviewContentRect
+import com.example.dzlog.ui.camera.controller.startTapToFocus
 import com.example.dzlog.ui.theme.DDZColor
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.Date
 
 /**
  * CameraPreviewArea
@@ -51,29 +46,7 @@ import java.util.Date
  */
 @Composable
 internal fun CameraPreviewArea(
-    context: Context,
-    lifecycleOwner: LifecycleOwner,
-    scope: CoroutineScope,
-    captureAspect: CaptureAspect,
-    saveMode: SaveMode,
-    continuousPreviewMode: ContinuousPreviewMode,
-    counterDigits: Int,
-    dateFormat: String,
-    timeFormat: String,
-    fnDelim: String,
-    tableTemplateState: TableTemplateState,
-    tableResolver: TableResolver,
-    now: Date,
-    showWmPreview: Boolean,
-    wmTableAnchor: WatermarkTableAnchor,
-    wmTableWidthRatio: Int,
-    wmTableHeightRatio: Int,
-    wmOffsetXRatio: Int,
-    wmOffsetYRatio: Int,
-    wmBgAlpha: Int,
-    wmBgStyle: Int,
-    wmLabelScale: Int,
-    wmValueScale: Int,
+    args: CameraPreviewAreaArgs,
     boundCamera: Camera?,
     onBoundCameraChange: (Camera?) -> Unit,
     onBoundImageCaptureChange: (ImageCapture?) -> Unit,
@@ -82,6 +55,11 @@ internal fun CameraPreviewArea(
     tapFocusUi: TapFocusUiState?,
     onTapFocusUiChange: (TapFocusUiState?) -> Unit
 ) {
+    val context = args.context
+    val lifecycleOwner = args.lifecycleOwner
+    val scope = args.scope
+    val captureAspect = args.captureAspect
+
     var previewLogged by remember { mutableStateOf(false) }
 
     Box(
@@ -194,14 +172,14 @@ internal fun CameraPreviewArea(
             }
         }
 
-        val plan = remember(tableTemplateState, now, counterDigits, dateFormat, timeFormat) {
-            tableResolver.plan(
-                cells = tableTemplateState.cells,
-                captureNow = now,
+        val plan = remember(args.tableTemplateState, args.now, args.counterDigits, args.dateFormat, args.timeFormat) {
+            args.tableResolver.plan(
+                cells = args.tableTemplateState.cells,
+                captureNow = args.now,
                 config = TableResolver.Config(
-                    counterDigits = counterDigits,
-                    dateFormat = dateFormat,
-                    timeFormat = timeFormat
+                    counterDigits = args.counterDigits,
+                    dateFormat = args.dateFormat,
+                    timeFormat = args.timeFormat
                 )
             )
         }
@@ -210,33 +188,33 @@ internal fun CameraPreviewArea(
             plan.resolvedCells.any { it.type == TableCellDataType.COUNTER }
         }
 
-        val previewRequest: CaptureRequest = CaptureRequest(
+        val previewRequest = CaptureRequest(
             group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
             group2 = resolveGroupValue(plan.resolvedCells, GroupLevel.G2),
             displayName = buildDisplayNameFromResolvedCells(
                 resolvedCells = plan.resolvedCells,
-                fnDelim = fnDelim,
+                fnDelim = args.fnDelim,
                 includeDate = false,
                 includeTime = false,
                 // 프리뷰는 "실제 카운터 증가"를 트리거하지 않음. COUNTER 셀이 없을 때도 override는 쓰지 않음.
                 counterOverride = if (hasCounterCell) null else null,
-                now = now
+                now = args.now
             ),
             resolvedCells = plan.resolvedCells,
             watermarkCells = WatermarkBuilder.buildTableCells(plan.resolvedCells),
-            saveMode = saveMode,
+            saveMode = args.saveMode,
             captureAspect = captureAspect,
-            tableTemplate = tableTemplateState,
+            tableTemplate = args.tableTemplateState,
             watermark = buildWatermarkConfig(
-                anchor = wmTableAnchor,
-                offsetXRatio = wmOffsetXRatio,
-                offsetYRatio = wmOffsetYRatio,
-                tableWidthRatio = wmTableWidthRatio,
-                tableHeightRatio = wmTableHeightRatio,
-                tableBgAlpha = wmBgAlpha,
-                bgStyle = wmBgStyle,
-                labelScale = wmLabelScale,
-                valueScale = wmValueScale
+                anchor = args.watermarkUi.anchor,
+                offsetXRatio = args.watermarkUi.offsetXRatio,
+                offsetYRatio = args.watermarkUi.offsetYRatio,
+                tableWidthRatio = args.watermarkUi.tableWidthRatio,
+                tableHeightRatio = args.watermarkUi.tableHeightRatio,
+                tableBgAlpha = args.watermarkUi.bgAlpha,
+                bgStyle = args.watermarkUi.bgStyle,
+                labelScale = args.watermarkUi.labelScale,
+                valueScale = args.watermarkUi.valueScale
             )
         )
 
@@ -244,9 +222,9 @@ internal fun CameraPreviewArea(
             previewView = previewView,
             previewContentRect = previewContentRect,
             previewRequest = previewRequest,
-            showWmPreview = showWmPreview,
+            showWmPreview = args.showWmPreview,
             capturedUri = capturedUri,
-            continuousPreviewMode = continuousPreviewMode,
+            continuousPreviewMode = args.continuousPreviewMode,
             aspectRatio = captureAspect.ratioF,
             onDismissCaptured = onDismissCaptured,
             tapFocusUi = tapFocusUi

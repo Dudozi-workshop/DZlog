@@ -1,4 +1,4 @@
-package com.example.dzlog.ui.camera
+package com.example.dzlog.ui.camera.controls
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

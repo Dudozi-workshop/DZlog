@@ -1,4 +1,4 @@
-package com.example.dzlog.ui.camera
+package com.example.dzlog.ui.camera.settings
 
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
@@ -25,12 +25,6 @@ import com.example.dzlog.data.preferences.persistCaptureAspect
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
-import com.example.dzlog.ui.camera.settings.CaptureAspectSection
-import com.example.dzlog.ui.camera.settings.ContinuousPreviewSection
-import com.example.dzlog.ui.camera.settings.CounterDigitsSection
-import com.example.dzlog.ui.camera.settings.SaveModeSection
-import com.example.dzlog.ui.camera.settings.TableEditSection
-import com.example.dzlog.ui.camera.settings.WatermarkPreviewToggleSection
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
 import com.example.dzlog.ui.theme.DDZTypography

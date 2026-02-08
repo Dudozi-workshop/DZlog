@@ -1,4 +1,4 @@
-package com.example.dzlog.ui.camera
+package com.example.dzlog.ui.camera.preview
 
 /**
  * [FocusRingUiState]
