@@ -27,13 +27,6 @@ import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -68,14 +61,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.edit
@@ -131,15 +120,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
 import java.util.concurrent.TimeUnit
-
-// Tap-to-focus ring UI state
-private enum class FocusRingPhase { FOCUSING, SUCCESS }
-
-private data class TapFocusUiState(
-    val xPx: Float,
-    val yPx: Float,
-    val phase: FocusRingPhase = FocusRingPhase.FOCUSING
-)
 
 @Composable
 fun CameraScreen(
@@ -235,7 +215,7 @@ fun CameraPreview(
     val timeFormat = "HH.mm.ss"
 
     var tapFocusUi by remember { mutableStateOf<TapFocusUiState?>(null) }
-    val density = LocalDensity.current
+    LocalDensity.current
     var now by remember { mutableStateOf(Date()) }
     LaunchedEffect(dateFormat, timeFormat) {
         val unit = decideTickUnit(dateFormat, timeFormat)
@@ -502,53 +482,7 @@ fun CameraPreview(
                     // Tap-to-focus UI (ring)
                     val ui = tapFocusUi
                     if (ui != null) {
-                        val infinite = rememberInfiniteTransition(label = "focusRing")
-                        val pulseAlpha = infinite.animateFloat(
-                            initialValue = 0.55f,
-                            targetValue = 1.0f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(durationMillis = 280),
-                                repeatMode = RepeatMode.Reverse
-                            ),
-                            label = "pulseAlpha"
-                        ).value
-
-                        val pulseScale = infinite.animateFloat(
-                            initialValue = 0.96f,
-                            targetValue = 1.04f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(durationMillis = 280),
-                                repeatMode = RepeatMode.Reverse
-                            ),
-                            label = "pulseScale"
-                        ).value
-
-                        val targetScale = if (ui.phase == FocusRingPhase.FOCUSING) pulseScale else 1.0f
-                        val scale by animateFloatAsState(
-                            targetValue = targetScale,
-                            animationSpec = tween(durationMillis = 120),
-                            label = "scale"
-                        )
-
-                        val alpha = if (ui.phase == FocusRingPhase.FOCUSING) pulseAlpha else 1.0f
-
-                        Canvas(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .zIndex(5f)
-                        ) {
-                            val center = Offset(ui.xPx, ui.yPx)
-                            val radiusBase = with(density) { 28.dp.toPx() }
-                            val stroke = with(density) { 1.25.dp.toPx() }
-                            val radius = radiusBase * scale
-
-                            drawCircle(
-                                color = Color.White.copy(alpha = alpha),
-                                radius = radius,
-                                center = center,
-                                style = Stroke(width = stroke)
-                            )
-                        }
+                        FocusRingOverlay(ui)
                     }
                     val plan = remember(tableCells, now, counterDigits, dateFormat, timeFormat) {
                         tableResolver.plan(
