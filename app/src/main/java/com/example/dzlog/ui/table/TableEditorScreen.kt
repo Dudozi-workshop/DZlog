@@ -30,7 +30,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -93,12 +92,9 @@ import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.ui.common.DDZSectionHeader
+import com.example.dzlog.ui.table.section.PreviewTabContent
 import com.example.dzlog.ui.table.section.TableEditorTabs
 import com.example.dzlog.ui.table.section.TableGridSection
-import com.example.dzlog.ui.table.section.TableOpacitySection
-import com.example.dzlog.ui.table.section.TableStyleSection
-import com.example.dzlog.ui.table.section.TableValueTextSizeSection
-import com.example.dzlog.ui.table.section.WatermarkPlacementSection
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
@@ -658,42 +654,6 @@ fun TableEditorScreen(
                 onTabSelected = { requestTabSwitch(it) }
             )
 
-            // ✅ 탭0 UI 분리용 콜백(동작/저장 로직은 여전히 Screen에 유지)
-            {
-                commitInlineEditIfNeeded()
-                editingCellId = null
-                keyboardController?.hide()
-            }
-            {
-                commitInlineEditIfNeeded()
-                editingCellId = null
-            }
-            {
-                commitInlineEditIfNeeded()
-                showCellSettingsPanel = false
-            }
-            {
-                commitInlineEditIfNeeded()
-                isSavingTemplate = true
-                scope.launch {
-                    runCatching {
-                        context.dataStore.edit { prefs ->
-                            prefs[KEY_TABLE_TEMPLATE_JSON] = templateState.toJsonString()
-                        }
-                    }.onFailure {
-                        Toast.makeText(
-                            context,
-                            "Save failed: ${it.message}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        isSavingTemplate = false
-                    }.onSuccess {
-                        Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
-                        onBack()
-                    }
-                }
-            }
-
             when (selectedTabIndex) {
                 0 -> {
                     // ==========================
@@ -889,119 +849,56 @@ fun TableEditorScreen(
                     // ==========================
                     // 탭1: 표 미리보기
                     // ==========================
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(previewTabScrollState)
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // ✅ 촬영느낌 미리보기(비율 반영 워터마크 표 오버레이)
-                        CameraLikeWatermarkPlacementPreview(
-                            captureAspect = captureAspect,
-                            rows = templateState.rows,
-                            cols = templateState.cols,
-                            rowWeights = templateState.rowWeights,
-                            colWeights = templateState.colWeights,
-                            watermarkCells = WatermarkBuilder.buildTableCells(plan.resolvedCells),
-                            anchor = wmAnchor,
-                            tableWidthRatio = wmWidthRatio,
-                            tableHeightRatio = wmHeightRatio,
-                            bgStyle = wmBgStyle,
-                            bgAlpha = wmBgAlpha,
-                            valueScale = wmValueScale
-                        )
-
-                        // ✅ Row/Col 크기(비율) 조절은 "표 미리보기" 탭에서 수행 (Stage 4)
-                        TableRowColSizeSection(
-                            templateState = templateState,
-                            onTemplateChange = onTemplateChange
-                        )
-
-                        Spacer(Modifier.height(4.dp))
-
-                        // ✅ 표 위치/크기/스타일 설정 (상태는 화면에서 유지)
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(DDZColor.Card)
-                                .padding(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            WatermarkPlacementSection(
-                                wmAnchor = wmAnchor,
-                                wmWidthRatio = wmWidthRatio,
-                                wmHeightRatio = wmHeightRatio,
-                                onAnchorChange = { anchor ->
-                                    wmAnchor = anchor
-                                    scope.launch {
-                                        context.dataStore.edit { prefs ->
-                                            prefs[KEY_WM_TABLE_ANCHOR] = when (anchor) {
-                                                WatermarkTableAnchor.TOP_LEFT -> 0
-                                                WatermarkTableAnchor.TOP_RIGHT -> 1
-                                                WatermarkTableAnchor.BOTTOM_LEFT -> 2
-                                                else -> 3
-                                            }
-                                        }
-                                    }
-                                },
-                                onWidthRatioChange = { width ->
-                                    val nv = width.coerceIn(40, 100)
-                                    wmWidthRatio = nv
-                                    scope.launch {
-                                        context.dataStore.edit { prefs ->
-                                            prefs[KEY_WM_TABLE_WIDTH] = nv
-                                        }
-                                    }
-                                },
-                                onHeightRatioChange = { height ->
-                                    val nv = height.coerceIn(10, 35)
-                                    wmHeightRatio = nv
-                                    scope.launch {
-                                        context.dataStore.edit { prefs ->
-                                            prefs[KEY_WM_TABLE_HEIGHT] = nv
-                                        }
+                    PreviewTabContent(
+                        scrollState = previewTabScrollState,
+                        captureAspect = captureAspect,
+                        templateState = templateState,
+                        resolvedCells = plan.resolvedCells,
+                        wmAnchor = wmAnchor,
+                        wmWidthRatio = wmWidthRatio,
+                        wmHeightRatio = wmHeightRatio,
+                        wmBgStyle = wmBgStyle,
+                        wmBgAlpha = wmBgAlpha,
+                        wmValueScale = wmValueScale,
+                        onRowColWeightsChange = { updated -> onTemplateChange(updated) },
+                        onAnchorChange = { anchor ->
+                            wmAnchor = anchor
+                            scope.launch {
+                                context.dataStore.edit { prefs ->
+                                    prefs[KEY_WM_TABLE_ANCHOR] = when (anchor) {
+                                        WatermarkTableAnchor.TOP_LEFT -> 0
+                                        WatermarkTableAnchor.TOP_RIGHT -> 1
+                                        WatermarkTableAnchor.BOTTOM_LEFT -> 2
+                                        else -> 3
                                     }
                                 }
-                            )
-
-                            HorizontalDivider()
-
-                            TableStyleSection(
-                                wmBgStyle = wmBgStyle,
-                                onBgStyleChange = { bgStyle ->
-                                    wmBgStyle = bgStyle
-                                    scope.launch {
-                                        context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = bgStyle }
-                                    }
-                                }
-                            )
-
-                            HorizontalDivider()
-
-                            TableOpacitySection(
-                                wmBgAlpha = wmBgAlpha,
-                                onBgAlphaChange = { alpha ->
-                                    val nv = alpha.coerceIn(0, 255)
-                                    wmBgAlpha = nv
-                                    scope.launch { context.dataStore.edit { it[KEY_WM_BG_ALPHA] = nv } }
-                                }
-                            )
-
-                            HorizontalDivider()
-
-                            TableValueTextSizeSection(
-                                wmValueScale = wmValueScale,
-                                onValueScaleChange = { scale ->
-                                    val nv = scale.coerceIn(60, 160)
-                                    wmValueScale = nv
-                                    scope.launch {
-                                        context.dataStore.edit { it[KEY_WM_VALUE_SCALE] = nv }
-                                    }
-                                }
-                            )
+                            }
+                        },
+                        onWidthRatioChange = { width ->
+                            val nv = width.coerceIn(40, 100)
+                            wmWidthRatio = nv
+                            scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_WIDTH] = nv } }
+                        },
+                        onHeightRatioChange = { height ->
+                            val nv = height.coerceIn(10, 35)
+                            wmHeightRatio = nv
+                            scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_HEIGHT] = nv } }
+                        },
+                        onBgStyleChange = { bgStyle ->
+                            wmBgStyle = bgStyle
+                            scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = bgStyle } }
+                        },
+                        onBgAlphaChange = { alpha ->
+                            val nv = alpha.coerceIn(0, 255)
+                            wmBgAlpha = nv
+                            scope.launch { context.dataStore.edit { it[KEY_WM_BG_ALPHA] = nv } }
+                        },
+                        onValueScaleChange = { scale ->
+                            val nv = scale.coerceIn(60, 160)
+                            wmValueScale = nv
+                            scope.launch { context.dataStore.edit { it[KEY_WM_VALUE_SCALE] = nv } }
                         }
-                    }
+                    )
                 }
             }
         }
@@ -1054,7 +951,7 @@ private fun ensureColWeights(state: TableTemplateState): List<Float> {
 }
 
 @Composable
-private fun TableRowColSizeSection(
+internal fun TableRowColSizeSection(
     templateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit
 ) {
@@ -1351,7 +1248,7 @@ private fun DataTypeCardGrid3(
 }
 
 @Composable
-private fun CameraLikeWatermarkPlacementPreview(
+internal fun CameraLikeWatermarkPlacementPreview(
     captureAspect: CaptureAspect,
     rows: Int,
     cols: Int,
