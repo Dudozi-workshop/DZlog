@@ -10,12 +10,16 @@ import android.graphics.RectF
 import android.net.Uri
 import android.util.Log
 import android.util.Rational
+import android.view.MotionEvent
 import android.view.View
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
+import androidx.camera.core.MeteringPoint
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCaseGroup
 import androidx.camera.core.ViewPort
@@ -23,6 +27,7 @@ import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -45,7 +50,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -61,11 +65,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
@@ -88,13 +95,14 @@ import com.example.dzlog.data.preferences.KEY_WM_LABEL_SCALE
 import com.example.dzlog.data.preferences.KEY_WM_OFFSET_X
 import com.example.dzlog.data.preferences.KEY_WM_OFFSET_Y
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
+import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
-import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.preferences.persistCaptureAspect
 import com.example.dzlog.data.repository.DzlogRepositoryImpl
+import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.ContinuousPreviewMode
@@ -103,9 +111,7 @@ import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
-import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
-import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.preview.computeNextDelayMillis
@@ -126,6 +132,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
+import java.util.concurrent.TimeUnit
 
 @Composable
 fun CameraScreen(
@@ -193,6 +200,7 @@ fun CameraPreview(
     }
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+    var boundCamera by remember { mutableStateOf<Camera?>(null) }
     var captureAspect by remember { mutableStateOf(CaptureAspect.R3_4) }
     var saveMode by remember { mutableStateOf(SaveMode.BOTH) }
     var continuousPreviewMode by remember { mutableStateOf(ContinuousPreviewMode.OFF) }
@@ -218,6 +226,15 @@ fun CameraPreview(
 
     val dateFormat = "yyyy.MM.dd"
     val timeFormat = "HH.mm.ss"
+
+    data class TapFocusUiState(
+        val xPx: Float,
+        val yPx: Float,
+        val succeeded: Boolean? = null
+    )
+
+    var tapFocusUi by remember { mutableStateOf<TapFocusUiState?>(null) }
+    val density = LocalDensity.current
     var now by remember { mutableStateOf(Date()) }
     LaunchedEffect(dateFormat, timeFormat) {
         val unit = decideTickUnit(dateFormat, timeFormat)
@@ -263,8 +280,7 @@ fun CameraPreview(
         val scopeKey = "$scopeRelativePath|$scopePrefix"
         val counterCell = tableCells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
         val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start
-
-        // ✅ 정책(스트림키=relativePathprefix) 기준 next counter 계산
+        // ✅ 정책(스트림키=relativePathPrefix) 기준 next counter 계산
         val nextSeed = CounterManager.getNextCounter(
             context = context,
             relativePath = scopeRelativePath,
@@ -423,8 +439,47 @@ fun CameraPreview(
                             lifecycleOwner = lifecycleOwner,
                             previewView = previewView,
                             aspect = captureAspect
-                        ) { cap ->
+                        ) { cap, camera ->
                             boundImageCapture = cap
+                            boundCamera = camera
+                        }
+                    }
+
+                    DisposableEffect(previewView, boundCamera) {
+                        val camera = boundCamera
+
+                        // Tap-to-focus (AF/AE) on PreviewView
+                        val listener = View.OnTouchListener { v, event ->
+                            if (event.action != MotionEvent.ACTION_UP) return@OnTouchListener true
+                            if (camera == null) return@OnTouchListener true
+
+                            // Accessibility / lint: onTouch consumes click -> performClick required
+                            v?.performClick()
+
+                            val x = event.x
+                            val y = event.y
+                            tapFocusUi = TapFocusUiState(xPx = x, yPx = y, succeeded = null)
+
+                            startTapToFocus(
+                                context = context,
+                                camera = camera,
+                                previewView = previewView,
+                                xPx = x,
+                                yPx = y,
+                                onResult = { success ->
+                                    tapFocusUi = tapFocusUi?.copy(succeeded = success)
+                                    scope.launch {
+                                        delay(800)
+                                        tapFocusUi = null
+                                    }
+                                }
+                            )
+                            true
+                        }
+
+                        previewView.setOnTouchListener(listener)
+                        onDispose {
+                            previewView.setOnTouchListener(null)
                         }
                     }
 
@@ -433,6 +488,28 @@ fun CameraPreview(
                         factory = { _: Context -> previewView },
                         update = { it.scaleType = PreviewView.ScaleType.FILL_CENTER }
                     )
+
+                    // Tap-to-focus UI (ring)
+                    val ui = tapFocusUi
+                    if (ui != null) {
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .zIndex(5f)
+                        ) {
+                            val center = Offset(ui.xPx, ui.yPx)
+                            val radius = with(density) { 28.dp.toPx() }
+                            val stroke = with(density) { 2.dp.toPx() }
+
+                            // White ring while focusing; success/fail kept as same ring to stay subtle.
+                            drawCircle(
+                                color = Color.White,
+                                radius = radius,
+                                center = center,
+                                style = Stroke(width = stroke)
+                            )
+                        }
+                    }
                     val plan = remember(tableCells, now, counterDigits, dateFormat, timeFormat) {
                         tableResolver.plan(
                             cells = tableCells,
@@ -884,7 +961,7 @@ private fun WatermarkPreviewOverlay(
 
     val cells = request.watermarkCells
 
-    androidx.compose.foundation.Canvas(
+    Canvas(
         modifier = Modifier
             .fillMaxSize()
             .zIndex(1f)
@@ -942,7 +1019,7 @@ private fun bindCamera(
     lifecycleOwner: LifecycleOwner,
     previewView: PreviewView,
     aspect: CaptureAspect,
-    onBound: (ImageCapture?) -> Unit
+    onBound: (imageCapture: ImageCapture?, camera: Camera?) -> Unit
 ) {
     val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
     cameraProviderFuture.addListener({
@@ -1002,16 +1079,45 @@ private fun bindCamera(
 
         try {
             cameraProvider.unbindAll()
-            cameraProvider.bindToLifecycle(
+            val camera = cameraProvider.bindToLifecycle(
                 lifecycleOwner,
                 CameraSelector.DEFAULT_BACK_CAMERA,
                 useCaseGroup
             )
-            onBound(imageCapture)
+            onBound(imageCapture, camera)
         } catch (_: Exception) {
-            onBound(null)
+            onBound(null, null)
         }
     }, ContextCompat.getMainExecutor(context))
+}
+
+private fun startTapToFocus(
+    context: Context,
+    camera: Camera,
+    previewView: PreviewView,
+    xPx: Float,
+    yPx: Float,
+    onResult: (Boolean) -> Unit
+) {
+    val factory = previewView.meteringPointFactory
+    val point: MeteringPoint = factory.createPoint(xPx, yPx)
+
+    val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE)
+        .setAutoCancelDuration(3, TimeUnit.SECONDS)
+        .build()
+
+    val future = camera.cameraControl.startFocusAndMetering(action)
+    future.addListener(
+        {
+            try {
+                val result = future.get()
+                onResult(result.isFocusSuccessful)
+            } catch (_: Exception) {
+                onResult(false)
+            }
+        },
+        ContextCompat.getMainExecutor(context)
+    )
 }
 
 private fun resolvePreviewContentRect(previewView: PreviewView): RectF? {

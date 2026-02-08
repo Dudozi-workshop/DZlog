@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.CaptureAspect
@@ -49,6 +50,9 @@ fun PreviewTabContent(
     onValueScaleChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // ✅ 프리뷰 렌더용 셀 목록은 resolvedCells가 바뀔 때만 재계산
+    val watermarkCells = remember(resolvedCells) { WatermarkBuilder.buildTableCells(resolvedCells) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -62,7 +66,7 @@ fun PreviewTabContent(
             cols = templateState.cols,
             rowWeights = templateState.rowWeights,
             colWeights = templateState.colWeights,
-            watermarkCells = WatermarkBuilder.buildTableCells(resolvedCells),
+            watermarkCells = watermarkCells,
             anchor = wmAnchor,
             tableWidthRatio = wmWidthRatio,
             tableHeightRatio = wmHeightRatio,
