@@ -169,64 +169,16 @@ fun CameraPreview(
         }
     }
 
-    val scopeKeyInfo = remember(tableTemplateState, ui.prefs.counterDigits) {
-        val scopeNow = Date()
-        val planForScope = tableResolver.plan(
-            cells = tableCells,
-            captureNow = scopeNow,
-            config = TableResolver.Config(
-                counterDigits = ui.prefs.counterDigits,
-                dateFormat = dateFormat,
-                timeFormat = timeFormat
-            )
-        )
-        // ✅ counter 스트림 prefix: 날짜/시간 제외(파일명에는 붙어도 카운터에는 영향 없음)
-        val prefix = CounterManager.computeCounterPrefix(
-            resolvedCells = planForScope.resolvedCells,
-            fnDelim = fnDelim
-        )
-
-        // ✅ 카운터 스트림키의 relativePath는 "실제 저장 경로"와 동일한 기준으로 계산해야 함
-        // (저장은 CaptureRequest.group1/group2 = resolvedCells 기반)
-        val g1 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G1)
-        val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
-        val relativePath = buildGalleryRelativePath(g1, g2)
-        relativePath to prefix
-    }
-
-    val scopeRelativePath = scopeKeyInfo.first
-    val scopePrefix = scopeKeyInfo.second
-
-    LaunchedEffect(scopeRelativePath, scopePrefix, ui.prefs.counterDigits) {
-        val scopeKey = "$scopeRelativePath|$scopePrefix"
-        val counterCell = tableCells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
-        val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start
-        // ✅ 정책(스트림키=relativePathPrefix) 기준 next counter 계산
-        val nextSeed = CounterManager.getNextCounter(
-            context = context,
-            relativePath = scopeRelativePath,
-            counterPrefix = scopePrefix,
-            counterDigits = ui.prefs.counterDigits,
-            fnDelim = fnDelim
-        )
-        val normalizedSeed = if (nextSeed < 1) 1 else nextSeed
-        val isNewStream = (ui.counter.lastScopeKey != null && ui.counter.lastScopeKey != scopeKey)
-        val desiredSeed = when {
-            counterCell == null -> normalizedSeed
-            currentSeed == null -> normalizedSeed
-            isNewStream -> normalizedSeed
-            else -> maxOf(normalizedSeed, currentSeed)
-        }
-        ui.counter.scopeNextCounter = desiredSeed
-        // 다음 실행에서 이전 스트림 비교에 사용됨
-        ui.counter.lastScopeKey = scopeKey
-        // IDE inspection용 read (동작 영향 없음)
-        ui.counter.lastScopeKey
-        if (counterCell != null && (currentSeed == null || currentSeed != desiredSeed)) {
-            val patch = TablePatch(mapOf(counterCell.cellId to desiredSeed.toString()))
-            onTemplateChange(tableTemplateState.applyPatch(patch))
-        }
-    }
+    val scopeKeyInfo = rememberScopeKeyInfo(
+        tableResolver = tableResolver,
+        tableCells = tableCells,
+        counterDigits = ui.prefs.counterDigits,
+        dateFormat = dateFormat,
+        timeFormat = timeFormat,
+        fnDelim = fnDelim
+    )
+    scopeKeyInfo.first
+    scopeKeyInfo.second
 
     LaunchedEffect(ui.capture.capturedUri, ui.prefs.continuousPreviewMode) {
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode == ContinuousPreviewMode.SHORT) {
@@ -427,6 +379,77 @@ internal fun buildWatermarkConfig(
     )
 }
 
+@Composable
+private fun rememberScopeKeyInfo(
+    tableResolver: TableResolver,
+    tableCells: List<com.example.dzlog.domain.model.TableCellState>,
+    counterDigits: Int,
+    dateFormat: String,
+    timeFormat: String,
+    fnDelim: String
+): Pair<String, String> {
+    return remember(tableCells, counterDigits, dateFormat, timeFormat, fnDelim) {
+        val scopeNow = Date()
+        val planForScope = tableResolver.plan(
+            cells = tableCells,
+            captureNow = scopeNow,
+            config = TableResolver.Config(
+                counterDigits = counterDigits,
+                dateFormat = dateFormat,
+                timeFormat = timeFormat
+            )
+        )
+        val prefix = CounterManager.computeCounterPrefix(
+            resolvedCells = planForScope.resolvedCells,
+            fnDelim = fnDelim
+        )
+        val g1 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G1)
+        val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
+        val relativePath = buildGalleryRelativePath(g1, g2)
+        relativePath to prefix
+    }
+}
+
+@Composable
+private fun SyncCounterSeedEffect(
+    context: android.content.Context,
+    tableCells: List<com.example.dzlog.domain.model.TableCellState>,
+    tableTemplateState: TableTemplateState,
+    onTemplateChange: (TableTemplateState) -> Unit,
+    scopeRelativePath: String,
+    scopePrefix: String,
+    counterDigits: Int,
+    fnDelim: String,
+    ui: CameraUiState
+) {
+    LaunchedEffect(scopeRelativePath, scopePrefix, counterDigits) {
+        val scopeKey = "$scopeRelativePath|$scopePrefix"
+        val counterCell = tableCells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
+        val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start
+        val nextSeed = CounterManager.getNextCounter(
+            context = context,
+            relativePath = scopeRelativePath,
+            counterPrefix = scopePrefix,
+            counterDigits = counterDigits,
+            fnDelim = fnDelim
+        )
+        val normalizedSeed = if (nextSeed < 1) 1 else nextSeed
+        val isNewStream = (ui.counter.lastScopeKey != null && ui.counter.lastScopeKey != scopeKey)
+        val desiredSeed = when {
+            counterCell == null -> normalizedSeed
+            currentSeed == null -> normalizedSeed
+            isNewStream -> normalizedSeed
+            else -> maxOf(normalizedSeed, currentSeed)
+        }
+        ui.counter.scopeNextCounter = desiredSeed
+        ui.counter.lastScopeKey = scopeKey
+        ui.counter.lastScopeKey
+        if (counterCell != null && (currentSeed == null || currentSeed != desiredSeed)) {
+            val patch = TablePatch(mapOf(counterCell.cellId to desiredSeed.toString()))
+            onTemplateChange(tableTemplateState.applyPatch(patch))
+        }
+    }
+}
 private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
     try {
         ui.prefs.wmTableAnchor = when (prefs[KEY_WM_TABLE_ANCHOR] ?: 3) {

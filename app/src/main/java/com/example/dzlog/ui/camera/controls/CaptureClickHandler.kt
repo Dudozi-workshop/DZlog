@@ -130,9 +130,11 @@ internal fun handleCaptureClick(
 
             onApplyTemplatePatch(tableTemplateState.applyPatch(planForCapture.patch))
 
-            if (!hasCounterCell) {
-                onUpdateScopeNextCounter(computeNextScopeCounter(entry.displayName, scopeNextCounter))
-            }
+            // ✅ scopeNextCounter는 "COUNTER 셀이 없을 때" counterOverride로 사용됨.
+            // 하지만 COUNTER 셀 ON 상태에서 촬영을 누적한 뒤 OFF로 전환하면,
+            // 그동안 scopeNextCounter가 갱신되지 않아 1로 고정되는 문제가 생길 수 있음.
+            // 따라서 저장된 최종 파일명(displayName) 기준으로 항상 next 값을 동기화함.
+            onUpdateScopeNextCounter(computeNextScopeCounter(entry.displayName, scopeNextCounter))
 
             if (entry.isNameAdjusted) {
                 Toast.makeText(
