@@ -12,7 +12,6 @@ import android.util.Log
 import android.util.Rational
 import android.view.MotionEvent
 import android.view.View
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -98,6 +97,7 @@ import java.util.Date
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
+// NOTE: buildWatermarkConfig는 다른 파일(핸들러)에서도 사용되므로 file-private 금지
 @Composable
 fun CameraScreen(
     onExitToHome: () -> Unit,
@@ -528,97 +528,37 @@ fun CameraPreview(
             CaptureButtonSection(
                 ready = enabledNow,
                 onClick = {
-                    // NOTE: 촬영 저장 로직은 이 블록에 유지(현 단계: 분리하지 않음)
-                    val cap = boundImageCapture
-                    if (cap == null) {
-                        Toast.makeText(context, "카메라 준비 중", Toast.LENGTH_SHORT).show()
-                        return@CaptureButtonSection
-                    }
-                    if (capturedUri != null) return@CaptureButtonSection
-
-                    // ✅ 중복 촬영 방지: 첫 클릭만 통과
-                    if (!captureGate.compareAndSet(false, true)) return@CaptureButtonSection
-                    isCapturing = true
-
-                    // Use a single timestamp for this capture so watermark / file name are consistent.
-                    val captureNow = Date()
-                    val planForCapture = tableResolver.plan(
-                        cells = tableCells,
-                        captureNow = captureNow,
-                        config = TableResolver.Config(
-                            counterDigits = counterDigits,
-                            dateFormat = dateFormat,
-                            timeFormat = timeFormat
-                        )
-                    )
-
-                    val hasCounterCell =
-                        planForCapture.resolvedCells.any { it.type == TableCellDataType.COUNTER }
-                    val req = com.example.dzlog.domain.model.CaptureRequest(
-                        group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
-                        group2 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G2),
-                        displayName = buildDisplayNameFromResolvedCells(
-                            resolvedCells = planForCapture.resolvedCells,
-                            fnDelim = fnDelim,
-                            includeDate = false,
-                            includeTime = false,
-                            counterOverride = if (hasCounterCell) null else scopeNextCounter,
-                            now = captureNow
-                        ),
-                        resolvedCells = planForCapture.resolvedCells,
-                        watermarkCells = WatermarkBuilder.buildTableCells(planForCapture.resolvedCells),
-                        saveMode = saveMode,
-                        captureAspect = captureAspect,
-                        tableTemplate = tableTemplateState,
-                        watermark = buildWatermarkConfig(
-                            anchor = wmTableAnchor,
-                            offsetXRatio = wmOffsetXRatio,
-                            offsetYRatio = wmOffsetYRatio,
-                            tableWidthRatio = wmTableWidthRatio,
-                            tableHeightRatio = wmTableHeightRatio,
-                            tableBgAlpha = wmBgAlpha,
-                            bgStyle = wmBgStyle,
-                            labelScale = wmLabelScale,
-                            valueScale = wmValueScale
-                        )
-                    )
-
-                    // NOTE: 아래부터 비동기. 어떤 경로로든 gate 해제되어야 함.
-                    repository.captureAndSave(
+                    handleCaptureClick(
                         context = context,
-                        imageCapture = cap,
-                        request = req,
-                        onDone = { entry ->
-                            captureGate.set(false)
-                            isCapturing = false
-                            onTemplateChange(tableTemplateState.applyPatch(planForCapture.patch))
-
-                            if (!hasCounterCell) {
-                                val base = entry.displayName.substringBeforeLast('.', entry.displayName)
-                                val token = base.substringAfterLast('_', missingDelimiterValue = "").trim()
-                                val parsed = if (token.all { it.isDigit() }) token.toIntOrNull() else null
-                                scopeNextCounter = ((parsed ?: scopeNextCounter) + 1).coerceAtLeast(1)
-                            }
-
-                            if (entry.isNameAdjusted) {
-                                Toast.makeText(
-                                    context,
-                                    "중복 파일명으로 ${entry.displayName} 저장됨",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-
-                            if (continuousPreviewMode != ContinuousPreviewMode.OFF) {
-                                capturedUri = entry.contentUri
-                            } else {
-                                Toast.makeText(context, "저장 완료", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        onFail = { msg ->
-                            captureGate.set(false)
-                            isCapturing = false
-                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                        }
+                        scope = scope,
+                        gate = captureGate,
+                        imageCapture = boundImageCapture,
+                        capturedUriPresent = (capturedUri != null),
+                        continuousPreviewMode = continuousPreviewMode,
+                        tableResolver = tableResolver,
+                        tableTemplateState = tableTemplateState,
+                        counterDigits = counterDigits,
+                        dateFormat = dateFormat,
+                        timeFormat = timeFormat,
+                        fnDelim = fnDelim,
+                        scopeNextCounter = scopeNextCounter,
+                        captureAspect = captureAspect,
+                        saveMode = saveMode,
+                        wmTableAnchor = wmTableAnchor,
+                        wmOffsetXRatio = wmOffsetXRatio,
+                        wmOffsetYRatio = wmOffsetYRatio,
+                        wmTableWidthRatio = wmTableWidthRatio,
+                        wmTableHeightRatio = wmTableHeightRatio,
+                        wmBgAlpha = wmBgAlpha,
+                        wmBgStyle = wmBgStyle,
+                        wmLabelScale = wmLabelScale,
+                        wmValueScale = wmValueScale,
+                        repository = repository,
+                        buildWatermarkConfig = ::buildWatermarkConfig,
+                        onApplyTemplatePatch = { onTemplateChange(it) },
+                        onUpdateScopeNextCounter = { scopeNextCounter = it },
+                        onSetCapturedUri = { capturedUri = it },
+                        onSetCapturing = { isCapturing = it }
                     )
                 }
             )
@@ -645,7 +585,7 @@ fun CameraPreview(
     }
 }
 
-private fun buildWatermarkConfig(
+internal fun buildWatermarkConfig(
     anchor: WatermarkTableAnchor,
     offsetXRatio: Int,
     offsetYRatio: Int,
