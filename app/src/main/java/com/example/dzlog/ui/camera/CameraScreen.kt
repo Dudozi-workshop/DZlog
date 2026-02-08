@@ -27,6 +27,12 @@ import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -134,6 +140,15 @@ import kotlinx.coroutines.launch
 import java.util.Date
 import java.util.concurrent.TimeUnit
 
+// Tap-to-focus ring UI state
+private enum class FocusRingPhase { FOCUSING, SUCCESS }
+
+private data class TapFocusUiState(
+    val xPx: Float,
+    val yPx: Float,
+    val phase: FocusRingPhase = FocusRingPhase.FOCUSING
+)
+
 @Composable
 fun CameraScreen(
     onExitToHome: () -> Unit,
@@ -226,12 +241,6 @@ fun CameraPreview(
 
     val dateFormat = "yyyy.MM.dd"
     val timeFormat = "HH.mm.ss"
-
-    data class TapFocusUiState(
-        val xPx: Float,
-        val yPx: Float,
-        val succeeded: Boolean? = null
-    )
 
     var tapFocusUi by remember { mutableStateOf<TapFocusUiState?>(null) }
     val density = LocalDensity.current
@@ -461,7 +470,7 @@ fun CameraPreview(
 
                             val x = event.x
                             val y = event.y
-                            tapFocusUi = TapFocusUiState(xPx = x, yPx = y, succeeded = null)
+                            tapFocusUi = TapFocusUiState(xPx = x, yPx = y, phase = FocusRingPhase.FOCUSING)
 
                             startTapToFocus(
                                 context = context,
@@ -470,9 +479,14 @@ fun CameraPreview(
                                 xPx = x,
                                 yPx = y,
                                 onResult = { success ->
-                                    tapFocusUi = tapFocusUi?.copy(succeeded = success)
                                     scope.launch {
-                                        delay(800)
+                                        if (success) {
+                                            tapFocusUi = tapFocusUi?.copy(phase = FocusRingPhase.SUCCESS)
+                                            delay(350)
+                                        } else {
+                                            // 실패 UX는 표시하지 않음(요청 사항): 짧게 사라짐
+                                            delay(200)
+                                        }
                                         tapFocusUi = null
                                     }
                                 }
@@ -496,18 +510,48 @@ fun CameraPreview(
                     // Tap-to-focus UI (ring)
                     val ui = tapFocusUi
                     if (ui != null) {
+                        val infinite = rememberInfiniteTransition(label = "focusRing")
+                        val pulseAlpha = infinite.animateFloat(
+                            initialValue = 0.55f,
+                            targetValue = 1.0f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(durationMillis = 280),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "pulseAlpha"
+                        ).value
+
+                        val pulseScale = infinite.animateFloat(
+                            initialValue = 0.96f,
+                            targetValue = 1.04f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(durationMillis = 280),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "pulseScale"
+                        ).value
+
+                        val targetScale = if (ui.phase == FocusRingPhase.FOCUSING) pulseScale else 1.0f
+                        val scale by animateFloatAsState(
+                            targetValue = targetScale,
+                            animationSpec = tween(durationMillis = 120),
+                            label = "scale"
+                        )
+
+                        val alpha = if (ui.phase == FocusRingPhase.FOCUSING) pulseAlpha else 1.0f
+
                         Canvas(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .zIndex(5f)
                         ) {
                             val center = Offset(ui.xPx, ui.yPx)
-                            val radius = with(density) { 28.dp.toPx() }
-                            val stroke = with(density) { 2.dp.toPx() }
+                            val radiusBase = with(density) { 28.dp.toPx() }
+                            val stroke = with(density) { 1.25.dp.toPx() }
+                            val radius = radiusBase * scale
 
-                            // White ring while focusing; success/fail kept as same ring to stay subtle.
                             drawCircle(
-                                color = Color.White,
+                                color = Color.White.copy(alpha = alpha),
                                 radius = radius,
                                 center = center,
                                 style = Stroke(width = stroke)
