@@ -15,7 +15,6 @@ import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.table.applyPatch
 import com.example.dzlog.domain.watermark.WatermarkBuilder
-import kotlinx.coroutines.CoroutineScope
 import java.util.Date
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -27,7 +26,6 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 internal fun handleCaptureClick(
     context: Context,
-    scope: CoroutineScope,
     gate: AtomicBoolean,
     imageCapture: ImageCapture?,
     capturedUriPresent: Boolean,
@@ -67,11 +65,13 @@ internal fun handleCaptureClick(
     onSetCapturedUri: (android.net.Uri?) -> Unit,
     onSetCapturing: (Boolean) -> Unit
 ) {
-    val cap = imageCapture
-    if (cap == null) {
+    // ✅ imageCapture null 가드(토스트 + return)
+    // (부분 패치 적용으로 imageCaptureNonNull 참조만 남는 케이스 방지)
+    val imageCaptureNonNull = imageCapture ?: run {
         Toast.makeText(context, "카메라 준비 중", Toast.LENGTH_SHORT).show()
         return
     }
+
     if (capturedUriPresent) return
 
     // ✅ 중복 촬영 방지: 첫 클릭만 통과
@@ -106,22 +106,23 @@ internal fun handleCaptureClick(
         saveMode = saveMode,
         captureAspect = captureAspect,
         tableTemplate = tableTemplateState,
+        // 함수 타입 호출에서는 named argument 금지 → positional로 호출해야 함
         watermark = buildWatermarkConfig(
-            anchor = wmTableAnchor,
-            offsetXRatio = wmOffsetXRatio,
-            offsetYRatio = wmOffsetYRatio,
-            tableWidthRatio = wmTableWidthRatio,
-            tableHeightRatio = wmTableHeightRatio,
-            tableBgAlpha = wmBgAlpha,
-            bgStyle = wmBgStyle,
-            labelScale = wmLabelScale,
-            valueScale = wmValueScale
+            wmTableAnchor,
+            wmOffsetXRatio,
+            wmOffsetYRatio,
+            wmTableWidthRatio,
+            wmTableHeightRatio,
+            wmBgAlpha,
+            wmBgStyle,
+            wmLabelScale,
+            wmValueScale
         )
     )
 
     repository.captureAndSave(
         context = context,
-        imageCapture = cap,
+        imageCapture = imageCaptureNonNull,
         request = req,
         onDone = { entry ->
             gate.set(false)
@@ -130,10 +131,7 @@ internal fun handleCaptureClick(
             onApplyTemplatePatch(tableTemplateState.applyPatch(planForCapture.patch))
 
             if (!hasCounterCell) {
-                val base = entry.displayName.substringBeforeLast('.', entry.displayName)
-                val token = base.substringAfterLast('_', missingDelimiterValue = "").trim()
-                val parsed = if (token.all { it.isDigit() }) token.toIntOrNull() else null
-                onUpdateScopeNextCounter(((parsed ?: scopeNextCounter) + 1).coerceAtLeast(1))
+                onUpdateScopeNextCounter(computeNextScopeCounter(entry.displayName, scopeNextCounter))
             }
 
             if (entry.isNameAdjusted) {
@@ -156,4 +154,15 @@ internal fun handleCaptureClick(
             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
         }
     )
+}
+
+/**
+ * 파일명 끝 토큰이 숫자라면 그 값을 기반으로 next counter 계산함(기존 로직 동일)
+ * 예: "AAA_0007.jpg" -> 8
+ */
+private fun computeNextScopeCounter(displayName: String, current: Int): Int {
+    val base = displayName.substringBeforeLast('.', displayName)
+    val token = base.substringAfterLast('_', missingDelimiterValue = "").trim()
+    val parsed = if (token.isNotEmpty() && token.all { it.isDigit() }) token.toIntOrNull() else null
+    return ((parsed ?: current) + 1).coerceAtLeast(1)
 }

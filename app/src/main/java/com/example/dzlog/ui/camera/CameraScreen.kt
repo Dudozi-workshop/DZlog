@@ -383,7 +383,6 @@ fun CameraPreview(
                 onClick = {
                     handleCaptureClick(
                         context = context,
-                        scope = scope,
                         gate = captureGate,
                         imageCapture = boundImageCapture,
                         capturedUriPresent = (capturedUri != null),
