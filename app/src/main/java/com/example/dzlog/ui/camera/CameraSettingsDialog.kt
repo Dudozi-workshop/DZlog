@@ -195,8 +195,9 @@ internal fun CameraSettingsDialog(
                     RadioButton(
                         selected = saveMode == SaveMode.WATERMARK_ONLY,
                         onClick = {
-                            onSaveModeChange(SaveMode.WATERMARK_ONLY)
-                            scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = 0 } }
+                            val newMode = SaveMode.WATERMARK_ONLY
+                            onSaveModeChange(newMode)
+                            scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = newMode.v } }
                         }
                     )
                     Text("워터마크", style = DDZTypography.Body, color = DDZColor.Surface)
@@ -206,8 +207,9 @@ internal fun CameraSettingsDialog(
                     RadioButton(
                         selected = saveMode == SaveMode.ORIGINAL_ONLY,
                         onClick = {
-                            onSaveModeChange(SaveMode.ORIGINAL_ONLY)
-                            scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = 2 } }
+                            val newMode = SaveMode.ORIGINAL_ONLY
+                            onSaveModeChange(newMode)
+                            scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = newMode.v } }
                         }
                     )
                     Text("원본", style = DDZTypography.Body, color = DDZColor.Surface)
@@ -217,12 +219,9 @@ internal fun CameraSettingsDialog(
                     RadioButton(
                         selected = saveMode == SaveMode.BOTH,
                         onClick = {
-                            onSaveModeChange(SaveMode.BOTH)
-                            scope.launch {
-                                context.dataStore.edit { prefs: MutablePreferences ->
-                                    prefs[KEY_SAVE_MODE] = 1
-                                }
-                            }
+                            val newMode = SaveMode.BOTH
+                            onSaveModeChange(newMode)
+                            scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = newMode.v } }
                         }
                     )
                     Text("원본+워터마크", style = DDZTypography.Body, color = DDZColor.Surface)
