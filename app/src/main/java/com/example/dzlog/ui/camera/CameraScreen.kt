@@ -524,35 +524,13 @@ fun CameraPreview(
             }
         }
 
-        Row(
-            modifier = Modifier
-                .padding(
-                    top = DDZSpacing.screenPadding + DDZSpacing.sectionGap + DDZSpacing.itemGap,
-                    start = DDZSpacing.screenPadding,
-                    end = DDZSpacing.screenPadding
-                )
-                .align(Alignment.TopCenter)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier.align(Alignment.TopCenter)
         ) {
-            Box(
-                modifier = Modifier
-                    .background(DDZColor.PrimaryDark.copy(alpha = 0.4f))
-                    .clickable { onExitToHome() }
-                    .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
-            ) {
-                Text("뒤로", style = DDZTypography.ButtonText, color = DDZColor.Surface)
-            }
-
-            Box(
-                modifier = Modifier
-                    .background(DDZColor.PrimaryDark.copy(alpha = 0.4f))
-                    .clickable { showWizard = true }
-                    .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
-            ) {
-                Text("촬영 설정", style = DDZTypography.ButtonText, color = DDZColor.Surface)
-            }
+            CameraTopBar(
+                onExitToHome = onExitToHome,
+                onOpenSettings = { showWizard = true }
+            )
         }
 
         Box(
