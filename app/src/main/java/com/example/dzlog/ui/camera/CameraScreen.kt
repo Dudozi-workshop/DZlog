@@ -999,43 +999,6 @@ fun CameraPreview(
     }
 }
 
-@Composable
-private fun WatermarkPreviewOverlay(
-    enabled: Boolean,
-    request: com.example.dzlog.domain.model.CaptureRequest,
-    previewContentRect: RectF?
-) {
-    if (!enabled || previewContentRect == null) return
-
-    val cells = request.watermarkCells
-
-    Canvas(
-        modifier = Modifier
-            .fillMaxSize()
-            .zIndex(1f)
-    ) {
-        drawIntoCanvas { canvas ->
-            drawWatermarkTableOnCanvas(
-                canvas = canvas.nativeCanvas,
-                bounds = previewContentRect,
-                cells = cells,
-                rows = request.tableTemplate.rows,
-                cols = request.tableTemplate.cols,
-                showLabel = request.watermark.showLabel,
-                anchor = request.watermark.anchor,
-                offsetXRatio = request.watermark.offsetXRatio,
-                offsetYRatio = request.watermark.offsetYRatio,
-                tableHeightRatio = request.watermark.tableHeightRatio,
-                tableWidthRatio = request.watermark.tableWidthRatio,
-                bgAlpha = request.watermark.tableBgAlpha,
-                bgStyle = request.watermark.bgStyle,
-                labelScale = request.watermark.labelScale,
-                valueScale = request.watermark.valueScale
-            )
-        }
-    }
-}
-
 private fun buildWatermarkConfig(
     anchor: WatermarkTableAnchor,
     offsetXRatio: Int,
