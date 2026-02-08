@@ -28,14 +28,12 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -50,7 +48,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Observer
@@ -93,13 +90,13 @@ import com.example.dzlog.domain.table.applyPatch
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
-import com.example.dzlog.ui.theme.DDZTypography
 import com.example.dzlog.watermark.WatermarkRendererImpl
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 @Composable
 fun CameraScreen(
@@ -271,6 +268,10 @@ fun CameraPreview(
 
     // ✅ 결과 미리보기용 상태
     var capturedUri by remember { mutableStateOf<Uri?>(null) }
+    // ✅ 촬영 중(in-flight) 상태: 중복 촬영 방지용
+    var isCapturing by remember { mutableStateOf(false) }
+    // ✅ 연타/동시 호출 방지 게이트(로직 레벨). UI 상태보다 우선함.
+    val captureGate = remember { AtomicBoolean(false) }
 
     LaunchedEffect(capturedUri, continuousPreviewMode) {
         if (capturedUri != null && continuousPreviewMode == ContinuousPreviewMode.SHORT) {
@@ -521,114 +522,106 @@ fun CameraPreview(
                 .padding(bottom = DDZSpacing.screenPadding + DDZSpacing.itemGap),
             contentAlignment = Alignment.Center
         ) {
-            val enabledNow = (boundImageCapture != null && capturedUri == null)
+            val enabledNow =
+                (boundImageCapture != null && capturedUri == null && !isCapturing)
 
-            Box(
-                modifier = Modifier
-                    .size(78.dp)
-                    .background(
-                        color = if (enabledNow) DDZColor.Surface else DDZColor.IconMuted,
-                        shape = androidx.compose.foundation.shape.CircleShape
+            CaptureButtonSection(
+                ready = enabledNow,
+                onClick = {
+                    // NOTE: 촬영 저장 로직은 이 블록에 유지(현 단계: 분리하지 않음)
+                    val cap = boundImageCapture
+                    if (cap == null) {
+                        Toast.makeText(context, "카메라 준비 중", Toast.LENGTH_SHORT).show()
+                        return@CaptureButtonSection
+                    }
+                    if (capturedUri != null) return@CaptureButtonSection
+
+                    // ✅ 중복 촬영 방지: 첫 클릭만 통과
+                    if (!captureGate.compareAndSet(false, true)) return@CaptureButtonSection
+                    isCapturing = true
+
+                    // Use a single timestamp for this capture so watermark / file name are consistent.
+                    val captureNow = Date()
+                    val planForCapture = tableResolver.plan(
+                        cells = tableCells,
+                        captureNow = captureNow,
+                        config = TableResolver.Config(
+                            counterDigits = counterDigits,
+                            dateFormat = dateFormat,
+                            timeFormat = timeFormat
+                        )
                     )
-                    .clickable(enabled = enabledNow) {
-                        val cap = boundImageCapture
-                        if (cap == null) {
-                            Toast.makeText(context, "카메라 준비 중", Toast.LENGTH_SHORT).show()
-                            return@clickable
-                        }
 
-                        // Use a single timestamp for this capture so watermark / file name are consistent.
-                        val captureNow = Date()
-                        val planForCapture = tableResolver.plan(
-                            cells = tableCells,
-                            captureNow = captureNow,
-                            config = TableResolver.Config(
-                                counterDigits = counterDigits,
-                                dateFormat = dateFormat,
-                                timeFormat = timeFormat
-                            )
-                        )
-
-                        val hasCounterCell = planForCapture.resolvedCells.any { it.type == TableCellDataType.COUNTER }
-                        val req = com.example.dzlog.domain.model.CaptureRequest(
-                            group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
-                            group2 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G2),
-                            displayName = buildDisplayNameFromResolvedCells(
-                                resolvedCells = planForCapture.resolvedCells,
-                                fnDelim = fnDelim,
-                                includeDate = false,
-                                includeTime = false,
-                                counterOverride = if (hasCounterCell) null else scopeNextCounter,
-                                now = captureNow
-                            ),
+                    val hasCounterCell =
+                        planForCapture.resolvedCells.any { it.type == TableCellDataType.COUNTER }
+                    val req = com.example.dzlog.domain.model.CaptureRequest(
+                        group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
+                        group2 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G2),
+                        displayName = buildDisplayNameFromResolvedCells(
                             resolvedCells = planForCapture.resolvedCells,
-                            watermarkCells = WatermarkBuilder.buildTableCells(planForCapture.resolvedCells),
-                            saveMode = saveMode,
-                            captureAspect = captureAspect,
-                            tableTemplate = tableTemplateState,
-                            watermark = buildWatermarkConfig(
-                                anchor = wmTableAnchor,
-                                offsetXRatio = wmOffsetXRatio,
-                                offsetYRatio = wmOffsetYRatio,
-                                tableWidthRatio = wmTableWidthRatio,
-                                tableHeightRatio = wmTableHeightRatio,
-                                tableBgAlpha = wmBgAlpha,
-                                bgStyle = wmBgStyle,
-                                labelScale = wmLabelScale,
-                                valueScale = wmValueScale
-                            )
-                        )
-
-                        repository.captureAndSave(
-                            context = context,
-                            imageCapture = cap,
-                            request = req,
-                            onDone = { entry ->
-                                onTemplateChange(tableTemplateState.applyPatch(planForCapture.patch))
-                                if (!hasCounterCell) {
-                                    val base = entry.displayName.substringBeforeLast('.', entry.displayName)
-                                    val token = base.substringAfterLast('_', missingDelimiterValue = "").trim()
-                                    val parsed = if (token.all { it.isDigit() }) token.toIntOrNull() else null
-                                    scopeNextCounter = ((parsed ?: scopeNextCounter) + 1).coerceAtLeast(1)
-                                }
-                                if (entry.isNameAdjusted) {
-                                    Toast.makeText(
-                                        context,
-                                        "중복 파일명으로 ${entry.displayName} 저장됨",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                                
-                                // ✅ 촬영 후 미리보기 설정 적용
-                                if (continuousPreviewMode != ContinuousPreviewMode.OFF) {
-                                    capturedUri = entry.contentUri
-                                } else {
-                                    Toast.makeText(context, "저장 완료", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            onFail = { msg ->
-                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                            }
-                        )
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .background(
-                            color = if (enabledNow) DDZColor.PrimaryDark else DDZColor.Border,
-                            shape = androidx.compose.foundation.shape.CircleShape
+                            fnDelim = fnDelim,
+                            includeDate = false,
+                            includeTime = false,
+                            counterOverride = if (hasCounterCell) null else scopeNextCounter,
+                            now = captureNow
                         ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "●",
-                        color = if (enabledNow) DDZColor.Surface else DDZColor.TextMuted,
-                        style = DDZTypography.CardTitle
+                        resolvedCells = planForCapture.resolvedCells,
+                        watermarkCells = WatermarkBuilder.buildTableCells(planForCapture.resolvedCells),
+                        saveMode = saveMode,
+                        captureAspect = captureAspect,
+                        tableTemplate = tableTemplateState,
+                        watermark = buildWatermarkConfig(
+                            anchor = wmTableAnchor,
+                            offsetXRatio = wmOffsetXRatio,
+                            offsetYRatio = wmOffsetYRatio,
+                            tableWidthRatio = wmTableWidthRatio,
+                            tableHeightRatio = wmTableHeightRatio,
+                            tableBgAlpha = wmBgAlpha,
+                            bgStyle = wmBgStyle,
+                            labelScale = wmLabelScale,
+                            valueScale = wmValueScale
+                        )
+                    )
+
+                    // NOTE: 아래부터 비동기. 어떤 경로로든 gate 해제되어야 함.
+                    repository.captureAndSave(
+                        context = context,
+                        imageCapture = cap,
+                        request = req,
+                        onDone = { entry ->
+                            captureGate.set(false)
+                            isCapturing = false
+                            onTemplateChange(tableTemplateState.applyPatch(planForCapture.patch))
+
+                            if (!hasCounterCell) {
+                                val base = entry.displayName.substringBeforeLast('.', entry.displayName)
+                                val token = base.substringAfterLast('_', missingDelimiterValue = "").trim()
+                                val parsed = if (token.all { it.isDigit() }) token.toIntOrNull() else null
+                                scopeNextCounter = ((parsed ?: scopeNextCounter) + 1).coerceAtLeast(1)
+                            }
+
+                            if (entry.isNameAdjusted) {
+                                Toast.makeText(
+                                    context,
+                                    "중복 파일명으로 ${entry.displayName} 저장됨",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+
+                            if (continuousPreviewMode != ContinuousPreviewMode.OFF) {
+                                capturedUri = entry.contentUri
+                            } else {
+                                Toast.makeText(context, "저장 완료", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        onFail = { msg ->
+                            captureGate.set(false)
+                            isCapturing = false
+                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                        }
                     )
                 }
-            }
+            )
         }
 
         if (showWizard) {
