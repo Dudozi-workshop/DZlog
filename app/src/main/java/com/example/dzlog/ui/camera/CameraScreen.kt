@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.LifecycleOwner
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
@@ -235,50 +236,7 @@ fun CameraPreview(
     }
 
     LaunchedEffect(Unit) {
-        try {
-            val prefs = context.dataStore.data.first()
-            ui.prefs.wmTableAnchor = when (prefs[KEY_WM_TABLE_ANCHOR] ?: 3) {
-                0 -> WatermarkTableAnchor.TOP_LEFT
-                1 -> WatermarkTableAnchor.TOP_RIGHT
-                2 -> WatermarkTableAnchor.BOTTOM_LEFT
-                3 -> WatermarkTableAnchor.BOTTOM_RIGHT
-                else -> WatermarkTableAnchor.CUSTOM
-            }
-
-            ui.prefs.wmTableWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(40, 100)
-            ui.prefs.wmTableHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 35)
-            ui.prefs.wmOffsetXRatio = (prefs[KEY_WM_OFFSET_X] ?: 0).coerceIn(0, 100)
-            ui.prefs.wmOffsetYRatio = (prefs[KEY_WM_OFFSET_Y] ?: 0).coerceIn(0, 100)
-
-            ui.prefs.wmBgAlpha = (prefs[KEY_WM_BG_ALPHA] ?: 80).coerceIn(0, 255)
-            ui.prefs.wmBgStyle = (prefs[KEY_WM_TABLE_BG_STYLE] ?: 0).coerceIn(0, 2)
-            ui.prefs.wmLabelScale = (prefs[KEY_WM_LABEL_SCALE] ?: 100).coerceIn(60, 160)
-            ui.prefs.wmValueScale = (prefs[KEY_WM_VALUE_SCALE] ?: 100).coerceIn(60, 160)
-
-            ui.prefs.captureAspect = CaptureAspect.from(
-                prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v
-            )
-
-            // 표준: 0=원본, 1=워터마크, 2=원본+워터마크
-            ui.prefs.saveMode = SaveMode.from(prefs[KEY_SAVE_MODE] ?: SaveMode.BOTH.v)
-
-            ui.prefs.continuousPreviewMode = ContinuousPreviewMode.from(
-                prefs[KEY_CONTINUOUS_PREVIEW_MODE] ?: ContinuousPreviewMode.OFF.v
-            )
-
-            ui.prefs.counterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
-            ui.prefs.showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
-        } catch (_: Exception) {
-            ui.prefs.captureAspect = CaptureAspect.R3_4
-            ui.prefs.saveMode = SaveMode.WATERMARK_ONLY
-            ui.prefs.continuousPreviewMode = ContinuousPreviewMode.OFF
-            ui.prefs.counterDigits = COUNTER_DIGITS_DEFAULT
-            ui.prefs.showWmPreview = true
-            ui.prefs.wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
-            ui.prefs.wmTableWidthRatio = 40
-            ui.prefs.wmTableHeightRatio = 20
-            ui.prefs.wmOffsetXRatio = 0
-        }
+        loadCameraPrefsIntoUi(context.dataStore.data.first(), ui)
     }
 
     Box(
@@ -467,5 +425,56 @@ internal fun buildWatermarkConfig(
         labelScale = labelScale,
         valueScale = valueScale
     )
+}
+
+private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
+    try {
+        ui.prefs.wmTableAnchor = when (prefs[KEY_WM_TABLE_ANCHOR] ?: 3) {
+            0 -> WatermarkTableAnchor.TOP_LEFT
+            1 -> WatermarkTableAnchor.TOP_RIGHT
+            2 -> WatermarkTableAnchor.BOTTOM_LEFT
+            3 -> WatermarkTableAnchor.BOTTOM_RIGHT
+            else -> WatermarkTableAnchor.CUSTOM
+        }
+
+        ui.prefs.wmTableWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(40, 100)
+        ui.prefs.wmTableHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 35)
+        ui.prefs.wmOffsetXRatio = (prefs[KEY_WM_OFFSET_X] ?: 0).coerceIn(0, 100)
+        ui.prefs.wmOffsetYRatio = (prefs[KEY_WM_OFFSET_Y] ?: 0).coerceIn(0, 100)
+
+        ui.prefs.wmBgAlpha = (prefs[KEY_WM_BG_ALPHA] ?: 80).coerceIn(0, 255)
+        ui.prefs.wmBgStyle = (prefs[KEY_WM_TABLE_BG_STYLE] ?: 0).coerceIn(0, 2)
+        ui.prefs.wmLabelScale = (prefs[KEY_WM_LABEL_SCALE] ?: 100).coerceIn(60, 160)
+        ui.prefs.wmValueScale = (prefs[KEY_WM_VALUE_SCALE] ?: 100).coerceIn(60, 160)
+
+        ui.prefs.captureAspect = CaptureAspect.from(
+            prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v
+        )
+
+        // 표준: 0=원본, 1=워터마크, 2=원본+워터마크
+        ui.prefs.saveMode = SaveMode.from(prefs[KEY_SAVE_MODE] ?: SaveMode.BOTH.v)
+
+        ui.prefs.continuousPreviewMode = ContinuousPreviewMode.from(
+            prefs[KEY_CONTINUOUS_PREVIEW_MODE] ?: ContinuousPreviewMode.OFF.v
+        )
+
+        ui.prefs.counterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
+        ui.prefs.showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
+    } catch (_: Exception) {
+        ui.prefs.captureAspect = CaptureAspect.R3_4
+        ui.prefs.saveMode = SaveMode.WATERMARK_ONLY
+        ui.prefs.continuousPreviewMode = ContinuousPreviewMode.OFF
+        ui.prefs.counterDigits = COUNTER_DIGITS_DEFAULT
+        ui.prefs.showWmPreview = true
+        ui.prefs.wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
+        ui.prefs.wmTableWidthRatio = 40
+        ui.prefs.wmTableHeightRatio = 20
+        ui.prefs.wmOffsetXRatio = 0
+        ui.prefs.wmOffsetYRatio = 0
+        ui.prefs.wmBgAlpha = 80
+        ui.prefs.wmBgStyle = 0
+        ui.prefs.wmLabelScale = 100
+        ui.prefs.wmValueScale = 100
+    }
 }
 
