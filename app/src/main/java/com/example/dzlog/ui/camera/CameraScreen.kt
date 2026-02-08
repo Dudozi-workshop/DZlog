@@ -35,7 +35,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,7 +49,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -69,12 +67,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -85,7 +81,6 @@ import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Observer
-import coil.compose.AsyncImage
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.mediastore.MediaStoreSaverImpl
@@ -602,57 +597,12 @@ fun CameraPreview(
                     )
 
                     // ✅ 촬영 결과물 오버레이 (Continuous Preview - 팝업 축소 버전)
-                    if (capturedUri != null && continuousPreviewMode != ContinuousPreviewMode.OFF) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.5f)) // 약한 반투명 검은 배경
-                                .clickable { capturedUri = null }
-                                .zIndex(10f),
-                            contentAlignment = Alignment.TopCenter // 조금 더 위쪽으로 배치
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(top = 60.dp) // 상단 여백 조절
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth(0.72f) // 72% 크기 (중앙 위치 통일용)
-                                        .aspectRatio(captureAspect.ratioF)
-                                        .clip(RoundedCornerShape(8.dp)) // 테두리 안쪽 클리핑 (사진 잘림 방지)
-                                        .border(2.dp, Color.White, RoundedCornerShape(8.dp))
-                                        .background(Color.Black)
-                                ) {
-                                    AsyncImage(
-                                        model = capturedUri,
-                                        contentDescription = "Captured result",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Fit // 사진이 잘리지 않도록 Fit 유지
-                                    )
-                                }
-
-                                Spacer(Modifier.height(DDZSpacing.itemGap))
-                                
-                                val hintText = if (continuousPreviewMode == ContinuousPreviewMode.HOLD) {
-                                    "화면을 터치하면 닫힙니다"
-                                } else {
-                                    "저장 완료"
-                                }
-                                
-                                Box(
-                                    modifier = Modifier
-                                        .background(DDZColor.PrimaryDark.copy(alpha = 0.8f), shape = RoundedCornerShape(20.dp))
-                                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                                ) {
-                                    Text(
-                                        hintText,
-                                        color = DDZColor.Surface,
-                                        style = DDZTypography.Caption
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    CaptureResultOverlay(
+                        capturedUri = capturedUri,
+                        continuousPreviewMode = continuousPreviewMode,
+                        aspectRatio = captureAspect.ratioF,
+                        onDismiss = { capturedUri = null }
+                    )
                 }
             }
         }
