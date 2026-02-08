@@ -29,26 +29,14 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -64,8 +52,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.datastore.preferences.core.MutablePreferences
-import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Observer
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
@@ -86,7 +72,6 @@ import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
-import com.example.dzlog.data.preferences.persistCaptureAspect
 import com.example.dzlog.data.repository.DzlogRepositoryImpl
 import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.model.CaptureAspect
@@ -106,13 +91,10 @@ import com.example.dzlog.domain.table.TablePatch
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.table.applyPatch
 import com.example.dzlog.domain.watermark.WatermarkBuilder
-import com.example.dzlog.ui.common.DDZButton
-import com.example.dzlog.ui.common.DDZButtonStyle
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
 import com.example.dzlog.ui.theme.DDZTypography
 import com.example.dzlog.watermark.WatermarkRendererImpl
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -650,192 +632,21 @@ fun CameraPreview(
         }
 
         if (showWizard) {
-            AlertDialog(
-                onDismissRequest = { showWizard = false },
-                title = { Text("설정", style = DDZTypography.ScreenTitle, color = DDZColor.Surface) },
-                text = {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = showWmPreview,
-                                onCheckedChange = { checked ->
-                                    showWmPreview = checked
-                                    scope.launch {
-                                        context.dataStore.edit { prefs: MutablePreferences ->
-                                            prefs[KEY_SHOW_WM_PREVIEW] = if (checked) 1 else 0
-                                        }
-                                    }
-                                }
-                            )
-                            Text(
-                                "촬영 화면에 워터마크 미리보기 표시",
-                                style = DDZTypography.Body,
-                                color = DDZColor.Surface
-                            )
-                        }
-                        Spacer(Modifier.height(DDZSpacing.sectionGap))
-                        
-                        Text("연속 촬영 미리보기", style = DDZTypography.Body, color = DDZColor.Surface)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            ContinuousPreviewMode.entries.forEach { mode ->
-                                RadioButton(
-                                    selected = continuousPreviewMode == mode,
-                                    onClick = {
-                                        continuousPreviewMode = mode
-                                        scope.launch {
-                                            context.dataStore.edit { it[KEY_CONTINUOUS_PREVIEW_MODE] = mode.v }
-                                        }
-                                    }
-                                )
-                                Text(mode.name, style = DDZTypography.Body, color = DDZColor.Surface)
-                                Spacer(Modifier.width(8.dp))
-                            }
-                        }
-
-                        Spacer(Modifier.height(DDZSpacing.sectionGap))
-                        DDZButton(
-                            text = "표 편집",
-                            onClick = {
-                                showWizard = false
-                                onOpenTableEditor()
-                            },
-                            style = DDZButtonStyle.Primary
-                        )
-                        Text(
-                            text = "셀 속성/그룹/G1·G2 설정",
-                            color = DDZColor.Surface.copy(alpha = 0.7f),
-                            style = DDZTypography.Caption
-                        )
-                        Spacer(Modifier.height(DDZSpacing.screenPadding))
-
-                        Text(
-                            "표 위치/크기/스타일은 표 상세설정에서 변경",
-                            color = DDZColor.Surface.copy(alpha = 0.7f),
-                            style = DDZTypography.Caption
-                        )
-
-                        Spacer(Modifier.height(DDZSpacing.sectionGap + DDZSpacing.itemGap))
-
-                        Text("촬영 비율", style = DDZTypography.Body, color = DDZColor.Surface)
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(
-                                selected = (captureAspect == CaptureAspect.R3_4),
-                                onClick = {
-                                    captureAspect = CaptureAspect.R3_4
-                                    scope.launch(Dispatchers.IO) { persistCaptureAspect(context, CaptureAspect.R3_4) }
-                                }
-                            )
-                            Text("3:4", style = DDZTypography.Body, color = DDZColor.Surface)
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(
-                                selected = (captureAspect == CaptureAspect.R9_16),
-                                onClick = {
-                                    captureAspect = CaptureAspect.R9_16
-                                    scope.launch(Dispatchers.IO) { persistCaptureAspect(context, CaptureAspect.R9_16) }
-                                }
-                            )
-                            Text("9:16", style = DDZTypography.Body, color = DDZColor.Surface)
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(
-                                selected = (captureAspect == CaptureAspect.R1_1),
-                                onClick = {
-                                    captureAspect = CaptureAspect.R1_1
-                                    scope.launch(Dispatchers.IO) { persistCaptureAspect(context, CaptureAspect.R1_1) }
-                                }
-                            )
-                            Text("1:1", style = DDZTypography.Body, color = DDZColor.Surface)
-                        }
-                        Spacer(Modifier.height(DDZSpacing.screenPadding))
-
-                        Text("저장 모드", style = DDZTypography.Body, color = DDZColor.Surface)
-                        Spacer(Modifier.height(DDZSpacing.itemGap))
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(
-                                selected = saveMode == SaveMode.WATERMARK_ONLY,
-                                onClick = {
-                                    saveMode = SaveMode.WATERMARK_ONLY
-                                    scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = 0 } }
-                                }
-                            )
-                            Text("워터마크", style = DDZTypography.Body, color = DDZColor.Surface)
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(
-                                selected = saveMode == SaveMode.ORIGINAL_ONLY,
-                                onClick = {
-                                    saveMode = SaveMode.ORIGINAL_ONLY
-                                    scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = 2 } }
-                                }
-                            )
-                            Text("원본", style = DDZTypography.Body, color = DDZColor.Surface)
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(
-                                selected = saveMode == SaveMode.BOTH,
-                                onClick = {
-                                    saveMode = SaveMode.BOTH
-                                    scope.launch {
-                                        context.dataStore.edit { prefs: MutablePreferences ->
-                                            prefs[KEY_SAVE_MODE] = 1
-                                        }
-                                    }
-                                }
-                            )
-                            Text("원본+워터마크", style = DDZTypography.Body, color = DDZColor.Surface)
-                        }
-
-                        Spacer(Modifier.height(DDZSpacing.sectionGap + DDZSpacing.itemGap))
-
-                        Text("카운터 자릿수", style = DDZTypography.Body, color = DDZColor.Surface)
-                        Text(
-                            "예: 4자리면 0001",
-                            color = DDZColor.Surface.copy(alpha = 0.7f),
-                            style = DDZTypography.Caption
-                        )
-                        Spacer(Modifier.height(DDZSpacing.itemGap))
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Button(
-                                onClick = {
-                                    val next = clampCounterDigits(counterDigits - 1)
-                                    counterDigits = next
-                                    scope.launch { context.dataStore.edit { it[KEY_COUNTER_DIGITS] = next } }
-                                }
-                            ) { Text("-", style = DDZTypography.ButtonText, color = DDZColor.Surface) }
-
-                            Spacer(Modifier.width(DDZSpacing.sectionGap))
-                            Text(counterDigits.toString(), style = DDZTypography.CardTitle, color = DDZColor.Surface)
-                            Spacer(Modifier.width(DDZSpacing.sectionGap))
-
-                            Button(
-                                onClick = {
-                                    val next = clampCounterDigits(counterDigits + 1)
-                                    counterDigits = next
-                                    scope.launch { context.dataStore.edit { it[KEY_COUNTER_DIGITS] = next } }
-                                }
-                            ) { Text("+", style = DDZTypography.ButtonText, color = DDZColor.Surface) }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showWizard = false }) {
-                        Text("닫기", style = DDZTypography.ButtonText)
-                    }
-                },
-                containerColor = DDZColor.PrimaryDark
+            CameraSettingsDialog(
+                context = context,
+                scope = scope,
+                showWmPreview = showWmPreview,
+                onShowWmPreviewChange = { showWmPreview = it },
+                continuousPreviewMode = continuousPreviewMode,
+                onContinuousPreviewModeChange = { continuousPreviewMode = it },
+                onOpenTableEditor = onOpenTableEditor,
+                captureAspect = captureAspect,
+                onCaptureAspectChange = { captureAspect = it },
+                saveMode = saveMode,
+                onSaveModeChange = { saveMode = it },
+                counterDigits = counterDigits,
+                onCounterDigitsChange = { counterDigits = it },
+                onDismiss = { showWizard = false }
             )
         }
     }
