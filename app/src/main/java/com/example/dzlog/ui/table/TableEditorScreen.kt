@@ -202,7 +202,7 @@ fun TableEditorScreen(
     val currentPrefix by remember(planForScope.resolvedCells) {
         derivedStateOf {
             // ✅ counter 스트림 prefix: 날짜/시간 제외(파일명에는 붙어도 카운터에는 영향 없음)
-            CounterManager.computeCounterPrefix(
+            CounterManager.computeCounterStreamPrefix(
                 resolvedCells = planForScope.resolvedCells,
                 fnDelim = "_"
             )

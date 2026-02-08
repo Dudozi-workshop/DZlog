@@ -399,7 +399,7 @@ private fun rememberScopeKeyInfo(
                 timeFormat = timeFormat
             )
         )
-        val prefix = CounterManager.computeCounterPrefix(
+        val prefix = CounterManager.computeCounterStreamPrefix(
             resolvedCells = planForScope.resolvedCells,
             fnDelim = fnDelim
         )

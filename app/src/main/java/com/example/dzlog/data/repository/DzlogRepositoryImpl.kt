@@ -6,27 +6,27 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
 import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
 import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
+import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.log.LogEntity
 import com.example.dzlog.data.log.LogRepository
-import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.mediastore.MediaStoreSaver
-import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
-import com.example.dzlog.domain.naming.buildGalleryRelativePath
-import com.example.dzlog.domain.model.CaptureRequest
+import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.model.CaptureAspect
+import com.example.dzlog.domain.model.CaptureRequest
 import com.example.dzlog.domain.model.LogEntry
 import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.watermark.WatermarkRenderer
 import com.example.dzlog.watermark.renderWatermarkForRequest
-import java.io.File
-import androidx.camera.core.ImageCaptureException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 
 class DzlogRepositoryImpl(
@@ -249,17 +249,15 @@ group1 = request.group1,
      */
     private suspend fun recordCounterIndexIfPossible(
         context: Context,
-        request: com.example.dzlog.domain.model.CaptureRequest,
+        request: CaptureRequest,
         relativePath: String,
         mediaStoreId: Long
     ) {
         if (mediaStoreId <= 0L) return
         val counter = extractCounterValue(request) ?: return
-        val prefix = buildFileNamePrefixFromResolvedCells(
+        val prefix = CounterManager.computeCounterStreamPrefix(
             resolvedCells = request.resolvedCells,
-            fnDelim = "_",
-            includeDate = false,
-            includeTime = false
+            fnDelim = "_"
         )
         val repo = CounterIndexRepository.getInstance(context)
         val dateAddedSeconds = System.currentTimeMillis() / 1000L
@@ -274,7 +272,7 @@ group1 = request.group1,
         }
     }
 
-    private fun extractCounterValue(request: com.example.dzlog.domain.model.CaptureRequest): Int? {
+    private fun extractCounterValue(request: CaptureRequest): Int? {
         val counterText = request.resolvedCells
             .firstOrNull { it.type == com.example.dzlog.domain.model.TableCellDataType.COUNTER }
             ?.resolvedText
