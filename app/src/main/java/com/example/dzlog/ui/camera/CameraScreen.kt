@@ -527,7 +527,7 @@ fun CameraPreview(
         Box(
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
-            CameraTopBar(
+            CameraTopBarSection(
                 onExitToHome = onExitToHome,
                 onOpenSettings = { showWizard = true }
             )
