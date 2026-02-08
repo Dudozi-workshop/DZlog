@@ -297,7 +297,10 @@ fun CameraPreview(
             else -> maxOf(normalizedSeed, currentSeed)
         }
         scopeNextCounter = desiredSeed
+        // 다음 실행에서 이전 스트림 비교에 사용됨
         lastScopeKey = scopeKey
+        // IDE inspection용 read (동작 영향 없음)
+        lastScopeKey
         if (counterCell != null && (currentSeed == null || currentSeed != desiredSeed)) {
             val patch = TablePatch(mapOf(counterCell.cellId to desiredSeed.toString()))
             onTemplateChange(tableTemplateState.applyPatch(patch))
@@ -483,6 +486,7 @@ fun CameraPreview(
                         }
                     }
 
+                    @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
                     AndroidView(
                         modifier = Modifier.fillMaxSize(),
                         factory = { _: Context -> previewView },
