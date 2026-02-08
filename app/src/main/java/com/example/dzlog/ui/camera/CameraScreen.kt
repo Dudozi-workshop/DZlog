@@ -62,9 +62,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.edit
@@ -215,7 +213,6 @@ fun CameraPreview(
     val timeFormat = "HH.mm.ss"
 
     var tapFocusUi by remember { mutableStateOf<TapFocusUiState?>(null) }
-    LocalDensity.current
     var now by remember { mutableStateOf(Date()) }
     LaunchedEffect(dateFormat, timeFormat) {
         val unit = decideTickUnit(dateFormat, timeFormat)
@@ -472,18 +469,6 @@ fun CameraPreview(
                         }
                     }
 
-                    @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
-                    AndroidView(
-                        modifier = Modifier.fillMaxSize(),
-                        factory = { _: Context -> previewView },
-                        update = { it.scaleType = PreviewView.ScaleType.FILL_CENTER }
-                    )
-
-                    // Tap-to-focus UI (ring)
-                    val ui = tapFocusUi
-                    if (ui != null) {
-                        FocusRingOverlay(ui)
-                    }
                     val plan = remember(tableCells, now, counterDigits, dateFormat, timeFormat) {
                         tableResolver.plan(
                             cells = tableCells,
@@ -524,18 +509,16 @@ fun CameraPreview(
                         )
                     )
 
-                    WatermarkPreviewOverlay(
-                        enabled = showWmPreview,
-                        request = previewRequest,
-                        previewContentRect = previewContentRect
-                    )
-
-                    // ✅ 촬영 결과물 오버레이 (Continuous Preview - 팝업 축소 버전)
-                    CaptureResultOverlay(
+                    CameraPreviewHost(
+                        previewView = previewView,
+                        previewContentRect = previewContentRect,
+                        previewRequest = previewRequest,
+                        showWmPreview = showWmPreview,
                         capturedUri = capturedUri,
                         continuousPreviewMode = continuousPreviewMode,
                         aspectRatio = captureAspect.ratioF,
-                        onDismiss = { capturedUri = null }
+                        onDismissCaptured = { capturedUri = null },
+                        tapFocusUi = tapFocusUi
                     )
                 }
             }
