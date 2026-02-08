@@ -4,38 +4,20 @@ package com.example.dzlog.ui.camera
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.RectF
 import android.net.Uri
-import android.util.Log
-import android.util.Rational
-import android.view.MotionEvent
-import android.view.View
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
-import androidx.camera.core.MeteringPoint
-import androidx.camera.core.Preview
-import androidx.camera.core.UseCaseGroup
-import androidx.camera.core.ViewPort
-import androidx.camera.core.resolutionselector.AspectRatioStrategy
-import androidx.camera.core.resolutionselector.ResolutionSelector
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -45,11 +27,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.Observer
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.mediastore.MediaStoreSaverImpl
@@ -78,7 +58,6 @@ import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
-import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.preview.computeNextDelayMillis
@@ -86,15 +65,12 @@ import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TablePatch
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.table.applyPatch
-import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
 import com.example.dzlog.watermark.WatermarkRendererImpl
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import java.util.Date
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 // NOTE: buildWatermarkConfig는 다른 파일(핸들러)에서도 사용되므로 file-private 금지
@@ -264,8 +240,6 @@ fun CameraPreview(
         }
     }
 
-    var previewLogged by remember { mutableStateOf(false) }
-
     // ✅ 결과 미리보기용 상태
     var capturedUri by remember { mutableStateOf<Uri?>(null) }
     // ✅ 촬영 중(in-flight) 상태: 중복 촬영 방지용
@@ -351,159 +325,38 @@ fun CameraPreview(
                     .weight(0.64f),
                 contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(captureAspect.ratioF)
-                        .background(DDZColor.PrimaryDark)
-                        .clipToBounds()
-                ) {
-                    val previewView = remember(context) {
-                        PreviewView(context).apply {
-                            scaleType = PreviewView.ScaleType.FILL_CENTER
-                            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                        }
-                    }
-                    var previewContentRect by remember { mutableStateOf<RectF?>(null) }
-
-                    fun updatePreviewContentRect() {
-                        previewContentRect = resolvePreviewContentRect(previewView)
-                        if (!previewLogged) {
-                            val rect = previewContentRect
-                            if (rect != null) {
-                                Log.d(
-                                    "DZlogPreview",
-                                    "Preview size=${rect.width().toInt()}x${rect.height().toInt()} aspect=${captureAspect.label} overlay-only (no bitmap)"
-                                )
-                                previewLogged = true
-                            }
-                        }
-                    }
-
-                    DisposableEffect(previewView, lifecycleOwner) {
-                        val layoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-                            updatePreviewContentRect()
-                        }
-                        val streamObserver = Observer<PreviewView.StreamState> { state ->
-                            if (state == PreviewView.StreamState.STREAMING) {
-                                updatePreviewContentRect()
-                            }
-                        }
-                        previewView.addOnLayoutChangeListener(layoutListener)
-                        previewView.previewStreamState.observe(lifecycleOwner, streamObserver)
-                        onDispose {
-                            previewView.removeOnLayoutChangeListener(layoutListener)
-                            previewView.previewStreamState.removeObserver(streamObserver)
-                        }
-                    }
-
-                    LaunchedEffect(captureAspect) {
-                        bindCamera(
-                            context = context,
-                            lifecycleOwner = lifecycleOwner,
-                            previewView = previewView,
-                            aspect = captureAspect
-                        ) { cap, camera ->
-                            boundImageCapture = cap
-                            boundCamera = camera
-                        }
-                    }
-
-                    DisposableEffect(previewView, boundCamera) {
-                        val camera = boundCamera
-
-                        // Tap-to-focus (AF/AE) on PreviewView
-                        val listener = View.OnTouchListener { v, event ->
-                            if (event.action != MotionEvent.ACTION_UP) return@OnTouchListener true
-                            if (camera == null) return@OnTouchListener true
-
-                            // Accessibility / lint: onTouch consumes click -> performClick required
-                            v?.performClick()
-
-                            val x = event.x
-                            val y = event.y
-                            tapFocusUi = TapFocusUiState(xPx = x, yPx = y, phase = FocusRingPhase.FOCUSING)
-
-                            startTapToFocus(
-                                context = context,
-                                camera = camera,
-                                previewView = previewView,
-                                xPx = x,
-                                yPx = y,
-                                onResult = { success ->
-                                    scope.launch {
-                                        if (success) {
-                                            tapFocusUi = tapFocusUi?.copy(phase = FocusRingPhase.SUCCESS)
-                                            delay(350)
-                                        } else {
-                                            // 실패 UX는 표시하지 않음(요청 사항): 짧게 사라짐
-                                            delay(200)
-                                        }
-                                        tapFocusUi = null
-                                    }
-                                }
-                            )
-                            true
-                        }
-
-                        previewView.setOnTouchListener(listener)
-                        onDispose {
-                            previewView.setOnTouchListener(null)
-                        }
-                    }
-
-                    val plan = remember(tableCells, now, counterDigits, dateFormat, timeFormat) {
-                        tableResolver.plan(
-                            cells = tableCells,
-                            captureNow = now,
-                            config = TableResolver.Config(
-                                counterDigits = counterDigits,
-                                dateFormat = dateFormat,
-                                timeFormat = timeFormat
-                            )
-                        )
-                    }
-
-                    val previewRequest = com.example.dzlog.domain.model.CaptureRequest(
-                        group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
-                        group2 = resolveGroupValue(plan.resolvedCells, GroupLevel.G2),
-                        displayName = buildDisplayNameFromResolvedCells(
-                            resolvedCells = plan.resolvedCells,
-                            fnDelim = fnDelim,
-                            includeDate = false,
-                            includeTime = false,
-                            now = now
-                        ),
-                        resolvedCells = plan.resolvedCells,
-                        watermarkCells = WatermarkBuilder.buildTableCells(plan.resolvedCells),
-                        saveMode = saveMode,
-                        captureAspect = captureAspect,
-                        tableTemplate = tableTemplateState,
-                        watermark = buildWatermarkConfig(
-                            anchor = wmTableAnchor,
-                            offsetXRatio = wmOffsetXRatio,
-                            offsetYRatio = wmOffsetYRatio,
-                            tableWidthRatio = wmTableWidthRatio,
-                            tableHeightRatio = wmTableHeightRatio,
-                            tableBgAlpha = wmBgAlpha,
-                            bgStyle = wmBgStyle,
-                            labelScale = wmLabelScale,
-                            valueScale = wmValueScale
-                        )
-                    )
-
-                    CameraPreviewHost(
-                        previewView = previewView,
-                        previewContentRect = previewContentRect,
-                        previewRequest = previewRequest,
-                        showWmPreview = showWmPreview,
-                        capturedUri = capturedUri,
-                        continuousPreviewMode = continuousPreviewMode,
-                        aspectRatio = captureAspect.ratioF,
-                        onDismissCaptured = { capturedUri = null },
-                        tapFocusUi = tapFocusUi
-                    )
-                }
+                CameraPreviewArea(
+                    context = context,
+                    lifecycleOwner = lifecycleOwner,
+                    scope = scope,
+                    captureAspect = captureAspect,
+                    saveMode = saveMode,
+                    continuousPreviewMode = continuousPreviewMode,
+                    counterDigits = counterDigits,
+                    dateFormat = dateFormat,
+                    timeFormat = timeFormat,
+                    fnDelim = fnDelim,
+                    tableTemplateState = tableTemplateState,
+                    tableResolver = tableResolver,
+                    now = now,
+                    showWmPreview = showWmPreview,
+                    wmTableAnchor = wmTableAnchor,
+                    wmTableWidthRatio = wmTableWidthRatio,
+                    wmTableHeightRatio = wmTableHeightRatio,
+                    wmOffsetXRatio = wmOffsetXRatio,
+                    wmOffsetYRatio = wmOffsetYRatio,
+                    wmBgAlpha = wmBgAlpha,
+                    wmBgStyle = wmBgStyle,
+                    wmLabelScale = wmLabelScale,
+                    wmValueScale = wmValueScale,
+                    boundCamera = boundCamera,
+                    onBoundCameraChange = { boundCamera = it },
+                    onBoundImageCaptureChange = { boundImageCapture = it },
+                    capturedUri = capturedUri,
+                    onDismissCaptured = { capturedUri = null },
+                    tapFocusUi = tapFocusUi,
+                    onTapFocusUiChange = { tapFocusUi = it }
+                )
             }
         }
 
@@ -610,116 +463,3 @@ internal fun buildWatermarkConfig(
     )
 }
 
-
-private fun bindCamera(
-    context: Context,
-    lifecycleOwner: LifecycleOwner,
-    previewView: PreviewView,
-    aspect: CaptureAspect,
-    onBound: (imageCapture: ImageCapture?, camera: Camera?) -> Unit
-) {
-    val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-    cameraProviderFuture.addListener({
-        val cameraProvider = cameraProviderFuture.get()
-
-        val rotation = previewView.display.rotation
-        Log.d("DZlog", "BIND aspect=${aspect.label} w/h=${aspect.w}/${aspect.h}")
-
-        val cameraAspectRatio = aspect.toCameraXAspectRatio()
-
-        val previewBuilder = Preview.Builder()
-            .setTargetRotation(rotation)
-        if (cameraAspectRatio != null) {
-            previewBuilder.setResolutionSelector(
-                ResolutionSelector.Builder()
-                    .setAspectRatioStrategy(
-                        AspectRatioStrategy(
-                            cameraAspectRatio,
-                            AspectRatioStrategy.FALLBACK_RULE_AUTO
-                        )
-                    )
-                    .build()
-            )
-        }
-        val preview = previewBuilder.build()
-            .apply { surfaceProvider = previewView.surfaceProvider }
-
-        val imageCaptureBuilder = ImageCapture.Builder()
-            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-            .setTargetRotation(rotation)
-        if (cameraAspectRatio != null) {
-            imageCaptureBuilder.setResolutionSelector(
-                ResolutionSelector.Builder()
-                    .setAspectRatioStrategy(
-                        AspectRatioStrategy(
-                            cameraAspectRatio,
-                            AspectRatioStrategy.FALLBACK_RULE_AUTO
-                        )
-                    )
-                    .build()
-            )
-        }
-        val imageCapture = imageCaptureBuilder.build()
-
-        val viewPort = ViewPort.Builder(
-            Rational(aspect.w, aspect.h),
-            rotation
-        )
-            .setScaleType(ViewPort.FILL_CENTER)
-            .build()
-
-        val useCaseGroup = UseCaseGroup.Builder()
-            .setViewPort(viewPort)
-            .addUseCase(preview)
-            .addUseCase(imageCapture)
-            .build()
-
-        try {
-            cameraProvider.unbindAll()
-            val camera = cameraProvider.bindToLifecycle(
-                lifecycleOwner,
-                CameraSelector.DEFAULT_BACK_CAMERA,
-                useCaseGroup
-            )
-            onBound(imageCapture, camera)
-        } catch (_: Exception) {
-            onBound(null, null)
-        }
-    }, ContextCompat.getMainExecutor(context))
-}
-
-private fun startTapToFocus(
-    context: Context,
-    camera: Camera,
-    previewView: PreviewView,
-    xPx: Float,
-    yPx: Float,
-    onResult: (Boolean) -> Unit
-) {
-    val factory = previewView.meteringPointFactory
-    val point: MeteringPoint = factory.createPoint(xPx, yPx)
-
-    val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE)
-        .setAutoCancelDuration(3, TimeUnit.SECONDS)
-        .build()
-
-    val future = camera.cameraControl.startFocusAndMetering(action)
-    future.addListener(
-        {
-            try {
-                val result = future.get()
-                onResult(result.isFocusSuccessful)
-            } catch (_: Exception) {
-                onResult(false)
-            }
-        },
-        ContextCompat.getMainExecutor(context)
-    )
-}
-
-private fun resolvePreviewContentRect(previewView: PreviewView): RectF? {
-    val width = previewView.width
-    val height = previewView.height
-    if (width <= 0 || height <= 0) return null
-    return RectF(0f, 0f, width.toFloat(), height.toFloat())
-}
