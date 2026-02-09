@@ -96,7 +96,9 @@ internal fun handleCaptureClick(
             fnDelim = fnDelim,
             includeDate = false,
             includeTime = false,
-            counterOverride = if (hasCounterCell) null else scopeNextCounter,
+            // ✅ 파일명 suffix counter는 항상 스트림 값(scopeNextCounter)을 사용함.
+            // COUNTER 셀 ON/OFF(표기 토글)과 무관하게 카운터 흐름이 갈라지지 않도록 단일화함.
+            counterOverride = scopeNextCounter,
             now = captureNow
         ),
         resolvedCells = planForCapture.resolvedCells,

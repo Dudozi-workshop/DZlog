@@ -1,10 +1,9 @@
 package com.example.dzlog.domain.naming
 
 import com.example.dzlog.domain.model.GroupLevel
-import com.example.dzlog.domain.model.TableCellState
-import kotlin.jvm.JvmName
-import com.example.dzlog.domain.table.ResolvedCell
 import com.example.dzlog.domain.model.TableCellDataType
+import com.example.dzlog.domain.model.TableCellState
+import com.example.dzlog.domain.table.ResolvedCell
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -105,11 +104,16 @@ fun buildDisplayNameFromResolvedCells(
         ?.takeIf { it.isNotBlank() }
         .orEmpty()
 
-    // MVP 정책: 표에 카운터 셀이 있든 없든 파일명 끝에는 항상 카운터가 붙는다.
-    // counterText가 비어있으면 기본값 '1'을 사용한다.
-    val counterFinal = counterText.ifBlank {
-        counterOverride?.takeIf { it >= 0 }?.toString() ?: "1"
-    }
+    // MVP 정책: 파일명 suffix 카운터는 "단일 소스"(counterOverride) 우선.
+    // - COUNTER 셀 표기 ON/OFF, seed 변경 등 UI 상태에 의해 파일명 카운터가 흔들리지 않도록 한다.
+    // - counterOverride가 있으면 항상 그것을 사용하고, padding은 기존 counterText 길이를 따르도록 시도한다.
+    val counterFinal = counterOverride
+        ?.takeIf { it >= 0 }
+        ?.let { ov ->
+            val width = counterText.takeIf { it.all { ch -> ch.isDigit() } }?.length ?: 0
+            if (width > 0) ov.toString().padStart(width, '0') else ov.toString()
+        }
+        ?: counterText.ifBlank { "1" }
 
     val base = "${prefix}_${counterFinal}"
     val withExt = if (base.endsWith(".jpg", true) || base.endsWith(".jpeg", true)) base else "$base.jpg"

@@ -281,22 +281,26 @@ group1 = request.group1,
     }
 
     private fun extractCounterValue(request: CaptureRequest): Int? {
+        // ✅ 단일 소스: 실제 저장된 파일명(displayName) suffix를 우선한다.
+        // COUNTER 셀 표기 ON/OFF 또는 seed 변경으로 resolvedCells의 COUNTER 값이 흔들려도
+        // CounterIndex가 리셋/역주행하지 않도록 함.
+        val base = request.displayName.substringBeforeLast('.', request.displayName)
+        val token = base.substringAfterLast('_', missingDelimiterValue = "").trim()
+
+        if (token.isNotBlank() && token.all { it.isDigit() }) {
+            token.toIntOrNull()?.let { return it }
+        }
+
+        // Fallback: displayName이 비정상이면 COUNTER 셀 값을 사용한다.
         val counterText = request.resolvedCells
             .firstOrNull { it.type == com.example.dzlog.domain.model.TableCellDataType.COUNTER }
             ?.resolvedText
             ?.trim()
             .orEmpty()
 
-        if (counterText.isNotBlank()) {
-            val digitsOnly = counterText.filter { it.isDigit() }
-            return digitsOnly.toIntOrNull()
-        }
-
-        val base = request.displayName.substringBeforeLast('.', request.displayName)
-        val token = base.substringAfterLast('_', missingDelimiterValue = "").trim()
-        if (token.isBlank()) return null
-        if (!token.all { it.isDigit() }) return null
-        return token.toIntOrNull()
+        if (counterText.isBlank()) return null
+        val digitsOnly = counterText.filter { it.isDigit() }
+        return digitsOnly.toIntOrNull()
     }
 
     private fun applyExifOrientation(source: Bitmap, exif: ExifInterface): Bitmap {
