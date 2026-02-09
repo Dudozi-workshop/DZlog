@@ -7,7 +7,6 @@ import com.example.dzlog.data.repository.DzlogRepositoryImpl
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.GroupLevel
-import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
@@ -89,7 +88,6 @@ internal fun handleCaptureClick(
         )
     )
 
-    val hasCounterCell = planForCapture.resolvedCells.any { it.type == TableCellDataType.COUNTER }
     val req = com.example.dzlog.domain.model.CaptureRequest(
         group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
         group2 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G2),

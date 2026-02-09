@@ -435,7 +435,10 @@ fun TableEditorScreen(
         fnDelim = "_",
         includeDate = false,
         includeTime = false,
-        counterOverride = if (plan.resolvedCells.any { it.type == TableCellDataType.COUNTER }) null else scopeNextCounter,
+        // ✅ 파일명 suffix counter는 항상 스트림 값(SSOT)을 사용
+        // COUNTER 셀의 표기 ON/OFF는 "표/워터마크 표현"에만 영향, 카운터 스트림/파일명에는 영향 없음.
+        // (파일명 뒤 숫자는 항상 붙는 정책)
+        counterOverride = scopeNextCounter,
         now = previewNow
     )
 
