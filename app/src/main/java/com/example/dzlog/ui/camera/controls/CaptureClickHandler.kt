@@ -1,6 +1,7 @@
 package com.example.dzlog.ui.camera.controls
 
 import android.content.Context
+import android.net.Uri
 import android.widget.Toast
 import androidx.camera.core.ImageCapture
 import com.example.dzlog.data.repository.DzlogRepositoryImpl
@@ -61,7 +62,7 @@ internal fun handleCaptureClick(
     ) -> com.example.dzlog.domain.model.WatermarkConfig,
     onApplyTemplatePatch: (TableTemplateState) -> Unit,
     onUpdateScopeNextCounter: (Int) -> Unit,
-    onSetCapturedUri: (android.net.Uri?) -> Unit,
+    onSetCapturedUri: (Uri?) -> Unit,
     onSetCapturing: (Boolean) -> Unit
 ) {
     // ✅ imageCapture null 가드(토스트 + return)
@@ -88,6 +89,9 @@ internal fun handleCaptureClick(
         )
     )
 
+    // NOTE(SSOT):
+    // - COUNTER 셀 표기 ON/OFF는 "표현"이며, 카운터 스트림/파일명 카운터 결정에 영향을 주면 안 됨.
+    // - 파일명 suffix 카운터는 항상 scopeNextCounter(스트림 next)만 사용한다.
     val req = com.example.dzlog.domain.model.CaptureRequest(
         group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
         group2 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G2),
@@ -130,10 +134,7 @@ internal fun handleCaptureClick(
 
             onApplyTemplatePatch(tableTemplateState.applyPatch(planForCapture.patch))
 
-            // ✅ scopeNextCounter는 "COUNTER 셀이 없을 때" counterOverride로 사용됨.
-            // 하지만 COUNTER 셀 ON 상태에서 촬영을 누적한 뒤 OFF로 전환하면,
-            // 그동안 scopeNextCounter가 갱신되지 않아 1로 고정되는 문제가 생길 수 있음.
-            // 따라서 저장된 최종 파일명(displayName) 기준으로 항상 next 값을 동기화함.
+            // ✅ 촬영 후 next counter는 항상 +1로 진전(표기 ON/OFF로 분기 금지)
             onUpdateScopeNextCounter(computeNextScopeCounter(entry.displayName, scopeNextCounter))
 
             if (entry.isNameAdjusted) {

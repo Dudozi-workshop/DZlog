@@ -2,6 +2,7 @@
 
 package com.example.dzlog.ui.camera
 
+
 // NOTE: 패키지 이동(기계적 이동)으로 인해 참조 대상이 하위 패키지로 내려감
 
 // CameraX 바인딩 유틸은 controller로 이동됨(직접 호출이 남아있다면 이 import로 해결)
@@ -57,7 +58,6 @@ import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.SaveMode
-import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
@@ -174,8 +174,19 @@ fun CameraPreview(
         timeFormat = timeFormat,
         fnDelim = fnDelim
     )
-    scopeKeyInfo.first
-    scopeKeyInfo.second
+
+    // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
+    val (scopeRelativePath, scopePrefix) = scopeKeyInfo
+
+    SyncCounterSeedEffect(
+        context = context,
+        tableCells = tableCells,
+        scopeRelativePath = scopeRelativePath,
+        scopePrefix = scopePrefix,
+        counterDigits = ui.prefs.counterDigits,
+        fnDelim = fnDelim,
+        ui = ui
+    )
 
     LaunchedEffect(ui.capture.capturedUri, ui.prefs.continuousPreviewMode) {
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode == ContinuousPreviewMode.SHORT) {
@@ -406,7 +417,7 @@ private fun rememberScopeKeyInfo(
         val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
 
         val baseRelativePath = buildGalleryRelativePath(g1, g2)
-        val hasG2Group = planForScope.resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
+        val hasG2Group = !g2.isNullOrBlank()
         val streamRelativePath = CounterManager.computeCounterStreamRelativePathKey(
             baseRelativePath = baseRelativePath,
             hasG2Group = hasG2Group,
@@ -421,8 +432,6 @@ private fun rememberScopeKeyInfo(
 private fun SyncCounterSeedEffect(
     context: android.content.Context,
     tableCells: List<com.example.dzlog.domain.model.TableCellState>,
-    tableTemplateState: TableTemplateState,
-    onTemplateChange: (TableTemplateState) -> Unit,
     scopeRelativePath: String,
     scopePrefix: String,
     counterDigits: Int,
@@ -431,18 +440,27 @@ private fun SyncCounterSeedEffect(
 ) {
     LaunchedEffect(scopeRelativePath, scopePrefix, counterDigits) {
         val scopeKey = "$scopeRelativePath|$scopePrefix"
-        tableCells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
-        val nextSeed = CounterManager.getNextCounter(
+
+        val nextSeedFromStream = CounterManager.getNextCounter(
             context = context,
             relativePath = scopeRelativePath,
             counterPrefix = scopePrefix,
             counterDigits = counterDigits,
             fnDelim = fnDelim
         )
-        // ✅ COUNTER 셀 존재/표기 여부와 무관하게 스트림 nextCounter 그대로 사용
-        ui.counter.scopeNextCounter = nextSeed.coerceAtLeast(1)
-        ui.counter.lastScopeKey = scopeKey
+            .coerceAtLeast(1)
 
+        val isNewStream =
+            (ui.counter.lastScopeKey != null && ui.counter.lastScopeKey != scopeKey)
+
+        // ✅ 단일 소스: 스트림 seed가 우선
+        // - 스트림이 바뀌었거나
+        // - 현재 UI seed가 스트림 seed보다 작을 때만 끌어올림
+        if (isNewStream || ui.counter.scopeNextCounter < nextSeedFromStream) {
+            ui.counter.scopeNextCounter = nextSeedFromStream
+        }
+
+        ui.counter.lastScopeKey = scopeKey
     }
 }
 private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
