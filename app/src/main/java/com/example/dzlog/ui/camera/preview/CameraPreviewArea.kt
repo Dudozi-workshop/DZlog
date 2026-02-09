@@ -23,10 +23,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.lifecycle.Observer
+import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.example.dzlog.domain.model.CaptureRequest
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.TableCellDataType
-import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
@@ -184,21 +184,23 @@ internal fun CameraPreviewArea(
             )
         }
 
-        val hasCounterCell = remember(plan) {
+        remember(plan) {
             plan.resolvedCells.any { it.type == TableCellDataType.COUNTER }
         }
 
         val previewRequest = CaptureRequest(
             group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
             group2 = resolveGroupValue(plan.resolvedCells, GroupLevel.G2),
-            displayName = buildDisplayNameFromResolvedCells(
+            displayName = CaptureNamingPolicy.buildDisplayNameForCounter(
                 resolvedCells = plan.resolvedCells,
                 fnDelim = args.fnDelim,
+                // ✅ 프리뷰도 "단일 소스 카운터"를 표시한다.
+                // - COUNTER 셀 ON/OFF, seed 수정 등 UI 상태에 의해 프리뷰 카운터가 흔들리지 않도록 한다.
+                // - 실제 증가 트리거는 captureAndSave에서만 발생한다.
+                usedCounter = args.scopeNextCounter,
+                now = args.now,
                 includeDate = false,
-                includeTime = false,
-                // 프리뷰는 "실제 카운터 증가"를 트리거하지 않음. COUNTER 셀이 없을 때도 override는 쓰지 않음.
-                counterOverride = if (hasCounterCell) null else null,
-                now = args.now
+                includeTime = false
             ),
             resolvedCells = plan.resolvedCells,
             watermarkCells = WatermarkBuilder.buildTableCells(plan.resolvedCells),
