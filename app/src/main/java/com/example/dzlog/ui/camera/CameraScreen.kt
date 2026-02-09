@@ -54,7 +54,6 @@ import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.repository.DzlogRepositoryImpl
 import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.model.CaptureAspect
-import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.SaveMode
@@ -65,9 +64,7 @@ import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
-import com.example.dzlog.domain.table.TablePatch
 import com.example.dzlog.domain.table.TableResolver
-import com.example.dzlog.domain.table.applyPatch
 import com.example.dzlog.ui.camera.controls.CameraTopBarSection
 import com.example.dzlog.ui.camera.controls.CaptureButtonSection
 import com.example.dzlog.ui.camera.controls.handleCaptureClick
@@ -432,8 +429,7 @@ private fun SyncCounterSeedEffect(
 ) {
     LaunchedEffect(scopeRelativePath, scopePrefix, counterDigits) {
         val scopeKey = "$scopeRelativePath|$scopePrefix"
-        val counterCell = tableCells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
-        val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start
+        tableCells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
         val nextSeed = CounterManager.getNextCounter(
             context = context,
             relativePath = scopeRelativePath,
@@ -441,21 +437,10 @@ private fun SyncCounterSeedEffect(
             counterDigits = counterDigits,
             fnDelim = fnDelim
         )
-        val normalizedSeed = if (nextSeed < 1) 1 else nextSeed
-        val isNewStream = (ui.counter.lastScopeKey != null && ui.counter.lastScopeKey != scopeKey)
-        val desiredSeed = when {
-            counterCell == null -> normalizedSeed
-            currentSeed == null -> normalizedSeed
-            isNewStream -> normalizedSeed
-            else -> maxOf(normalizedSeed, currentSeed)
-        }
-        ui.counter.scopeNextCounter = desiredSeed
+        // ✅ COUNTER 셀 존재/표기 여부와 무관하게 스트림 nextCounter 그대로 사용
+        ui.counter.scopeNextCounter = nextSeed.coerceAtLeast(1)
         ui.counter.lastScopeKey = scopeKey
-        ui.counter.lastScopeKey
-        if (counterCell != null && (currentSeed == null || currentSeed != desiredSeed)) {
-            val patch = TablePatch(mapOf(counterCell.cellId to desiredSeed.toString()))
-            onTemplateChange(tableTemplateState.applyPatch(patch))
-        }
+
     }
 }
 private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
