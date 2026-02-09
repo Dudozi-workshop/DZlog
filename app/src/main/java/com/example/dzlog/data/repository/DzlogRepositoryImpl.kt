@@ -16,6 +16,7 @@ import com.example.dzlog.data.mediastore.MediaStoreSaver
 import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CaptureRequest
+import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.LogEntry
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
@@ -261,9 +262,16 @@ group1 = request.group1,
         )
         val repo = CounterIndexRepository.getInstance(context)
         val dateAddedSeconds = System.currentTimeMillis() / 1000L
+        val hasG2Group = request.tableTemplate.cells.any { it.groupLevel == GroupLevel.G2 }
+        val streamRelativePath = CounterManager.computeCounterStreamRelativePathKey(
+            baseRelativePath = relativePath,
+            hasG2Group = hasG2Group,
+            group2Value = request.group2
+        )
+
         runCatching {
             repo.record(
-                relativePath = relativePath,
+                relativePath = streamRelativePath,
                 prefix = prefix,
                 mediaId = mediaStoreId,
                 counterValue = counter,

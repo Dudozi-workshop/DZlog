@@ -28,6 +28,30 @@ import java.util.Date
 object CounterManager {
 
     /**
+     * Build a counter-stream key for relativePath.
+     *
+     * Rationale:
+     * - Physical save path is derived from (group1, group2).
+     * - If G2 is *enabled* but its value is blank, the physical path becomes the same as G1-only.
+     *   We must prevent counter streams from mixing between:
+     *     (A) G1-only
+     *     (B) G1 + (G2 enabled but empty)
+     *
+     * This function keeps the physical path unchanged, but adds a virtual suffix for DB keying.
+     */
+    fun computeCounterStreamRelativePathKey(
+        baseRelativePath: String,
+        hasG2Group: Boolean,
+        group2Value: String
+    ): String {
+        if (!hasG2Group) return baseRelativePath
+        if (group2Value.isNotBlank()) return baseRelativePath
+        // Virtual stream key: distinguish "G2 enabled but empty" from true G1-only.
+        return baseRelativePath + "|g2=enabled_empty"
+    }
+
+
+    /**
      * 카운터 스트림용 prefix 계산
      *
      * @param resolvedCells TableResolver.plan().resolvedCells 그대로 전달

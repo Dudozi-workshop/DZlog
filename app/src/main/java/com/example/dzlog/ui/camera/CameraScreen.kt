@@ -405,8 +405,16 @@ private fun rememberScopeKeyInfo(
         )
         val g1 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G1)
         val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
-        val relativePath = buildGalleryRelativePath(g1, g2)
-        relativePath to prefix
+
+        val baseRelativePath = buildGalleryRelativePath(g1, g2)
+        val hasG2Group = planForScope.resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
+        val streamRelativePath = CounterManager.computeCounterStreamRelativePathKey(
+            baseRelativePath = baseRelativePath,
+            hasG2Group = hasG2Group,
+            group2Value = g2
+        )
+
+        streamRelativePath to prefix
     }
 }
 
