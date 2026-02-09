@@ -42,6 +42,10 @@ internal data class CameraPreviewAreaArgs(
     val dateFormat: String,
     val timeFormat: String,
     val fnDelim: String,
+    /**
+     * 단일 소스 카운터(프리뷰 표기용). COUNTER 셀 ON/OFF에 의해 프리뷰 숫자가 흔들리지 않게 하기 위함.
+     */
+    val scopeNextCounter: Int,
     val tableTemplateState: TableTemplateState,
     val tableResolver: TableResolver,
     val now: Date,
