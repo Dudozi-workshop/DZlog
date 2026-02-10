@@ -5,16 +5,21 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.camera.core.ImageCapture
 import com.example.dzlog.data.repository.DzlogRepositoryImpl
+import com.example.dzlog.domain.capturepolicy.CaptureContext
+import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
+import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
-import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.table.applyPatch
 import com.example.dzlog.domain.watermark.WatermarkBuilder
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.Date
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -89,22 +94,20 @@ internal fun handleCaptureClick(
         )
     )
 
-    // NOTE(SSOT):
-    // - COUNTER 셀 표기 ON/OFF는 "표현"이며, 카운터 스트림/파일명 카운터 결정에 영향을 주면 안 됨.
-    // - 파일명 suffix 카운터는 항상 scopeNextCounter(스트림 next)만 사용한다.
+    val policyResult = CaptureNamingPolicy.buildForCaptureWithCounter(
+        captureContext = CaptureContext(
+            resolvedCells = planForCapture.resolvedCells,
+            fnDelim = fnDelim,
+            dateFormat = dateFormat,
+            timeFormat = timeFormat
+        ),
+        usedCounter = scopeNextCounter
+    )
+
     val req = com.example.dzlog.domain.model.CaptureRequest(
         group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
         group2 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G2),
-        displayName = buildDisplayNameFromResolvedCells(
-            resolvedCells = planForCapture.resolvedCells,
-            fnDelim = fnDelim,
-            includeDate = false,
-            includeTime = false,
-            // ✅ 파일명 suffix counter는 항상 스트림 값(scopeNextCounter)을 사용함.
-            // COUNTER 셀 ON/OFF(표기 토글)과 무관하게 카운터 흐름이 갈라지지 않도록 단일화함.
-            counterOverride = scopeNextCounter,
-            now = captureNow
-        ),
+        displayName = policyResult.displayName,
         resolvedCells = planForCapture.resolvedCells,
         watermarkCells = WatermarkBuilder.buildTableCells(planForCapture.resolvedCells),
         saveMode = saveMode,
@@ -133,6 +136,15 @@ internal fun handleCaptureClick(
             onSetCapturing(false)
 
             onApplyTemplatePatch(tableTemplateState.applyPatch(planForCapture.patch))
+
+            CoroutineScope(Dispatchers.IO).launch {
+                CaptureCounterPolicy.commitCounter(
+                    context = context,
+                    key = policyResult.streamKey,
+                    usedCounter = policyResult.usedCounter,
+                    mediaStoreId = entry.mediaStoreId
+                )
+            }
 
             // ✅ 촬영 후 next counter는 항상 +1로 진전(표기 ON/OFF로 분기 금지)
             onUpdateScopeNextCounter(computeNextScopeCounter(entry.displayName, scopeNextCounter))

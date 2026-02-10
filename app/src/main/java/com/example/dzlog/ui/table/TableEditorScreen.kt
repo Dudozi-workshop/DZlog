@@ -72,6 +72,8 @@ import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.toJsonString
+import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
+import com.example.dzlog.domain.capturepolicy.CaptureStreamKey
 import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
@@ -154,18 +156,9 @@ fun TableEditorScreen(
 
     var usedCounters by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var scopeNextCounter by remember { mutableIntStateOf(1) }
-    var showCounterDupDialog by remember { mutableStateOf(false) }
+    var showCounterConflictDialog by remember { mutableStateOf(false) }
     var pendingCounterCommitValue by remember { mutableIntStateOf(0) }
-    var pendingCounterCommitText by remember { mutableStateOf("") }
-    var pendingCounterLatestValue by remember { mutableIntStateOf(0) }
-
-    // NOTE:
-    // templateState.cells 리스트가 동일한 객체로 유지되면서 내부 값만 바뀌는 경우가 있어
-    // remember(templateState.cells)에만 의존하면 경로/프리픽스/카운터 동기화가 갱신되지 않을 수 있음.
-    // → templateState 자체를 키로 포함해 항상 재계산되도록 보장한다.
-    val currentRelativePath by remember(templateState) {
-        derivedStateOf { buildGalleryRelativePath(templateState.cells) }
-    }
+    var pendingCounterStreamNextValue by remember { mutableIntStateOf(1) }
 
     var previewNow by remember { mutableStateOf(Date()) }
 
@@ -209,8 +202,22 @@ fun TableEditorScreen(
         }
     }
 
-    val currentScopeKey by remember(currentRelativePath, currentPrefix) {
-        derivedStateOf { "$currentRelativePath|$currentPrefix" }
+    val currentRelativePathKey by remember(planForScope.resolvedCells) {
+        derivedStateOf {
+            val g1 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G1)
+            val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
+            val baseRelativePath = buildGalleryRelativePath(g1, g2)
+            val hasG2Group = planForScope.resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
+            CounterManager.computeCounterStreamRelativePathKey(
+                baseRelativePath = baseRelativePath,
+                hasG2Group = hasG2Group,
+                group2Value = g2
+            )
+        }
+    }
+
+    val currentScopeKey by remember(currentRelativePathKey, currentPrefix) {
+        derivedStateOf { "$currentRelativePathKey|$currentPrefix" }
     }
 
     LaunchedEffect(currentScopeKey) {
@@ -223,7 +230,7 @@ fun TableEditorScreen(
         [STEP1 scopeKey changed]
         g1=$g1
         g2=$g2
-        relativePath=$currentRelativePath
+        relativePathKey=$currentRelativePathKey
         counterPrefix=$currentPrefix
         scopeKey=$currentScopeKey
         """.trimIndent()
@@ -237,7 +244,7 @@ fun TableEditorScreen(
         Log.d(
             "DZlogCounter",
             "TableEditor scopeKey changed\n"+
-            "relativePath=$currentRelativePath\n"+
+            "relativePathKey=$currentRelativePathKey\n"+
             "counterPrefix=$currentPrefix\n"+
             "scopeKey=$currentScopeKey"
         )
@@ -247,7 +254,7 @@ fun TableEditorScreen(
         // ✅ 정책(스트림키=relativePathPrefix) 기준 usedCounters  nextCounter 계산
         val used = CounterManager.getUsedCounters(
             context = context,
-            relativePath = currentRelativePath,
+            relativePath = currentRelativePathKey,
             counterPrefix = currentPrefix,
             counterDigits = previewCounterDigits,
             fnDelim = "_"
@@ -259,12 +266,12 @@ fun TableEditorScreen(
         val nextByHistory = ((used.maxOrNull() ?: 0) +  1).coerceAtLeast(1)
 
         val isNewStream = (lastScopeKey != null && lastScopeKey != currentScopeKey)
-        // ✅ 스트림이 바뀌면 currentSeed를 무시하고 "새 스트림의 next"로 맞춘다.
-        // ✅ 같은 스트림이면 기존처럼 내려가지 않게 max() 유지
+        // ✅ 스트림이 바뀌면 "새 스트림의 next"로 맞춘다.
+        // ✅ 같은 스트림에서는 사용자 수동 seed(낮은 값 포함)를 유지한다.
         val desiredSeed = when {
             counterCell == null -> nextByHistory
             isNewStream -> nextByHistory
-            else -> maxOf(nextByHistory, currentSeed)
+            else -> currentSeed.coerceAtLeast(1)
         }
 
         scopeNextCounter = desiredSeed
@@ -316,18 +323,18 @@ fun TableEditorScreen(
         val id = editingCellId ?: return
         val cell = templateState.cells.firstOrNull { it.cellId == id }
 
-        // COUNTER 중복 체크
+        // COUNTER 충돌 정책: stream next보다 작은 값을 입력하면 경고 후 진행 여부를 확인한다.
         if (cell != null && cell.dataType == TableCellDataType.COUNTER) {
             val newV = editingValue.trim().toIntOrNull()
             val oldV = editingOriginalValue.trim().toIntOrNull()
             if (newV == null || newV < 0) return
 
             val isChanged = (oldV == null) || (newV != oldV)
-            if (isChanged && usedCounters.contains(newV)) {
+            val streamNext = ((usedCounters.maxOrNull() ?: 0) + 1).coerceAtLeast(1)
+            if (isChanged && newV < streamNext) {
                 pendingCounterCommitValue = newV
-                pendingCounterCommitText = editingValue.trim()
-                pendingCounterLatestValue = (usedCounters.maxOrNull() ?: 0) + 1
-                showCounterDupDialog = true
+                pendingCounterStreamNextValue = streamNext
+                showCounterConflictDialog = true
                 return
             }
         }
@@ -365,7 +372,21 @@ fun TableEditorScreen(
         onTemplateChange(updated)
         if (target?.dataType == TableCellDataType.COUNTER) {
             val seed = normalizedValueText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
-            scopeNextCounter = seed.coerceAtLeast(1)
+            val normalizedSeed = seed.coerceAtLeast(1)
+            scopeNextCounter = normalizedSeed
+            scope.launch {
+                CaptureCounterPolicy.setNextCounter(
+                    context = context,
+                    key = CaptureStreamKey(
+                        relativePathKey = currentRelativePathKey,
+                        prefix = currentPrefix
+                    ),
+                    desired = normalizedSeed,
+                    force = false,
+                    counterDigits = previewCounterDigits,
+                    fnDelim = "_"
+                )
+            }
         }
         editingCellId = null
     }
@@ -442,41 +463,100 @@ fun TableEditorScreen(
         now = previewNow
     )
 
-    fun closeCounterDupDialog() {
-        showCounterDupDialog = false
-        // 중복 다이얼로그가 뜨는 경우 "편집 유지" 정책이므로 editingCellId는 여기서만 정리
+    fun closeCounterConflictDialog() {
+        showCounterConflictDialog = false
         editingCellId = null
+        editingValue = ""
     }
 
-    if (showCounterDupDialog) {
+    if (showCounterConflictDialog) {
         AlertDialog(
-            onDismissRequest = { closeCounterDupDialog() },
-            title = { Text("중복 카운터") },
+            onDismissRequest = {
+                val id = editingCellId
+                if (id != null) {
+                    val restored = pendingCounterStreamNextValue.coerceAtLeast(1)
+                    val updated = updateCell(templateState, id) { c ->
+                        c.copy(typedValue = CellValue.CounterSeed(restored))
+                    }
+                    onTemplateChange(updated)
+                    scopeNextCounter = restored
+                    scope.launch {
+                        CaptureCounterPolicy.setNextCounter(
+                            context = context,
+                            key = CaptureStreamKey(
+                                relativePathKey = currentRelativePathKey,
+                                prefix = currentPrefix
+                            ),
+                            desired = restored,
+                            force = false,
+                            counterDigits = previewCounterDigits,
+                            fnDelim = "_"
+                        )
+                    }
+                }
+                closeCounterConflictDialog()
+            },
+            title = { Text("카운터 충돌 경고") },
             text = {
                 Text(
-                    "이미 저장된 번호: $pendingCounterCommitValue\n" +
-                            "현재 최신 추천: $pendingCounterLatestValue\n\n" +
-                            "그래도 적용할까요?"
+                    "중복된 카운터가 발생할 수 있습니다. 계속 진행하시겠습니까?\n\n" +
+                        "입력값: $pendingCounterCommitValue\n" +
+                        "현재 스트림 next: $pendingCounterStreamNextValue"
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     val id = editingCellId
                     if (id != null) {
+                        val applied = pendingCounterCommitValue.coerceAtLeast(1)
                         val updated = updateCell(templateState, id) { c ->
-                            c.copy(
-                                typedValue = CellValue.CounterSeed(
-                                    pendingCounterCommitText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
-                                )
-                            )
+                            c.copy(typedValue = CellValue.CounterSeed(applied))
                         }
                         onTemplateChange(updated)
+                        scopeNextCounter = applied
+                        scope.launch {
+                            CaptureCounterPolicy.setNextCounter(
+                                context = context,
+                                key = CaptureStreamKey(
+                                    relativePathKey = currentRelativePathKey,
+                                    prefix = currentPrefix
+                                ),
+                                desired = applied,
+                                force = true,
+                                counterDigits = previewCounterDigits,
+                                fnDelim = "_"
+                            )
+                        }
                     }
-                    closeCounterDupDialog()
-                }) { Text("적용", style = DDZTypography.ButtonText) }
-                            },
+                    closeCounterConflictDialog()
+                }) { Text("진행", style = DDZTypography.ButtonText) }
+            },
             dismissButton = {
-                TextButton(onClick = { closeCounterDupDialog() }) {
+                TextButton(onClick = {
+                    val id = editingCellId
+                    if (id != null) {
+                        val restored = pendingCounterStreamNextValue.coerceAtLeast(1)
+                        val updated = updateCell(templateState, id) { c ->
+                            c.copy(typedValue = CellValue.CounterSeed(restored))
+                        }
+                        onTemplateChange(updated)
+                        scopeNextCounter = restored
+                        scope.launch {
+                            CaptureCounterPolicy.setNextCounter(
+                                context = context,
+                                key = CaptureStreamKey(
+                                    relativePathKey = currentRelativePathKey,
+                                    prefix = currentPrefix
+                                ),
+                                desired = restored,
+                                force = false,
+                                counterDigits = previewCounterDigits,
+                                fnDelim = "_"
+                            )
+                        }
+                    }
+                    closeCounterConflictDialog()
+                }) {
                     Text("취소", style = DDZTypography.ButtonText)
                 }
             }
