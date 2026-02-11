@@ -84,7 +84,6 @@ fun AppRoot() {
             saveMode = com.example.dzlog.domain.model.SaveMode.BOTH,
             continuousPreviewMode = com.example.dzlog.domain.model.ContinuousPreviewMode.OFF,
             counterPadding = 0,
-            resetCounterOnPathChange = true,
             includePathInCounterScope = true,
             includeFilenameInCounterScope = true,
             toastEnabled = true,

@@ -125,7 +125,6 @@ fun TableEditorScreen(
         saveMode = com.example.dzlog.domain.model.SaveMode.BOTH,
         continuousPreviewMode = com.example.dzlog.domain.model.ContinuousPreviewMode.OFF,
         counterPadding = COUNTER_DIGITS_DEFAULT,
-        resetCounterOnPathChange = true,
         includePathInCounterScope = true,
         includeFilenameInCounterScope = true,
         toastEnabled = true,
@@ -276,8 +275,8 @@ fun TableEditorScreen(
         Log.d(
             "DZlogCounter",
             "TableEditor scopeKey changed\n"+
-            "relativePathKey=$currentRelativePathKey\n"+
-            "counterPrefix=$currentPrefix\n"+
+            "relativePathKey=${currentScopeParts.relativePathKey}\n"+
+            "counterPrefix=${currentScopeParts.prefix}\n"+
             "scopeKey=$currentScopeKey"
         )
     }

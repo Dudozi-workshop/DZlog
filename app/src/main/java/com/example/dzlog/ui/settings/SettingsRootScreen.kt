@@ -67,7 +67,6 @@ fun SettingsRootScreen(
             saveMode = SaveMode.BOTH,
             continuousPreviewMode = ContinuousPreviewMode.OFF,
             counterPadding = 0,
-            resetCounterOnPathChange = true,
             includePathInCounterScope = true,
             includeFilenameInCounterScope = true,
             toastEnabled = true,
@@ -223,13 +222,13 @@ fun SettingsRootScreen(
             onIncludePathInCounterScopeChange = { enabled ->
                 scope.launch {
                     AppSettingsStore.setIncludePathInCounterScope(context, enabled)
-                    if (settings.toastEnabled) Toast.makeText(context, "카운터 스코프에 저장경로 포함: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+                    if (settings.toastEnabled) Toast.makeText(context, "카운터 범위에 저장경로 반영: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
                 }
             },
             onIncludeFilenameInCounterScopeChange = { enabled ->
                 scope.launch {
                     AppSettingsStore.setIncludeFilenameInCounterScope(context, enabled)
-                    if (settings.toastEnabled) Toast.makeText(context, "카운터 스코프에 파일명 포함: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+                    if (settings.toastEnabled) Toast.makeText(context, "카운터 범위에 파일명 반영: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
                 }
             }
         )
@@ -420,12 +419,18 @@ private fun QuickControlsCard(
                 }
             }
 
+            Text(
+                "카운터 범위(scope) 기준: 저장경로/파일명 반영 조합",
+                style = DDZTypography.Caption,
+                color = DDZColor.TextMuted
+            )
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("카운터 스코프에 저장경로 포함", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                    Text("카운터 범위에 저장경로 반영", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                 }
                 Switch(checked = includePathInCounterScope, onCheckedChange = onIncludePathInCounterScopeChange)
             }
@@ -435,7 +440,7 @@ private fun QuickControlsCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("카운터 스코프에 파일명 포함", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                    Text("카운터 범위에 파일명 반영", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                 }
                 Switch(checked = includeFilenameInCounterScope, onCheckedChange = onIncludeFilenameInCounterScopeChange)
             }

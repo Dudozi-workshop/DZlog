@@ -32,7 +32,6 @@ val KEY_COUNTER_MIGRATED_STREAMS_V1 = stringPreferencesKey("counter_migrated_str
 val KEY_COUNTER_MANUAL_NEXT_OVERRIDES_V1 = stringPreferencesKey("counter_manual_next_overrides_v1")
 
 val KEY_CONTINUOUS_PREVIEW_MODE = intPreferencesKey("continuous_preview_mode")
-val KEY_RESET_COUNTER_ON_PATH_CHANGE = booleanPreferencesKey("reset_counter_on_path_change")
 val KEY_INCLUDE_PATH_IN_COUNTER_SCOPE = booleanPreferencesKey("include_path_in_counter_scope")
 val KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE = booleanPreferencesKey("include_filename_in_counter_scope")
 val KEY_TOAST_ENABLED = booleanPreferencesKey("toast_enabled")
