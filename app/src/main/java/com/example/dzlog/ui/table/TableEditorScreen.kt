@@ -215,6 +215,42 @@ fun TableEditorScreen(
         derivedStateOf { "$currentRelativePathKey|$currentPrefix" }
     }
 
+    fun currentCounterStreamKey() = TableCounterPolicyCoordinator.streamKey(
+        relativePathKey = currentRelativePathKey,
+        prefix = currentPrefix
+    )
+
+    fun applyCounterSeed(seed: Int, preserveManual: Boolean) {
+        val normalizedSeed = seed.coerceAtLeast(1)
+        preserveManualCounterSeed = preserveManual
+        manualSeedOverride = normalizedSeed
+        scopeNextCounter = normalizedSeed
+    }
+
+    fun updateCounterCellAndPolicy(
+        cellId: String,
+        seed: Int,
+        preserveManual: Boolean,
+        forcePolicyUpdate: Boolean
+    ) {
+        val normalizedSeed = seed.coerceAtLeast(1)
+        val updated = updateCell(templateState, cellId) { c ->
+            c.copy(typedValue = CellValue.CounterSeed(normalizedSeed))
+        }
+        onTemplateChange(updated)
+        applyCounterSeed(seed = normalizedSeed, preserveManual = preserveManual)
+        scope.launch {
+            TableCounterPolicyCoordinator.setNextCounter(
+                context = context,
+                key = currentCounterStreamKey(),
+                desired = normalizedSeed,
+                force = forcePolicyUpdate,
+                counterDigits = previewCounterDigits,
+                fnDelim = "_"
+            )
+        }
+    }
+
     LaunchedEffect(currentScopeKey) {
         val g1 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G1)
         val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
@@ -259,21 +295,16 @@ fun TableEditorScreen(
         val counterCell = templateState.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
         val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start ?: 1
         val nextByHistory = ((used.maxOrNull() ?: 0) +  1).coerceAtLeast(1)
+        val streamKey = currentCounterStreamKey()
         val streamNext = TableCounterPolicyCoordinator.getNextCounter(
             context = context,
-            key = TableCounterPolicyCoordinator.streamKey(
-                relativePathKey = currentRelativePathKey,
-                prefix = currentPrefix
-            ),
+            key = streamKey,
             counterDigits = previewCounterDigits,
             fnDelim = "_"
         ).coerceAtLeast(1)
         isManualCounterMode = TableCounterPolicyCoordinator.isManualOverrideActive(
             context = context,
-            key = TableCounterPolicyCoordinator.streamKey(
-                relativePathKey = currentRelativePathKey,
-                prefix = currentPrefix
-            )
+            key = streamKey
         )
         autoNextCounterValue = CounterManager.getNextCounter(
             context = context,
@@ -286,23 +317,24 @@ fun TableEditorScreen(
         val isNewStream = (lastScopeKey != null && lastScopeKey != currentScopeKey)
         // ✅ 스트림이 바뀌면 "새 스트림의 next"로 맞춘다.
         // ✅ 같은 스트림에서는 사용자 수동 seed(낮은 값 포함)를 유지한다.
-        if (isNewStream) {
-            preserveManualCounterSeed = false
-        }
+        val syncResult = TableCounterPolicyCoordinator.resolveSeedForScope(
+            input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
+                hasCounterCell = (counterCell != null),
+                currentSeed = currentSeed,
+                streamNext = streamNext,
+                isNewStream = isNewStream,
+                preserveManualCounterSeed = preserveManualCounterSeed,
+                manualSeedOverride = manualSeedOverride
+            )
+        )
 
-        val desiredSeed = when {
-            counterCell == null -> streamNext
-            manualSeedOverride != null -> manualSeedOverride!!.coerceAtLeast(1)
-            isNewStream -> streamNext
-            preserveManualCounterSeed -> currentSeed.coerceAtLeast(1)
-            else -> maxOf(streamNext, currentSeed.coerceAtLeast(1))
-        }
+        preserveManualCounterSeed = syncResult.preserveManualCounterSeed
 
-        if (manualSeedOverride != null) {
+        if (syncResult.shouldClearManualOverride) {
             manualSeedOverride = null
         }
 
-        scopeNextCounter = desiredSeed
+        scopeNextCounter = syncResult.desiredSeed
         lastScopeKey = currentScopeKey
         // IDE 경고(Assigned value is never read) 방지: 다음 실행을 위한 상태를 즉시 한 번 읽어둔다.
         val persistedScopeKey = lastScopeKey
@@ -318,9 +350,9 @@ fun TableEditorScreen(
         )
 
         // ✅ 표시 ON/OFF와 무관하게, COUNTER 셀이 존재하면 seed는 정책 기준으로 항상 최신으로 맞춰둔다.
-        if (counterCell != null && currentSeed != desiredSeed) {
+        if (counterCell != null && currentSeed != syncResult.desiredSeed) {
             val updated = updateCell(templateState, counterCell.cellId) { c ->
-                c.copy(typedValue = CellValue.CounterSeed(desiredSeed))
+                c.copy(typedValue = CellValue.CounterSeed(syncResult.desiredSeed))
             }
             onTemplateChange(updated)
         }
@@ -401,16 +433,11 @@ fun TableEditorScreen(
         if (target?.dataType == TableCellDataType.COUNTER) {
             val seed = normalizedValueText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
             val normalizedSeed = seed.coerceAtLeast(1)
-            preserveManualCounterSeed = true
-            manualSeedOverride = normalizedSeed
-            scopeNextCounter = normalizedSeed
+            applyCounterSeed(seed = normalizedSeed, preserveManual = true)
             scope.launch {
                 TableCounterPolicyCoordinator.setNextCounter(
                     context = context,
-                    key = TableCounterPolicyCoordinator.streamKey(
-                        relativePathKey = currentRelativePathKey,
-                        prefix = currentPrefix
-                    ),
+                    key = currentCounterStreamKey(),
                     desired = normalizedSeed,
                     force = false,
                     counterDigits = previewCounterDigits,
@@ -506,26 +533,12 @@ fun TableEditorScreen(
                 val id = editingCellId
                 if (id != null) {
                     val restored = pendingCounterStreamNextValue.coerceAtLeast(1)
-                    val updated = updateCell(templateState, id) { c ->
-                        c.copy(typedValue = CellValue.CounterSeed(restored))
-                    }
-                    onTemplateChange(updated)
-                    preserveManualCounterSeed = false
-                    manualSeedOverride = restored
-                    scopeNextCounter = restored
-                    scope.launch {
-                        TableCounterPolicyCoordinator.setNextCounter(
-                            context = context,
-                            key = TableCounterPolicyCoordinator.streamKey(
-                                relativePathKey = currentRelativePathKey,
-                                prefix = currentPrefix
-                            ),
-                            desired = restored,
-                            force = false,
-                            counterDigits = previewCounterDigits,
-                            fnDelim = "_"
-                        )
-                    }
+                    updateCounterCellAndPolicy(
+                        cellId = id,
+                        seed = restored,
+                        preserveManual = false,
+                        forcePolicyUpdate = false
+                    )
                 }
                 closeCounterConflictDialog()
             },
@@ -542,26 +555,12 @@ fun TableEditorScreen(
                     val id = editingCellId
                     if (id != null) {
                         val applied = pendingCounterCommitValue.coerceAtLeast(1)
-                        val updated = updateCell(templateState, id) { c ->
-                            c.copy(typedValue = CellValue.CounterSeed(applied))
-                        }
-                        onTemplateChange(updated)
-                        preserveManualCounterSeed = true
-                        manualSeedOverride = applied
-                        scopeNextCounter = applied
-                        scope.launch {
-                            TableCounterPolicyCoordinator.setNextCounter(
-                                context = context,
-                                key = TableCounterPolicyCoordinator.streamKey(
-                                    relativePathKey = currentRelativePathKey,
-                                    prefix = currentPrefix
-                                ),
-                                desired = applied,
-                                force = true,
-                                counterDigits = previewCounterDigits,
-                                fnDelim = "_"
-                            )
-                        }
+                        updateCounterCellAndPolicy(
+                            cellId = id,
+                            seed = applied,
+                            preserveManual = true,
+                            forcePolicyUpdate = true
+                        )
                     }
                     closeCounterConflictDialog()
                 }) { Text("진행", style = DDZTypography.ButtonText) }
@@ -571,26 +570,12 @@ fun TableEditorScreen(
                     val id = editingCellId
                     if (id != null) {
                         val restored = pendingCounterStreamNextValue.coerceAtLeast(1)
-                        val updated = updateCell(templateState, id) { c ->
-                            c.copy(typedValue = CellValue.CounterSeed(restored))
-                        }
-                        onTemplateChange(updated)
-                        preserveManualCounterSeed = false
-                        manualSeedOverride = restored
-                        scopeNextCounter = restored
-                        scope.launch {
-                            TableCounterPolicyCoordinator.setNextCounter(
-                                context = context,
-                                key = TableCounterPolicyCoordinator.streamKey(
-                                    relativePathKey = currentRelativePathKey,
-                                    prefix = currentPrefix
-                                ),
-                                desired = restored,
-                                force = false,
-                                counterDigits = previewCounterDigits,
-                                fnDelim = "_"
-                            )
-                        }
+                        updateCounterCellAndPolicy(
+                            cellId = id,
+                            seed = restored,
+                            preserveManual = false,
+                            forcePolicyUpdate = false
+                        )
                     }
                     closeCounterConflictDialog()
                 }) {
@@ -881,10 +866,7 @@ fun TableEditorScreen(
                                 selectedCell?.let { cell ->
                                     if (cell.dataType != TableCellDataType.COUNTER) return@let
                                     scope.launch {
-                                        val key = TableCounterPolicyCoordinator.streamKey(
-                                            relativePathKey = currentRelativePathKey,
-                                            prefix = currentPrefix
-                                        )
+                                        val key = currentCounterStreamKey()
                                         val restored = TableCounterPolicyCoordinator.resetToAutoNext(
                                             context = context,
                                             key = key,
@@ -892,14 +874,12 @@ fun TableEditorScreen(
                                             fnDelim = "_"
                                         ).coerceAtLeast(1)
 
-                                        preserveManualCounterSeed = false
-                                        manualSeedOverride = restored
-                                        scopeNextCounter = restored
-
-                                        val updated = updateCell(templateState, cell.cellId) { c ->
-                                            c.copy(typedValue = CellValue.CounterSeed(restored))
-                                        }
-                                        onTemplateChange(updated)
+                                        updateCounterCellAndPolicy(
+                                            cellId = cell.cellId,
+                                            seed = restored,
+                                            preserveManual = false,
+                                            forcePolicyUpdate = false
+                                        )
                                         Toast.makeText(context, "카운터를 자동 기준으로 초기화했습니다.", Toast.LENGTH_SHORT).show()
                                     }
                                 }

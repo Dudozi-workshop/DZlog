@@ -71,21 +71,27 @@ fun HomeScreen(
             Text("DZlog", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
             Spacer(Modifier.height(DDZSpacing.sectionGap))
 
-            DDZButton(
-                text = "촬영 시작",
-                onClick = onStartCamera,
-                modifier = Modifier.fillMaxWidth(),
-                style = DDZButtonStyle.Primary
-            )
-            Spacer(Modifier.height(DDZSpacing.itemGap))
-            DDZButton(
-                text = "설정",
-                onClick = onOpenSettings,
-                modifier = Modifier.fillMaxWidth(),
-                style = DDZButtonStyle.Secondary
-            )
-
-            Spacer(Modifier.weight(1f))
+            // 중단: 메인 액션(촬영/설정) 영역을 가용 공간 중앙에 배치
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                DDZButton(
+                    text = "촬영 시작",
+                    onClick = onStartCamera,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = DDZButtonStyle.Primary
+                )
+                Spacer(Modifier.height(DDZSpacing.itemGap))
+                DDZButton(
+                    text = "설정",
+                    onClick = onOpenSettings,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = DDZButtonStyle.Secondary
+                )
+            }
 
 // 하단: 좌(표 전체 미리보기) / 우(최근 촬영 + 앨범)
             Row(
