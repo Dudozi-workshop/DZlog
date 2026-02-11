@@ -159,6 +159,7 @@ fun TableEditorScreen(
     var showCounterConflictDialog by remember { mutableStateOf(false) }
     var pendingCounterCommitValue by remember { mutableIntStateOf(0) }
     var pendingCounterStreamNextValue by remember { mutableIntStateOf(1) }
+    var preserveManualCounterSeed by remember { mutableStateOf(false) }
 
     var previewNow by remember { mutableStateOf(Date()) }
 
@@ -181,7 +182,7 @@ fun TableEditorScreen(
     }
 
     val tableResolver = remember { TableResolver() }
-    val planForScope = remember(templateState, previewNow, previewCounterDigits, dateFormat, timeFormat) {
+    val planForScope = remember(templateState, previewNow, previewCounterDigits, scopeNextCounter, dateFormat, timeFormat) {
         tableResolver.plan(
             cells = templateState.cells,
             captureNow = previewNow,
@@ -189,7 +190,8 @@ fun TableEditorScreen(
                 counterDigits = previewCounterDigits,
                 dateFormat = dateFormat,
                 timeFormat = timeFormat
-            )
+            ),
+            counterSeedOverride = scopeNextCounter
         )
     }
     val currentPrefix by remember(planForScope.resolvedCells) {
@@ -268,10 +270,15 @@ fun TableEditorScreen(
         val isNewStream = (lastScopeKey != null && lastScopeKey != currentScopeKey)
         // ✅ 스트림이 바뀌면 "새 스트림의 next"로 맞춘다.
         // ✅ 같은 스트림에서는 사용자 수동 seed(낮은 값 포함)를 유지한다.
+        if (isNewStream) {
+            preserveManualCounterSeed = false
+        }
+
         val desiredSeed = when {
             counterCell == null -> nextByHistory
             isNewStream -> nextByHistory
-            else -> currentSeed.coerceAtLeast(1)
+            preserveManualCounterSeed -> currentSeed.coerceAtLeast(1)
+            else -> maxOf(nextByHistory, currentSeed.coerceAtLeast(1))
         }
 
         scopeNextCounter = desiredSeed
@@ -373,6 +380,7 @@ fun TableEditorScreen(
         if (target?.dataType == TableCellDataType.COUNTER) {
             val seed = normalizedValueText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
             val normalizedSeed = seed.coerceAtLeast(1)
+            preserveManualCounterSeed = true
             scopeNextCounter = normalizedSeed
             scope.launch {
                 CaptureCounterPolicy.setNextCounter(
@@ -439,7 +447,7 @@ fun TableEditorScreen(
         }
     }
 
-    val plan = remember(templateState.cells, previewNow, previewCounterDigits, dateFormat, timeFormat) {
+    val plan = remember(templateState.cells, previewNow, previewCounterDigits, scopeNextCounter, dateFormat, timeFormat) {
         tableResolver.plan(
             cells = templateState.cells,
             captureNow = previewNow,
@@ -447,7 +455,8 @@ fun TableEditorScreen(
                 counterDigits = previewCounterDigits,
                 dateFormat = dateFormat,
                 timeFormat = timeFormat
-            )
+            ),
+            counterSeedOverride = scopeNextCounter
         )
     }
 
@@ -479,6 +488,7 @@ fun TableEditorScreen(
                         c.copy(typedValue = CellValue.CounterSeed(restored))
                     }
                     onTemplateChange(updated)
+                    preserveManualCounterSeed = false
                     scopeNextCounter = restored
                     scope.launch {
                         CaptureCounterPolicy.setNextCounter(
@@ -513,6 +523,7 @@ fun TableEditorScreen(
                             c.copy(typedValue = CellValue.CounterSeed(applied))
                         }
                         onTemplateChange(updated)
+                        preserveManualCounterSeed = true
                         scopeNextCounter = applied
                         scope.launch {
                             CaptureCounterPolicy.setNextCounter(
@@ -540,6 +551,7 @@ fun TableEditorScreen(
                             c.copy(typedValue = CellValue.CounterSeed(restored))
                         }
                         onTemplateChange(updated)
+                        preserveManualCounterSeed = false
                         scopeNextCounter = restored
                         scope.launch {
                             CaptureCounterPolicy.setNextCounter(

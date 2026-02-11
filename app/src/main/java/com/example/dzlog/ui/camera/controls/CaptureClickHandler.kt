@@ -9,11 +9,8 @@ import com.example.dzlog.domain.capturepolicy.CaptureContext
 import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.example.dzlog.domain.model.CaptureAspect
-import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.GroupLevel
-import com.example.dzlog.domain.model.TableCellDataType
-import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.resolveGroupValue
@@ -86,17 +83,16 @@ internal fun handleCaptureClick(
     if (!gate.compareAndSet(false, true)) return
     onSetCapturing(true)
 
-    val cellsForCapture = tableTemplateState.cells.withCounterSeed(scopeNextCounter)
-
     val captureNow = Date()
     val planForCapture = tableResolver.plan(
-        cells = cellsForCapture,
+        cells = tableTemplateState.cells,
         captureNow = captureNow,
         config = TableResolver.Config(
             counterDigits = counterDigits,
             dateFormat = dateFormat,
             timeFormat = timeFormat
-        )
+        ),
+        counterSeedOverride = scopeNextCounter
     )
 
     val policyResult = CaptureNamingPolicy.buildForCaptureWithCounter(
@@ -174,14 +170,6 @@ internal fun handleCaptureClick(
             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
         }
     )
-}
-
-private fun List<TableCellState>.withCounterSeed(seed: Int): List<TableCellState> {
-    val normalized = seed.coerceAtLeast(1)
-    return map { cell ->
-        if (cell.dataType != TableCellDataType.COUNTER) return@map cell
-        cell.copy(typedValue = CellValue.CounterSeed(normalized))
-    }
 }
 
 /**

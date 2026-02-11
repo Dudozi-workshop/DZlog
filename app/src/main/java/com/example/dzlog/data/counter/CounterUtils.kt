@@ -41,15 +41,17 @@ fun scanUsedCountersFromMediaStore(
             MediaStore.Images.Media.DISPLAY_NAME,
             MediaStore.Images.Media.RELATIVE_PATH
         )
-        val selection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
-        val selectionArgs = arrayOf("$relativePathPrefix%")
+        // 카운터 스트림은 "정확한 물리 저장 폴더" 단위로 분리되어야 한다.
+        // prefix 매칭을 쓰면 G1-only가 G1/G2 하위 폴더까지 흡수해 카운터가 이어질 수 있다.
+        val selection = "${MediaStore.Images.Media.RELATIVE_PATH} = ?"
+        val selectionArgs = arrayOf(relativePathPrefix)
 
         context.contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
             val nameIdx = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
             val pathIdx = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
             while (cursor.moveToNext()) {
                 val rel = if (pathIdx >= 0) cursor.getString(pathIdx) else ""
-                if (!rel.startsWith(relativePathPrefix)) continue
+                if (rel != relativePathPrefix) continue
                 val name = if (nameIdx >= 0) cursor.getString(nameIdx) else ""
                 parseCounterFromDisplayName(name, fileNamePrefix, counterDigits, fnDelim)?.let(out::add)
             }

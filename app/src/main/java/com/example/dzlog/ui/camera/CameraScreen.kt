@@ -205,7 +205,8 @@ fun CameraPreview(
                 counterDigits = ui.prefs.counterDigits,
                 dateFormat = dateFormat,
                 timeFormat = timeFormat
-            )
+            ),
+            counterSeedOverride = ui.counter.scopeNextCounter
         )
         CaptureNamingPolicy.buildDisplayNameForCounter(
             resolvedCells = plan.resolvedCells,
