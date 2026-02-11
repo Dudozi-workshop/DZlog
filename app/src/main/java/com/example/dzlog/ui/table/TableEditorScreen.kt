@@ -72,8 +72,6 @@ import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.toJsonString
-import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
-import com.example.dzlog.domain.capturepolicy.CaptureStreamKey
 import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
@@ -93,10 +91,11 @@ import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
-import com.example.dzlog.ui.common.DDZSectionHeader
+import com.example.dzlog.ui.table.section.LayoutTabActions
+import com.example.dzlog.ui.table.section.LayoutTabContent
+import com.example.dzlog.ui.table.section.LayoutTabUiState
 import com.example.dzlog.ui.table.section.PreviewTabContent
 import com.example.dzlog.ui.table.section.TableEditorTabs
-import com.example.dzlog.ui.table.section.TableGridSection
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
@@ -269,18 +268,18 @@ fun TableEditorScreen(
         val counterCell = templateState.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
         val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start ?: 1
         val nextByHistory = ((used.maxOrNull() ?: 0) +  1).coerceAtLeast(1)
-        val streamNext = CaptureCounterPolicy.getNextCounter(
+        val streamNext = TableCounterPolicyCoordinator.getNextCounter(
             context = context,
-            key = CaptureStreamKey(
+            key = TableCounterPolicyCoordinator.streamKey(
                 relativePathKey = currentRelativePathKey,
                 prefix = currentPrefix
             ),
             counterDigits = previewCounterDigits,
             fnDelim = "_"
         ).coerceAtLeast(1)
-        isManualCounterMode = CaptureCounterPolicy.isManualOverrideActive(
+        isManualCounterMode = TableCounterPolicyCoordinator.isManualOverrideActive(
             context = context,
-            key = CaptureStreamKey(
+            key = TableCounterPolicyCoordinator.streamKey(
                 relativePathKey = currentRelativePathKey,
                 prefix = currentPrefix
             )
@@ -415,9 +414,9 @@ fun TableEditorScreen(
             manualSeedOverride = normalizedSeed
             scopeNextCounter = normalizedSeed
             scope.launch {
-                CaptureCounterPolicy.setNextCounter(
+                TableCounterPolicyCoordinator.setNextCounter(
                     context = context,
-                    key = CaptureStreamKey(
+                    key = TableCounterPolicyCoordinator.streamKey(
                         relativePathKey = currentRelativePathKey,
                         prefix = currentPrefix
                     ),
@@ -524,9 +523,9 @@ fun TableEditorScreen(
                     manualSeedOverride = restored
                     scopeNextCounter = restored
                     scope.launch {
-                        CaptureCounterPolicy.setNextCounter(
+                        TableCounterPolicyCoordinator.setNextCounter(
                             context = context,
-                            key = CaptureStreamKey(
+                            key = TableCounterPolicyCoordinator.streamKey(
                                 relativePathKey = currentRelativePathKey,
                                 prefix = currentPrefix
                             ),
@@ -560,9 +559,9 @@ fun TableEditorScreen(
                         manualSeedOverride = applied
                         scopeNextCounter = applied
                         scope.launch {
-                            CaptureCounterPolicy.setNextCounter(
+                            TableCounterPolicyCoordinator.setNextCounter(
                                 context = context,
-                                key = CaptureStreamKey(
+                                key = TableCounterPolicyCoordinator.streamKey(
                                     relativePathKey = currentRelativePathKey,
                                     prefix = currentPrefix
                                 ),
@@ -589,9 +588,9 @@ fun TableEditorScreen(
                         manualSeedOverride = restored
                         scopeNextCounter = restored
                         scope.launch {
-                            CaptureCounterPolicy.setNextCounter(
+                            TableCounterPolicyCoordinator.setNextCounter(
                                 context = context,
-                                key = CaptureStreamKey(
+                                key = TableCounterPolicyCoordinator.streamKey(
                                     relativePathKey = currentRelativePathKey,
                                     prefix = currentPrefix
                                 ),
@@ -786,225 +785,136 @@ fun TableEditorScreen(
 
             when (selectedTabIndex) {
                 0 -> {
-                    // ==========================
-                    // 탭0: 표 구조설정 (헤더 고정 그리드 영역 하단 고정바 셀 패널 오버레이)
-                    // ==========================
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
-                        ) {
-                            // ✅ (변경) 상단/중앙은 스크롤 없음. (스크롤은 그리드 내부에서만)
-                            Column(
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                CompactPathHeader(
-                                    savePath = savePathPreview,
-                                    fileName = filenamePreview,
-                                    counterModeLabel = if (isManualCounterMode) "메뉴얼" else "오토"
-                                )
-
-                            Spacer(Modifier.height(10.dp))
-                            // ✅ Grid 영역: 스샷처럼 "섹션 카드" 안에, 높이 제한
-                                DDZSectionHeader(title = "GRID LAYOUT")
-                            Spacer(Modifier.height(6.dp))
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 320.dp) // ✅ 여기로 영역 제한 (원하면 360/480으로 조정)
-                                    .background(DDZColor.Card, RoundedCornerShape(14.dp))
-                                    .padding(10.dp)
-                            ) {
-
-                            TableGridSection(
-                                    templateState = templateState,
-                                    displayTextProvider = { cellId ->
-                                        plan.resolvedCells
-                                            .firstOrNull { it.id == cellId }
-                                            ?.resolvedText
-                                            .orEmpty()
-                                    },
-                                    selectedCellId = selectedCellId,
-                                    editingCellId = editingCellId,
-                                    onSelectCell = { id ->
-
-                                        if (editingCellId != null && editingCellId != id) {
-                                            commitInlineEditIfNeeded()
-                                            if (editingCellId != null) return@TableGridSection
+                    LayoutTabContent(
+                        uiState = LayoutTabUiState(
+                            savePathPreview = savePathPreview,
+                            filenamePreview = filenamePreview,
+                            counterModeLabel = if (isManualCounterMode) "메뉴얼" else "오토",
+                            templateState = templateState,
+                            plan = plan,
+                            selectedCellId = selectedCellId,
+                            editingCellId = editingCellId,
+                            editingValue = editingValue,
+                            inlineFocusRequester = inlineFocusRequester,
+                            showCellSettingsPanel = showCellSettingsPanel,
+                            selectedCell = selectedCell,
+                            hasGroup1 = hasGroup1,
+                            hasGroup2 = hasGroup2,
+                            isSavingTemplate = isSavingTemplate,
+                            autoNextCounterValue = autoNextCounterValue
+                        ),
+                        actions = LayoutTabActions(
+                            onSelectCellId = { selectedCellId = it },
+                            onShowCellSettingsPanel = { showCellSettingsPanel = it },
+                            onStartInlineEditing = ::startInlineEditing,
+                            onOpenFormatDialog = ::openFormatDialog,
+                            onEditingValueChange = { editingValue = it },
+                            onCommitInline = ::commitInlineEditIfNeeded,
+                            onTryCommitInlineAndContinue = {
+                                commitInlineEditIfNeeded()
+                                editingCellId == null
+                            },
+                            onInlineFocusLostCommit = {
+                                commitInlineEditIfNeeded()
+                                showCellSettingsPanel = true
+                            },
+                            onAddRow = { onTemplateChange(addRow(templateState)) },
+                            onRemoveRow = {
+                                val updated = removeRow(templateState)
+                                onTemplateChange(updated)
+                                if (updated.cells.none { it.cellId == selectedCellId }) {
+                                    selectedCellId = updated.cells.firstOrNull()?.cellId
+                                }
+                            },
+                            onAddCol = { onTemplateChange(addColumn(templateState)) },
+                            onRemoveCol = {
+                                val updated = removeColumn(templateState)
+                                onTemplateChange(updated)
+                                if (updated.cells.none { it.cellId == selectedCellId }) {
+                                    selectedCellId = updated.cells.firstOrNull()?.cellId
+                                }
+                            },
+                            onReset = onReset,
+                            onSave = {
+                                commitInlineEditIfNeeded()
+                                isSavingTemplate = true
+                                scope.launch {
+                                    runCatching {
+                                        context.dataStore.edit { prefs ->
+                                            prefs[KEY_TABLE_TEMPLATE_JSON] = templateState.toJsonString()
                                         }
-                                        selectedCellId = id
-
-                                            showCellSettingsPanel = true
-                                    },
-                                    onDoubleClickCell = { cell ->
-
-                                        if (editingCellId != null && editingCellId != cell.cellId) {
-                                            commitInlineEditIfNeeded()
-                                            if (editingCellId != null) return@TableGridSection
-                                            selectedCellId = cell.cellId
-                                            showCellSettingsPanel = true
-                                            return@TableGridSection
-                                        }
-
-                                        selectedCellId = cell.cellId
-                                        val canInline =
-                                            (cell.dataType == TableCellDataType.TEXT ||
-                                                    cell.dataType == TableCellDataType.NUMBER ||
-                                                    cell.dataType == TableCellDataType.COUNTER)
-
-                                        if (canInline) {
-                                            // ✅ 인라인 편집은 그리드 안에서 보여야 하므로,
-                                            // 패널이 떠 있는 상태면 가려져서 "안 되는 것처럼" 보임 → 강제 닫기
-                                            showCellSettingsPanel = false
-                                            startInlineEditing(cell.cellId, cell.toEditableText())
-                                        } else {
-                                            if (cell.dataType == TableCellDataType.DATE ||
-                                                cell.dataType == TableCellDataType.TIME
-                                            ) {
-                                                openFormatDialog(cell.cellId, cell.dataType)
-                                            } else {
-                                                showCellSettingsPanel = true
-                                            }
-                                        }
-                                    },
-                                    editingValue = editingValue,
-                                    onEditingValueChange = { editingValue = it },
-                                    onCommitInline = {
-                                        commitInlineEditIfNeeded()
-                                        editingCellId = null
-                                        keyboardController?.hide()
-                                    },
-                                    inlineFocusRequester = inlineFocusRequester,
-                                    onInlineFocusLostCommit = {
-                                        commitInlineEditIfNeeded()
-                                        editingCellId = null
-                                    }
-                                )
-                            }
-
-                            Spacer(Modifier.height(10.dp))
-                            } // ✅ (변경) 상단/중앙 영역 끝
-
-                            // ✅ 하단 고정 액션바(A 구성)
-                            BottomFixedActionBar(
-                                rows = templateState.rows,
-                                cols = templateState.cols,
-                                isSaving = isSavingTemplate,
-                                onAddRow = { onTemplateChange(addRow(templateState)) },
-                                onRemoveRow = {
-                                    val updated = removeRow(templateState)
-                                    onTemplateChange(updated)
-                                    if (updated.cells.none { it.cellId == selectedCellId }) {
-                                        selectedCellId = updated.cells.firstOrNull()?.cellId
-                                    }
-                                },
-                                onAddCol = { onTemplateChange(addColumn(templateState)) },
-                                onRemoveCol = {
-                                    val updated = removeColumn(templateState)
-                                    onTemplateChange(updated)
-                                    if (updated.cells.none { it.cellId == selectedCellId }) {
-                                        selectedCellId = updated.cells.firstOrNull()?.cellId
-                                    }
-                                },
-                                onReset = onReset,
-                                onSave = {
-                                    commitInlineEditIfNeeded()
-                                    isSavingTemplate = true
-                                    scope.launch {
-                                        runCatching {
-                                            context.dataStore.edit { prefs ->
-                                                prefs[KEY_TABLE_TEMPLATE_JSON] = templateState.toJsonString()
-                                            }
-                                        }.onFailure {
-                                            Toast.makeText(
-                                                context,
-                                                "Save failed: ${it.message}",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                            isSavingTemplate = false
-                                        }.onSuccess {
-                                            Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
-                                            onBack()
-                                        }
+                                    }.onFailure {
+                                        Toast.makeText(
+                                            context,
+                                            "Save failed: ${it.message}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        isSavingTemplate = false
+                                    }.onSuccess {
+                                        Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
+                                        onBack()
                                     }
                                 }
-                            )
-                        }
-
-                        // ✅ 셀 설정 패널(오버레이): 하단바를 덮는 방식
-                        if (showCellSettingsPanel && selectedCell != null && editingCellId == null) {
-                            // 배경 터치로 닫기
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(DDZColor.PrimaryDark.copy(alpha = 0.4f))
-                                    .clickable {
-                                        commitInlineEditIfNeeded()
-                                        showCellSettingsPanel = false
-                                    }
-                            )
-
-                            CellSettingsBottomPanel(
-                                modifier = Modifier.align(Alignment.BottomCenter),
-                                cell = selectedCell,
-                                hasGroup1 = hasGroup1,
-                                hasGroup2 = hasGroup2,
-                                onSetFileNameInclude = { checked ->
-                                    val updated = updateCell(templateState, selectedCell.cellId) { c ->
+                            },
+                            onDismissSettingsPanel = {
+                                commitInlineEditIfNeeded()
+                                showCellSettingsPanel = false
+                            },
+                            onSetFileNameIncludeForSelected = { checked ->
+                                selectedCell?.let { cell ->
+                                    val updated = updateCell(templateState, cell.cellId) { c ->
                                         c.copy(fileNameInclude = checked)
                                     }
                                     onTemplateChange(updated)
-                                },
-                                onPathGroupAction = { action ->
+                                }
+                            },
+                            onPathGroupActionForSelected = { action ->
+                                selectedCell?.let { cell ->
                                     val updated = applyPathGroupAction(
                                         state = templateState,
-                                        targetCellId = selectedCell.cellId,
+                                        targetCellId = cell.cellId,
                                         action = action
                                     )
                                     onTemplateChange(updated)
-                                },
-                                onSetDataType = { type ->
-                                    val updated = updateCell(templateState, selectedCell.cellId) { c ->
+                                }
+                            },
+                            onSetDataTypeForSelected = { type ->
+                                selectedCell?.let { cell ->
+                                    val updated = updateCell(templateState, cell.cellId) { c ->
                                         c.withDataType(type)
                                     }
                                     onTemplateChange(updated)
-                                },
-                                onResetCounterSeed = if (selectedCell.dataType == TableCellDataType.COUNTER) {
-                                    {
-                                        scope.launch {
-                                            val key = CaptureStreamKey(
-                                                relativePathKey = currentRelativePathKey,
-                                                prefix = currentPrefix
-                                            )
-                                            CaptureCounterPolicy.clearManualCounterOverride(
-                                                context = context,
-                                                key = key
-                                            )
-                                            val restored = CaptureCounterPolicy.getNextCounter(
-                                                context = context,
-                                                key = key,
-                                                counterDigits = previewCounterDigits,
-                                                fnDelim = "_"
-                                            ).coerceAtLeast(1)
+                                }
+                            },
+                            onResetCounterSeedForSelected = {
+                                selectedCell?.let { cell ->
+                                    if (cell.dataType != TableCellDataType.COUNTER) return@let
+                                    scope.launch {
+                                        val key = TableCounterPolicyCoordinator.streamKey(
+                                            relativePathKey = currentRelativePathKey,
+                                            prefix = currentPrefix
+                                        )
+                                        val restored = TableCounterPolicyCoordinator.resetToAutoNext(
+                                            context = context,
+                                            key = key,
+                                            counterDigits = previewCounterDigits,
+                                            fnDelim = "_"
+                                        ).coerceAtLeast(1)
 
-                                            preserveManualCounterSeed = false
-                                            manualSeedOverride = restored
-                                            scopeNextCounter = restored
+                                        preserveManualCounterSeed = false
+                                        manualSeedOverride = restored
+                                        scopeNextCounter = restored
 
-                                            val updated = updateCell(templateState, selectedCell.cellId) { c ->
-                                                c.copy(typedValue = CellValue.CounterSeed(restored))
-                                            }
-                                            onTemplateChange(updated)
-                                            Toast.makeText(context, "카운터를 자동 기준으로 초기화했습니다.", Toast.LENGTH_SHORT).show()
+                                        val updated = updateCell(templateState, cell.cellId) { c ->
+                                            c.copy(typedValue = CellValue.CounterSeed(restored))
                                         }
+                                        onTemplateChange(updated)
+                                        Toast.makeText(context, "카운터를 자동 기준으로 초기화했습니다.", Toast.LENGTH_SHORT).show()
                                     }
-                                } else null,
-                                autoNextCounterValue = autoNextCounterValue
-                            )
-                        }
-                    }
+                                }
+                            }
+                        )
+                    )
                 }
 
                 1 -> {
@@ -1061,367 +971,6 @@ fun TableEditorScreen(
                             scope.launch { context.dataStore.edit { it[KEY_WM_VALUE_SCALE] = nv } }
                         }
                     )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-internal fun CompactPathHeader(
-    savePath: String,
-    fileName: String,
-    counterModeLabel: String = "오토"
-    ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(DDZColor.Card, RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Text("SAVE PATH", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-        Text(
-            savePath,
-            style = DDZTypography.Body,
-            color = DDZColor.TextPrimary,
-            maxLines = 2
-        )
-        Spacer(Modifier.height(2.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("FILENAME", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-            Text(counterModeLabel, style = DDZTypography.Caption, color = DDZColor.TextMuted)
-        }
-        Text(
-            fileName,
-            style = DDZTypography.Body,
-            color = DDZColor.TextPrimary,
-            maxLines = 2
-        )
-    }
-    }
-
-// =========================
-// Stage 4: Row/Col size controls (weights)
-// =========================
-private fun ensureRowWeights(state: TableTemplateState): List<Float> {
-    val n = state.rows.coerceAtLeast(1)
-    val w = state.rowWeights
-    return if (w == null || w.size != n) List(n) { 1f } else w
-}
-
-private fun ensureColWeights(state: TableTemplateState): List<Float> {
-    val n = state.cols.coerceAtLeast(1)
-    val w = state.colWeights
-    return if (w == null || w.size != n) List(n) { 1f } else w
-}
-
-@Composable
-internal fun TableRowColSizeSection(
-    templateState: TableTemplateState,
-    onTemplateChange: (TableTemplateState) -> Unit
-) {
-    val rowWeights = ensureRowWeights(templateState)
-    val colWeights = ensureColWeights(templateState)
-    val innerScroll = rememberScrollState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(DDZColor.Card, RoundedCornerShape(14.dp))
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text("행/열 크기(비율)", style = DDZTypography.CardTitle, color = DDZColor.TextMuted)
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("균등 초기화", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-            TextButton(onClick = {
-                onTemplateChange(
-                    templateState.copy(
-                        rowWeights = List(templateState.rows.coerceAtLeast(1)) { 1f },
-                        colWeights = List(templateState.cols.coerceAtLeast(1)) { 1f }
-                    )
-                )
-            }) { Text("RESET", style = DDZTypography.ButtonText) }
-        }
-
-        // 행/열이 많을 때 레이아웃 섹션만 스크롤되도록 제한
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 260.dp)
-                .verticalScroll(innerScroll),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text("행 높이", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-            for (r in 0 until templateState.rows.coerceAtLeast(1)) {
-                val v = rowWeights.getOrNull(r) ?: 1f
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("R${r + 1}", modifier = Modifier.width(34.dp), style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                    Slider(
-                        value = v.coerceIn(0.3f, 3.0f),
-                        onValueChange = { nv ->
-                            val next = rowWeights.toMutableList()
-                            next[r] = nv.coerceIn(0.3f, 3.0f)
-                            onTemplateChange(templateState.copy(rowWeights = next))
-                        },
-                        valueRange = 0.3f..3.0f,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(String.format(Locale.US, "%.2f", v), modifier = Modifier.width(52.dp), style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                }
-            }
-
-            Spacer(Modifier.height(6.dp))
-            Text("열 너비", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-            for (c in 0 until templateState.cols.coerceAtLeast(1)) {
-                val v = colWeights.getOrNull(c) ?: 1f
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("C${c + 1}", modifier = Modifier.width(34.dp), style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                    Slider(
-                        value = v.coerceIn(0.3f, 3.0f),
-                        onValueChange = { nv ->
-                            val next = colWeights.toMutableList()
-                            next[c] = nv.coerceIn(0.3f, 3.0f)
-                            onTemplateChange(templateState.copy(colWeights = next))
-                        },
-                        valueRange = 0.3f..3.0f,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(String.format(Locale.US, "%.2f", v), modifier = Modifier.width(52.dp), style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                }
-            }
-        }
-
-        Text(
-            "※ 값은 ‘비율’이며, 표 전체 크기 안에서 행/열 분배만 바뀜",
-            style = DDZTypography.Caption,
-            color = DDZColor.TextMuted
-        )
-    }
-}
-
-@Composable
-internal fun BottomFixedActionBar(
-    rows: Int,
-    cols: Int,
-    isSaving: Boolean,
-    onAddRow: () -> Unit,
-    onRemoveRow: () -> Unit,
-    onAddCol: () -> Unit,
-    onRemoveCol: () -> Unit,
-    onReset: () -> Unit,
-    onSave: () -> Unit
-    ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(DDZColor.Surface, RoundedCornerShape(14.dp))
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(modifier = Modifier.weight(1f), onClick = onAddRow) {
-                Text("+Row", style = DDZTypography.ButtonText)
-            }
-            Button(modifier = Modifier.weight(1f), onClick = onRemoveRow, enabled = rows > 1) {
-                Text("-Row", style = DDZTypography.ButtonText)
-            }
-            Button(modifier = Modifier.weight(1f), onClick = onAddCol) {
-                Text("+Col", style = DDZTypography.ButtonText)
-            }
-            Button(modifier = Modifier.weight(1f), onClick = onRemoveCol, enabled = cols > 1) {
-                Text("-Col", style = DDZTypography.ButtonText)
-            }
-        }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(modifier = Modifier.weight(1f), onClick = onReset) {
-                Text("Reset", style = DDZTypography.ButtonText)
-            }
-            Button(modifier = Modifier.weight(1f), onClick = onSave, enabled = !isSaving) {
-                if (isSaving) {
-                    androidx.compose.material3.CircularProgressIndicator(
-                        modifier = Modifier.size(14.dp),
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Saving...", style = DDZTypography.ButtonText)
-                } else {
-                    Text("Save", style = DDZTypography.ButtonText)
-                }
-            }
-        }
-    }
-    }
-
-@Composable
-internal fun CellSettingsBottomPanel(
-    modifier: Modifier,
-    cell: TableCellState,
-    hasGroup1: Boolean,
-    hasGroup2: Boolean,
-    onSetFileNameInclude: (Boolean) -> Unit,
-    onPathGroupAction: (PathGroupAction) -> Unit,
-    onSetDataType: (TableCellDataType) -> Unit,
-    onResetCounterSeed: (() -> Unit)? = null,
-    autoNextCounterValue: Int = 1
-    ) {
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(DDZColor.Surface, RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // ✅ 상단 핸들(중앙만) - 공간 최소화
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 2.dp, bottom = 2.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .width(42.dp)
-                    .height(4.dp)
-                    .background(DDZColor.Border, RoundedCornerShape(4.dp))
-            )
-        }
-
-        // ✅ 파일명 그룹 (한 줄 병기)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("파일명 포함", style = DDZTypography.Body, color = DDZColor.TextMuted)
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (cell.fileNameInclude) "ON" else "OFF", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                    Switch(
-                        checked = cell.fileNameInclude,
-                        onCheckedChange = onSetFileNameInclude
-                    )
-                }
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text("저장경로", style = DDZTypography.Body, color = DDZColor.TextMuted)
-    // G2 선택 가능 조건
-    // - G1이 반드시 존재해야 함
-    // - 현재 셀이 G1이면: "G2가 이미 존재하는 경우에만" G1<->G2 스왑을 위해 허용
-    val canSelectG2 = hasGroup1 && (
-        cell.groupLevel != GroupLevel.G1 || hasGroup2
-    )
-                val isNone = cell.groupLevel == GroupLevel.NONE
-                val isG1 = cell.groupLevel == GroupLevel.G1
-                val isG2 = cell.groupLevel == GroupLevel.G2
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(DDZColor.Card, RoundedCornerShape(12.dp))
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        modifier = Modifier.weight(1f),
-                        onClick = { onPathGroupAction(PathGroupAction.NONE) }
-                    ) { Text(if (isNone) "없음 ✓" else "없음", style = DDZTypography.ButtonText) }
-
-                    Button(
-                        modifier = Modifier.weight(1f),
-                        onClick = { onPathGroupAction(PathGroupAction.G1) }
-                    ) { Text(if (isG1) "G1 ✓" else "G1", style = DDZTypography.ButtonText) }
-
-                    Button(
-                        modifier = Modifier.weight(1f),
-                        onClick = { onPathGroupAction(PathGroupAction.G2) },
-                        enabled = canSelectG2
-                    ) { Text(if (isG2) "G2 ✓" else "G2", style = DDZTypography.ButtonText) }
-                }
-
-                if (!canSelectG2) {
-                    Text("※ G2는 G1 설정 후 사용 가능 (현재 G1 셀에는 G2 설정 불가)", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                }
-            }
-        }
-
-        if (cell.dataType == TableCellDataType.COUNTER && onResetCounterSeed != null) {
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onResetCounterSeed
-            ) {
-                Text("카운터 초기화 ($autoNextCounterValue)", style = DDZTypography.ButtonText)
-            }
-        }
-
-        // ✅ Data Format: 카드형 3열
-        Text("데이터 형식", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
-        DataTypeCardGrid3(
-            selected = cell.dataType,
-            onSelect = onSetDataType
-        )
-    }
-}
-
-@Composable
-private fun DataTypeCardGrid3(
-    selected: TableCellDataType,
-    onSelect: (TableCellDataType) -> Unit
-    ) {
-    val items = listOf(
-        TableCellDataType.TEXT to "Text",
-        TableCellDataType.NUMBER to "Number",
-        TableCellDataType.DATE to "Date",
-        TableCellDataType.TIME to "Time",
-        TableCellDataType.COUNTER to "Counter"
-    )
-
-    val rows = items.chunked(3)
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        rows.forEach { row ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                row.forEach { (type, label) ->
-                    val isSelected = selected == type
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(74.dp)
-                            .background(
-                                color = if (isSelected) DDZColor.Success.copy(alpha = 0.2f) else DDZColor.Surface,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .border(
-                                width = if (isSelected) 2.dp else 1.dp,
-                                color = if (isSelected) DDZColor.Success else DDZColor.Border,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .clickable { onSelect(type) }
-                            .padding(10.dp)
-                    ) {
-                        Column(
-                            verticalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Text(label, style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                            Text(type.name, style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                        }
-                    }
-                }
-                // 3열 맞추기: row가 3개 미만이면 빈 칸 채움
-                repeat(3 - row.size) {
-                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
