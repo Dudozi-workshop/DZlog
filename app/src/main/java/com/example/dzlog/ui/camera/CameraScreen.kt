@@ -53,6 +53,7 @@ import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.repository.DzlogRepositoryImpl
+import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.model.CaptureAspect
@@ -495,14 +496,15 @@ private fun SyncCounterSeedEffect(
             ?.start
             ?.coerceAtLeast(1)
 
-        val nextSeedFromStream = CounterManager.getNextCounter(
+        val nextSeedFromStream = CaptureCounterPolicy.getNextCounter(
             context = context,
-            relativePath = scopeRelativePath,
-            counterPrefix = scopePrefix,
+            key = com.example.dzlog.domain.capturepolicy.CaptureStreamKey(
+                relativePathKey = scopeRelativePath,
+                prefix = scopePrefix
+            ),
             counterDigits = counterDigits,
             fnDelim = fnDelim
-        )
-            .coerceAtLeast(1)
+        ).coerceAtLeast(1)
 
         val isNewStream =
             (ui.counter.lastScopeKey != null && ui.counter.lastScopeKey != scopeKey)

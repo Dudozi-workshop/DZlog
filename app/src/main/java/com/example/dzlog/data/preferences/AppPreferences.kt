@@ -29,6 +29,7 @@ val KEY_TABLE_TEMPLATE_JSON = stringPreferencesKey("table_template_json")
 // - value format: newline-separated keys "<relativePath>|<basePrefix>"
 // - ensures legacy history is migrated into only the first accessed stream variant
 val KEY_COUNTER_MIGRATED_STREAMS_V1 = stringPreferencesKey("counter_migrated_streams_v1")
+val KEY_COUNTER_MANUAL_NEXT_OVERRIDES_V1 = stringPreferencesKey("counter_manual_next_overrides_v1")
 
 val KEY_CONTINUOUS_PREVIEW_MODE = intPreferencesKey("continuous_preview_mode")
 val KEY_RESET_COUNTER_ON_PATH_CHANGE = booleanPreferencesKey("reset_counter_on_path_change")

@@ -1,18 +1,22 @@
 package com.example.dzlog.domain.capturepolicy
 
 import android.content.Context
+import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counterindex.CounterIndexRepository
+import com.example.dzlog.data.preferences.KEY_COUNTER_MANUAL_NEXT_OVERRIDES_V1
+import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.domain.counter.CounterManager
+import kotlinx.coroutines.flow.first
+import java.net.URLDecoder
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 /**
  * Counter SSOT boundary.
  *
- * Step 3.2:
- * - 기존 CounterManager를 내부 구현으로 연결함.
- * - UI/Repository는 "카운터 숫자 결정"에 관여하지 않고, 이 정책을 통해서만 접근하도록 경계를 만든다.
- *
- * NOTE:
- * - commit/setNextCounter는 다음 스텝에서 실제 호출 지점(Camera/TableEditor/Repository)을 연결할 때 확정한다.
+ * - getNextCounter: stream next 계산(자동 + 수동 override 반영)
+ * - commitCounter: 저장 완료된 카운터를 기록하고, 수동 override 모드면 다음값으로 전진
+ * - setNextCounter: 사용자가 next seed를 명시 변경할 때 정책을 적용
  */
 internal object CaptureCounterPolicy {
 
@@ -22,13 +26,16 @@ internal object CaptureCounterPolicy {
         counterDigits: Int,
         fnDelim: String
     ): Int {
-        return CounterManager.getNextCounter(
+        val autoNext = CounterManager.getNextCounter(
             context = context,
             relativePath = key.relativePathKey,
             counterPrefix = key.prefix,
             counterDigits = counterDigits,
             fnDelim = fnDelim
-        )
+        ).coerceAtLeast(1)
+
+        val manualOverride = loadManualNextOverrides(context)[streamKey(key)]
+        return (manualOverride ?: autoNext).coerceAtLeast(1)
     }
 
     internal suspend fun commitCounter(
@@ -51,6 +58,15 @@ internal object CaptureCounterPolicy {
                 dateAddedSeconds = dateAddedSeconds
             )
         }
+
+        // 수동 override 모드인 경우: 캡처 후 다음 값으로 전진시켜 연속 촬영 시에도 유지한다.
+        val streamKey = streamKey(key)
+        val manualOverrides = loadManualNextOverrides(context)
+        val currentOverride = manualOverrides[streamKey]
+        if (currentOverride != null) {
+            val nextManual = (usedCounter + 1).coerceAtLeast(1)
+            saveManualNextOverride(context, streamKey, nextManual)
+        }
     }
 
     internal suspend fun setNextCounter(
@@ -62,16 +78,31 @@ internal object CaptureCounterPolicy {
         fnDelim: String
     ) {
         val normalized = desired.coerceAtLeast(1)
-        val currentNext = getNextCounter(
+
+        // 자동 기준 next(max+1)
+        val autoNext = CounterManager.getNextCounter(
             context = context,
-            key = key,
+            relativePath = key.relativePathKey,
+            counterPrefix = key.prefix,
             counterDigits = counterDigits,
             fnDelim = fnDelim
-        )
+        ).coerceAtLeast(1)
 
-        if (!force && normalized < currentNext) {
+        val streamKey = streamKey(key)
+
+        // force + 낮은 값: 의도적 구멍 메우기 모드로 간주하고 수동 override 저장
+        if (force && normalized < autoNext) {
+            saveManualNextOverride(context, streamKey, normalized)
             return
         }
+
+        // force가 아니면 기존 안전 정책 유지
+        if (!force && normalized < autoNext) {
+            return
+        }
+
+        // 자동 범위(>=autoNext)로 설정하면 수동 override 해제
+        clearManualNextOverride(context, streamKey)
 
         if (normalized <= 1) return
 
@@ -85,4 +116,59 @@ internal object CaptureCounterPolicy {
             )
         }
     }
+
+    internal suspend fun clearManualCounterOverride(
+        context: Context,
+        key: CaptureStreamKey
+    ) {
+        clearManualNextOverride(context, streamKey(key))
+    }
+
+    private fun streamKey(key: CaptureStreamKey): String = "${key.relativePathKey}|${key.prefix}"
+
+    private suspend fun loadManualNextOverrides(context: Context): Map<String, Int> {
+        val prefs = context.dataStore.data.first()
+        val raw = prefs[KEY_COUNTER_MANUAL_NEXT_OVERRIDES_V1].orEmpty()
+        if (raw.isBlank()) return emptyMap()
+        return raw
+            .lineSequence()
+            .mapNotNull { line ->
+                val parts = line.split("=", limit = 2)
+                if (parts.size != 2) return@mapNotNull null
+                val key = decode(parts[0])
+                val value = parts[1].toIntOrNull()?.coerceAtLeast(1) ?: return@mapNotNull null
+                key to value
+            }
+            .toMap()
+    }
+
+    private suspend fun saveManualNextOverride(context: Context, key: String, value: Int) {
+        val normalized = value.coerceAtLeast(1)
+        val updated = loadManualNextOverrides(context).toMutableMap().apply {
+            this[key] = normalized
+        }
+        persistManualNextOverrides(context, updated)
+    }
+
+    private suspend fun clearManualNextOverride(context: Context, key: String) {
+        val updated = loadManualNextOverrides(context).toMutableMap().apply {
+            remove(key)
+        }
+        persistManualNextOverrides(context, updated)
+    }
+
+    private suspend fun persistManualNextOverrides(context: Context, map: Map<String, Int>) {
+        val serialized = map.entries
+            .sortedBy { it.key }
+            .joinToString("\n") { (k, v) -> "${encode(k)}=$v" }
+
+        runCatching {
+            context.dataStore.edit { prefs ->
+                prefs[KEY_COUNTER_MANUAL_NEXT_OVERRIDES_V1] = serialized
+            }
+        }
+    }
+
+    private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8.name())
+    private fun decode(value: String): String = URLDecoder.decode(value, StandardCharsets.UTF_8.name())
 }

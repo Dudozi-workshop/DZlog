@@ -267,6 +267,15 @@ fun TableEditorScreen(
         val counterCell = templateState.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
         val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start ?: 1
         val nextByHistory = ((used.maxOrNull() ?: 0) +  1).coerceAtLeast(1)
+        val streamNext = CaptureCounterPolicy.getNextCounter(
+            context = context,
+            key = CaptureStreamKey(
+                relativePathKey = currentRelativePathKey,
+                prefix = currentPrefix
+            ),
+            counterDigits = previewCounterDigits,
+            fnDelim = "_"
+        ).coerceAtLeast(1)
 
         val isNewStream = (lastScopeKey != null && lastScopeKey != currentScopeKey)
         // ✅ 스트림이 바뀌면 "새 스트림의 next"로 맞춘다.
@@ -276,11 +285,11 @@ fun TableEditorScreen(
         }
 
         val desiredSeed = when {
-            counterCell == null -> nextByHistory
+            counterCell == null -> streamNext
             manualSeedOverride != null -> manualSeedOverride!!.coerceAtLeast(1)
-            isNewStream -> nextByHistory
+            isNewStream -> streamNext
             preserveManualCounterSeed -> currentSeed.coerceAtLeast(1)
-            else -> maxOf(nextByHistory, currentSeed.coerceAtLeast(1))
+            else -> maxOf(streamNext, currentSeed.coerceAtLeast(1))
         }
 
         if (manualSeedOverride != null) {
@@ -343,7 +352,7 @@ fun TableEditorScreen(
             if (newV == null || newV < 0) return
 
             val isChanged = (oldV == null) || (newV != oldV)
-            val streamNext = ((usedCounters.maxOrNull() ?: 0) + 1).coerceAtLeast(1)
+            val streamNext = scopeNextCounter.coerceAtLeast(1)
             if (isChanged && newV < streamNext) {
                 pendingCounterCommitValue = newV
                 pendingCounterStreamNextValue = streamNext
