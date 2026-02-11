@@ -1,6 +1,5 @@
 package com.example.dzlog.ui.navigation
 
-import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
@@ -13,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.data.preferences.KEY_ORIENTATION_MODE
 import com.example.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
 import com.example.dzlog.data.preferences.OrientationMode
@@ -20,15 +20,14 @@ import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.defaultTableTemplateState
 import com.example.dzlog.data.template.tableTemplateStateFromJson
 import com.example.dzlog.domain.model.TableTemplateState
-import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.ui.camera.CameraScreen
 import com.example.dzlog.ui.home.HomeScreen
 import com.example.dzlog.ui.home.SettingsScreen
-import com.example.dzlog.ui.settings.CaptureSettingsScreen
 import com.example.dzlog.ui.log.LogG1Screen
 import com.example.dzlog.ui.log.LogG2Screen
 import com.example.dzlog.ui.log.LogGridScreen
 import com.example.dzlog.ui.log.LogViewerScreen
+import com.example.dzlog.ui.settings.CaptureSettingsScreen
 import com.example.dzlog.ui.table.TableEditorScreen
 import kotlinx.coroutines.flow.first
 
@@ -86,6 +85,8 @@ fun AppRoot() {
             continuousPreviewMode = com.example.dzlog.domain.model.ContinuousPreviewMode.OFF,
             counterPadding = 0,
             resetCounterOnPathChange = true,
+            includePathInCounterScope = true,
+            includeFilenameInCounterScope = true,
             toastEnabled = true,
             hapticEnabled = true,
             blankWarningEnabled = true,

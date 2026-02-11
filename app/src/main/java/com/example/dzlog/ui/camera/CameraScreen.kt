@@ -10,6 +10,7 @@ package com.example.dzlog.ui.camera
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -36,6 +37,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.LifecycleOwner
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
+import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
@@ -56,6 +58,10 @@ import com.example.dzlog.data.repository.DzlogRepositoryImpl
 import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.example.dzlog.domain.counter.CounterManager
+import com.example.dzlog.domain.counter.CounterSeedInput
+import com.example.dzlog.domain.counter.buildCounterScopeParts
+import com.example.dzlog.domain.counter.buildCounterSyncLog
+import com.example.dzlog.domain.counter.decideCounterSeed
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.ContinuousPreviewMode
@@ -487,7 +493,14 @@ private fun SyncCounterSeedEffect(
     ui: CameraUiState
 ) {
     LaunchedEffect(scopeRelativePath, scopePrefix, counterDigits) {
-        val scopeKey = "$scopeRelativePath|$scopePrefix"
+        val appSettings = AppSettingsStore.flow(context).first()
+        val scopeParts = buildCounterScopeParts(
+            relativePath = scopeRelativePath,
+            prefix = scopePrefix,
+            includePathInScope = appSettings.includePathInCounterScope,
+            includeFilenameInScope = appSettings.includeFilenameInCounterScope,
+        )
+        val scopeKey = scopeParts.scopeKey
 
         val templateCounterSeed = tableCells
             .firstOrNull { it.dataType == TableCellDataType.COUNTER }
@@ -499,8 +512,8 @@ private fun SyncCounterSeedEffect(
         val nextSeedFromStream = CaptureCounterPolicy.getNextCounter(
             context = context,
             key = com.example.dzlog.domain.capturepolicy.CaptureStreamKey(
-                relativePathKey = scopeRelativePath,
-                prefix = scopePrefix
+                relativePathKey = scopeParts.relativePathKey,
+                prefix = scopeParts.prefix
             ),
             counterDigits = counterDigits,
             fnDelim = fnDelim
@@ -508,23 +521,30 @@ private fun SyncCounterSeedEffect(
 
         val isNewStream =
             (ui.counter.lastScopeKey != null && ui.counter.lastScopeKey != scopeKey)
+        val input = CounterSeedInput(
+            streamNext = nextSeedFromStream,
+            currentSeed = ui.counter.scopeNextCounter,
+            isNewStream = isNewStream,
+            templateCounterSeed = templateCounterSeed,
+        )
+        val decision = decideCounterSeed(input)
 
-        var resolvedSeed = ui.counter.scopeNextCounter
-
-        // 기본: 스트림 seed를 하한으로 유지
-        if (isNewStream || resolvedSeed < nextSeedFromStream) {
-            resolvedSeed = nextSeedFromStream
-        }
-
-        // TableEditor에서 사용자가 COUNTER를 명시 수정한 경우(>1) camera 진입 시 해당 값을 우선 반영
-        // - ON/OFF 토글 부산물로 남은 기본 seed(1)는 무시한다.
-        if (templateCounterSeed != null && templateCounterSeed > 1 && templateCounterSeed != resolvedSeed) {
-            resolvedSeed = templateCounterSeed
-        }
-
-        ui.counter.scopeNextCounter = resolvedSeed
-
+        ui.counter.scopeNextCounter = decision.desiredSeed
         ui.counter.lastScopeKey = scopeKey
+
+        Log.d(
+            "DZlogCounter",
+            buildCounterSyncLog(
+                source = "Camera",
+                scopeKey = scopeKey,
+                input = input,
+                decision = decision,
+                extras = listOf(
+                    "includePathInCounterScope" to appSettings.includePathInCounterScope,
+                    "includeFilenameInCounterScope" to appSettings.includeFilenameInCounterScope,
+                )
+            )
+        )
     }
 }
 private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {

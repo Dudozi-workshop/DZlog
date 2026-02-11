@@ -40,6 +40,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -61,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
+import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
@@ -75,6 +77,10 @@ import com.example.dzlog.data.template.toJsonString
 import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.example.dzlog.domain.capturepolicy.CaptureStreamKey
 import com.example.dzlog.domain.counter.CounterManager
+import com.example.dzlog.domain.counter.CounterSeedInput
+import com.example.dzlog.domain.counter.buildCounterScopeParts
+import com.example.dzlog.domain.counter.buildCounterSyncLog
+import com.example.dzlog.domain.counter.decideCounterSeed
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.GroupLevel
@@ -115,6 +121,17 @@ fun TableEditorScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val appSettings by AppSettingsStore.flow(context).collectAsState(initial = com.example.dzlog.data.datastore.AppSettings(
+        saveMode = com.example.dzlog.domain.model.SaveMode.BOTH,
+        continuousPreviewMode = com.example.dzlog.domain.model.ContinuousPreviewMode.OFF,
+        counterPadding = COUNTER_DIGITS_DEFAULT,
+        resetCounterOnPathChange = true,
+        includePathInCounterScope = true,
+        includeFilenameInCounterScope = true,
+        toastEnabled = true,
+        hapticEnabled = true,
+        blankWarningEnabled = true,
+    ))
 
     // ✅ 탭 상태
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -221,8 +238,18 @@ fun TableEditorScreen(
         }
     }
 
-    val currentScopeKey by remember(currentRelativePathKey, currentPrefix) {
-        derivedStateOf { "$currentRelativePathKey|$currentPrefix" }
+    val currentScopeParts by remember(currentRelativePathKey, currentPrefix, appSettings.includePathInCounterScope, appSettings.includeFilenameInCounterScope) {
+        derivedStateOf {
+            buildCounterScopeParts(
+                relativePath = currentRelativePathKey,
+                prefix = currentPrefix,
+                includePathInScope = appSettings.includePathInCounterScope,
+                includeFilenameInScope = appSettings.includeFilenameInCounterScope,
+            )
+        }
+    }
+    val currentScopeKey by remember(currentScopeParts.scopeKey) {
+        derivedStateOf { currentScopeParts.scopeKey }
     }
 
     LaunchedEffect(currentScopeKey) {
@@ -235,8 +262,8 @@ fun TableEditorScreen(
         [STEP1 scopeKey changed]
         g1=$g1
         g2=$g2
-        relativePathKey=$currentRelativePathKey
-        counterPrefix=$currentPrefix
+        relativePathKey=${currentScopeParts.relativePathKey}
+        counterPrefix=${currentScopeParts.prefix}
         scopeKey=$currentScopeKey
         """.trimIndent()
         )
@@ -259,8 +286,8 @@ fun TableEditorScreen(
         // ✅ 정책(스트림키=relativePathPrefix) 기준 usedCounters  nextCounter 계산
         val used = CounterManager.getUsedCounters(
             context = context,
-            relativePath = currentRelativePathKey,
-            counterPrefix = currentPrefix,
+            relativePath = currentScopeParts.relativePathKey,
+            counterPrefix = currentScopeParts.prefix,
             counterDigits = previewCounterDigits,
             fnDelim = "_"
         )
@@ -272,8 +299,8 @@ fun TableEditorScreen(
         val streamNext = CaptureCounterPolicy.getNextCounter(
             context = context,
             key = CaptureStreamKey(
-                relativePathKey = currentRelativePathKey,
-                prefix = currentPrefix
+                relativePathKey = currentScopeParts.relativePathKey,
+                prefix = currentScopeParts.prefix
             ),
             counterDigits = previewCounterDigits,
             fnDelim = "_"
@@ -281,32 +308,32 @@ fun TableEditorScreen(
         isManualCounterMode = CaptureCounterPolicy.isManualOverrideActive(
             context = context,
             key = CaptureStreamKey(
-                relativePathKey = currentRelativePathKey,
-                prefix = currentPrefix
+                relativePathKey = currentScopeParts.relativePathKey,
+                prefix = currentScopeParts.prefix
             )
         )
         autoNextCounterValue = CounterManager.getNextCounter(
             context = context,
-            relativePath = currentRelativePathKey,
-            counterPrefix = currentPrefix,
+            relativePath = currentScopeParts.relativePathKey,
+            counterPrefix = currentScopeParts.prefix,
             counterDigits = previewCounterDigits,
             fnDelim = "_"
         ).coerceAtLeast(1)
 
         val isNewStream = (lastScopeKey != null && lastScopeKey != currentScopeKey)
-        // ✅ 스트림이 바뀌면 "새 스트림의 next"로 맞춘다.
-        // ✅ 같은 스트림에서는 사용자 수동 seed(낮은 값 포함)를 유지한다.
-        if (isNewStream) {
+        val input = CounterSeedInput(
+            streamNext = streamNext,
+            currentSeed = currentSeed,
+            isNewStream = isNewStream,
+            hasCounterCell = counterCell != null,
+            preserveManualSeed = preserveManualCounterSeed,
+            manualSeedOverride = manualSeedOverride,
+        )
+        val decision = decideCounterSeed(input)
+        if (decision.shouldClearPreserveManualSeed) {
             preserveManualCounterSeed = false
         }
-
-        val desiredSeed = when {
-            counterCell == null -> streamNext
-            manualSeedOverride != null -> manualSeedOverride!!.coerceAtLeast(1)
-            isNewStream -> streamNext
-            preserveManualCounterSeed -> currentSeed.coerceAtLeast(1)
-            else -> maxOf(streamNext, currentSeed.coerceAtLeast(1))
-        }
+        val desiredSeed = decision.desiredSeed
 
         if (manualSeedOverride != null) {
             manualSeedOverride = null
@@ -319,13 +346,21 @@ fun TableEditorScreen(
 
         Log.d(
             "DZlogCounter",
-            "TableEditor counter sync\n"+
-            "usedCounters=$usedCounters\n"+
-            "currentSeed=$currentSeed\n"+
-            "nextByHistory=$nextByHistory\n"+
-            "scopeNextCounter=$scopeNextCounter\n"+
-            "persistedScopeKey=$persistedScopeKey"
+            buildCounterSyncLog(
+                source = "TableEditor",
+                scopeKey = currentScopeKey,
+                input = input,
+                decision = decision,
+                extras = listOf(
+                    "usedCounters" to usedCounters,
+                    "nextByHistory" to nextByHistory,
+                    "persistedScopeKey" to persistedScopeKey,
+                    "includePathInCounterScope" to appSettings.includePathInCounterScope,
+                    "includeFilenameInCounterScope" to appSettings.includeFilenameInCounterScope,
+                )
+            )
         )
+
 
         // ✅ 표시 ON/OFF와 무관하게, COUNTER 셀이 존재하면 seed는 정책 기준으로 항상 최신으로 맞춰둔다.
         if (counterCell != null && currentSeed != desiredSeed) {

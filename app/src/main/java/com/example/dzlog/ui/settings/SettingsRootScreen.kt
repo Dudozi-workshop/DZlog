@@ -68,6 +68,8 @@ fun SettingsRootScreen(
             continuousPreviewMode = ContinuousPreviewMode.OFF,
             counterPadding = 0,
             resetCounterOnPathChange = true,
+            includePathInCounterScope = true,
+            includeFilenameInCounterScope = true,
             toastEnabled = true,
             hapticEnabled = true,
             blankWarningEnabled = true,
@@ -149,7 +151,8 @@ fun SettingsRootScreen(
             saveMode = settings.saveMode,
             continuousPreviewMode = settings.continuousPreviewMode,
             counterPadding = settings.counterPadding,
-            resetCounterOnPathChange = settings.resetCounterOnPathChange,
+            includePathInCounterScope = settings.includePathInCounterScope,
+            includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
             onSaveModeChange = { mode ->
                 scope.launch {
                     AppSettingsStore.setSaveMode(context, mode)
@@ -217,10 +220,16 @@ fun SettingsRootScreen(
                     }
                 }
             },
-            onResetCounterOnPathChangeChange = { enabled ->
+            onIncludePathInCounterScopeChange = { enabled ->
                 scope.launch {
-                    AppSettingsStore.setResetCounterOnPathChange(context, enabled)
-                    if (settings.toastEnabled) Toast.makeText(context, "경로 변경 시 카운터 초기화: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+                    AppSettingsStore.setIncludePathInCounterScope(context, enabled)
+                    if (settings.toastEnabled) Toast.makeText(context, "카운터 스코프에 저장경로 포함: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onIncludeFilenameInCounterScopeChange = { enabled ->
+                scope.launch {
+                    AppSettingsStore.setIncludeFilenameInCounterScope(context, enabled)
+                    if (settings.toastEnabled) Toast.makeText(context, "카운터 스코프에 파일명 포함: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
                 }
             }
         )
@@ -333,12 +342,14 @@ private fun QuickControlsCard(
     saveMode: SaveMode,
     continuousPreviewMode: ContinuousPreviewMode,
     counterPadding: Int,
-    resetCounterOnPathChange: Boolean,
+    includePathInCounterScope: Boolean,
+    includeFilenameInCounterScope: Boolean,
     onSaveModeChange: (SaveMode) -> Unit,
     onContinuousPreviewModeChange: (ContinuousPreviewMode) -> Unit,
     onCounterPaddingChange: (Int) -> Unit,
     onResetCounterSync: () -> Unit,
-    onResetCounterOnPathChangeChange: (Boolean) -> Unit
+    onIncludePathInCounterScopeChange: (Boolean) -> Unit,
+    onIncludeFilenameInCounterScopeChange: (Boolean) -> Unit
 ) {
     DDZCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.sectionGap)) {
@@ -414,9 +425,19 @@ private fun QuickControlsCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("경로 변경 시 카운터 초기화", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                    Text("카운터 스코프에 저장경로 포함", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                 }
-                Switch(checked = resetCounterOnPathChange, onCheckedChange = onResetCounterOnPathChangeChange)
+                Switch(checked = includePathInCounterScope, onCheckedChange = onIncludePathInCounterScopeChange)
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("카운터 스코프에 파일명 포함", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                }
+                Switch(checked = includeFilenameInCounterScope, onCheckedChange = onIncludeFilenameInCounterScopeChange)
             }
         }
     }

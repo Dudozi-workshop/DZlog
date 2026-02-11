@@ -6,6 +6,8 @@ import com.example.dzlog.data.preferences.KEY_BLANK_WARNING_ENABLED
 import com.example.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_HAPTIC_ENABLED
+import com.example.dzlog.data.preferences.KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE
+import com.example.dzlog.data.preferences.KEY_INCLUDE_PATH_IN_COUNTER_SCOPE
 import com.example.dzlog.data.preferences.KEY_RESET_COUNTER_ON_PATH_CHANGE
 import com.example.dzlog.data.preferences.KEY_SAVE_MODE
 import com.example.dzlog.data.preferences.KEY_TOAST_ENABLED
@@ -20,6 +22,8 @@ data class AppSettings(
     val continuousPreviewMode: ContinuousPreviewMode,
     val counterPadding: Int,
     val resetCounterOnPathChange: Boolean,
+    val includePathInCounterScope: Boolean,
+    val includeFilenameInCounterScope: Boolean,
     val toastEnabled: Boolean,
     val hapticEnabled: Boolean,
     val blankWarningEnabled: Boolean,
@@ -34,6 +38,8 @@ object AppSettingsStore {
                 continuousPreviewMode = ContinuousPreviewMode.from(prefs[KEY_CONTINUOUS_PREVIEW_MODE] ?: ContinuousPreviewMode.OFF.v),
                 counterPadding = prefs[KEY_COUNTER_DIGITS] ?: 0,
                 resetCounterOnPathChange = prefs[KEY_RESET_COUNTER_ON_PATH_CHANGE] ?: true,
+                includePathInCounterScope = prefs[KEY_INCLUDE_PATH_IN_COUNTER_SCOPE] ?: true,
+                includeFilenameInCounterScope = prefs[KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE] ?: true,
                 toastEnabled = prefs[KEY_TOAST_ENABLED] ?: true,
                 hapticEnabled = prefs[KEY_HAPTIC_ENABLED] ?: true,
                 blankWarningEnabled = prefs[KEY_BLANK_WARNING_ENABLED] ?: true,
@@ -54,6 +60,14 @@ object AppSettingsStore {
 
     suspend fun setResetCounterOnPathChange(context: Context, enabled: Boolean) {
         context.dataStore.edit { it[KEY_RESET_COUNTER_ON_PATH_CHANGE] = enabled }
+    }
+
+    suspend fun setIncludePathInCounterScope(context: Context, enabled: Boolean) {
+        context.dataStore.edit { it[KEY_INCLUDE_PATH_IN_COUNTER_SCOPE] = enabled }
+    }
+
+    suspend fun setIncludeFilenameInCounterScope(context: Context, enabled: Boolean) {
+        context.dataStore.edit { it[KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE] = enabled }
     }
 
     suspend fun setToastEnabled(context: Context, enabled: Boolean) {
