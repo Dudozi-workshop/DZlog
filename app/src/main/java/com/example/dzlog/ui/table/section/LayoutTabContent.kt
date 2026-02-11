@@ -14,54 +14,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.TableCellDataType
-import com.example.dzlog.domain.model.TableCellState
-import com.example.dzlog.domain.model.TableTemplateState
-import com.example.dzlog.domain.table.ResolvePlan
 import com.example.dzlog.ui.common.DDZSectionHeader
 import com.example.dzlog.ui.table.BottomFixedActionBar
 import com.example.dzlog.ui.table.CellSettingsBottomPanel
 import com.example.dzlog.ui.table.CompactPathHeader
-import com.example.dzlog.ui.table.PathGroupAction
 import com.example.dzlog.ui.theme.DDZColor
 
 @Composable
 fun LayoutTabContent(
-    savePathPreview: String,
-    filenamePreview: String,
-    counterModeLabel: String,
-    templateState: TableTemplateState,
-    plan: ResolvePlan,
-    selectedCellId: String?,
-    editingCellId: String?,
-    editingValue: String,
-    inlineFocusRequester: FocusRequester,
-    showCellSettingsPanel: Boolean,
-    selectedCell: TableCellState?,
-    hasGroup1: Boolean,
-    hasGroup2: Boolean,
-    isSavingTemplate: Boolean,
-    onSelectCellId: (String?) -> Unit,
-    onShowCellSettingsPanel: (Boolean) -> Unit,
-    onStartInlineEditing: (cellId: String, initialText: String) -> Unit,
-    onOpenFormatDialog: (cellId: String, type: TableCellDataType) -> Unit,
-    onEditingValueChange: (String) -> Unit,
-    onCommitInline: () -> Unit,
-    onInlineFocusLostCommit: () -> Unit,
-    onAddRow: () -> Unit,
-    onRemoveRow: () -> Unit,
-    onAddCol: () -> Unit,
-    onRemoveCol: () -> Unit,
-    onReset: () -> Unit,
-    onSave: () -> Unit,
-    onDismissSettingsPanel: () -> Unit,
-    onSetFileNameIncludeForSelected: (Boolean) -> Unit,
-    onPathGroupActionForSelected: (PathGroupAction) -> Unit,
-    onSetDataTypeForSelected: (TableCellDataType) -> Unit,
-    onResetCounterSeedForSelected: () -> Unit,
-    autoNextCounterValue: Int,
+    uiState: LayoutTabUiState,
+    actions: LayoutTabActions,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -72,9 +36,9 @@ fun LayoutTabContent(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 CompactPathHeader(
-                    savePath = savePathPreview,
-                    fileName = filenamePreview,
-                    counterModeLabel = counterModeLabel
+                    savePath = uiState.savePathPreview,
+                    fileName = uiState.filenamePreview,
+                    counterModeLabel = uiState.counterModeLabel
                 )
 
                 Spacer(Modifier.height(10.dp))
@@ -89,51 +53,49 @@ fun LayoutTabContent(
                         .padding(10.dp)
                 ) {
                     TableGridSection(
-                        templateState = templateState,
+                        templateState = uiState.templateState,
                         displayTextProvider = { cellId ->
-                            plan.resolvedCells.firstOrNull { it.id == cellId }?.resolvedText.orEmpty()
+                            uiState.plan.resolvedCells.firstOrNull { it.id == cellId }?.resolvedText.orEmpty()
                         },
-                        selectedCellId = selectedCellId,
-                        editingCellId = editingCellId,
+                        selectedCellId = uiState.selectedCellId,
+                        editingCellId = uiState.editingCellId,
                         onSelectCell = { id ->
-                            if (editingCellId != null && editingCellId != id) {
-                                onInlineFocusLostCommit()
-                                if (editingCellId != null) return@TableGridSection
+                            if (uiState.editingCellId != null && uiState.editingCellId != id) {
+                                if (!actions.onTryCommitInlineAndContinue()) return@TableGridSection
                             }
-                            onSelectCellId(id)
-                            onShowCellSettingsPanel(true)
+                            actions.onSelectCellId(id)
+                            actions.onShowCellSettingsPanel(true)
                         },
                         onDoubleClickCell = { cell ->
-                            if (editingCellId != null && editingCellId != cell.cellId) {
-                                onInlineFocusLostCommit()
-                                if (editingCellId != null) return@TableGridSection
-                                onSelectCellId(cell.cellId)
-                                onShowCellSettingsPanel(true)
+                            if (uiState.editingCellId != null && uiState.editingCellId != cell.cellId) {
+                                if (!actions.onTryCommitInlineAndContinue()) return@TableGridSection
+                                actions.onSelectCellId(cell.cellId)
+                                actions.onShowCellSettingsPanel(true)
                                 return@TableGridSection
                             }
 
-                            onSelectCellId(cell.cellId)
+                            actions.onSelectCellId(cell.cellId)
                             val canInline =
                                 (cell.dataType == TableCellDataType.TEXT ||
                                     cell.dataType == TableCellDataType.NUMBER ||
                                     cell.dataType == TableCellDataType.COUNTER)
 
                             if (canInline) {
-                                onShowCellSettingsPanel(false)
-                                onStartInlineEditing(cell.cellId, cell.toEditableText())
+                                actions.onShowCellSettingsPanel(false)
+                                actions.onStartInlineEditing(cell.cellId, cell.toEditableText())
                             } else {
                                 if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
-                                    onOpenFormatDialog(cell.cellId, cell.dataType)
+                                    actions.onOpenFormatDialog(cell.cellId, cell.dataType)
                                 } else {
-                                    onShowCellSettingsPanel(true)
+                                    actions.onShowCellSettingsPanel(true)
                                 }
                             }
                         },
-                        editingValue = editingValue,
-                        onEditingValueChange = onEditingValueChange,
-                        onCommitInline = onCommitInline,
-                        inlineFocusRequester = inlineFocusRequester,
-                        onInlineFocusLostCommit = onInlineFocusLostCommit
+                        editingValue = uiState.editingValue,
+                        onEditingValueChange = actions.onEditingValueChange,
+                        onCommitInline = actions.onCommitInline,
+                        inlineFocusRequester = uiState.inlineFocusRequester,
+                        onInlineFocusLostCommit = actions.onInlineFocusLostCommit
                     )
                 }
 
@@ -141,36 +103,36 @@ fun LayoutTabContent(
             }
 
             BottomFixedActionBar(
-                rows = templateState.rows,
-                cols = templateState.cols,
-                isSaving = isSavingTemplate,
-                onAddRow = onAddRow,
-                onRemoveRow = onRemoveRow,
-                onAddCol = onAddCol,
-                onRemoveCol = onRemoveCol,
-                onReset = onReset,
-                onSave = onSave
+                rows = uiState.templateState.rows,
+                cols = uiState.templateState.cols,
+                isSaving = uiState.isSavingTemplate,
+                onAddRow = actions.onAddRow,
+                onRemoveRow = actions.onRemoveRow,
+                onAddCol = actions.onAddCol,
+                onRemoveCol = actions.onRemoveCol,
+                onReset = actions.onReset,
+                onSave = actions.onSave
             )
         }
 
-        if (showCellSettingsPanel && selectedCell != null && editingCellId == null) {
+        if (uiState.showCellSettingsPanel && uiState.selectedCell != null && uiState.editingCellId == null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(DDZColor.PrimaryDark.copy(alpha = 0.4f))
-                    .clickable { onDismissSettingsPanel() }
+                    .clickable { actions.onDismissSettingsPanel() }
             )
 
             CellSettingsBottomPanel(
                 modifier = Modifier.align(Alignment.BottomCenter),
-                cell = selectedCell,
-                hasGroup1 = hasGroup1,
-                hasGroup2 = hasGroup2,
-                onSetFileNameInclude = onSetFileNameIncludeForSelected,
-                onPathGroupAction = onPathGroupActionForSelected,
-                onSetDataType = onSetDataTypeForSelected,
-                onResetCounterSeed = onResetCounterSeedForSelected,
-                autoNextCounterValue = autoNextCounterValue
+                cell = uiState.selectedCell,
+                hasGroup1 = uiState.hasGroup1,
+                hasGroup2 = uiState.hasGroup2,
+                onSetFileNameInclude = actions.onSetFileNameIncludeForSelected,
+                onPathGroupAction = actions.onPathGroupActionForSelected,
+                onSetDataType = actions.onSetDataTypeForSelected,
+                onResetCounterSeed = actions.onResetCounterSeedForSelected,
+                autoNextCounterValue = uiState.autoNextCounterValue
             )
         }
     }
