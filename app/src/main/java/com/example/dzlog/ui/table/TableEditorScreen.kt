@@ -161,6 +161,8 @@ fun TableEditorScreen(
     var pendingCounterStreamNextValue by remember { mutableIntStateOf(1) }
     var preserveManualCounterSeed by remember { mutableStateOf(false) }
     var manualSeedOverride by remember { mutableStateOf<Int?>(null) }
+    var isManualCounterMode by remember { mutableStateOf(false) }
+    var autoNextCounterValue by remember { mutableIntStateOf(1) }
 
     var previewNow by remember { mutableStateOf(Date()) }
 
@@ -273,6 +275,20 @@ fun TableEditorScreen(
                 relativePathKey = currentRelativePathKey,
                 prefix = currentPrefix
             ),
+            counterDigits = previewCounterDigits,
+            fnDelim = "_"
+        ).coerceAtLeast(1)
+        isManualCounterMode = CaptureCounterPolicy.isManualOverrideActive(
+            context = context,
+            key = CaptureStreamKey(
+                relativePathKey = currentRelativePathKey,
+                prefix = currentPrefix
+            )
+        )
+        autoNextCounterValue = CounterManager.getNextCounter(
+            context = context,
+            relativePath = currentRelativePathKey,
+            counterPrefix = currentPrefix,
             counterDigits = previewCounterDigits,
             fnDelim = "_"
         ).coerceAtLeast(1)
@@ -785,8 +801,9 @@ fun TableEditorScreen(
                             ) {
                                 CompactPathHeader(
                                     savePath = savePathPreview,
-                                     fileName = filenamePreview
-                                 )
+                                    fileName = filenamePreview,
+                                    counterModeLabel = if (isManualCounterMode) "메뉴얼" else "오토"
+                                )
 
                             Spacer(Modifier.height(10.dp))
                             // ✅ Grid 영역: 스샷처럼 "섹션 카드" 안에, 높이 제한
@@ -953,7 +970,38 @@ fun TableEditorScreen(
                                         c.withDataType(type)
                                     }
                                     onTemplateChange(updated)
-                                }
+                                },
+                                onResetCounterSeed = if (selectedCell.dataType == TableCellDataType.COUNTER) {
+                                    {
+                                        scope.launch {
+                                            val key = CaptureStreamKey(
+                                                relativePathKey = currentRelativePathKey,
+                                                prefix = currentPrefix
+                                            )
+                                            CaptureCounterPolicy.clearManualCounterOverride(
+                                                context = context,
+                                                key = key
+                                            )
+                                            val restored = CaptureCounterPolicy.getNextCounter(
+                                                context = context,
+                                                key = key,
+                                                counterDigits = previewCounterDigits,
+                                                fnDelim = "_"
+                                            ).coerceAtLeast(1)
+
+                                            preserveManualCounterSeed = false
+                                            manualSeedOverride = restored
+                                            scopeNextCounter = restored
+
+                                            val updated = updateCell(templateState, selectedCell.cellId) { c ->
+                                                c.copy(typedValue = CellValue.CounterSeed(restored))
+                                            }
+                                            onTemplateChange(updated)
+                                            Toast.makeText(context, "카운터를 자동 기준으로 초기화했습니다.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                } else null,
+                                autoNextCounterValue = autoNextCounterValue
                             )
                         }
                     }
@@ -1022,7 +1070,8 @@ fun TableEditorScreen(
 @Composable
 internal fun CompactPathHeader(
     savePath: String,
-    fileName: String
+    fileName: String,
+    counterModeLabel: String = "오토"
     ) {
     Column(
         modifier = Modifier
@@ -1039,7 +1088,14 @@ internal fun CompactPathHeader(
             maxLines = 2
         )
         Spacer(Modifier.height(2.dp))
-        Text("FILENAME", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("FILENAME", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+            Text(counterModeLabel, style = DDZTypography.Caption, color = DDZColor.TextMuted)
+        }
         Text(
             fileName,
             style = DDZTypography.Body,
@@ -1215,7 +1271,9 @@ internal fun CellSettingsBottomPanel(
     hasGroup2: Boolean,
     onSetFileNameInclude: (Boolean) -> Unit,
     onPathGroupAction: (PathGroupAction) -> Unit,
-    onSetDataType: (TableCellDataType) -> Unit
+    onSetDataType: (TableCellDataType) -> Unit,
+    onResetCounterSeed: (() -> Unit)? = null,
+    autoNextCounterValue: Int = 1
     ) {
 
     Column(
@@ -1296,6 +1354,15 @@ internal fun CellSettingsBottomPanel(
                 if (!canSelectG2) {
                     Text("※ G2는 G1 설정 후 사용 가능 (현재 G1 셀에는 G2 설정 불가)", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 }
+            }
+        }
+
+        if (cell.dataType == TableCellDataType.COUNTER && onResetCounterSeed != null) {
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onResetCounterSeed
+            ) {
+                Text("카운터 초기화 ($autoNextCounterValue)", style = DDZTypography.ButtonText)
             }
         }
 

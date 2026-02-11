@@ -117,6 +117,13 @@ internal object CaptureCounterPolicy {
         }
     }
 
+    internal suspend fun isManualOverrideActive(
+        context: Context,
+        key: CaptureStreamKey
+    ): Boolean {
+        return loadManualNextOverrides(context).containsKey(streamKey(key))
+    }
+
     internal suspend fun clearManualCounterOverride(
         context: Context,
         key: CaptureStreamKey
