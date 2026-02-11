@@ -8,7 +8,6 @@ import com.example.dzlog.data.preferences.KEY_COUNTER_MIGRATED_STREAMS_V1
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
-import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.table.ResolvedCell
 import kotlinx.coroutines.flow.first
 import java.util.Date
@@ -80,7 +79,7 @@ object CounterManager {
      * 카운터 스트림용 prefix(단일 소스)
      *
      * - basePrefix: fileNameInclude 셀 기반 prefix (COUNTER 제외)
-     * - g2Enabled : "G2 값이 유효한지" 기준
+     * - g2Enabled : "G2 그룹 셀 존재 여부" (값이 비어도 true)
      *
      * 요구사항:
      * - 저장경로가 우연히 같아도(G2 값이 비어 g1 폴더만 쓰는 경우 등),
@@ -91,12 +90,7 @@ object CounterManager {
         fnDelim: String
     ): String {
         val basePrefix = computeCounterPrefix(resolvedCells, fnDelim)
-        // ✅ 스트림 분리 기준: "G2 사용"은 값이 실제로 유효할 때만 true로 본다.
-        //
-        // - 사용자가 G2를 "해제"하면(= 값이 비워짐), G1-only 스트림과 합류해야 함
-        // - 과거 로직(셀 존재 여부)은 값이 비어도 g2=1로 남아 스트림이 분리되는 문제가 있었음
-        val g2Value = resolveGroupValue(resolvedCells, GroupLevel.G2)
-        val g2Enabled = !g2Value.isNullOrBlank()
+        val g2Enabled = resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
         val tag = if (g2Enabled) "g2=1" else "g2=0"
         return "$basePrefix|$tag"
     }
@@ -143,7 +137,22 @@ object CounterManager {
         val fromDb: Set<Int> = runCatching {
             repo.getUsedCounters(relativePath, streamPrefix)
         }.getOrDefault(emptySet())
-        if (fromDb.isNotEmpty()) return fromDb
+
+        // 과도기/과거 기록 호환: 동일 물리경로 키로 저장된 레코드도 함께 확인한다.
+        val fromDbPhysical: Set<Int> = if (physicalRelativePath == relativePath) {
+            emptySet()
+        } else {
+            runCatching {
+                repo.getUsedCounters(physicalRelativePath, streamPrefix)
+            }.getOrDefault(emptySet())
+        }
+
+        val fromDbMerged = fromDb + fromDbPhysical
+        if (fromDbMerged.isNotEmpty()) {
+            // 현재 스트림 키 기준으로 정규화 백필
+            runCatching { repo.backfillPlaceholders(relativePath, streamPrefix, fromDbMerged) }
+            return fromDbMerged
+        }
 
         // 1-legacy) DB에 없고, 아직 마이그레이션 전이면 legacy(basePrefix)도 조회해본다.
         if (canMigrateLegacy) {
