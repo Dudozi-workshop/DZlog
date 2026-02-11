@@ -25,8 +25,10 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.lifecycle.Observer
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.example.dzlog.domain.model.CaptureRequest
+import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.TableCellDataType
+import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
@@ -172,9 +174,13 @@ internal fun CameraPreviewArea(
             }
         }
 
-        val plan = remember(args.tableTemplateState, args.now, args.counterDigits, args.dateFormat, args.timeFormat) {
+        val previewCells = remember(args.tableTemplateState, args.scopeNextCounter) {
+            args.tableTemplateState.cells.withCounterSeed(args.scopeNextCounter)
+        }
+
+        val plan = remember(previewCells, args.now, args.counterDigits, args.dateFormat, args.timeFormat) {
             args.tableResolver.plan(
-                cells = args.tableTemplateState.cells,
+                cells = previewCells,
                 captureNow = args.now,
                 config = TableResolver.Config(
                     counterDigits = args.counterDigits,
@@ -231,5 +237,13 @@ internal fun CameraPreviewArea(
             onDismissCaptured = onDismissCaptured,
             tapFocusUi = tapFocusUi
         )
+    }
+}
+
+private fun List<TableCellState>.withCounterSeed(seed: Int): List<TableCellState> {
+    val normalized = seed.coerceAtLeast(1)
+    return map { cell ->
+        if (cell.dataType != TableCellDataType.COUNTER) return@map cell
+        cell.copy(typedValue = CellValue.CounterSeed(normalized))
     }
 }
