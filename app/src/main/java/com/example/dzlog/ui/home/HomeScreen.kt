@@ -1,5 +1,4 @@
 package com.example.dzlog.ui.home
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -20,11 +20,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.example.dzlog.domain.model.MediaImageItem
 import com.example.dzlog.domain.model.TableTemplateState
+import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
+import com.example.dzlog.domain.naming.buildGalleryRelativePath
+import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.ui.common.DDZButton
 import com.example.dzlog.ui.common.DDZButtonStyle
 import com.example.dzlog.ui.common.DDZCard
@@ -53,6 +57,31 @@ fun HomeScreen(
     // ✅ 즉시 반영(Flow 구독) - 표 프리뷰 설정 묶음
     val previewSettings = rememberTablePreviewSettings()
 
+    // 상단 상태카드 표기용 프리뷰(저장경로/파일명)
+    val nowForPreview = remember { Date() }
+    val savePathPreview = remember(tableTemplateState.cells) {
+        buildGalleryRelativePath(tableTemplateState.cells)
+    }
+    val filenamePreview = remember(tableTemplateState.cells) {
+        val resolver = TableResolver()
+        val plan = resolver.plan(
+            cells = tableTemplateState.cells,
+            captureNow = nowForPreview,
+            config = TableResolver.Config(
+                counterDigits = 0,
+                dateFormat = "yyyy.MM.dd",
+                timeFormat = "HHmm"
+            )
+        )
+        buildDisplayNameFromResolvedCells(
+            resolvedCells = plan.resolvedCells,
+            fnDelim = "_",
+            includeDate = false,
+            includeTime = false,
+            now = nowForPreview
+        )
+    }
+
     var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
     LaunchedEffect(Unit) {
         latestImage = withContext(Dispatchers.IO) {
@@ -68,10 +97,55 @@ fun HomeScreen(
             .padding(DDZSpacing.screenPadding)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Text("DZlog", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
+            // 상단 헤더: 중앙 타이틀 + 우측 설정 아이콘
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(top = 4.dp)
+            ) {
+                Text(
+                    text = "DZlog",
+                    style = DDZTypography.ScreenTitle,
+                    color = DDZColor.TextPrimary,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+                Text(
+                    text = "설정",
+                    style = DDZTypography.Body,
+                    color = DDZColor.TextPrimary,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .clickable(onClick = onOpenSettings)
+                        .padding(8.dp)
+                )
+            }
+
+            Spacer(Modifier.height(DDZSpacing.itemGap))
+
+            // 상단 상태카드(버튼): 2줄(저장경로/파일명)
+            DDZCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenSettings)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "저장경로: $savePathPreview",
+                        style = DDZTypography.Body,
+                        color = DDZColor.TextPrimary
+                    )
+                    Text(
+                        text = "파일명: $filenamePreview",
+                        style = DDZTypography.Body,
+                        color = DDZColor.TextPrimary
+                    )
+                }
+            }
+
             Spacer(Modifier.height(DDZSpacing.sectionGap))
 
-            // 중단: 메인 액션(촬영/설정) 영역을 가용 공간 중앙에 배치
+            // 중단: 메인 액션(촬영/기존 사진 편집) 영역을 가용 공간 중앙에 배치
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -86,10 +160,11 @@ fun HomeScreen(
                 )
                 Spacer(Modifier.height(DDZSpacing.itemGap))
                 DDZButton(
-                    text = "설정",
-                    onClick = onOpenSettings,
+                    text = "기존 사진 편집",
+                    onClick = {},
                     modifier = Modifier.fillMaxWidth(),
-                    style = DDZButtonStyle.Secondary
+                    style = DDZButtonStyle.Secondary,
+                    enabled = false
                 )
             }
 
