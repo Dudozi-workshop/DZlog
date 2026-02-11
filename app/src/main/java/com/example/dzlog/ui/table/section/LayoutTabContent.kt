@@ -31,6 +31,7 @@ import com.example.dzlog.ui.theme.DDZColor
 fun LayoutTabContent(
     savePathPreview: String,
     filenamePreview: String,
+    counterModeLabel: String,
     templateState: TableTemplateState,
     plan: ResolvePlan,
     selectedCellId: String?,
@@ -59,6 +60,8 @@ fun LayoutTabContent(
     onSetFileNameIncludeForSelected: (Boolean) -> Unit,
     onPathGroupActionForSelected: (PathGroupAction) -> Unit,
     onSetDataTypeForSelected: (TableCellDataType) -> Unit,
+    onResetCounterSeedForSelected: () -> Unit,
+    autoNextCounterValue: Int,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -70,7 +73,8 @@ fun LayoutTabContent(
             Column(modifier = Modifier.weight(1f)) {
                 CompactPathHeader(
                     savePath = savePathPreview,
-                    fileName = filenamePreview
+                    fileName = filenamePreview,
+                    counterModeLabel = counterModeLabel
                 )
 
                 Spacer(Modifier.height(10.dp))
@@ -164,7 +168,9 @@ fun LayoutTabContent(
                 hasGroup2 = hasGroup2,
                 onSetFileNameInclude = onSetFileNameIncludeForSelected,
                 onPathGroupAction = onPathGroupActionForSelected,
-                onSetDataType = onSetDataTypeForSelected
+                onSetDataType = onSetDataTypeForSelected,
+                onResetCounterSeed = onResetCounterSeedForSelected,
+                autoNextCounterValue = autoNextCounterValue
             )
         }
     }
