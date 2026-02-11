@@ -99,6 +99,13 @@ object CounterManager {
         return streamPrefix.substringBefore("|g2=", streamPrefix)
     }
 
+
+    private fun physicalRelativePathFromStreamKey(relativePathKey: String): String {
+        // relativePathKey may include virtual stream discriminator (e.g. "|g2=enabled_empty").
+        // MediaStore path filtering must use physical folder path only.
+        return relativePathKey.substringBefore("|g2=", relativePathKey)
+    }
+
     /**
      * 해당 스트림(relativePath  counterPrefix)에서 사용된 카운터 집합을 반환한다.
      *
@@ -118,6 +125,7 @@ object CounterManager {
         val streamPrefix = counterPrefix
         val basePrefix = basePrefixFromStreamPrefix(streamPrefix)
         val legacyKey = "$relativePath|$basePrefix"
+        val physicalRelativePath = physicalRelativePathFromStreamKey(relativePath)
 
         // 0) (선택) legacy prefix -> discriminated prefix 마이그레이션
         // - 과거 버전은 basePrefix만 저장했으므로, 첫 접근 스트림만 legacy 히스토리를 흡수한다.
@@ -129,7 +137,22 @@ object CounterManager {
         val fromDb: Set<Int> = runCatching {
             repo.getUsedCounters(relativePath, streamPrefix)
         }.getOrDefault(emptySet())
-        if (fromDb.isNotEmpty()) return fromDb
+
+        // 과도기/과거 기록 호환: 동일 물리경로 키로 저장된 레코드도 함께 확인한다.
+        val fromDbPhysical: Set<Int> = if (physicalRelativePath == relativePath) {
+            emptySet()
+        } else {
+            runCatching {
+                repo.getUsedCounters(physicalRelativePath, streamPrefix)
+            }.getOrDefault(emptySet())
+        }
+
+        val fromDbMerged = fromDb + fromDbPhysical
+        if (fromDbMerged.isNotEmpty()) {
+            // 현재 스트림 키 기준으로 정규화 백필
+            runCatching { repo.backfillPlaceholders(relativePath, streamPrefix, fromDbMerged) }
+            return fromDbMerged
+        }
 
         // 1-legacy) DB에 없고, 아직 마이그레이션 전이면 legacy(basePrefix)도 조회해본다.
         if (canMigrateLegacy) {
@@ -137,21 +160,28 @@ object CounterManager {
                 repo.getUsedCounters(relativePath, basePrefix)
             }.getOrDefault(emptySet())
 
-            if (legacyFromDb.isNotEmpty()) {
+            val legacyPhysicalFromDb: Set<Int> = runCatching {
+                repo.getUsedCounters(physicalRelativePath, basePrefix)
+            }.getOrDefault(emptySet())
+
+            val migratedLegacy = legacyFromDb + legacyPhysicalFromDb
+            if (migratedLegacy.isNotEmpty()) {
                 // 현재 streamPrefix로 backfill
-                runCatching { repo.backfillPlaceholders(relativePath, streamPrefix, legacyFromDb) }
+                runCatching { repo.backfillPlaceholders(relativePath, streamPrefix, migratedLegacy) }
                 markLegacyMigrated(context, legacyKey)
-                return legacyFromDb
+                return migratedLegacy
             }
         }
 
         // 2) MediaStore 스캔 fallback
-        // - canMigrateLegacy이면 legacy(basePrefix) 스캔도 허용하여 기존 갤러리 데이터로 복원
+        // - 실제 파일명 prefix에는 stream 구분 태그(|g2=0/1)가 포함되지 않는다.
+        // - 따라서 스캔은 항상 basePrefix로 수행해야 한다.
+        //   (streamPrefix로 스캔하면 파일이 있어도 못 찾고 next=1로 되돌아갈 수 있음)
         val scanned: Set<Int> = runCatching {
             scanUsedCountersFromMediaStore(
                 context = context,
-                relativePathPrefix = relativePath,
-                fileNamePrefix = if (canMigrateLegacy) basePrefix else streamPrefix,
+                relativePathPrefix = physicalRelativePath,
+                fileNamePrefix = basePrefix,
                 counterDigits = counterDigits,
                 fnDelim = fnDelim
             )

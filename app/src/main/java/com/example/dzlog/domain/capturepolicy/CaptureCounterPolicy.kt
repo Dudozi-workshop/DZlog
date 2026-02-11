@@ -1,6 +1,7 @@
 package com.example.dzlog.domain.capturepolicy
 
 import android.content.Context
+import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.domain.counter.CounterManager
 
 /**
@@ -33,19 +34,55 @@ internal object CaptureCounterPolicy {
     internal suspend fun commitCounter(
         context: Context,
         key: CaptureStreamKey,
-        usedCounter: Int
+        usedCounter: Int,
+        mediaStoreId: Long
     ) {
-        // Step 3.2: 호출 지점이 아직 없으므로 동작은 비워둔다.
-        // - 기존 시스템에서는 Repository 내부에서 CounterIndex를 기록/백필함.
-        // - Step 3.4 이후 단일 진입점으로 완전히 통합될 때 여기로 이관한다.
+        if (usedCounter < 0) return
+        if (mediaStoreId <= 0L) return
+
+        val repo = CounterIndexRepository.getInstance(context)
+        val dateAddedSeconds = System.currentTimeMillis() / 1000L
+        runCatching {
+            repo.record(
+                relativePath = key.relativePathKey,
+                prefix = key.prefix,
+                mediaId = mediaStoreId,
+                counterValue = usedCounter,
+                dateAddedSeconds = dateAddedSeconds
+            )
+        }
     }
 
     internal suspend fun setNextCounter(
         context: Context,
         key: CaptureStreamKey,
         desired: Int,
-        force: Boolean
+        force: Boolean,
+        counterDigits: Int,
+        fnDelim: String
     ) {
-        // Step 3.2: TableEditor의 "중복 경고/강제 진행" UX 정책이 확정된 뒤 연결한다.
+        val normalized = desired.coerceAtLeast(1)
+        val currentNext = getNextCounter(
+            context = context,
+            key = key,
+            counterDigits = counterDigits,
+            fnDelim = fnDelim
+        )
+
+        if (!force && normalized < currentNext) {
+            return
+        }
+
+        if (normalized <= 1) return
+
+        // getNextCounter=max+1 구조에서 desired를 다음 값으로 강제하려면 desired-1을 점유시킨다.
+        val repo = CounterIndexRepository.getInstance(context)
+        runCatching {
+            repo.backfillPlaceholders(
+                relativePath = key.relativePathKey,
+                prefix = key.prefix,
+                counters = setOf(normalized - 1)
+            )
+        }
     }
 }

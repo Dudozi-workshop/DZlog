@@ -49,6 +49,51 @@ internal object CaptureNamingPolicy {
         )
     }
 
+
+    /**
+     * 촬영 시 필요한 naming/path를 한 번에 산출한다. (카운터 값은 호출부가 주입)
+     */
+    internal fun buildForCaptureWithCounter(
+        captureContext: CaptureContext,
+        usedCounter: Int
+    ): Result {
+        val resolvedCells = captureContext.resolvedCells
+
+        val g1 = resolveGroupValue(resolvedCells, GroupLevel.G1)
+        val g2 = resolveGroupValue(resolvedCells, GroupLevel.G2)
+        val baseRelativePath = buildGalleryRelativePath(g1, g2)
+
+        val hasG2Group = resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
+        val relativePathKey = CounterManager.computeCounterStreamRelativePathKey(
+            baseRelativePath = baseRelativePath,
+            hasG2Group = hasG2Group,
+            group2Value = g2
+        )
+
+        val streamPrefix = CounterManager.computeCounterStreamPrefix(
+            resolvedCells = resolvedCells,
+            fnDelim = captureContext.fnDelim
+        )
+
+        val key = CaptureStreamKey(
+            relativePathKey = relativePathKey,
+            prefix = streamPrefix
+        )
+
+        val displayName = buildDisplayNameForCounter(
+            resolvedCells = resolvedCells,
+            fnDelim = captureContext.fnDelim,
+            usedCounter = usedCounter,
+            now = Date()
+        )
+
+        return Result(
+            streamKey = key,
+            relativePath = baseRelativePath,
+            displayName = displayName,
+            usedCounter = usedCounter
+        )
+    }
     /**
      * 촬영 시 필요한 naming/counter/path를 한 번에 산출한다.
      *

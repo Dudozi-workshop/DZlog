@@ -172,7 +172,14 @@ internal fun CameraPreviewArea(
             }
         }
 
-        val plan = remember(args.tableTemplateState, args.now, args.counterDigits, args.dateFormat, args.timeFormat) {
+        val plan = remember(
+            args.tableTemplateState,
+            args.scopeNextCounter,
+            args.now,
+            args.counterDigits,
+            args.dateFormat,
+            args.timeFormat
+        ) {
             args.tableResolver.plan(
                 cells = args.tableTemplateState.cells,
                 captureNow = args.now,
@@ -180,7 +187,8 @@ internal fun CameraPreviewArea(
                     counterDigits = args.counterDigits,
                     dateFormat = args.dateFormat,
                     timeFormat = args.timeFormat
-                )
+                ),
+                counterSeedOverride = args.scopeNextCounter
             )
         }
 

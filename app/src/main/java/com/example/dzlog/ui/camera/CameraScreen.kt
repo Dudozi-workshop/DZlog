@@ -53,6 +53,7 @@ import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.repository.DzlogRepositoryImpl
+import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.ContinuousPreviewMode
@@ -188,6 +189,35 @@ fun CameraPreview(
         ui = ui
     )
 
+    val topDisplayName = remember(
+        tableTemplateState,
+        ui.capture.now,
+        ui.prefs.counterDigits,
+        ui.counter.scopeNextCounter,
+        dateFormat,
+        timeFormat,
+        fnDelim
+    ) {
+        val plan = tableResolver.plan(
+            cells = tableTemplateState.cells,
+            captureNow = ui.capture.now,
+            config = TableResolver.Config(
+                counterDigits = ui.prefs.counterDigits,
+                dateFormat = dateFormat,
+                timeFormat = timeFormat
+            ),
+            counterSeedOverride = ui.counter.scopeNextCounter
+        )
+        CaptureNamingPolicy.buildDisplayNameForCounter(
+            resolvedCells = plan.resolvedCells,
+            fnDelim = fnDelim,
+            usedCounter = ui.counter.scopeNextCounter,
+            now = ui.capture.now,
+            includeDate = false,
+            includeTime = false
+        )
+    }
+
     LaunchedEffect(ui.capture.capturedUri, ui.prefs.continuousPreviewMode) {
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode == ContinuousPreviewMode.SHORT) {
             delay(1500)
@@ -293,6 +323,21 @@ fun CameraPreview(
             CameraTopBarSection(
                 onExitToHome = onExitToHome,
                 onOpenSettings = { ui.showWizard = true }
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = DDZSpacing.screenPadding * 4),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = topDisplayName,
+                color = DDZColor.Surface,
+                modifier = Modifier
+                    .background(DDZColor.PrimaryDark.copy(alpha = 0.45f))
+                    .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
             )
         }
 
@@ -417,7 +462,7 @@ private fun rememberScopeKeyInfo(
         val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
 
         val baseRelativePath = buildGalleryRelativePath(g1, g2)
-        val hasG2Group = !g2.isNullOrBlank()
+        val hasG2Group = planForScope.resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
         val streamRelativePath = CounterManager.computeCounterStreamRelativePathKey(
             baseRelativePath = baseRelativePath,
             hasG2Group = hasG2Group,
@@ -513,4 +558,3 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.wmValueScale = 100
     }
 }
-

@@ -27,13 +27,17 @@ class TableResolver {
     fun plan(
         cells: List<TableCellState>,
         captureNow: Date,
-        config: Config
+        config: Config,
+        counterSeedOverride: Int? = null
     ): ResolvePlan {
         // 안정적 순서: row/col 기준
         val ordered = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
 
         val counterCell = ordered.firstOrNull { it.dataType == TableCellDataType.COUNTER }
-        val currentCounter = parseCounterSeed(counterCell) ?: 1
+        // COUNTER ON/OFF(fileNameInclude)는 표현 토글이며,
+        // 카운터 계산은 stream SSOT(scopeNextCounter) override가 있으면 그것을 우선한다.
+        val currentCounter = counterSeedOverride?.coerceAtLeast(1)
+            ?: (parseCounterSeed(counterCell) ?: 1)
         val digits = config.counterDigits.coerceIn(0, 6)
         val counterResolved = if (digits == 0) {
             currentCounter.toString()
