@@ -56,9 +56,11 @@ import com.example.dzlog.data.repository.DzlogRepositoryImpl
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.model.CaptureAspect
+import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
@@ -486,6 +488,13 @@ private fun SyncCounterSeedEffect(
     LaunchedEffect(scopeRelativePath, scopePrefix, counterDigits) {
         val scopeKey = "$scopeRelativePath|$scopePrefix"
 
+        val templateCounterSeed = tableCells
+            .firstOrNull { it.dataType == TableCellDataType.COUNTER }
+            ?.typedValue
+            .let { it as? CellValue.CounterSeed }
+            ?.start
+            ?.coerceAtLeast(1)
+
         val nextSeedFromStream = CounterManager.getNextCounter(
             context = context,
             relativePath = scopeRelativePath,
@@ -498,12 +507,20 @@ private fun SyncCounterSeedEffect(
         val isNewStream =
             (ui.counter.lastScopeKey != null && ui.counter.lastScopeKey != scopeKey)
 
-        // ✅ 단일 소스: 스트림 seed가 우선
-        // - 스트림이 바뀌었거나
-        // - 현재 UI seed가 스트림 seed보다 작을 때만 끌어올림
-        if (isNewStream || ui.counter.scopeNextCounter < nextSeedFromStream) {
-            ui.counter.scopeNextCounter = nextSeedFromStream
+        var resolvedSeed = ui.counter.scopeNextCounter
+
+        // 기본: 스트림 seed를 하한으로 유지
+        if (isNewStream || resolvedSeed < nextSeedFromStream) {
+            resolvedSeed = nextSeedFromStream
         }
+
+        // TableEditor에서 사용자가 COUNTER를 명시 수정한 경우(>1) camera 진입 시 해당 값을 우선 반영
+        // - ON/OFF 토글 부산물로 남은 기본 seed(1)는 무시한다.
+        if (templateCounterSeed != null && templateCounterSeed > 1 && templateCounterSeed != resolvedSeed) {
+            resolvedSeed = templateCounterSeed
+        }
+
+        ui.counter.scopeNextCounter = resolvedSeed
 
         ui.counter.lastScopeKey = scopeKey
     }

@@ -160,6 +160,7 @@ fun TableEditorScreen(
     var pendingCounterCommitValue by remember { mutableIntStateOf(0) }
     var pendingCounterStreamNextValue by remember { mutableIntStateOf(1) }
     var preserveManualCounterSeed by remember { mutableStateOf(false) }
+    var manualSeedOverride by remember { mutableStateOf<Int?>(null) }
 
     var previewNow by remember { mutableStateOf(Date()) }
 
@@ -276,9 +277,14 @@ fun TableEditorScreen(
 
         val desiredSeed = when {
             counterCell == null -> nextByHistory
+            manualSeedOverride != null -> manualSeedOverride!!.coerceAtLeast(1)
             isNewStream -> nextByHistory
             preserveManualCounterSeed -> currentSeed.coerceAtLeast(1)
             else -> maxOf(nextByHistory, currentSeed.coerceAtLeast(1))
+        }
+
+        if (manualSeedOverride != null) {
+            manualSeedOverride = null
         }
 
         scopeNextCounter = desiredSeed
@@ -381,6 +387,7 @@ fun TableEditorScreen(
             val seed = normalizedValueText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
             val normalizedSeed = seed.coerceAtLeast(1)
             preserveManualCounterSeed = true
+            manualSeedOverride = normalizedSeed
             scopeNextCounter = normalizedSeed
             scope.launch {
                 CaptureCounterPolicy.setNextCounter(
@@ -489,6 +496,7 @@ fun TableEditorScreen(
                     }
                     onTemplateChange(updated)
                     preserveManualCounterSeed = false
+                    manualSeedOverride = restored
                     scopeNextCounter = restored
                     scope.launch {
                         CaptureCounterPolicy.setNextCounter(
@@ -524,6 +532,7 @@ fun TableEditorScreen(
                         }
                         onTemplateChange(updated)
                         preserveManualCounterSeed = true
+                        manualSeedOverride = applied
                         scopeNextCounter = applied
                         scope.launch {
                             CaptureCounterPolicy.setNextCounter(
@@ -552,6 +561,7 @@ fun TableEditorScreen(
                         }
                         onTemplateChange(updated)
                         preserveManualCounterSeed = false
+                        manualSeedOverride = restored
                         scopeNextCounter = restored
                         scope.launch {
                             CaptureCounterPolicy.setNextCounter(
