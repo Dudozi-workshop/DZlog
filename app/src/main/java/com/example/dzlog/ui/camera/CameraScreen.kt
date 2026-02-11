@@ -417,7 +417,7 @@ private fun rememberScopeKeyInfo(
         val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
 
         val baseRelativePath = buildGalleryRelativePath(g1, g2)
-        val hasG2Group = !g2.isNullOrBlank()
+        val hasG2Group = planForScope.resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
         val streamRelativePath = CounterManager.computeCounterStreamRelativePathKey(
             baseRelativePath = baseRelativePath,
             hasG2Group = hasG2Group,
@@ -513,4 +513,3 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.wmValueScale = 100
     }
 }
-

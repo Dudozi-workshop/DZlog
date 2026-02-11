@@ -9,14 +9,11 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
-import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.log.LogEntity
 import com.example.dzlog.data.log.LogRepository
 import com.example.dzlog.data.mediastore.MediaStoreSaver
-import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CaptureRequest
-import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.LogEntry
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
@@ -117,13 +114,6 @@ class DzlogRepositoryImpl(
                                         group2 = request.group2
                                     )
                                     insertLogEntry(context, entry, saved?.uri, displayName, baseRel)
-                                    // ✅ 촬영 시점 카운터 인덱스 기록(경로별 유일성/리셋용)
-                                    recordCounterIndexIfPossible(
-                                        context = context,
-                                        request = request,
-                                        relativePath = baseRel,
-                                        mediaStoreId = saved?.mediaStoreId ?: -1L
-                                    )
                                     entry
                                 }
 
@@ -163,13 +153,6 @@ class DzlogRepositoryImpl(
                                         group2 = request.group2
                                     )
                                     insertLogEntry(context, entry, savedWm?.uri, displayName, baseRel)
-                                    // ✅ 촬영 시점 카운터 인덱스 기록(대표 파일=워터마크 결과물)
-                                    recordCounterIndexIfPossible(
-                                        context = context,
-                                        request = request,
-                                        relativePath = baseRel,
-                                        mediaStoreId = savedWm?.mediaStoreId ?: -1L
-                                    )
                                     entry
                                 }
 
@@ -183,21 +166,13 @@ class DzlogRepositoryImpl(
                                         )
                                     }.getOrNull()
 
-                                    // ✅ ORIGINAL_ONLY여도 논리 카운터는 baseRel 기준으로 기록한다.
-                                    recordCounterIndexIfPossible(
-                                        context = context,
-                                        request = request,
-                                        relativePath = baseRel,
-                                        mediaStoreId = saved?.mediaStoreId ?: -1L
-                                    )
-
                                     LogEntry(
                                         mediaStoreId = saved?.mediaStoreId ?: -1L,
                                         contentUri = saved?.uri ?: Uri.EMPTY,
                                         displayName = saved?.displayName ?: displayName,
                                         isNameAdjusted = saved?.isNameAdjusted ?: false,
                                         createdAt = System.currentTimeMillis(),
-group1 = request.group1,
+                                        group1 = request.group1,
                                         group2 = request.group2
                                     )
                                 }
@@ -244,65 +219,6 @@ group1 = request.group1,
         )
         LogRepository.getInstance(context).insert(log)
     }
-    /**
-     * 촬영 시점 CounterIndex 기록.
-     * - 파일명/워터마크는 수정하지 않고, 내부 논리 카운터 인덱스만 기록한다.
-     */
-    private suspend fun recordCounterIndexIfPossible(
-        context: Context,
-        request: CaptureRequest,
-        relativePath: String,
-        mediaStoreId: Long
-    ) {
-        if (mediaStoreId <= 0L) return
-        val counter = extractCounterValue(request) ?: return
-        val prefix = CounterManager.computeCounterStreamPrefix(
-            resolvedCells = request.resolvedCells,
-            fnDelim = "_"
-        )
-        val repo = CounterIndexRepository.getInstance(context)
-        val dateAddedSeconds = System.currentTimeMillis() / 1000L
-        val hasG2Group = request.tableTemplate.cells.any { it.groupLevel == GroupLevel.G2 }
-        val streamRelativePath = CounterManager.computeCounterStreamRelativePathKey(
-            baseRelativePath = relativePath,
-            hasG2Group = hasG2Group,
-            group2Value = request.group2
-        )
-
-        runCatching {
-            repo.record(
-                relativePath = streamRelativePath,
-                prefix = prefix,
-                mediaId = mediaStoreId,
-                counterValue = counter,
-                dateAddedSeconds = dateAddedSeconds
-            )
-        }
-    }
-
-    private fun extractCounterValue(request: CaptureRequest): Int? {
-        // ✅ 단일 소스: 실제 저장된 파일명(displayName) suffix를 우선한다.
-        // COUNTER 셀 표기 ON/OFF 또는 seed 변경으로 resolvedCells의 COUNTER 값이 흔들려도
-        // CounterIndex가 리셋/역주행하지 않도록 함.
-        val base = request.displayName.substringBeforeLast('.', request.displayName)
-        val token = base.substringAfterLast('_', missingDelimiterValue = "").trim()
-
-        if (token.isNotBlank() && token.all { it.isDigit() }) {
-            token.toIntOrNull()?.let { return it }
-        }
-
-        // Fallback: displayName이 비정상이면 COUNTER 셀 값을 사용한다.
-        val counterText = request.resolvedCells
-            .firstOrNull { it.type == com.example.dzlog.domain.model.TableCellDataType.COUNTER }
-            ?.resolvedText
-            ?.trim()
-            .orEmpty()
-
-        if (counterText.isBlank()) return null
-        val digitsOnly = counterText.filter { it.isDigit() }
-        return digitsOnly.toIntOrNull()
-    }
-
     private fun applyExifOrientation(source: Bitmap, exif: ExifInterface): Bitmap {
         val orientation = exif.getAttributeInt(
             ExifInterface.TAG_ORIENTATION,
