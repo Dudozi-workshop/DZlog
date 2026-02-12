@@ -141,7 +141,7 @@ internal fun handleCaptureClick(
             CoroutineScope(Dispatchers.IO).launch {
                 CaptureCounterPolicy.commitCounter(
                     context = context,
-                    key = policyResult.streamKey,
+                    streamContext = policyResult.streamContext,
                     usedCounter = policyResult.usedCounter,
                     mediaStoreId = entry.mediaStoreId
                 )

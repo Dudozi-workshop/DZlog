@@ -57,21 +57,20 @@ import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.repository.DzlogRepositoryImpl
 import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
-import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.counter.CounterSeedInput
-import com.example.dzlog.domain.counter.buildCounterScopeParts
+import com.example.dzlog.domain.counter.CounterStreamContext
+import com.example.dzlog.domain.counter.buildCounterStreamContext
 import com.example.dzlog.domain.counter.buildCounterSyncLog
 import com.example.dzlog.domain.counter.decideCounterSeed
+import com.example.dzlog.domain.counter.isNewCounterScope
+import com.example.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.ContinuousPreviewMode
-import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
-import com.example.dzlog.domain.naming.buildGalleryRelativePath
-import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
@@ -176,23 +175,21 @@ fun CameraPreview(
         }
     }
 
-    val scopeKeyInfo = rememberScopeKeyInfo(
+    val counterStreamContext = rememberCounterStreamContext(
         tableResolver = tableResolver,
         tableCells = tableCells,
         counterDigits = ui.prefs.counterDigits,
         dateFormat = dateFormat,
         timeFormat = timeFormat,
+        nextCounter = ui.counter.scopeNextCounter,
         fnDelim = fnDelim
     )
 
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
-    val (scopeRelativePath, scopePrefix) = scopeKeyInfo
-
     SyncCounterSeedEffect(
         context = context,
         tableCells = tableCells,
-        scopeRelativePath = scopeRelativePath,
-        scopePrefix = scopePrefix,
+        streamContext = counterStreamContext,
         counterDigits = ui.prefs.counterDigits,
         fnDelim = fnDelim,
         ui = ui
@@ -444,15 +441,16 @@ internal fun buildWatermarkConfig(
 }
 
 @Composable
-private fun rememberScopeKeyInfo(
+private fun rememberCounterStreamContext(
     tableResolver: TableResolver,
     tableCells: List<com.example.dzlog.domain.model.TableCellState>,
     counterDigits: Int,
     dateFormat: String,
     timeFormat: String,
+    nextCounter: Int,
     fnDelim: String
-): Pair<String, String> {
-    return remember(tableCells, counterDigits, dateFormat, timeFormat, fnDelim) {
+): CounterStreamContext {
+    return remember(tableCells, counterDigits, dateFormat, timeFormat, nextCounter, fnDelim) {
         val scopeNow = Date()
         val planForScope = tableResolver.plan(
             cells = tableCells,
@@ -463,22 +461,12 @@ private fun rememberScopeKeyInfo(
                 timeFormat = timeFormat
             )
         )
-        val prefix = CounterManager.computeCounterStreamPrefix(
+        buildCounterStreamContext(
             resolvedCells = planForScope.resolvedCells,
+            nextCounter = nextCounter,
+            isManualMode = false,
             fnDelim = fnDelim
         )
-        val g1 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G1)
-        val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
-
-        val baseRelativePath = buildGalleryRelativePath(g1, g2)
-        val hasG2Group = planForScope.resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
-        val streamRelativePath = CounterManager.computeCounterStreamRelativePathKey(
-            baseRelativePath = baseRelativePath,
-            hasG2Group = hasG2Group,
-            group2Value = g2
-        )
-
-        streamRelativePath to prefix
     }
 }
 
@@ -486,21 +474,19 @@ private fun rememberScopeKeyInfo(
 private fun SyncCounterSeedEffect(
     context: android.content.Context,
     tableCells: List<com.example.dzlog.domain.model.TableCellState>,
-    scopeRelativePath: String,
-    scopePrefix: String,
+    streamContext: CounterStreamContext,
     counterDigits: Int,
     fnDelim: String,
     ui: CameraUiState
 ) {
-    LaunchedEffect(scopeRelativePath, scopePrefix, counterDigits) {
+    LaunchedEffect(streamContext.scopeKey, counterDigits) {
         val appSettings = AppSettingsStore.flow(context).first()
-        val scopeParts = buildCounterScopeParts(
-            relativePath = scopeRelativePath,
-            prefix = scopePrefix,
+        val scopedStream = toCaptureScopedCounterStream(
+            streamContext = streamContext,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
         )
-        val scopeKey = scopeParts.scopeKey
+        val scopeKey = scopedStream.scopeParts.scopeKey
 
         val templateCounterSeed = tableCells
             .firstOrNull { it.dataType == TableCellDataType.COUNTER }
@@ -511,16 +497,15 @@ private fun SyncCounterSeedEffect(
 
         val nextSeedFromStream = CaptureCounterPolicy.getNextCounter(
             context = context,
-            key = com.example.dzlog.domain.capturepolicy.CaptureStreamKey(
-                relativePathKey = scopeParts.relativePathKey,
-                prefix = scopeParts.prefix
-            ),
+            scopedStream = scopedStream,
             counterDigits = counterDigits,
             fnDelim = fnDelim
         ).coerceAtLeast(1)
 
-        val isNewStream =
-            (ui.counter.lastScopeKey != null && ui.counter.lastScopeKey != scopeKey)
+        val isNewStream = isNewCounterScope(
+            previousScopeKey = ui.counter.lastScopeKey,
+            currentScopeKey = scopeKey
+        )
         val input = CounterSeedInput(
             streamNext = nextSeedFromStream,
             currentSeed = ui.counter.scopeNextCounter,

@@ -16,6 +16,10 @@ data class CounterSeedDecision(
     val shouldClearPreserveManualSeed: Boolean,
 )
 
+fun isNewCounterScope(previousScopeKey: String?, currentScopeKey: String): Boolean {
+    return previousScopeKey != null && previousScopeKey != currentScopeKey
+}
+
 fun decideCounterSeed(input: CounterSeedInput): CounterSeedDecision {
     val streamNext = input.streamNext.coerceAtLeast(1)
     val currentSeed = input.currentSeed.coerceAtLeast(1)

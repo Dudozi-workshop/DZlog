@@ -1,7 +1,8 @@
 package com.example.dzlog.domain.capturepolicy
 
 import android.content.Context
-import com.example.dzlog.domain.counter.CounterManager
+import com.example.dzlog.domain.counter.CounterStreamContext
+import com.example.dzlog.domain.counter.buildCounterStreamContext
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
@@ -18,7 +19,7 @@ import java.util.Date
 internal object CaptureNamingPolicy {
 
     internal data class Result(
-        val streamKey: CaptureStreamKey,
+        val streamContext: CounterStreamContext,
         val relativePath: String,
         val displayName: String,
         val usedCounter: Int
@@ -58,27 +59,15 @@ internal object CaptureNamingPolicy {
         usedCounter: Int
     ): Result {
         val resolvedCells = captureContext.resolvedCells
-
+        val streamContext = buildCounterStreamContext(
+            resolvedCells = resolvedCells,
+            nextCounter = usedCounter,
+            isManualMode = false,
+            fnDelim = captureContext.fnDelim
+        )
         val g1 = resolveGroupValue(resolvedCells, GroupLevel.G1)
         val g2 = resolveGroupValue(resolvedCells, GroupLevel.G2)
         val baseRelativePath = buildGalleryRelativePath(g1, g2)
-
-        val hasG2Group = resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
-        val relativePathKey = CounterManager.computeCounterStreamRelativePathKey(
-            baseRelativePath = baseRelativePath,
-            hasG2Group = hasG2Group,
-            group2Value = g2
-        )
-
-        val streamPrefix = CounterManager.computeCounterStreamPrefix(
-            resolvedCells = resolvedCells,
-            fnDelim = captureContext.fnDelim
-        )
-
-        val key = CaptureStreamKey(
-            relativePathKey = relativePathKey,
-            prefix = streamPrefix
-        )
 
         val displayName = buildDisplayNameForCounter(
             resolvedCells = resolvedCells,
@@ -88,7 +77,7 @@ internal object CaptureNamingPolicy {
         )
 
         return Result(
-            streamKey = key,
+            streamContext = streamContext,
             relativePath = baseRelativePath,
             displayName = displayName,
             usedCounter = usedCounter
@@ -108,35 +97,22 @@ internal object CaptureNamingPolicy {
         counterDigits: Int
     ): Result {
         val resolvedCells = captureContext.resolvedCells
-
         // 1) 물리 저장경로(relativePath)
         val g1 = resolveGroupValue(resolvedCells, GroupLevel.G1)
         val g2 = resolveGroupValue(resolvedCells, GroupLevel.G2)
         val baseRelativePath = buildGalleryRelativePath(g1, g2)
 
-        // 2) 스트림 분리 키(relativePathKey)
-        val hasG2Group = resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
-        val relativePathKey = CounterManager.computeCounterStreamRelativePathKey(
-            baseRelativePath = baseRelativePath,
-            hasG2Group = hasG2Group,
-            group2Value = g2
-        )
-
-        // 3) 스트림 prefix(단일 소스)
-        val streamPrefix = CounterManager.computeCounterStreamPrefix(
+        // 2) 스트림 키(단일 컨텍스트)
+        val streamContext = buildCounterStreamContext(
             resolvedCells = resolvedCells,
+            nextCounter = 1,
+            isManualMode = false,
             fnDelim = captureContext.fnDelim
         )
-
-        val key = CaptureStreamKey(
-            relativePathKey = relativePathKey,
-            prefix = streamPrefix
-        )
-
         // 4) 단일 소스 counter 산출
         val usedCounter = CaptureCounterPolicy.getNextCounter(
             context = appContext,
-            key = key,
+            streamContext = streamContext,
             counterDigits = counterDigits,
             fnDelim = captureContext.fnDelim
         )
@@ -150,7 +126,7 @@ internal object CaptureNamingPolicy {
         )
 
         return Result(
-            streamKey = key,
+            streamContext = streamContext,
             relativePath = baseRelativePath,
             displayName = displayName,
             usedCounter = usedCounter

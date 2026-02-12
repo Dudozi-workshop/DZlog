@@ -65,6 +65,7 @@ import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.toJsonString
 import com.example.dzlog.domain.counter.CounterManager
+import com.example.dzlog.domain.counter.buildCounterStreamContext
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.GroupLevel
@@ -187,38 +188,16 @@ fun TableEditorScreen(
             counterSeedOverride = scopeNextCounter
         )
     }
-    val currentPrefix by remember(planForScope.resolvedCells) {
+    val counterStreamContext by remember(planForScope.resolvedCells, scopeNextCounter, isManualCounterMode) {
         derivedStateOf {
-            // ✅ counter 스트림 prefix: 날짜/시간 제외(파일명에는 붙어도 카운터에는 영향 없음)
-            CounterManager.computeCounterStreamPrefix(
+            buildCounterStreamContext(
                 resolvedCells = planForScope.resolvedCells,
+                nextCounter = scopeNextCounter,
+                isManualMode = isManualCounterMode,
                 fnDelim = "_"
             )
         }
     }
-
-    val currentRelativePathKey by remember(planForScope.resolvedCells) {
-        derivedStateOf {
-            val g1 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G1)
-            val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
-            val baseRelativePath = buildGalleryRelativePath(g1, g2)
-            val hasG2Group = planForScope.resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
-            CounterManager.computeCounterStreamRelativePathKey(
-                baseRelativePath = baseRelativePath,
-                hasG2Group = hasG2Group,
-                group2Value = g2
-            )
-        }
-    }
-
-    val currentScopeKey by remember(currentRelativePathKey, currentPrefix) {
-        derivedStateOf { "$currentRelativePathKey|$currentPrefix" }
-    }
-
-    fun currentCounterStreamKey() = TableCounterPolicyCoordinator.streamKey(
-        relativePathKey = currentRelativePathKey,
-        prefix = currentPrefix
-    )
 
     fun applyCounterSeed(seed: Int, preserveManual: Boolean) {
         val normalizedSeed = seed.coerceAtLeast(1)
@@ -242,7 +221,7 @@ fun TableEditorScreen(
         scope.launch {
             TableCounterPolicyCoordinator.setNextCounter(
                 context = context,
-                key = currentCounterStreamKey(),
+                streamContext = counterStreamContext,
                 desired = normalizedSeed,
                 force = forcePolicyUpdate,
                 counterDigits = previewCounterDigits,
@@ -251,7 +230,7 @@ fun TableEditorScreen(
         }
     }
 
-    LaunchedEffect(currentScopeKey) {
+    LaunchedEffect(counterStreamContext.scopeKey) {
         val g1 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G1)
         val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
 
@@ -261,9 +240,9 @@ fun TableEditorScreen(
         [STEP1 scopeKey changed]
         g1=$g1
         g2=$g2
-        relativePathKey=$currentRelativePathKey
-        counterPrefix=$currentPrefix
-        scopeKey=$currentScopeKey
+        relativePathKey=${counterStreamContext.relativePathKey}
+        counterPrefix=${counterStreamContext.streamPrefix}
+        scopeKey=${counterStreamContext.scopeKey}
         """.trimIndent()
         )
     }
@@ -271,22 +250,22 @@ fun TableEditorScreen(
     // ✅ 스트림 변경 감지용 (스트림이 바뀌면 seed를 "새 스트림 next"로 강제 동기화)
     var lastScopeKey by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(currentScopeKey) {
+    LaunchedEffect(counterStreamContext.scopeKey) {
         Log.d(
             "DZlogCounter",
             "TableEditor scopeKey changed\n"+
-            "relativePathKey=$currentRelativePathKey\n"+
-            "counterPrefix=$currentPrefix\n"+
-            "scopeKey=$currentScopeKey"
+            "relativePathKey=${counterStreamContext.relativePathKey}\n"+
+            "counterPrefix=${counterStreamContext.streamPrefix}\n"+
+            "scopeKey=${counterStreamContext.scopeKey}"
         )
     }
 
-    LaunchedEffect(currentScopeKey, previewCounterDigits, templateState) {
+    LaunchedEffect(counterStreamContext.scopeKey, previewCounterDigits, templateState) {
         // ✅ 정책(스트림키=relativePathPrefix) 기준 usedCounters  nextCounter 계산
         val used = CounterManager.getUsedCounters(
             context = context,
-            relativePath = currentRelativePathKey,
-            counterPrefix = currentPrefix,
+            relativePath = counterStreamContext.relativePathKey,
+            counterPrefix = counterStreamContext.streamPrefix,
             counterDigits = previewCounterDigits,
             fnDelim = "_"
         )
@@ -295,34 +274,33 @@ fun TableEditorScreen(
         val counterCell = templateState.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
         val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start ?: 1
         val nextByHistory = ((used.maxOrNull() ?: 0) +  1).coerceAtLeast(1)
-        val streamKey = currentCounterStreamKey()
         val streamNext = TableCounterPolicyCoordinator.getNextCounter(
             context = context,
-            key = streamKey,
+            streamContext = counterStreamContext,
             counterDigits = previewCounterDigits,
             fnDelim = "_"
         ).coerceAtLeast(1)
         isManualCounterMode = TableCounterPolicyCoordinator.isManualOverrideActive(
             context = context,
-            key = streamKey
+            streamContext = counterStreamContext
         )
         autoNextCounterValue = CounterManager.getNextCounter(
             context = context,
-            relativePath = currentRelativePathKey,
-            counterPrefix = currentPrefix,
+            relativePath = counterStreamContext.relativePathKey,
+            counterPrefix = counterStreamContext.streamPrefix,
             counterDigits = previewCounterDigits,
             fnDelim = "_"
         ).coerceAtLeast(1)
 
-        val isNewStream = (lastScopeKey != null && lastScopeKey != currentScopeKey)
         // ✅ 스트림이 바뀌면 "새 스트림의 next"로 맞춘다.
         // ✅ 같은 스트림에서는 사용자 수동 seed(낮은 값 포함)를 유지한다.
         val syncResult = TableCounterPolicyCoordinator.resolveSeedForScope(
             input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
+                streamContext = counterStreamContext,
                 hasCounterCell = (counterCell != null),
                 currentSeed = currentSeed,
                 streamNext = streamNext,
-                isNewStream = isNewStream,
+                previousScopeKey = lastScopeKey,
                 preserveManualCounterSeed = preserveManualCounterSeed,
                 manualSeedOverride = manualSeedOverride
             )
@@ -335,7 +313,7 @@ fun TableEditorScreen(
         }
 
         scopeNextCounter = syncResult.desiredSeed
-        lastScopeKey = currentScopeKey
+        lastScopeKey = counterStreamContext.scopeKey
         // IDE 경고(Assigned value is never read) 방지: 다음 실행을 위한 상태를 즉시 한 번 읽어둔다.
         val persistedScopeKey = lastScopeKey
 
@@ -390,7 +368,7 @@ fun TableEditorScreen(
             if (newV == null || newV < 0) return
 
             val isChanged = (oldV == null) || (newV != oldV)
-            val streamNext = scopeNextCounter.coerceAtLeast(1)
+            val streamNext = counterStreamContext.nextCounter
             if (isChanged && newV < streamNext) {
                 pendingCounterCommitValue = newV
                 pendingCounterStreamNextValue = streamNext
@@ -437,7 +415,7 @@ fun TableEditorScreen(
             scope.launch {
                 TableCounterPolicyCoordinator.setNextCounter(
                     context = context,
-                    key = currentCounterStreamKey(),
+                    streamContext = counterStreamContext,
                     desired = normalizedSeed,
                     force = false,
                     counterDigits = previewCounterDigits,
@@ -517,7 +495,7 @@ fun TableEditorScreen(
         // ✅ 파일명 suffix counter는 항상 스트림 값(SSOT)을 사용
         // COUNTER 셀의 표기 ON/OFF는 "표/워터마크 표현"에만 영향, 카운터 스트림/파일명에는 영향 없음.
         // (파일명 뒤 숫자는 항상 붙는 정책)
-        counterOverride = scopeNextCounter,
+        counterOverride = counterStreamContext.nextCounter,
         now = previewNow
     )
 
@@ -866,10 +844,9 @@ fun TableEditorScreen(
                                 selectedCell?.let { cell ->
                                     if (cell.dataType != TableCellDataType.COUNTER) return@let
                                     scope.launch {
-                                        val key = currentCounterStreamKey()
                                         val restored = TableCounterPolicyCoordinator.resetToAutoNext(
                                             context = context,
-                                            key = key,
+                                            streamContext = counterStreamContext,
                                             counterDigits = previewCounterDigits,
                                             fnDelim = "_"
                                         ).coerceAtLeast(1)

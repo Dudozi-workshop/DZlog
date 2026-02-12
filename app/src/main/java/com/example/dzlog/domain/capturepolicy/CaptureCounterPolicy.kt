@@ -5,7 +5,10 @@ import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.preferences.KEY_COUNTER_MANUAL_NEXT_OVERRIDES_V1
 import com.example.dzlog.data.preferences.dataStore
+import com.example.dzlog.domain.counter.CaptureScopedCounterStream
 import com.example.dzlog.domain.counter.CounterManager
+import com.example.dzlog.domain.counter.CounterStreamContext
+import com.example.dzlog.domain.counter.toCaptureStreamKey
 import kotlinx.coroutines.flow.first
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -19,6 +22,34 @@ import java.nio.charset.StandardCharsets
  * - setNextCounter: 사용자가 next seed를 명시 변경할 때 정책을 적용
  */
 internal object CaptureCounterPolicy {
+
+    internal suspend fun getNextCounter(
+        context: Context,
+        streamContext: CounterStreamContext,
+        counterDigits: Int,
+        fnDelim: String
+    ): Int {
+        return getNextCounter(
+            context = context,
+            key = toCaptureStreamKey(streamContext),
+            counterDigits = counterDigits,
+            fnDelim = fnDelim
+        )
+    }
+
+    internal suspend fun getNextCounter(
+        context: Context,
+        scopedStream: CaptureScopedCounterStream,
+        counterDigits: Int,
+        fnDelim: String
+    ): Int {
+        return getNextCounter(
+            context = context,
+            key = scopedStream.captureStreamKey,
+            counterDigits = counterDigits,
+            fnDelim = fnDelim
+        )
+    }
 
     internal suspend fun getNextCounter(
         context: Context,
@@ -69,6 +100,34 @@ internal object CaptureCounterPolicy {
         }
     }
 
+    internal suspend fun commitCounter(
+        context: Context,
+        streamContext: CounterStreamContext,
+        usedCounter: Int,
+        mediaStoreId: Long
+    ) {
+        commitCounter(
+            context = context,
+            key = toCaptureStreamKey(streamContext),
+            usedCounter = usedCounter,
+            mediaStoreId = mediaStoreId
+        )
+    }
+
+    internal suspend fun commitCounter(
+        context: Context,
+        scopedStream: CaptureScopedCounterStream,
+        usedCounter: Int,
+        mediaStoreId: Long
+    ) {
+        commitCounter(
+            context = context,
+            key = scopedStream.captureStreamKey,
+            usedCounter = usedCounter,
+            mediaStoreId = mediaStoreId
+        )
+    }
+
     internal suspend fun setNextCounter(
         context: Context,
         key: CaptureStreamKey,
@@ -117,11 +176,67 @@ internal object CaptureCounterPolicy {
         }
     }
 
+    internal suspend fun setNextCounter(
+        context: Context,
+        streamContext: CounterStreamContext,
+        desired: Int,
+        force: Boolean,
+        counterDigits: Int,
+        fnDelim: String
+    ) {
+        setNextCounter(
+            context = context,
+            key = toCaptureStreamKey(streamContext),
+            desired = desired,
+            force = force,
+            counterDigits = counterDigits,
+            fnDelim = fnDelim
+        )
+    }
+
+    internal suspend fun setNextCounter(
+        context: Context,
+        scopedStream: CaptureScopedCounterStream,
+        desired: Int,
+        force: Boolean,
+        counterDigits: Int,
+        fnDelim: String
+    ) {
+        setNextCounter(
+            context = context,
+            key = scopedStream.captureStreamKey,
+            desired = desired,
+            force = force,
+            counterDigits = counterDigits,
+            fnDelim = fnDelim
+        )
+    }
+
     internal suspend fun isManualOverrideActive(
         context: Context,
         key: CaptureStreamKey
     ): Boolean {
         return loadManualNextOverrides(context).containsKey(streamKey(key))
+    }
+
+    internal suspend fun isManualOverrideActive(
+        context: Context,
+        streamContext: CounterStreamContext
+    ): Boolean {
+        return isManualOverrideActive(
+            context = context,
+            key = toCaptureStreamKey(streamContext)
+        )
+    }
+
+    internal suspend fun isManualOverrideActive(
+        context: Context,
+        scopedStream: CaptureScopedCounterStream
+    ): Boolean {
+        return isManualOverrideActive(
+            context = context,
+            key = scopedStream.captureStreamKey
+        )
     }
 
     internal suspend fun clearManualCounterOverride(
