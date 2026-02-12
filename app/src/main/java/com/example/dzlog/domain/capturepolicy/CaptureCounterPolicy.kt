@@ -266,6 +266,42 @@ internal object CaptureCounterPolicy {
         )
     }
 
+    internal suspend fun resetToAutoNext(
+        context: Context,
+        streamContext: CounterStreamContext,
+        counterDigits: Int,
+        fnDelim: String
+    ): Int {
+        clearManualCounterOverride(
+            context = context,
+            streamContext = streamContext
+        )
+        return getNextCounter(
+            context = context,
+            streamContext = streamContext,
+            counterDigits = counterDigits,
+            fnDelim = fnDelim
+        )
+    }
+
+    internal suspend fun resetToAutoNext(
+        context: Context,
+        scopedStream: CaptureScopedCounterStream,
+        counterDigits: Int,
+        fnDelim: String
+    ): Int {
+        clearManualCounterOverride(
+            context = context,
+            scopedStream = scopedStream
+        )
+        return getNextCounter(
+            context = context,
+            scopedStream = scopedStream,
+            counterDigits = counterDigits,
+            fnDelim = fnDelim
+        )
+    }
+
     private fun streamKey(key: CaptureStreamKey): String = "${key.relativePathKey}|${key.prefix}"
 
     private suspend fun loadManualNextOverrides(context: Context): Map<String, Int> {

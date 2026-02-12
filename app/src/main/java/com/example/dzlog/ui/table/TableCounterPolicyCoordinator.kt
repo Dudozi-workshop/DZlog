@@ -2,7 +2,9 @@ package com.example.dzlog.ui.table
 
 import android.content.Context
 import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
+import com.example.dzlog.domain.counter.CounterSeedInput
 import com.example.dzlog.domain.counter.CounterStreamContext
+import com.example.dzlog.domain.counter.decideCounterSeed
 import com.example.dzlog.domain.counter.isNewCounterScope
 
 internal object TableCounterPolicyCoordinator {
@@ -74,11 +76,7 @@ internal object TableCounterPolicyCoordinator {
         counterDigits: Int,
         fnDelim: String = "_"
     ): Int {
-        CaptureCounterPolicy.clearManualCounterOverride(
-            context = context,
-            streamContext = streamContext
-        )
-        return getNextCounter(
+        return CaptureCounterPolicy.resetToAutoNext(
             context = context,
             streamContext = streamContext,
             counterDigits = counterDigits,
@@ -87,8 +85,6 @@ internal object TableCounterPolicyCoordinator {
     }
 
     fun resolveSeedForScope(input: CounterSeedSyncInput): CounterSeedSyncResult {
-        val normalizedCurrentSeed = input.currentSeed.coerceAtLeast(1)
-        val normalizedStreamNext = input.streamNext.coerceAtLeast(1)
         val normalizedManualOverride = input.manualSeedOverride?.coerceAtLeast(1)
 
         val preserveManual = if (input.isNewStream) {
@@ -97,16 +93,20 @@ internal object TableCounterPolicyCoordinator {
             input.preserveManualCounterSeed || input.streamContext.isManualMode
         }
 
-        val desiredSeed = when {
-            !input.hasCounterCell -> normalizedStreamNext
-            normalizedManualOverride != null -> normalizedManualOverride
-            input.isNewStream -> normalizedStreamNext
-            preserveManual -> normalizedCurrentSeed
-            else -> maxOf(normalizedStreamNext, normalizedCurrentSeed)
-        }
+        val decision = decideCounterSeed(
+            CounterSeedInput(
+                streamNext = input.streamNext,
+                currentSeed = input.currentSeed,
+                isNewStream = input.isNewStream,
+                hasCounterCell = input.hasCounterCell,
+                preserveManualSeed = preserveManual,
+                manualSeedOverride = normalizedManualOverride,
+                templateCounterSeed = null
+            )
+        )
 
         return CounterSeedSyncResult(
-            desiredSeed = desiredSeed,
+            desiredSeed = decision.desiredSeed,
             shouldClearManualOverride = normalizedManualOverride != null,
             preserveManualCounterSeed = preserveManual
         )

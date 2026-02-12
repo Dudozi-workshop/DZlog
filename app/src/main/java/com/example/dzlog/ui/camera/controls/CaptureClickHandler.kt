@@ -138,17 +138,22 @@ internal fun handleCaptureClick(
 
             onApplyTemplatePatch(tableTemplateState.applyPatch(planForCapture.patch))
 
+            val committedCounter = parseCounterFromDisplayName(entry.displayName)
+                ?.coerceAtLeast(1)
+                ?: policyResult.usedCounter
+
             CoroutineScope(Dispatchers.IO).launch {
                 CaptureCounterPolicy.commitCounter(
                     context = context,
                     streamContext = policyResult.streamContext,
-                    usedCounter = policyResult.usedCounter,
+                    usedCounter = committedCounter,
                     mediaStoreId = entry.mediaStoreId
                 )
             }
 
-            // ✅ 촬영 후 next counter는 항상 +1로 진전(표기 ON/OFF로 분기 금지)
-            onUpdateScopeNextCounter(computeNextScopeCounter(entry.displayName, scopeNextCounter))
+            // ✅ 촬영 후 next counter는 "실제 저장된 파일명 counter" 기준으로 +1 진전
+            // (중복 이름 보정으로 displayName이 조정된 경우도 실제 저장값을 반영)
+            onUpdateScopeNextCounter((committedCounter + 1).coerceAtLeast(1))
 
             if (entry.isNameAdjusted) {
                 Toast.makeText(
@@ -172,13 +177,9 @@ internal fun handleCaptureClick(
     )
 }
 
-/**
- * 파일명 끝 토큰이 숫자라면 그 값을 기반으로 next counter 계산함(기존 로직 동일)
- * 예: "AAA_0007.jpg" -> 8
- */
-private fun computeNextScopeCounter(displayName: String, current: Int): Int {
+private fun parseCounterFromDisplayName(displayName: String): Int? {
     val base = displayName.substringBeforeLast('.', displayName)
     val token = base.substringAfterLast('_', missingDelimiterValue = "").trim()
-    val parsed = if (token.isNotEmpty() && token.all { it.isDigit() }) token.toIntOrNull() else null
-    return ((parsed ?: current) + 1).coerceAtLeast(1)
+    if (token.isEmpty() || token.any { !it.isDigit() }) return null
+    return token.toIntOrNull()
 }

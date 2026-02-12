@@ -188,12 +188,23 @@ fun TableEditorScreen(
             counterSeedOverride = scopeNextCounter
         )
     }
-    val counterStreamContext by remember(planForScope.resolvedCells, scopeNextCounter, isManualCounterMode) {
+    val isManualCounterModeDisplay by remember(
+        isManualCounterMode,
+        preserveManualCounterSeed,
+        scopeNextCounter,
+        autoNextCounterValue
+    ) {
+        derivedStateOf {
+            isManualCounterMode || (preserveManualCounterSeed && scopeNextCounter > autoNextCounterValue)
+        }
+    }
+
+    val counterStreamContext by remember(planForScope.resolvedCells, scopeNextCounter, isManualCounterModeDisplay) {
         derivedStateOf {
             buildCounterStreamContext(
                 resolvedCells = planForScope.resolvedCells,
                 nextCounter = scopeNextCounter,
-                isManualMode = isManualCounterMode,
+                isManualMode = isManualCounterModeDisplay,
                 fnDelim = "_"
             )
         }
@@ -743,7 +754,7 @@ fun TableEditorScreen(
                         uiState = LayoutTabUiState(
                             savePathPreview = savePathPreview,
                             filenamePreview = filenamePreview,
-                            counterModeLabel = if (isManualCounterMode) "메뉴얼" else "오토",
+                            counterModeLabel = if (isManualCounterModeDisplay) "메뉴얼" else "오토",
                             templateState = templateState,
                             plan = plan,
                             selectedCellId = selectedCellId,
