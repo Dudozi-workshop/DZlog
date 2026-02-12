@@ -246,6 +246,26 @@ internal object CaptureCounterPolicy {
         clearManualNextOverride(context, streamKey(key))
     }
 
+    internal suspend fun clearManualCounterOverride(
+        context: Context,
+        streamContext: CounterStreamContext
+    ) {
+        clearManualCounterOverride(
+            context = context,
+            key = toCaptureStreamKey(streamContext)
+        )
+    }
+
+    internal suspend fun clearManualCounterOverride(
+        context: Context,
+        scopedStream: CaptureScopedCounterStream
+    ) {
+        clearManualCounterOverride(
+            context = context,
+            key = scopedStream.captureStreamKey
+        )
+    }
+
     private fun streamKey(key: CaptureStreamKey): String = "${key.relativePathKey}|${key.prefix}"
 
     private suspend fun loadManualNextOverrides(context: Context): Map<String, Int> {

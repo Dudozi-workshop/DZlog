@@ -4,7 +4,6 @@ import android.content.Context
 import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.example.dzlog.domain.counter.CounterStreamContext
 import com.example.dzlog.domain.counter.isNewCounterScope
-import com.example.dzlog.domain.counter.toCaptureStreamKey
 
 internal object TableCounterPolicyCoordinator {
 
@@ -77,7 +76,7 @@ internal object TableCounterPolicyCoordinator {
     ): Int {
         CaptureCounterPolicy.clearManualCounterOverride(
             context = context,
-            key = toCaptureStreamKey(streamContext)
+            streamContext = streamContext
         )
         return getNextCounter(
             context = context,
