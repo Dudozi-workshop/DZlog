@@ -1,23 +1,21 @@
-package com.example.dzlog.ui.table
+package com.example.dzlog.feature.table.policy
 
 import android.content.Context
 import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.example.dzlog.domain.counter.CaptureScopedCounterStream
-import com.example.dzlog.domain.counter.CounterScopeSnapshot
-import com.example.dzlog.domain.counter.CounterSeedInput
-import com.example.dzlog.domain.counter.decideCounterSeed
-import com.example.dzlog.domain.counter.isNewCounterScope
+import com.example.dzlog.domain.counter.policy.CounterScopeSnapshot
+import com.example.dzlog.domain.counter.policy.CounterSeedInput
+import com.example.dzlog.domain.counter.policy.decideCounterSeed
+import com.example.dzlog.domain.counter.policy.isNewCounterScope
 
 internal object TableCounterPolicyCoordinator {
 
     data class CounterSeedSyncInput(
-        val currentScopeKey: String,
         val currentScopeSnapshot: CounterScopeSnapshot,
         val isManualMode: Boolean,
         val hasCounterCell: Boolean,
         val currentSeed: Int,
         val streamNext: Int,
-        val previousScopeKey: String?,
         val previousScopeSnapshot: CounterScopeSnapshot?,
         val preserveManualCounterSeed: Boolean,
         val manualSeedOverride: Int?

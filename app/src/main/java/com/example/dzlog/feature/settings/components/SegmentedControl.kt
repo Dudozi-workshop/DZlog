@@ -1,4 +1,4 @@
-package com.example.dzlog.ui.settings.components
+package com.example.dzlog.feature.settings.components
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable

@@ -16,6 +16,7 @@ import com.example.dzlog.domain.table.ResolvedCell
 internal data class CaptureContext(
     val resolvedCells: List<ResolvedCell>,
     val fnDelim: String,
+    val counterDigits: Int,
     val dateFormat: String,
     val timeFormat: String
 )

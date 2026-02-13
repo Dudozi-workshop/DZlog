@@ -6,6 +6,6 @@ enum class SaveMode(val v: Int) {
     BOTH(2);
 
     companion object {
-        fun from(v: Int) = values().firstOrNull { it.v == v } ?: BOTH
+        fun from(v: Int) = entries.firstOrNull { it.v == v } ?: BOTH
     }
 }

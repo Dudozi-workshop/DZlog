@@ -1,5 +1,6 @@
 package com.example.dzlog.ui.camera
 
+import com.example.dzlog.feature.capture.policy.stabilizeStreamNextCounter
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

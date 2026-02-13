@@ -38,7 +38,7 @@ internal fun TablePreviewFrame(
         val maxH = maxHeight
 
         // 사용 가능한 박스 안에서 center-fit(비율 유지)로 innerSize 계산
-        val fitByWidthH = if (safeRatio == 0f) maxH else maxW / safeRatio
+        val fitByWidthH = maxW / safeRatio
         val useWidth = fitByWidthH <= maxH
 
         val innerW = if (useWidth) maxW else maxH * safeRatio

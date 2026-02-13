@@ -85,6 +85,7 @@ fun buildDisplayNameFromResolvedCells(
     fnDelim: String,
     includeDate: Boolean,
     includeTime: Boolean,
+    counterDigits: Int = 0,
     counterOverride: Int? = null,
     now: Date = Date()
 ): String {
@@ -110,7 +111,8 @@ fun buildDisplayNameFromResolvedCells(
     val counterFinal = counterOverride
         ?.takeIf { it >= 0 }
         ?.let { ov ->
-            val width = counterText.takeIf { it.all { ch -> ch.isDigit() } }?.length ?: 0
+            val resolvedWidth = counterText.takeIf { it.all { ch -> ch.isDigit() } }?.length ?: 0
+            val width = maxOf(resolvedWidth, counterDigits.coerceAtLeast(0))
             if (width > 0) ov.toString().padStart(width, '0') else ov.toString()
         }
         ?: counterText.ifBlank { "1" }

@@ -6,7 +6,6 @@
 package com.example.dzlog.ui.table
 
 import android.graphics.RectF
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -50,13 +49,11 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
-import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
-import com.example.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
 import com.example.dzlog.data.preferences.KEY_WM_BG_ALPHA
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
@@ -64,10 +61,10 @@ import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
-import com.example.dzlog.data.template.toJsonString
 import com.example.dzlog.domain.counter.CounterManager
-import com.example.dzlog.domain.counter.CounterScopeSnapshot
 import com.example.dzlog.domain.counter.buildCounterStreamContext
+import com.example.dzlog.domain.counter.policy.CounterScopeSnapshot
+import com.example.dzlog.domain.counter.policy.buildCounterScopeSnapshot
 import com.example.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
@@ -83,11 +80,21 @@ import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.NamingFormatDefaults
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
-import com.example.dzlog.domain.naming.resolveGroupValue
 import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
+import com.example.dzlog.feature.table.policy.TableCounterConflictDialogEffect
+import com.example.dzlog.feature.table.policy.TableCounterConflictDialogState
+import com.example.dzlog.feature.table.policy.TableCounterPolicyCoordinator
+import com.example.dzlog.feature.table.policy.TableWatermarkAction
+import com.example.dzlog.feature.table.policy.applyTableWatermarkAction
+import com.example.dzlog.feature.table.policy.confirmCounterConflictDialog
+import com.example.dzlog.feature.table.policy.dismissCounterConflictDialog
+import com.example.dzlog.feature.table.policy.evaluateCounterEditConflict
+import com.example.dzlog.feature.table.policy.openCounterConflictDialog
+import com.example.dzlog.feature.table.policy.parseNonNegativeInt
+import com.example.dzlog.feature.table.policy.saveTableTemplate
 import com.example.dzlog.ui.table.section.LayoutTabActions
 import com.example.dzlog.ui.table.section.LayoutTabContent
 import com.example.dzlog.ui.table.section.LayoutTabUiState
@@ -151,9 +158,7 @@ fun TableEditorScreen(
 
     var usedCounters by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var scopeNextCounter by remember { mutableIntStateOf(1) }
-    var showCounterConflictDialog by remember { mutableStateOf(false) }
-    var pendingCounterCommitValue by remember { mutableIntStateOf(0) }
-    var pendingCounterStreamNextValue by remember { mutableIntStateOf(1) }
+    var counterConflictDialogState by remember { mutableStateOf(TableCounterConflictDialogState()) }
     var preserveManualCounterSeed by remember { mutableStateOf(false) }
     var manualSeedOverride by remember { mutableStateOf<Int?>(null) }
     var isManualCounterMode by remember { mutableStateOf(false) }
@@ -269,36 +274,8 @@ fun TableEditorScreen(
         }
     }
 
-    LaunchedEffect(scopedCounterStream.scopeParts.scopeKey) {
-        val g1 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G1)
-        val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
-
-        Log.d(
-            "DZlogCounter",
-            """
-        [STEP1 scopeKey changed]
-        g1=$g1
-        g2=$g2
-        relativePathKey=${counterStreamContext.relativePathKey}
-        counterPrefix=${counterStreamContext.streamPrefix}
-        scopeKey=${scopedCounterStream.scopeParts.scopeKey}
-        """.trimIndent()
-        )
-    }
-
     // ✅ 스트림 변경 감지용 (스트림이 바뀌면 seed를 "새 스트림 next"로 강제 동기화)
-    var lastScopeKey by remember { mutableStateOf<String?>(null) }
     var lastScopeSnapshot by remember { mutableStateOf<CounterScopeSnapshot?>(null) }
-
-    LaunchedEffect(scopedCounterStream.scopeParts.scopeKey) {
-        Log.d(
-            "DZlogCounter",
-            "TableEditor scopeKey changed\n"+
-            "relativePathKey=${counterStreamContext.relativePathKey}\n"+
-            "counterPrefix=${counterStreamContext.streamPrefix}\n"+
-            "scopeKey=${scopedCounterStream.scopeParts.scopeKey}"
-        )
-    }
 
     LaunchedEffect(scopedCounterStream.scopeParts.scopeKey, previewCounterDigits, templateState) {
         // ✅ 정책(스트림키=relativePathPrefix) 기준 usedCounters  nextCounter 계산
@@ -313,7 +290,6 @@ fun TableEditorScreen(
 
         val counterCell = templateState.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
         val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start ?: 1
-        val nextByHistory = ((used.maxOrNull() ?: 0) +  1).coerceAtLeast(1)
         val streamNext = TableCounterPolicyCoordinator.getNextCounter(
             context = context,
             scopedStream = scopedCounterStream,
@@ -336,10 +312,8 @@ fun TableEditorScreen(
         // ✅ 같은 스트림에서는 사용자 수동 seed(낮은 값 포함)를 유지한다.
         val syncResult = TableCounterPolicyCoordinator.resolveSeedForScope(
             input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
-                currentScopeKey = scopedCounterStream.scopeParts.scopeKey,
-                currentScopeSnapshot = CounterScopeSnapshot(
-                    relativePathKey = counterStreamContext.relativePathKey,
-                    prefix = counterStreamContext.streamPrefix,
+                currentScopeSnapshot = buildCounterScopeSnapshot(
+                    streamContext = counterStreamContext,
                     includePathInScope = includePathInCounterScope,
                     includeFilenameInScope = includeFilenameInCounterScope,
                 ),
@@ -347,7 +321,6 @@ fun TableEditorScreen(
                 hasCounterCell = (counterCell != null),
                 currentSeed = currentSeed,
                 streamNext = streamNext,
-                previousScopeKey = lastScopeKey,
                 previousScopeSnapshot = lastScopeSnapshot,
                 preserveManualCounterSeed = preserveManualCounterSeed,
                 manualSeedOverride = manualSeedOverride
@@ -361,24 +334,10 @@ fun TableEditorScreen(
         }
 
         scopeNextCounter = syncResult.desiredSeed
-        lastScopeKey = scopedCounterStream.scopeParts.scopeKey
-        lastScopeSnapshot = CounterScopeSnapshot(
-            relativePathKey = counterStreamContext.relativePathKey,
-            prefix = counterStreamContext.streamPrefix,
+        lastScopeSnapshot = buildCounterScopeSnapshot(
+            streamContext = counterStreamContext,
             includePathInScope = includePathInCounterScope,
             includeFilenameInScope = includeFilenameInCounterScope,
-        )
-        // IDE 경고(Assigned value is never read) 방지: 다음 실행을 위한 상태를 즉시 한 번 읽어둔다.
-        val persistedScopeKey = lastScopeKey
-
-        Log.d(
-            "DZlogCounter",
-            "TableEditor counter sync\n"+
-            "usedCounters=$usedCounters\n"+
-            "currentSeed=$currentSeed\n"+
-            "nextByHistory=$nextByHistory\n"+
-            "scopeNextCounter=$scopeNextCounter\n"+
-            "persistedScopeKey=$persistedScopeKey"
         )
 
         // ✅ 표시 ON/OFF와 무관하게, COUNTER 셀이 존재하면 seed는 정책 기준으로 항상 최신으로 맞춰둔다.
@@ -417,28 +376,29 @@ fun TableEditorScreen(
 
         // COUNTER 충돌 정책: stream next보다 작은 값을 입력하면 경고 후 진행 여부를 확인한다.
         if (cell != null && cell.dataType == TableCellDataType.COUNTER) {
-            val newV = editingValue.trim().toIntOrNull()
-            val oldV = editingOriginalValue.trim().toIntOrNull()
-            if (newV == null || newV < 0) return
-
-            val isChanged = (oldV == null) || (newV != oldV)
-            val streamNext = autoNextCounterValue.coerceAtLeast(1)
-            if (isChanged && newV < streamNext) {
-                pendingCounterCommitValue = newV
-                pendingCounterStreamNextValue = streamNext
-                showCounterConflictDialog = true
+            val conflict = evaluateCounterEditConflict(
+                oldValueText = editingOriginalValue,
+                newValueText = editingValue,
+                streamNext = autoNextCounterValue
+            )
+            if (parseNonNegativeInt(editingValue) == null) return
+            if (conflict != null) {
+                counterConflictDialogState = openCounterConflictDialog(
+                    editingCellId = id,
+                    conflict = conflict
+                )
                 return
             }
         }
 
         val target = templateState.cells.firstOrNull { it.cellId == id }
         val normalizedValueText = if (target?.dataType == TableCellDataType.COUNTER) {
-            val v = editingValue.trim().toIntOrNull()
-            if (v == null || v < 0) {
+            val value = parseNonNegativeInt(editingValue)
+            if (value == null) {
                 editingCellId = null
                 return
             }
-            v.toString()
+            value.toString()
         } else {
             editingValue
         }
@@ -546,6 +506,7 @@ fun TableEditorScreen(
         fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
         includeDate = false,
         includeTime = false,
+        counterDigits = previewCounterDigits,
         // ✅ 파일명 suffix counter는 항상 스트림 값(SSOT)을 사용
         // COUNTER 셀의 표기 ON/OFF는 "표/워터마크 표현"에만 영향, 카운터 스트림/파일명에는 영향 없음.
         // (파일명 뒤 숫자는 항상 붙는 정책)
@@ -553,77 +514,80 @@ fun TableEditorScreen(
         now = previewNow
     )
 
-    fun closeCounterConflictDialog() {
-        showCounterConflictDialog = false
+    fun clearInlineEditingState() {
         editingCellId = null
         editingValue = ""
+        editingOriginalValue = ""
     }
 
-    if (showCounterConflictDialog) {
+    fun applyCounterConflictDialogEffect(effect: TableCounterConflictDialogEffect) {
+        when (effect) {
+            is TableCounterConflictDialogEffect.ApplyManualSeed -> {
+                updateCounterCellAndPolicy(
+                    cellId = effect.cellId,
+                    seed = effect.seed,
+                    preserveManual = true,
+                    forcePolicyUpdate = true
+                )
+            }
+
+            is TableCounterConflictDialogEffect.RestoreAutoNext -> {
+                restoreCounterCellToAutoNext(effect.cellId)
+            }
+
+            TableCounterConflictDialogEffect.None -> Unit
+        }
+    }
+
+    suspend fun fetchAutoNextCounter(): Int = TableCounterPolicyCoordinator.resetToAutoNext(
+        context = context,
+        scopedStream = scopedCounterStream,
+        counterDigits = previewCounterDigits,
+        fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+    ).coerceAtLeast(1)
+
+    fun restoreCounterCellToAutoNext(cellId: String) {
+        scope.launch {
+            val restored = fetchAutoNextCounter()
+            updateCounterCellAndPolicy(
+                cellId = cellId,
+                seed = restored,
+                preserveManual = false,
+                forcePolicyUpdate = false
+            )
+        }
+    }
+
+    if (counterConflictDialogState.isVisible) {
         AlertDialog(
             onDismissRequest = {
-                val id = editingCellId
-                if (id != null) {
-                    scope.launch {
-                        val restored = TableCounterPolicyCoordinator.resetToAutoNext(
-                            context = context,
-                            scopedStream = scopedCounterStream,
-                            counterDigits = previewCounterDigits,
-                            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-                        ).coerceAtLeast(1)
-                        updateCounterCellAndPolicy(
-                            cellId = id,
-                            seed = restored,
-                            preserveManual = false,
-                            forcePolicyUpdate = false
-                        )
-                    }
-                }
-                closeCounterConflictDialog()
+                val (nextState, effect) = dismissCounterConflictDialog(counterConflictDialogState)
+                counterConflictDialogState = nextState
+                applyCounterConflictDialogEffect(effect)
+                clearInlineEditingState()
             },
             title = { Text("카운터 충돌 경고") },
             text = {
                 Text(
                     "중복된 카운터가 발생할 수 있습니다. 계속 진행하시겠습니까?\n\n" +
-                        "입력값: $pendingCounterCommitValue\n" +
-                        "현재 스트림 next: $pendingCounterStreamNextValue"
+                        "입력값: ${counterConflictDialogState.pendingCounterCommitValue}\n" +
+                        "현재 스트림 next: ${counterConflictDialogState.pendingCounterStreamNextValue}"
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val id = editingCellId
-                    if (id != null) {
-                        val applied = pendingCounterCommitValue.coerceAtLeast(1)
-                        updateCounterCellAndPolicy(
-                            cellId = id,
-                            seed = applied,
-                            preserveManual = true,
-                            forcePolicyUpdate = true
-                        )
-                    }
-                    closeCounterConflictDialog()
+                    val (nextState, effect) = confirmCounterConflictDialog(counterConflictDialogState)
+                    counterConflictDialogState = nextState
+                    applyCounterConflictDialogEffect(effect)
+                    clearInlineEditingState()
                 }) { Text("진행", style = DDZTypography.ButtonText) }
             },
             dismissButton = {
                 TextButton(onClick = {
-                    val id = editingCellId
-                    if (id != null) {
-                        scope.launch {
-                            val restored = TableCounterPolicyCoordinator.resetToAutoNext(
-                                context = context,
-                                scopedStream = scopedCounterStream,
-                                counterDigits = previewCounterDigits,
-                                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-                            ).coerceAtLeast(1)
-                            updateCounterCellAndPolicy(
-                                cellId = id,
-                                seed = restored,
-                                preserveManual = false,
-                                forcePolicyUpdate = false
-                            )
-                        }
-                    }
-                    closeCounterConflictDialog()
+                    val (nextState, effect) = dismissCounterConflictDialog(counterConflictDialogState)
+                    counterConflictDialogState = nextState
+                    applyCounterConflictDialogEffect(effect)
+                    clearInlineEditingState()
                 }) {
                     Text("취소", style = DDZTypography.ButtonText)
                 }
@@ -861,21 +825,19 @@ fun TableEditorScreen(
                                 commitInlineEditIfNeeded()
                                 isSavingTemplate = true
                                 scope.launch {
-                                    runCatching {
-                                        context.dataStore.edit { prefs ->
-                                            prefs[KEY_TABLE_TEMPLATE_JSON] = templateState.toJsonString()
+                                    saveTableTemplate(context, templateState)
+                                        .onFailure {
+                                            Toast.makeText(
+                                                context,
+                                                "Save failed: ${it.message}",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                            isSavingTemplate = false
                                         }
-                                    }.onFailure {
-                                        Toast.makeText(
-                                            context,
-                                            "Save failed: ${it.message}",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                        isSavingTemplate = false
-                                    }.onSuccess {
-                                        Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
-                                        onBack()
-                                    }
+                                        .onSuccess {
+                                            Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
+                                            onBack()
+                                        }
                                 }
                             },
                             onDismissSettingsPanel = {
@@ -912,13 +874,7 @@ fun TableEditorScreen(
                                 selectedCell?.let { cell ->
                                     if (cell.dataType != TableCellDataType.COUNTER) return@let
                                     scope.launch {
-                                        val restored = TableCounterPolicyCoordinator.resetToAutoNext(
-                                            context = context,
-                                            scopedStream = scopedCounterStream,
-                                            counterDigits = previewCounterDigits,
-                                            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-                                        ).coerceAtLeast(1)
-
+                                        val restored = fetchAutoNextCounter()
                                         updateCounterCellAndPolicy(
                                             cellId = cell.cellId,
                                             seed = restored,
@@ -950,41 +906,58 @@ fun TableEditorScreen(
                         wmValueScale = wmValueScale,
                         onRowColWeightsChange = { updated -> onTemplateChange(updated) },
                         onAnchorChange = { anchor ->
-                            wmAnchor = anchor
                             scope.launch {
-                                context.dataStore.edit { prefs ->
-                                    prefs[KEY_WM_TABLE_ANCHOR] = when (anchor) {
-                                        WatermarkTableAnchor.TOP_LEFT -> 0
-                                        WatermarkTableAnchor.TOP_RIGHT -> 1
-                                        WatermarkTableAnchor.BOTTOM_LEFT -> 2
-                                        else -> 3
-                                    }
-                                }
+                                val patch = applyTableWatermarkAction(
+                                    context,
+                                    TableWatermarkAction.AnchorChanged(anchor)
+                                )
+                                patch.anchor?.let { wmAnchor = it }
                             }
                         },
                         onWidthRatioChange = { width ->
-                            val nv = width.coerceIn(40, 100)
-                            wmWidthRatio = nv
-                            scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_WIDTH] = nv } }
+                            scope.launch {
+                                val patch = applyTableWatermarkAction(
+                                    context,
+                                    TableWatermarkAction.WidthRatioChanged(width)
+                                )
+                                patch.widthRatio?.let { wmWidthRatio = it }
+                            }
                         },
                         onHeightRatioChange = { height ->
-                            val nv = height.coerceIn(10, 35)
-                            wmHeightRatio = nv
-                            scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_HEIGHT] = nv } }
+                            scope.launch {
+                                val patch = applyTableWatermarkAction(
+                                    context,
+                                    TableWatermarkAction.HeightRatioChanged(height)
+                                )
+                                patch.heightRatio?.let { wmHeightRatio = it }
+                            }
                         },
                         onBgStyleChange = { bgStyle ->
-                            wmBgStyle = bgStyle
-                            scope.launch { context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = bgStyle } }
+                            scope.launch {
+                                val patch = applyTableWatermarkAction(
+                                    context,
+                                    TableWatermarkAction.BgStyleChanged(bgStyle)
+                                )
+                                patch.bgStyle?.let { wmBgStyle = it }
+                            }
                         },
                         onBgAlphaChange = { alpha ->
-                            val nv = alpha.coerceIn(0, 255)
-                            wmBgAlpha = nv
-                            scope.launch { context.dataStore.edit { it[KEY_WM_BG_ALPHA] = nv } }
+                            scope.launch {
+                                val patch = applyTableWatermarkAction(
+                                    context,
+                                    TableWatermarkAction.BgAlphaChanged(alpha)
+                                )
+                                patch.bgAlpha?.let { wmBgAlpha = it }
+                            }
                         },
                         onValueScaleChange = { scale ->
-                            val nv = scale.coerceIn(60, 160)
-                            wmValueScale = nv
-                            scope.launch { context.dataStore.edit { it[KEY_WM_VALUE_SCALE] = nv } }
+                            scope.launch {
+                                val patch = applyTableWatermarkAction(
+                                    context,
+                                    TableWatermarkAction.ValueScaleChanged(scale)
+                                )
+                                patch.valueScale?.let { wmValueScale = it }
+                            }
                         }
                     )
                 }

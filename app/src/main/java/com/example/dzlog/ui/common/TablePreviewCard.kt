@@ -33,13 +33,13 @@ fun TablePreviewCard(
     templateState: TableTemplateState,
     counterDigits: Int,
     now: Date,
+    modifier: Modifier = Modifier,
     // 워터마크 표 배경 스타일(0=BLACK, 1=WHITE, 2=TRANSPARENT)
     wmBgStyle: Int = 0,
     // 워터마크 표 배경 투명도(0~255)
     wmBgAlpha: Int = 80,
     // 워터마크 표 값 글씨크기(60~160, 기본 100)
     wmValueScale: Int = 100,
-    modifier: Modifier = Modifier,
     title: String? = null,
     onClick: (() -> Unit)? = null,
     // 홈은 박스(테두리/패딩) 스타일이 필요하고, 설정은 단순 프리뷰만 필요한 경우가 있어 옵션 제공

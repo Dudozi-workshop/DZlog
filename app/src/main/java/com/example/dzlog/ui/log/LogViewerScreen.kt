@@ -2,9 +2,9 @@
 
 package com.example.dzlog.ui.log
 
-import android.app.PendingIntent
 import android.content.Intent
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,15 +31,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.dzlog.domain.model.MediaImageItem
-import android.os.Build
-import android.provider.MediaStore
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.AlertDialog
-import androidx.compose.runtime.mutableIntStateOf
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.example.dzlog.domain.model.MediaImageItem
+import com.example.dzlog.feature.log.policy.launchMediaDeleteRequest
 
 /**
  * 사진 뷰어
@@ -68,10 +62,6 @@ fun LogViewerScreen(
     val resolver = context.contentResolver
     val reader = remember { DzlogMediaStoreReader(resolver) }
 
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-    var pendingDeleteUris by remember { mutableStateOf<List<android.net.Uri>>(emptyList()) }
-    var pendingDeleteCount by remember { mutableIntStateOf(0) }
-
     fun reloadAfterDelete() {
         val relativePath = buildRelativePathFromG1G2(g1, g2)
         runCatching { reader.loadImages(relativePath) }
@@ -91,17 +81,12 @@ fun LogViewerScreen(
     }
 
     fun startDeleteRequest(uris: List<android.net.Uri>) {
-        if (uris.isEmpty()) return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val pi: PendingIntent = MediaStore.createDeleteRequest(resolver, uris)
-            val req = IntentSenderRequest.Builder(pi.intentSender).build()
-            deleteLauncher.launch(req)
-            return
-        }
-        uris.forEach { uri ->
-            runCatching { resolver.delete(uri, null, null) }
-        }
-        reloadAfterDelete()
+        launchMediaDeleteRequest(
+            resolver = resolver,
+            uris = uris,
+            onLaunchIntentSender = deleteLauncher::launch,
+            onLegacyDeleteCompleted = ::reloadAfterDelete
+        )
     }
 
     val safeStart = startIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
@@ -171,7 +156,7 @@ fun LogViewerScreen(
 
             Spacer(Modifier.height(6.dp))
 
-// ✅ 하단 바 (공유/삭제) + 삭제 확인 다이얼로그
+// ✅ 하단 바 (공유/삭제)
             Box(modifier = Modifier.align(Alignment.BottomCenter)) {
 
                 // ✅ 선택모드: Close/All을 하단으로 이동 (상단 겹침 방지)
@@ -187,9 +172,7 @@ fun LogViewerScreen(
                         onDelete = if (selectedIds.isNotEmpty()) {
                             {
                                 val toDelete = items.filter { selectedIds.contains(it.id) }
-                                pendingDeleteCount = toDelete.size
-                                pendingDeleteUris = toDelete.map { it.uri }
-                                showDeleteConfirm = true
+                                startDeleteRequest(toDelete.map { it.uri })
                             }
                         } else null
                     )
@@ -215,30 +198,9 @@ fun LogViewerScreen(
                             val current = items.getOrNull(pagerState.currentPage) ?: return@ViewerBottomBar
                             listOf(current)
                         }
-
-                        pendingDeleteCount = toDelete.size
-                        pendingDeleteUris = toDelete.map { it.uri }
-                        showDeleteConfirm = true
+                        startDeleteRequest(toDelete.map { it.uri })
                     }
                 )
-
-                // 2) 삭제 확인 다이얼로그 — ViewerBottomBar 밖에 있어야 함
-                if (showDeleteConfirm) {
-                    AlertDialog(
-                        onDismissRequest = { showDeleteConfirm = false },
-                        title = { Text("삭제 확인") },
-                        text = { Text("선택한 사진 $pendingDeleteCount 장을 삭제합니다. 계속할까요?") },
-                        confirmButton = {
-                            Button(onClick = {
-                                showDeleteConfirm = false
-                                startDeleteRequest(pendingDeleteUris)
-                            }) { Text("삭제") }
-                        },
-                        dismissButton = {
-                            Button(onClick = { showDeleteConfirm = false }) { Text("취소") }
-                        }
-                    )
-                }
             }
         }
     }

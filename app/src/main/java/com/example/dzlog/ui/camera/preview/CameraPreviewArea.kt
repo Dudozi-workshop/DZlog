@@ -202,6 +202,7 @@ internal fun CameraPreviewArea(
             displayName = CaptureNamingPolicy.buildDisplayNameForCounter(
                 resolvedCells = plan.resolvedCells,
                 fnDelim = args.fnDelim,
+                counterDigits = args.counterDigits,
                 // ✅ 프리뷰도 "단일 소스 카운터"를 표시한다.
                 // - COUNTER 셀 ON/OFF, seed 수정 등 UI 상태에 의해 프리뷰 카운터가 흔들리지 않도록 한다.
                 // - 실제 증가 트리거는 captureAndSave에서만 발생한다.

@@ -1,5 +1,7 @@
 package com.example.dzlog.domain.counter
 
+import com.example.dzlog.domain.counter.policy.CounterSeedInput
+import com.example.dzlog.domain.counter.policy.decideCounterSeed
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

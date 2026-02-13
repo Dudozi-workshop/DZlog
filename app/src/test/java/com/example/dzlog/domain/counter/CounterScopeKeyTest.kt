@@ -1,5 +1,7 @@
 package com.example.dzlog.domain.counter
 
+import com.example.dzlog.domain.counter.policy.CounterScopeSnapshot
+import com.example.dzlog.domain.counter.policy.isNewCounterScope
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -35,5 +37,37 @@ class CounterScopeKeyTest {
 
         assertFalse(isNewCounterScope(previous, current))
         assertTrue(isNewCounterScope(previous, current.copy(includeFilenameInScope = true)))
+    }
+
+    @Test
+    fun path_change_affects_only_path_on_mode() {
+        val previous = CounterScopeSnapshot(
+            relativePathKey = "Pictures/DZlog/A/B/",
+            prefix = "C|g2=0",
+            includePathInScope = false,
+            includeFilenameInScope = true,
+        )
+
+        val current = previous.copy(relativePathKey = "Pictures/DZlog/A/C/")
+
+        assertFalse(isNewCounterScope(previous, current))
+        assertTrue(isNewCounterScope(previous, current.copy(includePathInScope = true)))
+    }
+
+    @Test
+    fun both_off_never_treats_value_changes_as_new_stream() {
+        val previous = CounterScopeSnapshot(
+            relativePathKey = "Pictures/DZlog/A/B/",
+            prefix = "C|g2=0",
+            includePathInScope = false,
+            includeFilenameInScope = false,
+        )
+
+        val current = previous.copy(
+            relativePathKey = "Pictures/DZlog/X/Y/",
+            prefix = "Z|g2=1"
+        )
+
+        assertFalse(isNewCounterScope(previous, current))
     }
 }

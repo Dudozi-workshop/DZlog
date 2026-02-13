@@ -99,6 +99,7 @@ internal fun handleCaptureClick(
         captureContext = CaptureContext(
             resolvedCells = planForCapture.resolvedCells,
             fnDelim = fnDelim,
+            counterDigits = counterDigits,
             dateFormat = dateFormat,
             timeFormat = timeFormat
         ),

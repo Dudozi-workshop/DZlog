@@ -24,13 +24,13 @@ fun TablePreview(
     templateState: TableTemplateState,
     counterDigits: Int,
     now: Date,
+    modifier: Modifier = Modifier,
     // 워터마크 표 배경 스타일(0=BLACK, 1=WHITE, 2=TRANSPARENT)
     wmBgStyle: Int = 0,
     // 워터마크 표 배경 투명도(0~255)
     wmBgAlpha: Int = 80,
     // 워터마크 표 값 글씨크기(60~160, 기본 100)
     wmValueScale: Int = 100,
-    modifier: Modifier = Modifier,
 ) {
     // ✅ 프리뷰는 "표를 감싸는 내부 사각틀"이 실제 표 렌더 크기와 일치해야 한다.
     // drawWatermarkTableOnCanvas는 tableH를 width(base) 기준으로 계산하며,

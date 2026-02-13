@@ -34,6 +34,7 @@ internal object CaptureNamingPolicy {
     internal fun buildDisplayNameForCounter(
         resolvedCells: List<com.example.dzlog.domain.table.ResolvedCell>,
         fnDelim: String,
+        counterDigits: Int,
         usedCounter: Int,
         now: Date,
         includeDate: Boolean = false,
@@ -44,6 +45,7 @@ internal object CaptureNamingPolicy {
             fnDelim = fnDelim,
             includeDate = includeDate,
             includeTime = includeTime,
+            counterDigits = counterDigits,
             counterOverride = usedCounter,
             now = now
         )
@@ -71,6 +73,7 @@ internal object CaptureNamingPolicy {
         val displayName = buildDisplayNameForCounter(
             resolvedCells = resolvedCells,
             fnDelim = captureContext.fnDelim,
+            counterDigits = captureContext.counterDigits,
             usedCounter = usedCounter,
             now = Date()
         )

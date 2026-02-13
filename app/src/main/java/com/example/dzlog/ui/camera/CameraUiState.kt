@@ -6,11 +6,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
-import com.example.dzlog.domain.counter.CounterScopeSnapshot
+import com.example.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.model.WatermarkTableAnchor
+import com.example.dzlog.ui.camera.preview.TapFocusUiState
 import java.util.Date
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -47,7 +48,6 @@ internal class CaptureUiState {
 @Stable
 internal class CounterScopeState {
     var scopeNextCounter by mutableStateOf(1)
-    var lastScopeKey by mutableStateOf<String?>(null)
     var lastScopeSnapshot by mutableStateOf<CounterScopeSnapshot?>(null)
 }
 

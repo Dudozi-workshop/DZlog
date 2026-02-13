@@ -1,4 +1,4 @@
-package com.example.dzlog.domain.counter
+package com.example.dzlog.domain.counter.policy
 
 data class CounterSeedInput(
     val streamNext: Int,
@@ -15,10 +15,6 @@ data class CounterSeedDecision(
     val shouldResyncForScopeChange: Boolean,
     val shouldClearPreserveManualSeed: Boolean,
 )
-
-fun isNewCounterScope(previousScopeKey: String?, currentScopeKey: String): Boolean {
-    return previousScopeKey != null && previousScopeKey != currentScopeKey
-}
 
 fun decideCounterSeed(input: CounterSeedInput): CounterSeedDecision {
     val streamNext = input.streamNext.coerceAtLeast(1)
@@ -43,27 +39,4 @@ fun decideCounterSeed(input: CounterSeedInput): CounterSeedDecision {
         shouldResyncForScopeChange = shouldResyncForScopeChange,
         shouldClearPreserveManualSeed = shouldResyncForScopeChange,
     )
-}
-
-fun buildCounterSyncLog(
-    source: String,
-    scopeKey: String,
-    input: CounterSeedInput,
-    decision: CounterSeedDecision,
-    extras: List<Pair<String, Any?>> = emptyList(),
-): String {
-    val lines = mutableListOf(
-        "[$source] counter sync",
-        "scopeKey=$scopeKey",
-        "streamNext=${input.streamNext}",
-        "currentSeed=${input.currentSeed}",
-        "isNewStream=${input.isNewStream}",
-        "preserveManualSeed=${input.preserveManualSeed}",
-        "manualSeedOverride=${input.manualSeedOverride}",
-        "templateCounterSeed=${input.templateCounterSeed}",
-        "shouldResyncForScopeChange=${decision.shouldResyncForScopeChange}",
-        "desiredSeed=${decision.desiredSeed}"
-    )
-    extras.forEach { (key, value) -> lines += "$key=$value" }
-    return lines.joinToString("\n")
 }

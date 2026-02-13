@@ -2,17 +2,13 @@
 
 package com.example.dzlog.ui.log
 
-import android.app.PendingIntent
 import android.content.Intent
-import android.os.Build
+import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
-import android.database.ContentObserver
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,24 +22,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.example.dzlog.domain.model.MediaImageItem
+import com.example.dzlog.feature.log.policy.launchMediaDeleteRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -112,14 +105,6 @@ fun LogGridScreen(
         }
     }
 
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-    var pendingDeleteUris by remember { mutableStateOf<List<android.net.Uri>>(emptyList()) }
-    var pendingDeleteCount by remember { mutableIntStateOf(0) }
-
-    fun closeDeleteConfirmDialog() {
-        showDeleteConfirm = false
-    }
-
     val deleteLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
     ) {
@@ -129,22 +114,15 @@ fun LogGridScreen(
     }
 
     fun startDeleteRequest(uris: List<android.net.Uri>) {
-        if (uris.isEmpty()) return
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val pi: PendingIntent = MediaStore.createDeleteRequest(resolver, uris)
-            val req = IntentSenderRequest.Builder(pi.intentSender).build()
-            deleteLauncher.launch(req)
-            return
-        }
-
-        // Android 10 이하: 직접 delete 시도 (권한/환경에 따라 실패 가능)
-        uris.forEach { uri ->
-            runCatching { resolver.delete(uri, null, null) }
-        }
-        // 재조회
-        reloadImages("deleteLegacy")
-        onExitSelection()
+        launchMediaDeleteRequest(
+            resolver = resolver,
+            uris = uris,
+            onLaunchIntentSender = deleteLauncher::launch,
+            onLegacyDeleteCompleted = {
+                reloadImages("deleteLegacy")
+                onExitSelection()
+            }
+        )
     }
 
     LaunchedEffect(relativePath) {
@@ -278,9 +256,7 @@ fun LogGridScreen(
                     onDelete = if (selectedIds.isNotEmpty()) {
                         {
                             val selectedItems = items.filter { selectedIds.contains(it.id) }
-                            pendingDeleteCount = selectedItems.size
-                            pendingDeleteUris = selectedItems.map { it.uri }
-                            showDeleteConfirm = true
+                            startDeleteRequest(selectedItems.map { it.uri })
                         }
                     } else null
                 )
@@ -288,25 +264,6 @@ fun LogGridScreen(
         }
     }
     // SelectionBottomBar는 Box 하단 고정으로 이동됨
-
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = {
-                closeDeleteConfirmDialog()
-                               },
-            title = { Text("삭제 확인") },
-            text = { Text("선택한 사진 $pendingDeleteCount 장을 삭제합니다. 계속할까요?") },
-            confirmButton = {
-                Button(onClick = {
-                    closeDeleteConfirmDialog()
-                    startDeleteRequest(pendingDeleteUris)
-                }) { Text("삭제") }
-            },
-            dismissButton = {
-                Button(onClick = { closeDeleteConfirmDialog() }) { Text("취소") }
-            }
-        )
-    }
 }
 
 private fun buildRelativePathFromG1G2(g1: String, g2: String): String {

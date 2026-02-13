@@ -20,9 +20,9 @@ import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.defaultTableTemplateState
 import com.example.dzlog.data.template.tableTemplateStateFromJson
 import com.example.dzlog.domain.model.TableTemplateState
+import com.example.dzlog.feature.settings.ui.SettingsScreen
 import com.example.dzlog.ui.camera.CameraScreen
 import com.example.dzlog.ui.home.HomeScreen
-import com.example.dzlog.ui.home.SettingsScreen
 import com.example.dzlog.ui.log.LogG1Screen
 import com.example.dzlog.ui.log.LogG2Screen
 import com.example.dzlog.ui.log.LogGridScreen

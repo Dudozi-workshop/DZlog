@@ -21,6 +21,6 @@ enum class CaptureAspect(val v: Int, val label: String, val w: Int, val h: Int) 
     }
 
     companion object {
-        fun from(v: Int) = values().firstOrNull { it.v == v } ?: R3_4
+        fun from(v: Int) = entries.firstOrNull { it.v == v } ?: R3_4
     }
 }

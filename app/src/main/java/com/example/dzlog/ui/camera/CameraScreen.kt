@@ -2,19 +2,12 @@
 
 package com.example.dzlog.ui.camera
 
-
-// NOTE: 패키지 이동(기계적 이동)으로 인해 참조 대상이 하위 패키지로 내려감
-
-// CameraX 바인딩 유틸은 controller로 이동됨(직접 호출이 남아있다면 이 import로 해결)
-
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -38,13 +31,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.LifecycleOwner
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.datastore.AppSettingsStore
-import com.example.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
@@ -60,16 +51,14 @@ import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
-import com.example.dzlog.data.repository.DzlogRepositoryImpl
 import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
-import com.example.dzlog.domain.counter.CounterScopeSnapshot
-import com.example.dzlog.domain.counter.CounterSeedInput
 import com.example.dzlog.domain.counter.CounterStreamContext
 import com.example.dzlog.domain.counter.buildCounterStreamContext
-import com.example.dzlog.domain.counter.buildCounterSyncLog
-import com.example.dzlog.domain.counter.decideCounterSeed
-import com.example.dzlog.domain.counter.isNewCounterScope
+import com.example.dzlog.domain.counter.policy.CounterSeedInput
+import com.example.dzlog.domain.counter.policy.buildCounterScopeSnapshot
+import com.example.dzlog.domain.counter.policy.decideCounterSeed
+import com.example.dzlog.domain.counter.policy.isNewCounterScope
 import com.example.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
@@ -82,6 +71,9 @@ import com.example.dzlog.domain.naming.NamingFormatDefaults
 import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
+import com.example.dzlog.feature.capture.io.createCaptureRepository
+import com.example.dzlog.feature.capture.permission.hasCameraPermission
+import com.example.dzlog.feature.capture.policy.stabilizeStreamNextCounter
 import com.example.dzlog.ui.camera.controls.CameraTopBarSection
 import com.example.dzlog.ui.camera.controls.CaptureButtonSection
 import com.example.dzlog.ui.camera.controls.handleCaptureClick
@@ -91,7 +83,6 @@ import com.example.dzlog.ui.camera.preview.WatermarkUiArgs
 import com.example.dzlog.ui.camera.settings.CameraSettingsDialog
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
-import com.example.dzlog.watermark.WatermarkRendererImpl
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import java.util.Date
@@ -107,12 +98,7 @@ fun CameraScreen(
     val context = LocalContext.current
 
     var hasPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
-        )
+        mutableStateOf(hasCameraPermission(context))
     }
 
     val launcher = rememberLauncherForActivityResult(
@@ -154,13 +140,7 @@ fun CameraPreview(
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
     val scope = rememberCoroutineScope()
-    val repository = remember {
-        val saver = MediaStoreSaverImpl()
-        DzlogRepositoryImpl(
-            saver = saver,
-            watermarkRenderer = WatermarkRendererImpl()
-        )
-    }
+    val repository = remember { createCaptureRepository() }
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
@@ -227,6 +207,7 @@ fun CameraPreview(
         CaptureNamingPolicy.buildDisplayNameForCounter(
             resolvedCells = plan.resolvedCells,
             fnDelim = fnDelim,
+            counterDigits = ui.prefs.counterDigits,
             usedCounter = ui.counter.scopeNextCounter,
             now = ui.capture.now,
             includeDate = false,
@@ -507,17 +488,6 @@ private fun rememberCounterStreamContext(
 }
 
 
-internal fun stabilizeStreamNextCounter(
-    streamNextFromPolicy: Int,
-    currentScopeNext: Int,
-    isNewStream: Boolean
-): Int {
-    val normalizedStreamNext = streamNextFromPolicy.coerceAtLeast(1)
-    val normalizedCurrentScopeNext = currentScopeNext.coerceAtLeast(1)
-    if (isNewStream) return normalizedStreamNext
-    return maxOf(normalizedStreamNext, normalizedCurrentScopeNext)
-}
-
 @Composable
 private fun SyncCounterSeedEffect(
     context: android.content.Context,
@@ -535,10 +505,8 @@ private fun SyncCounterSeedEffect(
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
         )
-        val scopeKey = scopedStream.scopeParts.scopeKey
-        val scopeSnapshot = CounterScopeSnapshot(
-            relativePathKey = streamContext.relativePathKey,
-            prefix = streamContext.streamPrefix,
+        val scopeSnapshot = buildCounterScopeSnapshot(
+            streamContext = streamContext,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
         )
@@ -575,22 +543,8 @@ private fun SyncCounterSeedEffect(
         val decision = decideCounterSeed(input)
 
         ui.counter.scopeNextCounter = decision.desiredSeed
-        ui.counter.lastScopeKey = scopeKey
         ui.counter.lastScopeSnapshot = scopeSnapshot
 
-        Log.d(
-            "DZlogCounter",
-            buildCounterSyncLog(
-                source = "Camera",
-                scopeKey = scopeKey,
-                input = input,
-                decision = decision,
-                extras = listOf(
-                    "includePathInCounterScope" to appSettings.includePathInCounterScope,
-                    "includeFilenameInCounterScope" to appSettings.includeFilenameInCounterScope,
-                )
-            )
-        )
     }
 }
 private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {

@@ -118,6 +118,7 @@ fun HomeScreen(
             captureContext = CaptureContext(
                 resolvedCells = plan.resolvedCells,
                 fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+                counterDigits = settings.counterPadding,
                 dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
                 timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
             ),
@@ -296,19 +297,6 @@ fun HomeScreen(
             }
         }
     }
-}
-
-@Composable
-fun SettingsScreen(
-    tableTemplateStateProvider: () -> TableTemplateState,
-    onBack: () -> Unit,
-    onOpenTableDetail: () -> Unit
-) {
-    com.example.dzlog.ui.settings.SettingsRootScreen(
-        tableTemplateStateProvider = tableTemplateStateProvider,
-        onBack = onBack,
-        onOpenTableDetail = onOpenTableDetail
-    )
 }
 
 /**

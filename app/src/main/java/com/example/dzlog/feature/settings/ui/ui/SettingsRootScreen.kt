@@ -1,6 +1,5 @@
-package com.example.dzlog.ui.settings
+package com.example.dzlog.feature.settings.ui
 
-import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -26,22 +25,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
-import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
-import com.example.dzlog.domain.naming.NamingFormatDefaults
-import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
-import com.example.dzlog.domain.naming.buildGalleryRelativePath
-import com.example.dzlog.domain.table.TableResolver
+import com.example.dzlog.feature.settings.components.SegmentedControl
+import com.example.dzlog.feature.settings.policy.SettingsAction
+import com.example.dzlog.feature.settings.policy.applySettingsAction
+import com.example.dzlog.feature.settings.policy.isStorageReadGranted
 import com.example.dzlog.ui.common.DDZButton
 import com.example.dzlog.ui.common.DDZButtonStyle
 import com.example.dzlog.ui.common.DDZCard
 import com.example.dzlog.ui.common.DDZSectionHeader
 import com.example.dzlog.ui.common.TablePreviewCard
 import com.example.dzlog.ui.common.rememberTablePreviewSettings
-import com.example.dzlog.ui.settings.components.SegmentedControl
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
 import com.example.dzlog.ui.theme.DDZTypography
@@ -79,11 +75,12 @@ fun SettingsRootScreen(
     val nowForPreview = remember { Date() }
     val previewSettings = rememberTablePreviewSettings()
 
-    val isStorageGranted = remember {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.checkSelfPermission(android.Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
-        } else {
-            context.checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+    val isStorageGranted = remember { isStorageReadGranted(context) }
+
+
+    fun showSettingsToast(message: String) {
+        if (settings.toastEnabled) {
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -115,81 +112,27 @@ fun SettingsRootScreen(
             includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
             onSaveModeChange = { mode ->
                 scope.launch {
-                    AppSettingsStore.setSaveMode(context, mode)
-                    if (settings.toastEnabled) Toast.makeText(context, "저장 대상: ${mode.name}", Toast.LENGTH_SHORT).show()
+                    applySettingsAction(context, SettingsAction.SaveModeChanged(mode))?.let(::showSettingsToast)
                 }
             },
             onContinuousPreviewModeChange = { mode ->
                 scope.launch {
-                    AppSettingsStore.setContinuousPreviewMode(context, mode)
-                    if (settings.toastEnabled) Toast.makeText(context, "미리보기: ${mode.name}", Toast.LENGTH_SHORT).show()
+                    applySettingsAction(context, SettingsAction.ContinuousPreviewModeChanged(mode))?.let(::showSettingsToast)
                 }
             },
             onCounterPaddingChange = { digits ->
                 scope.launch {
-                    AppSettingsStore.setCounterPadding(context, digits)
-                    if (settings.toastEnabled) {
-                        val msg = if (digits == 0) "카운터 패딩: 없음" else "카운터 자릿수: $digits"
-                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                    }
-                }
-            },
-
-            onResetCounterSync = {
-                scope.launch {
-                    val relPathPrefix = buildGalleryRelativePath(templateState.cells)
-                    val resolver = TableResolver()
-                    val plan = runCatching {
-                        resolver.plan(
-                            cells = templateState.cells,
-                            captureNow = nowForPreview,
-                            config = TableResolver.Config(
-                                counterDigits = settings.counterPadding,
-                                dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
-                                timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT
-                            )
-                        )
-                    }.getOrNull()
-                    val prefix = plan?.let {
-                        buildFileNamePrefixFromResolvedCells(
-                            resolvedCells = it.resolvedCells,
-                            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-                            includeDate = false,
-                            includeTime = false,
-                            now = nowForPreview
-                        )
-                    } ?: "DZlog"
-                    val scanned = runCatching {
-                        scanUsedCountersFromMediaStore(
-                            context = context,
-                            relativePathPrefix = relPathPrefix,
-                            fileNamePrefix = prefix,
-                            counterDigits = settings.counterPadding,
-                            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-                        )
-                    }.getOrNull()
-                    val effective = scanned ?: emptySet()
-                    // 캐시 업데이트(다음 dup 판단/동기화 기준)
-                    runCatching {
-                        val repo = CounterIndexRepository.getInstance(context)
-                        repo.backfillPlaceholders(relPathPrefix, prefix, effective)
-                    }
-                    if (settings.toastEnabled) {
-                        val max = effective.maxOrNull() ?: 0
-                        Toast.makeText(context, "카운터 동기화 완료 (max=$max)", Toast.LENGTH_SHORT).show()
-                    }
+                    applySettingsAction(context, SettingsAction.CounterPaddingChanged(digits))?.let(::showSettingsToast)
                 }
             },
             onIncludePathInCounterScopeChange = { enabled ->
                 scope.launch {
-                    AppSettingsStore.setIncludePathInCounterScope(context, enabled)
-                    if (settings.toastEnabled) Toast.makeText(context, "카운터 범위에 저장경로 반영: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+                    applySettingsAction(context, SettingsAction.IncludePathInCounterScopeChanged(enabled))?.let(::showSettingsToast)
                 }
             },
             onIncludeFilenameInCounterScopeChange = { enabled ->
                 scope.launch {
-                    AppSettingsStore.setIncludeFilenameInCounterScope(context, enabled)
-                    if (settings.toastEnabled) Toast.makeText(context, "카운터 범위에 파일명 반영: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+                    applySettingsAction(context, SettingsAction.IncludeFilenameInCounterScopeChanged(enabled))?.let(::showSettingsToast)
                 }
             }
         )
@@ -201,10 +144,6 @@ fun SettingsRootScreen(
             Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
                 DDZSectionHeader(title = "Template / Table")
                 Text("현재 템플릿", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-
-                val rows = templateState.rows.coerceAtLeast(1)
-                val cols = templateState.cols.coerceAtLeast(1)
-                cols / rows.toFloat()
 
                 // 설정 화면도 TablePreviewCard로 통합 (크롬 없이 프리뷰만)
                 TablePreviewCard(
@@ -242,20 +181,17 @@ fun SettingsRootScreen(
             isStorageGranted = isStorageGranted,
             onToastEnabledChange = { enabled ->
                 scope.launch {
-                    AppSettingsStore.setToastEnabled(context, enabled)
-                    if (enabled) Toast.makeText(context, "토스트 피드백 ON", Toast.LENGTH_SHORT).show()
+                    applySettingsAction(context, SettingsAction.ToastEnabledChanged(enabled))?.let(::showSettingsToast)
                 }
             },
             onHapticEnabledChange = { enabled ->
                 scope.launch {
-                    AppSettingsStore.setHapticEnabled(context, enabled)
-                    if (settings.toastEnabled != false) Toast.makeText(context, "진동: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+                    applySettingsAction(context, SettingsAction.HapticEnabledChanged(enabled))?.let(::showSettingsToast)
                 }
             },
             onBlankWarningEnabledChange = { enabled ->
                 scope.launch {
-                    AppSettingsStore.setBlankWarningEnabled(context, enabled)
-                    if (settings.toastEnabled != false) Toast.makeText(context, "공백 경고: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+                    applySettingsAction(context, SettingsAction.BlankWarningEnabledChanged(enabled))?.let(::showSettingsToast)
                 }
             }
         )
@@ -274,7 +210,6 @@ private fun QuickControlsCard(
     onSaveModeChange: (SaveMode) -> Unit,
     onContinuousPreviewModeChange: (ContinuousPreviewMode) -> Unit,
     onCounterPaddingChange: (Int) -> Unit,
-    onResetCounterSync: () -> Unit,
     onIncludePathInCounterScopeChange: (Boolean) -> Unit,
     onIncludeFilenameInCounterScopeChange: (Boolean) -> Unit
 ) {
@@ -340,10 +275,6 @@ private fun QuickControlsCard(
                             onCounterPaddingChange(d)
                         }
                     )
-                }
-                Spacer(Modifier.height(0.dp))
-                TextButton(onClick = onResetCounterSync) {
-                    Text("Reset", style = DDZTypography.ButtonText)
                 }
             }
 

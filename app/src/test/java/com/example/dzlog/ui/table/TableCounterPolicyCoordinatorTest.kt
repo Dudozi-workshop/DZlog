@@ -1,6 +1,7 @@
 package com.example.dzlog.ui.table
 
-import com.example.dzlog.domain.counter.CounterScopeSnapshot
+import com.example.dzlog.domain.counter.policy.CounterScopeSnapshot
+import com.example.dzlog.feature.table.policy.TableCounterPolicyCoordinator
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -11,7 +12,6 @@ class TableCounterPolicyCoordinatorTest {
     fun same_stream_keeps_manual_override_flag() {
         val result = TableCounterPolicyCoordinator.resolveSeedForScope(
             input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
-                currentScopeKey = "A|B",
                 currentScopeSnapshot = CounterScopeSnapshot(
                     relativePathKey = "A",
                     prefix = "B",
@@ -22,7 +22,6 @@ class TableCounterPolicyCoordinatorTest {
                 hasCounterCell = true,
                 currentSeed = 7,
                 streamNext = 20,
-                previousScopeKey = "A|B",
                 previousScopeSnapshot = CounterScopeSnapshot(
                     relativePathKey = "A",
                     prefix = "B",
@@ -41,7 +40,6 @@ class TableCounterPolicyCoordinatorTest {
     fun new_stream_clears_manual_override_flag() {
         val result = TableCounterPolicyCoordinator.resolveSeedForScope(
             input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
-                currentScopeKey = "C|D",
                 currentScopeSnapshot = CounterScopeSnapshot(
                     relativePathKey = "C",
                     prefix = "D",
@@ -52,7 +50,6 @@ class TableCounterPolicyCoordinatorTest {
                 hasCounterCell = true,
                 currentSeed = 7,
                 streamNext = 20,
-                previousScopeKey = "A|B",
                 previousScopeSnapshot = CounterScopeSnapshot(
                     relativePathKey = "A",
                     prefix = "B",
