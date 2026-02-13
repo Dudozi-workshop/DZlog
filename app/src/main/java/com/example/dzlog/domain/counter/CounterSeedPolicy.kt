@@ -30,7 +30,7 @@ fun decideCounterSeed(input: CounterSeedInput): CounterSeedDecision {
         input.manualSeedOverride != null -> input.manualSeedOverride.coerceAtLeast(1)
         shouldResyncForScopeChange -> streamNext
         input.preserveManualSeed -> currentSeed
-        else -> maxOf(streamNext, currentSeed)
+        else -> streamNext
     }
 
     val templateCounterSeed = input.templateCounterSeed
