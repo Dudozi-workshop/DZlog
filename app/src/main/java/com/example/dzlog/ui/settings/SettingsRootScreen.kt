@@ -32,7 +32,6 @@ import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.naming.NamingFormatDefaults
-import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.table.TableResolver
@@ -77,41 +76,8 @@ fun SettingsRootScreen(
 
     val templateState = tableTemplateStateProvider()
 
-    // A) 상단 상태 요약(읽기 전용)
     val nowForPreview = remember { Date() }
-
-    // ✅ 즉시 반영(Flow 구독) - 표 프리뷰 설정 묶음
     val previewSettings = rememberTablePreviewSettings()
-
-    val (projectPathPreview, nextFilenamePreview) = remember(templateState, settings) {
-        val relPath = runCatching { buildGalleryRelativePath(templateState.cells) }.getOrElse { "" }
-        val resolver = TableResolver()
-        val now = nowForPreview
-        val counterDigits = settings.counterPadding
-        val plan = runCatching {
-            resolver.plan(
-                cells = templateState.cells,
-                captureNow = now,
-                config = TableResolver.Config(
-                    counterDigits = counterDigits,
-                    dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
-                    timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT
-                )
-            )
-        }.getOrNull()
-
-        val name = plan?.let {
-            buildDisplayNameFromResolvedCells(
-                resolvedCells = it.resolvedCells,
-                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-                includeDate = false,
-                includeTime = false,
-                now = now
-            )
-        } ?: "DZlog"
-
-        relPath to name
-    }
 
     val isStorageGranted = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -137,11 +103,6 @@ fun SettingsRootScreen(
             TextButton(onClick = onBack) { Text("Back", style = DDZTypography.ButtonText) }
         }
         Spacer(Modifier.height(DDZSpacing.itemGap))
-
-        StatusBarCard(
-            projectPath = projectPathPreview,
-            nextFilename = nextFilenamePreview
-        )
 
         Spacer(Modifier.height(DDZSpacing.sectionGap))
 
@@ -273,8 +234,6 @@ fun SettingsRootScreen(
 
         Spacer(Modifier.height(DDZSpacing.sectionGap))
 
-        Spacer(Modifier.height(DDZSpacing.sectionGap))
-
         // E) System & App
         SystemAppCard(
             toastEnabled = settings.toastEnabled,
@@ -302,17 +261,6 @@ fun SettingsRootScreen(
         )
 
         Spacer(Modifier.height(DDZSpacing.itemGap))
-    }
-}
-
-@Composable
-private fun StatusBarCard(projectPath: String, nextFilename: String) {
-    DDZCard(modifier = Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
-            DDZSectionHeader(title = "STATUS")
-            Text("Project Path: $projectPath", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-            Text("Next Filename: $nextFilename", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-        }
     }
 }
 

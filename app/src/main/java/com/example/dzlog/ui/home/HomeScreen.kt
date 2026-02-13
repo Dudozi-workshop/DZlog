@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,12 +24,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.example.dzlog.domain.capturepolicy.CaptureContext
+import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
+import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
+import com.example.dzlog.domain.counter.buildCounterStreamContext
+import com.example.dzlog.domain.counter.toCaptureScopedCounterStream
+import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.MediaImageItem
+import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.naming.NamingFormatDefaults
-import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
-import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.ui.common.DDZButton
 import com.example.dzlog.ui.common.DDZButtonStyle
@@ -54,33 +61,70 @@ fun HomeScreen(
     onOpenRecentCaptureGrid: (g1: String, g2: String, startIndex: Int) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val settings by AppSettingsStore.flow(context).collectAsState(
+        initial = com.example.dzlog.data.datastore.AppSettings(
+            saveMode = SaveMode.BOTH,
+            continuousPreviewMode = ContinuousPreviewMode.OFF,
+            counterPadding = 0,
+            includePathInCounterScope = true,
+            includeFilenameInCounterScope = true,
+            toastEnabled = true,
+            hapticEnabled = true,
+            blankWarningEnabled = true,
+        )
+    )
 
     // ✅ 즉시 반영(Flow 구독) - 표 프리뷰 설정 묶음
     val previewSettings = rememberTablePreviewSettings()
 
-    // 상단 상태카드 표기용 프리뷰(저장경로/파일명)
-    val nowForPreview = remember { Date() }
-    val savePathPreview = remember(tableTemplateState.cells) {
-        buildGalleryRelativePath(tableTemplateState.cells)
-    }
-    val filenamePreview = remember(tableTemplateState.cells) {
+    var savePathPreview by remember { mutableStateOf("Pictures/DZlog/") }
+    var filenamePreview by remember { mutableStateOf("DZlog_1.jpg") }
+
+    LaunchedEffect(
+        tableTemplateState,
+        settings.counterPadding,
+        settings.includePathInCounterScope,
+        settings.includeFilenameInCounterScope
+    ) {
+        val now = Date()
         val resolver = TableResolver()
         val plan = resolver.plan(
             cells = tableTemplateState.cells,
-            captureNow = nowForPreview,
+            captureNow = now,
             config = TableResolver.Config(
-                counterDigits = 0,
+                counterDigits = settings.counterPadding,
                 dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
                 timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT
             )
         )
-        buildDisplayNameFromResolvedCells(
+        val streamContext = buildCounterStreamContext(
             resolvedCells = plan.resolvedCells,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-            includeDate = false,
-            includeTime = false,
-            now = nowForPreview
+            nextCounter = 1,
+            isManualMode = false,
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
         )
+        val scopedStream = toCaptureScopedCounterStream(
+            streamContext = streamContext,
+            includePathInScope = settings.includePathInCounterScope,
+            includeFilenameInScope = settings.includeFilenameInCounterScope,
+        )
+        val streamNext = CaptureCounterPolicy.getNextCounter(
+            context = context,
+            scopedStream = scopedStream,
+            counterDigits = settings.counterPadding,
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+        ).coerceAtLeast(1)
+        val preview = CaptureNamingPolicy.buildForCaptureWithCounter(
+            captureContext = CaptureContext(
+                resolvedCells = plan.resolvedCells,
+                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+                dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+                timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
+            ),
+            usedCounter = streamNext
+        )
+        savePathPreview = preview.relativePath
+        filenamePreview = preview.displayName
     }
 
     var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
@@ -124,7 +168,6 @@ fun HomeScreen(
 
             Spacer(Modifier.height(DDZSpacing.itemGap))
 
-            // 상단 상태카드(버튼): 2줄(저장경로/파일명)
             DDZCard(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -288,4 +331,3 @@ private fun parseG1G2FromRelativePath(relativePath: String): Pair<String, String
     val g2 = parts.getOrNull(1) ?: default
     return g1 to g2
 }
-
