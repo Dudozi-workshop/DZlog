@@ -10,6 +10,10 @@ package com.example.dzlog.ui.camera
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,8 +27,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -71,6 +77,7 @@ import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
+import com.example.dzlog.domain.naming.NamingFormatDefaults
 import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
@@ -159,12 +166,12 @@ fun CameraPreview(
     val ui = remember { CameraUiState() }
 
     val tableResolver = remember { TableResolver() }
-    val fnDelim = "_"
+    val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
 
     val tableCells = tableTemplateState.cells
 
-    val dateFormat = "yyyy.MM.dd"
-    val timeFormat = "HH.mm.ss"
+    val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
+    val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
 
     LaunchedEffect(dateFormat, timeFormat) {
         val unit = decideTickUnit(dateFormat, timeFormat)
@@ -184,6 +191,7 @@ fun CameraPreview(
         nextCounter = ui.counter.scopeNextCounter,
         fnDelim = fnDelim
     )
+    val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
 
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
     SyncCounterSeedEffect(
@@ -192,6 +200,7 @@ fun CameraPreview(
         streamContext = counterStreamContext,
         counterDigits = ui.prefs.counterDigits,
         fnDelim = fnDelim,
+        refreshTick = mediaStoreRefreshTick,
         ui = ui
     )
 
@@ -441,6 +450,32 @@ internal fun buildWatermarkConfig(
 }
 
 @Composable
+private fun rememberMediaStoreRefreshTick(context: android.content.Context): Int {
+    var refreshTick by remember { mutableIntStateOf(0) }
+
+    DisposableEffect(context) {
+        val resolver = context.contentResolver
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                refreshTick += 1
+            }
+        }
+
+        resolver.registerContentObserver(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            true,
+            observer
+        )
+
+        onDispose {
+            resolver.unregisterContentObserver(observer)
+        }
+    }
+
+    return refreshTick
+}
+
+@Composable
 private fun rememberCounterStreamContext(
     tableResolver: TableResolver,
     tableCells: List<com.example.dzlog.domain.model.TableCellState>,
@@ -477,9 +512,10 @@ private fun SyncCounterSeedEffect(
     streamContext: CounterStreamContext,
     counterDigits: Int,
     fnDelim: String,
+    refreshTick: Int,
     ui: CameraUiState
 ) {
-    LaunchedEffect(streamContext.scopeKey, counterDigits) {
+    LaunchedEffect(streamContext.scopeKey, counterDigits, refreshTick) {
         val appSettings = AppSettingsStore.flow(context).first()
         val scopedStream = toCaptureScopedCounterStream(
             streamContext = streamContext,

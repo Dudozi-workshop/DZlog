@@ -27,7 +27,6 @@ import com.example.dzlog.ui.log.LogG1Screen
 import com.example.dzlog.ui.log.LogG2Screen
 import com.example.dzlog.ui.log.LogGridScreen
 import com.example.dzlog.ui.log.LogViewerScreen
-import com.example.dzlog.ui.settings.CaptureSettingsScreen
 import com.example.dzlog.ui.table.TableEditorScreen
 import kotlinx.coroutines.flow.first
 
@@ -37,7 +36,6 @@ enum class AppScreen {
     CAMERA,
     TABLE_EDITOR,
     SETTINGS,
-    CAPTURE_SETTINGS,
     ALBUM_G1,
     ALBUM_G2,
     ALBUM_GRID,
@@ -147,7 +145,6 @@ fun AppRoot() {
             }
 
             AppScreen.SETTINGS -> screen = AppScreen.HOME
-            AppScreen.CAPTURE_SETTINGS -> screen = AppScreen.SETTINGS
             AppScreen.TABLE_EDITOR -> screen = previousScreen
             AppScreen.CAMERA -> screen = AppScreen.HOME
 
@@ -212,13 +209,8 @@ fun AppRoot() {
         AppScreen.SETTINGS -> SettingsScreen(
             tableTemplateStateProvider = { tableTemplateState },
             onBack = { screen = AppScreen.HOME },
-            onOpenTableDetail = { navigateTo(AppScreen.TABLE_EDITOR) },
-            onOpenCaptureSettings = { navigateTo(AppScreen.CAPTURE_SETTINGS) }
+            onOpenTableDetail = { navigateTo(AppScreen.TABLE_EDITOR) }
         )
-
-        AppScreen.CAPTURE_SETTINGS -> {
-            CaptureSettingsScreen(onBack = { screen = AppScreen.SETTINGS })
-        }
         AppScreen.ALBUM_G1 -> {
             LogG1Screen(
                 onBack = { screen = AppScreen.HOME },

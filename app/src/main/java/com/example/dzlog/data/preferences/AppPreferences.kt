@@ -25,10 +25,6 @@ val KEY_WM_LABEL_SCALE = intPreferencesKey("wm_label_scale")
 val KEY_WM_VALUE_SCALE = intPreferencesKey("wm_value_scale")
 val KEY_TABLE_TEMPLATE_JSON = stringPreferencesKey("table_template_json")
 
-// Counter stream migration marker (legacy prefix -> discriminated prefix)
-// - value format: newline-separated keys "<relativePath>|<basePrefix>"
-// - ensures legacy history is migrated into only the first accessed stream variant
-val KEY_COUNTER_MIGRATED_STREAMS_V1 = stringPreferencesKey("counter_migrated_streams_v1")
 val KEY_COUNTER_MANUAL_NEXT_OVERRIDES_V1 = stringPreferencesKey("counter_manual_next_overrides_v1")
 
 val KEY_CONTINUOUS_PREVIEW_MODE = intPreferencesKey("continuous_preview_mode")

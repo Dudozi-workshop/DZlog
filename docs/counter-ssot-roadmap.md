@@ -17,6 +17,15 @@
 6. `CaptureCounterPolicy`에 context/scoped 오버로드 추가
    - `getNextCounter`, `setNextCounter`, `commitCounter`, `isManualOverrideActive`, `clearManualCounterOverride`
 7. `CaptureNamingPolicy` 결과를 `streamContext` 중심으로 정리
+8. A단계 반영: `TableEditorScreen` 스코프 계산을 AppSettings(`includePathInCounterScope`, `includeFilenameInCounterScope`) 기반 scoped stream으로 통일
+9. B단계 반영: 미사용 이전 설계 경로 `CaptureNamingPolicy.buildForCapture(...)` 제거
+10. D단계 점검: 잔존 항목을 `docs/counter-ssot-debt.md`로 분리 정리
+11. 1단계 반영: 파일명/카운터 포맷 기본값(`fnDelim`, `dateFormat`, `timeFormat`) 하드코딩을 `NamingFormatDefaults` 단일 소스로 통합
+12. 2단계 반영: 촬영 완료 후 committed counter 역파싱을 `CaptureNamingPolicy.parseUsedCounterFromDisplayName(...)` 정책 함수로 통일
+13. 3단계 반영: `TableCounterPolicyCoordinator` API를 scoped stream 전용으로 슬림화(중복 streamContext 오버로드 제거)
+14. 설정 통합 반영: `CaptureSettingsScreen` 분리 진입 제거, 전체설정에서 카메라 설정 즉시 조작으로 통일
+15. 정책 API 정리: `CaptureCounterPolicy` 내부 `CaptureStreamKey` 오버로드를 private으로 축소해 외부 표면 단순화
+16. 레거시 마이그레이션 정리: `CounterManager`의 legacy marker 기반 이전 분기 제거, stream 키 + MediaStore 재스캔 기반으로 단순화
 
 ### 🔶 남은 작업 (필수)
 1. **실행 검증(컴파일/회귀) 확보**

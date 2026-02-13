@@ -1,6 +1,5 @@
 package com.example.dzlog.domain.capturepolicy
 
-import android.content.Context
 import com.example.dzlog.domain.counter.CounterStreamContext
 import com.example.dzlog.domain.counter.buildCounterStreamContext
 import com.example.dzlog.domain.model.GroupLevel
@@ -83,53 +82,22 @@ internal object CaptureNamingPolicy {
             usedCounter = usedCounter
         )
     }
+
     /**
-     * 촬영 시 필요한 naming/counter/path를 한 번에 산출한다.
-     *
-     * 정책(현재 상태 유지):
-     * - relativePath(물리 저장경로)는 (G1, G2 값)으로 계산한다.
-     * - counter stream key는 "G2 그룹 활성+빈값"을 별도 스트림으로 분리한다.
-     * - displayName suffix 카운터는 "단일 소스(usedCounter)"를 우선한다.
+     * 저장된 displayName에서 실제 사용된 카운터를 역파싱한다.
+     * - fnDelim 기준 마지막 토큰을 카운터로 간주
+     * - counterDigits > 0 이면 자리수 검증 수행
      */
-    internal suspend fun buildForCapture(
-        appContext: Context,
-        captureContext: CaptureContext,
+    internal fun parseUsedCounterFromDisplayName(
+        displayName: String,
+        fnDelim: String,
         counterDigits: Int
-    ): Result {
-        val resolvedCells = captureContext.resolvedCells
-        // 1) 물리 저장경로(relativePath)
-        val g1 = resolveGroupValue(resolvedCells, GroupLevel.G1)
-        val g2 = resolveGroupValue(resolvedCells, GroupLevel.G2)
-        val baseRelativePath = buildGalleryRelativePath(g1, g2)
-
-        // 2) 스트림 키(단일 컨텍스트)
-        val streamContext = buildCounterStreamContext(
-            resolvedCells = resolvedCells,
-            nextCounter = 1,
-            isManualMode = false,
-            fnDelim = captureContext.fnDelim
-        )
-        // 4) 단일 소스 counter 산출
-        val usedCounter = CaptureCounterPolicy.getNextCounter(
-            context = appContext,
-            streamContext = streamContext,
-            counterDigits = counterDigits,
-            fnDelim = captureContext.fnDelim
-        )
-
-        // 5) 파일명 산출 (suffix 카운터는 usedCounter 우선)
-        val displayName = buildDisplayNameForCounter(
-            resolvedCells = resolvedCells,
-            fnDelim = captureContext.fnDelim,
-            usedCounter = usedCounter,
-            now = Date()
-        )
-
-        return Result(
-            streamContext = streamContext,
-            relativePath = baseRelativePath,
-            displayName = displayName,
-            usedCounter = usedCounter
-        )
+    ): Int? {
+        val base = displayName.substringBeforeLast('.', displayName)
+        val token = base.substringAfterLast(fnDelim, missingDelimiterValue = "").trim()
+        if (token.isBlank() || token.any { !it.isDigit() }) return null
+        if (counterDigits > 0 && token.length != counterDigits) return null
+        return token.toIntOrNull()?.takeIf { it >= 0 }
     }
+
 }

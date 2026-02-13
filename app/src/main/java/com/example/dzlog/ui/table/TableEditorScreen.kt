@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
+import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
@@ -66,6 +67,7 @@ import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.toJsonString
 import com.example.dzlog.domain.counter.CounterManager
 import com.example.dzlog.domain.counter.buildCounterStreamContext
+import com.example.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.GroupLevel
@@ -77,6 +79,7 @@ import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.TimeFormatOptions
 import com.example.dzlog.domain.model.TimeSeparator
 import com.example.dzlog.domain.model.WatermarkTableAnchor
+import com.example.dzlog.domain.naming.NamingFormatDefaults
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.naming.resolveGroupValue
@@ -136,12 +139,12 @@ fun TableEditorScreen(
         showFormatDialog = true
     }
 
-    val dateFormatOptions = listOf("yyyy.MM.dd", "yyyy_MM_dd", "yyyyMMdd")
+    val dateFormatOptions = listOf(NamingFormatDefaults.DATE_FORMAT_DEFAULT, "yyyy_MM_dd", "yyyyMMdd")
     // TIME 형식은 Step3부터 토글 UI(12/24, 초, 구분자)로 설정한다.
 
     // NOTE: formatPattern 기반이 아니라 현재는 고정값. (기존 코드 유지)
-    val dateFormat = "yyyy.MM.dd"
-    val timeFormat = "HH.mm.ss"
+    val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
+    val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
 
     var previewCounterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
 
@@ -154,6 +157,8 @@ fun TableEditorScreen(
     var manualSeedOverride by remember { mutableStateOf<Int?>(null) }
     var isManualCounterMode by remember { mutableStateOf(false) }
     var autoNextCounterValue by remember { mutableIntStateOf(1) }
+    var includePathInCounterScope by remember { mutableStateOf(true) }
+    var includeFilenameInCounterScope by remember { mutableStateOf(true) }
 
     var previewNow by remember { mutableStateOf(Date()) }
 
@@ -172,6 +177,12 @@ fun TableEditorScreen(
             previewCounterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
         }.onFailure {
             previewCounterDigits = COUNTER_DIGITS_DEFAULT
+        }
+
+        runCatching {
+            val settings = AppSettingsStore.flow(context).first()
+            includePathInCounterScope = settings.includePathInCounterScope
+            includeFilenameInCounterScope = settings.includeFilenameInCounterScope
         }
     }
 
@@ -205,7 +216,21 @@ fun TableEditorScreen(
                 resolvedCells = planForScope.resolvedCells,
                 nextCounter = scopeNextCounter,
                 isManualMode = isManualCounterModeDisplay,
-                fnDelim = "_"
+                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+            )
+        }
+    }
+
+    val scopedCounterStream by remember(
+        counterStreamContext,
+        includePathInCounterScope,
+        includeFilenameInCounterScope
+    ) {
+        derivedStateOf {
+            toCaptureScopedCounterStream(
+                streamContext = counterStreamContext,
+                includePathInScope = includePathInCounterScope,
+                includeFilenameInScope = includeFilenameInCounterScope
             )
         }
     }
@@ -233,17 +258,17 @@ fun TableEditorScreen(
             scope.launch {
                 TableCounterPolicyCoordinator.setNextCounter(
                     context = context,
-                    streamContext = counterStreamContext,
+                    scopedStream = scopedCounterStream,
                     desired = normalizedSeed,
                     force = forcePolicyUpdate,
                     counterDigits = previewCounterDigits,
-                    fnDelim = "_"
+                    fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
                 )
             }
         }
     }
 
-    LaunchedEffect(counterStreamContext.scopeKey) {
+    LaunchedEffect(scopedCounterStream.scopeParts.scopeKey) {
         val g1 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G1)
         val g2 = resolveGroupValue(planForScope.resolvedCells, GroupLevel.G2)
 
@@ -255,7 +280,7 @@ fun TableEditorScreen(
         g2=$g2
         relativePathKey=${counterStreamContext.relativePathKey}
         counterPrefix=${counterStreamContext.streamPrefix}
-        scopeKey=${counterStreamContext.scopeKey}
+        scopeKey=${scopedCounterStream.scopeParts.scopeKey}
         """.trimIndent()
         )
     }
@@ -263,24 +288,24 @@ fun TableEditorScreen(
     // ✅ 스트림 변경 감지용 (스트림이 바뀌면 seed를 "새 스트림 next"로 강제 동기화)
     var lastScopeKey by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(counterStreamContext.scopeKey) {
+    LaunchedEffect(scopedCounterStream.scopeParts.scopeKey) {
         Log.d(
             "DZlogCounter",
             "TableEditor scopeKey changed\n"+
             "relativePathKey=${counterStreamContext.relativePathKey}\n"+
             "counterPrefix=${counterStreamContext.streamPrefix}\n"+
-            "scopeKey=${counterStreamContext.scopeKey}"
+            "scopeKey=${scopedCounterStream.scopeParts.scopeKey}"
         )
     }
 
-    LaunchedEffect(counterStreamContext.scopeKey, previewCounterDigits, templateState) {
+    LaunchedEffect(scopedCounterStream.scopeParts.scopeKey, previewCounterDigits, templateState) {
         // ✅ 정책(스트림키=relativePathPrefix) 기준 usedCounters  nextCounter 계산
         val used = CounterManager.getUsedCounters(
             context = context,
-            relativePath = counterStreamContext.relativePathKey,
-            counterPrefix = counterStreamContext.streamPrefix,
+            relativePath = scopedCounterStream.captureStreamKey.relativePathKey,
+            counterPrefix = scopedCounterStream.captureStreamKey.prefix,
             counterDigits = previewCounterDigits,
-            fnDelim = "_"
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
         )
         usedCounters = used
 
@@ -289,27 +314,28 @@ fun TableEditorScreen(
         val nextByHistory = ((used.maxOrNull() ?: 0) +  1).coerceAtLeast(1)
         val streamNext = TableCounterPolicyCoordinator.getNextCounter(
             context = context,
-            streamContext = counterStreamContext,
+            scopedStream = scopedCounterStream,
             counterDigits = previewCounterDigits,
-            fnDelim = "_"
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
         ).coerceAtLeast(1)
         isManualCounterMode = TableCounterPolicyCoordinator.isManualOverrideActive(
             context = context,
-            streamContext = counterStreamContext
+            scopedStream = scopedCounterStream
         )
         autoNextCounterValue = CounterManager.getNextCounter(
             context = context,
-            relativePath = counterStreamContext.relativePathKey,
-            counterPrefix = counterStreamContext.streamPrefix,
+            relativePath = scopedCounterStream.captureStreamKey.relativePathKey,
+            counterPrefix = scopedCounterStream.captureStreamKey.prefix,
             counterDigits = previewCounterDigits,
-            fnDelim = "_"
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
         ).coerceAtLeast(1)
 
         // ✅ 스트림이 바뀌면 "새 스트림의 next"로 맞춘다.
         // ✅ 같은 스트림에서는 사용자 수동 seed(낮은 값 포함)를 유지한다.
         val syncResult = TableCounterPolicyCoordinator.resolveSeedForScope(
             input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
-                streamContext = counterStreamContext,
+                currentScopeKey = scopedCounterStream.scopeParts.scopeKey,
+                isManualMode = isManualCounterModeDisplay,
                 hasCounterCell = (counterCell != null),
                 currentSeed = currentSeed,
                 streamNext = streamNext,
@@ -326,7 +352,7 @@ fun TableEditorScreen(
         }
 
         scopeNextCounter = syncResult.desiredSeed
-        lastScopeKey = counterStreamContext.scopeKey
+        lastScopeKey = scopedCounterStream.scopeParts.scopeKey
         // IDE 경고(Assigned value is never read) 방지: 다음 실행을 위한 상태를 즉시 한 번 읽어둔다.
         val persistedScopeKey = lastScopeKey
 
@@ -428,11 +454,11 @@ fun TableEditorScreen(
             scope.launch {
                 TableCounterPolicyCoordinator.setNextCounter(
                     context = context,
-                    streamContext = counterStreamContext,
+                    scopedStream = scopedCounterStream,
                     desired = normalizedSeed,
                     force = false,
                     counterDigits = previewCounterDigits,
-                    fnDelim = "_"
+                    fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
                 )
             }
         }
@@ -502,7 +528,7 @@ fun TableEditorScreen(
 
     val filenamePreview = buildDisplayNameFromResolvedCells(
         resolvedCells = plan.resolvedCells,
-        fnDelim = "_",
+        fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
         includeDate = false,
         includeTime = false,
         // ✅ 파일명 suffix counter는 항상 스트림 값(SSOT)을 사용
@@ -526,9 +552,9 @@ fun TableEditorScreen(
                     scope.launch {
                         val restored = TableCounterPolicyCoordinator.resetToAutoNext(
                             context = context,
-                            streamContext = counterStreamContext,
+                            scopedStream = scopedCounterStream,
                             counterDigits = previewCounterDigits,
-                            fnDelim = "_"
+                            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
                         ).coerceAtLeast(1)
                         updateCounterCellAndPolicy(
                             cellId = id,
@@ -570,9 +596,9 @@ fun TableEditorScreen(
                         scope.launch {
                             val restored = TableCounterPolicyCoordinator.resetToAutoNext(
                                 context = context,
-                                streamContext = counterStreamContext,
+                                scopedStream = scopedCounterStream,
                                 counterDigits = previewCounterDigits,
-                                fnDelim = "_"
+                                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
                             ).coerceAtLeast(1)
                             updateCounterCellAndPolicy(
                                 cellId = id,
@@ -873,9 +899,9 @@ fun TableEditorScreen(
                                     scope.launch {
                                         val restored = TableCounterPolicyCoordinator.resetToAutoNext(
                                             context = context,
-                                            streamContext = counterStreamContext,
+                                            scopedStream = scopedCounterStream,
                                             counterDigits = previewCounterDigits,
-                                            fnDelim = "_"
+                                            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
                                         ).coerceAtLeast(1)
 
                                         updateCounterCellAndPolicy(

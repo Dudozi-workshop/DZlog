@@ -138,9 +138,11 @@ internal fun handleCaptureClick(
 
             onApplyTemplatePatch(tableTemplateState.applyPatch(planForCapture.patch))
 
-            val committedCounter = parseCounterFromDisplayName(entry.displayName)
-                ?.coerceAtLeast(1)
-                ?: policyResult.usedCounter
+            val committedCounter = CaptureNamingPolicy.parseUsedCounterFromDisplayName(
+                displayName = entry.displayName,
+                fnDelim = fnDelim,
+                counterDigits = counterDigits
+            )?.coerceAtLeast(1) ?: policyResult.usedCounter
 
             CoroutineScope(Dispatchers.IO).launch {
                 CaptureCounterPolicy.commitCounter(
@@ -175,11 +177,4 @@ internal fun handleCaptureClick(
             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
         }
     )
-}
-
-private fun parseCounterFromDisplayName(displayName: String): Int? {
-    val base = displayName.substringBeforeLast('.', displayName)
-    val token = base.substringAfterLast('_', missingDelimiterValue = "").trim()
-    if (token.isEmpty() || token.any { !it.isDigit() }) return null
-    return token.toIntOrNull()
 }

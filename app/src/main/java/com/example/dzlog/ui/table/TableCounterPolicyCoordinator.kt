@@ -2,15 +2,16 @@ package com.example.dzlog.ui.table
 
 import android.content.Context
 import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
+import com.example.dzlog.domain.counter.CaptureScopedCounterStream
 import com.example.dzlog.domain.counter.CounterSeedInput
-import com.example.dzlog.domain.counter.CounterStreamContext
 import com.example.dzlog.domain.counter.decideCounterSeed
 import com.example.dzlog.domain.counter.isNewCounterScope
 
 internal object TableCounterPolicyCoordinator {
 
     data class CounterSeedSyncInput(
-        val streamContext: CounterStreamContext,
+        val currentScopeKey: String,
+        val isManualMode: Boolean,
         val hasCounterCell: Boolean,
         val currentSeed: Int,
         val streamNext: Int,
@@ -19,7 +20,7 @@ internal object TableCounterPolicyCoordinator {
         val manualSeedOverride: Int?
     ) {
         val isNewStream: Boolean
-            get() = isNewCounterScope(previousScopeKey, streamContext.scopeKey)
+            get() = isNewCounterScope(previousScopeKey, currentScopeKey)
     }
 
     data class CounterSeedSyncResult(
@@ -30,13 +31,13 @@ internal object TableCounterPolicyCoordinator {
 
     suspend fun getNextCounter(
         context: Context,
-        streamContext: CounterStreamContext,
+        scopedStream: CaptureScopedCounterStream,
         counterDigits: Int,
         fnDelim: String = "_"
     ): Int {
         return CaptureCounterPolicy.getNextCounter(
             context = context,
-            streamContext = streamContext,
+            scopedStream = scopedStream,
             counterDigits = counterDigits,
             fnDelim = fnDelim
         ).coerceAtLeast(1)
@@ -44,7 +45,7 @@ internal object TableCounterPolicyCoordinator {
 
     suspend fun setNextCounter(
         context: Context,
-        streamContext: CounterStreamContext,
+        scopedStream: CaptureScopedCounterStream,
         desired: Int,
         force: Boolean,
         counterDigits: Int,
@@ -52,7 +53,7 @@ internal object TableCounterPolicyCoordinator {
     ) {
         CaptureCounterPolicy.setNextCounter(
             context = context,
-            streamContext = streamContext,
+            scopedStream = scopedStream,
             desired = desired,
             force = force,
             counterDigits = counterDigits,
@@ -62,23 +63,23 @@ internal object TableCounterPolicyCoordinator {
 
     suspend fun isManualOverrideActive(
         context: Context,
-        streamContext: CounterStreamContext
+        scopedStream: CaptureScopedCounterStream
     ): Boolean {
         return CaptureCounterPolicy.isManualOverrideActive(
             context = context,
-            streamContext = streamContext
+            scopedStream = scopedStream
         )
     }
 
     suspend fun resetToAutoNext(
         context: Context,
-        streamContext: CounterStreamContext,
+        scopedStream: CaptureScopedCounterStream,
         counterDigits: Int,
         fnDelim: String = "_"
     ): Int {
         return CaptureCounterPolicy.resetToAutoNext(
             context = context,
-            streamContext = streamContext,
+            scopedStream = scopedStream,
             counterDigits = counterDigits,
             fnDelim = fnDelim
         )
@@ -90,7 +91,7 @@ internal object TableCounterPolicyCoordinator {
         val preserveManual = if (input.isNewStream) {
             false
         } else {
-            input.preserveManualCounterSeed || input.streamContext.isManualMode
+            input.preserveManualCounterSeed || input.isManualMode
         }
 
         val decision = decideCounterSeed(

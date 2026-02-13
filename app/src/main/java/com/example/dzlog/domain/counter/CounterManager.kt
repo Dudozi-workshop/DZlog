@@ -1,15 +1,11 @@
 package com.example.dzlog.domain.counter
 
 import android.content.Context
-import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
 import com.example.dzlog.data.counterindex.CounterIndexRepository
-import com.example.dzlog.data.preferences.KEY_COUNTER_MIGRATED_STREAMS_V1
-import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
 import com.example.dzlog.domain.table.ResolvedCell
-import kotlinx.coroutines.flow.first
 import java.util.Date
 
 /**
@@ -124,31 +120,14 @@ object CounterManager {
         // counterPrefix는 "streamPrefix"(basePrefix|g2=0/1)로 들어올 수 있다.
         val streamPrefix = counterPrefix
         val basePrefix = basePrefixFromStreamPrefix(streamPrefix)
-        val legacyKey = "$relativePath|$basePrefix"
         val physicalRelativePath = physicalRelativePathFromStreamKey(relativePath)
-
-        // 0) (선택) legacy prefix -> discriminated prefix 마이그레이션
-        // - 과거 버전은 basePrefix만 저장했으므로, 첫 접근 스트림만 legacy 히스토리를 흡수한다.
-        // - 이렇게 하면 (G2 on/off) 스트림 분리 요구사항을 지키면서도, 기존 데이터는 가능한 한 보존된다.
-        val migrated = loadMigratedLegacyKeys(context)
-        val canMigrateLegacy = !migrated.contains(legacyKey)
 
         // 1) Room 기준 조회 (현재 streamPrefix)
         val fromDb: Set<Int> = runCatching {
             repo.getUsedCounters(relativePath, streamPrefix)
         }.getOrDefault(emptySet())
 
-        // 과도기/과거 기록 호환: 동일 물리경로 키로 저장된 레코드도 함께 확인한다.
-        val fromDbPhysical: Set<Int> = if (physicalRelativePath == relativePath) {
-            emptySet()
-        } else {
-            runCatching {
-                repo.getUsedCounters(physicalRelativePath, streamPrefix)
-            }.getOrDefault(emptySet())
-        }
-
-        val fromDbMerged = fromDb + fromDbPhysical
-        if (fromDbMerged.isNotEmpty()) {
+        if (fromDb.isNotEmpty()) {
             val scannedFromMediaStore: Set<Int> = runCatching {
                 scanUsedCountersFromMediaStore(
                     context = context,
@@ -157,32 +136,13 @@ object CounterManager {
                     counterDigits = counterDigits,
                     fnDelim = fnDelim
                 )
-            }.getOrDefault(fromDbMerged)
+            }.getOrDefault(fromDb)
 
             // 파일 삭제 등으로 DB 인덱스가 실제 보유 파일과 달라진 경우 현재 파일 기준으로 재동기화
-            if (scannedFromMediaStore != fromDbMerged) {
+            if (scannedFromMediaStore != fromDb) {
                 runCatching { repo.replaceCounters(relativePath, streamPrefix, scannedFromMediaStore) }
             }
             return scannedFromMediaStore
-        }
-
-        // 1-legacy) DB에 없고, 아직 마이그레이션 전이면 legacy(basePrefix)도 조회해본다.
-        if (canMigrateLegacy) {
-            val legacyFromDb: Set<Int> = runCatching {
-                repo.getUsedCounters(relativePath, basePrefix)
-            }.getOrDefault(emptySet())
-
-            val legacyPhysicalFromDb: Set<Int> = runCatching {
-                repo.getUsedCounters(physicalRelativePath, basePrefix)
-            }.getOrDefault(emptySet())
-
-            val migratedLegacy = legacyFromDb + legacyPhysicalFromDb
-            if (migratedLegacy.isNotEmpty()) {
-                // 현재 streamPrefix로 backfill
-                runCatching { repo.backfillPlaceholders(relativePath, streamPrefix, migratedLegacy) }
-                markLegacyMigrated(context, legacyKey)
-                return migratedLegacy
-            }
         }
 
         // 2) MediaStore 스캔 fallback
@@ -204,30 +164,7 @@ object CounterManager {
             repo.backfillPlaceholders(relativePath, streamPrefix, scanned)
         }
 
-        if (canMigrateLegacy) {
-            markLegacyMigrated(context, legacyKey)
-        }
-
         return scanned
-    }
-
-    private suspend fun loadMigratedLegacyKeys(context: Context): Set<String> {
-        val prefs = context.dataStore.data.first()
-        val raw = prefs[KEY_COUNTER_MIGRATED_STREAMS_V1].orEmpty()
-        if (raw.isBlank()) return emptySet()
-        return raw.split("\n").map { it.trim() }.filter { it.isNotBlank() }.toSet()
-    }
-
-    private suspend fun markLegacyMigrated(context: Context, legacyKey: String) {
-        runCatching {
-            context.dataStore.edit { prefs ->
-                val raw = prefs[KEY_COUNTER_MIGRATED_STREAMS_V1].orEmpty()
-                val set = raw.split("\n").map { it.trim() }.filter { it.isNotBlank() }.toMutableSet()
-                if (set.add(legacyKey)) {
-                    prefs[KEY_COUNTER_MIGRATED_STREAMS_V1] = set.sorted().joinToString("\n")
-                }
-            }
-        }
     }
 
     /**

@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.example.dzlog.domain.model.MediaImageItem
 import com.example.dzlog.domain.model.TableTemplateState
+import com.example.dzlog.domain.naming.NamingFormatDefaults
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.table.TableResolver
@@ -69,13 +70,13 @@ fun HomeScreen(
             captureNow = nowForPreview,
             config = TableResolver.Config(
                 counterDigits = 0,
-                dateFormat = "yyyy.MM.dd",
-                timeFormat = "HHmm"
+                dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+                timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT
             )
         )
         buildDisplayNameFromResolvedCells(
             resolvedCells = plan.resolvedCells,
-            fnDelim = "_",
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
             includeDate = false,
             includeTime = false,
             now = nowForPreview
@@ -258,14 +259,12 @@ fun HomeScreen(
 fun SettingsScreen(
     tableTemplateStateProvider: () -> TableTemplateState,
     onBack: () -> Unit,
-    onOpenTableDetail: () -> Unit,
-    onOpenCaptureSettings: () -> Unit
+    onOpenTableDetail: () -> Unit
 ) {
     com.example.dzlog.ui.settings.SettingsRootScreen(
         tableTemplateStateProvider = tableTemplateStateProvider,
         onBack = onBack,
-        onOpenTableDetail = onOpenTableDetail,
-        onOpenCaptureSettings = onOpenCaptureSettings
+        onOpenTableDetail = onOpenTableDetail
     )
 }
 

@@ -51,7 +51,7 @@ internal object CaptureCounterPolicy {
         )
     }
 
-    internal suspend fun getNextCounter(
+    private suspend fun getNextCounter(
         context: Context,
         key: CaptureStreamKey,
         counterDigits: Int,
@@ -69,7 +69,7 @@ internal object CaptureCounterPolicy {
         return (manualOverride ?: autoNext).coerceAtLeast(1)
     }
 
-    internal suspend fun commitCounter(
+    private suspend fun commitCounter(
         context: Context,
         key: CaptureStreamKey,
         usedCounter: Int,
@@ -127,7 +127,7 @@ internal object CaptureCounterPolicy {
         )
     }
 
-    internal suspend fun setNextCounter(
+    private suspend fun setNextCounter(
         context: Context,
         key: CaptureStreamKey,
         desired: Int,
@@ -206,7 +206,7 @@ internal object CaptureCounterPolicy {
         )
     }
 
-    internal suspend fun isManualOverrideActive(
+    private suspend fun isManualOverrideActive(
         context: Context,
         key: CaptureStreamKey
     ): Boolean {
@@ -233,7 +233,7 @@ internal object CaptureCounterPolicy {
         )
     }
 
-    internal suspend fun clearManualCounterOverride(
+    private suspend fun clearManualCounterOverride(
         context: Context,
         key: CaptureStreamKey
     ) {

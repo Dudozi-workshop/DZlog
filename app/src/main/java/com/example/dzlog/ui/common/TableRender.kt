@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
+import com.example.dzlog.domain.naming.NamingFormatDefaults
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
@@ -51,8 +52,8 @@ fun TableRender(
             captureNow = now,
             config = TableResolver.Config(
                 counterDigits = counterDigits,
-                dateFormat = "yyyy.MM.dd",
-                timeFormat = "HH:mm:ss"
+                dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+                timeFormat = NamingFormatDefaults.TIME_FORMAT_RENDER_COLON
             )
         )
     }

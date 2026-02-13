@@ -31,6 +31,7 @@ import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.naming.NamingFormatDefaults
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
@@ -58,7 +59,6 @@ fun SettingsRootScreen(
     tableTemplateStateProvider: () -> com.example.dzlog.domain.model.TableTemplateState,
     onBack: () -> Unit,
     onOpenTableDetail: () -> Unit,
-    onOpenCaptureSettings: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -94,8 +94,8 @@ fun SettingsRootScreen(
                 captureNow = now,
                 config = TableResolver.Config(
                     counterDigits = counterDigits,
-                    dateFormat = "yyyy.MM.dd",
-                    timeFormat = "HHmm"
+                    dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+                    timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT
                 )
             )
         }.getOrNull()
@@ -103,7 +103,7 @@ fun SettingsRootScreen(
         val name = plan?.let {
             buildDisplayNameFromResolvedCells(
                 resolvedCells = it.resolvedCells,
-                fnDelim = "_",
+                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
                 includeDate = false,
                 includeTime = false,
                 now = now
@@ -184,15 +184,15 @@ fun SettingsRootScreen(
                             captureNow = nowForPreview,
                             config = TableResolver.Config(
                                 counterDigits = settings.counterPadding,
-                                dateFormat = "yyyy.MM.dd",
-                                timeFormat = "HHmm"
+                                dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+                                timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT
                             )
                         )
                     }.getOrNull()
                     val prefix = plan?.let {
                         buildFileNamePrefixFromResolvedCells(
                             resolvedCells = it.resolvedCells,
-                            fnDelim = "_",
+                            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
                             includeDate = false,
                             includeTime = false,
                             now = nowForPreview
@@ -204,7 +204,7 @@ fun SettingsRootScreen(
                             relativePathPrefix = relPathPrefix,
                             fileNamePrefix = prefix,
                             counterDigits = settings.counterPadding,
-                            fnDelim = "_"
+                            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
                         )
                     }.getOrNull()
                     val effective = scanned ?: emptySet()
@@ -272,26 +272,6 @@ fun SettingsRootScreen(
         }
 
         Spacer(Modifier.height(DDZSpacing.sectionGap))
-
-        // D) Capture Settings
-        DDZCard(modifier = Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
-                DDZSectionHeader(title = "Capture Settings")
-
-                val previewLabel = when (settings.continuousPreviewMode) {
-                    ContinuousPreviewMode.OFF -> "연속촬영/미리보기: Off"
-                    ContinuousPreviewMode.SHORT -> "연속촬영/미리보기: Short"
-                    ContinuousPreviewMode.HOLD -> "연속촬영/미리보기: Hold"
-                }
-                Text(previewLabel, style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                DDZButton(
-                    text = "촬영설정으로 이동",
-                    onClick = onOpenCaptureSettings,
-                    modifier = Modifier.fillMaxWidth(),
-                    style = DDZButtonStyle.Primary
-                )
-            }
-        }
 
         Spacer(Modifier.height(DDZSpacing.sectionGap))
 
