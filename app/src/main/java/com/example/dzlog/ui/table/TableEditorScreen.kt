@@ -213,7 +213,7 @@ fun TableEditorScreen(
     fun applyCounterSeed(seed: Int, preserveManual: Boolean) {
         val normalizedSeed = seed.coerceAtLeast(1)
         preserveManualCounterSeed = preserveManual
-        manualSeedOverride = normalizedSeed
+        manualSeedOverride = if (preserveManual) normalizedSeed else null
         scopeNextCounter = normalizedSeed
     }
 
@@ -229,15 +229,17 @@ fun TableEditorScreen(
         }
         onTemplateChange(updated)
         applyCounterSeed(seed = normalizedSeed, preserveManual = preserveManual)
-        scope.launch {
-            TableCounterPolicyCoordinator.setNextCounter(
-                context = context,
-                streamContext = counterStreamContext,
-                desired = normalizedSeed,
-                force = forcePolicyUpdate,
-                counterDigits = previewCounterDigits,
-                fnDelim = "_"
-            )
+        if (preserveManual || forcePolicyUpdate) {
+            scope.launch {
+                TableCounterPolicyCoordinator.setNextCounter(
+                    context = context,
+                    streamContext = counterStreamContext,
+                    desired = normalizedSeed,
+                    force = forcePolicyUpdate,
+                    counterDigits = previewCounterDigits,
+                    fnDelim = "_"
+                )
+            }
         }
     }
 

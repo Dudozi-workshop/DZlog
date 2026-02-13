@@ -90,13 +90,12 @@ internal object CaptureCounterPolicy {
             )
         }
 
-        // 수동 override 모드인 경우: 캡처 후 다음 값으로 전진시켜 연속 촬영 시에도 유지한다.
+        // 수동 override 모드인 경우: 실제 캡처가 1회 완료되면 자동 스트림으로 복귀한다.
         val streamKey = streamKey(key)
         val manualOverrides = loadManualNextOverrides(context)
         val currentOverride = manualOverrides[streamKey]
         if (currentOverride != null) {
-            val nextManual = (usedCounter + 1).coerceAtLeast(1)
-            saveManualNextOverride(context, streamKey, nextManual)
+            clearManualNextOverride(context, streamKey)
         }
     }
 
@@ -160,20 +159,9 @@ internal object CaptureCounterPolicy {
             return
         }
 
-        // 자동 범위(>=autoNext)로 설정하면 수동 override 해제
-        clearManualNextOverride(context, streamKey)
-
-        if (normalized <= 1) return
-
-        // getNextCounter=max+1 구조에서 desired를 다음 값으로 강제하려면 desired-1을 점유시킨다.
-        val repo = CounterIndexRepository.getInstance(context)
-        runCatching {
-            repo.backfillPlaceholders(
-                relativePath = key.relativePathKey,
-                prefix = key.prefix,
-                counters = setOf(normalized - 1)
-            )
-        }
+        // 사용자가 next 값을 명시 지정한 경우(>=autoNext 포함)는 수동 override 모드로 보관한다.
+        // 실제 캡처가 완료되면 commitCounter에서 수동 override를 해제해 자동 모드로 복귀한다.
+        saveManualNextOverride(context, streamKey, normalized)
     }
 
     internal suspend fun setNextCounter(
