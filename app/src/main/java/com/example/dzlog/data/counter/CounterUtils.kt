@@ -14,11 +14,27 @@ private fun parseCounterFromDisplayName(
     fileNamePrefix: String,
     counterDigits: Int,
     fnDelim: String
+): Int? = parseCounterFromDisplayNameForPolicy(displayName, fileNamePrefix, counterDigits, fnDelim)
+
+
+internal fun parseCounterFromDisplayNameForPolicy(
+    displayName: String,
+    fileNamePrefix: String,
+    counterDigits: Int,
+    fnDelim: String
 ): Int? {
-    val base = displayName.substringBeforeLast('.', displayName)
-    val prefixToken = "${fileNamePrefix}${fnDelim}"
-    if (!base.startsWith(prefixToken)) return null
-    val token = base.removePrefix(prefixToken).trim()
+    val base = displayName.substringBeforeLast('.', displayName).trim()
+    if (base.isBlank()) return null
+
+    val wildcardPrefix = fileNamePrefix == "*" || fileNamePrefix.isBlank()
+    val token = if (wildcardPrefix) {
+        base.substringAfterLast(fnDelim, missingDelimiterValue = base).trim()
+    } else {
+        val prefixToken = "${fileNamePrefix}${fnDelim}"
+        if (!base.startsWith(prefixToken)) return null
+        base.removePrefix(prefixToken).trim()
+    }
+
     if (token.isBlank()) return null
     if (!token.all { it.isDigit() }) return null
     if (counterDigits != 0 && token.length != counterDigits) return null
@@ -41,17 +57,16 @@ fun scanUsedCountersFromMediaStore(
             MediaStore.Images.Media.DISPLAY_NAME,
             MediaStore.Images.Media.RELATIVE_PATH
         )
-        // 카운터 스트림은 "정확한 물리 저장 폴더" 단위로 분리되어야 한다.
-        // prefix 매칭을 쓰면 G1-only가 G1/G2 하위 폴더까지 흡수해 카운터가 이어질 수 있다.
-        val selection = "${MediaStore.Images.Media.RELATIVE_PATH} = ?"
-        val selectionArgs = arrayOf(relativePathPrefix)
+        val isWildcardPath = relativePathPrefix == "*" || relativePathPrefix.isBlank()
+        val selection = if (isWildcardPath) null else "${MediaStore.Images.Media.RELATIVE_PATH} = ?"
+        val selectionArgs = if (isWildcardPath) null else arrayOf(relativePathPrefix)
 
         context.contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
             val nameIdx = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
             val pathIdx = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
             while (cursor.moveToNext()) {
                 val rel = if (pathIdx >= 0) cursor.getString(pathIdx) else ""
-                if (rel != relativePathPrefix) continue
+                if (!isWildcardPath && rel != relativePathPrefix) continue
                 val name = if (nameIdx >= 0) cursor.getString(nameIdx) else ""
                 parseCounterFromDisplayName(name, fileNamePrefix, counterDigits, fnDelim)?.let(out::add)
             }
@@ -68,7 +83,7 @@ fun scanUsedCountersFromMediaStore(
         while (cursor.moveToNext()) {
             val name = if (nameIdx >= 0) cursor.getString(nameIdx) else ""
             val abs = if (dataIdx >= 0) cursor.getString(dataIdx) else ""
-            if (!abs.contains("/$relativePathPrefix")) continue
+            if (!(relativePathPrefix == "*" || relativePathPrefix.isBlank()) && !abs.contains("/$relativePathPrefix")) continue
             parseCounterFromDisplayName(name, fileNamePrefix, counterDigits, fnDelim)?.let(out::add)
         }
     }

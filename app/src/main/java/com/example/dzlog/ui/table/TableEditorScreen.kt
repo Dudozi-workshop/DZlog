@@ -66,6 +66,7 @@ import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.toJsonString
 import com.example.dzlog.domain.counter.CounterManager
+import com.example.dzlog.domain.counter.CounterScopeSnapshot
 import com.example.dzlog.domain.counter.buildCounterStreamContext
 import com.example.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.example.dzlog.domain.model.CaptureAspect
@@ -287,6 +288,7 @@ fun TableEditorScreen(
 
     // ✅ 스트림 변경 감지용 (스트림이 바뀌면 seed를 "새 스트림 next"로 강제 동기화)
     var lastScopeKey by remember { mutableStateOf<String?>(null) }
+    var lastScopeSnapshot by remember { mutableStateOf<CounterScopeSnapshot?>(null) }
 
     LaunchedEffect(scopedCounterStream.scopeParts.scopeKey) {
         Log.d(
@@ -335,11 +337,18 @@ fun TableEditorScreen(
         val syncResult = TableCounterPolicyCoordinator.resolveSeedForScope(
             input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
                 currentScopeKey = scopedCounterStream.scopeParts.scopeKey,
+                currentScopeSnapshot = CounterScopeSnapshot(
+                    relativePathKey = counterStreamContext.relativePathKey,
+                    prefix = counterStreamContext.streamPrefix,
+                    includePathInScope = includePathInCounterScope,
+                    includeFilenameInScope = includeFilenameInCounterScope,
+                ),
                 isManualMode = isManualCounterModeDisplay,
                 hasCounterCell = (counterCell != null),
                 currentSeed = currentSeed,
                 streamNext = streamNext,
                 previousScopeKey = lastScopeKey,
+                previousScopeSnapshot = lastScopeSnapshot,
                 preserveManualCounterSeed = preserveManualCounterSeed,
                 manualSeedOverride = manualSeedOverride
             )
@@ -353,6 +362,12 @@ fun TableEditorScreen(
 
         scopeNextCounter = syncResult.desiredSeed
         lastScopeKey = scopedCounterStream.scopeParts.scopeKey
+        lastScopeSnapshot = CounterScopeSnapshot(
+            relativePathKey = counterStreamContext.relativePathKey,
+            prefix = counterStreamContext.streamPrefix,
+            includePathInScope = includePathInCounterScope,
+            includeFilenameInScope = includeFilenameInCounterScope,
+        )
         // IDE 경고(Assigned value is never read) 방지: 다음 실행을 위한 상태를 즉시 한 번 읽어둔다.
         val persistedScopeKey = lastScopeKey
 

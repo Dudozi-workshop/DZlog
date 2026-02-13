@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
 import com.example.dzlog.data.counterindex.CounterIndexRepository
 import com.example.dzlog.domain.model.GroupLevel
+import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
 import com.example.dzlog.domain.table.ResolvedCell
 import java.util.Date
@@ -59,11 +60,16 @@ object CounterManager {
         resolvedCells: List<ResolvedCell>,
         fnDelim: String
     ): String {
+        val scopeStableCells = resolvedCells.filterNot { rc ->
+            val dataType = rc.raw?.dataType ?: rc.type
+            dataType == TableCellDataType.DATE || dataType == TableCellDataType.TIME
+        }
+
         // NOTE: includeDate/includeTime는 "강제 토큰" 추가 옵션이며,
         // DATE/TIME 셀의 fileNameInclude 여부와는 별개다.
         // counter 스트림에는 "설정된 셀 기반 prefix"만 반영하고, 강제 date/time 토큰은 제외한다.
         return buildFileNamePrefixFromResolvedCells(
-            resolvedCells = resolvedCells,
+            resolvedCells = scopeStableCells,
             fnDelim = fnDelim,
             includeDate = false,
             includeTime = false,

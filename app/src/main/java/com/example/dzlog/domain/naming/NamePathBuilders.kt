@@ -127,8 +127,7 @@ fun buildFileNamePrefixFromResolvedCells(
     includeTime: Boolean,
     now: Date = Date()
 ): String {
-    // MVP 정책: 구분자는 '_'로 고정
-    val delim = "_"
+    val delim = fnDelim.ifBlank { "_" }
     val ordered = resolvedCells
         .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
 

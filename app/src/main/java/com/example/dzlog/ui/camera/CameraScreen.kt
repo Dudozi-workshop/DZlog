@@ -63,6 +63,7 @@ import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.repository.DzlogRepositoryImpl
 import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
+import com.example.dzlog.domain.counter.CounterScopeSnapshot
 import com.example.dzlog.domain.counter.CounterSeedInput
 import com.example.dzlog.domain.counter.CounterStreamContext
 import com.example.dzlog.domain.counter.buildCounterStreamContext
@@ -535,6 +536,12 @@ private fun SyncCounterSeedEffect(
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
         )
         val scopeKey = scopedStream.scopeParts.scopeKey
+        val scopeSnapshot = CounterScopeSnapshot(
+            relativePathKey = streamContext.relativePathKey,
+            prefix = streamContext.streamPrefix,
+            includePathInScope = appSettings.includePathInCounterScope,
+            includeFilenameInScope = appSettings.includeFilenameInCounterScope,
+        )
 
         val templateCounterSeed = tableCells
             .firstOrNull { it.dataType == TableCellDataType.COUNTER }
@@ -551,8 +558,8 @@ private fun SyncCounterSeedEffect(
         ).coerceAtLeast(1)
 
         val isNewStream = isNewCounterScope(
-            previousScopeKey = ui.counter.lastScopeKey,
-            currentScopeKey = scopeKey
+            previous = ui.counter.lastScopeSnapshot,
+            current = scopeSnapshot
         )
         val stableStreamNext = stabilizeStreamNextCounter(
             streamNextFromPolicy = nextSeedFromStream,
@@ -569,6 +576,7 @@ private fun SyncCounterSeedEffect(
 
         ui.counter.scopeNextCounter = decision.desiredSeed
         ui.counter.lastScopeKey = scopeKey
+        ui.counter.lastScopeSnapshot = scopeSnapshot
 
         Log.d(
             "DZlogCounter",

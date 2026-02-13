@@ -1,5 +1,6 @@
 package com.example.dzlog.ui.table
 
+import com.example.dzlog.domain.counter.CounterScopeSnapshot
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -11,11 +12,23 @@ class TableCounterPolicyCoordinatorTest {
         val result = TableCounterPolicyCoordinator.resolveSeedForScope(
             input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
                 currentScopeKey = "A|B",
+                currentScopeSnapshot = CounterScopeSnapshot(
+                    relativePathKey = "A",
+                    prefix = "B",
+                    includePathInScope = true,
+                    includeFilenameInScope = true,
+                ),
                 isManualMode = true,
                 hasCounterCell = true,
                 currentSeed = 7,
                 streamNext = 20,
                 previousScopeKey = "A|B",
+                previousScopeSnapshot = CounterScopeSnapshot(
+                    relativePathKey = "A",
+                    prefix = "B",
+                    includePathInScope = true,
+                    includeFilenameInScope = true,
+                ),
                 preserveManualCounterSeed = true,
                 manualSeedOverride = 11,
             )
@@ -29,11 +42,23 @@ class TableCounterPolicyCoordinatorTest {
         val result = TableCounterPolicyCoordinator.resolveSeedForScope(
             input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
                 currentScopeKey = "C|D",
+                currentScopeSnapshot = CounterScopeSnapshot(
+                    relativePathKey = "C",
+                    prefix = "D",
+                    includePathInScope = true,
+                    includeFilenameInScope = true,
+                ),
                 isManualMode = true,
                 hasCounterCell = true,
                 currentSeed = 7,
                 streamNext = 20,
                 previousScopeKey = "A|B",
+                previousScopeSnapshot = CounterScopeSnapshot(
+                    relativePathKey = "A",
+                    prefix = "B",
+                    includePathInScope = true,
+                    includeFilenameInScope = true,
+                ),
                 preserveManualCounterSeed = true,
                 manualSeedOverride = 11,
             )
