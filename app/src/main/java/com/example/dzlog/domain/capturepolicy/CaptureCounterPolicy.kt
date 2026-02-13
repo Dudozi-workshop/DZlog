@@ -159,6 +159,12 @@ internal object CaptureCounterPolicy {
             return
         }
 
+        // auto 기준과 동일한 값으로 맞춘 경우는 manual override를 유지하지 않는다.
+        if (!force && normalized == autoNext) {
+            clearManualNextOverride(context, streamKey)
+            return
+        }
+
         // 사용자가 next 값을 명시 지정한 경우(>=autoNext 포함)는 수동 override 모드로 보관한다.
         // 실제 캡처가 완료되면 commitCounter에서 수동 override를 해제해 자동 모드로 복귀한다.
         saveManualNextOverride(context, streamKey, normalized)

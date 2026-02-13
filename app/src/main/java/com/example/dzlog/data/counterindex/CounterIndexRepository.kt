@@ -51,6 +51,20 @@ class CounterIndexRepository private constructor(
      * 기존 사진 백필(backfill)용.
      * - mediaId를 모르거나 굳이 저장할 필요가 없을 때 mediaId=-1로 예약해둔다.
      */
+
+    /**
+     * 특정 스트림 카운터를 현재 스캔 결과로 완전 동기화한다.
+     * - 기존 레코드를 모두 제거 후 placeholders로 재적재
+     * - 파일 삭제 이후 stale 인덱스가 남아 next가 커지는 문제를 방지
+     */
+    suspend fun replaceCounters(relativePath: String, prefix: String, counters: Set<Int>) {
+        if (relativePath.isBlank()) return
+        if (prefix.isBlank()) return
+
+        dao.deleteByPath(relativePath, prefix)
+        backfillPlaceholders(relativePath, prefix, counters)
+    }
+
     suspend fun backfillPlaceholders(relativePath: String, prefix: String, counters: Set<Int>) {
         if (relativePath.isBlank()) return
         if (prefix.isBlank()) return

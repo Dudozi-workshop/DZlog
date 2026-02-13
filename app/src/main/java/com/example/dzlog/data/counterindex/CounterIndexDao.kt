@@ -33,4 +33,8 @@ interface CounterIndexDao {
     /** 특정 경로 placeholder(mediaId=-1) 정리용 */
     @Query("DELETE FROM counter_index WHERE relativePath = :relativePath AND prefix = :prefix AND mediaId = -1")
     suspend fun deletePlaceholdersByPath(relativePath: String, prefix: String)
+
+    /** 특정 스트림 전체 정리용(미디어 삭제 동기화 시 재구축) */
+    @Query("DELETE FROM counter_index WHERE relativePath = :relativePath AND prefix = :prefix")
+    suspend fun deleteByPath(relativePath: String, prefix: String)
 }

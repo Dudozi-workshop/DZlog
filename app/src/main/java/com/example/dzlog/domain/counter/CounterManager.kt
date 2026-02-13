@@ -149,9 +149,21 @@ object CounterManager {
 
         val fromDbMerged = fromDb + fromDbPhysical
         if (fromDbMerged.isNotEmpty()) {
-            // 현재 스트림 키 기준으로 정규화 백필
-            runCatching { repo.backfillPlaceholders(relativePath, streamPrefix, fromDbMerged) }
-            return fromDbMerged
+            val scannedFromMediaStore: Set<Int> = runCatching {
+                scanUsedCountersFromMediaStore(
+                    context = context,
+                    relativePathPrefix = physicalRelativePath,
+                    fileNamePrefix = basePrefix,
+                    counterDigits = counterDigits,
+                    fnDelim = fnDelim
+                )
+            }.getOrDefault(fromDbMerged)
+
+            // 파일 삭제 등으로 DB 인덱스가 실제 보유 파일과 달라진 경우 현재 파일 기준으로 재동기화
+            if (scannedFromMediaStore != fromDbMerged) {
+                runCatching { repo.replaceCounters(relativePath, streamPrefix, scannedFromMediaStore) }
+            }
+            return scannedFromMediaStore
         }
 
         // 1-legacy) DB에 없고, 아직 마이그레이션 전이면 legacy(basePrefix)도 조회해본다.

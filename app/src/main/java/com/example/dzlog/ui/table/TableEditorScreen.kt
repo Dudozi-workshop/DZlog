@@ -381,7 +381,7 @@ fun TableEditorScreen(
             if (newV == null || newV < 0) return
 
             val isChanged = (oldV == null) || (newV != oldV)
-            val streamNext = counterStreamContext.nextCounter
+            val streamNext = autoNextCounterValue.coerceAtLeast(1)
             if (isChanged && newV < streamNext) {
                 pendingCounterCommitValue = newV
                 pendingCounterStreamNextValue = streamNext
@@ -523,13 +523,20 @@ fun TableEditorScreen(
             onDismissRequest = {
                 val id = editingCellId
                 if (id != null) {
-                    val restored = pendingCounterStreamNextValue.coerceAtLeast(1)
-                    updateCounterCellAndPolicy(
-                        cellId = id,
-                        seed = restored,
-                        preserveManual = false,
-                        forcePolicyUpdate = false
-                    )
+                    scope.launch {
+                        val restored = TableCounterPolicyCoordinator.resetToAutoNext(
+                            context = context,
+                            streamContext = counterStreamContext,
+                            counterDigits = previewCounterDigits,
+                            fnDelim = "_"
+                        ).coerceAtLeast(1)
+                        updateCounterCellAndPolicy(
+                            cellId = id,
+                            seed = restored,
+                            preserveManual = false,
+                            forcePolicyUpdate = false
+                        )
+                    }
                 }
                 closeCounterConflictDialog()
             },
@@ -560,13 +567,20 @@ fun TableEditorScreen(
                 TextButton(onClick = {
                     val id = editingCellId
                     if (id != null) {
-                        val restored = pendingCounterStreamNextValue.coerceAtLeast(1)
-                        updateCounterCellAndPolicy(
-                            cellId = id,
-                            seed = restored,
-                            preserveManual = false,
-                            forcePolicyUpdate = false
-                        )
+                        scope.launch {
+                            val restored = TableCounterPolicyCoordinator.resetToAutoNext(
+                                context = context,
+                                streamContext = counterStreamContext,
+                                counterDigits = previewCounterDigits,
+                                fnDelim = "_"
+                            ).coerceAtLeast(1)
+                            updateCounterCellAndPolicy(
+                                cellId = id,
+                                seed = restored,
+                                preserveManual = false,
+                                forcePolicyUpdate = false
+                            )
+                        }
                     }
                     closeCounterConflictDialog()
                 }) {
