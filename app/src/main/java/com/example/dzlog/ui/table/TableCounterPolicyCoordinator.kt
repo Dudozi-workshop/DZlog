@@ -108,7 +108,8 @@ internal object TableCounterPolicyCoordinator {
 
         return CounterSeedSyncResult(
             desiredSeed = decision.desiredSeed,
-            shouldClearManualOverride = normalizedManualOverride != null,
+            shouldClearManualOverride =
+                normalizedManualOverride != null && decision.shouldClearPreserveManualSeed,
             preserveManualCounterSeed = preserveManual
         )
     }

@@ -505,6 +505,18 @@ private fun rememberCounterStreamContext(
     }
 }
 
+
+internal fun stabilizeStreamNextCounter(
+    streamNextFromPolicy: Int,
+    currentScopeNext: Int,
+    isNewStream: Boolean
+): Int {
+    val normalizedStreamNext = streamNextFromPolicy.coerceAtLeast(1)
+    val normalizedCurrentScopeNext = currentScopeNext.coerceAtLeast(1)
+    if (isNewStream) return normalizedStreamNext
+    return maxOf(normalizedStreamNext, normalizedCurrentScopeNext)
+}
+
 @Composable
 private fun SyncCounterSeedEffect(
     context: android.content.Context,
@@ -542,8 +554,13 @@ private fun SyncCounterSeedEffect(
             previousScopeKey = ui.counter.lastScopeKey,
             currentScopeKey = scopeKey
         )
+        val stableStreamNext = stabilizeStreamNextCounter(
+            streamNextFromPolicy = nextSeedFromStream,
+            currentScopeNext = ui.counter.scopeNextCounter,
+            isNewStream = isNewStream
+        )
         val input = CounterSeedInput(
-            streamNext = nextSeedFromStream,
+            streamNext = stableStreamNext,
             currentSeed = ui.counter.scopeNextCounter,
             isNewStream = isNewStream,
             templateCounterSeed = templateCounterSeed,
