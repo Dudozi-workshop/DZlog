@@ -40,8 +40,8 @@ internal fun CameraPreviewHost(
 
 
     CaptureAreaMaskOverlay(
+        previewView = previewView,
         captureAspectRatio = captureAspectRatio,
-        maskAlpha = 0.8f
     )
 
     // Tap-to-focus UI (ring)

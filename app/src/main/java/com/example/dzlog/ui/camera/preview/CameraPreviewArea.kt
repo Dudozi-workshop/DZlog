@@ -69,7 +69,7 @@ internal fun CameraPreviewArea(
     ) {
         val previewView = remember(context) {
             PreviewView(context).apply {
-                scaleType = PreviewView.ScaleType.FIT_CENTER
+                scaleType = PreviewView.ScaleType.FILL_CENTER
                 implementationMode = PreviewView.ImplementationMode.COMPATIBLE
             }
         }
@@ -78,8 +78,12 @@ internal fun CameraPreviewArea(
 
         fun updatePreviewContentRect() {
             previewContentRect = computeCaptureAreaRect(
-                widthPx = previewView.width.toFloat(),
-                heightPx = previewView.height.toFloat(),
+                contentRect = RectF(
+                    0f,
+                    0f,
+                    previewView.width.toFloat(),
+                    previewView.height.toFloat()
+                ),
                 captureAspectRatio = captureAspect.ratioF
             )
             if (!previewLogged) {
