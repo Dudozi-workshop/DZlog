@@ -5,18 +5,16 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 
 @Composable
 fun DzThumbnail(uriString: String) {
@@ -78,8 +76,8 @@ private fun decodeSampledBitmap(
     val (w, h) = optsBounds.outWidth to optsBounds.outHeight
     var inSampleSize = 1
     if (w > reqSize || h > reqSize) {
-        var halfW = w / 2
-        var halfH = h / 2
+        val halfW = w / 2
+        val halfH = h / 2
         while (halfW / inSampleSize >= reqSize && halfH / inSampleSize >= reqSize) {
             inSampleSize *= 2
         }

@@ -520,25 +520,6 @@ fun TableEditorScreen(
         editingOriginalValue = ""
     }
 
-    fun applyCounterConflictDialogEffect(effect: TableCounterConflictDialogEffect) {
-        when (effect) {
-            is TableCounterConflictDialogEffect.ApplyManualSeed -> {
-                updateCounterCellAndPolicy(
-                    cellId = effect.cellId,
-                    seed = effect.seed,
-                    preserveManual = true,
-                    forcePolicyUpdate = true
-                )
-            }
-
-            is TableCounterConflictDialogEffect.RestoreAutoNext -> {
-                restoreCounterCellToAutoNext(effect.cellId)
-            }
-
-            TableCounterConflictDialogEffect.None -> Unit
-        }
-    }
-
     suspend fun fetchAutoNextCounter(): Int = TableCounterPolicyCoordinator.resetToAutoNext(
         context = context,
         scopedStream = scopedCounterStream,
@@ -555,6 +536,25 @@ fun TableEditorScreen(
                 preserveManual = false,
                 forcePolicyUpdate = false
             )
+        }
+    }
+
+    fun applyCounterConflictDialogEffect(effect: TableCounterConflictDialogEffect) {
+        when (effect) {
+            is TableCounterConflictDialogEffect.ApplyManualSeed -> {
+                updateCounterCellAndPolicy(
+                    cellId = effect.cellId,
+                    seed = effect.seed,
+                    preserveManual = true,
+                    forcePolicyUpdate = true
+                )
+            }
+
+            is TableCounterConflictDialogEffect.RestoreAutoNext -> {
+                restoreCounterCellToAutoNext(effect.cellId)
+            }
+
+            TableCounterConflictDialogEffect.None -> Unit
         }
     }
 
