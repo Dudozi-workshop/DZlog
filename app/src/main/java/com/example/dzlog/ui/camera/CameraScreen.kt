@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -34,6 +35,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.LifecycleOwner
@@ -119,7 +121,7 @@ fun CameraScreen(
         if (!hasPermission) launcher.launch(Manifest.permission.CAMERA)
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(DDZColor.PrimaryDark)) {
+    Box(modifier = Modifier.fillMaxSize().background(DDZColor.PrimaryDark.copy(alpha = 0.35f))) {
         if (hasPermission) {
             CameraPreview(
                 onExitToHome = onExitToHome,
@@ -234,20 +236,19 @@ fun CameraPreview(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DDZColor.PrimaryDark)
+            .background(DDZColor.PrimaryDark.copy(alpha = 0.35f))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(0.12f)
-                    .background(DDZColor.PrimaryDark)
+                    .weight(0.08f)
             )
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(0.70f),
+                    .weight(0.75f),
                 contentAlignment = Alignment.Center
             ) {
                 val previewAreaArgs = remember(
@@ -310,7 +311,14 @@ fun CameraPreview(
                     )
                 }
 
-                CameraPreviewArea(
+                val previewVerticalOffset = when (ui.prefs.captureAspect) {
+                    CaptureAspect.R9_16 -> (-24).dp
+                    CaptureAspect.R3_4 -> (-16).dp
+                    CaptureAspect.R1_1 -> (-12).dp
+                }
+
+                Box(modifier = Modifier.offset(y = previewVerticalOffset)) {
+                    CameraPreviewArea(
                     args = previewAreaArgs,
                     boundCamera = boundCamera,
                     onBoundCameraChange = { boundCamera = it },
@@ -320,8 +328,10 @@ fun CameraPreview(
                     tapFocusUi = ui.capture.tapFocusUi,
                     onTapFocusUiChange = { ui.capture.tapFocusUi = it }
                 )
+                }
             }
         }
+
 
         if (zoomPanelExpanded) {
             Box(
@@ -365,7 +375,7 @@ fun CameraPreview(
             contentAlignment = Alignment.Center
         ) {
             val enabledNow =
-                (boundImageCapture != null && ui.capture.capturedUri == null && !ui.capture.isCapturing)
+                (boundImageCapture != null && ui.capture.capturedUri == null && !ui.capture.isCapturing && !zoomPanelExpanded)
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 ZoomControlSection(
@@ -384,6 +394,10 @@ fun CameraPreview(
                 CaptureButtonSection(
                     ready = enabledNow,
                     onClick = {
+                        if (zoomPanelExpanded) {
+                            zoomPanelExpanded = false
+                            return@CaptureButtonSection
+                        }
                         handleCaptureClick(
                             context = context,
                             gate = ui.capture.captureGate,
