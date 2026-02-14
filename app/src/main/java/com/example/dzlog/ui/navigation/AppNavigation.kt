@@ -1,4 +1,4 @@
-@file:Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+@file:Suppress("UNUSED_VALUE", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 
 package com.example.dzlog.ui.navigation
 

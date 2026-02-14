@@ -99,6 +99,7 @@ internal object CaptureCounterPolicy {
         }
     }
 
+    @Suppress("unused")
     internal suspend fun commitCounter(
         context: Context,
         streamContext: CounterStreamContext,
@@ -170,6 +171,7 @@ internal object CaptureCounterPolicy {
         saveManualNextOverride(context, streamKey, normalized)
     }
 
+    @Suppress("unused")
     internal suspend fun setNextCounter(
         context: Context,
         streamContext: CounterStreamContext,
@@ -213,6 +215,7 @@ internal object CaptureCounterPolicy {
         return loadManualNextOverrides(context).containsKey(streamKey(key))
     }
 
+    @Suppress("unused")
     internal suspend fun isManualOverrideActive(
         context: Context,
         streamContext: CounterStreamContext
@@ -260,6 +263,7 @@ internal object CaptureCounterPolicy {
         )
     }
 
+    @Suppress("unused")
     internal suspend fun resetToAutoNext(
         context: Context,
         streamContext: CounterStreamContext,
