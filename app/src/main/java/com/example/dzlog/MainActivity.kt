@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.example.dzlog.ui.navigation.AppRoot
+import com.example.dzlog.ui.theme.DDZTheme
 import com.example.dzlog.ui.theme.DZlogTheme
 
 class MainActivity : ComponentActivity() {
@@ -11,7 +12,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             DZlogTheme {
-                AppRoot()
+                DDZTheme {
+                    AppRoot()
+                }
             }
         }
     }

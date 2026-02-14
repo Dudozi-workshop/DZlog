@@ -1,6 +1,5 @@
 package com.example.dzlog.domain.model
 
-import android.util.Rational
 import androidx.camera.core.AspectRatio
 
 enum class CaptureAspect(val v: Int, val label: String, val w: Int, val h: Int) {
@@ -9,8 +8,6 @@ enum class CaptureAspect(val v: Int, val label: String, val w: Int, val h: Int) 
     R1_1(2, "1:1", 1, 1);
 
     val ratioF: Float get() = w.toFloat() / h.toFloat()
-
-    fun toRational(): Rational = Rational(w, h)
 
     fun toCameraXAspectRatio(): Int? {
         return when (this) {
