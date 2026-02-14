@@ -261,29 +261,6 @@ class DzlogMediaStoreReader(
     // Internal helpers
     // -------------------------
 
-    private fun queryDistinctRelativePaths(like: String): List<String> {
-        val projection = arrayOf(MediaStore.Images.Media.RELATIVE_PATH)
-        val selection = (
-            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND " +
-                    "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
-                    trashClause()
-                )
-        val args = arrayOf(like, "%/original/%")
-        val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-
-        val set = linkedSetOf<String>()
-        contentResolver.query(uri, projection, selection, args, null)?.use { c ->
-            val relIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
-            while (c.moveToNext()) {
-                val rp = c.getString(relIdx).orEmpty()
-                // ✅ 원본 폴더는 앱 로그에서 제외
-                if (isOriginalPath(rp)) continue
-                set.add(rp)
-            }
-        }
-        return set.toList()
-    }
-
     private fun isOriginalPath(relativePath: String): Boolean {
         return relativePath.contains("/original/")
     }

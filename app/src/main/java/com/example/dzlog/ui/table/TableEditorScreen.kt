@@ -1,4 +1,4 @@
-@file:Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+@file:Suppress("UNUSED_VALUE", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 @file:OptIn(
     androidx.compose.foundation.ExperimentalFoundationApi::class,
     androidx.compose.material3.ExperimentalMaterial3Api::class

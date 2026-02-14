@@ -1,4 +1,16 @@
-@file:Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+@file:Suppress("UNUSED_VALUE", "AssignedValueIsNeverRead", "AssignedValueIsNeverRead",
+    "AssignedValueIsNeverRead", "AssignedValueIsNeverRead", "AssignedValueIsNeverRead",
+    "AssignedValueIsNeverRead", "AssignedValueIsNeverRead", "AssignedValueIsNeverRead",
+    "AssignedValueIsNeverRead", "AssignedValueIsNeverRead", "AssignedValueIsNeverRead",
+    "AssignedValueIsNeverRead", "AssignedValueIsNeverRead", "AssignedValueIsNeverRead",
+    "AssignedValueIsNeverRead", "AssignedValueIsNeverRead", "AssignedValueIsNeverRead",
+    "AssignedValueIsNeverRead", "AssignedValueIsNeverRead", "AssignedValueIsNeverRead",
+    "AssignedValueIsNeverRead", "AssignedValueIsNeverRead", "AssignedValueIsNeverRead",
+    "AssignedValueIsNeverRead", "AssignedValueIsNeverRead", "AssignedValueIsNeverRead",
+    "AssignedValueIsNeverRead", "AssignedValueIsNeverRead", "AssignedValueIsNeverRead",
+    "AssignedValueIsNeverRead", "AssignedValueIsNeverRead", "AssignedValueIsNeverRead",
+    "AssignedValueIsNeverRead", "AssignedValueIsNeverRead", "AssignedValueIsNeverRead"
+)
 
 package com.example.dzlog.ui.navigation
 
@@ -133,20 +145,6 @@ fun AppRoot() {
         screen = target
     }
 
-    fun clearSelectionState() {
-        isSelectionMode = false
-        selectedIds = emptySet()
-    }
-
-    fun resetAlbumState(clearViewerStartIndex: Boolean) {
-        selectedG1 = null
-        selectedG2 = null
-        gridItems = emptyList()
-        clearSelectionState()
-        if (clearViewerStartIndex) viewerStartIndex = 0
-    }
-
-
     BackHandler(enabled = true) {
         // 기본 내비게이션(화면 기준)
         when (screen) {
@@ -168,7 +166,8 @@ fun AppRoot() {
 
             AppScreen.ALBUM_GRID -> {
                 if (isSelectionMode) {
-                    clearSelectionState()
+                    isSelectionMode = false
+                    selectedIds = emptySet()
                 } else {
                     screen = AppScreen.ALBUM_G2
                 }
@@ -186,14 +185,20 @@ fun AppRoot() {
             onStartCamera = { navigateTo(AppScreen.CAMERA) },
             onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
             onOpenAlbum = {
-                resetAlbumState(clearViewerStartIndex = true)
+                selectedG1 = null
+                selectedG2 = null
+                gridItems = emptyList()
+                isSelectionMode = false
+                selectedIds = emptySet()
+                viewerStartIndex = 0
                 navigateTo(AppScreen.ALBUM_G1)
             },
             onOpenRecentCaptureGrid = { g1, g2, startIndex ->
                 selectedG1 = g1
                 selectedG2 = g2
                 gridItems = emptyList()
-                clearSelectionState()
+                isSelectionMode = false
+                selectedIds = emptySet()
                 viewerStartIndex = startIndex
                 navigateTo(AppScreen.ALBUM_GRID)
             }
@@ -229,7 +234,8 @@ fun AppRoot() {
                     selectedG1 = g1
                     selectedG2 = null
                     gridItems = emptyList()
-                    clearSelectionState()
+                    isSelectionMode = false
+                    selectedIds = emptySet()
                     screen = AppScreen.ALBUM_G2
                 }
             )
@@ -249,7 +255,8 @@ fun AppRoot() {
                     onSelectG2 = { g2 ->
                         selectedG2 = g2
                         gridItems = emptyList()
-                        clearSelectionState()
+                        isSelectionMode = false
+                        selectedIds = emptySet()
                         screen = AppScreen.ALBUM_GRID
                     }
                 )
@@ -283,11 +290,12 @@ fun AppRoot() {
                         selectedIds = selectedIds + id
                     },
                     onExitSelection = {
-                        clearSelectionState()
+                        isSelectionMode = false
+                        selectedIds = emptySet()
                     },
                     onSelectAll = {
                         isSelectionMode = true
-                        selectedIds = gridItems.asSequence().map { it.id }.toSet()
+                        selectedIds = gridItems.map { it.id }.toSet()
                     }
                 )
             }
@@ -318,15 +326,17 @@ fun AppRoot() {
                         if (selectedIds.isEmpty()) isSelectionMode = false
                     },
                     onExitSelection = {
-                        clearSelectionState()
+                        isSelectionMode = false
+                        selectedIds = emptySet()
                     },
                     onSelectAll = {
                         isSelectionMode = true
-                        selectedIds = gridItems.asSequence().map { it.id }.toSet()
+                        selectedIds = gridItems.map { it.id }.toSet()
                     },
                     onItemsReloaded = { gridItems = it },
                     onRequestCloseViewer = {
-                        clearSelectionState()
+                        isSelectionMode = false
+                        selectedIds = emptySet()
                         screen = AppScreen.ALBUM_GRID
                     }
                 )
