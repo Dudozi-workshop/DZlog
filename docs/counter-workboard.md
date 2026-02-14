@@ -71,6 +71,7 @@
   - Pixel 6a / Android 14 에뮬: 4조합(Path/Filename ON/OFF) PASS
   - same scope 유지/Path 변경 반응/Filename 변경 반응/OFF-OFF 전역 증가 PASS
 - [x] 에뮬 실측 결과 기록(기기별 PASS/FAIL) 1차 누적 완료
+- [x] Lint/맞춤법 노이즈 정리: 저장소 루트 `change.patch` 부산물 삭제
 - [ ] 로컬 단위 테스트 실행은 네트워크 프록시 제한(Gradle 403) 해소 후 재시도
 
 ## 메모
