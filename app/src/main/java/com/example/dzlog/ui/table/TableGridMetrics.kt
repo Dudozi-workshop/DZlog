@@ -60,7 +60,7 @@ object TableGridMetrics {
      * sizes로부터 누적 오프셋을 만든다.
      * - 반환 길이 = sizes.size + 1
      * - offsets[0] = 0
-     * - `offsets[i+1] = offsets[i] + sizes[i]`
+     * - 다음 오프셋은 이전 오프셋에 현재 size를 더해 계산한다.
      */
     fun computeOffsets(sizes: List<Float>): List<Float> {
         val offsets = ArrayList<Float>(sizes.size + 1)
