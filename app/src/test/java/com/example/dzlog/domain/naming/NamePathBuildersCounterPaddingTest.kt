@@ -11,7 +11,7 @@ class NamePathBuildersCounterPaddingTest {
 
     @Test
     fun `counterOverride uses counterDigits even without counter cell`() {
-        val textCell = resolvedTextCell("SITE")
+        val textCell = resolvedTextCell()
 
         val name = buildDisplayNameFromResolvedCells(
             resolvedCells = listOf(textCell),
@@ -25,7 +25,8 @@ class NamePathBuildersCounterPaddingTest {
         assertTrue(name.startsWith("SITE_007"))
     }
 
-    private fun resolvedTextCell(text: String): ResolvedCell {
+    private fun resolvedTextCell(): ResolvedCell {
+        val text = "SITE"
         val raw = TableCellState(
             rowIndex = 0,
             colIndex = 0,
