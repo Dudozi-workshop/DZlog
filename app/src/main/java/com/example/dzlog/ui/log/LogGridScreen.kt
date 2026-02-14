@@ -1,5 +1,5 @@
 @file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-@file:Suppress("UNUSED_VALUE", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+@file:Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 
 package com.example.dzlog.ui.log
 
@@ -86,22 +86,19 @@ fun LogGridScreen(
         reloadJob?.cancel()
         reloadJob = scope.launch {
             isLoading = true
-            // 스캔/메타 변경 이벤트가 연속으로 들어올 때 재조회 폭주 체감 줄이기
-
-            delay(500)
-            val result = withContext(Dispatchers.IO) {
-                runCatching { reader.loadImages(relativePath) }
+            try {
+                // 스캔/메타 변경 이벤트가 연속으로 들어올 때 재조회 폭주 체감 줄이기
+                delay(500)
+                val loaded = withContext(Dispatchers.IO) {
+                    reader.loadImages(relativePath)
+                }
+                onItemsLoaded(loaded)
+                error = null
+            } catch (t: Throwable) {
+                error = t.message ?: "불러오기 실패"
+            } finally {
+                isLoading = false
             }
-            result
-                .onSuccess {
-                    onItemsLoaded(it)
-                    error = null
-                    isLoading = false
-                }
-                .onFailure { e ->
-                    error = e.message ?: "불러오기 실패"
-                    isLoading = false
-                }
         }
     }
 
@@ -124,6 +121,9 @@ fun LogGridScreen(
             }
         )
     }
+
+    fun selectedItems(): List<MediaImageItem> =
+        items.filter { selectedIds.contains(it.id) }
 
     LaunchedEffect(relativePath) {
         // 최초 진입 시 1회 로드
@@ -249,14 +249,12 @@ fun LogGridScreen(
                     onClose = onExitSelection,
                     onSelectAll = onSelectAll,
                     onShare = {
-                        val selectedItems = items.filter { selectedIds.contains(it.id) }
-                        shareImages(context, selectedItems)
+                        shareImages(context, selectedItems())
                     },
                     shareEnabled = selectedIds.isNotEmpty(),
                     onDelete = if (selectedIds.isNotEmpty()) {
                         {
-                            val selectedItems = items.filter { selectedIds.contains(it.id) }
-                            startDeleteRequest(selectedItems.map { it.uri })
+                            startDeleteRequest(selectedItems().map { it.uri })
                         }
                     } else null
                 )

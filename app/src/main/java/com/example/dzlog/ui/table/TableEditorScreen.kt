@@ -1,4 +1,4 @@
-@file:Suppress("UNUSED_VALUE", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+@file:Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 @file:OptIn(
     androidx.compose.foundation.ExperimentalFoundationApi::class,
     androidx.compose.material3.ExperimentalMaterial3Api::class
@@ -360,6 +360,12 @@ fun TableEditorScreen(
         editingOriginalValue = value
     }
 
+    fun clearInlineEditingState() {
+        editingCellId = null
+        editingValue = ""
+        editingOriginalValue = ""
+    }
+
     fun commitInlineEditIfNeeded() {
         val id = editingCellId ?: return
         val cell = templateState.cells.firstOrNull { it.cellId == id }
@@ -385,7 +391,7 @@ fun TableEditorScreen(
         val normalizedValueText = if (target?.dataType == TableCellDataType.COUNTER) {
             val value = parseNonNegativeInt(editingValue)
             if (value == null) {
-                editingCellId = null
+                clearInlineEditingState()
                 return
             }
             value.toString()
@@ -426,7 +432,7 @@ fun TableEditorScreen(
                 )
             }
         }
-        editingCellId = null
+        clearInlineEditingState()
     }
 
     if (selectedCellId == null && templateState.cells.isNotEmpty()) {
@@ -502,12 +508,6 @@ fun TableEditorScreen(
         counterOverride = counterStreamContext.nextCounter,
         now = previewNow
     )
-
-    fun clearInlineEditingState() {
-        editingCellId = null
-        editingValue = ""
-        editingOriginalValue = ""
-    }
 
     suspend fun fetchAutoNextCounter(): Int = TableCounterPolicyCoordinator.resetToAutoNext(
         context = context,
