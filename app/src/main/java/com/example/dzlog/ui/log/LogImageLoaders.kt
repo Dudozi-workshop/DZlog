@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 
 @Composable
 fun DzThumbnail(uriString: String) {
@@ -64,7 +65,7 @@ private fun decodeSampledBitmap(
     uriString: String,
     reqSize: Int
 ): android.graphics.Bitmap {
-    val uri = android.net.Uri.parse(uriString)
+    val uri = uriString.toUri()
 
     // 1) bounds
     val optsBounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }

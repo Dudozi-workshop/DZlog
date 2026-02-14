@@ -1,8 +1,8 @@
 package com.example.dzlog.data.log
 
 import android.content.Context
-import android.net.Uri
 import android.provider.MediaStore
+import androidx.core.net.toUri
 
 class LogRepository private constructor(
     private val logDao: LogDao
@@ -28,7 +28,7 @@ class LogRepository private constructor(
      * - URI 파싱 실패/권한 문제 등으로 존재 여부 확인도 불가하면 -> 실패 반환(로그 유지)
      */
     suspend fun deleteLogWithImage(context: Context, log: LogEntity): Boolean {
-        val uri = runCatching { Uri.parse(log.imageUri) }.getOrNull() ?: return false
+        val uri = runCatching { log.imageUri.toUri() }.getOrNull() ?: return false
         val resolver = context.contentResolver
 
         val exists = runCatching {

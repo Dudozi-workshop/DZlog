@@ -116,8 +116,8 @@ class MediaStoreSaverImpl : MediaStoreSaver {
         if (dot <= 0 || dot == displayName.length - 1) {
             return displayName to ""
         }
-        val stem = displayName.substring(0, dot)
-        val ext = displayName.substring(dot + 1)
+        val stem = displayName.take(dot)
+        val ext = displayName.drop(dot + 1)
         return stem to ext
     }
     override fun deleteByUri(context: Context, uri: Uri): Boolean {

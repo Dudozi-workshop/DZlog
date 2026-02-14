@@ -3,9 +3,9 @@ package com.example.dzlog.data.mediastore
 import android.content.ContentResolver
 import android.content.ContentUris
 import android.os.Build
-import com.example.dzlog.domain.model.MediaImageItem
-import com.example.dzlog.domain.model.LogGroupSummary
 import android.provider.MediaStore
+import com.example.dzlog.domain.model.LogGroupSummary
+import com.example.dzlog.domain.model.MediaImageItem
 
 /**
  * DZlog 결과물(워터마크 이미지)만 조회하기 위한 MediaStore Reader.
@@ -326,7 +326,7 @@ class DzlogMediaStoreReader(
         val rest = norm.removePrefix(prefix)
         if (rest.isBlank() || rest == "/") return DEFAULT_G1
         val first = rest.substringBefore('/')
-        return if (first.isBlank()) DEFAULT_G1 else first
+        return first.ifBlank { DEFAULT_G1 }
     }
 
     private fun extractG2(relativePath: String, g1: String): String {
@@ -336,7 +336,7 @@ class DzlogMediaStoreReader(
         val rest = norm.removePrefix(prefix)
         // rest: "" or "<g2>/" or "<g2>/<...>/"
         val first = rest.substringBefore('/')
-        return if (first.isBlank()) DEFAULT_G2 else first
+        return first.ifBlank { DEFAULT_G2 }
     }
 
     private fun normalizeG1(g1: String): String {

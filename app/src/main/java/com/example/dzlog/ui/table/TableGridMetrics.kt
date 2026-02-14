@@ -35,7 +35,7 @@ object TableGridMetrics {
      */
     fun computeSizes(total: Float, weights: List<Float>): List<Float> {
         val n = weights.size.coerceAtLeast(1)
-        val safeWeights = if (weights.isEmpty()) List(n) { 1f } else weights
+        val safeWeights = weights.ifEmpty { List(n) { 1f } }
         val sum = safeWeights.sum()
         if (abs(sum) < 1e-6f) {
             // 합이 0이면 균등
