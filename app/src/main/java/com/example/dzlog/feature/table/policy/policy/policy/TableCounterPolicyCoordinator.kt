@@ -7,6 +7,7 @@ import com.example.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.example.dzlog.domain.counter.policy.CounterSeedInput
 import com.example.dzlog.domain.counter.policy.decideCounterSeed
 import com.example.dzlog.domain.counter.policy.isNewCounterScope
+import com.example.dzlog.domain.naming.NamingFormatDefaults
 
 internal object TableCounterPolicyCoordinator {
 
@@ -34,13 +35,12 @@ internal object TableCounterPolicyCoordinator {
         context: Context,
         scopedStream: CaptureScopedCounterStream,
         counterDigits: Int,
-        fnDelim: String = "_"
     ): Int {
         return CaptureCounterPolicy.getNextCounter(
             context = context,
             scopedStream = scopedStream,
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
         ).coerceAtLeast(1)
     }
 
@@ -50,7 +50,6 @@ internal object TableCounterPolicyCoordinator {
         desired: Int,
         force: Boolean,
         counterDigits: Int,
-        fnDelim: String = "_"
     ) {
         CaptureCounterPolicy.setNextCounter(
             context = context,
@@ -58,7 +57,7 @@ internal object TableCounterPolicyCoordinator {
             desired = desired,
             force = force,
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
         )
     }
 
@@ -76,13 +75,12 @@ internal object TableCounterPolicyCoordinator {
         context: Context,
         scopedStream: CaptureScopedCounterStream,
         counterDigits: Int,
-        fnDelim: String = "_"
     ): Int {
         return CaptureCounterPolicy.resetToAutoNext(
             context = context,
             scopedStream = scopedStream,
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
         )
     }
 

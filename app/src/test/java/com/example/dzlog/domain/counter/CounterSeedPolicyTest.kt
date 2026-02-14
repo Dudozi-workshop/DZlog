@@ -82,22 +82,22 @@ class CounterSeedPolicyTest {
 
     @Test
     fun counter_scope_parts_support_two_toggle_matrix() {
-        val pathAndFilename = buildCounterScopeParts("A/B", "PFX", true, true)
+        val pathAndFilename = buildCounterScopeParts(relativePath = "A/B", prefix = "PFX", includePathInScope = true, includeFilenameInScope = true)
         assertEquals("A/B", pathAndFilename.relativePathKey)
         assertEquals("PFX", pathAndFilename.prefix)
         assertEquals("A/B|PFX", pathAndFilename.scopeKey)
 
-        val pathOnly = buildCounterScopeParts("A/B", "PFX", true, false)
+        val pathOnly = buildCounterScopeParts(relativePath = "A/B", prefix = "PFX", includePathInScope = true, includeFilenameInScope = false)
         assertEquals("A/B", pathOnly.relativePathKey)
         assertEquals("*", pathOnly.prefix)
         assertEquals("A/B", pathOnly.scopeKey)
 
-        val filenameOnly = buildCounterScopeParts("A/B", "PFX", false, true)
+        val filenameOnly = buildCounterScopeParts(relativePath = "A/B", prefix = "PFX", includePathInScope = false, includeFilenameInScope = true)
         assertEquals("*", filenameOnly.relativePathKey)
         assertEquals("PFX", filenameOnly.prefix)
         assertEquals("PFX", filenameOnly.scopeKey)
 
-        val global = buildCounterScopeParts("A/B", "PFX", false, false)
+        val global = buildCounterScopeParts(relativePath = "A/B", prefix = "PFX", includePathInScope = false, includeFilenameInScope = false)
         assertEquals("*", global.relativePathKey)
         assertEquals("*", global.prefix)
         assertEquals("global", global.scopeKey)

@@ -124,12 +124,10 @@ internal fun CameraPreviewArea(
         }
 
         DisposableEffect(previewView, boundCamera) {
-            val camera = boundCamera
-
             // Tap-to-focus (AF/AE) on PreviewView
             val listener = View.OnTouchListener { v, event ->
                 if (event.action != MotionEvent.ACTION_UP) return@OnTouchListener true
-                if (camera == null) return@OnTouchListener true
+                val activeCamera = boundCamera ?: return@OnTouchListener true
 
                 // Accessibility / lint: onTouch consumes click -> performClick required
                 v?.performClick()
@@ -146,7 +144,7 @@ internal fun CameraPreviewArea(
 
                 startTapToFocus(
                     context = context,
-                    camera = camera,
+                    camera = activeCamera,
                     previewView = previewView,
                     xPx = x,
                     yPx = y,

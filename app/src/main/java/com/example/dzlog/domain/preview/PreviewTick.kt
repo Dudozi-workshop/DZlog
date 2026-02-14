@@ -14,16 +14,16 @@ enum class TickUnit(val millis: Long) {
     DAY(86_400_000L)
 }
 
-fun decideTickUnit(_dateFormat: String, timeFormat: String): TickUnit {
+fun decideTickUnit(dateFormat: String, timeFormat: String): TickUnit {
     val tf = timeFormat.trim()
     val df = dateFormat.trim()
+    val dateHasExplicitTimeToken = df.any { it == 'H' || it == 'h' || it == 's' || it == 'S' }
     return when {
         tf.contains('s', ignoreCase = true) -> TickUnit.SECOND
         tf.contains('m') -> TickUnit.MINUTE
         tf.contains('H') || tf.contains('h') -> TickUnit.HOUR
-        df.contains('s', ignoreCase = true) -> TickUnit.SECOND
-        df.contains('m') -> TickUnit.MINUTE
-        df.contains('H') || df.contains('h') -> TickUnit.HOUR
+        dateHasExplicitTimeToken -> TickUnit.HOUR
+        // dateFormat은 현재 UI 구성상 날짜 영역 중심이므로 1일 주기 갱신
         else -> TickUnit.DAY
     }
 }

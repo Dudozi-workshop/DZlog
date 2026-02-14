@@ -177,20 +177,20 @@ fun LogViewerScreen(
                         } else null
                     )
                     Spacer(Modifier.height(8.dp))
+                } else {
+                    // 1) 하단 액션 바(공유/삭제)
+                    ViewerBottomBar(
+                        enabled = items.isNotEmpty(),
+                        onShare = {
+                            val current = items.getOrNull(pagerState.currentPage) ?: return@ViewerBottomBar
+                            shareImages(context, listOf(current))
+                        },
+                        onDelete = {
+                            val current = items.getOrNull(pagerState.currentPage) ?: return@ViewerBottomBar
+                            startDeleteRequest(listOf(current.uri))
+                        }
+                    )
                 }
-
-                // 1) 하단 액션 바(공유/삭제) — ViewerBottomBar는 딱 1번만 호출
-                if (!isSelectionMode) ViewerBottomBar(
-                    enabled = items.isNotEmpty(),
-                    onShare = {
-                        val current = items.getOrNull(pagerState.currentPage) ?: return@ViewerBottomBar
-                        shareImages(context, listOf(current))
-                    },
-                    onDelete = {
-                        val current = items.getOrNull(pagerState.currentPage) ?: return@ViewerBottomBar
-                        startDeleteRequest(listOf(current.uri))
-                    }
-                )
             }
         }
     }

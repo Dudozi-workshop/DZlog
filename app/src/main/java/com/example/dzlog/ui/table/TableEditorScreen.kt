@@ -267,7 +267,6 @@ fun TableEditorScreen(
                     desired = normalizedSeed,
                     force = forcePolicyUpdate,
                     counterDigits = previewCounterDigits,
-                    fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
                 )
             }
         }
@@ -285,7 +284,6 @@ fun TableEditorScreen(
             context = context,
             scopedStream = scopedCounterStream,
             counterDigits = previewCounterDigits,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
         ).coerceAtLeast(1)
         isManualCounterMode = TableCounterPolicyCoordinator.isManualOverrideActive(
             context = context,
@@ -424,7 +422,6 @@ fun TableEditorScreen(
                     desired = normalizedSeed,
                     force = false,
                     counterDigits = previewCounterDigits,
-                    fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
                 )
             }
         }
@@ -515,7 +512,6 @@ fun TableEditorScreen(
         context = context,
         scopedStream = scopedCounterStream,
         counterDigits = previewCounterDigits,
-        fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
     ).coerceAtLeast(1)
 
     fun restoreCounterCellToAutoNext(cellId: String) {

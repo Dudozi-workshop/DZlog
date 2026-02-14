@@ -167,10 +167,7 @@ fun CameraPreview(
         tableResolver = tableResolver,
         tableCells = tableCells,
         counterDigits = ui.prefs.counterDigits,
-        dateFormat = dateFormat,
-        timeFormat = timeFormat,
         nextCounter = ui.counter.scopeNextCounter,
-        fnDelim = fnDelim
     )
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
 
@@ -180,7 +177,6 @@ fun CameraPreview(
         tableCells = tableCells,
         streamContext = counterStreamContext,
         counterDigits = ui.prefs.counterDigits,
-        fnDelim = fnDelim,
         refreshTick = mediaStoreRefreshTick,
         ui = ui
     )
@@ -462,12 +458,12 @@ private fun rememberCounterStreamContext(
     tableResolver: TableResolver,
     tableCells: List<com.example.dzlog.domain.model.TableCellState>,
     counterDigits: Int,
-    dateFormat: String,
-    timeFormat: String,
     nextCounter: Int,
-    fnDelim: String
 ): CounterStreamContext {
-    return remember(tableCells, counterDigits, dateFormat, timeFormat, nextCounter, fnDelim) {
+    val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
+    val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
+    val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+    return remember(tableCells, counterDigits, nextCounter) {
         val scopeNow = Date()
         val planForScope = tableResolver.plan(
             cells = tableCells,
@@ -494,10 +490,10 @@ private fun SyncCounterSeedEffect(
     tableCells: List<com.example.dzlog.domain.model.TableCellState>,
     streamContext: CounterStreamContext,
     counterDigits: Int,
-    fnDelim: String,
     refreshTick: Int,
     ui: CameraUiState
 ) {
+    val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
     LaunchedEffect(streamContext.scopeKey, counterDigits, refreshTick) {
         val appSettings = AppSettingsStore.flow(context).first()
         val scopedStream = toCaptureScopedCounterStream(

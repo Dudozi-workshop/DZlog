@@ -15,7 +15,7 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 /**
- * Counter SSOT boundary.
+ * Counter xSSOT boundary.
  *
  * - getNextCounter: stream next 계산(자동 + 수동 override 반영)
  * - commitCounter: 저장 완료된 카운터를 기록하고, 수동 override 모드면 다음값으로 전진

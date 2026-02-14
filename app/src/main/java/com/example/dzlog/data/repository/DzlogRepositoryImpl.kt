@@ -248,27 +248,25 @@ class DzlogRepositoryImpl(
 
     private fun cropToAspect(source: Bitmap, aspect: CaptureAspect): Bitmap {
         val targetRatio = aspect.w.toFloat() / aspect.h.toFloat()
-        val srcWidth = source.width
-        val srcHeight = source.height
-        if (srcWidth == 0 || srcHeight == 0) return source
+        if (source.width == 0 || source.height == 0) return source
 
-        val srcRatio = srcWidth.toFloat() / srcHeight.toFloat()
+        val srcRatio = source.width.toFloat() / source.height.toFloat()
         if (kotlin.math.abs(srcRatio - targetRatio) < 0.001f) {
             return source
         }
 
         val (cropWidth, cropHeight) = if (srcRatio > targetRatio) {
-            val height = srcHeight
-            val width = (height * targetRatio).toInt().coerceAtMost(srcWidth)
+            val height = source.height
+            val width = (height * targetRatio).toInt().coerceAtMost(source.width)
             width to height
         } else {
-            val width = srcWidth
-            val height = (width / targetRatio).toInt().coerceAtMost(srcHeight)
+            val width = source.width
+            val height = (width / targetRatio).toInt().coerceAtMost(source.height)
             width to height
         }
 
-        val left = ((srcWidth - cropWidth) / 2f).toInt().coerceAtLeast(0)
-        val top = ((srcHeight - cropHeight) / 2f).toInt().coerceAtLeast(0)
+        val left = ((source.width - cropWidth) / 2f).toInt().coerceAtLeast(0)
+        val top = ((source.height - cropHeight) / 2f).toInt().coerceAtLeast(0)
 
         return Bitmap.createBitmap(source, left, top, cropWidth, cropHeight)
     }
