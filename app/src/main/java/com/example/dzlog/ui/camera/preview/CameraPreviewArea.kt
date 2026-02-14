@@ -37,6 +37,7 @@ import com.example.dzlog.ui.camera.controller.startTapToFocus
 import com.example.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.min
 
 /**
  * CameraPreviewArea
@@ -170,6 +171,17 @@ internal fun CameraPreviewArea(
             }
         }
 
+
+        LaunchedEffect(boundCamera, args.zoomRatioTenths) {
+            val activeCamera = boundCamera ?: return@LaunchedEffect
+            val requested = args.zoomRatioTenths.coerceIn(10, 20) / 10f
+            val zoomState = activeCamera.cameraInfo.zoomState.value
+            val maxSupported = zoomState?.maxZoomRatio ?: 1f
+            val minSupported = zoomState?.minZoomRatio ?: 1f
+            val target = min(requested, min(2f, maxSupported)).coerceAtLeast(minSupported)
+            runCatching { activeCamera.cameraControl.setZoomRatio(target) }
+        }
+
         val plan = remember(
             args.tableTemplateState,
             args.scopeNextCounter,
@@ -232,6 +244,7 @@ internal fun CameraPreviewArea(
             previewContentRect = previewContentRect,
             previewRequest = previewRequest,
             showWmPreview = args.showWmPreview,
+            showGrid = args.showGrid,
             capturedUri = capturedUri,
             continuousPreviewMode = args.continuousPreviewMode,
             aspectRatio = captureAspect.ratioF,

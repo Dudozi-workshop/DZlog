@@ -13,9 +13,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -28,16 +30,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.LifecycleOwner
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
+import com.example.dzlog.data.preferences.KEY_CAMERA_GRID_ON
+import com.example.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_SAVE_MODE
 import com.example.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
@@ -76,6 +82,7 @@ import com.example.dzlog.feature.capture.permission.hasCameraPermission
 import com.example.dzlog.feature.capture.policy.stabilizeStreamNextCounter
 import com.example.dzlog.ui.camera.controls.CameraTopBarSection
 import com.example.dzlog.ui.camera.controls.CaptureButtonSection
+import com.example.dzlog.ui.camera.controls.ZoomControlSection
 import com.example.dzlog.ui.camera.controls.handleCaptureClick
 import com.example.dzlog.ui.camera.preview.CameraPreviewArea
 import com.example.dzlog.ui.camera.preview.CameraPreviewAreaArgs
@@ -85,6 +92,7 @@ import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.util.Date
 
 // NOTE: buildWatermarkConfig는 다른 파일(핸들러)에서도 사용되므로 file-private 금지
@@ -144,6 +152,7 @@ fun CameraPreview(
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
+    var zoomPanelExpanded by remember { mutableStateOf(false) }
     val ui = remember { CameraUiState() }
 
     val tableResolver = remember { TableResolver() }
@@ -257,6 +266,8 @@ fun CameraPreview(
                     tableResolver,
                     ui.capture.now,
                     ui.prefs.showWmPreview,
+                    ui.prefs.showGrid,
+                    ui.prefs.zoomRatioTenths,
                     ui.prefs.wmTableAnchor,
                     ui.prefs.wmTableWidthRatio,
                     ui.prefs.wmTableHeightRatio,
@@ -283,6 +294,8 @@ fun CameraPreview(
                         tableResolver = tableResolver,
                         now = ui.capture.now,
                         showWmPreview = ui.prefs.showWmPreview,
+                        showGrid = ui.prefs.showGrid,
+                        zoomRatioTenths = ui.prefs.zoomRatioTenths,
                         watermarkUi = WatermarkUiArgs(
                             anchor = ui.prefs.wmTableAnchor,
                             tableWidthRatio = ui.prefs.wmTableWidthRatio,
@@ -308,6 +321,17 @@ fun CameraPreview(
                     onTapFocusUiChange = { ui.capture.tapFocusUi = it }
                 )
             }
+        }
+
+        if (zoomPanelExpanded) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { zoomPanelExpanded = false }
+            )
         }
 
         Box(
@@ -343,42 +367,57 @@ fun CameraPreview(
             val enabledNow =
                 (boundImageCapture != null && ui.capture.capturedUri == null && !ui.capture.isCapturing)
 
-            CaptureButtonSection(
-                ready = enabledNow,
-                onClick = {
-                    handleCaptureClick(
-                        context = context,
-                        gate = ui.capture.captureGate,
-                        imageCapture = boundImageCapture,
-                        capturedUriPresent = (ui.capture.capturedUri != null),
-                        continuousPreviewMode = ui.prefs.continuousPreviewMode,
-                        tableResolver = tableResolver,
-                        tableTemplateState = tableTemplateState,
-                        counterDigits = ui.prefs.counterDigits,
-                        dateFormat = dateFormat,
-                        timeFormat = timeFormat,
-                        fnDelim = fnDelim,
-                        scopeNextCounter = ui.counter.scopeNextCounter,
-                        captureAspect = ui.prefs.captureAspect,
-                        saveMode = ui.prefs.saveMode,
-                        wmTableAnchor = ui.prefs.wmTableAnchor,
-                        wmOffsetXRatio = ui.prefs.wmOffsetXRatio,
-                        wmOffsetYRatio = ui.prefs.wmOffsetYRatio,
-                        wmTableWidthRatio = ui.prefs.wmTableWidthRatio,
-                        wmTableHeightRatio = ui.prefs.wmTableHeightRatio,
-                        wmBgAlpha = ui.prefs.wmBgAlpha,
-                        wmBgStyle = ui.prefs.wmBgStyle,
-                        wmLabelScale = ui.prefs.wmLabelScale,
-                        wmValueScale = ui.prefs.wmValueScale,
-                        repository = repository,
-                        buildWatermarkConfig = ::buildWatermarkConfig,
-                        onApplyTemplatePatch = { onTemplateChange(it) },
-                        onUpdateScopeNextCounter = { ui.counter.scopeNextCounter = it },
-                        onSetCapturedUri = { ui.capture.capturedUri = it },
-                        onSetCapturing = { ui.capture.isCapturing = it }
-                    )
-                }
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                ZoomControlSection(
+                    zoomRatioTenths = ui.prefs.zoomRatioTenths,
+                    expanded = zoomPanelExpanded,
+                    onToggleExpanded = { zoomPanelExpanded = !zoomPanelExpanded },
+                    onZoomTenthsChange = { next ->
+                        val normalized = next.coerceIn(10, 20)
+                        ui.prefs.zoomRatioTenths = normalized
+                        scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
+                    }
+                )
+
+                Box(modifier = Modifier.height(DDZSpacing.itemGap))
+
+                CaptureButtonSection(
+                    ready = enabledNow,
+                    onClick = {
+                        handleCaptureClick(
+                            context = context,
+                            gate = ui.capture.captureGate,
+                            imageCapture = boundImageCapture,
+                            capturedUriPresent = (ui.capture.capturedUri != null),
+                            continuousPreviewMode = ui.prefs.continuousPreviewMode,
+                            tableResolver = tableResolver,
+                            tableTemplateState = tableTemplateState,
+                            counterDigits = ui.prefs.counterDigits,
+                            dateFormat = dateFormat,
+                            timeFormat = timeFormat,
+                            fnDelim = fnDelim,
+                            scopeNextCounter = ui.counter.scopeNextCounter,
+                            captureAspect = ui.prefs.captureAspect,
+                            saveMode = ui.prefs.saveMode,
+                            wmTableAnchor = ui.prefs.wmTableAnchor,
+                            wmOffsetXRatio = ui.prefs.wmOffsetXRatio,
+                            wmOffsetYRatio = ui.prefs.wmOffsetYRatio,
+                            wmTableWidthRatio = ui.prefs.wmTableWidthRatio,
+                            wmTableHeightRatio = ui.prefs.wmTableHeightRatio,
+                            wmBgAlpha = ui.prefs.wmBgAlpha,
+                            wmBgStyle = ui.prefs.wmBgStyle,
+                            wmLabelScale = ui.prefs.wmLabelScale,
+                            wmValueScale = ui.prefs.wmValueScale,
+                            repository = repository,
+                            buildWatermarkConfig = ::buildWatermarkConfig,
+                            onApplyTemplatePatch = { onTemplateChange(it) },
+                            onUpdateScopeNextCounter = { ui.counter.scopeNextCounter = it },
+                            onSetCapturedUri = { ui.capture.capturedUri = it },
+                            onSetCapturing = { ui.capture.isCapturing = it }
+                        )
+                    }
+                )
+            }
         }
 
         if (ui.showWizard) {
@@ -387,6 +426,8 @@ fun CameraPreview(
                 scope = scope,
                 showWmPreview = ui.prefs.showWmPreview,
                 onShowWmPreviewChange = { ui.prefs.showWmPreview = it },
+                showGrid = ui.prefs.showGrid,
+                onShowGridChange = { ui.prefs.showGrid = it },
                 continuousPreviewMode = ui.prefs.continuousPreviewMode,
                 onContinuousPreviewModeChange = { ui.prefs.continuousPreviewMode = it },
                 onOpenTableEditor = onOpenTableEditor,
@@ -576,12 +617,16 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
 
         ui.prefs.counterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
         ui.prefs.showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
+        ui.prefs.showGrid = prefs[KEY_CAMERA_GRID_ON] ?: false
+        ui.prefs.zoomRatioTenths = (prefs[KEY_CAMERA_ZOOM_TENTHS] ?: 10).coerceIn(10, 20)
     } catch (_: Exception) {
         ui.prefs.captureAspect = CaptureAspect.R3_4
         ui.prefs.saveMode = SaveMode.WATERMARK_ONLY
         ui.prefs.continuousPreviewMode = ContinuousPreviewMode.OFF
         ui.prefs.counterDigits = COUNTER_DIGITS_DEFAULT
         ui.prefs.showWmPreview = true
+        ui.prefs.showGrid = false
+        ui.prefs.zoomRatioTenths = 10
         ui.prefs.wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
         ui.prefs.wmTableWidthRatio = 40
         ui.prefs.wmTableHeightRatio = 20

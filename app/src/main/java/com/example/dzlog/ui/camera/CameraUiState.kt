@@ -22,6 +22,8 @@ internal class CameraPrefsState {
     var saveMode by mutableStateOf(SaveMode.BOTH)
     var continuousPreviewMode by mutableStateOf(ContinuousPreviewMode.OFF)
     var counterDigits by mutableIntStateOf(COUNTER_DIGITS_DEFAULT)
+    var showGrid by mutableStateOf(false)
+    var zoomRatioTenths by mutableIntStateOf(10)
 
     var showWmPreview by mutableStateOf(true)
     var wmTableAnchor by mutableStateOf(WatermarkTableAnchor.BOTTOM_RIGHT)

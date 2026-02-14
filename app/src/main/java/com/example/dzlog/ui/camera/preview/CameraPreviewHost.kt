@@ -23,6 +23,7 @@ internal fun CameraPreviewHost(
     previewContentRect: RectF?,
     previewRequest: CaptureRequest,
     showWmPreview: Boolean,
+    showGrid: Boolean,
     capturedUri: Uri?,
     continuousPreviewMode: ContinuousPreviewMode,
     aspectRatio: Float,
@@ -39,6 +40,11 @@ internal fun CameraPreviewHost(
     // Tap-to-focus UI (ring)
     if (tapFocusUi != null) {
         FocusRingOverlay(tapFocusUi)
+    }
+
+
+    if (showGrid) {
+        CameraGridOverlay()
     }
 
     WatermarkPreviewOverlay(

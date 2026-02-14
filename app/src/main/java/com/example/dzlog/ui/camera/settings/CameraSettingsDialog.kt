@@ -18,6 +18,7 @@ import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
+import com.example.dzlog.data.preferences.KEY_CAMERA_GRID_ON
 import com.example.dzlog.data.preferences.KEY_SAVE_MODE
 import com.example.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
 import com.example.dzlog.data.preferences.dataStore
@@ -44,6 +45,8 @@ internal fun CameraSettingsDialog(
     scope: CoroutineScope,
     showWmPreview: Boolean,
     onShowWmPreviewChange: (Boolean) -> Unit,
+    showGrid: Boolean,
+    onShowGridChange: (Boolean) -> Unit,
     continuousPreviewMode: ContinuousPreviewMode,
     onContinuousPreviewModeChange: (ContinuousPreviewMode) -> Unit,
     onOpenTableEditor: () -> Unit,
@@ -72,6 +75,19 @@ internal fun CameraSettingsDialog(
                         scope.launch {
                             context.dataStore.edit { prefs: MutablePreferences ->
                                 prefs[KEY_SHOW_WM_PREVIEW] = if (checked) 1 else 0
+                            }
+                        }
+                    }
+                )
+                Spacer(Modifier.height(DDZSpacing.sectionGap))
+
+                CameraGridToggleSection(
+                    checked = showGrid,
+                    onCheckedChange = { checked ->
+                        onShowGridChange(checked)
+                        scope.launch {
+                            context.dataStore.edit { prefs: MutablePreferences ->
+                                prefs[KEY_CAMERA_GRID_ON] = checked
                             }
                         }
                     }

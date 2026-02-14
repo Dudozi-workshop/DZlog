@@ -50,5 +50,7 @@ internal data class CameraPreviewAreaArgs(
     val tableResolver: TableResolver,
     val now: Date,
     val showWmPreview: Boolean,
+    val showGrid: Boolean,
+    val zoomRatioTenths: Int,
     val watermarkUi: WatermarkUiArgs
 )
