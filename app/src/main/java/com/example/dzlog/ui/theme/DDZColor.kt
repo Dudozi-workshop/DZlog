@@ -13,6 +13,4 @@ object DDZColor {
     val TextMuted = Color(0xFF665F59)
     val IconMuted = Color(0xFFA69F99)
     val Success = Color(0xFF7C8F6B)
-    val Warning = Color(0xFFC08A3E)
-    val Error = Color(0xFFC2534B)
 }

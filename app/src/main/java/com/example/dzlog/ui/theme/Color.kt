@@ -10,7 +10,6 @@ val Beige200 = Color(0xFFEADCC7)
 // Primary (Light Brown)
 val SandBrown = Color(0xFFC8A67A)
 val LatteBrown = Color(0xFFB89063)
-val CocoaBrown = Color(0xFF7B5A3A)
 
 // Secondary (Sage Green)
 val SageGreen = Color(0xFF8FA98B)
