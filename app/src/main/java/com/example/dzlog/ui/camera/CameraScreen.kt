@@ -240,14 +240,14 @@ fun CameraPreview(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(0.18f)
+                    .weight(0.12f)
                     .background(DDZColor.PrimaryDark)
             )
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(0.64f),
+                    .weight(0.70f),
                 contentAlignment = Alignment.Center
             ) {
                 val previewAreaArgs = remember(

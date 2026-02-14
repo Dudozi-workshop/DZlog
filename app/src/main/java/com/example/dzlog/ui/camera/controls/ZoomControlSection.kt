@@ -36,7 +36,7 @@ internal fun ZoomControlSection(
         horizontalArrangement = Arrangement.Center,
         modifier = Modifier
             .background(
-                color = DDZColor.PrimaryDark.copy(alpha = if (expanded) 0.72f else 0.45f),
+                color = DDZColor.PrimaryDark.copy(alpha = if (expanded) 0.36f else 0.20f),
                 shape = RoundedCornerShape(999.dp)
             )
             .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -45,7 +45,7 @@ internal fun ZoomControlSection(
             modifier = Modifier
                 .defaultMinSize(minWidth = 42.dp, minHeight = 30.dp)
                 .background(
-                    color = DDZColor.PrimaryDark.copy(alpha = 0.85f),
+                    color = DDZColor.PrimaryDark.copy(alpha = 0.50f),
                     shape = RoundedCornerShape(999.dp)
                 )
                 .clickable(onClick = onToggleExpanded)
