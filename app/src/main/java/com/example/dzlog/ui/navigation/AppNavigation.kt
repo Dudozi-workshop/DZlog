@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_VALUE")
+
 package com.example.dzlog.ui.navigation
 
 import android.widget.Toast

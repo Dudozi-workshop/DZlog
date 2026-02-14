@@ -1,4 +1,5 @@
 @file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@file:Suppress("UNUSED_VALUE")
 
 package com.example.dzlog.ui.log
 
