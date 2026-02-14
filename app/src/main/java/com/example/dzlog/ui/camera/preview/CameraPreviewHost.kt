@@ -27,6 +27,7 @@ internal fun CameraPreviewHost(
     capturedUri: Uri?,
     continuousPreviewMode: ContinuousPreviewMode,
     aspectRatio: Float,
+    captureAspectRatio: Float,
     onDismissCaptured: () -> Unit,
     tapFocusUi: TapFocusUiState?
 ) {
@@ -34,7 +35,13 @@ internal fun CameraPreviewHost(
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { _: Context -> previewView },
-        update = { it.scaleType = PreviewView.ScaleType.FILL_CENTER }
+        update = { it.scaleType = PreviewView.ScaleType.FIT_CENTER }
+    )
+
+
+    CaptureAreaMaskOverlay(
+        captureAspectRatio = captureAspectRatio,
+        maskAlpha = 0.7f
     )
 
     // Tap-to-focus UI (ring)

@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,7 +33,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.LifecycleOwner
@@ -121,7 +118,7 @@ fun CameraScreen(
         if (!hasPermission) launcher.launch(Manifest.permission.CAMERA)
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(DDZColor.PrimaryDark.copy(alpha = 0.35f))) {
+    Box(modifier = Modifier.fillMaxSize().background(DDZColor.PrimaryDark.copy(alpha = 0f))) {
         if (hasPermission) {
             CameraPreview(
                 onExitToHome = onExitToHome,
@@ -236,101 +233,78 @@ fun CameraPreview(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DDZColor.PrimaryDark.copy(alpha = 0.35f))
+            .background(DDZColor.PrimaryDark.copy(alpha = 0f))
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.08f)
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.75f),
-                contentAlignment = Alignment.Center
-            ) {
-                val previewAreaArgs = remember(
-                    context,
-                    lifecycleOwner,
-                    scope,
-                    ui.prefs.captureAspect,
-                    ui.prefs.saveMode,
-                    ui.prefs.continuousPreviewMode,
-                    ui.prefs.counterDigits,
-                    dateFormat,
-                    timeFormat,
-                    fnDelim,
-                    ui.counter.scopeNextCounter,
-                    tableTemplateState,
-                    tableResolver,
-                    ui.capture.now,
-                    ui.prefs.showWmPreview,
-                    ui.prefs.showGrid,
-                    ui.prefs.zoomRatioTenths,
-                    ui.prefs.wmTableAnchor,
-                    ui.prefs.wmTableWidthRatio,
-                    ui.prefs.wmTableHeightRatio,
-                    ui.prefs.wmOffsetXRatio,
-                    ui.prefs.wmOffsetYRatio,
-                    ui.prefs.wmBgAlpha,
-                    ui.prefs.wmBgStyle,
-                    ui.prefs.wmLabelScale,
-                    ui.prefs.wmValueScale
-                ) {
-                    CameraPreviewAreaArgs(
-                        context = context,
-                        lifecycleOwner = lifecycleOwner,
-                        scope = scope,
-                        captureAspect = ui.prefs.captureAspect,
-                        saveMode = ui.prefs.saveMode,
-                        continuousPreviewMode = ui.prefs.continuousPreviewMode,
-                        counterDigits = ui.prefs.counterDigits,
-                        dateFormat = dateFormat,
-                        timeFormat = timeFormat,
-                        fnDelim = fnDelim,
-                        scopeNextCounter = ui.counter.scopeNextCounter,
-                        tableTemplateState = tableTemplateState,
-                        tableResolver = tableResolver,
-                        now = ui.capture.now,
-                        showWmPreview = ui.prefs.showWmPreview,
-                        showGrid = ui.prefs.showGrid,
-                        zoomRatioTenths = ui.prefs.zoomRatioTenths,
-                        watermarkUi = WatermarkUiArgs(
-                            anchor = ui.prefs.wmTableAnchor,
-                            tableWidthRatio = ui.prefs.wmTableWidthRatio,
-                            tableHeightRatio = ui.prefs.wmTableHeightRatio,
-                            offsetXRatio = ui.prefs.wmOffsetXRatio,
-                            offsetYRatio = ui.prefs.wmOffsetYRatio,
-                            bgAlpha = ui.prefs.wmBgAlpha,
-                            bgStyle = ui.prefs.wmBgStyle,
-                            labelScale = ui.prefs.wmLabelScale,
-                            valueScale = ui.prefs.wmValueScale
-                        )
-                    )
-                }
-
-                val previewVerticalOffset = when (ui.prefs.captureAspect) {
-                    CaptureAspect.R9_16 -> (-24).dp
-                    CaptureAspect.R3_4 -> (-16).dp
-                    CaptureAspect.R1_1 -> (-12).dp
-                }
-
-                Box(modifier = Modifier.offset(y = previewVerticalOffset)) {
-                    CameraPreviewArea(
-                    args = previewAreaArgs,
-                    boundCamera = boundCamera,
-                    onBoundCameraChange = { boundCamera = it },
-                    onBoundImageCaptureChange = { boundImageCapture = it },
-                    capturedUri = ui.capture.capturedUri,
-                    onDismissCaptured = { ui.capture.capturedUri = null },
-                    tapFocusUi = ui.capture.tapFocusUi,
-                    onTapFocusUiChange = { ui.capture.tapFocusUi = it }
+        val previewAreaArgs = remember(
+            context,
+            lifecycleOwner,
+            scope,
+            ui.prefs.captureAspect,
+            ui.prefs.saveMode,
+            ui.prefs.continuousPreviewMode,
+            ui.prefs.counterDigits,
+            dateFormat,
+            timeFormat,
+            fnDelim,
+            ui.counter.scopeNextCounter,
+            tableTemplateState,
+            tableResolver,
+            ui.capture.now,
+            ui.prefs.showWmPreview,
+            ui.prefs.showGrid,
+            ui.prefs.zoomRatioTenths,
+            ui.prefs.wmTableAnchor,
+            ui.prefs.wmTableWidthRatio,
+            ui.prefs.wmTableHeightRatio,
+            ui.prefs.wmOffsetXRatio,
+            ui.prefs.wmOffsetYRatio,
+            ui.prefs.wmBgAlpha,
+            ui.prefs.wmBgStyle,
+            ui.prefs.wmLabelScale,
+            ui.prefs.wmValueScale
+        ) {
+            CameraPreviewAreaArgs(
+                context = context,
+                lifecycleOwner = lifecycleOwner,
+                scope = scope,
+                captureAspect = ui.prefs.captureAspect,
+                saveMode = ui.prefs.saveMode,
+                continuousPreviewMode = ui.prefs.continuousPreviewMode,
+                counterDigits = ui.prefs.counterDigits,
+                dateFormat = dateFormat,
+                timeFormat = timeFormat,
+                fnDelim = fnDelim,
+                scopeNextCounter = ui.counter.scopeNextCounter,
+                tableTemplateState = tableTemplateState,
+                tableResolver = tableResolver,
+                now = ui.capture.now,
+                showWmPreview = ui.prefs.showWmPreview,
+                showGrid = ui.prefs.showGrid,
+                zoomRatioTenths = ui.prefs.zoomRatioTenths,
+                watermarkUi = WatermarkUiArgs(
+                    anchor = ui.prefs.wmTableAnchor,
+                    tableWidthRatio = ui.prefs.wmTableWidthRatio,
+                    tableHeightRatio = ui.prefs.wmTableHeightRatio,
+                    offsetXRatio = ui.prefs.wmOffsetXRatio,
+                    offsetYRatio = ui.prefs.wmOffsetYRatio,
+                    bgAlpha = ui.prefs.wmBgAlpha,
+                    bgStyle = ui.prefs.wmBgStyle,
+                    labelScale = ui.prefs.wmLabelScale,
+                    valueScale = ui.prefs.wmValueScale
                 )
-                }
-            }
+            )
         }
+
+        CameraPreviewArea(
+            args = previewAreaArgs,
+            boundCamera = boundCamera,
+            onBoundCameraChange = { boundCamera = it },
+            onBoundImageCaptureChange = { boundImageCapture = it },
+            capturedUri = ui.capture.capturedUri,
+            onDismissCaptured = { ui.capture.capturedUri = null },
+            tapFocusUi = ui.capture.tapFocusUi,
+            onTapFocusUiChange = { ui.capture.tapFocusUi = it }
+        )
 
 
         if (zoomPanelExpanded) {

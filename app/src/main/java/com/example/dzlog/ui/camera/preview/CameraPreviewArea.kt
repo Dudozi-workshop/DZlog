@@ -11,8 +11,7 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -32,7 +31,6 @@ import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.ui.camera.buildWatermarkConfig
 import com.example.dzlog.ui.camera.controller.bindCamera
-import com.example.dzlog.ui.camera.controller.resolvePreviewContentRect
 import com.example.dzlog.ui.camera.controller.startTapToFocus
 import com.example.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.delay
@@ -65,14 +63,13 @@ internal fun CameraPreviewArea(
 
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(captureAspect.ratioF)
-            .background(DDZColor.PrimaryDark)
+            .fillMaxSize()
+            .background(DDZColor.PrimaryDark.copy(alpha = 0f))
             .clipToBounds()
     ) {
         val previewView = remember(context) {
             PreviewView(context).apply {
-                scaleType = PreviewView.ScaleType.FILL_CENTER
+                scaleType = PreviewView.ScaleType.FIT_CENTER
                 implementationMode = PreviewView.ImplementationMode.COMPATIBLE
             }
         }
@@ -80,7 +77,11 @@ internal fun CameraPreviewArea(
         var previewContentRect by remember { mutableStateOf<RectF?>(null) }
 
         fun updatePreviewContentRect() {
-            previewContentRect = resolvePreviewContentRect(previewView)
+            previewContentRect = computeCaptureAreaRect(
+                widthPx = previewView.width.toFloat(),
+                heightPx = previewView.height.toFloat(),
+                captureAspectRatio = captureAspect.ratioF
+            )
             if (!previewLogged) {
                 val rect = previewContentRect
                 if (rect != null) {
@@ -93,7 +94,7 @@ internal fun CameraPreviewArea(
             }
         }
 
-        DisposableEffect(previewView, lifecycleOwner) {
+        DisposableEffect(previewView, lifecycleOwner, captureAspect) {
             val layoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
                 updatePreviewContentRect()
             }
@@ -113,6 +114,7 @@ internal fun CameraPreviewArea(
         }
 
         LaunchedEffect(captureAspect) {
+            updatePreviewContentRect()
             bindCamera(
                 context = context,
                 lifecycleOwner = lifecycleOwner,
@@ -248,6 +250,7 @@ internal fun CameraPreviewArea(
             capturedUri = capturedUri,
             continuousPreviewMode = args.continuousPreviewMode,
             aspectRatio = captureAspect.ratioF,
+            captureAspectRatio = captureAspect.ratioF,
             onDismissCaptured = onDismissCaptured,
             tapFocusUi = tapFocusUi
         )
