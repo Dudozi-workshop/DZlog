@@ -156,7 +156,6 @@ fun TableEditorScreen(
 
     var previewCounterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
 
-    var usedCounters by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var scopeNextCounter by remember { mutableIntStateOf(1) }
     var counterConflictDialogState by remember { mutableStateOf(TableCounterConflictDialogState()) }
     var preserveManualCounterSeed by remember { mutableStateOf(false) }
@@ -278,15 +277,7 @@ fun TableEditorScreen(
     var lastScopeSnapshot by remember { mutableStateOf<CounterScopeSnapshot?>(null) }
 
     LaunchedEffect(scopedCounterStream.scopeParts.scopeKey, previewCounterDigits, templateState) {
-        // ✅ 정책(스트림키=relativePathPrefix) 기준 usedCounters  nextCounter 계산
-        val used = CounterManager.getUsedCounters(
-            context = context,
-            relativePath = scopedCounterStream.captureStreamKey.relativePathKey,
-            counterPrefix = scopedCounterStream.captureStreamKey.prefix,
-            counterDigits = previewCounterDigits,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-        )
-        usedCounters = used
+        // ✅ 정책(스트림키=relativePathPrefix) 기준 nextCounter 계산
 
         val counterCell = templateState.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
         val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start ?: 1

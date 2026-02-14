@@ -6,6 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,7 +68,7 @@ fun AppRoot() {
     var gridItems by remember { mutableStateOf<List<com.example.dzlog.domain.model.MediaImageItem>>(emptyList()) }
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
-    var viewerStartIndex by remember { mutableStateOf(0) }
+    var viewerStartIndex by remember { mutableIntStateOf(0) }
 
     // 기존 상태
 
@@ -90,7 +92,7 @@ fun AppRoot() {
         )
     )
 
-    var lastBackPressedMs by remember { mutableStateOf(0L) }
+    var lastBackPressedMs by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(Unit) {
         orientationMode = try {
@@ -260,11 +262,6 @@ fun AppRoot() {
                     isSelectionMode = isSelectionMode,
                     selectedIds = selectedIds,
                     onItemsLoaded = { gridItems = it },
-                    onBack = {
-                        isSelectionMode = false
-                        selectedIds = emptySet()
-                        screen = AppScreen.ALBUM_G2
-                    },
                     onOpenViewer = { idx ->
                         viewerStartIndex = idx
                         screen = AppScreen.ALBUM_VIEWER

@@ -1,7 +1,6 @@
 package com.example.dzlog.data.repository
 
 import android.content.Context
-import android.graphics.Bitmap
 import androidx.camera.core.ImageCapture
 import com.example.dzlog.domain.model.CaptureRequest
 import com.example.dzlog.domain.model.LogEntry

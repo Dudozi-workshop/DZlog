@@ -63,7 +63,6 @@ fun LogGridScreen(
     isSelectionMode: Boolean,
     selectedIds: Set<Long>,
     onItemsLoaded: (List<MediaImageItem>) -> Unit,
-    onBack: () -> Unit,
     onOpenViewer: (startIndex: Int) -> Unit,
     onToggleSelection: (id: Long) -> Unit,
     onEnterSelectionWith: (id: Long) -> Unit,
@@ -81,7 +80,7 @@ fun LogGridScreen(
     val scope = rememberCoroutineScope()
     var reloadJob by remember { mutableStateOf<Job?>(null) }
 
-    fun reloadImages(_reason: String) {
+    fun reloadImages() {
         // ✅ MediaStore 변경 이벤트가 연속으로 들어올 수 있어 디바운스 처리
         reloadJob?.cancel()
         reloadJob = scope.launch {
@@ -109,7 +108,7 @@ fun LogGridScreen(
         ActivityResultContracts.StartIntentSenderForResult()
     ) {
         // 시스템 삭제 요청 결과에 상관없이 목록 재조회
-        reloadImages("deleteLauncher")
+        reloadImages()
         onExitSelection()
     }
 
@@ -119,7 +118,7 @@ fun LogGridScreen(
             uris = uris,
             onLaunchIntentSender = deleteLauncher::launch,
             onLegacyDeleteCompleted = {
-                reloadImages("deleteLegacy")
+                reloadImages()
                 onExitSelection()
             }
         )
@@ -128,7 +127,7 @@ fun LogGridScreen(
     LaunchedEffect(relativePath) {
         // 최초 진입 시 1회 로드
         if (items.isEmpty()) {
-            reloadImages("firstEnter")
+            reloadImages()
         }
     }
 
@@ -140,7 +139,7 @@ fun LogGridScreen(
             override fun onChange(selfChange: Boolean) {
                 // 선택 모드 중엔 자동 재조회로 UI가 흔들리고 버벅임이 심해져서 차단
                 if (isSelectionMode) return
-                reloadImages("contentObserver")
+                reloadImages()
             }
         }
 

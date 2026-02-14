@@ -181,24 +181,14 @@ fun LogViewerScreen(
 
                 // 1) 하단 액션 바(공유/삭제) — ViewerBottomBar는 딱 1번만 호출
                 if (!isSelectionMode) ViewerBottomBar(
-                    enabled = if (isSelectionMode) selectedIds.isNotEmpty() else items.isNotEmpty(),
+                    enabled = items.isNotEmpty(),
                     onShare = {
-                        val toShare: List<MediaImageItem> = if (isSelectionMode) {
-                            items.filter { selectedIds.contains(it.id) }
-                        } else {
-                            val current = items.getOrNull(pagerState.currentPage) ?: return@ViewerBottomBar
-                            listOf(current)
-                        }
-                        shareImages(context, toShare)
+                        val current = items.getOrNull(pagerState.currentPage) ?: return@ViewerBottomBar
+                        shareImages(context, listOf(current))
                     },
                     onDelete = {
-                        val toDelete: List<MediaImageItem> = if (isSelectionMode) {
-                            items.filter { selectedIds.contains(it.id) }
-                        } else {
-                            val current = items.getOrNull(pagerState.currentPage) ?: return@ViewerBottomBar
-                            listOf(current)
-                        }
-                        startDeleteRequest(toDelete.map { it.uri })
+                        val current = items.getOrNull(pagerState.currentPage) ?: return@ViewerBottomBar
+                        startDeleteRequest(listOf(current.uri))
                     }
                 )
             }
