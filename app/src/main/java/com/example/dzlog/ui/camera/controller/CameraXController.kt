@@ -11,9 +11,6 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.MeteringPoint
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCaseGroup
-import androidx.camera.core.ViewPort
-import androidx.camera.core.resolutionselector.AspectRatioStrategy
-import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
@@ -40,54 +37,40 @@ internal fun bindCamera(
         val rotation = previewView.display.rotation
         Log.d("DZlog", "BIND aspect=${aspect.label} w/h=${aspect.w}/${aspect.h}")
 
-        val cameraAspectRatio = aspect.toCameraXAspectRatio()
-
         val previewBuilder = Preview.Builder()
             .setTargetRotation(rotation)
-        if (cameraAspectRatio != null) {
-            previewBuilder.setResolutionSelector(
-                ResolutionSelector.Builder()
-                    .setAspectRatioStrategy(
-                        AspectRatioStrategy(
-                            cameraAspectRatio,
-                            AspectRatioStrategy.FALLBACK_RULE_AUTO
-                        )
-                    )
-                    .build()
-            )
-        }
         val preview = previewBuilder.build()
             .apply { surfaceProvider = previewView.surfaceProvider }
 
         val imageCaptureBuilder = ImageCapture.Builder()
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
             .setTargetRotation(rotation)
-        if (cameraAspectRatio != null) {
-            imageCaptureBuilder.setResolutionSelector(
-                ResolutionSelector.Builder()
-                    .setAspectRatioStrategy(
-                        AspectRatioStrategy(
-                            cameraAspectRatio,
-                            AspectRatioStrategy.FALLBACK_RULE_AUTO
-                        )
-                    )
-                    .build()
-            )
-        }
         val imageCapture = imageCaptureBuilder.build()
 
-        val viewPort = ViewPort.Builder(
-            Rational(aspect.w, aspect.h),
-            rotation
-        )
-            .setScaleType(ViewPort.FILL_CENTER)
-            .build()
-
-        val useCaseGroup = UseCaseGroup.Builder()
-            .setViewPort(viewPort)
+        // ✅ 프리뷰는 화면을 꽉 채우도록(FILL_CENTER) 그리고,
+        // ✅ 실제 저장 비율은 후처리(cropToAspect)로 맞추는 구조이므로
+        // CameraX ViewPort는 "PreviewView(화면)" 기준으로 잡아 Preview/ImageCapture의 FOV를 일치시킨다.
+        val groupBuilder = UseCaseGroup.Builder()
             .addUseCase(preview)
             .addUseCase(imageCapture)
-            .build()
+
+        // PreviewView가 레이아웃 된 상태면 viewPort를 가져올 수 있음(가능하면 이걸 우선)
+        val pv = previewView.viewPort
+        if (pv != null) {
+            groupBuilder.setViewPort(pv)
+        } else {
+            // 레이아웃 전이라 viewPort가 null인 경우: 화면 비율로 fallback
+            val w = previewView.width
+            val h = previewView.height
+            if (w > 0 && h > 0) {
+                groupBuilder.setViewPort(
+                    androidx.camera.core.ViewPort.Builder(Rational(w, h), rotation)
+                        .setScaleType(androidx.camera.core.ViewPort.FILL_CENTER)
+                        .build()
+                )
+            }
+        }
+        val useCaseGroup = groupBuilder.build()
 
         try {
             cameraProvider.unbindAll()
