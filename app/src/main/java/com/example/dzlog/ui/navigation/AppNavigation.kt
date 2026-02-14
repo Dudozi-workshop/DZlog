@@ -1,4 +1,4 @@
-@file:Suppress("UNUSED_VALUE")
+@file:Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 
 package com.example.dzlog.ui.navigation
 
@@ -133,6 +133,20 @@ fun AppRoot() {
         screen = target
     }
 
+    fun clearSelectionState() {
+        isSelectionMode = false
+        selectedIds = emptySet()
+    }
+
+    fun resetAlbumState(clearViewerStartIndex: Boolean) {
+        selectedG1 = null
+        selectedG2 = null
+        gridItems = emptyList()
+        clearSelectionState()
+        if (clearViewerStartIndex) viewerStartIndex = 0
+    }
+
+
     BackHandler(enabled = true) {
         // 기본 내비게이션(화면 기준)
         when (screen) {
@@ -154,8 +168,7 @@ fun AppRoot() {
 
             AppScreen.ALBUM_GRID -> {
                 if (isSelectionMode) {
-                    isSelectionMode = false
-                    selectedIds = emptySet()
+                    clearSelectionState()
                 } else {
                     screen = AppScreen.ALBUM_G2
                 }
@@ -173,20 +186,14 @@ fun AppRoot() {
             onStartCamera = { navigateTo(AppScreen.CAMERA) },
             onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
             onOpenAlbum = {
-                selectedG1 = null
-                selectedG2 = null
-                gridItems = emptyList()
-                isSelectionMode = false
-                selectedIds = emptySet()
-                viewerStartIndex = 0
+                resetAlbumState(clearViewerStartIndex = true)
                 navigateTo(AppScreen.ALBUM_G1)
             },
             onOpenRecentCaptureGrid = { g1, g2, startIndex ->
                 selectedG1 = g1
                 selectedG2 = g2
                 gridItems = emptyList()
-                isSelectionMode = false
-                selectedIds = emptySet()
+                clearSelectionState()
                 viewerStartIndex = startIndex
                 navigateTo(AppScreen.ALBUM_GRID)
             }
@@ -222,8 +229,7 @@ fun AppRoot() {
                     selectedG1 = g1
                     selectedG2 = null
                     gridItems = emptyList()
-                    isSelectionMode = false
-                    selectedIds = emptySet()
+                    clearSelectionState()
                     screen = AppScreen.ALBUM_G2
                 }
             )
@@ -243,8 +249,7 @@ fun AppRoot() {
                     onSelectG2 = { g2 ->
                         selectedG2 = g2
                         gridItems = emptyList()
-                        isSelectionMode = false
-                        selectedIds = emptySet()
+                        clearSelectionState()
                         screen = AppScreen.ALBUM_GRID
                     }
                 )
@@ -278,12 +283,11 @@ fun AppRoot() {
                         selectedIds = selectedIds + id
                     },
                     onExitSelection = {
-                        isSelectionMode = false
-                        selectedIds = emptySet()
+                        clearSelectionState()
                     },
                     onSelectAll = {
                         isSelectionMode = true
-                        selectedIds = gridItems.map { it.id }.toSet()
+                        selectedIds = gridItems.asSequence().map { it.id }.toSet()
                     }
                 )
             }
@@ -314,17 +318,15 @@ fun AppRoot() {
                         if (selectedIds.isEmpty()) isSelectionMode = false
                     },
                     onExitSelection = {
-                        isSelectionMode = false
-                        selectedIds = emptySet()
+                        clearSelectionState()
                     },
                     onSelectAll = {
                         isSelectionMode = true
-                        selectedIds = gridItems.map { it.id }.toSet()
+                        selectedIds = gridItems.asSequence().map { it.id }.toSet()
                     },
                     onItemsReloaded = { gridItems = it },
                     onRequestCloseViewer = {
-                        isSelectionMode = false
-                        selectedIds = emptySet()
+                        clearSelectionState()
                         screen = AppScreen.ALBUM_GRID
                     }
                 )

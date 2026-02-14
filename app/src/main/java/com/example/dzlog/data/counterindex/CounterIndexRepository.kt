@@ -15,12 +15,6 @@ class CounterIndexRepository private constructor(
     suspend fun getUsedCounters(relativePath: String, prefix: String): Set<Int> =
         dao.listCountersByPath(relativePath, prefix).toSet()
 
-    suspend fun getMaxCounter(relativePath: String, prefix: String): Int =
-        dao.maxCounterByPath(relativePath, prefix) ?: 0
-
-    suspend fun isDuplicate(relativePath: String, prefix: String, counterValue: Int): Boolean =
-        dao.existsCounter(relativePath, prefix, counterValue)
-
     /**
      * 촬영 시점 기록.
      * - 중복이면 무시(이미 사용된 카운터라는 의미)

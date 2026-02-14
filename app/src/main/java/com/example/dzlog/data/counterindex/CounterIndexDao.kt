@@ -16,16 +16,6 @@ interface CounterIndexDao {
     @Query("SELECT counterValue FROM counter_index WHERE relativePath = :relativePath AND prefix = :prefix")
     suspend fun listCountersByPath(relativePath: String, prefix: String): List<Int>
 
-    /** 경로별 최대 카운터 */
-    @Query("SELECT MAX(counterValue) FROM counter_index WHERE relativePath = :relativePath AND prefix = :prefix")
-    suspend fun maxCounterByPath(relativePath: String, prefix: String): Int?
-
-    /** 중복 여부 */
-    @Query(
-        "SELECT EXISTS(SELECT 1 FROM counter_index WHERE relativePath = :relativePath AND prefix = :prefix AND counterValue = :counterValue)"
-    )
-    suspend fun existsCounter(relativePath: String, prefix: String, counterValue: Int): Boolean
-
     /** mediaId 기반 정리(삭제/동기화) */
     @Query("DELETE FROM counter_index WHERE mediaId = :mediaId")
     suspend fun deleteByMediaId(mediaId: Long)

@@ -20,17 +20,6 @@ class DzlogMediaStoreReader(
 
     private val dzlogBaseLike = "Pictures/DZlog/%"
 
-    /**
-     * 1단(G1) 그룹 목록.
-     * - Pictures/DZlog/<G1>/
-     * - G1이 비어있는 경우("Pictures/DZlog/")는 (기본)으로 묶어서 반환
-     */
-    fun loadG1List(): List<String> {
-        val paths = queryDistinctRelativePaths(like = dzlogBaseLike)
-        val g1s = paths.map { extractG1(it) }.distinct()
-        // (기본)은 항상 맨 위로
-        return g1s.sortedWith(compareBy<String> { it != DEFAULT_G1 }.thenBy { it })
-    }
 
     /**
      * G1 목록 + 대표 썸네일/개수/최근날짜 요약.
@@ -96,25 +85,6 @@ class DzlogMediaStoreReader(
         }
     }
 
-    /**
-     * 특정 G1 하위의 2단(G2) 목록.
-     * - Pictures/DZlog/<G1>/<G2>/
-     * - G2가 없는 경우는 (기본)으로 묶어서 반환
-     */
-    fun loadG2List(g1: String): List<String> {
-        val g1Norm = normalizeG1(g1)
-
-        // 정책: G1이 (기본)인 경우는 "Pictures/DZlog/" 바로 아래에 저장된 결과물만 의미함.
-        // 이 경우 2단(G2) 탐색은 하지 않고 (기본)만 반환해서 바로 그리드로 이어지게 함.
-        if (g1Norm == DEFAULT_G1) return listOf(DEFAULT_G2)
-
-        val like = "Pictures/DZlog/$g1Norm/%"
-        val paths = queryDistinctRelativePaths(like = like)
-        val g2s = paths
-            .map { extractG2(it, g1Norm) }
-            .distinct()
-        return g2s.sortedWith(compareBy<String> { it != DEFAULT_G2 }.thenBy { it })
-    }
 
     /**
      * 특정 G1 하위의 G2 목록 + 대표 썸네일/개수/최근날짜 요약.
