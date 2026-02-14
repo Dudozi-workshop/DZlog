@@ -31,7 +31,7 @@ internal fun applyPathGroupAction(
         ?: return state
 
     val updated = when (action) {
-        PathGroupAction.NONE -> updateOnlyTargetGroupLevel(state, targetCellId, GroupLevel.NONE)
+        PathGroupAction.NONE -> clearTargetGroupLevel(state, targetCellId)
 
         PathGroupAction.G1 -> state.copy(
             cells = state.cells.map { cell ->
@@ -123,14 +123,13 @@ private fun pickDeterministicCandidate(
     return candidates.minByOrNull { it.cellId }?.cellId
 }
 
-private fun updateOnlyTargetGroupLevel(
+private fun clearTargetGroupLevel(
     state: TableTemplateState,
     cellId: String,
-    level: GroupLevel
 ): TableTemplateState {
     return state.copy(
         cells = state.cells.map { cell ->
-            if (cell.cellId == cellId) cell.copy(groupLevel = level) else cell
+            if (cell.cellId == cellId) cell.copy(groupLevel = GroupLevel.NONE) else cell
         }
     )
 }

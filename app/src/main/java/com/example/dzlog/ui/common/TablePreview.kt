@@ -56,10 +56,6 @@ fun TablePreview(
                 .fillMaxSize()
                 // 표 가독성을 위한 미세 여백 (프리뷰 전용)
                 .padding(4.dp),
-            tableWidthRatio = previewTableWidthRatio,
-            tableHeightRatio = previewTableHeightRatio,
-            offsetXRatio = 0,
-            offsetYRatio = 0,
             bgAlpha = wmBgAlpha.coerceIn(0, 255),
             valueScale = wmValueScale.coerceIn(60, 160),
         )

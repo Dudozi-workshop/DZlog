@@ -36,15 +36,15 @@ fun TableRender(
     bgColor: Color = Color(0xFFF2F2F2),
     // 워터마크 표 배경 스타일(0=BLACK, 1=WHITE, 2=TRANSPARENT)
     @IntRange(from = 0, to = 2) bgStyle: Int = 0,
-    // 미리보기에서는 최대한 크게 보여주되, Canvas 경계 안에서만 fit
-    tableWidthRatio: Int = 92,
-    tableHeightRatio: Int = 92,
-    // 표를 bounds 안에서 살짝 띄워서(마진) 그릴 때 사용
-    offsetXRatio: Int = 4,
-    offsetYRatio: Int = 4,
     bgAlpha: Int = 210,
     valueScale: Int = 100,
 ) {
+    // TableRender는 공용 프리뷰 렌더러로, 표 영역은 고정 프리뷰 비율을 사용한다.
+    val tableWidthRatio = 100
+    val tableHeightRatio = 35
+    val offsetXRatio = 0
+    val offsetYRatio = 0
+
     val resolver = remember { TableResolver() }
     val plan = remember(templateState, now, counterDigits) {
         resolver.plan(
