@@ -81,7 +81,7 @@ fun LogGridScreen(
     val scope = rememberCoroutineScope()
     var reloadJob by remember { mutableStateOf<Job?>(null) }
 
-    fun reloadImages(reason: String) {
+    fun reloadImages(_reason: String) {
         // ✅ MediaStore 변경 이벤트가 연속으로 들어올 수 있어 디바운스 처리
         reloadJob?.cancel()
         reloadJob = scope.launch {
@@ -96,11 +96,11 @@ fun LogGridScreen(
                 .onSuccess {
                     onItemsLoaded(it)
                     error = null
-                    isLoading = true
+                    isLoading = false
                 }
                 .onFailure { e ->
                     error = e.message ?: "불러오기 실패"
-                    isLoading = true
+                    isLoading = false
                 }
         }
     }
