@@ -53,7 +53,10 @@ internal fun CameraPreviewHost(
 
 
     if (showGrid) {
-        CameraGridOverlay()
+        CameraGridOverlay(
+            previewView = previewView,
+            captureAspectRatio = captureAspectRatio
+        )
     }
 
     WatermarkPreviewOverlay(

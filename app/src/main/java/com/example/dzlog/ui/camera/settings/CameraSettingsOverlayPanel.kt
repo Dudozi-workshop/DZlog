@@ -6,37 +6,42 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
+import com.example.dzlog.ui.theme.DDZTypography
 
-private const val PANEL_WIDTH_FRACTION = 0.48f
-private val PANEL_MAX_WIDTH = 360.dp
+private const val PANEL_WIDTH_FRACTION = 0.6f
+private val PANEL_MAX_WIDTH = 420.dp
 private const val PANEL_DIM_ALPHA = 0.2f
+private val SEGMENT_HEIGHT = 42.dp
 
 @Composable
 internal fun CameraSettingsOverlayPanel(
@@ -76,10 +81,10 @@ internal fun CameraSettingsOverlayPanel(
                 )
                 .fillMaxWidth(PANEL_WIDTH_FRACTION)
                 .widthIn(max = PANEL_MAX_WIDTH),
-            shape = MaterialTheme.shapes.medium,
-            tonalElevation = 6.dp,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+            tonalElevation = 0.dp,
             shadowElevation = 6.dp,
-            color = MaterialTheme.colorScheme.surface
+            color = DDZColor.Card.copy(alpha = 0.97f)
         ) {
             Column(
                 modifier = Modifier.padding(DDZSpacing.cardPadding),
@@ -90,164 +95,143 @@ internal fun CameraSettingsOverlayPanel(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "촬영 설정", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "촬영 설정",
+                        style = DDZTypography.SectionTitle,
+                        color = DDZColor.Primary
+                    )
                     IconButton(onClick = onDismiss) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "닫기")
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "닫기",
+                            tint = DDZColor.Primary
+                        )
                     }
                 }
 
-                HorizontalDivider()
+                HorizontalDivider(color = DDZColor.Border)
 
-                SingleChoiceSection(
-                    title = "촬영 비율",
+                SettingSectionTitle("촬영 비율")
+                ConnectedSegments(
                     options = listOf(
-                        SegmentOption("1:1", CaptureAspect.R1_1),
-                        SegmentOption("3:4", CaptureAspect.R3_4),
-                        SegmentOption("9:16", CaptureAspect.R9_16)
-                    ),
-                    selected = captureAspect,
-                    onSelect = onCaptureAspectChange
-                )
-
-                SingleChoiceSection(
-                    title = "저장 방식",
-                    options = listOf(
-                        SegmentOption("원본", SaveMode.ORIGINAL_ONLY),
-                        SegmentOption("워터마크", SaveMode.WATERMARK_ONLY),
-                        SegmentOption("둘 다", SaveMode.BOTH)
-                    ),
-                    selected = saveMode,
-                    onSelect = onSaveModeChange
-                )
-
-                ToggleSection(
-                    title = "화면 표기",
-                    toggles = listOf(
-                        ToggleOption("그리드", showGrid, onShowGridChange),
-                        ToggleOption("표", showTable, onShowTableChange)
+                        SegmentOption("1:1", captureAspect == CaptureAspect.R1_1) { onCaptureAspectChange(CaptureAspect.R1_1) },
+                        SegmentOption("3:4", captureAspect == CaptureAspect.R3_4) { onCaptureAspectChange(CaptureAspect.R3_4) },
+                        SegmentOption("9:16", captureAspect == CaptureAspect.R9_16) { onCaptureAspectChange(CaptureAspect.R9_16) }
                     )
                 )
 
-                SingleChoiceSection(
-                    title = "촬영 모드",
+                SettingSectionTitle("저장 방식")
+                ConnectedSegments(
                     options = listOf(
-                        SegmentOption("없음", ContinuousPreviewMode.OFF),
-                        SegmentOption("짧게", ContinuousPreviewMode.SHORT),
-                        SegmentOption("고정", ContinuousPreviewMode.HOLD)
-                    ),
-                    selected = continuousPreviewMode,
-                    onSelect = onContinuousPreviewModeChange
+                        SegmentOption("원본", saveMode == SaveMode.ORIGINAL_ONLY) { onSaveModeChange(SaveMode.ORIGINAL_ONLY) },
+                        SegmentOption("워터마크", saveMode == SaveMode.WATERMARK_ONLY) { onSaveModeChange(SaveMode.WATERMARK_ONLY) },
+                        SegmentOption("둘 다", saveMode == SaveMode.BOTH) { onSaveModeChange(SaveMode.BOTH) }
+                    )
+                )
+
+                SettingSectionTitle("촬영 모드")
+                ConnectedSegments(
+                    options = listOf(
+                        SegmentOption("없음", continuousPreviewMode == ContinuousPreviewMode.OFF) {
+                            onContinuousPreviewModeChange(ContinuousPreviewMode.OFF)
+                        },
+                        SegmentOption("짧게", continuousPreviewMode == ContinuousPreviewMode.SHORT) {
+                            onContinuousPreviewModeChange(ContinuousPreviewMode.SHORT)
+                        },
+                        SegmentOption("고정", continuousPreviewMode == ContinuousPreviewMode.HOLD) {
+                            onContinuousPreviewModeChange(ContinuousPreviewMode.HOLD)
+                        }
+                    )
+                )
+
+                SettingSectionTitle("화면 표기")
+                ConnectedSegments(
+                    options = listOf(
+                        SegmentOption("그리드", showGrid) { onShowGridChange(!showGrid) },
+                        SegmentOption("표", showTable) { onShowTableChange(!showTable) }
+                    )
                 )
             }
         }
     }
 }
 
-private data class SegmentOption<T>(
+private data class SegmentOption(
     val label: String,
-    val value: T
-)
-
-private data class ToggleOption(
-    val label: String,
-    val checked: Boolean,
-    val onChange: (Boolean) -> Unit
+    val selected: Boolean,
+    val onClick: () -> Unit
 )
 
 @Composable
-private fun <T> SingleChoiceSection(
-    title: String,
-    options: List<SegmentOption<T>>,
-    selected: T,
-    onSelect: (T) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
-        Text(text = title, style = MaterialTheme.typography.bodyMedium)
-        SegmentedButtons(
-            labels = options.map { it.label },
-            selectedIndex = options.indexOfFirst { it.value == selected }.coerceAtLeast(0),
-            onSelect = { index -> onSelect(options[index].value) }
-        )
-    }
+private fun SettingSectionTitle(title: String) {
+    Text(
+        text = title,
+        style = DDZTypography.Body,
+        color = DDZColor.Primary
+    )
 }
 
 @Composable
-private fun ToggleSection(
-    title: String,
-    toggles: List<ToggleOption>
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
-        Text(text = title, style = MaterialTheme.typography.bodyMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
-            toggles.forEach { toggle ->
-                val container = if (toggle.checked) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                }
-                val textColor = if (toggle.checked) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                }
-                Surface(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { toggle.onChange(!toggle.checked) },
-                    shape = MaterialTheme.shapes.small,
-                    color = container
-                ) {
-                    Text(
-                        text = toggle.label,
-                        modifier = Modifier.padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap),
-                        color = textColor,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SegmentedButtons(
-    labels: List<String>,
-    selectedIndex: Int,
-    onSelect: (Int) -> Unit,
-    contentPadding: PaddingValues = PaddingValues(0.dp)
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)
+private fun ConnectedSegments(options: List<SegmentOption>) {
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape),
+        shape = shape,
+        color = DDZColor.Surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, DDZColor.Border)
     ) {
-        labels.forEachIndexed { index, label ->
-            val isSelected = index == selectedIndex
-            val container = if (isSelected) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-            }
-            val textColor = if (isSelected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            }
-            Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onSelect(index) },
-                shape = MaterialTheme.shapes.small,
-                color = container
-            ) {
-                Text(
-                    text = label,
-                    modifier = Modifier
-                        .padding(contentPadding)
-                        .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap),
-                    color = textColor,
-                    style = MaterialTheme.typography.bodySmall
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(SEGMENT_HEIGHT)
+        ) {
+            options.forEachIndexed { index, option ->
+                SegmentItem(
+                    option = option,
+                    modifier = Modifier.weight(1f)
                 )
+                if (index != options.lastIndex) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(1.dp)
+                            .background(DDZColor.Border)
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun SegmentItem(
+    option: SegmentOption,
+    modifier: Modifier = Modifier
+) {
+    val background = if (option.selected) {
+        DDZColor.Success.copy(alpha = 0.28f)
+    } else {
+        DDZColor.Surface
+    }
+
+    val textColor = if (option.selected) DDZColor.Success else DDZColor.Primary
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(background)
+            .clickable(onClick = option.onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = option.label,
+            style = DDZTypography.Body,
+            color = textColor,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
