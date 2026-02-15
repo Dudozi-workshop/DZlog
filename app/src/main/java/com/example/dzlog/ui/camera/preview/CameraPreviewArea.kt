@@ -19,6 +19,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -81,20 +84,20 @@ internal fun CameraPreviewArea(
         }
 
         var captureRect by remember { mutableStateOf(RectF(0f, 0f, 0f, 0f)) }
-        var usableTopRatio by remember { mutableStateOf(0f) }
-        var usableBottomRatio by remember { mutableStateOf(1f) }
+        var usableTopRatio by remember { mutableFloatStateOf(0f) }
+        var usableBottomRatio by remember { mutableFloatStateOf(1f) }
         var watermarkRect by remember { mutableStateOf<RectF?>(null) }
         var watermarkDragActive by remember { mutableStateOf(false) }
-        var suppressWatermarkTapUntilMs by remember { mutableStateOf(0L) }
+        var suppressWatermarkTapUntilMs by remember { mutableLongStateOf(0L) }
         var isWatermarkArmed by remember { mutableStateOf(false) }
-        var previewOffsetX by remember { mutableStateOf(args.watermarkUi.offsetXRatio.coerceIn(0, 100)) }
-        var previewOffsetY by remember { mutableStateOf(args.watermarkUi.offsetYRatio.coerceIn(0, 100)) }
-        var dragStartLeftPx by remember { mutableStateOf(0f) }
-        var dragStartTopPx by remember { mutableStateOf(0f) }
-        var dragAccumDx by remember { mutableStateOf(0f) }
-        var dragAccumDy by remember { mutableStateOf(0f) }
+        var previewOffsetX by remember { mutableIntStateOf(args.watermarkUi.offsetXRatio.coerceIn(0, 100)) }
+        var previewOffsetY by remember { mutableIntStateOf(args.watermarkUi.offsetYRatio.coerceIn(0, 100)) }
+        var dragStartLeftPx by remember { mutableFloatStateOf(0f) }
+        var dragStartTopPx by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+        var dragAccumDx by remember { mutableFloatStateOf(0f) }
+        var dragAccumDy by remember { mutableFloatStateOf(0f) }
         var dragStartedAfterSlop by remember { mutableStateOf(false) }
-        var watermarkLastInteractionMs by remember { mutableStateOf(0L) }
+        var watermarkLastInteractionMs by remember { mutableLongStateOf(0L) }
         val dragTouchSlop = LocalViewConfiguration.current.touchSlop
 
         fun commitWatermarkOffsetIfNeeded() {
