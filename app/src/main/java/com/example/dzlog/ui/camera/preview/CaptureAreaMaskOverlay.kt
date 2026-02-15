@@ -9,6 +9,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.example.dzlog.domain.camera.computeAnchoredCaptureRect
 import com.example.dzlog.ui.theme.DDZColor
 
 private const val MASK_ALPHA = 0.8f
@@ -71,36 +72,9 @@ internal fun CaptureAreaMaskOverlay(
 internal fun computeCaptureAreaRect(
     contentRect: RectF,
     captureAspectRatio: Float
-): RectF {
-    if (contentRect.width() <= 0f || contentRect.height() <= 0f) {
-        return RectF(0f, 0f, 0f, 0f)
-    }
+): RectF = computeAnchoredCaptureRect(contentRect, captureAspectRatio).captureRect
 
-    val clampedAspect = captureAspectRatio.coerceAtLeast(0.01f)
-    val contentAspect = contentRect.width() / contentRect.height()
-
-    return if (contentAspect > clampedAspect) {
-        val targetWidth = contentRect.height() * clampedAspect
-        val side = ((contentRect.width() - targetWidth) / 2f).coerceAtLeast(0f)
-        RectF(
-            contentRect.left + side,
-            contentRect.top,
-            contentRect.right - side,
-            contentRect.bottom
-        )
-    } else {
-        val targetHeight = contentRect.width() / clampedAspect
-        val topBottom = ((contentRect.height() - targetHeight) / 2f).coerceAtLeast(0f)
-        RectF(
-            contentRect.left,
-            contentRect.top + topBottom,
-            contentRect.right,
-            contentRect.bottom - topBottom
-        )
-    }
-}
-
-private fun resolvePreviewContentRect(
+internal fun resolvePreviewContentRect(
     previewView: PreviewView,
     overlayWidth: Float,
     overlayHeight: Float

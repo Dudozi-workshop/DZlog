@@ -77,13 +77,13 @@ internal fun CameraPreviewArea(
         var previewContentRect by remember { mutableStateOf<RectF?>(null) }
 
         fun updatePreviewContentRect() {
+            val contentRect = resolvePreviewContentRect(
+                previewView = previewView,
+                overlayWidth = previewView.width.toFloat(),
+                overlayHeight = previewView.height.toFloat()
+            )
             previewContentRect = computeCaptureAreaRect(
-                contentRect = RectF(
-                    0f,
-                    0f,
-                    previewView.width.toFloat(),
-                    previewView.height.toFloat()
-                ),
+                contentRect = contentRect,
                 captureAspectRatio = captureAspect.ratioF
             )
             if (!previewLogged) {
@@ -91,7 +91,7 @@ internal fun CameraPreviewArea(
                 if (rect != null) {
                     Log.d(
                         "DZlogPreview",
-                        "Preview size=${rect.width().toInt()}x${rect.height().toInt()} aspect=${captureAspect.label} overlay-only (no bitmap)"
+                        "Preview crop=${rect.width().toInt()}x${rect.height().toInt()} aspect=${captureAspect.label} content=${contentRect.width().toInt()}x${contentRect.height().toInt()}"
                     )
                     previewLogged = true
                 }

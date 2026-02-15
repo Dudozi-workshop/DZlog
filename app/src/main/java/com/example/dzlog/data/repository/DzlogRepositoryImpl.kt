@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.graphics.RectF
+import android.util.Log
 import android.net.Uri
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -12,6 +14,7 @@ import androidx.exifinterface.media.ExifInterface
 import com.example.dzlog.data.log.LogEntity
 import com.example.dzlog.data.log.LogRepository
 import com.example.dzlog.data.mediastore.MediaStoreSaver
+import com.example.dzlog.domain.camera.computeAnchoredCaptureRect
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CaptureRequest
 import com.example.dzlog.domain.model.LogEntry
@@ -247,27 +250,28 @@ class DzlogRepositoryImpl(
     }
 
     private fun cropToAspect(source: Bitmap, aspect: CaptureAspect): Bitmap {
-        val targetRatio = aspect.w.toFloat() / aspect.h.toFloat()
         if (source.width == 0 || source.height == 0) return source
 
-        val srcRatio = source.width.toFloat() / source.height.toFloat()
-        if (kotlin.math.abs(srcRatio - targetRatio) < 0.001f) {
-            return source
-        }
+        val fullRect = RectF(0f, 0f, source.width.toFloat(), source.height.toFloat())
+        val framing = computeAnchoredCaptureRect(
+            contentRect = fullRect,
+            captureAspectRatio = aspect.ratioF
+        )
+        val targetRect = framing.captureRect
 
-        val (cropWidth, cropHeight) = if (srcRatio > targetRatio) {
-            val height = source.height
-            val width = (height * targetRatio).toInt().coerceAtMost(source.width)
-            width to height
-        } else {
-            val width = source.width
-            val height = (width / targetRatio).toInt().coerceAtMost(source.height)
-            width to height
-        }
+        val left = targetRect.left.toInt().coerceIn(0, source.width - 1)
+        val top = targetRect.top.toInt().coerceIn(0, source.height - 1)
+        val right = kotlin.math.ceil(targetRect.right.toDouble()).toInt().coerceIn(left + 1, source.width)
+        val bottom = kotlin.math.ceil(targetRect.bottom.toDouble()).toInt().coerceIn(top + 1, source.height)
 
-        val left = ((source.width - cropWidth) / 2f).toInt().coerceAtLeast(0)
-        val top = ((source.height - cropHeight) / 2f).toInt().coerceAtLeast(0)
+        val width = (right - left).coerceAtLeast(1)
+        val height = (bottom - top).coerceAtLeast(1)
 
-        return Bitmap.createBitmap(source, left, top, cropWidth, cropHeight)
+        Log.d(
+            "DZlogCrop",
+            "crop aspect=${aspect.label} src=${source.width}x${source.height} rect=($left,$top)-($right,$bottom) anchorY=${framing.anchorY}"
+        )
+
+        return Bitmap.createBitmap(source, left, top, width, height)
     }
 }
