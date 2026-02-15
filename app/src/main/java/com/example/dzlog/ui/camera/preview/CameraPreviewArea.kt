@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
@@ -92,6 +93,7 @@ internal fun CameraPreviewArea(
         var isWatermarkArmed by remember { mutableStateOf(false) }
         var previewOffsetX by remember { mutableStateOf(args.watermarkUi.offsetXRatio.coerceIn(0, 100)) }
         var previewOffsetY by remember { mutableStateOf(args.watermarkUi.offsetYRatio.coerceIn(0, 100)) }
+        var dragPreviewOffsetPx by remember { mutableStateOf<Offset?>(null) }
         var dragStartLeftPx by remember { mutableStateOf(0f) }
         var dragStartTopPx by remember { mutableStateOf(0f) }
         var dragAccumDx by remember { mutableStateOf(0f) }
@@ -109,8 +111,10 @@ internal fun CameraPreviewArea(
         }
 
         LaunchedEffect(args.watermarkUi.offsetXRatio, args.watermarkUi.offsetYRatio) {
+            if (watermarkDragActive || dragPreviewOffsetPx != null) return@LaunchedEffect
             previewOffsetX = args.watermarkUi.offsetXRatio.coerceIn(0, 100)
             previewOffsetY = args.watermarkUi.offsetYRatio.coerceIn(0, 100)
+            dragPreviewOffsetPx = null
         }
 
         LaunchedEffect(isWatermarkArmed, watermarkDragActive, watermarkLastInteractionMs) {
@@ -281,13 +285,14 @@ internal fun CameraPreviewArea(
                     val tableRect = watermarkRect
                     var dragEnabled = isWatermarkArmed && tableRect != null &&
                         tableRect.contains(firstDown.position.x, firstDown.position.y)
-                    watermarkDragActive = dragEnabled
+                    watermarkDragActive = false
                     if (dragEnabled && tableRect != null) {
                         dragStartLeftPx = tableRect.left - captureRect.left
                         dragStartTopPx = tableRect.top - captureRect.top
                         dragAccumDx = 0f
                         dragAccumDy = 0f
                         dragStartedAfterSlop = false
+                        dragPreviewOffsetPx = Offset(dragStartLeftPx, dragStartTopPx)
                         markWatermarkInteraction()
                     }
 
@@ -309,6 +314,7 @@ internal fun CameraPreviewArea(
                                 dragAccumDx = 0f
                                 dragAccumDy = 0f
                                 dragStartedAfterSlop = false
+                                dragPreviewOffsetPx = null
                             }
                             val zoom = event.calculateZoom()
                             if (abs(zoom - 1f) >= pinchScaleDeadZone) {
@@ -351,36 +357,62 @@ internal fun CameraPreviewArea(
                         val tableH = tableRectNow.height()
                         val maxX = (contentRect.width() - tableW).coerceAtLeast(0f)
                         val maxY = (contentRect.height() - tableH).coerceAtLeast(0f)
-                        if (maxX <= 0f || maxY <= 0f) continue
 
                         val delta = change.positionChange()
                         dragAccumDx += delta.x
                         dragAccumDy += delta.y
-                        if (change.positionChanged()) change.consume()
                         if (!dragStartedAfterSlop) {
                             val moved = hypot(dragAccumDx.toDouble(), dragAccumDy.toDouble()).toFloat()
                             if (moved < dragTouchSlop) continue
                             dragStartedAfterSlop = true
+                            watermarkDragActive = true
+                        }
+                        if (change.positionChanged()) change.consume()
+
+                        val nextLeftPx = if (maxX > 0f) {
+                            (dragStartLeftPx + dragAccumDx).coerceIn(0f, maxX)
+                        } else {
+                            0f
+                        }
+                        val nextTopPx = if (maxY > 0f) {
+                            (dragStartTopPx + dragAccumDy).coerceIn(0f, maxY)
+                        } else {
+                            0f
                         }
 
-                        val nextLeftPx = (dragStartLeftPx + dragAccumDx).coerceIn(0f, maxX)
-                        val nextTopPx = (dragStartTopPx + dragAccumDy).coerceIn(0f, maxY)
-                        val nextXRatio = ((nextLeftPx / maxX) * 100f).roundToInt().coerceIn(0, 100)
-                        val nextYRatio = ((nextTopPx / maxY) * 100f).roundToInt().coerceIn(0, 100)
-                        if (nextXRatio != previewOffsetX || nextYRatio != previewOffsetY) {
-                            previewOffsetX = nextXRatio
-                            previewOffsetY = nextYRatio
-                            args.onWatermarkOffsetRatioPreview(nextXRatio, nextYRatio)
-                            markWatermarkInteraction()
-                        }
+                        dragPreviewOffsetPx = Offset(nextLeftPx, nextTopPx)
+                        markWatermarkInteraction()
                     }
 
                     if (dragEnabled && dragStartedAfterSlop) {
                         suppressWatermarkTapUntilMs = SystemClock.uptimeMillis() + 180L
                         isWatermarkArmed = true
+
+                        val tableRectFinal = watermarkRect
+                        val tableW = tableRectFinal?.width() ?: 0f
+                        val tableH = tableRectFinal?.height() ?: 0f
+                        val maxX = (captureRect.width() - tableW).coerceAtLeast(0f)
+                        val maxY = (captureRect.height() - tableH).coerceAtLeast(0f)
+                        val committedOffset = dragPreviewOffsetPx ?: Offset(dragStartLeftPx, dragStartTopPx)
+                        val committedXRatio = if (maxX > 0f) {
+                            ((committedOffset.x / maxX) * 100f).roundToInt().coerceIn(0, 100)
+                        } else {
+                            0
+                        }
+                        val committedYRatio = if (maxY > 0f) {
+                            ((committedOffset.y / maxY) * 100f).roundToInt().coerceIn(0, 100)
+                        } else {
+                            0
+                        }
+
+                        previewOffsetX = committedXRatio
+                        previewOffsetY = committedYRatio
+                        args.onWatermarkOffsetRatioPreview(committedXRatio, committedYRatio)
+                        markWatermarkInteraction()
                         commitWatermarkOffsetIfNeeded()
                     }
                     watermarkDragActive = false
+                    dragPreviewOffsetPx = null
                     dragAccumDx = 0f
                     dragAccumDy = 0f
                     dragStartedAfterSlop = false
@@ -433,8 +465,8 @@ internal fun CameraPreviewArea(
             usableBottomRatio = usableBottomRatio,
             watermark = buildWatermarkConfig(
                 anchor = args.watermarkUi.anchor,
-                offsetXRatio = args.watermarkUi.offsetXRatio,
-                offsetYRatio = args.watermarkUi.offsetYRatio,
+                offsetXRatio = previewOffsetX,
+                offsetYRatio = previewOffsetY,
                 tableWidthRatio = args.watermarkUi.tableWidthRatio,
                 tableHeightRatio = args.watermarkUi.tableHeightRatio,
                 tableBgAlpha = args.watermarkUi.bgAlpha,
@@ -457,6 +489,7 @@ internal fun CameraPreviewArea(
             onDismissCaptured = onDismissCaptured,
             tapFocusUi = tapFocusUi,
             isWatermarkArmed = isWatermarkArmed,
+            watermarkOffsetOverridePx = dragPreviewOffsetPx,
             onWatermarkRectChange = { watermarkRect = it }
         )
 

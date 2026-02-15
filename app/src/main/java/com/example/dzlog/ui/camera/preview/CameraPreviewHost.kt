@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.dzlog.domain.model.CaptureRequest
@@ -31,6 +32,7 @@ internal fun CameraPreviewHost(
     onDismissCaptured: () -> Unit,
     tapFocusUi: TapFocusUiState?,
     isWatermarkArmed: Boolean,
+    watermarkOffsetOverridePx: Offset?,
     onWatermarkRectChange: (RectF?) -> Unit
 ) {
     @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
@@ -57,6 +59,7 @@ internal fun CameraPreviewHost(
         enabled = showWmPreview,
         request = previewRequest,
         previewContentRect = previewContentRect,
+        overrideOffsetPx = watermarkOffsetOverridePx,
         isArmed = isWatermarkArmed,
         onTableRectChange = onWatermarkRectChange
     )

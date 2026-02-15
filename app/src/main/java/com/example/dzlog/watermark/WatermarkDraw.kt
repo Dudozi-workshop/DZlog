@@ -55,6 +55,46 @@ fun computeWatermarkTableLayout(
     )
 }
 
+fun computeWatermarkTableLayoutPx(
+    bounds: RectF,
+    anchor: WatermarkTableAnchor,
+    offsetLeftPx: Float,
+    offsetTopPx: Float,
+    tableHeightRatio: Int,
+    tableWidthRatio: Int
+): WatermarkTableLayout {
+    val w = bounds.width()
+    val h = bounds.height()
+    val base = w
+    val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
+    val tableH = base * (tableHeightRatio.coerceIn(10, 35) / 100f)
+
+    val maxX = (w - tableW).coerceAtLeast(0f)
+    val maxY = (h - tableH).coerceAtLeast(0f)
+
+    val left = bounds.left + when (anchor) {
+        WatermarkTableAnchor.TOP_LEFT,
+        WatermarkTableAnchor.BOTTOM_LEFT -> 0f
+        WatermarkTableAnchor.TOP_RIGHT,
+        WatermarkTableAnchor.BOTTOM_RIGHT -> maxX
+        WatermarkTableAnchor.CUSTOM -> offsetLeftPx.coerceIn(0f, maxX)
+    }
+
+    val top = bounds.top + when (anchor) {
+        WatermarkTableAnchor.TOP_LEFT,
+        WatermarkTableAnchor.TOP_RIGHT -> 0f
+        WatermarkTableAnchor.BOTTOM_LEFT,
+        WatermarkTableAnchor.BOTTOM_RIGHT -> maxY
+        WatermarkTableAnchor.CUSTOM -> offsetTopPx.coerceIn(0f, maxY)
+    }
+
+    return WatermarkTableLayout(
+        rect = RectF(left, top, left + tableW, top + tableH),
+        maxX = maxX,
+        maxY = maxY
+    )
+}
+
 private fun drawBackgroundRect(
     canvas: Canvas,
     left: Float,
@@ -241,16 +281,33 @@ fun drawWatermarkTableOnCanvas(
     valueScale: Int,
     rowWeights: List<Float>? = null,
     colWeights: List<Float>? = null,
-    bgStyle: Int = BG_STYLE_BLACK
+    bgStyle: Int = BG_STYLE_BLACK,
+    overrideOffsetLeftPx: Float? = null,
+    overrideOffsetTopPx: Float? = null
 ) {
-    val layout = computeWatermarkTableLayout(
-        bounds = bounds,
-        anchor = anchor,
-        offsetXRatio = offsetXRatio,
-        offsetYRatio = offsetYRatio,
-        tableHeightRatio = tableHeightRatio,
-        tableWidthRatio = tableWidthRatio
-    )
+    val layout = if (
+        anchor == WatermarkTableAnchor.CUSTOM &&
+        overrideOffsetLeftPx != null &&
+        overrideOffsetTopPx != null
+    ) {
+        computeWatermarkTableLayoutPx(
+            bounds = bounds,
+            anchor = anchor,
+            offsetLeftPx = overrideOffsetLeftPx,
+            offsetTopPx = overrideOffsetTopPx,
+            tableHeightRatio = tableHeightRatio,
+            tableWidthRatio = tableWidthRatio
+        )
+    } else {
+        computeWatermarkTableLayout(
+            bounds = bounds,
+            anchor = anchor,
+            offsetXRatio = offsetXRatio,
+            offsetYRatio = offsetYRatio,
+            tableHeightRatio = tableHeightRatio,
+            tableWidthRatio = tableWidthRatio
+        )
+    }
     val tableW = layout.rect.width()
     val tableH = layout.rect.height()
     val left = layout.rect.left

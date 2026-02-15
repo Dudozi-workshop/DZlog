@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -12,8 +13,10 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.CaptureRequest
+import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.watermark.computeWatermarkTableLayout
+import com.example.dzlog.watermark.computeWatermarkTableLayoutPx
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 
 /**
@@ -25,6 +28,7 @@ fun WatermarkPreviewOverlay(
     enabled: Boolean,
     request: CaptureRequest,
     previewContentRect: RectF?,
+    overrideOffsetPx: Offset?,
     isArmed: Boolean,
     onTableRectChange: (RectF?) -> Unit
 ) {
@@ -33,14 +37,25 @@ fun WatermarkPreviewOverlay(
         return
     }
 
-    val layout = computeWatermarkTableLayout(
-        bounds = previewContentRect,
-        anchor = request.watermark.anchor,
-        offsetXRatio = request.watermark.offsetXRatio,
-        offsetYRatio = request.watermark.offsetYRatio,
-        tableHeightRatio = request.watermark.tableHeightRatio,
-        tableWidthRatio = request.watermark.tableWidthRatio
-    )
+    val layout = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM && overrideOffsetPx != null) {
+        computeWatermarkTableLayoutPx(
+            bounds = previewContentRect,
+            anchor = request.watermark.anchor,
+            offsetLeftPx = overrideOffsetPx.x,
+            offsetTopPx = overrideOffsetPx.y,
+            tableHeightRatio = request.watermark.tableHeightRatio,
+            tableWidthRatio = request.watermark.tableWidthRatio
+        )
+    } else {
+        computeWatermarkTableLayout(
+            bounds = previewContentRect,
+            anchor = request.watermark.anchor,
+            offsetXRatio = request.watermark.offsetXRatio,
+            offsetYRatio = request.watermark.offsetYRatio,
+            tableHeightRatio = request.watermark.tableHeightRatio,
+            tableWidthRatio = request.watermark.tableWidthRatio
+        )
+    }
 
     LaunchedEffect(layout.rect.left, layout.rect.top, layout.rect.right, layout.rect.bottom) {
         onTableRectChange(RectF(layout.rect))
@@ -69,14 +84,16 @@ fun WatermarkPreviewOverlay(
                 bgAlpha = request.watermark.tableBgAlpha,
                 bgStyle = request.watermark.bgStyle,
                 labelScale = request.watermark.labelScale,
-                valueScale = request.watermark.valueScale
+                valueScale = request.watermark.valueScale,
+                overrideOffsetLeftPx = overrideOffsetPx?.x,
+                overrideOffsetTopPx = overrideOffsetPx?.y
             )
         }
 
         if (isArmed) {
             drawRect(
                 color = DDZColor.Surface.copy(alpha = 0.85f),
-                topLeft = androidx.compose.ui.geometry.Offset(layout.rect.left, layout.rect.top),
+                topLeft = Offset(layout.rect.left, layout.rect.top),
                 size = androidx.compose.ui.geometry.Size(layout.rect.width(), layout.rect.height()),
                 style = Stroke(width = 2.dp.toPx())
             )
