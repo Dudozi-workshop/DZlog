@@ -40,8 +40,11 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -104,6 +107,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
 
+private val USABLE_VERTICAL_MARGIN = 10.dp
+
 // NOTE: buildWatermarkConfig는 다른 파일(핸들러)에서도 사용되므로 file-private 금지
 @Composable
 fun CameraScreen(
@@ -161,6 +166,9 @@ fun CameraPreview(
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     var zoomPanelExpanded by remember { mutableStateOf(false) }
     val ui = remember { CameraUiState() }
+    var settingsButtonBottomY by remember { mutableStateOf<Float?>(null) }
+    var shutterButtonTopY by remember { mutableStateOf<Float?>(null) }
+    val usableVerticalMarginPx = with(LocalDensity.current) { USABLE_VERTICAL_MARGIN.toPx() }
 
     val tableResolver = remember { TableResolver() }
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
@@ -281,7 +289,10 @@ fun CameraPreview(
             ui.prefs.wmBgAlpha,
             ui.prefs.wmBgStyle,
             ui.prefs.wmLabelScale,
-            ui.prefs.wmValueScale
+            ui.prefs.wmValueScale,
+            settingsButtonBottomY,
+            shutterButtonTopY,
+            usableVerticalMarginPx
         ) {
             CameraPreviewAreaArgs(
                 context = context,
@@ -306,6 +317,13 @@ fun CameraPreview(
                     val normalized = next.coerceIn(10, 20)
                     ui.prefs.zoomRatioTenths = normalized
                     scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
+                },
+                settingsButtonBottomY = settingsButtonBottomY,
+                shutterButtonTopY = shutterButtonTopY,
+                usableVerticalMarginPx = usableVerticalMarginPx,
+                onUsableVerticalRatioChange = { topRatio, bottomRatio ->
+                    ui.capture.usableTopRatio = topRatio
+                    ui.capture.usableBottomRatio = bottomRatio
                 },
                 onWatermarkOffsetRatioPreview = { x, y ->
                     ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
@@ -395,6 +413,9 @@ fun CameraPreview(
                 modifier = Modifier
                     .background(DDZColor.PrimaryDark.copy(alpha = 0f))
                     .defaultMinSize(minHeight = 32.dp)
+                    .onGloballyPositioned { coordinates ->
+                        settingsButtonBottomY = coordinates.positionInRoot().y + coordinates.size.height
+                    }
                     .clickable { ui.showWizard = true }
                     .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
             ) {
@@ -429,9 +450,14 @@ fun CameraPreview(
 
                 Box(modifier = Modifier.height(DDZSpacing.itemGap))
 
-                CaptureButtonSection(
-                    ready = enabledNow,
-                    onClick = {
+                Box(
+                    modifier = Modifier.onGloballyPositioned { coordinates ->
+                        shutterButtonTopY = coordinates.positionInRoot().y
+                    }
+                ) {
+                    CaptureButtonSection(
+                        ready = enabledNow,
+                        onClick = {
                         if (zoomPanelExpanded) {
                             zoomPanelExpanded = false
                             return@CaptureButtonSection
@@ -460,6 +486,8 @@ fun CameraPreview(
                             wmBgStyle = ui.prefs.wmBgStyle,
                             wmLabelScale = ui.prefs.wmLabelScale,
                             wmValueScale = ui.prefs.wmValueScale,
+                            usableTopRatio = ui.capture.usableTopRatio,
+                            usableBottomRatio = ui.capture.usableBottomRatio,
                             repository = repository,
                             buildWatermarkConfig = ::buildWatermarkConfig,
                             onApplyTemplatePatch = { onTemplateChange(it) },
@@ -467,8 +495,9 @@ fun CameraPreview(
                             onSetCapturedUri = { ui.capture.capturedUri = it },
                             onSetCapturing = { ui.capture.isCapturing = it }
                         )
-                    }
-                )
+                        }
+                    )
+                }
             }
         }
 

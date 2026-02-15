@@ -25,6 +25,10 @@ data class CaptureRequest(
     // 표 템플릿(레이아웃 정보)
     val tableTemplate: TableTemplateState,
 
+    // contentRect 기준 usable 세로 경계 비율(0..1). 저장 크롭/오버레이 정렬 공유용
+    val usableTopRatio: Float = 0f,
+    val usableBottomRatio: Float = 1f,
+
     // 워터마크 렌더 입력
     val watermark: WatermarkConfig
 )

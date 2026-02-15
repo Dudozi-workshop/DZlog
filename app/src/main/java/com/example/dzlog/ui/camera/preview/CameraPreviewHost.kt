@@ -41,10 +41,7 @@ internal fun CameraPreviewHost(
     )
 
 
-    CaptureAreaMaskOverlay(
-        previewView = previewView,
-        captureAspectRatio = captureAspectRatio,
-    )
+    CaptureAreaMaskOverlay(captureRect = previewContentRect)
 
     // Tap-to-focus UI (ring)
     if (tapFocusUi != null) {
@@ -53,10 +50,7 @@ internal fun CameraPreviewHost(
 
 
     if (showGrid) {
-        CameraGridOverlay(
-            previewView = previewView,
-            captureAspectRatio = captureAspectRatio
-        )
+        CameraGridOverlay(captureRect = previewContentRect)
     }
 
     WatermarkPreviewOverlay(

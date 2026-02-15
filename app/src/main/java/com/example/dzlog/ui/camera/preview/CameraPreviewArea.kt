@@ -79,6 +79,8 @@ internal fun CameraPreviewArea(
         }
 
         var captureRect by remember { mutableStateOf(RectF(0f, 0f, 0f, 0f)) }
+        var usableTopRatio by remember { mutableStateOf(0f) }
+        var usableBottomRatio by remember { mutableStateOf(1f) }
         var watermarkRect by remember { mutableStateOf<RectF?>(null) }
         var watermarkDragActive by remember { mutableStateOf(false) }
         var suppressWatermarkTapUntilMs by remember { mutableStateOf(0L) }
@@ -127,14 +129,25 @@ internal fun CameraPreviewArea(
                 overlayWidth = previewView.width.toFloat(),
                 overlayHeight = previewView.height.toFloat()
             )
+            val usableRect = resolveUsableRect(
+                contentRect = contentRect,
+                settingsButtonBottomY = args.settingsButtonBottomY,
+                shutterButtonTopY = args.shutterButtonTopY,
+                verticalMarginPx = args.usableVerticalMarginPx
+            )
             captureRect = computeCaptureAreaRect(
                 contentRect = contentRect,
-                captureAspectRatio = captureAspect.ratioF
+                captureAspectRatio = captureAspect.ratioF,
+                usableRect = usableRect
             )
+            val (nextTopRatio, nextBottomRatio) = computeUsableVerticalRatios(contentRect, usableRect)
+            usableTopRatio = nextTopRatio
+            usableBottomRatio = nextBottomRatio
+            args.onUsableVerticalRatioChange(nextTopRatio, nextBottomRatio)
             if (!previewLogged) {
                 Log.d(
                     "DZlogPreview",
-                    "Preview crop=${captureRect.width().toInt()}x${captureRect.height().toInt()} aspect=${captureAspect.label} content=${contentRect.width().toInt()}x${contentRect.height().toInt()}"
+                    "Preview crop=${captureRect.width().toInt()}x${captureRect.height().toInt()} aspect=${captureAspect.label} content=${contentRect.width().toInt()}x${contentRect.height().toInt()} usableTop=${usableRect.top.toInt()} usableBottom=${usableRect.bottom.toInt()}"
                 )
                 previewLogged = true
             }
@@ -159,7 +172,7 @@ internal fun CameraPreviewArea(
             }
         }
 
-        LaunchedEffect(captureAspect) {
+        LaunchedEffect(captureAspect, args.settingsButtonBottomY, args.shutterButtonTopY, args.usableVerticalMarginPx) {
             updateCaptureRect()
             bindCamera(
                 context = context,
@@ -371,6 +384,8 @@ internal fun CameraPreviewArea(
             saveMode = args.saveMode,
             captureAspect = captureAspect,
             tableTemplate = args.tableTemplateState,
+            usableTopRatio = usableTopRatio,
+            usableBottomRatio = usableBottomRatio,
             watermark = buildWatermarkConfig(
                 anchor = args.watermarkUi.anchor,
                 offsetXRatio = args.watermarkUi.offsetXRatio,

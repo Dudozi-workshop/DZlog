@@ -16,21 +16,10 @@ private const val MASK_ALPHA = 0.9f
 
 @Composable
 internal fun CaptureAreaMaskOverlay(
-    previewView: PreviewView,
-    captureAspectRatio: Float
+    captureRect: RectF?
 ) {
     Canvas(modifier = Modifier.fillMaxSize()) {
-        val contentRect = resolvePreviewContentRect(
-            previewView = previewView,
-            overlayWidth = size.width,
-            overlayHeight = size.height
-        )
-
-        val rect = computeCaptureAreaRect(
-            contentRect = contentRect,
-            captureAspectRatio = captureAspectRatio
-        )
-
+        val rect = captureRect ?: return@Canvas
         if (rect.width() <= 0f || rect.height() <= 0f) return@Canvas
 
         val color = DDZColor.PrimaryDark.copy(alpha = MASK_ALPHA)
@@ -71,8 +60,36 @@ internal fun CaptureAreaMaskOverlay(
 
 internal fun computeCaptureAreaRect(
     contentRect: RectF,
-    captureAspectRatio: Float
-): RectF = computeAnchoredCaptureRect(contentRect, captureAspectRatio).captureRect
+    captureAspectRatio: Float,
+    usableRect: RectF = contentRect
+): RectF = computeAnchoredCaptureRect(usableRect, captureAspectRatio).captureRect
+
+internal fun resolveUsableRect(
+    contentRect: RectF,
+    settingsButtonBottomY: Float?,
+    shutterButtonTopY: Float?,
+    verticalMarginPx: Float
+): RectF {
+    if (contentRect.width() <= 0f || contentRect.height() <= 0f) return RectF(contentRect)
+
+    val safeMargin = verticalMarginPx.coerceAtLeast(0f)
+    val resolvedTop = ((settingsButtonBottomY ?: contentRect.top) + safeMargin)
+        .coerceIn(contentRect.top, contentRect.bottom)
+    val resolvedBottom = ((shutterButtonTopY ?: contentRect.bottom) - safeMargin)
+        .coerceIn(contentRect.top, contentRect.bottom)
+
+    val top = minOf(resolvedTop, resolvedBottom)
+    val bottom = maxOf(resolvedTop, resolvedBottom)
+
+    return RectF(contentRect.left, top, contentRect.right, bottom)
+}
+
+internal fun computeUsableVerticalRatios(contentRect: RectF, usableRect: RectF): Pair<Float, Float> {
+    val height = contentRect.height().coerceAtLeast(1f)
+    val topRatio = ((usableRect.top - contentRect.top) / height).coerceIn(0f, 1f)
+    val bottomRatio = ((usableRect.bottom - contentRect.top) / height).coerceIn(0f, 1f)
+    return topRatio to bottomRatio
+}
 
 internal fun resolvePreviewContentRect(
     previewView: PreviewView,

@@ -15,7 +15,6 @@ import com.example.dzlog.data.log.LogEntity
 import com.example.dzlog.data.log.LogRepository
 import com.example.dzlog.data.mediastore.MediaStoreSaver
 import com.example.dzlog.domain.camera.computeAnchoredCaptureRect
-import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CaptureRequest
 import com.example.dzlog.domain.model.LogEntry
 import com.example.dzlog.domain.model.SaveMode
@@ -85,7 +84,7 @@ class DzlogRepositoryImpl(
                                 ?: throw IllegalStateException("촬영 이미지 디코딩 실패")
                             val exif = ExifInterface(tmpFile)
                             val orientedBmp = applyExifOrientation(decodedBmp, exif)
-                            val originalBmp = cropToAspect(orientedBmp, request.captureAspect)
+                            val originalBmp = cropToAspect(orientedBmp, request)
 
                             val baseRel = buildRelativePath(request.group1, request.group2)
                             val origRel = buildOriginalRelativePath(request.group1, request.group2)
@@ -249,13 +248,23 @@ class DzlogRepositoryImpl(
         return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
     }
 
-    private fun cropToAspect(source: Bitmap, aspect: CaptureAspect): Bitmap {
+    private fun cropToAspect(source: Bitmap, request: CaptureRequest): Bitmap {
         if (source.width == 0 || source.height == 0) return source
 
         val fullRect = RectF(0f, 0f, source.width.toFloat(), source.height.toFloat())
+        val usableTop = (fullRect.top + (fullRect.height() * request.usableTopRatio.coerceIn(0f, 1f)))
+            .coerceIn(fullRect.top, fullRect.bottom)
+        val usableBottom = (fullRect.top + (fullRect.height() * request.usableBottomRatio.coerceIn(0f, 1f)))
+            .coerceIn(fullRect.top, fullRect.bottom)
+        val usableRect = RectF(
+            fullRect.left,
+            minOf(usableTop, usableBottom),
+            fullRect.right,
+            maxOf(usableTop, usableBottom)
+        )
         val framing = computeAnchoredCaptureRect(
-            contentRect = fullRect,
-            captureAspectRatio = aspect.ratioF
+            contentRect = usableRect,
+            captureAspectRatio = request.captureAspect.ratioF
         )
         val targetRect = framing.captureRect
 
@@ -269,7 +278,7 @@ class DzlogRepositoryImpl(
 
         Log.d(
             "DZlogCrop",
-            "crop aspect=${aspect.label} src=${source.width}x${source.height} rect=($left,$top)-($right,$bottom) anchorY=${framing.anchorY}"
+            "crop aspect=${request.captureAspect.label} src=${source.width}x${source.height} rect=($left,$top)-($right,$bottom) usable=(${usableRect.top.toInt()}-${usableRect.bottom.toInt()}) anchorY=${framing.anchorY}"
         )
 
         return Bitmap.createBitmap(source, left, top, width, height)

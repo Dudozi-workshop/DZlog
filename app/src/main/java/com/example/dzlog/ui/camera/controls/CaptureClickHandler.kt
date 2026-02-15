@@ -53,6 +53,8 @@ internal fun handleCaptureClick(
     wmBgStyle: Int,
     wmLabelScale: Int,
     wmValueScale: Int,
+    usableTopRatio: Float,
+    usableBottomRatio: Float,
     repository: DzlogRepositoryImpl,
     buildWatermarkConfig: (
         anchor: WatermarkTableAnchor,
@@ -115,6 +117,8 @@ internal fun handleCaptureClick(
         saveMode = saveMode,
         captureAspect = captureAspect,
         tableTemplate = tableTemplateState,
+        usableTopRatio = usableTopRatio.coerceIn(0f, 1f),
+        usableBottomRatio = usableBottomRatio.coerceIn(0f, 1f),
         // 함수 타입 호출에서는 named argument 금지 → positional로 호출해야 함
         watermark = buildWatermarkConfig(
             wmTableAnchor,
