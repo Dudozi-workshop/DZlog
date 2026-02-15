@@ -86,7 +86,7 @@ import com.example.dzlog.ui.camera.controls.handleCaptureClick
 import com.example.dzlog.ui.camera.preview.CameraPreviewArea
 import com.example.dzlog.ui.camera.preview.CameraPreviewAreaArgs
 import com.example.dzlog.ui.camera.preview.WatermarkUiArgs
-import com.example.dzlog.ui.camera.settings.CameraSettingsDialog
+import com.example.dzlog.ui.camera.settings.CameraSettingsOverlayPanel
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
 import kotlinx.coroutines.delay
@@ -444,22 +444,32 @@ fun CameraPreview(
         }
 
         if (ui.showWizard) {
-            CameraSettingsDialog(
-                context = context,
-                scope = scope,
-                showWmPreview = ui.prefs.showWmPreview,
-                onShowWmPreviewChange = { ui.prefs.showWmPreview = it },
-                showGrid = ui.prefs.showGrid,
-                onShowGridChange = { ui.prefs.showGrid = it },
-                continuousPreviewMode = ui.prefs.continuousPreviewMode,
-                onContinuousPreviewModeChange = { ui.prefs.continuousPreviewMode = it },
-                onOpenTableEditor = onOpenTableEditor,
+            CameraSettingsOverlayPanel(
                 captureAspect = ui.prefs.captureAspect,
-                onCaptureAspectChange = { ui.prefs.captureAspect = it },
+                onCaptureAspectChange = { aspect ->
+                    ui.prefs.captureAspect = aspect
+                    scope.launch { com.example.dzlog.data.preferences.persistCaptureAspect(context, aspect) }
+                },
                 saveMode = ui.prefs.saveMode,
-                onSaveModeChange = { ui.prefs.saveMode = it },
-                counterDigits = ui.prefs.counterDigits,
-                onCounterDigitsChange = { ui.prefs.counterDigits = it },
+                onSaveModeChange = { mode ->
+                    ui.prefs.saveMode = mode
+                    scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = mode.v } }
+                },
+                showGrid = ui.prefs.showGrid,
+                onShowGridChange = { checked ->
+                    ui.prefs.showGrid = checked
+                    scope.launch { context.dataStore.edit { it[KEY_CAMERA_GRID_ON] = checked } }
+                },
+                showTable = ui.prefs.showWmPreview,
+                onShowTableChange = { checked ->
+                    ui.prefs.showWmPreview = checked
+                    scope.launch { context.dataStore.edit { it[KEY_SHOW_WM_PREVIEW] = if (checked) 1 else 0 } }
+                },
+                continuousPreviewMode = ui.prefs.continuousPreviewMode,
+                onContinuousPreviewModeChange = { mode ->
+                    ui.prefs.continuousPreviewMode = mode
+                    scope.launch { context.dataStore.edit { it[KEY_CONTINUOUS_PREVIEW_MODE] = mode.v } }
+                },
                 onDismiss = { ui.showWizard = false }
             )
         }
