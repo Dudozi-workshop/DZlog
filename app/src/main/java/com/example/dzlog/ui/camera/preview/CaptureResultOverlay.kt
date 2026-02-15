@@ -50,11 +50,11 @@ fun CaptureResultOverlay(
             .background(Color.Black.copy(alpha = 0.5f))
             .clickable { onDismiss() }
             .zIndex(10f),
-        contentAlignment = Alignment.TopCenter
+        contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 60.dp)
+            modifier = Modifier
         ) {
             Box(
                 modifier = Modifier

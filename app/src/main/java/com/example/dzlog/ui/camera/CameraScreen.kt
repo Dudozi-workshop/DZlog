@@ -4,11 +4,16 @@ package com.example.dzlog.ui.camera
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.app.RecoverableSecurityException
+import android.net.Uri
+import android.os.Build
 import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
@@ -31,6 +36,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +44,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -229,6 +236,56 @@ fun CameraPreview(
 
     LaunchedEffect(Unit) { reloadLatestImage() }
     LaunchedEffect(mediaStoreRefreshTick) { reloadLatestImage() }
+
+    val sessionCaptureStack = remember { mutableStateListOf<Uri>() }
+    var pendingUndoDeleteUri by remember { mutableStateOf<Uri?>(null) }
+
+    val undoDeleteLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        val pendingUri = pendingUndoDeleteUri ?: return@rememberLauncherForActivityResult
+        if (result.resultCode == Activity.RESULT_OK) {
+            scope.launch { reloadLatestImage() }
+        } else {
+            sessionCaptureStack.add(pendingUri)
+        }
+        pendingUndoDeleteUri = null
+    }
+
+    fun launchScopedDeleteRequest(targetUri: Uri): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, listOf(targetUri))
+            pendingUndoDeleteUri = targetUri
+            undoDeleteLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
+            return true
+        }
+        return false
+    }
+
+    fun performUndoDelete() {
+        val targetUri = sessionCaptureStack.lastOrNull() ?: return
+        sessionCaptureStack.removeAt(sessionCaptureStack.lastIndex)
+
+        val deleted = runCatching {
+            val count = context.contentResolver.delete(targetUri, null, null)
+            count > 0
+        }.getOrElse { throwable ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && throwable is RecoverableSecurityException) {
+                pendingUndoDeleteUri = targetUri
+                undoDeleteLauncher.launch(
+                    IntentSenderRequest.Builder(throwable.userAction.actionIntent.intentSender).build()
+                )
+                return
+            }
+            false
+        }
+
+        if (!deleted) {
+            sessionCaptureStack.add(targetUri)
+            return
+        }
+        scope.launch { reloadLatestImage() }
+    }
 
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
     SyncCounterSeedEffect(
@@ -571,6 +628,7 @@ fun CameraPreview(
                             onUpdateScopeNextCounter = { ui.counter.scopeNextCounter = it },
                             onSetCapturedUri = {
                                 ui.capture.capturedUri = it
+                                it?.let(sessionCaptureStack::add)
                                 scope.launch { reloadLatestImage() }
                             },
                             onSetCapturing = { ui.capture.isCapturing = it }
@@ -578,6 +636,21 @@ fun CameraPreview(
                             }
                         )
                     }
+
+                    UndoCaptureButton(
+                        enabled = sessionCaptureStack.isNotEmpty() && pendingUndoDeleteUri == null,
+                        onClick = {
+                            if (pendingUndoDeleteUri != null) return@UndoCaptureButton
+                            if (launchScopedDeleteRequest(sessionCaptureStack.lastOrNull() ?: return@UndoCaptureButton)) {
+                                sessionCaptureStack.removeAt(sessionCaptureStack.lastIndex)
+                                return@UndoCaptureButton
+                            }
+                            performUndoDelete()
+                        },
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 16.dp)
+                    )
                 }
             }
         }
@@ -612,6 +685,29 @@ fun CameraPreview(
                 onDismiss = { ui.showWizard = false }
             )
         }
+    }
+}
+
+@Composable
+private fun UndoCaptureButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(48.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, DDZColor.Border, RoundedCornerShape(12.dp))
+            .background(DDZColor.Card.copy(alpha = if (enabled) 0.7f else 0.35f))
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Undo,
+            contentDescription = "Undo",
+            tint = DDZColor.TextPrimary.copy(alpha = if (enabled) 1f else 0.45f)
+        )
     }
 }
 
