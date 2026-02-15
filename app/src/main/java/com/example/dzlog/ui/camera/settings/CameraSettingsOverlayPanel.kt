@@ -41,7 +41,7 @@ import com.example.dzlog.ui.theme.DDZTypography
 private const val PANEL_WIDTH_FRACTION = 0.6f
 private val PANEL_MAX_WIDTH = 420.dp
 private const val PANEL_DIM_ALPHA = 0.2f
-private val SEGMENT_HEIGHT = 42.dp
+private val SEGMENT_HEIGHT = 38.dp
 
 @Composable
 internal fun CameraSettingsOverlayPanel(

@@ -11,5 +11,5 @@ object DDZTypography {
     val Body = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Normal)
     val Caption = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal)
     val ButtonText = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-    val SegmentSmall = TextStyle(fontSize = 8.sp, lineHeight = 10.sp, fontWeight = FontWeight.Medium)
+    val SegmentSmall = TextStyle(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium)
 }

@@ -37,7 +37,7 @@ internal fun CameraTopBarSection(
     ) {
         Box(
             modifier = Modifier
-                .background(DDZColor.PrimaryDark.copy(alpha = 0.4f))
+                .background(DDZColor.PrimaryDark.copy(alpha = 0f))
                 .clickable { onOpenSettings() }
                 .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
         ) {

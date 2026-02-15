@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import com.example.dzlog.domain.camera.computeAnchoredCaptureRect
 import com.example.dzlog.ui.theme.DDZColor
 
-private const val MASK_ALPHA = 0.8f
+private const val MASK_ALPHA = 0.9f
 
 @Composable
 internal fun CaptureAreaMaskOverlay(

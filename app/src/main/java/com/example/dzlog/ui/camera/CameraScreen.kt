@@ -13,12 +13,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -33,6 +36,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.LifecycleOwner
@@ -89,6 +94,7 @@ import com.example.dzlog.ui.camera.preview.WatermarkUiArgs
 import com.example.dzlog.ui.camera.settings.CameraSettingsOverlayPanel
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
+import com.example.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -364,15 +370,29 @@ fun CameraPreview(
 
         Box(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = DDZSpacing.screenPadding * 4),
-            contentAlignment = Alignment.Center
+                .align(Alignment.TopStart)
+                .padding(
+                    top = DDZSpacing.screenPadding + DDZSpacing.sectionGap + DDZSpacing.itemGap,
+                    start = DDZSpacing.screenPadding
+                )
         ) {
             Text(
                 text = topDisplayName,
-                color = DDZColor.Surface,
+                color = DDZColor.Primary,
+                style = DDZTypography.Caption,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .background(DDZColor.PrimaryDark.copy(alpha = 0.45f))
+                    .defaultMinSize(minHeight = 32.dp)
+                    .border(
+                        width = 1.dp,
+                        color = DDZColor.Border,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .background(
+                        color = DDZColor.Card.copy(alpha = 0.92f),
+                        shape = RoundedCornerShape(8.dp)
+                    )
                     .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
             )
         }
