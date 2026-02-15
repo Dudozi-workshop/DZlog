@@ -96,6 +96,9 @@ internal fun CameraPreviewArea(
         var dragPreviewOffsetPx by remember { mutableStateOf<Offset?>(null) }
         var dragStartLeftPx by remember { mutableStateOf(0f) }
         var dragStartTopPx by remember { mutableStateOf(0f) }
+        var dragTableWidthPx by remember { mutableStateOf(0f) }
+        var dragTableHeightPx by remember { mutableStateOf(0f) }
+        var pendingLocalOffsetSync by remember { mutableStateOf(false) }
         var dragAccumDx by remember { mutableStateOf(0f) }
         var dragAccumDy by remember { mutableStateOf(0f) }
         var dragStartedAfterSlop by remember { mutableStateOf(false) }
@@ -112,8 +115,14 @@ internal fun CameraPreviewArea(
 
         LaunchedEffect(args.watermarkUi.offsetXRatio, args.watermarkUi.offsetYRatio) {
             if (watermarkDragActive || dragPreviewOffsetPx != null) return@LaunchedEffect
-            previewOffsetX = args.watermarkUi.offsetXRatio.coerceIn(0, 100)
-            previewOffsetY = args.watermarkUi.offsetYRatio.coerceIn(0, 100)
+            val nextX = args.watermarkUi.offsetXRatio.coerceIn(0, 100)
+            val nextY = args.watermarkUi.offsetYRatio.coerceIn(0, 100)
+            if (pendingLocalOffsetSync && (nextX != previewOffsetX || nextY != previewOffsetY)) {
+                return@LaunchedEffect
+            }
+            previewOffsetX = nextX
+            previewOffsetY = nextY
+            pendingLocalOffsetSync = false
             dragPreviewOffsetPx = null
         }
 
@@ -277,7 +286,7 @@ internal fun CameraPreviewArea(
                     )
                 }
             }
-            .pointerInput(boundCamera, captureRect, watermarkRect, isWatermarkArmed) {
+            .pointerInput(boundCamera, captureRect, isWatermarkArmed) {
                 val pinchScaleDeadZone = 0.01f
                 awaitEachGesture {
                     val activeCamera = boundCamera ?: return@awaitEachGesture
@@ -289,6 +298,8 @@ internal fun CameraPreviewArea(
                     if (dragEnabled && tableRect != null) {
                         dragStartLeftPx = tableRect.left - captureRect.left
                         dragStartTopPx = tableRect.top - captureRect.top
+                        dragTableWidthPx = tableRect.width()
+                        dragTableHeightPx = tableRect.height()
                         dragAccumDx = 0f
                         dragAccumDy = 0f
                         dragStartedAfterSlop = false
@@ -315,6 +326,8 @@ internal fun CameraPreviewArea(
                                 dragAccumDy = 0f
                                 dragStartedAfterSlop = false
                                 dragPreviewOffsetPx = null
+                                dragTableWidthPx = 0f
+                                dragTableHeightPx = 0f
                             }
                             val zoom = event.calculateZoom()
                             if (abs(zoom - 1f) >= pinchScaleDeadZone) {
@@ -350,11 +363,10 @@ internal fun CameraPreviewArea(
 
                         if (!dragEnabled) continue
                         val change = event.changes.firstOrNull { it.pressed } ?: continue
-                        val tableRectNow = watermarkRect ?: continue
 
                         val contentRect = captureRect
-                        val tableW = tableRectNow.width()
-                        val tableH = tableRectNow.height()
+                        val tableW = dragTableWidthPx
+                        val tableH = dragTableHeightPx
                         val maxX = (contentRect.width() - tableW).coerceAtLeast(0f)
                         val maxY = (contentRect.height() - tableH).coerceAtLeast(0f)
 
@@ -369,18 +381,16 @@ internal fun CameraPreviewArea(
                         }
                         if (change.positionChanged()) change.consume()
 
-                        val nextLeftPx = if (maxX > 0f) {
-                            (dragStartLeftPx + dragAccumDx).coerceIn(0f, maxX)
-                        } else {
-                            0f
-                        }
-                        val nextTopPx = if (maxY > 0f) {
-                            (dragStartTopPx + dragAccumDy).coerceIn(0f, maxY)
-                        } else {
-                            0f
-                        }
+                        val nextOffsetPx = computeClampedDragOffsetPx(
+                            dragStartLeftPx = dragStartLeftPx,
+                            dragStartTopPx = dragStartTopPx,
+                            dragAccumDx = dragAccumDx,
+                            dragAccumDy = dragAccumDy,
+                            maxX = maxX,
+                            maxY = maxY
+                        )
 
-                        dragPreviewOffsetPx = Offset(nextLeftPx, nextTopPx)
+                        dragPreviewOffsetPx = nextOffsetPx
                         markWatermarkInteraction()
                     }
 
@@ -388,31 +398,28 @@ internal fun CameraPreviewArea(
                         suppressWatermarkTapUntilMs = SystemClock.uptimeMillis() + 180L
                         isWatermarkArmed = true
 
-                        val tableRectFinal = watermarkRect
-                        val tableW = tableRectFinal?.width() ?: 0f
-                        val tableH = tableRectFinal?.height() ?: 0f
+                        val tableW = dragTableWidthPx
+                        val tableH = dragTableHeightPx
                         val maxX = (captureRect.width() - tableW).coerceAtLeast(0f)
                         val maxY = (captureRect.height() - tableH).coerceAtLeast(0f)
                         val committedOffset = dragPreviewOffsetPx ?: Offset(dragStartLeftPx, dragStartTopPx)
-                        val committedXRatio = if (maxX > 0f) {
-                            ((committedOffset.x / maxX) * 100f).roundToInt().coerceIn(0, 100)
-                        } else {
-                            0
-                        }
-                        val committedYRatio = if (maxY > 0f) {
-                            ((committedOffset.y / maxY) * 100f).roundToInt().coerceIn(0, 100)
-                        } else {
-                            0
-                        }
+                        val (committedXRatio, committedYRatio) = computeOffsetRatioFromPx(
+                            committedOffsetPx = committedOffset,
+                            maxX = maxX,
+                            maxY = maxY
+                        )
 
                         previewOffsetX = committedXRatio
                         previewOffsetY = committedYRatio
+                        pendingLocalOffsetSync = true
                         args.onWatermarkOffsetRatioPreview(committedXRatio, committedYRatio)
                         markWatermarkInteraction()
                         commitWatermarkOffsetIfNeeded()
                     }
                     watermarkDragActive = false
                     dragPreviewOffsetPx = null
+                    dragTableWidthPx = 0f
+                    dragTableHeightPx = 0f
                     dragAccumDx = 0f
                     dragAccumDy = 0f
                     dragStartedAfterSlop = false
@@ -495,6 +502,45 @@ internal fun CameraPreviewArea(
 
         Box(modifier = gestureModifier)
     }
+}
+
+internal fun computeClampedDragOffsetPx(
+    dragStartLeftPx: Float,
+    dragStartTopPx: Float,
+    dragAccumDx: Float,
+    dragAccumDy: Float,
+    maxX: Float,
+    maxY: Float
+): Offset {
+    val nextLeftPx = if (maxX > 0f) {
+        (dragStartLeftPx + dragAccumDx).coerceIn(0f, maxX)
+    } else {
+        0f
+    }
+    val nextTopPx = if (maxY > 0f) {
+        (dragStartTopPx + dragAccumDy).coerceIn(0f, maxY)
+    } else {
+        0f
+    }
+    return Offset(nextLeftPx, nextTopPx)
+}
+
+internal fun computeOffsetRatioFromPx(
+    committedOffsetPx: Offset,
+    maxX: Float,
+    maxY: Float
+): Pair<Int, Int> {
+    val committedXRatio = if (maxX > 0f) {
+        ((committedOffsetPx.x / maxX) * 100f).roundToInt().coerceIn(0, 100)
+    } else {
+        0
+    }
+    val committedYRatio = if (maxY > 0f) {
+        ((committedOffsetPx.y / maxY) * 100f).roundToInt().coerceIn(0, 100)
+    } else {
+        0
+    }
+    return committedXRatio to committedYRatio
 }
 
 internal fun resolveZoomBounds(minSupported: Float, maxSupported: Float): Pair<Float, Float> {

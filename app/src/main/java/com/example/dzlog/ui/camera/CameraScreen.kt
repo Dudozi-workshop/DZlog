@@ -15,13 +15,14 @@ import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.asPaddingValues
@@ -41,7 +42,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -402,7 +402,7 @@ fun CameraPreview(
             )
         }
 
-        Row(
+        BoxWithConstraints(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(
@@ -410,10 +410,12 @@ fun CameraPreview(
                     start = DDZSpacing.screenPadding,
                     end = DDZSpacing.screenPadding
                 )
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxWidth()
         ) {
+            val settingsButtonReservedWidth = 32.dp + (DDZSpacing.cardPadding * 2)
+            val filenameMaxWidth = (maxWidth - settingsButtonReservedWidth - DDZSpacing.itemGap)
+                .coerceAtLeast(0.dp)
+
             Text(
                 text = topDisplayName,
                 color = DDZColor.Primary,
@@ -421,18 +423,19 @@ fun CameraPreview(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .weight(1f, fill = false)
+                    .align(Alignment.TopStart)
+                    .widthIn(max = filenameMaxWidth)
                     .defaultMinSize(minHeight = 32.dp)
                     .background(
                         color = DDZColor.Card.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(8.dp)
                     )
                     .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
-                    .padding(end = DDZSpacing.itemGap)
             )
 
             Box(
                 modifier = Modifier
+                    .align(Alignment.TopEnd)
                     .background(DDZColor.PrimaryDark.copy(alpha = 0f))
                     .defaultMinSize(minWidth = 32.dp, minHeight = 32.dp)
                     .onGloballyPositioned { coordinates ->
