@@ -412,43 +412,50 @@ fun CameraPreview(
                 )
                 .fillMaxWidth()
         ) {
+            val topBarMinHeight = 32.dp + (DDZSpacing.itemGap * 2)
             val settingsButtonReservedWidth = 32.dp + (DDZSpacing.cardPadding * 2)
             val filenameMaxWidth = (maxWidth - settingsButtonReservedWidth - DDZSpacing.itemGap)
                 .coerceAtLeast(0.dp)
 
-            Text(
-                text = topDisplayName,
-                color = DDZColor.Primary,
-                style = DDZTypography.Caption,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .widthIn(max = filenameMaxWidth)
-                    .defaultMinSize(minHeight = 32.dp)
-                    .background(
-                        color = DDZColor.Card.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
-            )
-
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .background(DDZColor.PrimaryDark.copy(alpha = 0f))
-                    .defaultMinSize(minWidth = 32.dp, minHeight = 32.dp)
-                    .onGloballyPositioned { coordinates ->
-                        settingsButtonBottomY = coordinates.positionInRoot().y + coordinates.size.height
-                    }
-                    .clickable { ui.showWizard = true }
-                    .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = topBarMinHeight)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "촬영 설정",
-                    tint = DDZColor.Surface
+                Text(
+                    text = topDisplayName,
+                    color = DDZColor.Primary,
+                    style = DDZTypography.Caption,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .widthIn(max = filenameMaxWidth)
+                        .defaultMinSize(minHeight = 32.dp)
+                        .background(
+                            color = DDZColor.Card.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
                 )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .background(DDZColor.PrimaryDark.copy(alpha = 0f))
+                        .defaultMinSize(minWidth = 32.dp, minHeight = 32.dp)
+                        .onGloballyPositioned { coordinates ->
+                            settingsButtonBottomY = coordinates.positionInRoot().y + coordinates.size.height
+                        }
+                        .clickable { ui.showWizard = true }
+                        .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "촬영 설정",
+                        tint = DDZColor.Surface
+                    )
+                }
             }
         }
 
