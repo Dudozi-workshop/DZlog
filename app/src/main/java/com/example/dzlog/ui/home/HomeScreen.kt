@@ -142,6 +142,8 @@ fun HomeScreen(
         }
     }
 
+    val titleAreaHeight = DDZSpacing.homeCardTitleAreaHeight
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -231,23 +233,32 @@ fun HomeScreen(
                         .clickable(onClick = onOpenTableEditor)
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
-                        Text(
-                            text = "표 상세설정",
-                            style = DDZTypography.HomeSectionLabel,
-                            color = DDZColor.TextPrimary
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(titleAreaHeight),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "표 상세설정",
+                                style = DDZTypography.HomeSectionLabel,
+                                color = DDZColor.TextPrimary
+                            )
+                        }
                         // 홈/설정 프리뷰 UI는 TablePreviewCard로 통합
-                        TablePreviewCard(
-                            templateState = tableTemplateState,
-                            counterDigits = 0,
-                            now = Date(),
-                            wmBgStyle = previewSettings.wmBgStyle,
-                            wmBgAlpha = previewSettings.wmBgAlpha,
-                            wmValueScale = previewSettings.wmValueScale,
-                            modifier = Modifier.fillMaxSize(),
-                            // 홈 카드 영역은 높이 제약이 있으므로 프리뷰도 카드 전체를 채움
-                            previewModifier = Modifier.fillMaxSize()
-                        )
+                        Box(modifier = Modifier.weight(1f, fill = true)) {
+                            TablePreviewCard(
+                                templateState = tableTemplateState,
+                                counterDigits = 0,
+                                now = Date(),
+                                wmBgStyle = previewSettings.wmBgStyle,
+                                wmBgAlpha = previewSettings.wmBgAlpha,
+                                wmValueScale = previewSettings.wmValueScale,
+                                modifier = Modifier.fillMaxSize(),
+                                // 홈 카드 영역은 높이 제약이 있으므로 프리뷰도 카드 전체를 채움
+                                previewModifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
                 }
 
@@ -273,25 +284,38 @@ fun HomeScreen(
                                 }
                             }
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
-                            Text("최근 촬영", style = DDZTypography.HomeSectionLabel, color = DDZColor.TextPrimary)
-                            val it = latestImage
-                            if (it == null) {
-                                Text("최근 항목 없음", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .aspectRatio(1f)
-                                ) {
-                                    DzThumbnail(it.uri.toString())
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(titleAreaHeight),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("최근 촬영", style = DDZTypography.HomeSectionLabel, color = DDZColor.TextPrimary)
+                            }
+
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)
+                            ) {
+                                val it = latestImage
+                                if (it == null) {
+                                    Text("최근 항목 없음", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .aspectRatio(1f)
+                                    ) {
+                                        DzThumbnail(it.uri.toString())
+                                    }
+                                    Text(
+                                        dzFormatDate(it.dateAddedSeconds),
+                                        style = DDZTypography.Caption,
+                                        color = DDZColor.TextMuted
+                                    )
+                                    Text(it.relativePath, style = DDZTypography.Body, color = DDZColor.TextPrimary)
                                 }
-                                Text(
-                                    dzFormatDate(it.dateAddedSeconds),
-                                    style = DDZTypography.Caption,
-                                    color = DDZColor.TextMuted
-                                )
-                                Text(it.relativePath, style = DDZTypography.Body, color = DDZColor.TextPrimary)
                             }
                         }
                     }

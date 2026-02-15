@@ -7,4 +7,5 @@ object DDZSpacing {
     val cardPadding = 12.dp
     val sectionGap = 12.dp
     val itemGap = 8.dp
+    val homeCardTitleAreaHeight = 36.dp
 }
