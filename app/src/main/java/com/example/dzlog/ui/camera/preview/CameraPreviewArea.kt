@@ -80,6 +80,7 @@ internal fun CameraPreviewArea(
         var watermarkRect by remember { mutableStateOf<RectF?>(null) }
         var watermarkDragActive by remember { mutableStateOf(false) }
         var suppressWatermarkTapUntilMs by remember { mutableStateOf(0L) }
+        var isWatermarkArmed by remember { mutableStateOf(false) }
 
         fun updateCaptureRect() {
             val contentRect = resolvePreviewContentRect(
@@ -160,9 +161,15 @@ internal fun CameraPreviewArea(
                 detectTapGestures { offset ->
                     if (SystemClock.uptimeMillis() < suppressWatermarkTapUntilMs) return@detectTapGestures
                     if (watermarkRect?.contains(offset.x, offset.y) == true) {
-                        args.onOpenTableEditor()
+                        if (isWatermarkArmed) {
+                            args.onOpenTableEditor()
+                            isWatermarkArmed = false
+                        } else {
+                            isWatermarkArmed = true
+                        }
                         return@detectTapGestures
                     }
+                    isWatermarkArmed = false
                     val activeCamera = boundCamera ?: return@detectTapGestures
                     if (!captureRect.contains(offset.x, offset.y)) return@detectTapGestures
 
@@ -214,11 +221,12 @@ internal fun CameraPreviewArea(
                 detectDragGestures(
                     onDragStart = { down ->
                         val tableRect = watermarkRect
-                        watermarkDragActive = (tableRect != null && tableRect.contains(down.x, down.y))
+                        watermarkDragActive = (isWatermarkArmed && tableRect != null && tableRect.contains(down.x, down.y))
                     },
                     onDragEnd = {
                         if (watermarkDragActive) {
                             suppressWatermarkTapUntilMs = SystemClock.uptimeMillis() + 180L
+                            isWatermarkArmed = true
                         }
                         watermarkDragActive = false
                     },
@@ -312,6 +320,7 @@ internal fun CameraPreviewArea(
             captureAspectRatio = captureAspect.ratioF,
             onDismissCaptured = onDismissCaptured,
             tapFocusUi = tapFocusUi,
+            isWatermarkArmed = isWatermarkArmed,
             onWatermarkRectChange = { watermarkRect = it }
         )
 
