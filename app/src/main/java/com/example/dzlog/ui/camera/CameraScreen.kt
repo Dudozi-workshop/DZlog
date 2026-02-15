@@ -121,7 +121,6 @@ fun CameraScreen(
     Box(modifier = Modifier.fillMaxSize().background(DDZColor.PrimaryDark.copy(alpha = 0f))) {
         if (hasPermission) {
             CameraPreview(
-                onExitToHome = onExitToHome,
                 tableTemplateState = tableTemplateState,
                 onTemplateChange = onTemplateChange,
                 onOpenTableEditor = onOpenTableEditor
@@ -139,7 +138,6 @@ fun CameraScreen(
 @SuppressLint("AutoboxingStateCreation")
 @Composable
 fun CameraPreview(
-    onExitToHome: () -> Unit,
     tableTemplateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
     onOpenTableEditor: () -> Unit
@@ -219,10 +217,17 @@ fun CameraPreview(
         )
     }
 
+    fun resetZoomToDefault() {
+        ui.prefs.zoomRatioTenths = 10
+        ui.capture.actualZoomTenths = 10
+        scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = 10 } }
+    }
+
     LaunchedEffect(ui.capture.capturedUri, ui.prefs.continuousPreviewMode) {
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode == ContinuousPreviewMode.SHORT) {
             delay(1500)
             ui.capture.capturedUri = null
+            resetZoomToDefault()
         }
     }
 
@@ -281,6 +286,12 @@ fun CameraPreview(
                 showWmPreview = ui.prefs.showWmPreview,
                 showGrid = ui.prefs.showGrid,
                 zoomRatioTenths = ui.prefs.zoomRatioTenths,
+                onActualZoomTenthsChange = { ui.capture.actualZoomTenths = it },
+                onRequestedZoomTenthsCommit = { next ->
+                    val normalized = next.coerceIn(10, 20)
+                    ui.prefs.zoomRatioTenths = normalized
+                    scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
+                },
                 watermarkUi = WatermarkUiArgs(
                     anchor = ui.prefs.wmTableAnchor,
                     tableWidthRatio = ui.prefs.wmTableWidthRatio,
@@ -301,7 +312,10 @@ fun CameraPreview(
             onBoundCameraChange = { boundCamera = it },
             onBoundImageCaptureChange = { boundImageCapture = it },
             capturedUri = ui.capture.capturedUri,
-            onDismissCaptured = { ui.capture.capturedUri = null },
+            onDismissCaptured = {
+                ui.capture.capturedUri = null
+                resetZoomToDefault()
+            },
             tapFocusUi = ui.capture.tapFocusUi,
             onTapFocusUiChange = { ui.capture.tapFocusUi = it }
         )
@@ -322,7 +336,6 @@ fun CameraPreview(
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
             CameraTopBarSection(
-                onExitToHome = onExitToHome,
                 onOpenSettings = { ui.showWizard = true }
             )
         }
@@ -353,7 +366,7 @@ fun CameraPreview(
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 ZoomControlSection(
-                    zoomRatioTenths = ui.prefs.zoomRatioTenths,
+                    zoomRatioTenths = ui.capture.actualZoomTenths,
                     expanded = zoomPanelExpanded,
                     onToggleExpanded = { zoomPanelExpanded = !zoomPanelExpanded },
                     onZoomTenthsChange = { next ->
@@ -607,6 +620,7 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
         ui.prefs.showGrid = prefs[KEY_CAMERA_GRID_ON] ?: false
         ui.prefs.zoomRatioTenths = (prefs[KEY_CAMERA_ZOOM_TENTHS] ?: 10).coerceIn(10, 20)
+        ui.capture.actualZoomTenths = ui.prefs.zoomRatioTenths
     } catch (_: Exception) {
         ui.prefs.captureAspect = CaptureAspect.R3_4
         ui.prefs.saveMode = SaveMode.WATERMARK_ONLY
@@ -615,6 +629,7 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.showWmPreview = true
         ui.prefs.showGrid = false
         ui.prefs.zoomRatioTenths = 10
+        ui.capture.actualZoomTenths = 10
         ui.prefs.wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
         ui.prefs.wmTableWidthRatio = 40
         ui.prefs.wmTableHeightRatio = 20
