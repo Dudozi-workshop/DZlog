@@ -13,15 +13,19 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -34,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,7 +89,6 @@ import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.feature.capture.io.createCaptureRepository
 import com.example.dzlog.feature.capture.permission.hasCameraPermission
 import com.example.dzlog.feature.capture.policy.stabilizeStreamNextCounter
-import com.example.dzlog.ui.camera.controls.CameraTopBarSection
 import com.example.dzlog.ui.camera.controls.CaptureButtonSection
 import com.example.dzlog.ui.camera.controls.ZoomControlSection
 import com.example.dzlog.ui.camera.controls.handleCaptureClick
@@ -360,21 +364,17 @@ fun CameraPreview(
             )
         }
 
-        Box(
-            modifier = Modifier.align(Alignment.TopCenter)
-        ) {
-            CameraTopBarSection(
-                onOpenSettings = { ui.showWizard = true }
-            )
-        }
-
-        Box(
+        Row(
             modifier = Modifier
-                .align(Alignment.TopStart)
+                .align(Alignment.TopCenter)
                 .padding(
                     top = DDZSpacing.screenPadding + DDZSpacing.sectionGap + DDZSpacing.itemGap,
-                    start = DDZSpacing.screenPadding
+                    start = DDZSpacing.screenPadding,
+                    end = DDZSpacing.screenPadding
                 )
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = topDisplayName,
@@ -384,17 +384,26 @@ fun CameraPreview(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .defaultMinSize(minHeight = 32.dp)
-                    .border(
-                        width = 1.dp,
-                        color = DDZColor.Border,
-                        shape = RoundedCornerShape(8.dp)
-                    )
                     .background(
-                        color = DDZColor.Card.copy(alpha = 0.92f),
+                        color = DDZColor.Card.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(8.dp)
                     )
                     .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
             )
+
+            Box(
+                modifier = Modifier
+                    .background(DDZColor.PrimaryDark.copy(alpha = 0f))
+                    .defaultMinSize(minHeight = 32.dp)
+                    .clickable { ui.showWizard = true }
+                    .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "촬영 설정",
+                    tint = DDZColor.Surface
+                )
+            }
         }
 
         Box(
