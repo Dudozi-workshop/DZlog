@@ -29,7 +29,8 @@ internal fun CameraPreviewHost(
     aspectRatio: Float,
     captureAspectRatio: Float,
     onDismissCaptured: () -> Unit,
-    tapFocusUi: TapFocusUiState?
+    tapFocusUi: TapFocusUiState?,
+    onWatermarkRectChange: (RectF?) -> Unit
 ) {
     @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
     AndroidView(
@@ -57,7 +58,8 @@ internal fun CameraPreviewHost(
     WatermarkPreviewOverlay(
         enabled = showWmPreview,
         request = previewRequest,
-        previewContentRect = previewContentRect
+        previewContentRect = previewContentRect,
+        onTableRectChange = onWatermarkRectChange
     )
 
     CaptureResultOverlay(

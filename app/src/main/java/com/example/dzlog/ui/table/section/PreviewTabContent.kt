@@ -42,7 +42,6 @@ fun PreviewTabContent(
     wmBgAlpha: Int,
     wmValueScale: Int,
     onRowColWeightsChange: (TableTemplateState) -> Unit,
-    onAnchorChange: (WatermarkTableAnchor) -> Unit,
     onWidthRatioChange: (Int) -> Unit,
     onHeightRatioChange: (Int) -> Unit,
     onBgStyleChange: (Int) -> Unit,
@@ -90,10 +89,8 @@ fun PreviewTabContent(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             WatermarkPlacementSection(
-                wmAnchor = wmAnchor,
                 wmWidthRatio = wmWidthRatio,
                 wmHeightRatio = wmHeightRatio,
-                onAnchorChange = onAnchorChange,
                 onWidthRatioChange = onWidthRatioChange,
                 onHeightRatioChange = onHeightRatioChange
             )
