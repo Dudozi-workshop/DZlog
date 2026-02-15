@@ -68,20 +68,58 @@ internal fun resolveUsableRect(
     contentRect: RectF,
     settingsButtonBottomY: Float?,
     shutterButtonTopY: Float?,
+    safeTopY: Float?,
+    safeBottomY: Float?,
     verticalMarginPx: Float
 ): RectF {
     if (contentRect.width() <= 0f || contentRect.height() <= 0f) return RectF(contentRect)
 
-    val safeMargin = verticalMarginPx.coerceAtLeast(0f)
-    val resolvedTop = ((settingsButtonBottomY ?: contentRect.top) + safeMargin)
-        .coerceIn(contentRect.top, contentRect.bottom)
-    val resolvedBottom = ((shutterButtonTopY ?: contentRect.bottom) - safeMargin)
-        .coerceIn(contentRect.top, contentRect.bottom)
-
-    val top = minOf(resolvedTop, resolvedBottom)
-    val bottom = maxOf(resolvedTop, resolvedBottom)
+    val (top, bottom) = resolveUsableVerticalBounds(
+        contentTop = contentRect.top,
+        contentBottom = contentRect.bottom,
+        settingsButtonBottomY = settingsButtonBottomY,
+        shutterButtonTopY = shutterButtonTopY,
+        safeTopY = safeTopY,
+        safeBottomY = safeBottomY,
+        verticalMarginPx = verticalMarginPx
+    )
 
     return RectF(contentRect.left, top, contentRect.right, bottom)
+}
+
+internal fun resolveUsableVerticalBounds(
+    contentTop: Float,
+    contentBottom: Float,
+    settingsButtonBottomY: Float?,
+    shutterButtonTopY: Float?,
+    safeTopY: Float?,
+    safeBottomY: Float?,
+    verticalMarginPx: Float
+): Pair<Float, Float> {
+    val safeMargin = verticalMarginPx.coerceAtLeast(0f)
+
+    val baseTop = ((settingsButtonBottomY ?: contentTop) + safeMargin)
+        .coerceIn(contentTop, contentBottom)
+    val baseBottom = ((shutterButtonTopY ?: contentBottom) - safeMargin)
+        .coerceIn(contentTop, contentBottom)
+
+    val insetTop = (safeTopY ?: contentTop).coerceIn(contentTop, contentBottom)
+    val insetBottom = (safeBottomY ?: contentBottom).coerceIn(contentTop, contentBottom)
+
+    val resolvedTop = maxOf(baseTop, insetTop)
+    val resolvedBottom = minOf(baseBottom, insetBottom)
+
+    if (contentBottom - contentTop < 1f) {
+        return contentTop to contentBottom
+    }
+
+    if (resolvedBottom > resolvedTop) {
+        return resolvedTop to resolvedBottom
+    }
+
+    val center = ((resolvedTop + resolvedBottom) / 2f).coerceIn(contentTop, contentBottom)
+    val minTop = (center - 0.5f).coerceIn(contentTop, contentBottom - 1f)
+    return minTop to (minTop + 1f)
 }
 
 internal fun computeUsableVerticalRatios(contentRect: RectF, usableRect: RectF): Pair<Float, Float> {

@@ -22,6 +22,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
@@ -168,7 +171,14 @@ fun CameraPreview(
     val ui = remember { CameraUiState() }
     var settingsButtonBottomY by remember { mutableStateOf<Float?>(null) }
     var shutterButtonTopY by remember { mutableStateOf<Float?>(null) }
-    val usableVerticalMarginPx = with(LocalDensity.current) { USABLE_VERTICAL_MARGIN.toPx() }
+    var cameraRootHeightPx by remember { mutableStateOf(0f) }
+    val density = LocalDensity.current
+    val safeDrawingPadding = WindowInsets.safeDrawing.asPaddingValues()
+    val safeTopInsetPx = with(density) { safeDrawingPadding.calculateTopPadding().toPx() }
+    val safeBottomInsetPx = with(density) { safeDrawingPadding.calculateBottomPadding().toPx() }
+    val safeTopY = safeTopInsetPx.takeIf { it > 0f }
+    val safeBottomY = (cameraRootHeightPx - safeBottomInsetPx).takeIf { cameraRootHeightPx > 0f }
+    val usableVerticalMarginPx = with(density) { USABLE_VERTICAL_MARGIN.toPx() }
 
     val tableResolver = remember { TableResolver() }
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
@@ -262,6 +272,9 @@ fun CameraPreview(
         modifier = Modifier
             .fillMaxSize()
             .background(DDZColor.PrimaryDark.copy(alpha = 0f))
+            .onGloballyPositioned { coordinates ->
+                cameraRootHeightPx = coordinates.size.height.toFloat()
+            }
     ) {
         val previewAreaArgs = remember(
             context,
@@ -292,6 +305,8 @@ fun CameraPreview(
             ui.prefs.wmValueScale,
             settingsButtonBottomY,
             shutterButtonTopY,
+            safeTopY,
+            safeBottomY,
             usableVerticalMarginPx
         ) {
             CameraPreviewAreaArgs(
@@ -320,6 +335,8 @@ fun CameraPreview(
                 },
                 settingsButtonBottomY = settingsButtonBottomY,
                 shutterButtonTopY = shutterButtonTopY,
+                safeTopY = safeTopY,
+                safeBottomY = safeBottomY,
                 usableVerticalMarginPx = usableVerticalMarginPx,
                 onUsableVerticalRatioChange = { topRatio, bottomRatio ->
                     ui.capture.usableTopRatio = topRatio

@@ -56,6 +56,8 @@ internal data class CameraPreviewAreaArgs(
     val onRequestedZoomTenthsCommit: (Int) -> Unit,
     val settingsButtonBottomY: Float?,
     val shutterButtonTopY: Float?,
+    val safeTopY: Float?,
+    val safeBottomY: Float?,
     val usableVerticalMarginPx: Float,
     val onUsableVerticalRatioChange: (Float, Float) -> Unit,
     val onWatermarkOffsetRatioPreview: (Int, Int) -> Unit,

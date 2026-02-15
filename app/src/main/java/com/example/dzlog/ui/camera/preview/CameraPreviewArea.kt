@@ -133,6 +133,8 @@ internal fun CameraPreviewArea(
                 contentRect = contentRect,
                 settingsButtonBottomY = args.settingsButtonBottomY,
                 shutterButtonTopY = args.shutterButtonTopY,
+                safeTopY = args.safeTopY,
+                safeBottomY = args.safeBottomY,
                 verticalMarginPx = args.usableVerticalMarginPx
             )
             captureRect = computeCaptureAreaRect(
@@ -172,7 +174,7 @@ internal fun CameraPreviewArea(
             }
         }
 
-        LaunchedEffect(captureAspect, args.settingsButtonBottomY, args.shutterButtonTopY, args.usableVerticalMarginPx) {
+        LaunchedEffect(captureAspect, args.settingsButtonBottomY, args.shutterButtonTopY, args.safeTopY, args.safeBottomY, args.usableVerticalMarginPx) {
             updateCaptureRect()
             bindCamera(
                 context = context,
