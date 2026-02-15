@@ -3,6 +3,7 @@
 package com.example.dzlog.ui.camera.preview
 
 import android.graphics.RectF
+import android.os.SystemClock
 import android.util.Log
 import android.view.View
 import androidx.camera.core.Camera
@@ -77,6 +78,8 @@ internal fun CameraPreviewArea(
 
         var captureRect by remember { mutableStateOf(RectF(0f, 0f, 0f, 0f)) }
         var watermarkRect by remember { mutableStateOf<RectF?>(null) }
+        var watermarkDragActive by remember { mutableStateOf(false) }
+        var suppressWatermarkTapUntilMs by remember { mutableStateOf(0L) }
 
         fun updateCaptureRect() {
             val contentRect = resolvePreviewContentRect(
@@ -154,9 +157,23 @@ internal fun CameraPreviewArea(
         val gestureModifier = Modifier
             .fillMaxSize()
             .pointerInput(watermarkRect, captureRect) {
-                detectDragGestures { change, dragAmount ->
+                detectDragGestures(
+                    onDragStart = { down ->
+                        val tableRect = watermarkRect
+                        watermarkDragActive = (tableRect != null && tableRect.contains(down.x, down.y))
+                    },
+                    onDragEnd = {
+                        if (watermarkDragActive) {
+                            suppressWatermarkTapUntilMs = SystemClock.uptimeMillis() + 180L
+                        }
+                        watermarkDragActive = false
+                    },
+                    onDragCancel = {
+                        watermarkDragActive = false
+                    }
+                ) { change, dragAmount ->
+                    if (!watermarkDragActive) return@detectDragGestures
                     val tableRect = watermarkRect ?: return@detectDragGestures
-                    if (!tableRect.contains(change.position.x, change.position.y)) return@detectDragGestures
                     change.consume()
 
                     val contentRect = captureRect
@@ -175,13 +192,13 @@ internal fun CameraPreviewArea(
             }
             .pointerInput(boundCamera, captureRect, tapFocusUi, watermarkRect) {
                 detectTapGestures { offset ->
+                    if (SystemClock.uptimeMillis() < suppressWatermarkTapUntilMs) return@detectTapGestures
                     if (watermarkRect?.contains(offset.x, offset.y) == true) {
                         args.onOpenTableEditor()
                         return@detectTapGestures
                     }
                     val activeCamera = boundCamera ?: return@detectTapGestures
                     if (!captureRect.contains(offset.x, offset.y)) return@detectTapGestures
-                    if (watermarkRect?.contains(offset.x, offset.y) == true) return@detectTapGestures
 
                     onTapFocusUiChange(
                         TapFocusUiState(

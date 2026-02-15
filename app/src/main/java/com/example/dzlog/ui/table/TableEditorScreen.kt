@@ -893,15 +893,6 @@ fun TableEditorScreen(
                         wmBgAlpha = wmBgAlpha,
                         wmValueScale = wmValueScale,
                         onRowColWeightsChange = { updated -> onTemplateChange(updated) },
-                        onAnchorChange = { anchor ->
-                            scope.launch {
-                                val patch = applyTableWatermarkAction(
-                                    context,
-                                    TableWatermarkAction.AnchorChanged(anchor)
-                                )
-                                patch.anchor?.let { wmAnchor = it }
-                            }
-                        },
                         onWidthRatioChange = { width ->
                             scope.launch {
                                 val patch = applyTableWatermarkAction(
@@ -1037,7 +1028,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
         }
 
         Text(
-            "비율: ${captureAspect.label} / 위치: ${anchor.name} / 크기: ${tableWidthRatio}%×${tableHeightRatio}%",
+            "비율: ${captureAspect.label} / 크기: ${tableWidthRatio}%×${tableHeightRatio}% (위치는 카메라 화면에서 드래그)",
             color = DDZColor.IconMuted,
             style = DDZTypography.Caption
         )
