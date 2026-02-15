@@ -54,7 +54,8 @@ internal data class CameraPreviewAreaArgs(
     val zoomRatioTenths: Int,
     val onActualZoomTenthsChange: (Int) -> Unit,
     val onRequestedZoomTenthsCommit: (Int) -> Unit,
-    val onWatermarkOffsetRatioChange: (Int, Int) -> Unit,
+    val onWatermarkOffsetRatioPreview: (Int, Int) -> Unit,
+    val onWatermarkOffsetRatioCommit: (Int, Int) -> Unit,
     val onOpenTableEditor: () -> Unit,
     val watermarkUi: WatermarkUiArgs
 )

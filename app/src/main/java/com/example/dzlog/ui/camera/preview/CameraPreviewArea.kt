@@ -81,6 +81,17 @@ internal fun CameraPreviewArea(
         var watermarkDragActive by remember { mutableStateOf(false) }
         var suppressWatermarkTapUntilMs by remember { mutableStateOf(0L) }
         var isWatermarkArmed by remember { mutableStateOf(false) }
+        var previewOffsetX by remember { mutableStateOf(args.watermarkUi.offsetXRatio.coerceIn(0, 100)) }
+        var previewOffsetY by remember { mutableStateOf(args.watermarkUi.offsetYRatio.coerceIn(0, 100)) }
+
+        fun commitWatermarkOffsetIfNeeded() {
+            args.onWatermarkOffsetRatioCommit(previewOffsetX, previewOffsetY)
+        }
+
+        LaunchedEffect(args.watermarkUi.offsetXRatio, args.watermarkUi.offsetYRatio) {
+            previewOffsetX = args.watermarkUi.offsetXRatio.coerceIn(0, 100)
+            previewOffsetY = args.watermarkUi.offsetYRatio.coerceIn(0, 100)
+        }
 
         fun updateCaptureRect() {
             val contentRect = resolvePreviewContentRect(
@@ -162,12 +173,16 @@ internal fun CameraPreviewArea(
                     if (SystemClock.uptimeMillis() < suppressWatermarkTapUntilMs) return@detectTapGestures
                     if (watermarkRect?.contains(offset.x, offset.y) == true) {
                         if (isWatermarkArmed) {
+                            commitWatermarkOffsetIfNeeded()
                             args.onOpenTableEditor()
                             isWatermarkArmed = false
                         } else {
                             isWatermarkArmed = true
                         }
                         return@detectTapGestures
+                    }
+                    if (isWatermarkArmed) {
+                        commitWatermarkOffsetIfNeeded()
                     }
                     isWatermarkArmed = false
                     val activeCamera = boundCamera ?: return@detectTapGestures
@@ -227,10 +242,14 @@ internal fun CameraPreviewArea(
                         if (watermarkDragActive) {
                             suppressWatermarkTapUntilMs = SystemClock.uptimeMillis() + 180L
                             isWatermarkArmed = true
+                            commitWatermarkOffsetIfNeeded()
                         }
                         watermarkDragActive = false
                     },
                     onDragCancel = {
+                        if (watermarkDragActive) {
+                            commitWatermarkOffsetIfNeeded()
+                        }
                         watermarkDragActive = false
                     }
                 ) { change, dragAmount ->
@@ -249,7 +268,9 @@ internal fun CameraPreviewArea(
                     val currentY = (tableRect.top - contentRect.top).coerceIn(0f, maxY)
                     val nextXRatio = (((currentX + dragAmount.x).coerceIn(0f, maxX) / maxX) * 100f).toInt().coerceIn(0, 100)
                     val nextYRatio = (((currentY + dragAmount.y).coerceIn(0f, maxY) / maxY) * 100f).toInt().coerceIn(0, 100)
-                    args.onWatermarkOffsetRatioChange(nextXRatio, nextYRatio)
+                    previewOffsetX = nextXRatio
+                    previewOffsetY = nextYRatio
+                    args.onWatermarkOffsetRatioPreview(nextXRatio, nextYRatio)
                 }
             }
 

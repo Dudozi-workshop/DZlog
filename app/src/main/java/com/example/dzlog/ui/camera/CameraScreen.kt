@@ -297,15 +297,22 @@ fun CameraPreview(
                     ui.prefs.zoomRatioTenths = normalized
                     scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
                 },
-                onWatermarkOffsetRatioChange = { x, y ->
+                onWatermarkOffsetRatioPreview = { x, y ->
                     ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
                     ui.prefs.wmOffsetXRatio = x
                     ui.prefs.wmOffsetYRatio = y
+                },
+                onWatermarkOffsetRatioCommit = { x, y ->
+                    val nx = x.coerceIn(0, 100)
+                    val ny = y.coerceIn(0, 100)
+                    ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
+                    ui.prefs.wmOffsetXRatio = nx
+                    ui.prefs.wmOffsetYRatio = ny
                     scope.launch {
                         context.dataStore.edit {
                             it[KEY_WM_TABLE_ANCHOR] = 4
-                            it[KEY_WM_OFFSET_X] = x
-                            it[KEY_WM_OFFSET_Y] = y
+                            it[KEY_WM_OFFSET_X] = nx
+                            it[KEY_WM_OFFSET_Y] = ny
                         }
                     }
                 },
