@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.consume
 import androidx.lifecycle.Observer
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.example.dzlog.domain.model.CaptureRequest
@@ -156,7 +157,7 @@ internal fun CameraPreviewArea(
 
         val gestureModifier = Modifier
             .fillMaxSize()
-            .pointerInput(watermarkRect, captureRect) {
+            .pointerInput(captureRect) {
                 detectDragGestures(
                     onDragStart = { down ->
                         val tableRect = watermarkRect
@@ -190,7 +191,7 @@ internal fun CameraPreviewArea(
                     args.onWatermarkOffsetRatioChange(nextXRatio, nextYRatio)
                 }
             }
-            .pointerInput(boundCamera, captureRect, tapFocusUi, watermarkRect) {
+            .pointerInput(boundCamera, captureRect, tapFocusUi) {
                 detectTapGestures { offset ->
                     if (SystemClock.uptimeMillis() < suppressWatermarkTapUntilMs) return@detectTapGestures
                     if (watermarkRect?.contains(offset.x, offset.y) == true) {
@@ -227,7 +228,7 @@ internal fun CameraPreviewArea(
                     )
                 }
             }
-            .pointerInput(boundCamera, captureRect, watermarkRect) {
+            .pointerInput(boundCamera, captureRect) {
                 detectTransformGestures { centroid, _, zoom, _ ->
                     val activeCamera = boundCamera ?: return@detectTransformGestures
                     if (!captureRect.contains(centroid.x, centroid.y)) return@detectTransformGestures
