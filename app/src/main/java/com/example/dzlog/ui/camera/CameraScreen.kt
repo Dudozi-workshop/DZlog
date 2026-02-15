@@ -248,6 +248,7 @@ fun CameraPreview(
     fun resetZoomToDefault() {
         ui.prefs.zoomRatioTenths = 10
         ui.capture.actualZoomTenths = 10
+        ui.capture.maxZoomTenths = 20
         scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = 10 } }
     }
 
@@ -327,12 +328,14 @@ fun CameraPreview(
                 showWmPreview = ui.prefs.showWmPreview,
                 showGrid = ui.prefs.showGrid,
                 zoomRatioTenths = ui.prefs.zoomRatioTenths,
+                maxZoomTenths = ui.capture.maxZoomTenths,
                 onActualZoomTenthsChange = { ui.capture.actualZoomTenths = it },
                 onRequestedZoomTenthsCommit = { next ->
-                    val normalized = next.coerceIn(10, 20)
+                    val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
                     ui.prefs.zoomRatioTenths = normalized
                     scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
                 },
+                onMaxZoomTenthsChange = { ui.capture.maxZoomTenths = it.coerceAtLeast(10) },
                 settingsButtonBottomY = settingsButtonBottomY,
                 shutterButtonTopY = shutterButtonTopY,
                 safeTopY = safeTopY,
@@ -408,7 +411,7 @@ fun CameraPreview(
                     end = DDZSpacing.screenPadding
                 )
                 .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -418,18 +421,20 @@ fun CameraPreview(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
+                    .weight(1f, fill = false)
                     .defaultMinSize(minHeight = 32.dp)
                     .background(
                         color = DDZColor.Card.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(8.dp)
                     )
                     .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
+                    .padding(end = DDZSpacing.itemGap)
             )
 
             Box(
                 modifier = Modifier
                     .background(DDZColor.PrimaryDark.copy(alpha = 0f))
-                    .defaultMinSize(minHeight = 32.dp)
+                    .defaultMinSize(minWidth = 32.dp, minHeight = 32.dp)
                     .onGloballyPositioned { coordinates ->
                         settingsButtonBottomY = coordinates.positionInRoot().y + coordinates.size.height
                     }
@@ -456,10 +461,11 @@ fun CameraPreview(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 ZoomControlSection(
                     zoomRatioTenths = ui.capture.actualZoomTenths,
+                    maxZoomTenths = ui.capture.maxZoomTenths,
                     expanded = zoomPanelExpanded,
                     onToggleExpanded = { zoomPanelExpanded = !zoomPanelExpanded },
                     onZoomTenthsChange = { next ->
-                        val normalized = next.coerceIn(10, 20)
+                        val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
                         ui.prefs.zoomRatioTenths = normalized
                         scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
                     }
@@ -726,8 +732,9 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.counterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
         ui.prefs.showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
         ui.prefs.showGrid = prefs[KEY_CAMERA_GRID_ON] ?: false
-        ui.prefs.zoomRatioTenths = (prefs[KEY_CAMERA_ZOOM_TENTHS] ?: 10).coerceIn(10, 20)
+        ui.prefs.zoomRatioTenths = (prefs[KEY_CAMERA_ZOOM_TENTHS] ?: 10).coerceIn(10, 100)
         ui.capture.actualZoomTenths = ui.prefs.zoomRatioTenths
+        ui.capture.maxZoomTenths = maxOf(ui.capture.maxZoomTenths, 20)
     } catch (_: Exception) {
         ui.prefs.captureAspect = CaptureAspect.R3_4
         ui.prefs.saveMode = SaveMode.WATERMARK_ONLY
@@ -737,6 +744,7 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.showGrid = false
         ui.prefs.zoomRatioTenths = 10
         ui.capture.actualZoomTenths = 10
+        ui.capture.maxZoomTenths = 20
         ui.prefs.wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
         ui.prefs.wmTableWidthRatio = 40
         ui.prefs.wmTableHeightRatio = 20

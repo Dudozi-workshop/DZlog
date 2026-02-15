@@ -47,6 +47,7 @@ internal class CaptureUiState {
     var tapFocusUi by mutableStateOf<TapFocusUiState?>(null)
     var now by mutableStateOf(Date())
     var actualZoomTenths by mutableIntStateOf(10)
+    var maxZoomTenths by mutableIntStateOf(20)
     var usableTopRatio by mutableStateOf(0f)
     var usableBottomRatio by mutableStateOf(1f)
 }

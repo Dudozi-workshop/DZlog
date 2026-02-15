@@ -24,11 +24,13 @@ import kotlin.math.roundToInt
 @Composable
 internal fun ZoomControlSection(
     zoomRatioTenths: Int,
+    maxZoomTenths: Int,
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
     onZoomTenthsChange: (Int) -> Unit
 ) {
-    val normalizedTenths = zoomRatioTenths.coerceIn(10, 20)
+    val normalizedMaxTenths = maxZoomTenths.coerceAtLeast(10)
+    val normalizedTenths = zoomRatioTenths.coerceIn(10, normalizedMaxTenths)
     val zoomLabel = String.format(Locale.US, "%.1f", normalizedTenths / 10f)
 
     Row(
@@ -68,11 +70,11 @@ internal fun ZoomControlSection(
                     modifier = Modifier.width(136.dp),
                     value = normalizedTenths / 10f,
                     onValueChange = {
-                        val stepped = (it * 10f).roundToInt().coerceIn(10, 20)
+                        val stepped = (it * 10f).roundToInt().coerceIn(10, normalizedMaxTenths)
                         onZoomTenthsChange(stepped)
                     },
-                    valueRange = 1f..2f,
-                    steps = 9
+                    valueRange = 1f..(normalizedMaxTenths / 10f),
+                    steps = (normalizedMaxTenths - 10).coerceAtLeast(1) - 1
                 )
             }
         }
