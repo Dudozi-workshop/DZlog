@@ -40,7 +40,9 @@ import com.example.dzlog.ui.camera.controller.startTapToFocus
 import com.example.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.hypot
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -203,9 +205,11 @@ internal fun CameraPreviewArea(
             val activeCamera = boundCamera ?: return@LaunchedEffect
             val requested = args.zoomRatioTenths.coerceIn(10, 20) / 10f
             val zoomState = activeCamera.cameraInfo.zoomState.value
-            val maxSupported = zoomState?.maxZoomRatio ?: 1f
-            val minSupported = zoomState?.minZoomRatio ?: 1f
-            val target = min(requested, min(2f, maxSupported)).coerceAtLeast(minSupported)
+            val (minZoom, maxZoom) = resolveZoomBounds(
+                minSupported = zoomState?.minZoomRatio ?: 1f,
+                maxSupported = zoomState?.maxZoomRatio ?: 1f
+            )
+            val target = requested.coerceIn(minZoom, maxZoom)
             runCatching { activeCamera.cameraControl.setZoomRatio(target) }
         }
 
@@ -259,16 +263,27 @@ internal fun CameraPreviewArea(
                     )
                 }
             }
-            .pointerInput(boundCamera, captureRect) {
+            .pointerInput(boundCamera, watermarkRect, watermarkDragActive) {
+                val pinchScaleDeadZone = 0.01f
                 detectTransformGestures { centroid, _, zoom, _ ->
                     val activeCamera = boundCamera ?: return@detectTransformGestures
-                    if (!captureRect.contains(centroid.x, centroid.y)) return@detectTransformGestures
-                    if (watermarkRect?.contains(centroid.x, centroid.y) == true) return@detectTransformGestures
+                    if (!shouldHandlePinch(
+                            centroidX = centroid.x,
+                            centroidY = centroid.y,
+                            previewWidth = size.width,
+                            previewHeight = size.height,
+                            watermarkRect = watermarkRect,
+                            watermarkDragActive = watermarkDragActive
+                        )
+                    ) return@detectTransformGestures
+                    if (abs(zoom - 1f) < pinchScaleDeadZone) return@detectTransformGestures
 
                     val zoomState = activeCamera.cameraInfo.zoomState.value ?: return@detectTransformGestures
-                    val maxSupported = min(2f, zoomState.maxZoomRatio)
-                    val minSupported = zoomState.minZoomRatio
-                    val next = (zoomState.zoomRatio * zoom).coerceIn(minSupported, maxSupported)
+                    val (minZoom, maxZoom) = resolveZoomBounds(
+                        minSupported = zoomState.minZoomRatio,
+                        maxSupported = zoomState.maxZoomRatio
+                    )
+                    val next = (zoomState.zoomRatio * zoom).coerceIn(minZoom, maxZoom)
 
                     runCatching { activeCamera.cameraControl.setZoomRatio(next) }
                     val tenths = (next * 10f).roundToInt().coerceIn(10, 20)
@@ -420,3 +435,25 @@ internal fun CameraPreviewArea(
         Box(modifier = gestureModifier)
     }
 }
+
+internal fun resolveZoomBounds(minSupported: Float, maxSupported: Float): Pair<Float, Float> {
+    val clampedMax = min(2f, maxSupported).coerceAtLeast(1f)
+    val clampedMin = max(1f, minSupported).coerceAtMost(clampedMax)
+    return clampedMin to clampedMax
+}
+
+internal fun shouldHandlePinch(
+    centroidX: Float,
+    centroidY: Float,
+    previewWidth: Float,
+    previewHeight: Float,
+    watermarkRect: RectF?,
+    watermarkDragActive: Boolean
+): Boolean {
+    if (previewWidth <= 0f || previewHeight <= 0f) return false
+    if (centroidX !in 0f..previewWidth || centroidY !in 0f..previewHeight) return false
+    if (watermarkDragActive) return false
+    if (watermarkRect?.contains(centroidX, centroidY) == true) return false
+    return true
+}
+
