@@ -162,24 +162,25 @@ fun HomeScreen(
         val screenHeight = maxHeight
 
         val pad = clampDp(screenWidth * 0.045f, 12.dp, 20.dp)
-        val gapS = clampDp(screenWidth * 0.02f, 6.dp, 12.dp)
-        val gapM = clampDp(screenWidth * 0.03f, 10.dp, 18.dp)
+        val gap = clampDp(screenHeight * 0.012f, 6.dp, 14.dp)
+        val radius = clampDp(screenWidth * 0.03f, 10.dp, 18.dp)
 
-        val bottomH = clampDp(screenHeight * 0.27f, 170.dp, 230.dp)
-        val titleH = clampDp(screenWidth * 0.085f, 28.dp, 44.dp)
-        val primaryBtnH = clampDp(screenWidth * 0.13f, 44.dp, 60.dp)
+        val headerWeight = 0.10f
+        val infoWeight = 0.15f
+        val mainWeight = 0.45f
+        val bottomWeight = 0.30f
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(pad)
         ) {
-            // 상단 헤더: 타이틀 가로 중앙 + 우측 설정 아이콘
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(headerWeight)
                     .statusBarsPadding()
-                    .padding(top = gapS / 2f),
+                    .padding(vertical = gap / 2f),
             ) {
                 Text(
                     text = "DZlog",
@@ -199,120 +200,89 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(Modifier.height(gapS))
+            Spacer(Modifier.height(gap))
 
-            DDZCard(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onOpenSettings)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(gapS)) {
-                    Text(
-                        text = "저장경로: $savePathPreview",
-                        style = DDZTypography.Body,
-                        color = DDZColor.TextPrimary
-                    )
-                    Text(
-                        text = "파일명: $filenamePreview",
-                        style = DDZTypography.Body,
-                        color = DDZColor.TextPrimary
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(gapM))
-
-            // 중단: 메인 액션(촬영/기존 사진 편집) 영역을 가용 공간 중앙에 배치
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                verticalArrangement = Arrangement.Center
-            ) {
-                DDZButton(
-                    text = "촬영 시작",
-                    onClick = onStartCamera,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(primaryBtnH),
-                    style = DDZButtonStyle.Primary
-                )
-                Spacer(Modifier.height(gapS))
-                DDZButton(
-                    text = "기존 사진 편집",
-                    onClick = {},
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(primaryBtnH),
-                    style = DDZButtonStyle.Secondary,
-                    enabled = false
-                )
-            }
-
-// 하단: 좌(표 전체 미리보기) / 우(최근 촬영 + 앨범)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(bottomH),
+                    .weight(infoWeight)
             ) {
                 DDZCard(
                     modifier = Modifier
-                        .weight(0.6f)
-                        .fillMaxHeight()
-                        .clickable(onClick = onOpenTableEditor)
+                        .fillMaxSize()
+                        .clickable(onClick = onOpenSettings)
                 ) {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(titleH),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            Text(
-                                text = "표 상세설정",
-                                style = DDZTypography.HomeSectionLabel,
-                                modifier = Modifier.padding(start = gapS / 3f),
-                                color = DDZColor.TextPrimary
-                            )
-                        }
-                        // 홈/설정 프리뷰 UI는 TablePreviewCard로 통합
-                        Box(modifier = Modifier.weight(1f, fill = true)) {
-                            TablePreviewCard(
-                                templateState = tableTemplateState,
-                                counterDigits = 0,
-                                now = Date(),
-                                wmBgStyle = previewSettings.wmBgStyle,
-                                wmBgAlpha = previewSettings.wmBgAlpha,
-                                wmValueScale = previewSettings.wmValueScale,
-                                modifier = Modifier.fillMaxSize(),
-                                // 홈 카드 영역은 높이 제약이 있으므로 프리뷰도 카드 전체를 채움
-                                previewModifier = Modifier.fillMaxSize()
-                            )
-                        }
+                    Column(
+                        modifier = Modifier.padding(radius * 0.55f),
+                        verticalArrangement = Arrangement.spacedBy(gap)
+                    ) {
+                        Text(
+                            text = "저장경로: $savePathPreview",
+                            style = DDZTypography.Body,
+                            color = DDZColor.TextPrimary
+                        )
+                        Text(
+                            text = "파일명: $filenamePreview",
+                            style = DDZTypography.Body,
+                            color = DDZColor.TextPrimary
+                        )
                     }
                 }
+            }
 
-                Spacer(Modifier.weight(0.04f))
+            Spacer(Modifier.height(gap))
+
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(mainWeight)
+            ) {
+                val mainH = maxHeight
+                val btnH = clampDp(mainH * 0.22f, 44.dp, 64.dp)
 
                 Column(
-                    modifier = Modifier
-                        .weight(0.36f)
-                        .fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(gapS)
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    DDZButton(
+                        text = "촬영 시작",
+                        onClick = onStartCamera,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(btnH),
+                        style = DDZButtonStyle.Primary
+                    )
+                    Spacer(Modifier.height(gap))
+                    DDZButton(
+                        text = "기존 사진 편집",
+                        onClick = {},
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(btnH),
+                        style = DDZButtonStyle.Secondary,
+                        enabled = false
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(gap))
+
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(bottomWeight)
+            ) {
+                val bottomH = maxHeight
+                val titleH = clampDp(bottomH * 0.18f, 28.dp, 44.dp)
+
+                Row(
+                    modifier = Modifier.fillMaxSize(),
                 ) {
                     DDZCard(
                         modifier = Modifier
-                            .weight(0.75f, fill = true)
-                            .fillMaxWidth()
-                            .clickable {
-                                val it = latestImage
-                                if (it == null) {
-                                    onOpenAlbum()
-                                } else {
-                                    val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
-                                    onOpenRecentCaptureGrid(g1, g2, 0)
-                                }
-                            }
+                            .weight(0.6f)
+                            .fillMaxHeight()
+                            .clickable(onClick = onOpenTableEditor)
                     ) {
                         Column(modifier = Modifier.fillMaxSize()) {
                             Box(
@@ -321,50 +291,105 @@ fun HomeScreen(
                                     .height(titleH),
                                 contentAlignment = Alignment.CenterStart
                             ) {
-                                Text("최근 촬영", style = DDZTypography.HomeSectionLabel, color = DDZColor.TextPrimary, modifier = Modifier.padding(start = gapS / 3f))
+                                Text(
+                                    text = "표 상세설정",
+                                    style = DDZTypography.HomeSectionLabel,
+                                    color = DDZColor.TextPrimary
+                                )
                             }
-
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(gapS)
-                            ) {
-                                val it = latestImage
-                                if (it == null) {
-                                    Text("최근 항목 없음", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                                } else {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .aspectRatio(1f)
-                                    ) {
-                                        DzThumbnail(it.uri.toString())
-                                    }
-                                    Text(
-                                        dzFormatDate(it.dateAddedSeconds),
-                                        style = DDZTypography.Caption,
-                                        color = DDZColor.TextMuted
-                                    )
-                                    Text(it.relativePath, style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                                }
+                            Box(modifier = Modifier.weight(1f, fill = true)) {
+                                TablePreviewCard(
+                                    templateState = tableTemplateState,
+                                    counterDigits = 0,
+                                    now = Date(),
+                                    wmBgStyle = previewSettings.wmBgStyle,
+                                    wmBgAlpha = previewSettings.wmBgAlpha,
+                                    wmValueScale = previewSettings.wmValueScale,
+                                    modifier = Modifier.fillMaxSize(),
+                                    previewModifier = Modifier.fillMaxSize()
+                                )
                             }
                         }
                     }
 
-                    DDZCard(
+                    Spacer(Modifier.weight(0.04f))
+
+                    Column(
                         modifier = Modifier
-                            .weight(0.25f, fill = true)
-                            .fillMaxWidth()
-                            .clickable(onClick = onOpenAlbum)
+                            .weight(0.36f)
+                            .fillMaxHeight(),
+                        verticalArrangement = Arrangement.spacedBy(gap)
                     ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
+                        DDZCard(
+                            modifier = Modifier
+                                .weight(0.75f, fill = true)
+                                .fillMaxWidth()
+                                .clickable {
+                                    val it = latestImage
+                                    if (it == null) {
+                                        onOpenAlbum()
+                                    } else {
+                                        val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
+                                        onOpenRecentCaptureGrid(g1, g2, 0)
+                                    }
+                                }
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Collections,
-                                contentDescription = "앨범",
-                                tint = DDZColor.Primary
-                            )
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(titleH),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    Text(
+                                        "최근 촬영",
+                                        style = DDZTypography.HomeSectionLabel,
+                                        color = DDZColor.TextPrimary
+                                    )
+                                }
+
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.spacedBy(gap)
+                                ) {
+                                    val it = latestImage
+                                    if (it == null) {
+                                        Text("최근 항목 없음", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .aspectRatio(1f)
+                                        ) {
+                                            DzThumbnail(it.uri.toString())
+                                        }
+                                        Text(
+                                            dzFormatDate(it.dateAddedSeconds),
+                                            style = DDZTypography.Caption,
+                                            color = DDZColor.TextMuted
+                                        )
+                                        Text(it.relativePath, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                                    }
+                                }
+                            }
+                        }
+
+                        DDZCard(
+                            modifier = Modifier
+                                .weight(0.25f, fill = true)
+                                .fillMaxWidth()
+                                .clickable(onClick = onOpenAlbum)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Collections,
+                                    contentDescription = "앨범",
+                                    tint = DDZColor.Primary
+                                )
+                            }
                         }
                     }
                 }
