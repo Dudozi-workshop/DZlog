@@ -4,12 +4,13 @@ package com.example.dzlog.ui.camera.preview
 
 import android.graphics.RectF
 import android.util.Log
-import android.view.MotionEvent
 import android.view.View
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -21,6 +22,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.lifecycle.Observer
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.example.dzlog.domain.model.CaptureRequest
@@ -36,12 +39,10 @@ import com.example.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * CameraPreviewArea
- * - 목적: CameraScreen에서 "프리뷰 영역 덩어리"를 캡슐화해 조립자 역할을 강화함
- * - 포함: PreviewView(host), previewContentRect 계산, tap-to-focus UX, 워터마크/결과 오버레이 조립
- * - 제외: 촬영 저장 로직(파일 저장/카운터 증가 등)은 상위에서 유지
  */
 @Composable
 internal fun CameraPreviewArea(
@@ -74,37 +75,34 @@ internal fun CameraPreviewArea(
             }
         }
 
-        var previewContentRect by remember { mutableStateOf<RectF?>(null) }
+        var captureRect by remember { mutableStateOf(RectF(0f, 0f, 0f, 0f)) }
 
-        fun updatePreviewContentRect() {
+        fun updateCaptureRect() {
             val contentRect = resolvePreviewContentRect(
                 previewView = previewView,
                 overlayWidth = previewView.width.toFloat(),
                 overlayHeight = previewView.height.toFloat()
             )
-            previewContentRect = computeCaptureAreaRect(
+            captureRect = computeCaptureAreaRect(
                 contentRect = contentRect,
                 captureAspectRatio = captureAspect.ratioF
             )
             if (!previewLogged) {
-                val rect = previewContentRect
-                if (rect != null) {
-                    Log.d(
-                        "DZlogPreview",
-                        "Preview crop=${rect.width().toInt()}x${rect.height().toInt()} aspect=${captureAspect.label} content=${contentRect.width().toInt()}x${contentRect.height().toInt()}"
-                    )
-                    previewLogged = true
-                }
+                Log.d(
+                    "DZlogPreview",
+                    "Preview crop=${captureRect.width().toInt()}x${captureRect.height().toInt()} aspect=${captureAspect.label} content=${contentRect.width().toInt()}x${contentRect.height().toInt()}"
+                )
+                previewLogged = true
             }
         }
 
         DisposableEffect(previewView, lifecycleOwner, captureAspect) {
             val layoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-                updatePreviewContentRect()
+                updateCaptureRect()
             }
             val streamObserver = Observer<PreviewView.StreamState> { state ->
                 if (state == PreviewView.StreamState.STREAMING) {
-                    updatePreviewContentRect()
+                    updateCaptureRect()
                 }
             }
 
@@ -118,7 +116,7 @@ internal fun CameraPreviewArea(
         }
 
         LaunchedEffect(captureAspect) {
-            updatePreviewContentRect()
+            updateCaptureRect()
             bindCamera(
                 context = context,
                 lifecycleOwner = lifecycleOwner,
@@ -130,53 +128,17 @@ internal fun CameraPreviewArea(
             }
         }
 
-        DisposableEffect(previewView, boundCamera) {
-            // Tap-to-focus (AF/AE) on PreviewView
-            val listener = View.OnTouchListener { v, event ->
-                if (event.action != MotionEvent.ACTION_UP) return@OnTouchListener true
-                val activeCamera = boundCamera ?: return@OnTouchListener true
-
-                // Accessibility / lint: onTouch consumes click -> performClick required
-                v?.performClick()
-
-                val x = event.x
-                val y = event.y
-                onTapFocusUiChange(
-                    TapFocusUiState(
-                        xPx = x,
-                        yPx = y,
-                        phase = FocusRingPhase.FOCUSING
-                    )
-                )
-
-                startTapToFocus(
-                    context = context,
-                    camera = activeCamera,
-                    previewView = previewView,
-                    xPx = x,
-                    yPx = y,
-                    onResult = { success ->
-                        scope.launch {
-                            if (success) {
-                                onTapFocusUiChange(tapFocusUi?.copy(phase = FocusRingPhase.SUCCESS))
-                                delay(350)
-                            } else {
-                                // 실패 UX는 표시하지 않음(요청 사항): 짧게 사라짐
-                                delay(200)
-                            }
-                            onTapFocusUiChange(null)
-                        }
-                    }
-                )
-                true
+        DisposableEffect(boundCamera) {
+            val activeCamera = boundCamera ?: return@DisposableEffect onDispose { }
+            val observer = Observer<androidx.camera.core.ZoomState> { zoomState ->
+                val actual = ((zoomState.zoomRatio * 10f).roundToInt()).coerceIn(10, 20)
+                args.onActualZoomTenthsChange(actual)
             }
-
-            previewView.setOnTouchListener(listener)
+            activeCamera.cameraInfo.zoomState.observe(lifecycleOwner, observer)
             onDispose {
-                previewView.setOnTouchListener(null)
+                activeCamera.cameraInfo.zoomState.removeObserver(observer)
             }
         }
-
 
         LaunchedEffect(boundCamera, args.zoomRatioTenths) {
             val activeCamera = boundCamera ?: return@LaunchedEffect
@@ -187,6 +149,57 @@ internal fun CameraPreviewArea(
             val target = min(requested, min(2f, maxSupported)).coerceAtLeast(minSupported)
             runCatching { activeCamera.cameraControl.setZoomRatio(target) }
         }
+
+        val gestureModifier = Modifier
+            .fillMaxSize()
+            .pointerInput(boundCamera, captureRect, tapFocusUi) {
+                detectTapGestures { offset ->
+                    val activeCamera = boundCamera ?: return@detectTapGestures
+                    if (!captureRect.contains(offset.x, offset.y)) return@detectTapGestures
+
+                    onTapFocusUiChange(
+                        TapFocusUiState(
+                            xPx = offset.x,
+                            yPx = offset.y,
+                            phase = FocusRingPhase.FOCUSING
+                        )
+                    )
+                    startTapToFocus(
+                        context = context,
+                        camera = activeCamera,
+                        previewView = previewView,
+                        xPx = offset.x,
+                        yPx = offset.y,
+                        onResult = { success ->
+                            scope.launch {
+                                if (success) {
+                                    onTapFocusUiChange(TapFocusUiState(offset.x, offset.y, FocusRingPhase.SUCCESS))
+                                    delay(350)
+                                } else {
+                                    delay(200)
+                                }
+                                onTapFocusUiChange(null)
+                            }
+                        }
+                    )
+                }
+            }
+            .pointerInput(boundCamera, captureRect) {
+                detectTransformGestures { centroid, _, zoom, _ ->
+                    val activeCamera = boundCamera ?: return@detectTransformGestures
+                    if (!captureRect.contains(centroid.x, centroid.y)) return@detectTransformGestures
+
+                    val zoomState = activeCamera.cameraInfo.zoomState.value ?: return@detectTransformGestures
+                    val maxSupported = min(2f, zoomState.maxZoomRatio)
+                    val minSupported = zoomState.minZoomRatio
+                    val next = (zoomState.zoomRatio * zoom).coerceIn(minSupported, maxSupported)
+
+                    runCatching { activeCamera.cameraControl.setZoomRatio(next) }
+                    val tenths = (next * 10f).roundToInt().coerceIn(10, 20)
+                    args.onRequestedZoomTenthsCommit(tenths)
+                    args.onActualZoomTenthsChange(tenths)
+                }
+            }
 
         val plan = remember(
             args.tableTemplateState,
@@ -219,9 +232,6 @@ internal fun CameraPreviewArea(
                 resolvedCells = plan.resolvedCells,
                 fnDelim = args.fnDelim,
                 counterDigits = args.counterDigits,
-                // ✅ 프리뷰도 "단일 소스 카운터"를 표시한다.
-                // - COUNTER 셀 ON/OFF, seed 수정 등 UI 상태에 의해 프리뷰 카운터가 흔들리지 않도록 한다.
-                // - 실제 증가 트리거는 captureAndSave에서만 발생한다.
                 usedCounter = args.scopeNextCounter,
                 now = args.now,
                 includeDate = false,
@@ -247,7 +257,7 @@ internal fun CameraPreviewArea(
 
         CameraPreviewHost(
             previewView = previewView,
-            previewContentRect = previewContentRect,
+            previewContentRect = if (captureRect.width() > 0f && captureRect.height() > 0f) captureRect else null,
             previewRequest = previewRequest,
             showWmPreview = args.showWmPreview,
             showGrid = args.showGrid,
@@ -258,5 +268,7 @@ internal fun CameraPreviewArea(
             onDismissCaptured = onDismissCaptured,
             tapFocusUi = tapFocusUi
         )
+
+        Box(modifier = gestureModifier)
     }
 }

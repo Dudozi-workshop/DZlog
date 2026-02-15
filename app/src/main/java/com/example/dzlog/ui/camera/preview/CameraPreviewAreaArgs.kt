@@ -52,5 +52,7 @@ internal data class CameraPreviewAreaArgs(
     val showWmPreview: Boolean,
     val showGrid: Boolean,
     val zoomRatioTenths: Int,
+    val onActualZoomTenthsChange: (Int) -> Unit,
+    val onRequestedZoomTenthsCommit: (Int) -> Unit,
     val watermarkUi: WatermarkUiArgs
 )
