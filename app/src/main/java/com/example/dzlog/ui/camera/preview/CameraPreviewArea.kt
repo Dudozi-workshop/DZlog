@@ -90,15 +90,35 @@ internal fun CameraPreviewArea(
         var dragAccumDx by remember { mutableStateOf(0f) }
         var dragAccumDy by remember { mutableStateOf(0f) }
         var dragStartedAfterSlop by remember { mutableStateOf(false) }
+        var watermarkLastInteractionMs by remember { mutableStateOf(0L) }
         val dragTouchSlop = LocalViewConfiguration.current.touchSlop
 
         fun commitWatermarkOffsetIfNeeded() {
             args.onWatermarkOffsetRatioCommit(previewOffsetX, previewOffsetY)
         }
 
+        fun markWatermarkInteraction() {
+            watermarkLastInteractionMs = SystemClock.uptimeMillis()
+        }
+
         LaunchedEffect(args.watermarkUi.offsetXRatio, args.watermarkUi.offsetYRatio) {
             previewOffsetX = args.watermarkUi.offsetXRatio.coerceIn(0, 100)
             previewOffsetY = args.watermarkUi.offsetYRatio.coerceIn(0, 100)
+        }
+
+        LaunchedEffect(isWatermarkArmed, watermarkDragActive, watermarkLastInteractionMs) {
+            if (!isWatermarkArmed || watermarkDragActive) return@LaunchedEffect
+            val timeoutMs = 1_000L
+            val waitMs = (watermarkLastInteractionMs + timeoutMs - SystemClock.uptimeMillis()).coerceAtLeast(0L)
+            delay(waitMs)
+            if (
+                isWatermarkArmed &&
+                !watermarkDragActive &&
+                (SystemClock.uptimeMillis() - watermarkLastInteractionMs) >= timeoutMs
+            ) {
+                commitWatermarkOffsetIfNeeded()
+                isWatermarkArmed = false
+            }
         }
 
         fun updateCaptureRect() {
@@ -186,6 +206,7 @@ internal fun CameraPreviewArea(
                             isWatermarkArmed = false
                         } else {
                             isWatermarkArmed = true
+                            markWatermarkInteraction()
                         }
                         return@detectTapGestures
                     }
@@ -252,6 +273,7 @@ internal fun CameraPreviewArea(
                             dragAccumDx = 0f
                             dragAccumDy = 0f
                             dragStartedAfterSlop = false
+                            markWatermarkInteraction()
                         }
                     },
                     onDragEnd = {
@@ -302,6 +324,7 @@ internal fun CameraPreviewArea(
                         previewOffsetX = nextXRatio
                         previewOffsetY = nextYRatio
                         args.onWatermarkOffsetRatioPreview(nextXRatio, nextYRatio)
+                        markWatermarkInteraction()
                     }
                 }
             }
