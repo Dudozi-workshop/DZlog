@@ -1,9 +1,12 @@
+@file:Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
+
 package com.example.dzlog.ui.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -28,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
@@ -51,11 +55,18 @@ import com.example.dzlog.ui.log.DzThumbnail
 import com.example.dzlog.ui.log.dzFormatDate
 import com.example.dzlog.ui.log.parseG1G2FromRelativePath
 import com.example.dzlog.ui.theme.DDZColor
-import com.example.dzlog.ui.theme.DDZSpacing
 import com.example.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Date
+
+private fun clampDp(value: Dp, min: Dp, max: Dp): Dp {
+    return when {
+        value < min -> min
+        value > max -> max
+        else -> value
+    }
+}
 
 @Composable
 fun HomeScreen(
@@ -142,21 +153,33 @@ fun HomeScreen(
         }
     }
 
-    val titleAreaHeight = DDZSpacing.homeCardTitleAreaHeight
-
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(DDZColor.Background)
-            .padding(DDZSpacing.screenPadding)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        val screenWidth = maxWidth
+        val screenHeight = maxHeight
+
+        val pad = clampDp(screenWidth * 0.045f, 12.dp, 20.dp)
+        val gapS = clampDp(screenWidth * 0.02f, 6.dp, 12.dp)
+        val gapM = clampDp(screenWidth * 0.03f, 10.dp, 18.dp)
+
+        val bottomH = clampDp(screenHeight * 0.27f, 170.dp, 230.dp)
+        val titleH = clampDp(screenWidth * 0.085f, 28.dp, 44.dp)
+        val primaryBtnH = clampDp(screenWidth * 0.13f, 44.dp, 60.dp)
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(pad)
+        ) {
             // 상단 헤더: 타이틀 가로 중앙 + 우측 설정 아이콘
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(top = 4.dp),
+                    .padding(top = gapS / 2f),
             ) {
                 Text(
                     text = "DZlog",
@@ -176,14 +199,14 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(Modifier.height(DDZSpacing.itemGap))
+            Spacer(Modifier.height(gapS))
 
             DDZCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = onOpenSettings)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(gapS)) {
                     Text(
                         text = "저장경로: $savePathPreview",
                         style = DDZTypography.Body,
@@ -197,7 +220,7 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(Modifier.height(DDZSpacing.sectionGap))
+            Spacer(Modifier.height(gapM))
 
             // 중단: 메인 액션(촬영/기존 사진 편집) 영역을 가용 공간 중앙에 배치
             Column(
@@ -209,14 +232,18 @@ fun HomeScreen(
                 DDZButton(
                     text = "촬영 시작",
                     onClick = onStartCamera,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(primaryBtnH),
                     style = DDZButtonStyle.Primary
                 )
-                Spacer(Modifier.height(DDZSpacing.itemGap))
+                Spacer(Modifier.height(gapS))
                 DDZButton(
                     text = "기존 사진 편집",
                     onClick = {},
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(primaryBtnH),
                     style = DDZButtonStyle.Secondary,
                     enabled = false
                 )
@@ -226,7 +253,7 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp),
+                    .height(bottomH),
             ) {
                 DDZCard(
                     modifier = Modifier
@@ -238,13 +265,13 @@ fun HomeScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(titleAreaHeight),
+                                .height(titleH),
                             contentAlignment = Alignment.CenterStart
                         ) {
                             Text(
                                 text = "표 상세설정",
                                 style = DDZTypography.HomeSectionLabel,
-                                modifier = Modifier.padding(start = 2.dp),
+                                modifier = Modifier.padding(start = gapS / 3f),
                                 color = DDZColor.TextPrimary
                             )
                         }
@@ -271,7 +298,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .weight(0.36f)
                         .fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)
+                    verticalArrangement = Arrangement.spacedBy(gapS)
                 ) {
                     DDZCard(
                         modifier = Modifier
@@ -291,15 +318,15 @@ fun HomeScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(titleAreaHeight),
+                                    .height(titleH),
                                 contentAlignment = Alignment.CenterStart
                             ) {
-                                Text("최근 촬영", style = DDZTypography.HomeSectionLabel, color = DDZColor.TextPrimary, modifier = Modifier.padding(start = 2.dp))
+                                Text("최근 촬영", style = DDZTypography.HomeSectionLabel, color = DDZColor.TextPrimary, modifier = Modifier.padding(start = gapS / 3f))
                             }
 
                             Column(
                                 modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)
+                                verticalArrangement = Arrangement.spacedBy(gapS)
                             ) {
                                 val it = latestImage
                                 if (it == null) {
