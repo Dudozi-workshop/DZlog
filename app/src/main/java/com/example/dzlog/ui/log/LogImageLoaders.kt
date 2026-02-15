@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
 import androidx.core.net.toUri
 
 @Composable
@@ -31,6 +32,7 @@ fun DzThumbnail(uriString: String) {
             Image(
                 bitmap = bmp!!.asImageBitmap(),
                 contentDescription = null,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
         }

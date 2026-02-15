@@ -44,6 +44,7 @@ import com.example.dzlog.ui.common.TablePreviewCard
 import com.example.dzlog.ui.common.rememberTablePreviewSettings
 import com.example.dzlog.ui.log.DzThumbnail
 import com.example.dzlog.ui.log.dzFormatDate
+import com.example.dzlog.ui.log.parseG1G2FromRelativePath
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
 import com.example.dzlog.ui.theme.DDZTypography
@@ -297,25 +298,4 @@ fun HomeScreen(
             }
         }
     }
-}
-
-/**
- * relativePath 예: "Pictures/DZlog/G1/G2/"
- * - G1/G2가 없으면 "(기본)"으로 채움
- */
-private fun parseG1G2FromRelativePath(relativePath: String): Pair<String, String> {
-    val default = "(기본)"
-    // 슬래시 정리
-    val p = relativePath.trim()
-    // DZlog 이후 경로를 뽑는다
-    val idx = p.indexOf("DZlog/")
-    if (idx < 0) return default to default
-
-    val tail = p.substring(idx + "DZlog/".length).trim('/')
-    if (tail.isBlank()) return default to default
-
-    val parts = tail.split('/').filter { it.isNotBlank() }
-    val g1 = parts.getOrNull(0) ?: default
-    val g2 = parts.getOrNull(1) ?: default
-    return g1 to g2
 }

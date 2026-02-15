@@ -75,6 +75,7 @@ class TableTemplateViewModel : ViewModel() {
 fun AppRoot() {
     var screen by remember { mutableStateOf(AppScreen.HOME) }
     var previousScreen by remember { mutableStateOf(AppScreen.HOME) }
+    var albumEntryScreen by remember { mutableStateOf(AppScreen.HOME) }
 
 // 앨범(G1/G2/그리드/뷰어) 상태
     var selectedG1 by remember { mutableStateOf<String?>(null) }
@@ -145,6 +146,37 @@ fun AppRoot() {
         screen = target
     }
 
+    fun isAlbumScreen(target: AppScreen): Boolean {
+        return target == AppScreen.ALBUM_G1 ||
+            target == AppScreen.ALBUM_G2 ||
+            target == AppScreen.ALBUM_GRID ||
+            target == AppScreen.ALBUM_VIEWER
+    }
+
+    fun openAlbumRoot() {
+        selectedG1 = null
+        selectedG2 = null
+        gridItems = emptyList()
+        isSelectionMode = false
+        selectedIds = emptySet()
+        viewerStartIndex = 0
+        albumEntryScreen = screen
+        navigateTo(AppScreen.ALBUM_G1)
+    }
+
+    fun openRecentCaptureGrid(g1: String, g2: String, startIndex: Int) {
+        selectedG1 = g1
+        selectedG2 = g2
+        gridItems = emptyList()
+        isSelectionMode = false
+        selectedIds = emptySet()
+        viewerStartIndex = startIndex
+        albumEntryScreen = screen
+        navigateTo(AppScreen.ALBUM_GRID)
+    }
+
+    val keepCameraAliveBehindAlbum = albumEntryScreen == AppScreen.CAMERA && isAlbumScreen(screen)
+
     BackHandler(enabled = true) {
         // 기본 내비게이션(화면 기준)
         when (screen) {
@@ -173,9 +205,19 @@ fun AppRoot() {
                 }
             }
             AppScreen.ALBUM_VIEWER -> screen = AppScreen.ALBUM_GRID
-            AppScreen.ALBUM_G1 -> screen = AppScreen.HOME
-        AppScreen.ALBUM_G2 -> screen = AppScreen.ALBUM_G1
+            AppScreen.ALBUM_G1 -> screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
+            AppScreen.ALBUM_G2 -> screen = AppScreen.ALBUM_G1
         }
+    }
+
+    if (keepCameraAliveBehindAlbum) {
+        CameraScreen(
+            tableTemplateState = tableTemplateState,
+            onTemplateChange = tableTemplateViewModel::update,
+            onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
+            onOpenAlbum = ::openAlbumRoot,
+            onOpenRecentCaptureGrid = ::openRecentCaptureGrid
+        )
     }
 
     when (screen) {
@@ -184,33 +226,20 @@ fun AppRoot() {
             onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
             onStartCamera = { navigateTo(AppScreen.CAMERA) },
             onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
-            onOpenAlbum = {
-                selectedG1 = null
-                selectedG2 = null
-                gridItems = emptyList()
-                isSelectionMode = false
-                selectedIds = emptySet()
-                viewerStartIndex = 0
-                navigateTo(AppScreen.ALBUM_G1)
-            },
-            onOpenRecentCaptureGrid = { g1, g2, startIndex ->
-                selectedG1 = g1
-                selectedG2 = g2
-                gridItems = emptyList()
-                isSelectionMode = false
-                selectedIds = emptySet()
-                viewerStartIndex = startIndex
-                navigateTo(AppScreen.ALBUM_GRID)
-            }
+            onOpenAlbum = ::openAlbumRoot,
+            onOpenRecentCaptureGrid = ::openRecentCaptureGrid
         )
 
         AppScreen.CAMERA -> {
-            CameraScreen(
-                onExitToHome = { navigateTo(AppScreen.HOME) },
-                tableTemplateState = tableTemplateState,
-                onTemplateChange = tableTemplateViewModel::update,
-                onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) }
-            )
+            if (!keepCameraAliveBehindAlbum) {
+                CameraScreen(
+                    tableTemplateState = tableTemplateState,
+                    onTemplateChange = tableTemplateViewModel::update,
+                    onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
+                    onOpenAlbum = ::openAlbumRoot,
+                    onOpenRecentCaptureGrid = ::openRecentCaptureGrid
+                )
+            }
         }
 
         AppScreen.TABLE_EDITOR -> {
@@ -229,7 +258,7 @@ fun AppRoot() {
         )
         AppScreen.ALBUM_G1 -> {
             LogG1Screen(
-                onBack = { screen = AppScreen.HOME },
+                onBack = { screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME },
                 onSelectG1 = { g1 ->
                     selectedG1 = g1
                     selectedG2 = null

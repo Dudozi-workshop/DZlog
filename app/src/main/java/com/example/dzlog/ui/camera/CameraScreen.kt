@@ -15,6 +15,7 @@ import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,11 +23,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -43,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -84,6 +89,7 @@ import com.example.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.ContinuousPreviewMode
+import com.example.dzlog.domain.model.MediaImageItem
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableTemplateState
@@ -95,6 +101,7 @@ import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.feature.capture.io.createCaptureRepository
 import com.example.dzlog.feature.capture.permission.hasCameraPermission
 import com.example.dzlog.feature.capture.policy.stabilizeStreamNextCounter
+import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.example.dzlog.ui.camera.controls.CaptureButtonSection
 import com.example.dzlog.ui.camera.controls.ZoomControlSection
 import com.example.dzlog.ui.camera.controls.handleCaptureClick
@@ -102,12 +109,16 @@ import com.example.dzlog.ui.camera.preview.CameraPreviewArea
 import com.example.dzlog.ui.camera.preview.CameraPreviewAreaArgs
 import com.example.dzlog.ui.camera.preview.WatermarkUiArgs
 import com.example.dzlog.ui.camera.settings.CameraSettingsOverlayPanel
+import com.example.dzlog.ui.log.DzThumbnail
+import com.example.dzlog.ui.log.parseG1G2FromRelativePath
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
 import com.example.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.Date
 
 private val USABLE_VERTICAL_MARGIN = 10.dp
@@ -115,10 +126,11 @@ private val USABLE_VERTICAL_MARGIN = 10.dp
 // NOTE: buildWatermarkConfig는 다른 파일(핸들러)에서도 사용되므로 file-private 금지
 @Composable
 fun CameraScreen(
-    onExitToHome: () -> Unit,
     tableTemplateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
-    onOpenTableEditor: () -> Unit
+    onOpenTableEditor: () -> Unit,
+    onOpenAlbum: () -> Unit,
+    onOpenRecentCaptureGrid: (g1: String, g2: String, startIndex: Int) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -141,7 +153,9 @@ fun CameraScreen(
             CameraPreview(
                 tableTemplateState = tableTemplateState,
                 onTemplateChange = onTemplateChange,
-                onOpenTableEditor = onOpenTableEditor
+                onOpenTableEditor = onOpenTableEditor,
+                onOpenAlbum = onOpenAlbum,
+                onOpenRecentCaptureGrid = onOpenRecentCaptureGrid
             )
         } else {
             Text(
@@ -158,7 +172,9 @@ fun CameraScreen(
 fun CameraPreview(
     tableTemplateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
-    onOpenTableEditor: () -> Unit
+    onOpenTableEditor: () -> Unit,
+    onOpenAlbum: () -> Unit,
+    onOpenRecentCaptureGrid: (g1: String, g2: String, startIndex: Int) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
@@ -204,6 +220,17 @@ fun CameraPreview(
         nextCounter = ui.counter.scopeNextCounter,
     )
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
+    var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
+
+    suspend fun reloadLatestImage() {
+        latestImage = withContext(Dispatchers.IO) {
+            val reader = DzlogMediaStoreReader(context.contentResolver)
+            runCatching { reader.loadLatestImage() }.getOrNull()
+        }
+    }
+
+    LaunchedEffect(Unit) { reloadLatestImage() }
+    LaunchedEffect(mediaStoreRefreshTick) { reloadLatestImage() }
 
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
     SyncCounterSeedEffect(
@@ -484,18 +511,39 @@ fun CameraPreview(
                 Box(modifier = Modifier.height(DDZSpacing.itemGap))
 
                 Box(
-                    modifier = Modifier.onGloballyPositioned { coordinates ->
-                        shutterButtonTopY = coordinates.positionInRoot().y
-                    }
-                ) {
-                    CaptureButtonSection(
-                        ready = enabledNow,
-                        onClick = {
-                        if (zoomPanelExpanded) {
-                            zoomPanelExpanded = false
-                            return@CaptureButtonSection
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            shutterButtonTopY = coordinates.positionInRoot().y
                         }
-                        handleCaptureClick(
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RecentCaptureThumbButton(
+                            latestImage = latestImage,
+                            onClick = {
+                                val it = latestImage
+                                if (it == null) {
+                                    onOpenAlbum()
+                                } else {
+                                    val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
+                                    onOpenRecentCaptureGrid(g1, g2, 0)
+                                }
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        CaptureButtonSection(
+                            ready = enabledNow,
+                            onClick = {
+                            if (zoomPanelExpanded) {
+                                zoomPanelExpanded = false
+                                return@CaptureButtonSection
+                            }
+                            handleCaptureClick(
                             context = context,
                             gate = ui.capture.captureGate,
                             imageCapture = boundImageCapture,
@@ -525,11 +573,18 @@ fun CameraPreview(
                             buildWatermarkConfig = ::buildWatermarkConfig,
                             onApplyTemplatePatch = { onTemplateChange(it) },
                             onUpdateScopeNextCounter = { ui.counter.scopeNextCounter = it },
-                            onSetCapturedUri = { ui.capture.capturedUri = it },
+                            onSetCapturedUri = {
+                                ui.capture.capturedUri = it
+                                scope.launch { reloadLatestImage() }
+                            },
                             onSetCapturing = { ui.capture.isCapturing = it }
+                            )
+                            }
                         )
-                        }
-                    )
+
+                        Spacer(modifier = Modifier.weight(1f))
+                        Spacer(modifier = Modifier.size(48.dp))
+                    }
                 }
             }
         }
@@ -563,6 +618,25 @@ fun CameraPreview(
                 },
                 onDismiss = { ui.showWizard = false }
             )
+        }
+    }
+}
+
+@Composable
+private fun RecentCaptureThumbButton(
+    latestImage: MediaImageItem?,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, DDZColor.Border, RoundedCornerShape(12.dp))
+            .background(DDZColor.Card.copy(alpha = 0.5f))
+            .clickable(onClick = onClick)
+    ) {
+        latestImage?.let {
+            DzThumbnail(it.uri.toString())
         }
     }
 }
