@@ -9,6 +9,52 @@ private const val BG_STYLE_BLACK = 0
 private const val BG_STYLE_WHITE = 1
 private const val BG_STYLE_TRANSPARENT = 2
 
+data class WatermarkTableLayout(
+    val rect: RectF,
+    val maxX: Float,
+    val maxY: Float
+)
+
+fun computeWatermarkTableLayout(
+    bounds: RectF,
+    anchor: WatermarkTableAnchor,
+    offsetXRatio: Int,
+    offsetYRatio: Int,
+    tableHeightRatio: Int,
+    tableWidthRatio: Int
+): WatermarkTableLayout {
+    val w = bounds.width()
+    val h = bounds.height()
+    val base = w
+    val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
+    val tableH = base * (tableHeightRatio.coerceIn(10, 35) / 100f)
+
+    val maxX = (w - tableW).coerceAtLeast(0f)
+    val maxY = (h - tableH).coerceAtLeast(0f)
+
+    val left = bounds.left + when (anchor) {
+        WatermarkTableAnchor.TOP_LEFT,
+        WatermarkTableAnchor.BOTTOM_LEFT -> 0f
+        WatermarkTableAnchor.TOP_RIGHT,
+        WatermarkTableAnchor.BOTTOM_RIGHT -> maxX
+        WatermarkTableAnchor.CUSTOM -> maxX * (offsetXRatio.coerceIn(0, 100) / 100f)
+    }
+
+    val top = bounds.top + when (anchor) {
+        WatermarkTableAnchor.TOP_LEFT,
+        WatermarkTableAnchor.TOP_RIGHT -> 0f
+        WatermarkTableAnchor.BOTTOM_LEFT,
+        WatermarkTableAnchor.BOTTOM_RIGHT -> maxY
+        WatermarkTableAnchor.CUSTOM -> maxY * (offsetYRatio.coerceIn(0, 100) / 100f)
+    }
+
+    return WatermarkTableLayout(
+        rect = RectF(left, top, left + tableW, top + tableH),
+        maxX = maxX,
+        maxY = maxY
+    )
+}
+
 private fun drawBackgroundRect(
     canvas: Canvas,
     left: Float,
@@ -197,35 +243,19 @@ fun drawWatermarkTableOnCanvas(
     colWeights: List<Float>? = null,
     bgStyle: Int = BG_STYLE_BLACK
 ) {
-    val w = bounds.width()
-    val h = bounds.height()
+    val layout = computeWatermarkTableLayout(
+        bounds = bounds,
+        anchor = anchor,
+        offsetXRatio = offsetXRatio,
+        offsetYRatio = offsetYRatio,
+        tableHeightRatio = tableHeightRatio,
+        tableWidthRatio = tableWidthRatio
+    )
+    val tableW = layout.rect.width()
+    val tableH = layout.rect.height()
+    val left = layout.rect.left
+    val top = layout.rect.top
 
-    // ✅ 비율에 따른 높이 변화에 영향을 받지 않도록
-    // 표 크기 계산 기준을 width(가로)로 통일한다.
-    val base = w
-    val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
-    val tableH = base * (tableHeightRatio.coerceIn(10, 35) / 100f)
-
-    val maxX = (w - tableW).coerceAtLeast(0f)
-    val maxY = (h - tableH).coerceAtLeast(0f)
-
-    val left = bounds.left + when (anchor) {
-        WatermarkTableAnchor.TOP_LEFT,
-        WatermarkTableAnchor.BOTTOM_LEFT -> 0f
-        WatermarkTableAnchor.TOP_RIGHT,
-        WatermarkTableAnchor.BOTTOM_RIGHT -> maxX
-        WatermarkTableAnchor.CUSTOM ->
-            maxX * (offsetXRatio.coerceIn(0, 100) / 100f)
-    }
-
-    val top = bounds.top + when (anchor) {
-        WatermarkTableAnchor.TOP_LEFT,
-        WatermarkTableAnchor.TOP_RIGHT -> 0f
-        WatermarkTableAnchor.BOTTOM_LEFT,
-        WatermarkTableAnchor.BOTTOM_RIGHT -> maxY
-        WatermarkTableAnchor.CUSTOM ->
-            maxY * (offsetYRatio.coerceIn(0, 100) / 100f)
-    }
     drawBackgroundRect(canvas, left, top, tableW, tableH, bgAlpha, bgStyle)
 
     val safeRows = rows.coerceAtLeast(1)

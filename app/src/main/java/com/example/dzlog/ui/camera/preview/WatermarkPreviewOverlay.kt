@@ -2,32 +2,51 @@ package com.example.dzlog.ui.camera.preview
 
 import android.graphics.RectF
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.zIndex
 import com.example.dzlog.domain.model.CaptureRequest
+import com.example.dzlog.watermark.computeWatermarkTableLayout
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 
 /**
  * [WatermarkPreviewOverlay]
- * - 목적: 촬영 화면에서 워터마크 미리보기만 렌더링함
- * - 입력: request, previewContentRect, enabled
- * - 제외: 저장/촬영/CameraX 제어 로직 금지(표시 전용)
+ * - 목적: 촬영 화면에서 워터마크 미리보기 렌더
  */
 @Composable
 fun WatermarkPreviewOverlay(
     enabled: Boolean,
     request: CaptureRequest,
-    previewContentRect: RectF?
+    previewContentRect: RectF?,
+    onTableRectChange: (RectF?) -> Unit
 ) {
-    if (!enabled || previewContentRect == null) return
+    if (!enabled || previewContentRect == null) {
+        LaunchedEffect(enabled, previewContentRect) { onTableRectChange(null) }
+        return
+    }
+
+    val layout = computeWatermarkTableLayout(
+        bounds = previewContentRect,
+        anchor = request.watermark.anchor,
+        offsetXRatio = request.watermark.offsetXRatio,
+        offsetYRatio = request.watermark.offsetYRatio,
+        tableHeightRatio = request.watermark.tableHeightRatio,
+        tableWidthRatio = request.watermark.tableWidthRatio
+    )
+
+    LaunchedEffect(layout.rect.left, layout.rect.top, layout.rect.right, layout.rect.bottom) {
+        onTableRectChange(RectF(layout.rect))
+    }
 
     val cells = request.watermarkCells
 
     Canvas(
         modifier = Modifier
+            .fillMaxSize()
             .zIndex(1f)
     ) {
         drawIntoCanvas { canvas ->

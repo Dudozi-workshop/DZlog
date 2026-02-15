@@ -9,6 +9,7 @@ import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
@@ -22,7 +23,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.lifecycle.Observer
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
@@ -76,6 +76,7 @@ internal fun CameraPreviewArea(
         }
 
         var captureRect by remember { mutableStateOf(RectF(0f, 0f, 0f, 0f)) }
+        var watermarkRect by remember { mutableStateOf<RectF?>(null) }
 
         fun updateCaptureRect() {
             val contentRect = resolvePreviewContentRect(
@@ -152,10 +153,35 @@ internal fun CameraPreviewArea(
 
         val gestureModifier = Modifier
             .fillMaxSize()
-            .pointerInput(boundCamera, captureRect, tapFocusUi) {
+            .pointerInput(watermarkRect, captureRect) {
+                detectDragGestures { change, dragAmount ->
+                    val tableRect = watermarkRect ?: return@detectDragGestures
+                    if (!tableRect.contains(change.position.x, change.position.y)) return@detectDragGestures
+                    change.consume()
+
+                    val contentRect = captureRect
+                    val tableW = tableRect.width()
+                    val tableH = tableRect.height()
+                    val maxX = (contentRect.width() - tableW).coerceAtLeast(0f)
+                    val maxY = (contentRect.height() - tableH).coerceAtLeast(0f)
+                    if (maxX <= 0f || maxY <= 0f) return@detectDragGestures
+
+                    val currentX = (tableRect.left - contentRect.left).coerceIn(0f, maxX)
+                    val currentY = (tableRect.top - contentRect.top).coerceIn(0f, maxY)
+                    val nextXRatio = (((currentX + dragAmount.x).coerceIn(0f, maxX) / maxX) * 100f).toInt().coerceIn(0, 100)
+                    val nextYRatio = (((currentY + dragAmount.y).coerceIn(0f, maxY) / maxY) * 100f).toInt().coerceIn(0, 100)
+                    args.onWatermarkOffsetRatioChange(nextXRatio, nextYRatio)
+                }
+            }
+            .pointerInput(boundCamera, captureRect, tapFocusUi, watermarkRect) {
                 detectTapGestures { offset ->
+                    if (watermarkRect?.contains(offset.x, offset.y) == true) {
+                        args.onOpenTableEditor()
+                        return@detectTapGestures
+                    }
                     val activeCamera = boundCamera ?: return@detectTapGestures
                     if (!captureRect.contains(offset.x, offset.y)) return@detectTapGestures
+                    if (watermarkRect?.contains(offset.x, offset.y) == true) return@detectTapGestures
 
                     onTapFocusUiChange(
                         TapFocusUiState(
@@ -184,10 +210,11 @@ internal fun CameraPreviewArea(
                     )
                 }
             }
-            .pointerInput(boundCamera, captureRect) {
+            .pointerInput(boundCamera, captureRect, watermarkRect) {
                 detectTransformGestures { centroid, _, zoom, _ ->
                     val activeCamera = boundCamera ?: return@detectTransformGestures
                     if (!captureRect.contains(centroid.x, centroid.y)) return@detectTransformGestures
+                    if (watermarkRect?.contains(centroid.x, centroid.y) == true) return@detectTransformGestures
 
                     val zoomState = activeCamera.cameraInfo.zoomState.value ?: return@detectTransformGestures
                     val maxSupported = min(2f, zoomState.maxZoomRatio)
@@ -266,7 +293,8 @@ internal fun CameraPreviewArea(
             aspectRatio = captureAspect.ratioF,
             captureAspectRatio = captureAspect.ratioF,
             onDismissCaptured = onDismissCaptured,
-            tapFocusUi = tapFocusUi
+            tapFocusUi = tapFocusUi,
+            onWatermarkRectChange = { watermarkRect = it }
         )
 
         Box(modifier = gestureModifier)

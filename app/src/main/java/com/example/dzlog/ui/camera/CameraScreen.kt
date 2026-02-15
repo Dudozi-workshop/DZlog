@@ -227,12 +227,17 @@ fun CameraPreview(
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode == ContinuousPreviewMode.SHORT) {
             delay(1500)
             ui.capture.capturedUri = null
-            resetZoomToDefault()
         }
     }
 
     LaunchedEffect(Unit) {
         loadCameraPrefsIntoUi(context.dataStore.data.first(), ui)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            resetZoomToDefault()
+        }
     }
 
     Box(
@@ -292,6 +297,19 @@ fun CameraPreview(
                     ui.prefs.zoomRatioTenths = normalized
                     scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
                 },
+                onWatermarkOffsetRatioChange = { x, y ->
+                    ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
+                    ui.prefs.wmOffsetXRatio = x
+                    ui.prefs.wmOffsetYRatio = y
+                    scope.launch {
+                        context.dataStore.edit {
+                            it[KEY_WM_TABLE_ANCHOR] = 4
+                            it[KEY_WM_OFFSET_X] = x
+                            it[KEY_WM_OFFSET_Y] = y
+                        }
+                    }
+                },
+                onOpenTableEditor = onOpenTableEditor,
                 watermarkUi = WatermarkUiArgs(
                     anchor = ui.prefs.wmTableAnchor,
                     tableWidthRatio = ui.prefs.wmTableWidthRatio,
@@ -312,10 +330,7 @@ fun CameraPreview(
             onBoundCameraChange = { boundCamera = it },
             onBoundImageCaptureChange = { boundImageCapture = it },
             capturedUri = ui.capture.capturedUri,
-            onDismissCaptured = {
-                ui.capture.capturedUri = null
-                resetZoomToDefault()
-            },
+            onDismissCaptured = { ui.capture.capturedUri = null },
             tapFocusUi = ui.capture.tapFocusUi,
             onTapFocusUiChange = { ui.capture.tapFocusUi = it }
         )
