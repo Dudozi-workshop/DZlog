@@ -16,6 +16,7 @@ package com.example.dzlog.ui.navigation
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -25,6 +26,8 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -76,6 +79,7 @@ fun AppRoot() {
     var screen by remember { mutableStateOf(AppScreen.HOME) }
     var previousScreen by remember { mutableStateOf(AppScreen.HOME) }
     var albumEntryScreen by remember { mutableStateOf(AppScreen.HOME) }
+    var directReturnToCameraFromAlbumGrid by remember { mutableStateOf(false) }
 
 // 앨범(G1/G2/그리드/뷰어) 상태
     var selectedG1 by remember { mutableStateOf<String?>(null) }
@@ -161,6 +165,7 @@ fun AppRoot() {
         selectedIds = emptySet()
         viewerStartIndex = 0
         albumEntryScreen = screen
+        directReturnToCameraFromAlbumGrid = false
         navigateTo(AppScreen.ALBUM_G1)
     }
 
@@ -172,6 +177,7 @@ fun AppRoot() {
         selectedIds = emptySet()
         viewerStartIndex = startIndex
         albumEntryScreen = screen
+        directReturnToCameraFromAlbumGrid = (screen == AppScreen.CAMERA)
         navigateTo(AppScreen.ALBUM_GRID)
     }
 
@@ -200,24 +206,28 @@ fun AppRoot() {
                 if (isSelectionMode) {
                     isSelectionMode = false
                     selectedIds = emptySet()
+                } else if (directReturnToCameraFromAlbumGrid) {
+                    screen = AppScreen.CAMERA
                 } else {
                     screen = AppScreen.ALBUM_G2
                 }
             }
-            AppScreen.ALBUM_VIEWER -> screen = AppScreen.ALBUM_GRID
+            AppScreen.ALBUM_VIEWER -> screen = if (directReturnToCameraFromAlbumGrid) AppScreen.CAMERA else AppScreen.ALBUM_GRID
             AppScreen.ALBUM_G1 -> screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
             AppScreen.ALBUM_G2 -> screen = AppScreen.ALBUM_G1
         }
     }
 
     if (keepCameraAliveBehindAlbum) {
-        CameraScreen(
-            tableTemplateState = tableTemplateState,
-            onTemplateChange = tableTemplateViewModel::update,
-            onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
-            onOpenAlbum = ::openAlbumRoot,
-            onOpenRecentCaptureGrid = ::openRecentCaptureGrid
-        )
+        Box(modifier = Modifier.alpha(0f)) {
+            CameraScreen(
+                tableTemplateState = tableTemplateState,
+                onTemplateChange = tableTemplateViewModel::update,
+                onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
+                onOpenAlbum = ::openAlbumRoot,
+                onOpenRecentCaptureGrid = ::openRecentCaptureGrid
+            )
+        }
     }
 
     when (screen) {
@@ -344,7 +354,7 @@ fun AppRoot() {
                     startIndex = viewerStartIndex,
                     isSelectionMode = isSelectionMode,
                     selectedIds = selectedIds,
-                    onBack = { screen = AppScreen.ALBUM_GRID },
+                    onBack = { screen = if (directReturnToCameraFromAlbumGrid) AppScreen.CAMERA else AppScreen.ALBUM_GRID },
                     onEnterSelectionWith = { id ->
                         isSelectionMode = true
                         selectedIds = selectedIds + id

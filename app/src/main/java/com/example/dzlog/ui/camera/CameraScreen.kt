@@ -15,7 +15,6 @@ import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -24,7 +23,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
@@ -517,25 +515,23 @@ fun CameraPreview(
                             shutterButtonTopY = coordinates.positionInRoot().y
                         }
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RecentCaptureThumbButton(
-                            latestImage = latestImage,
-                            onClick = {
-                                val it = latestImage
-                                if (it == null) {
-                                    onOpenAlbum()
-                                } else {
-                                    val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
-                                    onOpenRecentCaptureGrid(g1, g2, 0)
-                                }
+                    RecentCaptureThumbButton(
+                        latestImage = latestImage,
+                        onClick = {
+                            val it = latestImage
+                            if (it == null) {
+                                onOpenAlbum()
+                            } else {
+                                val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
+                                onOpenRecentCaptureGrid(g1, g2, 0)
                             }
-                        )
+                        },
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(start = 16.dp)
+                    )
 
-                        Spacer(modifier = Modifier.weight(1f))
-
+                    Box(modifier = Modifier.align(Alignment.Center)) {
                         CaptureButtonSection(
                             ready = enabledNow,
                             onClick = {
@@ -581,9 +577,6 @@ fun CameraPreview(
                             )
                             }
                         )
-
-                        Spacer(modifier = Modifier.weight(1f))
-                        Spacer(modifier = Modifier.size(48.dp))
                     }
                 }
             }
@@ -625,10 +618,11 @@ fun CameraPreview(
 @Composable
 private fun RecentCaptureThumbButton(
     latestImage: MediaImageItem?,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(48.dp)
             .clip(RoundedCornerShape(12.dp))
             .border(1.dp, DDZColor.Border, RoundedCornerShape(12.dp))
