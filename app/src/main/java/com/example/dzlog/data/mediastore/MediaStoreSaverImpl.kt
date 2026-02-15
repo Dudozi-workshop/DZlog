@@ -1,5 +1,7 @@
 package com.example.dzlog.data.mediastore
 
+import com.example.dzlog.R
+
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
@@ -40,7 +42,7 @@ class MediaStoreSaverImpl : MediaStoreSaver {
         try {
             resolver.openOutputStream(uri)?.use { out ->
                 val ok = bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
-                if (!ok) throw IllegalStateException("Bitmap compress failed")
+                if (!ok) throw IllegalStateException(context.getString(R.string.error_bitmap_compress_failed))
             } ?: throw IllegalStateException("openOutputStream returned null")
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

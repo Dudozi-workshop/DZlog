@@ -26,7 +26,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.dzlog.R
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.example.dzlog.domain.model.LogGroupSummary
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
@@ -109,7 +111,7 @@ fun LogG2Screen(
                 // G2 화면을 나가면 선택은 초기화
                 resetSelection()
                 onBack()
-            }) { Text("Back") }
+            }) { Text(stringResource(R.string.action_back)) }
         }
 
         Spacer(Modifier.height(12.dp))

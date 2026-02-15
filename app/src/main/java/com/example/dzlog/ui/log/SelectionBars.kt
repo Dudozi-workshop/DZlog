@@ -1,5 +1,7 @@
 package com.example.dzlog.ui.log
 
+import com.example.dzlog.R
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -45,10 +48,10 @@ fun SelectionBottomBar(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Button(onClick = onClose) { Text("Close") }
-            Button(onClick = { onSelectAll?.invoke() }, enabled = onSelectAll != null) { Text("All") }
+            Button(onClick = onClose) { Text(stringResource(R.string.action_close)) }
+            Button(onClick = { onSelectAll?.invoke() }, enabled = onSelectAll != null) { Text(stringResource(R.string.option_all)) }
             Button(onClick = onShare, enabled = shareEnabled) { Text("Share") }
-            Button(onClick = { onDelete?.invoke() }, enabled = onDelete != null) { Text("Delete") }
+            Button(onClick = { onDelete?.invoke() }, enabled = onDelete != null) { Text(stringResource(R.string.action_delete)) }
         }
     }
 }

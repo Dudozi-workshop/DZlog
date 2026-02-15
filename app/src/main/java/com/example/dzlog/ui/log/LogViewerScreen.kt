@@ -30,7 +30,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.dzlog.R
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.example.dzlog.domain.model.MediaImageItem
 import com.example.dzlog.feature.log.policy.launchMediaDeleteRequest
@@ -215,7 +217,7 @@ private fun ViewerTopBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(onClick = onBack) { Text("Back") }
+            Button(onClick = onBack) { Text(stringResource(R.string.action_back)) }
             Text("$current / $total", color = Color.White)
         }
         Spacer(Modifier.height(6.dp))
@@ -237,7 +239,7 @@ private fun ViewerBottomBar(
         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
     ) {
         Button(onClick = onShare, enabled = enabled) { Text("Share") }
-        Button(onClick = onDelete, enabled = enabled) { Text("Delete") }
+        Button(onClick = onDelete, enabled = enabled) { Text(stringResource(R.string.action_delete)) }
     }
 }
 

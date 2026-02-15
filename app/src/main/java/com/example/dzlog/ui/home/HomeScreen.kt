@@ -13,6 +13,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -144,28 +149,27 @@ fun HomeScreen(
             .padding(DDZSpacing.screenPadding)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // 상단 헤더: 중앙 타이틀 + 우측 설정 아이콘
-            Box(
+            // 상단 헤더: 타이틀 + 우측 설정 아이콘 (centerY 정렬)
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(top = 4.dp)
+                    .padding(top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "DZlog",
-                    style = DDZTypography.ScreenTitle,
-                    color = DDZColor.TextPrimary,
-                    modifier = Modifier.align(Alignment.TopCenter)
+                    style = DDZTypography.HomeMainTitle,
+                    color = DDZColor.TextPrimary
                 )
-                Text(
-                    text = "설정",
-                    style = DDZTypography.Body,
-                    color = DDZColor.TextPrimary,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .clickable(onClick = onOpenSettings)
-                        .padding(8.dp)
-                )
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = onOpenSettings) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "설정",
+                        tint = DDZColor.Primary
+                    )
+                }
             }
 
             Spacer(Modifier.height(DDZSpacing.itemGap))
@@ -226,19 +230,25 @@ fun HomeScreen(
                         .fillMaxHeight()
                         .clickable(onClick = onOpenTableEditor)
                 ) {
-                    // 홈/설정 프리뷰 UI는 TablePreviewCard로 통합
-                    TablePreviewCard(
-                        templateState = tableTemplateState,
-                        counterDigits = 0,
-                        now = Date(),
-                        title = "표 미리보기",
-                        wmBgStyle = previewSettings.wmBgStyle,
-                        wmBgAlpha = previewSettings.wmBgAlpha,
-                        wmValueScale = previewSettings.wmValueScale,
-                        modifier = Modifier.fillMaxSize(),
-                        // 홈 카드 영역은 높이 제약이 있으므로 프리뷰도 카드 전체를 채움
-                        previewModifier = Modifier.fillMaxSize()
-                    )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Text(
+                            text = "표 상세설정",
+                            style = DDZTypography.HomeSectionLabel,
+                            color = DDZColor.TextPrimary
+                        )
+                        // 홈/설정 프리뷰 UI는 TablePreviewCard로 통합
+                        TablePreviewCard(
+                            templateState = tableTemplateState,
+                            counterDigits = 0,
+                            now = Date(),
+                            wmBgStyle = previewSettings.wmBgStyle,
+                            wmBgAlpha = previewSettings.wmBgAlpha,
+                            wmValueScale = previewSettings.wmValueScale,
+                            modifier = Modifier.fillMaxSize(),
+                            // 홈 카드 영역은 높이 제약이 있으므로 프리뷰도 카드 전체를 채움
+                            previewModifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
 
                 Spacer(Modifier.weight(0.04f))
@@ -264,7 +274,7 @@ fun HomeScreen(
                             }
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
-                            Text("최근 촬영", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+                            Text("최근 촬영", style = DDZTypography.HomeSectionLabel, color = DDZColor.TextPrimary)
                             val it = latestImage
                             if (it == null) {
                                 Text("최근 항목 없음", style = DDZTypography.Caption, color = DDZColor.TextMuted)
@@ -286,14 +296,23 @@ fun HomeScreen(
                         }
                     }
 
-                    DDZButton(
-                        text = "앨범",
-                        onClick = onOpenAlbum,
+                    DDZCard(
                         modifier = Modifier
                             .weight(0.25f, fill = true)
-                            .fillMaxWidth(),
-                        style = DDZButtonStyle.Secondary
-                    )
+                            .fillMaxWidth()
+                            .clickable(onClick = onOpenAlbum)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Collections,
+                                contentDescription = "앨범",
+                                tint = DDZColor.Primary
+                            )
+                        }
+                    }
                 }
             }
         }

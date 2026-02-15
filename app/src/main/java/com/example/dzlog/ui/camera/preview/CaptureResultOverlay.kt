@@ -20,9 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
+import com.example.dzlog.R
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
@@ -66,7 +68,7 @@ fun CaptureResultOverlay(
             ) {
                 AsyncImage(
                     model = capturedUri,
-                    contentDescription = "Captured result",
+                    contentDescription = stringResource(R.string.camera_captured_result),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit
                 )

@@ -43,7 +43,7 @@ object CounterManager {
     ): String {
         if (!hasG2Group) return baseRelativePath
         if (group2Value.isNotBlank()) return baseRelativePath
-        // Virtual stream key: distinguish "G2 enabled but empty" from true G1-only.
+        // Virtual stream key: distinguish empty-enabled G2 from true G1-only.
         return "$baseRelativePath|g2=enabled_empty"
     }
 

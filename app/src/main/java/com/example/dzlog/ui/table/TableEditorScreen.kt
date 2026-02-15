@@ -49,7 +49,9 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.dzlog.R
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.datastore.AppSettingsStore
@@ -738,7 +740,7 @@ fun TableEditorScreen(
                 navigationIcon = {
                     TextButton(onClick = onBack) {
                         Text(
-                            "Back",
+                            stringResource(R.string.action_back),
                             style = DDZTypography.ButtonText,
                             color = DDZColor.TextPrimary
                         )

@@ -24,7 +24,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.dzlog.R
 import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
@@ -97,7 +99,7 @@ fun SettingsRootScreen(
                 color = DDZColor.TextPrimary
             )
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onBack) { Text("Back", style = DDZTypography.ButtonText) }
+            TextButton(onClick = onBack) { Text(stringResource(R.string.action_back), style = DDZTypography.ButtonText) }
         }
         Spacer(Modifier.height(DDZSpacing.itemGap))
 
@@ -219,7 +221,7 @@ private fun QuickControlsCard(
 
             Text("저장 대상", style = DDZTypography.Body, color = DDZColor.TextPrimary)
             SegmentedControl(
-                options = listOf("Original", "Watermark", "Both"),
+                options = listOf("Original", "Watermark", stringResource(R.string.option_both)),
                 selectedIndex = when (saveMode) {
                     SaveMode.ORIGINAL_ONLY -> 0
                     SaveMode.WATERMARK_ONLY -> 1
@@ -237,7 +239,7 @@ private fun QuickControlsCard(
 
             Text("연속 촬영 미리보기", style = DDZTypography.Body, color = DDZColor.TextPrimary)
             SegmentedControl(
-                options = listOf("Off", "Short", "Hold"),
+                options = listOf("Off", "Short", stringResource(R.string.option_hold)),
                 selectedIndex = when (continuousPreviewMode) {
                     ContinuousPreviewMode.OFF -> 0
                     ContinuousPreviewMode.SHORT -> 1

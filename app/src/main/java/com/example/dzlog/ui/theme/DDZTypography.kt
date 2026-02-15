@@ -6,8 +6,10 @@ import androidx.compose.ui.unit.sp
 
 object DDZTypography {
     val ScreenTitle = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+    val HomeMainTitle = TextStyle(fontSize = 23.sp, fontWeight = FontWeight.SemiBold, lineHeight = 28.sp)
     val SectionTitle = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium)
     val CardTitle = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Medium)
+    val HomeSectionLabel = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium)
     val Body = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Normal)
     val Caption = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal)
     val ButtonText = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold)

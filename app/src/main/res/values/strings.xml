@@ -1,3 +1,22 @@
 <resources>
     <string name="app_name">DZlog</string>
+    <string name="action_back">뒤로</string>
+    <string name="action_close">닫기</string>
+    <string name="action_delete">삭제</string>
+
+    <string name="option_all">전체</string>
+    <string name="option_both">둘 다</string>
+    <string name="option_hold">고정</string>
+    <string name="scope_global">전역</string>
+
+    <string name="label_counter">카운터</string>
+    <string name="label_date">날짜</string>
+    <string name="label_batch">배치</string>
+    <string name="label_filename">파일명</string>
+
+    <string name="camera_captured_result">촬영 결과</string>
+
+    <string name="error_bitmap_compress_failed">이미지 압축 실패</string>
+    <string name="error_decode_failed">디코딩 실패</string>
+    <string name="error_g2_enabled_but_empty">G2가 활성화됐지만 비어 있어요</string>
 </resources>

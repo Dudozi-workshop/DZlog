@@ -20,9 +20,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.TableCellDataType
+import com.example.dzlog.R
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
@@ -146,9 +148,9 @@ private fun DataTypeCardGrid3(
     val items = listOf(
         TableCellDataType.TEXT to "Text",
         TableCellDataType.NUMBER to "Number",
-        TableCellDataType.DATE to "Date",
+        TableCellDataType.DATE to stringResource(R.string.label_date),
         TableCellDataType.TIME to "Time",
-        TableCellDataType.COUNTER to "Counter"
+        TableCellDataType.COUNTER to stringResource(R.string.label_counter)
     )
 
     val rows = items.chunked(3)

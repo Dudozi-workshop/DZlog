@@ -1,5 +1,7 @@
 package com.example.dzlog.ui.log
 
+import com.example.dzlog.R
+
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -93,7 +95,7 @@ private fun decodeSampledBitmap(
 
     context.contentResolver.openInputStream(uri)?.use { input ->
         return BitmapFactory.decodeStream(input, null, opts)
-            ?: throw IllegalStateException("decode failed")
+            ?: throw IllegalStateException(context.getString(R.string.error_decode_failed))
     }
     throw IllegalStateException("openInputStream failed")
 }
