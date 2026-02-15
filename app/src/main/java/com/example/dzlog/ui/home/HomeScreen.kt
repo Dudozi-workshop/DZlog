@@ -151,21 +151,23 @@ fun HomeScreen(
             .padding(DDZSpacing.screenPadding)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // 상단 헤더: 타이틀 + 우측 설정 아이콘 (centerY 정렬)
-            Row(
+            // 상단 헤더: 타이틀 가로 중앙 + 우측 설정 아이콘
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
                     .padding(top = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "DZlog",
                     style = DDZTypography.HomeMainTitle,
-                    color = DDZColor.TextPrimary
+                    color = DDZColor.Primary,
+                    modifier = Modifier.align(Alignment.Center)
                 )
-                Spacer(Modifier.weight(1f))
-                IconButton(onClick = onOpenSettings) {
+                IconButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = "설정",
@@ -237,11 +239,12 @@ fun HomeScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(titleAreaHeight),
-                            contentAlignment = Alignment.Center
+                            contentAlignment = Alignment.CenterStart
                         ) {
                             Text(
                                 text = "표 상세설정",
                                 style = DDZTypography.HomeSectionLabel,
+                                modifier = Modifier.padding(start = 2.dp),
                                 color = DDZColor.TextPrimary
                             )
                         }
@@ -289,9 +292,9 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(titleAreaHeight),
-                                contentAlignment = Alignment.Center
+                                contentAlignment = Alignment.CenterStart
                             ) {
-                                Text("최근 촬영", style = DDZTypography.HomeSectionLabel, color = DDZColor.TextPrimary)
+                                Text("최근 촬영", style = DDZTypography.HomeSectionLabel, color = DDZColor.TextPrimary, modifier = Modifier.padding(start = 2.dp))
                             }
 
                             Column(
