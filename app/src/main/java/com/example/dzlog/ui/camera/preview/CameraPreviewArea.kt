@@ -80,6 +80,18 @@ internal fun CameraPreviewArea(
         var watermarkRect by remember { mutableStateOf<RectF?>(null) }
         var watermarkDragActive by remember { mutableStateOf(false) }
         var suppressWatermarkTapUntilMs by remember { mutableStateOf(0L) }
+        var isWatermarkArmed by remember { mutableStateOf(false) }
+        var previewOffsetX by remember { mutableStateOf(args.watermarkUi.offsetXRatio.coerceIn(0, 100)) }
+        var previewOffsetY by remember { mutableStateOf(args.watermarkUi.offsetYRatio.coerceIn(0, 100)) }
+
+        fun commitWatermarkOffsetIfNeeded() {
+            args.onWatermarkOffsetRatioCommit(previewOffsetX, previewOffsetY)
+        }
+
+        LaunchedEffect(args.watermarkUi.offsetXRatio, args.watermarkUi.offsetYRatio) {
+            previewOffsetX = args.watermarkUi.offsetXRatio.coerceIn(0, 100)
+            previewOffsetY = args.watermarkUi.offsetYRatio.coerceIn(0, 100)
+        }
 
         fun updateCaptureRect() {
             val contentRect = resolvePreviewContentRect(
@@ -156,47 +168,23 @@ internal fun CameraPreviewArea(
 
         val gestureModifier = Modifier
             .fillMaxSize()
-            .pointerInput(captureRect) {
-                detectDragGestures(
-                    onDragStart = { down ->
-                        val tableRect = watermarkRect
-                        watermarkDragActive = (tableRect != null && tableRect.contains(down.x, down.y))
-                    },
-                    onDragEnd = {
-                        if (watermarkDragActive) {
-                            suppressWatermarkTapUntilMs = SystemClock.uptimeMillis() + 180L
-                        }
-                        watermarkDragActive = false
-                    },
-                    onDragCancel = {
-                        watermarkDragActive = false
-                    }
-                ) { change, dragAmount ->
-                    if (!watermarkDragActive) return@detectDragGestures
-                    val tableRect = watermarkRect ?: return@detectDragGestures
-                    change.consume()
-
-                    val contentRect = captureRect
-                    val tableW = tableRect.width()
-                    val tableH = tableRect.height()
-                    val maxX = (contentRect.width() - tableW).coerceAtLeast(0f)
-                    val maxY = (contentRect.height() - tableH).coerceAtLeast(0f)
-                    if (maxX <= 0f || maxY <= 0f) return@detectDragGestures
-
-                    val currentX = (tableRect.left - contentRect.left).coerceIn(0f, maxX)
-                    val currentY = (tableRect.top - contentRect.top).coerceIn(0f, maxY)
-                    val nextXRatio = (((currentX + dragAmount.x).coerceIn(0f, maxX) / maxX) * 100f).toInt().coerceIn(0, 100)
-                    val nextYRatio = (((currentY + dragAmount.y).coerceIn(0f, maxY) / maxY) * 100f).toInt().coerceIn(0, 100)
-                    args.onWatermarkOffsetRatioChange(nextXRatio, nextYRatio)
-                }
-            }
             .pointerInput(boundCamera, captureRect, tapFocusUi) {
                 detectTapGestures { offset ->
                     if (SystemClock.uptimeMillis() < suppressWatermarkTapUntilMs) return@detectTapGestures
                     if (watermarkRect?.contains(offset.x, offset.y) == true) {
-                        args.onOpenTableEditor()
+                        if (isWatermarkArmed) {
+                            commitWatermarkOffsetIfNeeded()
+                            args.onOpenTableEditor()
+                            isWatermarkArmed = false
+                        } else {
+                            isWatermarkArmed = true
+                        }
                         return@detectTapGestures
                     }
+                    if (isWatermarkArmed) {
+                        commitWatermarkOffsetIfNeeded()
+                    }
+                    isWatermarkArmed = false
                     val activeCamera = boundCamera ?: return@detectTapGestures
                     if (!captureRect.contains(offset.x, offset.y)) return@detectTapGestures
 
@@ -244,6 +232,48 @@ internal fun CameraPreviewArea(
                     args.onActualZoomTenthsChange(tenths)
                 }
             }
+            .pointerInput(captureRect) {
+                detectDragGestures(
+                    onDragStart = { down ->
+                        val tableRect = watermarkRect
+                        watermarkDragActive = (isWatermarkArmed && tableRect != null && tableRect.contains(down.x, down.y))
+                    },
+                    onDragEnd = {
+                        if (watermarkDragActive) {
+                            suppressWatermarkTapUntilMs = SystemClock.uptimeMillis() + 180L
+                            isWatermarkArmed = true
+                            commitWatermarkOffsetIfNeeded()
+                        }
+                        watermarkDragActive = false
+                    },
+                    onDragCancel = {
+                        if (watermarkDragActive) {
+                            commitWatermarkOffsetIfNeeded()
+                        }
+                        watermarkDragActive = false
+                    }
+                ) { change, dragAmount ->
+                    if (!watermarkDragActive) return@detectDragGestures
+                    val tableRect = watermarkRect ?: return@detectDragGestures
+                    change.consume()
+
+                    val contentRect = captureRect
+                    val tableW = tableRect.width()
+                    val tableH = tableRect.height()
+                    val maxX = (contentRect.width() - tableW).coerceAtLeast(0f)
+                    val maxY = (contentRect.height() - tableH).coerceAtLeast(0f)
+                    if (maxX <= 0f || maxY <= 0f) return@detectDragGestures
+
+                    val currentX = (tableRect.left - contentRect.left).coerceIn(0f, maxX)
+                    val currentY = (tableRect.top - contentRect.top).coerceIn(0f, maxY)
+                    val nextXRatio = (((currentX + dragAmount.x).coerceIn(0f, maxX) / maxX) * 100f).toInt().coerceIn(0, 100)
+                    val nextYRatio = (((currentY + dragAmount.y).coerceIn(0f, maxY) / maxY) * 100f).toInt().coerceIn(0, 100)
+                    previewOffsetX = nextXRatio
+                    previewOffsetY = nextYRatio
+                    args.onWatermarkOffsetRatioPreview(nextXRatio, nextYRatio)
+                }
+            }
+
 
         val plan = remember(
             args.tableTemplateState,
@@ -311,6 +341,7 @@ internal fun CameraPreviewArea(
             captureAspectRatio = captureAspect.ratioF,
             onDismissCaptured = onDismissCaptured,
             tapFocusUi = tapFocusUi,
+            isWatermarkArmed = isWatermarkArmed,
             onWatermarkRectChange = { watermarkRect = it }
         )
 

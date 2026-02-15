@@ -30,6 +30,7 @@ internal fun CameraPreviewHost(
     captureAspectRatio: Float,
     onDismissCaptured: () -> Unit,
     tapFocusUi: TapFocusUiState?,
+    isWatermarkArmed: Boolean,
     onWatermarkRectChange: (RectF?) -> Unit
 ) {
     @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
@@ -59,6 +60,7 @@ internal fun CameraPreviewHost(
         enabled = showWmPreview,
         request = previewRequest,
         previewContentRect = previewContentRect,
+        isArmed = isWatermarkArmed,
         onTableRectChange = onWatermarkRectChange
     )
 
