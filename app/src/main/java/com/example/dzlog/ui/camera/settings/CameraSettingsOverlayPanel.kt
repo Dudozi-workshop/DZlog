@@ -227,7 +227,7 @@ private fun SegmentItem(
     ) {
         Text(
             text = option.label,
-            style = DDZTypography.Body,
+            style = DDZTypography.SegmentSmall,
             color = textColor,
             maxLines = 1,
             softWrap = false,
