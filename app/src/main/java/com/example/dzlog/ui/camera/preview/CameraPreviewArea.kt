@@ -156,40 +156,6 @@ internal fun CameraPreviewArea(
 
         val gestureModifier = Modifier
             .fillMaxSize()
-            .pointerInput(captureRect) {
-                detectDragGestures(
-                    onDragStart = { down ->
-                        val tableRect = watermarkRect
-                        watermarkDragActive = (tableRect != null && tableRect.contains(down.x, down.y))
-                    },
-                    onDragEnd = {
-                        if (watermarkDragActive) {
-                            suppressWatermarkTapUntilMs = SystemClock.uptimeMillis() + 180L
-                        }
-                        watermarkDragActive = false
-                    },
-                    onDragCancel = {
-                        watermarkDragActive = false
-                    }
-                ) { change, dragAmount ->
-                    if (!watermarkDragActive) return@detectDragGestures
-                    val tableRect = watermarkRect ?: return@detectDragGestures
-                    change.consume()
-
-                    val contentRect = captureRect
-                    val tableW = tableRect.width()
-                    val tableH = tableRect.height()
-                    val maxX = (contentRect.width() - tableW).coerceAtLeast(0f)
-                    val maxY = (contentRect.height() - tableH).coerceAtLeast(0f)
-                    if (maxX <= 0f || maxY <= 0f) return@detectDragGestures
-
-                    val currentX = (tableRect.left - contentRect.left).coerceIn(0f, maxX)
-                    val currentY = (tableRect.top - contentRect.top).coerceIn(0f, maxY)
-                    val nextXRatio = (((currentX + dragAmount.x).coerceIn(0f, maxX) / maxX) * 100f).toInt().coerceIn(0, 100)
-                    val nextYRatio = (((currentY + dragAmount.y).coerceIn(0f, maxY) / maxY) * 100f).toInt().coerceIn(0, 100)
-                    args.onWatermarkOffsetRatioChange(nextXRatio, nextYRatio)
-                }
-            }
             .pointerInput(boundCamera, captureRect, tapFocusUi) {
                 detectTapGestures { offset ->
                     if (SystemClock.uptimeMillis() < suppressWatermarkTapUntilMs) return@detectTapGestures
@@ -244,6 +210,41 @@ internal fun CameraPreviewArea(
                     args.onActualZoomTenthsChange(tenths)
                 }
             }
+            .pointerInput(captureRect) {
+                detectDragGestures(
+                    onDragStart = { down ->
+                        val tableRect = watermarkRect
+                        watermarkDragActive = (tableRect != null && tableRect.contains(down.x, down.y))
+                    },
+                    onDragEnd = {
+                        if (watermarkDragActive) {
+                            suppressWatermarkTapUntilMs = SystemClock.uptimeMillis() + 180L
+                        }
+                        watermarkDragActive = false
+                    },
+                    onDragCancel = {
+                        watermarkDragActive = false
+                    }
+                ) { change, dragAmount ->
+                    if (!watermarkDragActive) return@detectDragGestures
+                    val tableRect = watermarkRect ?: return@detectDragGestures
+                    change.consume()
+
+                    val contentRect = captureRect
+                    val tableW = tableRect.width()
+                    val tableH = tableRect.height()
+                    val maxX = (contentRect.width() - tableW).coerceAtLeast(0f)
+                    val maxY = (contentRect.height() - tableH).coerceAtLeast(0f)
+                    if (maxX <= 0f || maxY <= 0f) return@detectDragGestures
+
+                    val currentX = (tableRect.left - contentRect.left).coerceIn(0f, maxX)
+                    val currentY = (tableRect.top - contentRect.top).coerceIn(0f, maxY)
+                    val nextXRatio = (((currentX + dragAmount.x).coerceIn(0f, maxX) / maxX) * 100f).toInt().coerceIn(0, 100)
+                    val nextYRatio = (((currentY + dragAmount.y).coerceIn(0f, maxY) / maxY) * 100f).toInt().coerceIn(0, 100)
+                    args.onWatermarkOffsetRatioChange(nextXRatio, nextYRatio)
+                }
+            }
+
 
         val plan = remember(
             args.tableTemplateState,
