@@ -372,7 +372,7 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 20.dp)
+                    .padding(bottom = 15.dp)
                     .fillMaxWidth()
                     .height(190.dp)
                     .clip(RoundedCornerShape(24.dp))
