@@ -10,11 +10,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -218,17 +218,18 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(Modifier.height(gap * 0.8f))
-
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(infoWeight)
             ) {
+                Spacer(modifier = Modifier.weight(2f))
+
                 DDZCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(onClick = onOpenSettings)
+                        .clickable(onClick = onOpenSettings),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -251,7 +252,7 @@ fun HomeScreen(
 
                         Column(
                             modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(
@@ -261,7 +262,10 @@ fun HomeScreen(
                                 )
                                 Text(
                                     text = savePathPreview,
-                                    style = DDZTypography.Body,
+                                    style = DDZTypography.Body.copy(
+                                        fontSize = 11.sp,
+                                        lineHeight = 14.sp
+                                    ),
                                     color = DDZColor.TextPrimary
                                 )
                             }
@@ -274,7 +278,10 @@ fun HomeScreen(
                                 )
                                 Text(
                                     text = filenamePreview,
-                                    style = DDZTypography.Body,
+                                    style = DDZTypography.Body.copy(
+                                        fontSize = 11.sp,
+                                        lineHeight = 14.sp
+                                    ),
                                     color = DDZColor.TextPrimary
                                 )
                             }
@@ -287,9 +294,9 @@ fun HomeScreen(
                         )
                     }
                 }
-            }
 
-            Spacer(Modifier.height(gap * 1.4f))
+                Spacer(modifier = Modifier.weight(3f))
+            }
 
             Column(
                 modifier = Modifier
@@ -377,65 +384,58 @@ fun HomeScreen(
 
                         Box(
                             modifier = Modifier
-                                .weight(0.65f)
-                                .fillMaxWidth(),
-                            contentAlignment = Alignment.Center
+                                .weight(0.72f)
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(22.dp))
+                                .background(DDZColor.Surface)
+                                .clickable {
+                                    val it = latestImage
+                                    if (it == null) {
+                                        onOpenAlbum()
+                                    } else {
+                                        val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
+                                        onOpenRecentCaptureGrid(g1, g2, 0)
+                                    }
+                                }
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .aspectRatio(4f / 5f)
-                                    .clip(RoundedCornerShape(22.dp))
-                                    .background(DDZColor.Surface)
-                                    .clickable {
-                                        val it = latestImage
-                                        if (it == null) {
-                                            onOpenAlbum()
-                                        } else {
-                                            val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
-                                            onOpenRecentCaptureGrid(g1, g2, 0)
-                                        }
-                                    }
-                            ) {
-                                val it = latestImage
-                                if (it == null) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("최근 항목 없음", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                                    }
-                                } else {
-                                    DzThumbnail(it.uri.toString())
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.BottomStart)
-                                            .fillMaxWidth()
-                                            .background(
-                                                brush = Brush.verticalGradient(
-                                                    colors = listOf(
-                                                        Color.Transparent,
-                                                        DDZColor.Primary.copy(alpha = 0.75f)
-                                                    )
+                            val it = latestImage
+                            if (it == null) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("최근 항목 없음", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                                }
+                            } else {
+                                DzThumbnail(it.uri.toString())
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .fillMaxWidth()
+                                        .background(
+                                            brush = Brush.verticalGradient(
+                                                colors = listOf(
+                                                    Color.Transparent,
+                                                    DDZColor.Primary.copy(alpha = 0.75f)
                                                 )
                                             )
-                                            .padding(8.dp)
-                                    ) {
-                                        Text(
-                                            text = dzFormatDate(it.dateAddedSeconds),
-                                            style = DDZTypography.Caption.copy(fontSize = 11.sp),
-                                            color = DDZColor.Surface
                                         )
-                                    }
+                                        .padding(8.dp)
+                                ) {
+                                    Text(
+                                        text = dzFormatDate(it.dateAddedSeconds),
+                                        style = DDZTypography.Caption.copy(fontSize = 11.sp),
+                                        color = DDZColor.Surface
+                                    )
                                 }
                             }
                         }
 
-                        Spacer(Modifier.height(14.dp))
+                        Spacer(Modifier.height(10.dp))
 
                         Box(
                             modifier = Modifier
-                                .weight(0.35f)
+                                .weight(0.28f)
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(18.dp))
                                 .background(DDZColor.Success.copy(alpha = 0.22f))
