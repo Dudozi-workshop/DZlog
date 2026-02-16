@@ -17,6 +17,7 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
+import android.provider.MediaStore.Images
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -107,6 +108,7 @@ import com.example.dzlog.feature.capture.io.createCaptureRepository
 import com.example.dzlog.feature.capture.permission.hasCameraPermission
 import com.example.dzlog.feature.capture.policy.stabilizeStreamNextCounter
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.example.dzlog.data.counter.parseCounterFromDisplayNameForPolicy
 import com.example.dzlog.ui.camera.controls.CaptureButtonSection
 import com.example.dzlog.ui.camera.controls.ZoomControlSection
 import com.example.dzlog.ui.camera.controls.handleCaptureClick
@@ -234,6 +236,79 @@ fun CameraPreview(
         }
     }
 
+    suspend fun refreshCounterFromPolicy() {
+        val appSettings = AppSettingsStore.flow(context).first()
+        val scopedStream = toCaptureScopedCounterStream(
+            streamContext = counterStreamContext,
+            includePathInScope = appSettings.includePathInCounterScope,
+            includeFilenameInScope = appSettings.includeFilenameInCounterScope,
+        )
+
+        val relativePath = scopedStream.captureStreamKey.relativePathKey
+            .substringBefore("|g2=", scopedStream.captureStreamKey.relativePathKey)
+        val fileNamePrefix = scopedStream.captureStreamKey.prefix
+            .substringBefore("|g2=", scopedStream.captureStreamKey.prefix)
+
+        val latestCounter = withContext(Dispatchers.IO) {
+            val projection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                arrayOf(
+                    Images.Media.DISPLAY_NAME,
+                    Images.Media.RELATIVE_PATH,
+                    Images.Media._ID
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                arrayOf(
+                    Images.Media.DISPLAY_NAME,
+                    Images.Media.DATA,
+                    Images.Media._ID
+                )
+            }
+            val sortOrder = "${Images.Media.DATE_ADDED} DESC, ${Images.Media._ID} DESC"
+            val selection: String?
+            val selectionArgs: Array<String>?
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                selection = "${Images.Media.RELATIVE_PATH} = ?"
+                selectionArgs = arrayOf(relativePath)
+            } else {
+                @Suppress("DEPRECATION")
+                run {
+                    selection = "${Images.Media.DATA} LIKE ?"
+                    selectionArgs = arrayOf("%/$relativePath%")
+                }
+            }
+
+            context.contentResolver.query(
+                Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder
+            )?.use { cursor ->
+                val nameIdx = cursor.getColumnIndex(Images.Media.DISPLAY_NAME)
+                if (nameIdx < 0) return@use null
+
+                if (cursor.moveToFirst()) {
+                    val displayName = cursor.getString(nameIdx).orEmpty()
+                    return@use parseCounterFromDisplayNameForPolicy(
+                        displayName = displayName,
+                        fileNamePrefix = fileNamePrefix,
+                        counterDigits = ui.prefs.counterDigits,
+                        fnDelim = fnDelim
+                    )
+                }
+                null
+            }
+        }
+
+        CaptureCounterPolicy.clearManualCounterOverride(
+            context = context,
+            scopedStream = scopedStream
+        )
+
+        ui.counter.scopeNextCounter = ((latestCounter ?: 0) + 1).coerceAtLeast(1)
+    }
+
     LaunchedEffect(Unit) { reloadLatestImage() }
     LaunchedEffect(mediaStoreRefreshTick) { reloadLatestImage() }
 
@@ -245,7 +320,10 @@ fun CameraPreview(
     ) { result ->
         val pendingUri = pendingUndoDeleteUri ?: return@rememberLauncherForActivityResult
         if (result.resultCode == Activity.RESULT_OK) {
-            scope.launch { reloadLatestImage() }
+            scope.launch {
+                reloadLatestImage()
+                refreshCounterFromPolicy()
+            }
         } else {
             sessionCaptureStack.add(pendingUri)
         }
@@ -284,7 +362,10 @@ fun CameraPreview(
             sessionCaptureStack.add(targetUri)
             return
         }
-        scope.launch { reloadLatestImage() }
+        scope.launch {
+            reloadLatestImage()
+            refreshCounterFromPolicy()
+        }
     }
 
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
