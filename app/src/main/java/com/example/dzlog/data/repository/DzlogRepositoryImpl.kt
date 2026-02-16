@@ -109,6 +109,7 @@ class DzlogRepositoryImpl(
                                     val entry = LogEntry(
                                         mediaStoreId = saved?.mediaStoreId ?: -1L,
                                         contentUri = saved?.uri ?: Uri.EMPTY,
+                                        savedContentUris = listOfNotNull(saved?.uri),
                                         displayName = saved?.displayName ?: displayName,
                                         isNameAdjusted = saved?.isNameAdjusted ?: false,
                                         createdAt = System.currentTimeMillis(),
@@ -137,17 +138,18 @@ class DzlogRepositoryImpl(
                                     }.getOrNull()
 
                                     // 2) 원본은 original/ 하위 (실패해도 워터마크는 이미 저장됨)
-                                    kotlin.runCatching {
+                                    val savedOriginal = kotlin.runCatching {
                                         saver.saveJpeg(
                                             context = context,
                                             bitmap = originalBmp,
                                             displayName = displayName,
                                             relativePath = origRel
                                         )
-                                    }
+                                    }.getOrNull()
                                     val entry = LogEntry(
                                         mediaStoreId = savedWm?.mediaStoreId ?: -1L,
                                         contentUri = savedWm?.uri ?: Uri.EMPTY,
+                                        savedContentUris = listOfNotNull(savedWm?.uri, savedOriginal?.uri),
                                         displayName = savedWm?.displayName ?: displayName,
                                         isNameAdjusted = savedWm?.isNameAdjusted ?: false,
                                         createdAt = System.currentTimeMillis(),
@@ -171,6 +173,7 @@ class DzlogRepositoryImpl(
                                     LogEntry(
                                         mediaStoreId = saved?.mediaStoreId ?: -1L,
                                         contentUri = saved?.uri ?: Uri.EMPTY,
+                                        savedContentUris = listOfNotNull(saved?.uri),
                                         displayName = saved?.displayName ?: displayName,
                                         isNameAdjusted = saved?.isNameAdjusted ?: false,
                                         createdAt = System.currentTimeMillis(),

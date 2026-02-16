@@ -626,10 +626,12 @@ fun CameraPreview(
                             buildWatermarkConfig = ::buildWatermarkConfig,
                             onApplyTemplatePatch = { onTemplateChange(it) },
                             onUpdateScopeNextCounter = { ui.counter.scopeNextCounter = it },
+                            onAddToSessionStack = {
+                                sessionCaptureStack.add(it)
+                                scope.launch { reloadLatestImage() }
+                            },
                             onSetCapturedUri = {
                                 ui.capture.capturedUri = it
-                                it?.let(sessionCaptureStack::add)
-                                scope.launch { reloadLatestImage() }
                             },
                             onSetCapturing = { ui.capture.isCapturing = it }
                             )

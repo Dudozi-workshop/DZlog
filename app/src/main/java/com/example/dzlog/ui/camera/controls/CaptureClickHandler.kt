@@ -69,6 +69,7 @@ internal fun handleCaptureClick(
     ) -> com.example.dzlog.domain.model.WatermarkConfig,
     onApplyTemplatePatch: (TableTemplateState) -> Unit,
     onUpdateScopeNextCounter: (Int) -> Unit,
+    onAddToSessionStack: (Uri) -> Unit,
     onSetCapturedUri: (Uri?) -> Unit,
     onSetCapturing: (Boolean) -> Unit
 ) {
@@ -169,6 +170,12 @@ internal fun handleCaptureClick(
                     Toast.LENGTH_SHORT
                 ).show()
             }
+
+            entry.savedContentUris
+                .asSequence()
+                .filter { it != Uri.EMPTY }
+                .distinct()
+                .forEach(onAddToSessionStack)
 
             if (continuousPreviewMode != ContinuousPreviewMode.OFF) {
                 onSetCapturedUri(entry.contentUri)
