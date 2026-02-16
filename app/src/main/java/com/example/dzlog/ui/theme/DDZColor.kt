@@ -7,6 +7,7 @@ object DDZColor {
     val Surface = Color(0xFFF5F3F1)
     val Card = Color(0xFFF1EAE1)
     val Primary = Color(0xFF4E3A30)
+    val PrimaryElevated = Color(0xFF48352C)
     val PrimaryDark = Color(0xFF261F17)
     val Border = Color(0xFFCBC3BA)
     val TextPrimary = PrimaryDark

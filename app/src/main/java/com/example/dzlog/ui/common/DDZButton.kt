@@ -15,7 +15,10 @@ import androidx.compose.ui.unit.dp
 import com.example.dzlog.ui.theme.LocalDDZColor
 import com.example.dzlog.ui.theme.LocalDDZTypography
 import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
 
 enum class DDZButtonStyle {
     Primary,
@@ -30,6 +33,9 @@ fun DDZButton(
     style: DDZButtonStyle = DDZButtonStyle.Primary,
     enabled: Boolean = true,
     leadingIcon: ImageVector? = null,
+    minHeight: Dp = 48.dp,
+    shape: Shape = RoundedCornerShape(12.dp),
+    containerColorOverride: Color? = null,
 ) {
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
@@ -49,12 +55,12 @@ fun DDZButton(
 
     Button(
         onClick = onClick,
-        modifier = modifier.defaultMinSize(minHeight = 48.dp),
+        modifier = modifier.defaultMinSize(minHeight = minHeight),
         enabled = enabled,
-        shape = RoundedCornerShape(12.dp),
+        shape = shape,
         border = border,
         colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
+            containerColor = containerColorOverride ?: containerColor,
             contentColor = contentColor,
             disabledContainerColor = containerColor.copy(alpha = 0.4f),
             disabledContentColor = contentColor.copy(alpha = 0.6f)
