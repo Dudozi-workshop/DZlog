@@ -43,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -68,6 +69,7 @@ import org.burnoutcrew.reorderable.ReorderableItem
 import org.burnoutcrew.reorderable.detectReorderAfterLongPress
 import org.burnoutcrew.reorderable.rememberReorderableLazyListState
 import org.burnoutcrew.reorderable.reorderable
+import java.util.UUID
 import com.example.dzlog.R
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
@@ -1313,22 +1315,45 @@ private fun PhraseSetEditDialog(
     var showItemInputDialog by remember(phraseSet.id) { mutableStateOf(false) }
     var editingItemIndex by remember(phraseSet.id) { mutableStateOf<Int?>(null) }
     var itemInput by remember(phraseSet.id) { mutableStateOf("") }
+    val itemIds = remember(phraseSet.id) { mutableStateListOf<String>() }
+
+    LaunchedEffect(phraseSet.id, phraseSet.items.size) {
+        val targetSize = phraseSet.items.size
+        while (itemIds.size < targetSize) {
+            itemIds.add(UUID.randomUUID().toString())
+        }
+        while (itemIds.size > targetSize) {
+            itemIds.removeAt(itemIds.lastIndex)
+        }
+    }
+
     val reorderState = rememberReorderableLazyListState(
         onMove = { from, to ->
-            val currentItems = phraseSet.items
-            if (currentItems.isEmpty()) return@rememberReorderableLazyListState
+            val listSize = phraseSet.items.size
+            if (listSize == 0) return@rememberReorderableLazyListState
 
             val fromIndex = from.index
-            val toIndex = to.index
-            if (fromIndex !in currentItems.indices || toIndex !in currentItems.indices) {
+            val toIndex = to.index.coerceIn(0, listSize)
+            if (fromIndex !in 0 until listSize || fromIndex == toIndex) {
                 return@rememberReorderableLazyListState
             }
 
-            val newList = currentItems.toMutableList().apply {
-                val movedItem = removeAt(fromIndex)
-                add(toIndex, movedItem)
+            if (fromIndex in itemIds.indices) {
+                val idToMove = itemIds.removeAt(fromIndex)
+                val idInsertIndex = toIndex.coerceAtMost(itemIds.size)
+                itemIds.add(idInsertIndex, idToMove)
             }
-            onUpdateSet { it.copy(items = newList) }
+
+            onUpdateSet { set ->
+                val items = set.items
+                if (fromIndex !in items.indices) return@onUpdateSet set
+
+                val newList = items.toMutableList()
+                val movedItem = newList.removeAt(fromIndex)
+                val insertIndex = toIndex.coerceAtMost(newList.size)
+                newList.add(insertIndex, movedItem)
+                set.copy(items = newList)
+            }
         }
     )
 
@@ -1374,9 +1399,13 @@ private fun PhraseSetEditDialog(
                     state = reorderState.listState,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(phraseSet.items.size, key = { idx -> "${phraseSet.id}-$idx" }) { index ->
+                    items(
+                        phraseSet.items.size,
+                        key = { idx -> itemIds.getOrNull(idx) ?: "${phraseSet.id}-$idx" }
+                    ) { index ->
                         val item = phraseSet.items[index]
-                        ReorderableItem(reorderState, key = "${phraseSet.id}-$index") { isDragging ->
+                        val stableItemId = itemIds.getOrNull(index) ?: "${phraseSet.id}-$index"
+                        ReorderableItem(reorderState, key = stableItemId) { isDragging ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1407,6 +1436,9 @@ private fun PhraseSetEditDialog(
                                     color = DDZColor.TextMuted
                                 )
                                 TextButton(onClick = {
+                                    if (index in itemIds.indices) {
+                                        itemIds.removeAt(index)
+                                    }
                                     onUpdateSet { set ->
                                         set.copy(items = set.items.filterIndexed { idx, _ -> idx != index })
                                     }
@@ -1480,6 +1512,7 @@ private fun PhraseSetEditDialog(
                     if (trimmed.isNotBlank()) {
                         onUpdateSet { set ->
                             if (editingItemIndex == null) {
+                                itemIds.add(UUID.randomUUID().toString())
                                 set.copy(items = set.items + trimmed)
                             } else {
                                 set.copy(
