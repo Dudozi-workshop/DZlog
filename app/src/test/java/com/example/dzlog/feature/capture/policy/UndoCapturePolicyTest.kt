@@ -1,7 +1,6 @@
 package com.example.dzlog.feature.capture.policy
 
 import android.net.Uri
-import com.example.dzlog.domain.model.SaveMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -9,44 +8,58 @@ import org.junit.Test
 class UndoCapturePolicyTest {
 
     @Test
-    fun both_mode_consumes_two_items_in_single_undo() {
-        val stack = mutableListOf(
-            Uri.parse("content://test/1"),
-            Uri.parse("content://test/2"),
-            Uri.parse("content://test/3"),
-            Uri.parse("content://test/4")
+    fun push_capture_stores_one_batch_per_capture() {
+        val stack = mutableListOf<List<Uri>>()
+
+        UndoCapturePolicy.pushCapture(
+            stack = stack,
+            captureUris = listOf(Uri.parse("content://test/1"), Uri.parse("content://test/2"))
         )
 
-        val targets = UndoCapturePolicy.consumeUndoTargets(stack, SaveMode.BOTH)
-
-        assertEquals(listOf(Uri.parse("content://test/3"), Uri.parse("content://test/4")), targets)
-        assertEquals(listOf(Uri.parse("content://test/1"), Uri.parse("content://test/2")), stack)
+        assertEquals(1, stack.size)
+        assertEquals(
+            listOf(Uri.parse("content://test/1"), Uri.parse("content://test/2")),
+            stack.first()
+        )
     }
 
     @Test
-    fun both_mode_with_single_item_consumes_one_item_only() {
-        val stack = mutableListOf(Uri.parse("content://test/1"))
+    fun consume_latest_capture_returns_last_batch_and_removes_it() {
+        val stack = mutableListOf(
+            listOf(Uri.parse("content://test/1")),
+            listOf(Uri.parse("content://test/2"), Uri.parse("content://test/3"))
+        )
 
-        val targets = UndoCapturePolicy.consumeUndoTargets(stack, SaveMode.BOTH)
+        val consumed = UndoCapturePolicy.consumeLatestCapture(stack)
 
-        assertEquals(listOf(Uri.parse("content://test/1")), targets)
-        assertTrue(stack.isEmpty())
+        assertEquals(listOf(Uri.parse("content://test/2"), Uri.parse("content://test/3")), consumed)
+        assertEquals(listOf(listOf(Uri.parse("content://test/1"))), stack)
     }
 
     @Test
-    fun restore_appends_targets_back_to_stack() {
-        val stack = mutableListOf(Uri.parse("content://test/1"))
-        val targets = listOf(Uri.parse("content://test/2"), Uri.parse("content://test/3"))
+    fun restore_capture_appends_batch_back() {
+        val stack = mutableListOf(listOf(Uri.parse("content://test/1")))
 
-        UndoCapturePolicy.restoreUndoTargets(stack, targets)
+        UndoCapturePolicy.restoreCapture(
+            stack = stack,
+            captureUris = listOf(Uri.parse("content://test/2"), Uri.parse("content://test/3"))
+        )
 
         assertEquals(
             listOf(
-                Uri.parse("content://test/1"),
-                Uri.parse("content://test/2"),
-                Uri.parse("content://test/3")
+                listOf(Uri.parse("content://test/1")),
+                listOf(Uri.parse("content://test/2"), Uri.parse("content://test/3"))
             ),
             stack
         )
+    }
+
+    @Test
+    fun push_capture_ignores_empty_or_uri_empty_values() {
+        val stack = mutableListOf<List<Uri>>()
+
+        UndoCapturePolicy.pushCapture(stack, listOf(Uri.EMPTY, Uri.EMPTY))
+
+        assertTrue(stack.isEmpty())
     }
 }

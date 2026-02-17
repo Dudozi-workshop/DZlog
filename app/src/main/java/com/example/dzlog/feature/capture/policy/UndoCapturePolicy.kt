@@ -1,36 +1,35 @@
 package com.example.dzlog.feature.capture.policy
 
 import android.net.Uri
-import com.example.dzlog.domain.model.SaveMode
 
 internal object UndoCapturePolicy {
 
-    internal fun consumeUndoTargets(
-        stack: MutableList<Uri>,
-        saveMode: SaveMode
-    ): List<Uri> {
-        if (stack.isEmpty()) return emptyList()
-
-        val requestedCount = when (saveMode) {
-            SaveMode.BOTH -> 2
-            SaveMode.ORIGINAL,
-            SaveMode.WATERMARKED -> 1
-        }
-
-        val actualCount = minOf(requestedCount, stack.size)
-        val startIndex = stack.size - actualCount
-        val targets = stack.subList(startIndex, stack.size).toList()
-        repeat(actualCount) {
-            stack.removeAt(stack.lastIndex)
-        }
-        return targets
+    internal fun pushCapture(
+        stack: MutableList<List<Uri>>,
+        captureUris: List<Uri>
+    ) {
+        val normalized = captureUris
+            .asSequence()
+            .filter { it != Uri.EMPTY }
+            .distinct()
+            .toList()
+        if (normalized.isEmpty()) return
+        stack.add(normalized)
     }
 
-    internal fun restoreUndoTargets(
-        stack: MutableList<Uri>,
-        targets: List<Uri>
+    internal fun consumeLatestCapture(
+        stack: MutableList<List<Uri>>
+    ): List<Uri> {
+        val latest = stack.lastOrNull() ?: return emptyList()
+        stack.removeAt(stack.lastIndex)
+        return latest
+    }
+
+    internal fun restoreCapture(
+        stack: MutableList<List<Uri>>,
+        captureUris: List<Uri>
     ) {
-        if (targets.isEmpty()) return
-        stack.addAll(targets)
+        if (captureUris.isEmpty()) return
+        stack.add(captureUris)
     }
 }

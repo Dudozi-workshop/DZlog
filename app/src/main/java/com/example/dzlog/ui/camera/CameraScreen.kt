@@ -249,7 +249,7 @@ fun CameraPreview(
     LaunchedEffect(Unit) { reloadLatestImage() }
     LaunchedEffect(mediaStoreRefreshTick) { reloadLatestImage() }
 
-    val sessionCaptureStack = remember { mutableStateListOf<Uri>() }
+    val sessionCaptureStack = remember { mutableStateListOf<List<Uri>>() }
     var pendingUndoDeleteUris by remember { mutableStateOf<List<Uri>?>(null) }
 
     val undoDeleteLauncher = rememberLauncherForActivityResult(
@@ -259,7 +259,7 @@ fun CameraPreview(
         if (result.resultCode == Activity.RESULT_OK) {
             scope.launch { syncAfterUndoDelete() }
         } else {
-            UndoCapturePolicy.restoreUndoTargets(sessionCaptureStack, pendingUris)
+            UndoCapturePolicy.restoreCapture(sessionCaptureStack, pendingUris)
         }
         pendingUndoDeleteUris = null
     }
@@ -294,7 +294,7 @@ fun CameraPreview(
         }
 
         if (!deletedAll) {
-            UndoCapturePolicy.restoreUndoTargets(sessionCaptureStack, targetUris)
+            UndoCapturePolicy.restoreCapture(sessionCaptureStack, targetUris)
             return
         }
 
@@ -641,7 +641,7 @@ fun CameraPreview(
                             onApplyTemplatePatch = { onTemplateChange(it) },
                             onUpdateScopeNextCounter = { ui.counter.scopeNextCounter = it },
                             onAddToSessionStack = { uris ->
-                                sessionCaptureStack.addAll(uris)
+                                UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
                                 scope.launch { reloadLatestImage() }
                             },
                             onSetCapturedUri = {
@@ -657,9 +657,8 @@ fun CameraPreview(
                         enabled = sessionCaptureStack.isNotEmpty() && pendingUndoDeleteUris == null,
                         onClick = {
                             if (pendingUndoDeleteUris != null) return@UndoCaptureButton
-                            val targetUris = UndoCapturePolicy.consumeUndoTargets(
-                                stack = sessionCaptureStack,
-                                saveMode = ui.prefs.saveMode
+                            val targetUris = UndoCapturePolicy.consumeLatestCapture(
+                                stack = sessionCaptureStack
                             )
                             if (targetUris.isEmpty()) return@UndoCaptureButton
 
