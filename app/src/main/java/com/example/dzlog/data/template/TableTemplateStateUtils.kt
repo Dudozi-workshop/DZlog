@@ -4,6 +4,7 @@ import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.HourSystem
 import com.example.dzlog.domain.model.TableCellDataType
+import com.example.dzlog.domain.model.RotatingPhraseSet
 import com.example.dzlog.domain.model.TableCellKind
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
@@ -27,6 +28,34 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
             val w = root.getJSONArray("colWeights")
             List(w.length()) { idx -> w.optDouble(idx, 1.0).toFloat() }
         } else null
+
+        val phraseSets = if (root.has("phraseSets")) {
+            val sets = root.optJSONArray("phraseSets") ?: JSONArray()
+            buildList {
+                for (i in 0 until sets.length()) {
+                    val set = sets.optJSONObject(i) ?: continue
+                    val id = set.optString("id", "")
+                    if (id.isBlank()) continue
+
+                    val itemsJson = set.optJSONArray("items") ?: JSONArray()
+                    val items = List(itemsJson.length()) { idx -> itemsJson.optString(idx, "") }
+                        .map { it.trim() }
+                        .filter { it.isNotBlank() }
+
+                    add(
+                        RotatingPhraseSet(
+                            id = id,
+                            name = set.optString("name", ""),
+                            items = items,
+                            defaultEvery = set.optInt("defaultEvery", 1).coerceAtLeast(1)
+                        )
+                    )
+                }
+            }
+        } else {
+            emptyList()
+        }
+
         val arr = root.getJSONArray("cells")
         val cells = buildList {
             for (i in 0 until arr.length()) {
@@ -72,13 +101,15 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         rowSpan = o.optInt("rowSpan", 1),
                         colSpan = o.optInt("colSpan", 1),
                         dataType = dataType,
+                        phraseSetId = o.optString("phraseSetId").ifBlank { null },
+                        everyOverride = if (o.has("everyOverride")) o.optInt("everyOverride").coerceAtLeast(1) else null,
                         label = o.optString("label", ""),
                         formatPattern = o.optString("formatPattern", "")
                     )
                 )
             }
         }
-        TableTemplateState(rows = rows, cols = cols, cells = cells, rowWeights = rowWeights, colWeights = colWeights)
+        TableTemplateState(rows = rows, cols = cols, cells = cells, rowWeights = rowWeights, colWeights = colWeights, phraseSets = phraseSets)
     }.getOrNull()
 }
 
@@ -183,6 +214,23 @@ fun TableTemplateState.toJsonString(): String {
         root.put("colWeights", jw)
     }
 
+    if (phraseSets.isNotEmpty()) {
+        val phraseSetsJson = JSONArray()
+        phraseSets.forEach { set ->
+            val setJson = JSONObject()
+            setJson.put("id", set.id)
+            setJson.put("name", set.name)
+            setJson.put("defaultEvery", set.defaultEvery)
+
+            val itemsJson = JSONArray()
+            set.items.forEach { itemsJson.put(it) }
+            setJson.put("items", itemsJson)
+
+            phraseSetsJson.put(setJson)
+        }
+        root.put("phraseSets", phraseSetsJson)
+    }
+
     val arr = JSONArray()
     for (c in cells) {
         val o = JSONObject()
@@ -204,6 +252,9 @@ fun TableTemplateState.toJsonString(): String {
             val seed = (c.typedValue as? CellValue.CounterSeed)?.start ?: 1
             o.put("counterSeed", seed)
         }
+
+        c.phraseSetId?.let { o.put("phraseSetId", it) }
+        c.everyOverride?.let { o.put("everyOverride", it) }
 
         // TIME 옵션 저장
         c.timeFormatOptions?.let { t ->

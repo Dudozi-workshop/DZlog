@@ -1138,7 +1138,10 @@ private fun removeColumn(templateState: TableTemplateState): TableTemplateState 
  * - COUNTER는 seed가 없으면 1로 초기화
  */
 private fun TableCellState.withDataType(newType: TableCellDataType): TableCellState {
-    if (this.dataType == newType) return this
+    if (this.dataType == newType) {
+        return if (newType == TableCellDataType.ROTATING_TEXT) this
+        else this.copy(phraseSetId = null, everyOverride = null)
+    }
 
     return when (newType) {
         TableCellDataType.TEXT -> this.copy(
@@ -1168,6 +1171,12 @@ private fun TableCellState.withDataType(newType: TableCellDataType): TableCellSt
         TableCellDataType.COUNTER -> this.copy(
             dataType = newType,
             typedValue = (this.typedValue as? CellValue.CounterSeed) ?: CellValue.CounterSeed(1),
+            timeFormatOptions = null
+        )
+
+        TableCellDataType.ROTATING_TEXT -> this.copy(
+            dataType = newType,
+            typedValue = CellValue.Auto,
             timeFormatOptions = null
         )
     }

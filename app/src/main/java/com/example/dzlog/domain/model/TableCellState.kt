@@ -27,6 +27,8 @@ data class TableCellState(
     val rowSpan: Int = 1,
     val colSpan: Int = 1,
     val dataType: TableCellDataType = TableCellDataType.TEXT,
+    val phraseSetId: String? = null,
+    val everyOverride: Int? = null,
 
     /**
      * Optional display pattern (currently used for DATE; TIME는 향후 timeFormatOptions로 완전 대체).
@@ -52,7 +54,8 @@ data class TableCellState(
                 else -> "1"
             }
             TableCellDataType.DATE,
-            TableCellDataType.TIME -> ""
+            TableCellDataType.TIME,
+            TableCellDataType.ROTATING_TEXT -> ""
         }
     }
 }
@@ -90,7 +93,8 @@ enum class TableCellDataType {
     NUMBER,
     DATE,
     TIME,
-    COUNTER
+    COUNTER,
+    ROTATING_TEXT
 }
 
 enum class GroupLevel {

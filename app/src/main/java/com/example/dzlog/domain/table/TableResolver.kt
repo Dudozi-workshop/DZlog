@@ -133,6 +133,16 @@ class TableResolver {
                     isEmpty = resolved.isBlank()
                 )
             }
+
+            TableCellDataType.ROTATING_TEXT -> {
+                ResolvedCell(
+                    id = cell.cellId,
+                    type = cell.dataType,
+                    raw = cell,
+                    resolvedText = "",
+                    isEmpty = true
+                )
+            }
         }
     }
 
