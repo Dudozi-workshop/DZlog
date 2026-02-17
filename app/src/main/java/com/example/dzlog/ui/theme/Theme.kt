@@ -14,7 +14,7 @@ private val LightColorScheme = lightColorScheme(
     secondary = SageGreen,
     onSecondary = Color.White,
 
-    tertiary = SageGreenDark,
+    tertiary = SageGreenLight,
     onTertiary = Color.White,
 
     background = Beige50,
@@ -36,7 +36,7 @@ private val DarkColorScheme = darkColorScheme(
     secondary = SageGreen,
     onSecondary = Color.Black,
 
-    tertiary = SageGreenDark,
+    tertiary = SageGreenLight,
     onTertiary = Color.Black,
 
     background = Color(0xFF15110D),

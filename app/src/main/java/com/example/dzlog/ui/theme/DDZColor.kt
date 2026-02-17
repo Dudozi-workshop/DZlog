@@ -13,8 +13,9 @@ object DDZColor {
     val TextPrimary = PrimaryDark
     val TextMuted = Color(0xFF665F59)
     val IconMuted = Color(0xFFA69F99)
-    val Sage = Color(0xFF8FA08A)
-    val SageDark = Color(0xFF74866F)
-    val SageLight = Color(0xFFA9B8A3)
-    val Success = Sage
+    val Sage = Color(0xFFA8B59B)
+    val SageDark = Color(0xFF8FA08A)
+    val SageLight = Color(0xFFD7E0CF)
+    val BrownBg = Color(0xFF7B6556)
+    val Success = SageDark
 }

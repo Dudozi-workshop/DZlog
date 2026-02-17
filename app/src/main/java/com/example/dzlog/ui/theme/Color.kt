@@ -12,9 +12,9 @@ val SandBrown = Color(0xFFC8A67A)
 val LatteBrown = Color(0xFFB89063)
 
 // Secondary (Sage Green)
-val SageGreen = Color(0xFF8FA08A)
-val SageGreenDark = Color(0xFF74866F)
-val SageGreenLight = Color(0xFFA9B8A3)
+val SageGreen = Color(0xFFA8B59B)
+val SageGreenDark = Color(0xFF8FA08A)
+val SageGreenLight = Color(0xFFD7E0CF)
 
 // Neutral text
 val BrownGray900 = Color(0xFF2D241C)

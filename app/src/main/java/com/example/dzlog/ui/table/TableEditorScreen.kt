@@ -1232,7 +1232,7 @@ private fun RotatingTemplateDialog(
                 .fillMaxWidth()
                 .padding(9.dp),
             shape = RoundedCornerShape(16.dp),
-            color = DDZColor.PrimaryDark
+            color = DDZColor.BrownBg
         ) {
             Column(
                 modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 6.dp),
