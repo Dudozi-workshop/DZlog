@@ -67,6 +67,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -1225,11 +1226,24 @@ private fun RotatingTemplateDialog(
         }
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("문구 템플릿 설정") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(9.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = DDZColor.PrimaryDark
+        ) {
+            Column(
+                modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "문구 템플릿 설정",
+                    style = DDZTypography.CardTitle,
+                    color = DDZColor.TextPrimary
+                )
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1242,14 +1256,14 @@ private fun RotatingTemplateDialog(
                             .fillMaxWidth()
                             .clipToBounds(),
                         state = listState,
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         items(items = phraseSets, key = { it.id }) { set ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { onSelectSet(set.id) }
-                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                    .padding(horizontal = 6.dp, vertical = 1.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
@@ -1277,26 +1291,23 @@ private fun RotatingTemplateDialog(
                         )
                     }
 
-                    val density = LocalDensity.current
                     val layoutInfo = listState.layoutInfo
                     val visibleItems = layoutInfo.visibleItemsInfo
-                    val viewportHeightPx = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).coerceAtLeast(1)
-                    val avgItemHeightPx = visibleItems.map { it.size }.average().toFloat().takeIf { it > 0f } ?: 1f
-                    val totalContentHeightPx = (avgItemHeightPx * layoutInfo.totalItemsCount).coerceAtLeast(viewportHeightPx.toFloat())
-                    val thumbHeightPx = ((viewportHeightPx.toFloat() / totalContentHeightPx) * viewportHeightPx)
-                        .coerceIn(24f, viewportHeightPx.toFloat())
-                    val firstVisible = visibleItems.firstOrNull()
-                    val scrollOffsetPx = if (firstVisible != null) {
-                        (firstVisible.index * avgItemHeightPx) - firstVisible.offset
-                    } else {
-                        0f
-                    }
-                    val maxScrollPx = (totalContentHeightPx - viewportHeightPx).coerceAtLeast(1f)
-                    val thumbOffsetPx = ((scrollOffsetPx / maxScrollPx) * (viewportHeightPx - thumbHeightPx))
-                        .coerceIn(0f, (viewportHeightPx - thumbHeightPx).coerceAtLeast(0f))
                     val canScroll = layoutInfo.totalItemsCount > visibleItems.size
 
-                    if (canScroll) {
+                    if (showScrollIndicator && canScroll && layoutInfo.totalItemsCount > 0 && visibleItems.isNotEmpty()) {
+                        val density = LocalDensity.current
+                        val viewportHeightPx = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).coerceAtLeast(1)
+                        val avgItemHeightPx = visibleItems.map { it.size }.average().toFloat().takeIf { it > 0f } ?: 1f
+                        val totalContentHeightPx = (avgItemHeightPx * layoutInfo.totalItemsCount).coerceAtLeast(viewportHeightPx.toFloat())
+                        val thumbHeightPx = ((viewportHeightPx.toFloat() / totalContentHeightPx) * viewportHeightPx)
+                            .coerceIn(24f, viewportHeightPx.toFloat())
+                        val firstVisible = visibleItems.first()
+                        val scrollOffsetPx = (firstVisible.index * avgItemHeightPx) - firstVisible.offset
+                        val maxScrollPx = (totalContentHeightPx - viewportHeightPx).coerceAtLeast(1f)
+                        val thumbOffsetPx = ((scrollOffsetPx / maxScrollPx) * (viewportHeightPx - thumbHeightPx))
+                            .coerceIn(0f, (viewportHeightPx - thumbHeightPx).coerceAtLeast(0f))
+
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
@@ -1317,6 +1328,14 @@ private fun RotatingTemplateDialog(
                     Text("+ 새 템플릿 추가", style = DDZTypography.ButtonText)
                 }
 
+                Spacer(modifier = Modifier.height(11.dp))
+
+                Text(
+                    text = "N장마다 다음 문구로 변경",
+                    color = DDZColor.TextMuted,
+                    style = DDZTypography.Caption
+                )
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1330,7 +1349,7 @@ private fun RotatingTemplateDialog(
                     OutlinedTextField(
                         modifier = Modifier
                             .weight(1f)
-                            .height(42.dp),
+                            .height(44.dp),
                         value = everyInput,
                         onValueChange = { input ->
                             val digits = input.filter { it.isDigit() }
@@ -1346,7 +1365,8 @@ private fun RotatingTemplateDialog(
                         },
                         enabled = everyEnabled,
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        textStyle = DDZTypography.Body.copy(lineHeight = 20.sp)
                     )
                     OutlinedButton(
                         modifier = Modifier.height(38.dp),
@@ -1354,22 +1374,23 @@ private fun RotatingTemplateDialog(
                         enabled = everyEnabled
                     ) { Text("+") }
                 }
-            }
-        },
-        confirmButton = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                TextButton(onClick = onRestore) {
-                    Text("복구", style = DDZTypography.ButtonText)
-                }
-                TextButton(onClick = onDismiss) {
-                    Text("닫기", style = DDZTypography.ButtonText)
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TextButton(onClick = onRestore) {
+                        Text("복구", style = DDZTypography.ButtonText)
+                    }
+                    TextButton(onClick = onDismiss) {
+                        Text("닫기", style = DDZTypography.ButtonText)
+                    }
                 }
             }
         }
-    )
+    }
 }
 
 @Composable
@@ -1404,6 +1425,18 @@ private fun PhraseSetEditDialog(
     }
 
     val lazyListState = rememberLazyListState()
+    var showScrollIndicator by remember(phraseSet.id) { mutableStateOf(false) }
+    val indicatorAlpha by animateFloatAsState(if (showScrollIndicator) 1f else 0f, label = "phraseSetScrollIndicator")
+
+    LaunchedEffect(lazyListState.isScrollInProgress) {
+        if (lazyListState.isScrollInProgress) {
+            showScrollIndicator = true
+        } else {
+            delay(600)
+            showScrollIndicator = false
+        }
+    }
+
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         onUpdateSet { set ->
             val items = set.items
@@ -1432,13 +1465,13 @@ private fun PhraseSetEditDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(8.dp),
             shape = RoundedCornerShape(16.dp),
-            color = DDZColor.Surface
+            color = DDZColor.Card
         ) {
             Column(
-                modifier = Modifier.padding(11.dp),
-                verticalArrangement = Arrangement.spacedBy(7.dp)
+                modifier = Modifier.padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1460,62 +1493,106 @@ private fun PhraseSetEditDialog(
                     Text(phraseSet.name, style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
                 }
 
-                LazyColumn(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 180.dp, max = 300.dp)
-                        .background(DDZColor.Card, RoundedCornerShape(10.dp))
-                        .padding(8.dp),
-                    state = lazyListState,
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                        .heightIn(min = 180.dp, max = 340.dp)
+                        .background(DDZColor.Surface, RoundedCornerShape(10.dp))
+                        .padding(6.dp)
                 ) {
-                    items(
-                        phraseSet.items.size,
-                        key = { idx -> itemIds.getOrNull(idx) ?: "${phraseSet.id}-$idx" }
-                    ) { index ->
-                        val item = phraseSet.items.getOrNull(index) ?: return@items
-                        val stableId = itemIds.getOrNull(index) ?: "${phraseSet.id}-$index"
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clipToBounds(),
+                        state = lazyListState,
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        items(
+                            phraseSet.items.size,
+                            key = { idx -> itemIds.getOrNull(idx) ?: "${phraseSet.id}-$idx" }
+                        ) { index ->
+                            val item = phraseSet.items.getOrNull(index) ?: return@items
+                            val stableId = itemIds.getOrNull(index) ?: "${phraseSet.id}-$index"
 
-                        ReorderableItem(reorderableState, key = stableId) { isDragging ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        color = if (isDragging) DDZColor.Surface.copy(alpha = 0.92f) else DDZColor.Card,
-                                        shape = RoundedCornerShape(8.dp)
+                            ReorderableItem(reorderableState, key = stableId) { isDragging ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            color = if (isDragging) DDZColor.Card.copy(alpha = 0.92f) else DDZColor.Card,
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable {
+                                            editingItemIndex = index
+                                            itemInput = item
+                                            showItemInputDialog = true
+                                        }
+                                        .padding(horizontal = 6.dp, vertical = 1.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = item,
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = DDZTypography.Body,
+                                        color = DDZColor.TextPrimary
                                     )
-                                    .clickable {
-                                        editingItemIndex = index
-                                        itemInput = item
-                                        showItemInputDialog = true
-                                    }
-                                    .padding(horizontal = 6.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = item,
-                                    modifier = Modifier.weight(1f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    style = DDZTypography.Body,
-                                    color = DDZColor.TextPrimary
-                                )
-                                Text(
-                                    "☰",
-                                    modifier = with(this@ReorderableItem) { Modifier.draggableHandle() },
-                                    style = DDZTypography.Body,
-                                    color = DDZColor.TextMuted
-                                )
-                                TextButton(onClick = {
-                                    if (index in itemIds.indices) {
-                                        itemIds.removeAt(index)
-                                    }
-                                    onUpdateSet { set ->
-                                        set.copy(items = set.items.filterIndexed { idx, _ -> idx != index })
-                                    }
-                                }) { Text("🗑") }
+                                    Text(
+                                        "☰",
+                                        modifier = with(this@ReorderableItem) { Modifier.draggableHandle() },
+                                        style = DDZTypography.Body,
+                                        color = DDZColor.TextMuted
+                                    )
+                                    TextButton(onClick = {
+                                        if (index in itemIds.indices) {
+                                            itemIds.removeAt(index)
+                                        }
+                                        onUpdateSet { set ->
+                                            set.copy(items = set.items.filterIndexed { idx, _ -> idx != index })
+                                        }
+                                    }) { Text("🗑") }
+                                }
                             }
                         }
+                    }
+
+                    if (phraseSet.items.isEmpty()) {
+                        Text(
+                            text = "항목을 추가해주세요.",
+                            modifier = Modifier.align(Alignment.Center),
+                            color = DDZColor.TextMuted,
+                            style = DDZTypography.Body
+                        )
+                    }
+
+                    val layoutInfo = lazyListState.layoutInfo
+                    val visibleItems = layoutInfo.visibleItemsInfo
+                    val canScroll = layoutInfo.totalItemsCount > visibleItems.size
+
+                    if (showScrollIndicator && canScroll && layoutInfo.totalItemsCount > 0 && visibleItems.isNotEmpty()) {
+                        val density = LocalDensity.current
+                        val viewportHeightPx = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).coerceAtLeast(1)
+                        val avgItemHeightPx = visibleItems.map { it.size }.average().toFloat().takeIf { it > 0f } ?: 1f
+                        val totalContentHeightPx = (avgItemHeightPx * layoutInfo.totalItemsCount).coerceAtLeast(viewportHeightPx.toFloat())
+                        val thumbHeightPx = ((viewportHeightPx.toFloat() / totalContentHeightPx) * viewportHeightPx)
+                            .coerceIn(24f, viewportHeightPx.toFloat())
+                        val firstVisible = visibleItems.first()
+                        val scrollOffsetPx = (firstVisible.index * avgItemHeightPx) - firstVisible.offset
+                        val maxScrollPx = (totalContentHeightPx - viewportHeightPx).coerceAtLeast(1f)
+                        val thumbOffsetPx = ((scrollOffsetPx / maxScrollPx) * (viewportHeightPx - thumbHeightPx))
+                            .coerceIn(0f, (viewportHeightPx - thumbHeightPx).coerceAtLeast(0f))
+
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(end = 1.dp)
+                                .width(3.dp)
+                                .height(with(density) { thumbHeightPx.toDp() })
+                                .offset(y = with(density) { thumbOffsetPx.toDp() })
+                                .alpha(indicatorAlpha)
+                                .background(DDZColor.TextMuted.copy(alpha = 0.5f), RoundedCornerShape(99.dp))
+                        )
                     }
                 }
 
