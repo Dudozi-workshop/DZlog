@@ -44,5 +44,6 @@ data class LayoutTabActions(
     val onSetFileNameIncludeForSelected: (Boolean) -> Unit,
     val onPathGroupActionForSelected: (PathGroupAction) -> Unit,
     val onSetDataTypeForSelected: (TableCellDataType) -> Unit,
-    val onResetCounterSeedForSelected: () -> Unit
+    val onResetCounterSeedForSelected: () -> Unit,
+    val onOpenRotatingTemplateDialogForSelected: (String) -> Unit
 )

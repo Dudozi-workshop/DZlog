@@ -142,16 +142,6 @@ class TableResolver {
             }
 
             TableCellDataType.ROTATING_TEXT -> {
-                ResolvedCell(
-                    id = cell.cellId,
-                    type = cell.dataType,
-                    raw = cell,
-                    resolvedText = "",
-                    isEmpty = true
-                )
-            }
-
-            TableCellDataType.ROTATING_TEXT -> {
                 val phraseSetId = cell.phraseSetId?.takeIf { it.isNotBlank() }
                 val phraseSet = phraseSetId?.let { phraseSetMap[it] }
                 val resolvedText = when {

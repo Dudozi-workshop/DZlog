@@ -86,6 +86,8 @@ fun LayoutTabContent(
                             } else {
                                 if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
                                     actions.onOpenFormatDialog(cell.cellId, cell.dataType)
+                                } else if (cell.dataType == TableCellDataType.ROTATING_TEXT) {
+                                    actions.onOpenRotatingTemplateDialogForSelected(cell.cellId)
                                 } else {
                                     actions.onShowCellSettingsPanel(true)
                                 }
@@ -132,7 +134,10 @@ fun LayoutTabContent(
                 onPathGroupAction = actions.onPathGroupActionForSelected,
                 onSetDataType = actions.onSetDataTypeForSelected,
                 onResetCounterSeed = actions.onResetCounterSeedForSelected,
-                autoNextCounterValue = uiState.autoNextCounterValue
+                autoNextCounterValue = uiState.autoNextCounterValue,
+                onOpenRotatingTemplateDialog = {
+                    uiState.selectedCell?.let { actions.onOpenRotatingTemplateDialogForSelected(it.cellId) }
+                }
             )
         }
     }

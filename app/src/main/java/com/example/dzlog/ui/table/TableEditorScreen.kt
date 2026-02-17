@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,10 +20,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -49,8 +55,11 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.input.KeyboardType
 import com.example.dzlog.R
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
@@ -76,6 +85,7 @@ import com.example.dzlog.domain.model.HourSystem
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellKind
 import com.example.dzlog.domain.model.TableCellState
+import com.example.dzlog.domain.model.RotatingPhraseSet
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.TimeFormatOptions
 import com.example.dzlog.domain.model.TimeSeparator
@@ -110,6 +120,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
+import java.util.UUID
 
 
 @Composable
@@ -148,6 +159,29 @@ fun TableEditorScreen(
         formatTargetCellId = targetCellId
         formatTargetType = targetType
         showFormatDialog = true
+    }
+
+    var showRotatingTemplateDialog by remember { mutableStateOf(false) }
+    var rotatingDialogCellId by remember { mutableStateOf<String?>(null) }
+    var rotatingDialogRestoreState by remember { mutableStateOf<TableTemplateState?>(null) }
+    var showCreatePhraseSetDialog by remember { mutableStateOf(false) }
+    var newPhraseSetName by remember { mutableStateOf("") }
+    var pendingDeletePhraseSetId by remember { mutableStateOf<String?>(null) }
+
+    fun openRotatingTemplateDialog(targetCellId: String) {
+        rotatingDialogCellId = targetCellId
+        rotatingDialogRestoreState = templateState
+        showRotatingTemplateDialog = true
+        showCellSettingsPanel = false
+    }
+
+    fun closeRotatingTemplateDialog() {
+        showRotatingTemplateDialog = false
+        rotatingDialogCellId = null
+        rotatingDialogRestoreState = null
+        pendingDeletePhraseSetId = null
+        showCreatePhraseSetDialog = false
+        newPhraseSetName = ""
     }
 
     val dateFormatOptions = listOf(NamingFormatDefaults.DATE_FORMAT_DEFAULT, "yyyy_MM_dd", "yyyyMMdd")
@@ -712,6 +746,147 @@ fun TableEditorScreen(
         )
     }
 
+    if (showRotatingTemplateDialog) {
+        val dialogCell = templateState.cells.firstOrNull { it.cellId == rotatingDialogCellId }
+        if (dialogCell == null || dialogCell.dataType != TableCellDataType.ROTATING_TEXT) {
+            closeRotatingTemplateDialog()
+        } else {
+            RotatingTemplateDialog(
+                cell = dialogCell,
+                phraseSets = templateState.phraseSets,
+                onDismiss = { closeRotatingTemplateDialog() },
+                onRestore = {
+                    rotatingDialogRestoreState?.let { onTemplateChange(it) }
+                    closeRotatingTemplateDialog()
+                },
+                onSelectSet = { phraseSetId ->
+                    val updated = updateCell(templateState, dialogCell.cellId) { current ->
+                        if (phraseSetId == null) {
+                            current.copy(phraseSetId = null, everyOverride = null)
+                        } else {
+                            current.copy(phraseSetId = phraseSetId)
+                        }
+                    }
+                    onTemplateChange(updated)
+                },
+                onEveryChange = { every ->
+                    val updated = updateCell(templateState, dialogCell.cellId) { current ->
+                        current.copy(everyOverride = every.coerceAtLeast(1))
+                    }
+                    onTemplateChange(updated)
+                },
+                onIncreaseEvery = {
+                    val selectedSet = templateState.phraseSets.firstOrNull { it.id == dialogCell.phraseSetId }
+                    val currentEvery = dialogCell.everyOverride ?: selectedSet?.defaultEvery ?: 1
+                    val nextEvery = (currentEvery + 1).coerceAtLeast(1)
+                    val updated = updateCell(templateState, dialogCell.cellId) { current ->
+                        current.copy(everyOverride = nextEvery)
+                    }
+                    onTemplateChange(updated)
+                },
+                onDecreaseEvery = {
+                    val selectedSet = templateState.phraseSets.firstOrNull { it.id == dialogCell.phraseSetId }
+                    val currentEvery = dialogCell.everyOverride ?: selectedSet?.defaultEvery ?: 1
+                    val nextEvery = (currentEvery - 1).coerceAtLeast(1)
+                    val updated = updateCell(templateState, dialogCell.cellId) { current ->
+                        current.copy(everyOverride = nextEvery)
+                    }
+                    onTemplateChange(updated)
+                },
+                onRequestCreateSet = {
+                    newPhraseSetName = ""
+                    showCreatePhraseSetDialog = true
+                },
+                onRequestDeleteSet = { phraseSetId ->
+                    pendingDeletePhraseSetId = phraseSetId
+                }
+            )
+        }
+    }
+
+    if (showCreatePhraseSetDialog) {
+        AlertDialog(
+            onDismissRequest = { showCreatePhraseSetDialog = false },
+            title = { Text("새 템플릿 추가") },
+            text = {
+                OutlinedTextField(
+                    value = newPhraseSetName,
+                    onValueChange = { newPhraseSetName = it },
+                    singleLine = true,
+                    label = { Text("세트 이름") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val name = newPhraseSetName.trim()
+                    if (name.isNotEmpty() && rotatingDialogCellId != null) {
+                        val created = RotatingPhraseSet(
+                            id = UUID.randomUUID().toString(),
+                            name = name,
+                            items = emptyList(),
+                            defaultEvery = 1
+                        )
+                        val updatedTemplate = templateState.copy(
+                            phraseSets = templateState.phraseSets + created,
+                            cells = templateState.cells.map { cell ->
+                                if (cell.cellId == rotatingDialogCellId) {
+                                    cell.copy(phraseSetId = created.id, everyOverride = null)
+                                } else {
+                                    cell
+                                }
+                            }
+                        )
+                        onTemplateChange(updatedTemplate)
+                    }
+                    showCreatePhraseSetDialog = false
+                }) {
+                    Text("추가", style = DDZTypography.ButtonText)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreatePhraseSetDialog = false }) {
+                    Text("취소", style = DDZTypography.ButtonText)
+                }
+            }
+        )
+    }
+
+    pendingDeletePhraseSetId?.let { deleteId ->
+        val deleteTarget = templateState.phraseSets.firstOrNull { it.id == deleteId }
+        if (deleteTarget != null) {
+            AlertDialog(
+                onDismissRequest = { pendingDeletePhraseSetId = null },
+                title = { Text("세트 삭제") },
+                text = { Text("${deleteTarget.name} 세트를 삭제하시겠습니까?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val updated = templateState.copy(
+                            phraseSets = templateState.phraseSets.filterNot { it.id == deleteId },
+                            cells = templateState.cells.map { cell ->
+                                if (cell.phraseSetId == deleteId) {
+                                    cell.copy(phraseSetId = null, everyOverride = null)
+                                } else {
+                                    cell
+                                }
+                            }
+                        )
+                        onTemplateChange(updated)
+                        pendingDeletePhraseSetId = null
+                    }) {
+                        Text("삭제", style = DDZTypography.ButtonText)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDeletePhraseSetId = null }) {
+                        Text("취소", style = DDZTypography.ButtonText)
+                    }
+                }
+            )
+        } else {
+            pendingDeletePhraseSetId = null
+        }
+    }
+
     // ✅ 탭 전환: 편집 중이면 먼저 commit (중복 다이얼로그 등으로 commit이 보류되면 탭 전환 막기)
     fun requestTabSwitch(targetIndex: Int) {
         if (selectedTabIndex == targetIndex) return
@@ -876,6 +1051,14 @@ fun TableEditorScreen(
                                         Toast.makeText(context, "카운터를 자동 기준으로 초기화했습니다.", Toast.LENGTH_SHORT).show()
                                     }
                                 }
+                            },
+                            onOpenRotatingTemplateDialogForSelected = { cellId ->
+                                val cell = templateState.cells.firstOrNull { it.cellId == cellId }
+                                if (cell != null && cell.dataType == TableCellDataType.ROTATING_TEXT) {
+                                    openRotatingTemplateDialog(cell.cellId)
+                                } else {
+                                    showCellSettingsPanel = true
+                                }
                             }
                         )
                     )
@@ -947,6 +1130,127 @@ fun TableEditorScreen(
             }
         }
     }
+}
+
+@Composable
+private fun RotatingTemplateDialog(
+    cell: TableCellState,
+    phraseSets: List<RotatingPhraseSet>,
+    onDismiss: () -> Unit,
+    onRestore: () -> Unit,
+    onSelectSet: (String?) -> Unit,
+    onEveryChange: (Int) -> Unit,
+    onIncreaseEvery: () -> Unit,
+    onDecreaseEvery: () -> Unit,
+    onRequestCreateSet: () -> Unit,
+    onRequestDeleteSet: (String) -> Unit
+) {
+    val selectedSet = phraseSets.firstOrNull { it.id == cell.phraseSetId }
+    val everyEnabled = selectedSet != null
+    val everyDisplay = (cell.everyOverride ?: selectedSet?.defaultEvery ?: 1).coerceAtLeast(1)
+    var everyInput by remember(cell.cellId, cell.phraseSetId, cell.everyOverride, selectedSet?.defaultEvery) {
+        mutableStateOf(everyDisplay.toString())
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("문구 템플릿 설정") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 120.dp, max = 220.dp)
+                        .background(DDZColor.Card, RoundedCornerShape(10.dp))
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelectSet(null) }
+                                .padding(horizontal = 6.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = cell.phraseSetId == null, onClick = { onSelectSet(null) })
+                            Text("미지정", color = DDZColor.TextPrimary, style = DDZTypography.Body)
+                        }
+                    }
+
+                    items(items = phraseSets, key = { it.id }) { set ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelectSet(set.id) }
+                                .padding(horizontal = 6.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = cell.phraseSetId == set.id,
+                                onClick = { onSelectSet(set.id) }
+                            )
+                            Text(
+                                text = "${set.name} (${set.items.size}개)",
+                                modifier = Modifier.weight(1f),
+                                color = DDZColor.TextPrimary,
+                                style = DDZTypography.Body
+                            )
+                            TextButton(onClick = {}, enabled = false) { Text("✏️") }
+                            TextButton(onClick = { onRequestDeleteSet(set.id) }) { Text("🗑") }
+                        }
+                    }
+
+                    item {
+                        Button(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = onRequestCreateSet
+                        ) {
+                            Text("+ 새 템플릿 추가", style = DDZTypography.ButtonText)
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(onClick = onDecreaseEvery, enabled = everyEnabled) { Text("-") }
+                    OutlinedTextField(
+                        modifier = Modifier.weight(1f),
+                        value = everyInput,
+                        onValueChange = { input ->
+                            val digits = input.filter { it.isDigit() }
+                            everyInput = digits
+                            val parsed = digits.toIntOrNull()
+                            if (parsed != null) {
+                                val clamped = parsed.coerceAtLeast(1)
+                                onEveryChange(clamped)
+                                if (clamped.toString() != digits) {
+                                    everyInput = clamped.toString()
+                                }
+                            }
+                        },
+                        enabled = everyEnabled,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                    Button(onClick = onIncreaseEvery, enabled = everyEnabled) { Text("+") }
+                }
+            }
+        },
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onRestore) {
+                    Text("복구", style = DDZTypography.ButtonText)
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("닫기", style = DDZTypography.ButtonText)
+                }
+            }
+        }
+    )
 }
 
 @Composable

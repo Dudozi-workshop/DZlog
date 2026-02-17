@@ -39,7 +39,8 @@ internal fun CellSettingsBottomPanel(
     onPathGroupAction: (PathGroupAction) -> Unit,
     onSetDataType: (TableCellDataType) -> Unit,
     onResetCounterSeed: (() -> Unit)? = null,
-    autoNextCounterValue: Int = 1
+    autoNextCounterValue: Int = 1,
+    onOpenRotatingTemplateDialog: (() -> Unit)? = null
 ) {
     Column(
         modifier = modifier
@@ -128,6 +129,16 @@ internal fun CellSettingsBottomPanel(
                 onClick = onResetCounterSeed
             ) {
                 Text("카운터 초기화 ($autoNextCounterValue)", style = DDZTypography.ButtonText)
+            }
+        }
+
+
+        if (cell.dataType == TableCellDataType.ROTATING_TEXT && onOpenRotatingTemplateDialog != null) {
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenRotatingTemplateDialog
+            ) {
+                Text("문구 템플릿 설정", style = DDZTypography.ButtonText)
             }
         }
 
