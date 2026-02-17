@@ -37,7 +37,9 @@ internal fun parseCounterFromDisplayNameForPolicy(
 
     if (token.isBlank()) return null
     if (!token.all { it.isDigit() }) return null
-    if (counterDigits != 0 && token.length != counterDigits) return null
+    // NOTE: parsing must be padding-agnostic.
+    // counterDigits는 파일명 생성 포맷용이며, 기존 파일 스캔/리싱크에서는
+    // 자릿수 변경(예: 3->4) 이후에도 기존 값을 읽어야 카운터가 초기화되지 않는다.
     val v = token.toIntOrNull() ?: return null
     return if (v >= 0) v else null
 }

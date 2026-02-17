@@ -31,9 +31,21 @@ class CounterUtilsTest {
     }
 
     @Test
-    fun parse_with_wildcard_prefix_respects_digits_when_configured() {
+    fun parse_is_padding_agnostic_when_digits_config_changes() {
         val parsed = parseCounterFromDisplayNameForPolicy(
             displayName = "ANY_PREFIX_27.jpg",
+            fileNamePrefix = "*",
+            counterDigits = 4,
+            fnDelim = "_"
+        )
+
+        assertEquals(27, parsed)
+    }
+
+    @Test
+    fun parse_fails_for_non_numeric_suffix() {
+        val parsed = parseCounterFromDisplayNameForPolicy(
+            displayName = "ANY_PREFIX_XX.jpg",
             fileNamePrefix = "*",
             counterDigits = 4,
             fnDelim = "_"

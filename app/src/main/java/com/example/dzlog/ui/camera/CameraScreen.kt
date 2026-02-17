@@ -105,6 +105,8 @@ import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.feature.capture.io.createCaptureRepository
 import com.example.dzlog.feature.capture.permission.hasCameraPermission
+import com.example.dzlog.feature.capture.policy.CounterResyncPolicy
+import com.example.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.example.dzlog.feature.capture.policy.stabilizeStreamNextCounter
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.example.dzlog.ui.camera.controls.CaptureButtonSection
@@ -234,44 +236,55 @@ fun CameraPreview(
         }
     }
 
+    suspend fun syncAfterUndoDelete() {
+        reloadLatestImage()
+        ui.counter.scopeNextCounter = CounterResyncPolicy.refreshNextCounterFromMediaStore(
+            context = context,
+            streamContext = counterStreamContext,
+            counterDigits = ui.prefs.counterDigits,
+            fnDelim = fnDelim
+        )
+    }
+
     LaunchedEffect(Unit) { reloadLatestImage() }
     LaunchedEffect(mediaStoreRefreshTick) { reloadLatestImage() }
 
-    val sessionCaptureStack = remember { mutableStateListOf<Uri>() }
-    var pendingUndoDeleteUri by remember { mutableStateOf<Uri?>(null) }
+    val sessionCaptureStack = remember { mutableStateListOf<List<Uri>>() }
+    var pendingUndoDeleteUris by remember { mutableStateOf<List<Uri>?>(null) }
 
     val undoDeleteLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
-        val pendingUri = pendingUndoDeleteUri ?: return@rememberLauncherForActivityResult
+        val pendingUris = pendingUndoDeleteUris ?: return@rememberLauncherForActivityResult
         if (result.resultCode == Activity.RESULT_OK) {
-            scope.launch { reloadLatestImage() }
+            scope.launch { syncAfterUndoDelete() }
         } else {
-            sessionCaptureStack.add(pendingUri)
+            UndoCapturePolicy.restoreCapture(sessionCaptureStack, pendingUris)
         }
-        pendingUndoDeleteUri = null
+        pendingUndoDeleteUris = null
     }
 
-    fun launchScopedDeleteRequest(targetUri: Uri): Boolean {
+    fun launchScopedDeleteRequest(targetUris: List<Uri>): Boolean {
+        if (targetUris.isEmpty()) return false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, listOf(targetUri))
-            pendingUndoDeleteUri = targetUri
+            val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, targetUris)
+            pendingUndoDeleteUris = targetUris
             undoDeleteLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
             return true
         }
         return false
     }
 
-    fun performUndoDelete() {
-        val targetUri = sessionCaptureStack.lastOrNull() ?: return
-        sessionCaptureStack.removeAt(sessionCaptureStack.lastIndex)
+    fun performUndoDelete(targetUris: List<Uri>) {
+        if (targetUris.isEmpty()) return
 
-        val deleted = runCatching {
-            val count = context.contentResolver.delete(targetUri, null, null)
-            count > 0
+        val deletedAll = runCatching {
+            targetUris.all { uri ->
+                context.contentResolver.delete(uri, null, null) > 0
+            }
         }.getOrElse { throwable ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && throwable is RecoverableSecurityException) {
-                pendingUndoDeleteUri = targetUri
+                pendingUndoDeleteUris = targetUris
                 undoDeleteLauncher.launch(
                     IntentSenderRequest.Builder(throwable.userAction.actionIntent.intentSender).build()
                 )
@@ -280,11 +293,12 @@ fun CameraPreview(
             false
         }
 
-        if (!deleted) {
-            sessionCaptureStack.add(targetUri)
+        if (!deletedAll) {
+            UndoCapturePolicy.restoreCapture(sessionCaptureStack, targetUris)
             return
         }
-        scope.launch { reloadLatestImage() }
+
+        scope.launch { syncAfterUndoDelete() }
     }
 
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
@@ -626,8 +640,8 @@ fun CameraPreview(
                             buildWatermarkConfig = ::buildWatermarkConfig,
                             onApplyTemplatePatch = { onTemplateChange(it) },
                             onUpdateScopeNextCounter = { ui.counter.scopeNextCounter = it },
-                            onAddToSessionStack = {
-                                sessionCaptureStack.add(it)
+                            onAddToSessionStack = { uris ->
+                                UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
                                 scope.launch { reloadLatestImage() }
                             },
                             onSetCapturedUri = {
@@ -640,14 +654,18 @@ fun CameraPreview(
                     }
 
                     UndoCaptureButton(
-                        enabled = sessionCaptureStack.isNotEmpty() && pendingUndoDeleteUri == null,
+                        enabled = sessionCaptureStack.isNotEmpty() && pendingUndoDeleteUris == null,
                         onClick = {
-                            if (pendingUndoDeleteUri != null) return@UndoCaptureButton
-                            if (launchScopedDeleteRequest(sessionCaptureStack.lastOrNull() ?: return@UndoCaptureButton)) {
-                                sessionCaptureStack.removeAt(sessionCaptureStack.lastIndex)
+                            if (pendingUndoDeleteUris != null) return@UndoCaptureButton
+                            val targetUris = UndoCapturePolicy.consumeLatestCapture(
+                                stack = sessionCaptureStack
+                            )
+                            if (targetUris.isEmpty()) return@UndoCaptureButton
+
+                            if (launchScopedDeleteRequest(targetUris)) {
                                 return@UndoCaptureButton
                             }
-                            performUndoDelete()
+                            performUndoDelete(targetUris)
                         },
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
