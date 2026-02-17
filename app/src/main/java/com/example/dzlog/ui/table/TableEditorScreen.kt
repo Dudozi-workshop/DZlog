@@ -64,6 +64,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
+import org.burnoutcrew.reorderable.ReorderableItem
+import org.burnoutcrew.reorderable.detectReorderAfterLongPress
+import org.burnoutcrew.reorderable.rememberReorderableLazyListState
+import org.burnoutcrew.reorderable.reorderable
 import com.example.dzlog.R
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
@@ -1309,6 +1313,24 @@ private fun PhraseSetEditDialog(
     var showItemInputDialog by remember(phraseSet.id) { mutableStateOf(false) }
     var editingItemIndex by remember(phraseSet.id) { mutableStateOf<Int?>(null) }
     var itemInput by remember(phraseSet.id) { mutableStateOf("") }
+    val reorderState = rememberReorderableLazyListState(
+        onMove = { from, to ->
+            val currentItems = phraseSet.items
+            if (currentItems.isEmpty()) return@rememberReorderableLazyListState
+
+            val fromIndex = from.index
+            val toIndex = to.index
+            if (fromIndex !in currentItems.indices || toIndex !in currentItems.indices) {
+                return@rememberReorderableLazyListState
+            }
+
+            val newList = currentItems.toMutableList().apply {
+                val movedItem = removeAt(fromIndex)
+                add(toIndex, movedItem)
+            }
+            onUpdateSet { it.copy(items = newList) }
+        }
+    )
 
     Dialog(onDismissRequest = onClose) {
         Surface(
@@ -1347,36 +1369,49 @@ private fun PhraseSetEditDialog(
                         .fillMaxWidth()
                         .heightIn(min = 180.dp, max = 300.dp)
                         .background(DDZColor.Card, RoundedCornerShape(10.dp))
-                        .padding(8.dp),
+                        .padding(8.dp)
+                        .reorderable(reorderState),
+                    state = reorderState.listState,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     items(phraseSet.items.size, key = { idx -> "${phraseSet.id}-$idx" }) { index ->
                         val item = phraseSet.items[index]
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    editingItemIndex = index
-                                    itemInput = item
-                                    showItemInputDialog = true
-                                }
-                                .padding(horizontal = 6.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = item,
-                                modifier = Modifier.weight(1f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = DDZTypography.Body,
-                                color = DDZColor.TextPrimary
-                            )
-                            Text("☰", style = DDZTypography.Body, color = DDZColor.TextMuted)
-                            TextButton(onClick = {
-                                onUpdateSet { set ->
-                                    set.copy(items = set.items.filterIndexed { idx, _ -> idx != index })
-                                }
-                            }) { Text("🗑") }
+                        ReorderableItem(reorderState, key = "${phraseSet.id}-$index") { isDragging ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        color = if (isDragging) DDZColor.Surface.copy(alpha = 0.92f) else DDZColor.Card,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable {
+                                        editingItemIndex = index
+                                        itemInput = item
+                                        showItemInputDialog = true
+                                    }
+                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = item,
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = DDZTypography.Body,
+                                    color = DDZColor.TextPrimary
+                                )
+                                Text(
+                                    "☰",
+                                    modifier = Modifier.detectReorderAfterLongPress(reorderState),
+                                    style = DDZTypography.Body,
+                                    color = DDZColor.TextMuted
+                                )
+                                TextButton(onClick = {
+                                    onUpdateSet { set ->
+                                        set.copy(items = set.items.filterIndexed { idx, _ -> idx != index })
+                                    }
+                                }) { Text("🗑") }
+                            }
                         }
                     }
                 }
