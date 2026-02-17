@@ -17,7 +17,6 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
-import android.provider.MediaStore.Images
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -106,9 +105,10 @@ import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.feature.capture.io.createCaptureRepository
 import com.example.dzlog.feature.capture.permission.hasCameraPermission
+import com.example.dzlog.feature.capture.policy.CounterResyncPolicy
+import com.example.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.example.dzlog.feature.capture.policy.stabilizeStreamNextCounter
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
-import com.example.dzlog.data.counter.parseCounterFromDisplayNameForPolicy
 import com.example.dzlog.ui.camera.controls.CaptureButtonSection
 import com.example.dzlog.ui.camera.controls.ZoomControlSection
 import com.example.dzlog.ui.camera.controls.handleCaptureClick
@@ -236,120 +236,55 @@ fun CameraPreview(
         }
     }
 
-    suspend fun refreshCounterFromPolicy() {
-        val appSettings = AppSettingsStore.flow(context).first()
-        val scopedStream = toCaptureScopedCounterStream(
-            streamContext = counterStreamContext,
-            includePathInScope = appSettings.includePathInCounterScope,
-            includeFilenameInScope = appSettings.includeFilenameInCounterScope,
-        )
-
-        val relativePath = scopedStream.captureStreamKey.relativePathKey
-            .substringBefore("|g2=", scopedStream.captureStreamKey.relativePathKey)
-        val fileNamePrefix = scopedStream.captureStreamKey.prefix
-            .substringBefore("|g2=", scopedStream.captureStreamKey.prefix)
-
-        val latestCounter = withContext(Dispatchers.IO) {
-            val projection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                arrayOf(
-                    Images.Media.DISPLAY_NAME,
-                    Images.Media.RELATIVE_PATH,
-                    Images.Media._ID
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                arrayOf(
-                    Images.Media.DISPLAY_NAME,
-                    Images.Media.DATA,
-                    Images.Media._ID
-                )
-            }
-            val sortOrder = "${Images.Media.DATE_ADDED} DESC, ${Images.Media._ID} DESC"
-            val selection: String?
-            val selectionArgs: Array<String>?
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                selection = "${Images.Media.RELATIVE_PATH} = ?"
-                selectionArgs = arrayOf(relativePath)
-            } else {
-                @Suppress("DEPRECATION")
-                run {
-                    selection = "${Images.Media.DATA} LIKE ?"
-                    selectionArgs = arrayOf("%/$relativePath%")
-                }
-            }
-
-            context.contentResolver.query(
-                Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                sortOrder
-            )?.use { cursor ->
-                val nameIdx = cursor.getColumnIndex(Images.Media.DISPLAY_NAME)
-                if (nameIdx < 0) return@use null
-
-                if (cursor.moveToFirst()) {
-                    val displayName = cursor.getString(nameIdx).orEmpty()
-                    return@use parseCounterFromDisplayNameForPolicy(
-                        displayName = displayName,
-                        fileNamePrefix = fileNamePrefix,
-                        counterDigits = ui.prefs.counterDigits,
-                        fnDelim = fnDelim
-                    )
-                }
-                null
-            }
-        }
-
-        CaptureCounterPolicy.clearManualCounterOverride(
+    suspend fun syncAfterUndoDelete() {
+        reloadLatestImage()
+        ui.counter.scopeNextCounter = CounterResyncPolicy.refreshNextCounterFromMediaStore(
             context = context,
-            scopedStream = scopedStream
+            streamContext = counterStreamContext,
+            counterDigits = ui.prefs.counterDigits,
+            fnDelim = fnDelim
         )
-
-        ui.counter.scopeNextCounter = ((latestCounter ?: 0) + 1).coerceAtLeast(1)
     }
 
     LaunchedEffect(Unit) { reloadLatestImage() }
     LaunchedEffect(mediaStoreRefreshTick) { reloadLatestImage() }
 
     val sessionCaptureStack = remember { mutableStateListOf<Uri>() }
-    var pendingUndoDeleteUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingUndoDeleteUris by remember { mutableStateOf<List<Uri>?>(null) }
 
     val undoDeleteLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
-        val pendingUri = pendingUndoDeleteUri ?: return@rememberLauncherForActivityResult
+        val pendingUris = pendingUndoDeleteUris ?: return@rememberLauncherForActivityResult
         if (result.resultCode == Activity.RESULT_OK) {
-            scope.launch {
-                reloadLatestImage()
-                refreshCounterFromPolicy()
-            }
+            scope.launch { syncAfterUndoDelete() }
         } else {
-            sessionCaptureStack.add(pendingUri)
+            UndoCapturePolicy.restoreUndoTargets(sessionCaptureStack, pendingUris)
         }
-        pendingUndoDeleteUri = null
+        pendingUndoDeleteUris = null
     }
 
-    fun launchScopedDeleteRequest(targetUri: Uri): Boolean {
+    fun launchScopedDeleteRequest(targetUris: List<Uri>): Boolean {
+        if (targetUris.isEmpty()) return false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, listOf(targetUri))
-            pendingUndoDeleteUri = targetUri
+            val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, targetUris)
+            pendingUndoDeleteUris = targetUris
             undoDeleteLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
             return true
         }
         return false
     }
 
-    fun performUndoDelete() {
-        val targetUri = sessionCaptureStack.lastOrNull() ?: return
-        sessionCaptureStack.removeAt(sessionCaptureStack.lastIndex)
+    fun performUndoDelete(targetUris: List<Uri>) {
+        if (targetUris.isEmpty()) return
 
-        val deleted = runCatching {
-            val count = context.contentResolver.delete(targetUri, null, null)
-            count > 0
+        val deletedAll = runCatching {
+            targetUris.all { uri ->
+                context.contentResolver.delete(uri, null, null) > 0
+            }
         }.getOrElse { throwable ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && throwable is RecoverableSecurityException) {
-                pendingUndoDeleteUri = targetUri
+                pendingUndoDeleteUris = targetUris
                 undoDeleteLauncher.launch(
                     IntentSenderRequest.Builder(throwable.userAction.actionIntent.intentSender).build()
                 )
@@ -358,14 +293,12 @@ fun CameraPreview(
             false
         }
 
-        if (!deleted) {
-            sessionCaptureStack.add(targetUri)
+        if (!deletedAll) {
+            UndoCapturePolicy.restoreUndoTargets(sessionCaptureStack, targetUris)
             return
         }
-        scope.launch {
-            reloadLatestImage()
-            refreshCounterFromPolicy()
-        }
+
+        scope.launch { syncAfterUndoDelete() }
     }
 
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
@@ -707,8 +640,8 @@ fun CameraPreview(
                             buildWatermarkConfig = ::buildWatermarkConfig,
                             onApplyTemplatePatch = { onTemplateChange(it) },
                             onUpdateScopeNextCounter = { ui.counter.scopeNextCounter = it },
-                            onAddToSessionStack = {
-                                sessionCaptureStack.add(it)
+                            onAddToSessionStack = { uris ->
+                                sessionCaptureStack.addAll(uris)
                                 scope.launch { reloadLatestImage() }
                             },
                             onSetCapturedUri = {
@@ -721,14 +654,19 @@ fun CameraPreview(
                     }
 
                     UndoCaptureButton(
-                        enabled = sessionCaptureStack.isNotEmpty() && pendingUndoDeleteUri == null,
+                        enabled = sessionCaptureStack.isNotEmpty() && pendingUndoDeleteUris == null,
                         onClick = {
-                            if (pendingUndoDeleteUri != null) return@UndoCaptureButton
-                            if (launchScopedDeleteRequest(sessionCaptureStack.lastOrNull() ?: return@UndoCaptureButton)) {
-                                sessionCaptureStack.removeAt(sessionCaptureStack.lastIndex)
+                            if (pendingUndoDeleteUris != null) return@UndoCaptureButton
+                            val targetUris = UndoCapturePolicy.consumeUndoTargets(
+                                stack = sessionCaptureStack,
+                                saveMode = ui.prefs.saveMode
+                            )
+                            if (targetUris.isEmpty()) return@UndoCaptureButton
+
+                            if (launchScopedDeleteRequest(targetUris)) {
                                 return@UndoCaptureButton
                             }
-                            performUndoDelete()
+                            performUndoDelete(targetUris)
                         },
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
