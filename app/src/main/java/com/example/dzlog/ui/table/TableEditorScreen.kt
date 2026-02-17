@@ -204,7 +204,8 @@ fun TableEditorScreen(
                 dateFormat = dateFormat,
                 timeFormat = timeFormat
             ),
-            counterSeedOverride = scopeNextCounter
+            counterSeedOverride = scopeNextCounter,
+            phraseSets = templateState.phraseSets
         )
     }
     val isManualCounterModeDisplay by remember(
@@ -494,7 +495,8 @@ fun TableEditorScreen(
                 dateFormat = dateFormat,
                 timeFormat = timeFormat
             ),
-            counterSeedOverride = scopeNextCounter
+            counterSeedOverride = scopeNextCounter,
+            phraseSets = templateState.phraseSets
         )
     }
 
@@ -1138,12 +1140,7 @@ private fun removeColumn(templateState: TableTemplateState): TableTemplateState 
  * - COUNTER는 seed가 없으면 1로 초기화
  */
 private fun TableCellState.withDataType(newType: TableCellDataType): TableCellState {
-    if (this.dataType == newType) {
-        return if (newType == TableCellDataType.ROTATING_TEXT) this
-        else this.copy(phraseSetId = null, everyOverride = null)
-    }
-
-    return when (newType) {
+    val next = when (newType) {
         TableCellDataType.TEXT -> this.copy(
             dataType = newType,
             typedValue = CellValue.Text(this.rawText),
@@ -1178,6 +1175,15 @@ private fun TableCellState.withDataType(newType: TableCellDataType): TableCellSt
             dataType = newType,
             typedValue = CellValue.Auto,
             timeFormatOptions = null
+        )
+    }
+
+    return if (newType == TableCellDataType.ROTATING_TEXT) {
+        next
+    } else {
+        next.copy(
+            phraseSetId = null,
+            everyOverride = null
         )
     }
 }

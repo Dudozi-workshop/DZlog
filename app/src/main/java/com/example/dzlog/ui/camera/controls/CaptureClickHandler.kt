@@ -95,7 +95,8 @@ internal fun handleCaptureClick(
             dateFormat = dateFormat,
             timeFormat = timeFormat
         ),
-        counterSeedOverride = scopeNextCounter
+        counterSeedOverride = scopeNextCounter,
+        phraseSets = tableTemplateState.phraseSets
     )
 
     val policyResult = CaptureNamingPolicy.buildForCaptureWithCounter(

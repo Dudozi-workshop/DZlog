@@ -2,6 +2,7 @@ package com.example.dzlog.domain.table
 
 import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.HourSystem
+import com.example.dzlog.domain.model.RotatingPhraseSet
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellState
 import java.text.SimpleDateFormat
@@ -27,7 +28,8 @@ class TableResolver {
         cells: List<TableCellState>,
         captureNow: Date,
         config: Config,
-        counterSeedOverride: Int? = null
+        counterSeedOverride: Int? = null,
+        phraseSets: List<RotatingPhraseSet> = emptyList()
     ): ResolvePlan {
         // 안정적 순서: row/col 기준
         val ordered = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
@@ -44,6 +46,7 @@ class TableResolver {
             currentCounter.toString().padStart(digits, '0')
         }
         val nextCounter = currentCounter + 1
+        val phraseSetMap = phraseSets.associateBy { it.id }
 
         // NOTE: DATE/TIME은 셀의 원본 텍스트(rawText)를 신뢰하지 않는다.
         //       항상 captureNow 기준으로 포맷하여 표시/저장한다.
@@ -52,6 +55,8 @@ class TableResolver {
             resolveCell(
                 cell = cell,
                 counterResolved = counterResolved,
+                usedCounter = currentCounter,
+                phraseSetMap = phraseSetMap,
                 captureNow = captureNow,
                 config = config
             )
@@ -69,6 +74,8 @@ class TableResolver {
     private fun resolveCell(
         cell: TableCellState,
         counterResolved: String,
+        usedCounter: Int,
+        phraseSetMap: Map<String, RotatingPhraseSet>,
         captureNow: Date,
         config: Config
     ): ResolvedCell {
@@ -141,6 +148,27 @@ class TableResolver {
                     raw = cell,
                     resolvedText = "",
                     isEmpty = true
+                )
+            }
+
+            TableCellDataType.ROTATING_TEXT -> {
+                val phraseSetId = cell.phraseSetId?.takeIf { it.isNotBlank() }
+                val phraseSet = phraseSetId?.let { phraseSetMap[it] }
+                val resolvedText = when {
+                    phraseSet == null -> ""
+                    phraseSet.items.isEmpty() -> ""
+                    else -> {
+                        val effectiveEvery = (cell.everyOverride ?: phraseSet.defaultEvery).coerceAtLeast(1)
+                        val index = ((usedCounter - 1) / effectiveEvery) % phraseSet.items.size
+                        phraseSet.items[index]
+                    }
+                }
+                ResolvedCell(
+                    id = cell.cellId,
+                    type = cell.dataType,
+                    raw = cell,
+                    resolvedText = resolvedText,
+                    isEmpty = resolvedText.isBlank()
                 )
             }
         }

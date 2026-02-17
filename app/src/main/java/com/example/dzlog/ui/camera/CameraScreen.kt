@@ -328,7 +328,8 @@ fun CameraPreview(
                 dateFormat = dateFormat,
                 timeFormat = timeFormat
             ),
-            counterSeedOverride = ui.counter.scopeNextCounter
+            counterSeedOverride = ui.counter.scopeNextCounter,
+            phraseSets = tableTemplateState.phraseSets
         )
         CaptureNamingPolicy.buildDisplayNameForCounter(
             resolvedCells = plan.resolvedCells,

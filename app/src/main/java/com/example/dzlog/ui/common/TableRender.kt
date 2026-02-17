@@ -54,7 +54,8 @@ fun TableRender(
                 counterDigits = counterDigits,
                 dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
                 timeFormat = NamingFormatDefaults.TIME_FORMAT_RENDER_COLON
-            )
+            ),
+            phraseSets = templateState.phraseSets
         )
     }
 

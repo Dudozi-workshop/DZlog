@@ -443,7 +443,8 @@ internal fun CameraPreviewArea(
                     dateFormat = args.dateFormat,
                     timeFormat = args.timeFormat
                 ),
-                counterSeedOverride = args.scopeNextCounter
+                counterSeedOverride = args.scopeNextCounter,
+                phraseSets = args.tableTemplateState.phraseSets
             )
         }
 

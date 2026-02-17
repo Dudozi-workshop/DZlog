@@ -128,7 +128,8 @@ fun HomeScreen(
                 counterDigits = settings.counterPadding,
                 dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
                 timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT
-            )
+            ),
+            phraseSets = tableTemplateState.phraseSets
         )
         val streamContext = buildCounterStreamContext(
             resolvedCells = plan.resolvedCells,
