@@ -23,12 +23,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -40,6 +43,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.animateFloatAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -50,6 +54,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
@@ -57,6 +62,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.res.stringResource
@@ -65,10 +71,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
-import org.burnoutcrew.reorderable.ReorderableItem
-import org.burnoutcrew.reorderable.detectReorderAfterLongPress
-import org.burnoutcrew.reorderable.rememberReorderableLazyListState
-import org.burnoutcrew.reorderable.reorderable
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.util.UUID
 import com.example.dzlog.R
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
@@ -130,7 +134,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
-import java.util.UUID
 
 
 @Composable
@@ -1206,44 +1209,104 @@ private fun RotatingTemplateDialog(
     val selectedSet = phraseSets.firstOrNull { it.id == cell.phraseSetId }
     val everyEnabled = selectedSet != null
     val everyDisplay = (cell.everyOverride ?: selectedSet?.defaultEvery ?: 1).coerceAtLeast(1)
+    val listState = rememberLazyListState()
+    var showScrollIndicator by remember(cell.cellId, cell.phraseSetId) { mutableStateOf(false) }
+    val indicatorAlpha by animateFloatAsState(if (showScrollIndicator) 1f else 0f, label = "rotatingDialogScrollIndicator")
     var everyInput by remember(cell.cellId, cell.phraseSetId, cell.everyOverride, selectedSet?.defaultEvery) {
         mutableStateOf(everyDisplay.toString())
+    }
+
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress) {
+            showScrollIndicator = true
+        } else {
+            delay(600)
+            showScrollIndicator = false
+        }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("문구 템플릿 설정") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                LazyColumn(
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 160.dp, max = 260.dp)
+                        .heightIn(min = 160.dp, max = 320.dp)
                         .background(DDZColor.Card, RoundedCornerShape(10.dp))
-                        .padding(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                        .padding(6.dp)
                 ) {
-                    items(items = phraseSets, key = { it.id }) { set ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSelectSet(set.id) }
-                                .padding(horizontal = 6.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = cell.phraseSetId == set.id,
-                                onClick = { onSelectSet(set.id) }
-                            )
-                            Text(
-                                text = "${set.name} (${set.items.size}개)",
-                                modifier = Modifier.weight(1f),
-                                color = DDZColor.TextPrimary,
-                                style = DDZTypography.Body
-                            )
-                            TextButton(onClick = { onRequestEditSet(set.id) }) { Text("✏️") }
-                            TextButton(onClick = { onRequestDeleteSet(set.id) }) { Text("🗑") }
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clipToBounds(),
+                        state = listState,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(items = phraseSets, key = { it.id }) { set ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSelectSet(set.id) }
+                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = cell.phraseSetId == set.id,
+                                    onClick = { onSelectSet(set.id) }
+                                )
+                                Text(
+                                    text = "${set.name} (${set.items.size}개)",
+                                    modifier = Modifier.weight(1f),
+                                    color = DDZColor.TextPrimary,
+                                    style = DDZTypography.Body
+                                )
+                                TextButton(onClick = { onRequestEditSet(set.id) }) { Text("✏️") }
+                                TextButton(onClick = { onRequestDeleteSet(set.id) }) { Text("🗑") }
+                            }
                         }
+                    }
+
+                    if (phraseSets.isEmpty()) {
+                        Text(
+                            text = "항목을 추가해주세요.",
+                            modifier = Modifier.align(Alignment.Center),
+                            color = DDZColor.TextMuted,
+                            style = DDZTypography.Body
+                        )
+                    }
+
+                    val density = LocalDensity.current
+                    val layoutInfo = listState.layoutInfo
+                    val visibleItems = layoutInfo.visibleItemsInfo
+                    val viewportHeightPx = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).coerceAtLeast(1)
+                    val avgItemHeightPx = visibleItems.map { it.size }.average().toFloat().takeIf { it > 0f } ?: 1f
+                    val totalContentHeightPx = (avgItemHeightPx * layoutInfo.totalItemsCount).coerceAtLeast(viewportHeightPx.toFloat())
+                    val thumbHeightPx = ((viewportHeightPx.toFloat() / totalContentHeightPx) * viewportHeightPx)
+                        .coerceIn(24f, viewportHeightPx.toFloat())
+                    val firstVisible = visibleItems.firstOrNull()
+                    val scrollOffsetPx = if (firstVisible != null) {
+                        (firstVisible.index * avgItemHeightPx) - firstVisible.offset
+                    } else {
+                        0f
+                    }
+                    val maxScrollPx = (totalContentHeightPx - viewportHeightPx).coerceAtLeast(1f)
+                    val thumbOffsetPx = ((scrollOffsetPx / maxScrollPx) * (viewportHeightPx - thumbHeightPx))
+                        .coerceIn(0f, (viewportHeightPx - thumbHeightPx).coerceAtLeast(0f))
+                    val canScroll = layoutInfo.totalItemsCount > visibleItems.size
+
+                    if (canScroll) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(end = 1.dp)
+                                .width(3.dp)
+                                .height(with(density) { thumbHeightPx.toDp() })
+                                .offset(y = with(density) { thumbOffsetPx.toDp() })
+                                .alpha(indicatorAlpha)
+                                .background(DDZColor.TextMuted.copy(alpha = 0.5f), RoundedCornerShape(99.dp))
+                        )
                     }
                 }
 
@@ -1256,14 +1319,18 @@ private fun RotatingTemplateDialog(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(modifier = Modifier.height(38.dp), onClick = onDecreaseEvery, enabled = everyEnabled) { Text("-") }
+                    OutlinedButton(
+                        modifier = Modifier.height(38.dp),
+                        onClick = onDecreaseEvery,
+                        enabled = everyEnabled
+                    ) { Text("-") }
                     OutlinedTextField(
                         modifier = Modifier
                             .weight(1f)
-                            .height(38.dp),
+                            .height(42.dp),
                         value = everyInput,
                         onValueChange = { input ->
                             val digits = input.filter { it.isDigit() }
@@ -1281,7 +1348,11 @@ private fun RotatingTemplateDialog(
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
-                    TextButton(modifier = Modifier.height(38.dp), onClick = onIncreaseEvery, enabled = everyEnabled) { Text("+") }
+                    OutlinedButton(
+                        modifier = Modifier.height(38.dp),
+                        onClick = onIncreaseEvery,
+                        enabled = everyEnabled
+                    ) { Text("+") }
                 }
             }
         },
@@ -1325,37 +1396,37 @@ private fun PhraseSetEditDialog(
         while (itemIds.size > targetSize) {
             itemIds.removeAt(itemIds.lastIndex)
         }
+
+        val idx = editingItemIndex
+        if (idx != null && idx !in phraseSet.items.indices) {
+            editingItemIndex = null
+        }
     }
 
-    val reorderState = rememberReorderableLazyListState(
-        onMove = { from, to ->
-            val listSize = phraseSet.items.size
-            if (listSize == 0) return@rememberReorderableLazyListState
+    val lazyListState = rememberLazyListState()
+    val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        onUpdateSet { set ->
+            val items = set.items
+            if (items.isEmpty()) return@onUpdateSet set
 
             val fromIndex = from.index
-            val toIndex = to.index.coerceIn(0, listSize)
-            if (fromIndex !in 0 until listSize || fromIndex == toIndex) {
-                return@rememberReorderableLazyListState
+            val toIndex = to.index.coerceIn(0, items.lastIndex)
+            if (fromIndex !in items.indices || toIndex !in items.indices || fromIndex == toIndex) {
+                return@onUpdateSet set
             }
 
-            if (fromIndex in itemIds.indices) {
-                val idToMove = itemIds.removeAt(fromIndex)
-                val idInsertIndex = toIndex.coerceAtMost(itemIds.size)
-                itemIds.add(idInsertIndex, idToMove)
+            val newList = items.toMutableList().apply {
+                add(toIndex, removeAt(fromIndex))
             }
-
-            onUpdateSet { set ->
-                val items = set.items
-                if (fromIndex !in items.indices) return@onUpdateSet set
-
-                val newList = items.toMutableList()
-                val movedItem = newList.removeAt(fromIndex)
-                val insertIndex = toIndex.coerceAtMost(newList.size)
-                newList.add(insertIndex, movedItem)
-                set.copy(items = newList)
-            }
+            set.copy(items = newList)
         }
-    )
+
+        if (from.index in itemIds.indices) {
+            val idToMove = itemIds.removeAt(from.index)
+            val insertIndex = to.index.coerceIn(0, itemIds.size)
+            itemIds.add(insertIndex, idToMove)
+        }
+    }
 
     Dialog(onDismissRequest = onClose) {
         Surface(
@@ -1394,18 +1465,18 @@ private fun PhraseSetEditDialog(
                         .fillMaxWidth()
                         .heightIn(min = 180.dp, max = 300.dp)
                         .background(DDZColor.Card, RoundedCornerShape(10.dp))
-                        .padding(8.dp)
-                        .reorderable(reorderState),
-                    state = reorderState.listState,
+                        .padding(8.dp),
+                    state = lazyListState,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     items(
                         phraseSet.items.size,
                         key = { idx -> itemIds.getOrNull(idx) ?: "${phraseSet.id}-$idx" }
                     ) { index ->
-                        val item = phraseSet.items[index]
-                        val stableItemId = itemIds.getOrNull(index) ?: "${phraseSet.id}-$index"
-                        ReorderableItem(reorderState, key = stableItemId) { isDragging ->
+                        val item = phraseSet.items.getOrNull(index) ?: return@items
+                        val stableId = itemIds.getOrNull(index) ?: "${phraseSet.id}-$index"
+
+                        ReorderableItem(reorderableState, key = stableId) { isDragging ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1431,7 +1502,7 @@ private fun PhraseSetEditDialog(
                                 )
                                 Text(
                                     "☰",
-                                    modifier = Modifier.detectReorderAfterLongPress(reorderState),
+                                    modifier = with(this@ReorderableItem) { Modifier.draggableHandle() },
                                     style = DDZTypography.Body,
                                     color = DDZColor.TextMuted
                                 )
@@ -1510,16 +1581,21 @@ private fun PhraseSetEditDialog(
                 TextButton(onClick = {
                     val trimmed = itemInput.trim()
                     if (trimmed.isNotBlank()) {
-                        onUpdateSet { set ->
-                            if (editingItemIndex == null) {
-                                itemIds.add(UUID.randomUUID().toString())
-                                set.copy(items = set.items + trimmed)
-                            } else {
-                                set.copy(
-                                    items = set.items.mapIndexed { idx, value ->
-                                        if (idx == editingItemIndex) trimmed else value
-                                    }
-                                )
+                        if (editingItemIndex == null) {
+                            itemIds.add(UUID.randomUUID().toString())
+                            onUpdateSet { it.copy(items = it.items + trimmed) }
+                        } else {
+                            val idx = editingItemIndex!!
+                            onUpdateSet { set ->
+                                if (idx !in set.items.indices) {
+                                    set
+                                } else {
+                                    set.copy(
+                                        items = set.items.mapIndexed { i, value ->
+                                            if (i == idx) trimmed else value
+                                        }
+                                    )
+                                }
                             }
                         }
                     }

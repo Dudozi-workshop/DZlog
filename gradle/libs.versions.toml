@@ -9,7 +9,7 @@ lifecycleRuntimeCompose = "2.10.0"
 lifecycleViewModelCompose = "2.10.0"
 room = "2.8.4"
 coil = "2.7.0"
-composeReorderable = "0.9.6"
+reorderable = "3.0.0"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -31,6 +31,6 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
-compose-reorderable = { group = "org.burnoutcrew.composereorderable", name = "reorderable", version.ref = "composeReorderable" }
+reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
 
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
