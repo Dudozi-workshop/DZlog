@@ -161,7 +161,8 @@ private fun DataTypeCardGrid3(
         TableCellDataType.NUMBER to "Number",
         TableCellDataType.DATE to stringResource(R.string.label_date),
         TableCellDataType.TIME to "Time",
-        TableCellDataType.COUNTER to stringResource(R.string.label_counter)
+        TableCellDataType.COUNTER to stringResource(R.string.label_counter),
+        TableCellDataType.ROTATING_TEXT to "순환 문구"
     )
 
     val rows = items.chunked(3)

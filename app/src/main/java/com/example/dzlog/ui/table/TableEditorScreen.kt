@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -31,6 +32,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -60,6 +62,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.window.Dialog
 import com.example.dzlog.R
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
@@ -167,6 +171,8 @@ fun TableEditorScreen(
     var showCreatePhraseSetDialog by remember { mutableStateOf(false) }
     var newPhraseSetName by remember { mutableStateOf("") }
     var pendingDeletePhraseSetId by remember { mutableStateOf<String?>(null) }
+    var showPhraseSetEditDialog by remember { mutableStateOf(false) }
+    var editingPhraseSetId by remember { mutableStateOf<String?>(null) }
 
     fun openRotatingTemplateDialog(targetCellId: String) {
         rotatingDialogCellId = targetCellId
@@ -182,6 +188,8 @@ fun TableEditorScreen(
         pendingDeletePhraseSetId = null
         showCreatePhraseSetDialog = false
         newPhraseSetName = ""
+        showPhraseSetEditDialog = false
+        editingPhraseSetId = null
     }
 
     val dateFormatOptions = listOf(NamingFormatDefaults.DATE_FORMAT_DEFAULT, "yyyy_MM_dd", "yyyyMMdd")
@@ -799,6 +807,49 @@ fun TableEditorScreen(
                 },
                 onRequestDeleteSet = { phraseSetId ->
                     pendingDeletePhraseSetId = phraseSetId
+                },
+                onRequestEditSet = { phraseSetId ->
+                    editingPhraseSetId = phraseSetId
+                    showPhraseSetEditDialog = true
+                }
+            )
+        }
+    }
+
+    if (showPhraseSetEditDialog) {
+        val editingSet = templateState.phraseSets.firstOrNull { it.id == editingPhraseSetId }
+        if (editingSet == null) {
+            showPhraseSetEditDialog = false
+            editingPhraseSetId = null
+        } else {
+            PhraseSetEditDialog(
+                phraseSet = editingSet,
+                onClose = {
+                    showPhraseSetEditDialog = false
+                    editingPhraseSetId = null
+                },
+                onUpdateSet = { transform ->
+                    val updated = templateState.copy(
+                        phraseSets = templateState.phraseSets.map { set ->
+                            if (set.id == editingSet.id) transform(set) else set
+                        }
+                    )
+                    onTemplateChange(updated)
+                },
+                onDeleteSet = { deleteId ->
+                    val updated = templateState.copy(
+                        phraseSets = templateState.phraseSets.filterNot { it.id == deleteId },
+                        cells = templateState.cells.map { cell ->
+                            if (cell.phraseSetId == deleteId) {
+                                cell.copy(phraseSetId = null, everyOverride = null)
+                            } else {
+                                cell
+                            }
+                        }
+                    )
+                    onTemplateChange(updated)
+                    showPhraseSetEditDialog = false
+                    editingPhraseSetId = null
                 }
             )
         }
@@ -1143,7 +1194,8 @@ private fun RotatingTemplateDialog(
     onIncreaseEvery: () -> Unit,
     onDecreaseEvery: () -> Unit,
     onRequestCreateSet: () -> Unit,
-    onRequestDeleteSet: (String) -> Unit
+    onRequestDeleteSet: (String) -> Unit,
+    onRequestEditSet: (String) -> Unit
 ) {
     val selectedSet = phraseSets.firstOrNull { it.id == cell.phraseSetId }
     val everyEnabled = selectedSet != null
@@ -1156,28 +1208,15 @@ private fun RotatingTemplateDialog(
         onDismissRequest = onDismiss,
         title = { Text("문구 템플릿 설정") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 120.dp, max = 220.dp)
+                        .heightIn(min = 160.dp, max = 260.dp)
                         .background(DDZColor.Card, RoundedCornerShape(10.dp))
                         .padding(8.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSelectSet(null) }
-                                .padding(horizontal = 6.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(selected = cell.phraseSetId == null, onClick = { onSelectSet(null) })
-                            Text("미지정", color = DDZColor.TextPrimary, style = DDZTypography.Body)
-                        }
-                    }
-
                     items(items = phraseSets, key = { it.id }) { set ->
                         Row(
                             modifier = Modifier
@@ -1196,19 +1235,17 @@ private fun RotatingTemplateDialog(
                                 color = DDZColor.TextPrimary,
                                 style = DDZTypography.Body
                             )
-                            TextButton(onClick = {}, enabled = false) { Text("✏️") }
+                            TextButton(onClick = { onRequestEditSet(set.id) }) { Text("✏️") }
                             TextButton(onClick = { onRequestDeleteSet(set.id) }) { Text("🗑") }
                         }
                     }
+                }
 
-                    item {
-                        Button(
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = onRequestCreateSet
-                        ) {
-                            Text("+ 새 템플릿 추가", style = DDZTypography.ButtonText)
-                        }
-                    }
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onRequestCreateSet
+                ) {
+                    Text("+ 새 템플릿 추가", style = DDZTypography.ButtonText)
                 }
 
                 Row(
@@ -1216,9 +1253,11 @@ private fun RotatingTemplateDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Button(onClick = onDecreaseEvery, enabled = everyEnabled) { Text("-") }
+                    TextButton(modifier = Modifier.height(38.dp), onClick = onDecreaseEvery, enabled = everyEnabled) { Text("-") }
                     OutlinedTextField(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp),
                         value = everyInput,
                         onValueChange = { input ->
                             val digits = input.filter { it.isDigit() }
@@ -1236,12 +1275,15 @@ private fun RotatingTemplateDialog(
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
-                    Button(onClick = onIncreaseEvery, enabled = everyEnabled) { Text("+") }
+                    TextButton(modifier = Modifier.height(38.dp), onClick = onIncreaseEvery, enabled = everyEnabled) { Text("+") }
                 }
             }
         },
         confirmButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 TextButton(onClick = onRestore) {
                     Text("복구", style = DDZTypography.ButtonText)
                 }
@@ -1251,6 +1293,201 @@ private fun RotatingTemplateDialog(
             }
         }
     )
+}
+
+@Composable
+private fun PhraseSetEditDialog(
+    phraseSet: RotatingPhraseSet,
+    onClose: () -> Unit,
+    onUpdateSet: ((RotatingPhraseSet) -> RotatingPhraseSet) -> Unit,
+    onDeleteSet: (String) -> Unit
+) {
+    var showRenameDialog by remember(phraseSet.id) { mutableStateOf(false) }
+    var renameInput by remember(phraseSet.id) { mutableStateOf(phraseSet.name) }
+    var showDeleteConfirm by remember(phraseSet.id) { mutableStateOf(false) }
+
+    var showItemInputDialog by remember(phraseSet.id) { mutableStateOf(false) }
+    var editingItemIndex by remember(phraseSet.id) { mutableStateOf<Int?>(null) }
+    var itemInput by remember(phraseSet.id) { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onClose) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = DDZColor.Surface
+        ) {
+            Column(
+                modifier = Modifier.padding(11.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onClose) {
+                        Text("< 뒤로", style = DDZTypography.ButtonText)
+                    }
+                    TextButton(onClick = { showDeleteConfirm = true }) {
+                        Text("🗑", style = DDZTypography.ButtonText)
+                    }
+                }
+
+                TextButton(onClick = {
+                    renameInput = phraseSet.name
+                    showRenameDialog = true
+                }) {
+                    Text(phraseSet.name, style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+                }
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 180.dp, max = 300.dp)
+                        .background(DDZColor.Card, RoundedCornerShape(10.dp))
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(phraseSet.items.size, key = { idx -> "${phraseSet.id}-$idx" }) { index ->
+                        val item = phraseSet.items[index]
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    editingItemIndex = index
+                                    itemInput = item
+                                    showItemInputDialog = true
+                                }
+                                .padding(horizontal = 6.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = item,
+                                modifier = Modifier.weight(1f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = DDZTypography.Body,
+                                color = DDZColor.TextPrimary
+                            )
+                            Text("☰", style = DDZTypography.Body, color = DDZColor.TextMuted)
+                            TextButton(onClick = {
+                                onUpdateSet { set ->
+                                    set.copy(items = set.items.filterIndexed { idx, _ -> idx != index })
+                                }
+                            }) { Text("🗑") }
+                        }
+                    }
+                }
+
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        editingItemIndex = null
+                        itemInput = ""
+                        showItemInputDialog = true
+                    }
+                ) {
+                    Text("+ 문구 추가", style = DDZTypography.ButtonText)
+                }
+            }
+        }
+    }
+
+    if (showRenameDialog) {
+        AlertDialog(
+            onDismissRequest = { showRenameDialog = false },
+            title = { Text("세트 이름 변경") },
+            text = {
+                OutlinedTextField(
+                    value = renameInput,
+                    onValueChange = { renameInput = it },
+                    singleLine = true,
+                    label = { Text("세트 이름") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val trimmed = renameInput.trim()
+                    if (trimmed.isNotBlank()) {
+                        onUpdateSet { it.copy(name = trimmed) }
+                    }
+                    showRenameDialog = false
+                }) {
+                    Text("적용", style = DDZTypography.ButtonText)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRenameDialog = false }) {
+                    Text("취소", style = DDZTypography.ButtonText)
+                }
+            }
+        )
+    }
+
+    if (showItemInputDialog) {
+        val isEdit = editingItemIndex != null
+        AlertDialog(
+            onDismissRequest = { showItemInputDialog = false },
+            title = { Text(if (isEdit) "문구 수정" else "문구 추가") },
+            text = {
+                OutlinedTextField(
+                    value = itemInput,
+                    onValueChange = { itemInput = it },
+                    singleLine = true,
+                    label = { Text("문구") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val trimmed = itemInput.trim()
+                    if (trimmed.isNotBlank()) {
+                        onUpdateSet { set ->
+                            if (editingItemIndex == null) {
+                                set.copy(items = set.items + trimmed)
+                            } else {
+                                set.copy(
+                                    items = set.items.mapIndexed { idx, value ->
+                                        if (idx == editingItemIndex) trimmed else value
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    showItemInputDialog = false
+                }) {
+                    Text("적용", style = DDZTypography.ButtonText)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showItemInputDialog = false }) {
+                    Text("취소", style = DDZTypography.ButtonText)
+                }
+            }
+        )
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("세트 삭제") },
+            text = { Text("${phraseSet.name} 세트를 삭제하시겠습니까?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDeleteSet(phraseSet.id)
+                    showDeleteConfirm = false
+                }) {
+                    Text("삭제", style = DDZTypography.ButtonText)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("취소", style = DDZTypography.ButtonText)
+                }
+            }
+        )
+    }
 }
 
 @Composable
