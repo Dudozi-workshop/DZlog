@@ -140,6 +140,18 @@ import kotlinx.coroutines.launch
 import java.util.Date
 
 
+data class RotatingPhraseUiState(
+    val isTemplateDialogOpen: Boolean = false,
+    val templateDialogCellId: String? = null,
+    val templateDialogRestore: TableTemplateState? = null,
+    val isCreateSetDialogOpen: Boolean = false,
+    val createSetName: String = "",
+    val pendingDeleteSetId: String? = null,
+    val isSetEditDialogOpen: Boolean = false,
+    val editingSetId: String? = null
+)
+
+
 @Composable
 fun TableEditorScreen(
     templateState: TableTemplateState,
@@ -178,31 +190,24 @@ fun TableEditorScreen(
         showFormatDialog = true
     }
 
-    var showRotatingTemplateDialog by remember { mutableStateOf(false) }
-    var rotatingDialogCellId by remember { mutableStateOf<String?>(null) }
-    var rotatingDialogRestoreState by remember { mutableStateOf<TableTemplateState?>(null) }
-    var showCreatePhraseSetDialog by remember { mutableStateOf(false) }
-    var newPhraseSetName by remember { mutableStateOf("") }
-    var pendingDeletePhraseSetId by remember { mutableStateOf<String?>(null) }
-    var showPhraseSetEditDialog by remember { mutableStateOf(false) }
-    var editingPhraseSetId by remember { mutableStateOf<String?>(null) }
+    var rotatingUi by remember { mutableStateOf(RotatingPhraseUiState()) }
 
     fun openRotatingPhraseTemplateDialog(targetCellId: String) {
-        rotatingDialogCellId = targetCellId
-        rotatingDialogRestoreState = templateState
-        showRotatingTemplateDialog = true
+        rotatingUi = rotatingUi.copy(
+            isTemplateDialogOpen = true,
+            templateDialogCellId = targetCellId,
+            templateDialogRestore = templateState,
+            isCreateSetDialogOpen = false,
+            createSetName = "",
+            pendingDeleteSetId = null,
+            isSetEditDialogOpen = false,
+            editingSetId = null
+        )
         showCellSettingsPanel = false
     }
 
     fun closeRotatingPhraseTemplateDialog() {
-        showRotatingTemplateDialog = false
-        rotatingDialogCellId = null
-        rotatingDialogRestoreState = null
-        pendingDeletePhraseSetId = null
-        showCreatePhraseSetDialog = false
-        newPhraseSetName = ""
-        showPhraseSetEditDialog = false
-        editingPhraseSetId = null
+        rotatingUi = RotatingPhraseUiState()
     }
 
     val dateFormatOptions = listOf(NamingFormatDefaults.DATE_FORMAT_DEFAULT, "yyyy_MM_dd", "yyyyMMdd")
@@ -767,8 +772,8 @@ fun TableEditorScreen(
         )
     }
 
-    if (showRotatingTemplateDialog) {
-        val dialogCell = templateState.cells.firstOrNull { it.cellId == rotatingDialogCellId }
+    if (rotatingUi.isTemplateDialogOpen) {
+        val dialogCell = templateState.cells.firstOrNull { it.cellId == rotatingUi.templateDialogCellId }
         if (dialogCell == null || dialogCell.dataType != TableCellDataType.ROTATING_TEXT) {
             closeRotatingPhraseTemplateDialog()
         } else {
@@ -777,7 +782,7 @@ fun TableEditorScreen(
                 phraseSets = templateState.phraseSets,
                 onDismiss = { closeRotatingPhraseTemplateDialog() },
                 onRestore = {
-                    rotatingDialogRestoreState?.let { onTemplateChange(it) }
+                    rotatingUi.templateDialogRestore?.let { onTemplateChange(it) }
                     closeRotatingPhraseTemplateDialog()
                 },
                 onSelectSet = { phraseSetId ->
@@ -815,31 +820,27 @@ fun TableEditorScreen(
                     onTemplateChange(updated)
                 },
                 onRequestCreateSet = {
-                    newPhraseSetName = ""
-                    showCreatePhraseSetDialog = true
+                    rotatingUi = rotatingUi.copy(isCreateSetDialogOpen = true, createSetName = "")
                 },
                 onRequestDeleteSet = { phraseSetId ->
-                    pendingDeletePhraseSetId = phraseSetId
+                    rotatingUi = rotatingUi.copy(pendingDeleteSetId = phraseSetId)
                 },
                 onRequestEditSet = { phraseSetId ->
-                    editingPhraseSetId = phraseSetId
-                    showPhraseSetEditDialog = true
+                    rotatingUi = rotatingUi.copy(isSetEditDialogOpen = true, editingSetId = phraseSetId)
                 }
             )
         }
     }
 
-    if (showPhraseSetEditDialog) {
-        val editingSet = templateState.phraseSets.firstOrNull { it.id == editingPhraseSetId }
+    if (rotatingUi.isSetEditDialogOpen) {
+        val editingSet = templateState.phraseSets.firstOrNull { it.id == rotatingUi.editingSetId }
         if (editingSet == null) {
-            showPhraseSetEditDialog = false
-            editingPhraseSetId = null
+            rotatingUi = rotatingUi.copy(isSetEditDialogOpen = false, editingSetId = null)
         } else {
             RotatingPhraseSetEditDialog(
                 phraseSet = editingSet,
                 onClose = {
-                    showPhraseSetEditDialog = false
-                    editingPhraseSetId = null
+                    rotatingUi = rotatingUi.copy(isSetEditDialogOpen = false, editingSetId = null)
                 },
                 onUpdateSet = { transform ->
                     val updated = templateState.copy(
@@ -861,29 +862,28 @@ fun TableEditorScreen(
                         }
                     )
                     onTemplateChange(updated)
-                    showPhraseSetEditDialog = false
-                    editingPhraseSetId = null
+                    rotatingUi = rotatingUi.copy(isSetEditDialogOpen = false, editingSetId = null)
                 }
             )
         }
     }
 
-    if (showCreatePhraseSetDialog) {
+    if (rotatingUi.isCreateSetDialogOpen) {
         AlertDialog(
-            onDismissRequest = { showCreatePhraseSetDialog = false },
+            onDismissRequest = { rotatingUi = rotatingUi.copy(isCreateSetDialogOpen = false, createSetName = "") },
             title = { Text("새 템플릿 추가") },
             text = {
                 OutlinedTextField(
-                    value = newPhraseSetName,
-                    onValueChange = { newPhraseSetName = it },
+                    value = rotatingUi.createSetName,
+                    onValueChange = { rotatingUi = rotatingUi.copy(createSetName = it) },
                     singleLine = true,
                     label = { Text("세트 이름") }
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val name = newPhraseSetName.trim()
-                    if (name.isNotEmpty() && rotatingDialogCellId != null) {
+                    val name = rotatingUi.createSetName.trim()
+                    if (name.isNotEmpty() && rotatingUi.templateDialogCellId != null) {
                         val created = RotatingPhraseSet(
                             id = UUID.randomUUID().toString(),
                             name = name,
@@ -893,7 +893,7 @@ fun TableEditorScreen(
                         val updatedTemplate = templateState.copy(
                             phraseSets = templateState.phraseSets + created,
                             cells = templateState.cells.map { cell ->
-                                if (cell.cellId == rotatingDialogCellId) {
+                                if (cell.cellId == rotatingUi.templateDialogCellId) {
                                     cell.copy(phraseSetId = created.id, everyOverride = null)
                                 } else {
                                     cell
@@ -902,24 +902,24 @@ fun TableEditorScreen(
                         )
                         onTemplateChange(updatedTemplate)
                     }
-                    showCreatePhraseSetDialog = false
+                    rotatingUi = rotatingUi.copy(isCreateSetDialogOpen = false, createSetName = "")
                 }) {
                     Text("추가", style = DDZTypography.ButtonText)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCreatePhraseSetDialog = false }) {
+                TextButton(onClick = { rotatingUi = rotatingUi.copy(isCreateSetDialogOpen = false, createSetName = "") }) {
                     Text("취소", style = DDZTypography.ButtonText)
                 }
             }
         )
     }
 
-    pendingDeletePhraseSetId?.let { deleteId ->
+    rotatingUi.pendingDeleteSetId?.let { deleteId ->
         val deleteTarget = templateState.phraseSets.firstOrNull { it.id == deleteId }
         if (deleteTarget != null) {
             AlertDialog(
-                onDismissRequest = { pendingDeletePhraseSetId = null },
+                onDismissRequest = { rotatingUi = rotatingUi.copy(pendingDeleteSetId = null) },
                 title = { Text("세트 삭제") },
                 text = { Text("${deleteTarget.name} 세트를 삭제하시겠습니까?") },
                 confirmButton = {
@@ -935,19 +935,19 @@ fun TableEditorScreen(
                             }
                         )
                         onTemplateChange(updated)
-                        pendingDeletePhraseSetId = null
+                        rotatingUi = rotatingUi.copy(pendingDeleteSetId = null)
                     }) {
                         Text("삭제", style = DDZTypography.ButtonText)
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { pendingDeletePhraseSetId = null }) {
+                    TextButton(onClick = { rotatingUi = rotatingUi.copy(pendingDeleteSetId = null) }) {
                         Text("취소", style = DDZTypography.ButtonText)
                     }
                 }
             )
         } else {
-            pendingDeletePhraseSetId = null
+            rotatingUi = rotatingUi.copy(pendingDeleteSetId = null)
         }
     }
 

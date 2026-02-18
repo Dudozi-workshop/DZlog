@@ -121,12 +121,7 @@ fun RotatingPhraseTemplateDialog(
                     }
 
                     if (phraseSets.isEmpty()) {
-                        Text(
-                            text = "항목을 추가해주세요.",
-                            modifier = Modifier.align(Alignment.Center),
-                            color = DDZColor.TextMuted,
-                            style = DDZTypography.Body
-                        )
+                        RotatingEmptyHint(modifier = Modifier.align(Alignment.Center))
                     }
 
                     RotatingScrollIndicator(
@@ -170,11 +165,10 @@ fun RotatingPhraseTemplateDialog(
                             .height(44.dp),
                         value = everyInput,
                         onValueChange = { input ->
-                            val digits = input.filter { it.isDigit() }
+                            val digits = digitsOnly(input)
                             everyInput = digits
-                            val parsed = digits.toIntOrNull()
-                            if (parsed != null) {
-                                val clamped = parsed.coerceAtLeast(1)
+                            val clamped = parsePositiveIntOrNull(digits, min = 1)
+                            if (clamped != null) {
                                 onEveryChange(clamped)
                                 if (clamped.toString() != digits) {
                                     everyInput = clamped.toString()

@@ -192,12 +192,7 @@ fun RotatingPhraseSetEditDialog(
                     }
 
                     if (phraseSet.items.isEmpty()) {
-                        Text(
-                            text = "항목을 추가해주세요.",
-                            modifier = Modifier.align(Alignment.Center),
-                            color = DDZColor.TextMuted,
-                            style = DDZTypography.Body
-                        )
+                        RotatingEmptyHint(modifier = Modifier.align(Alignment.Center))
                     }
 
                     RotatingScrollIndicator(
