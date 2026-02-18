@@ -1232,7 +1232,7 @@ private fun RotatingTemplateDialog(
                 .fillMaxWidth()
                 .padding(9.dp),
             shape = RoundedCornerShape(16.dp),
-            color = DDZColor.BrownBg
+            color = DDZColor.PrimaryBrown
         ) {
             Column(
                 modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 6.dp),
@@ -1733,7 +1733,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(DDZColor.PrimaryDark)
+            .background(DDZColor.PrimaryBrown)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -1744,7 +1744,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(captureAspect.ratioF)
-                .background(DDZColor.PrimaryDark)
+                .background(DDZColor.PrimaryBrown)
                 .border(1.dp, DDZColor.Border)
                 .clipToBounds()
         ) {

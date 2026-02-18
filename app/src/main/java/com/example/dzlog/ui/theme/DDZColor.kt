@@ -16,6 +16,6 @@ object DDZColor {
     val Sage = Color(0xFFA8B59B)
     val SageDark = Color(0xFF8FA08A)
     val SageLight = Color(0xFFD7E0CF)
-    val BrownBg = Color(0xFF7B6556)
+    val PrimaryBrown = Color(0xFF6A5444)
     val Success = SageDark
 }
