@@ -82,7 +82,7 @@ fun TableGridSection(
 
                         val isSelectedCell = cell?.cellId == selectedCellId
                         val isEditingCell = cell?.cellId == editingCellId
-                        val cellBackground = if (isEditingCell) DDZColor.Success.copy(alpha = 0.2f) else DDZColor.Card
+                        val cellBackground = if (isEditingCell) DDZColor.SageLight.copy(alpha = 0.45f) else DDZColor.Card
 
                         Box(
                             modifier = Modifier
@@ -97,8 +97,8 @@ fun TableGridSection(
                                         else -> 1.dp
                                     },
                                     color = when {
-                                        isEditingCell -> DDZColor.Success
-                                        isSelectedCell -> DDZColor.Primary
+                                        isEditingCell -> DDZColor.SageDark
+                                        isSelectedCell -> DDZColor.SageDark
                                         else -> DDZColor.Border
                                     },
                                     shape = RoundedCornerShape(8.dp)

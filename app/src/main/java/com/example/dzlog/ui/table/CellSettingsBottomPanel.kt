@@ -176,12 +176,12 @@ private fun DataTypeCardGrid3(
                             .weight(1f)
                             .height(74.dp)
                             .background(
-                                color = if (isSelected) DDZColor.Success.copy(alpha = 0.2f) else DDZColor.Surface,
+                                color = if (isSelected) DDZColor.SageLight.copy(alpha = 0.45f) else DDZColor.Surface,
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .border(
                                 width = if (isSelected) 2.dp else 1.dp,
-                                color = if (isSelected) DDZColor.Success else DDZColor.Border,
+                                color = if (isSelected) DDZColor.SageDark else DDZColor.Border,
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .clickable { onSelect(type) }

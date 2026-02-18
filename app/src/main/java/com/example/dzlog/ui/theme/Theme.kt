@@ -8,13 +8,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val LightColorScheme = lightColorScheme(
-    primary = SageGreen,
+    primary = DDZColor.Sage,
     onPrimary = Color.White,
 
-    secondary = SageGreen,
+    secondary = DDZColor.Sage,
     onSecondary = Color.White,
 
-    tertiary = SageGreenLight,
+    tertiary = DDZColor.SageLight,
     onTertiary = Color.White,
 
     background = Beige50,
@@ -30,13 +30,13 @@ private val LightColorScheme = lightColorScheme(
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = SageGreen,
+    primary = DDZColor.Sage,
     onPrimary = Color.Black,
 
-    secondary = SageGreen,
+    secondary = DDZColor.Sage,
     onSecondary = Color.Black,
 
-    tertiary = SageGreenLight,
+    tertiary = DDZColor.SageLight,
     onTertiary = Color.Black,
 
     background = Color(0xFF15110D),
@@ -51,11 +51,9 @@ private val DarkColorScheme = darkColorScheme(
     outline = Color(0xFF8A7A69)
 )
 
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun DZlogTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
