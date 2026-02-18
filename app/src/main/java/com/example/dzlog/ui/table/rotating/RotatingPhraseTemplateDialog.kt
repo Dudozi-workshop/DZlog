@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.dzlog.domain.model.RotatingPhraseSet
 import com.example.dzlog.domain.model.TableCellState
+import com.example.dzlog.ui.common.components.LazyListScrollIndicator
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 
@@ -124,7 +125,7 @@ fun RotatingPhraseTemplateDialog(
                         RotatingEmptyHint(modifier = Modifier.align(Alignment.Center))
                     }
 
-                    RotatingScrollIndicator(
+                    LazyListScrollIndicator(
                         listState = listState,
                         modifier = Modifier.align(Alignment.TopEnd)
                     )
