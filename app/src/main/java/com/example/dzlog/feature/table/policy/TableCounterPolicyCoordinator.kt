@@ -9,6 +9,14 @@ import com.example.dzlog.domain.counter.policy.decideCounterSeed
 import com.example.dzlog.domain.counter.policy.isNewCounterScope
 import com.example.dzlog.domain.naming.NamingFormatDefaults
 
+/**
+ * Table counter policy SSOT coordinator.
+ *
+ * Rule:
+ * - UI/Screen layer must call this coordinator only.
+ * - Direct use of CounterManager/CaptureCounterPolicy from UI layer is discouraged.
+ * - Low-level counter index/media-scan strategy remains encapsulated under policy/domain layer.
+ */
 internal object TableCounterPolicyCoordinator {
 
     data class CounterSeedSyncInput(
@@ -43,6 +51,7 @@ internal object TableCounterPolicyCoordinator {
             fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
         ).coerceAtLeast(1)
     }
+
 
     suspend fun setNextCounter(
         context: Context,

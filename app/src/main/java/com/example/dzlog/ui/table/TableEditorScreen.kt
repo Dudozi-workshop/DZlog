@@ -11,7 +11,6 @@ import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,62 +19,39 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.window.Dialog
-import sh.calvin.reorderable.ReorderableItem
-import sh.calvin.reorderable.rememberReorderableLazyListState
-import java.util.UUID
 import com.example.dzlog.R
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
@@ -89,19 +65,15 @@ import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
-import com.example.dzlog.domain.counter.CounterManager
-import com.example.dzlog.domain.counter.buildCounterStreamContext
 import com.example.dzlog.domain.counter.policy.CounterScopeSnapshot
-import com.example.dzlog.domain.counter.policy.buildCounterScopeSnapshot
-import com.example.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.HourSystem
+import com.example.dzlog.domain.model.RotatingPhraseSet
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellKind
 import com.example.dzlog.domain.model.TableCellState
-import com.example.dzlog.domain.model.RotatingPhraseSet
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.TimeFormatOptions
 import com.example.dzlog.domain.model.TimeSeparator
@@ -113,9 +85,6 @@ import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.domain.watermark.WatermarkBuilder
-import com.example.dzlog.feature.table.policy.TableCounterConflictDialogEffect
-import com.example.dzlog.feature.table.policy.TableCounterConflictDialogState
-import com.example.dzlog.feature.table.policy.TableCounterPolicyCoordinator
 import com.example.dzlog.feature.table.policy.TableWatermarkAction
 import com.example.dzlog.feature.table.policy.applyTableWatermarkAction
 import com.example.dzlog.feature.table.policy.confirmCounterConflictDialog
@@ -124,13 +93,22 @@ import com.example.dzlog.feature.table.policy.evaluateCounterEditConflict
 import com.example.dzlog.feature.table.policy.openCounterConflictDialog
 import com.example.dzlog.feature.table.policy.parseNonNegativeInt
 import com.example.dzlog.feature.table.policy.saveTableTemplate
+import com.example.dzlog.ui.table.counter.TableCounterUiState
+import com.example.dzlog.ui.table.counter.applyCounterConflictDialogEffect
+import com.example.dzlog.ui.table.counter.buildTableCounterStreamContext
+import com.example.dzlog.ui.table.counter.buildTableScopedCounterStream
+import com.example.dzlog.ui.table.counter.restoreCounterCellToAutoNext
+import com.example.dzlog.ui.table.counter.syncCounterStateForScope
+import com.example.dzlog.ui.table.counter.updateCounterCellAndPolicy
+import com.example.dzlog.ui.table.counter.updateCounterUiConflictDialogState
+import com.example.dzlog.ui.table.counter.updateCounterUiScopeFlags
+import com.example.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
+import com.example.dzlog.ui.table.rotating.RotatingPhraseTemplateDialog
 import com.example.dzlog.ui.table.section.LayoutTabActions
 import com.example.dzlog.ui.table.section.LayoutTabContent
 import com.example.dzlog.ui.table.section.LayoutTabUiState
 import com.example.dzlog.ui.table.section.PreviewTabContent
 import com.example.dzlog.ui.table.section.TableEditorTabs
-import com.example.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
-import com.example.dzlog.ui.table.rotating.RotatingPhraseTemplateDialog
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
@@ -138,6 +116,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
+import java.util.UUID
 
 
 data class RotatingPhraseUiState(
@@ -219,14 +198,7 @@ fun TableEditorScreen(
 
     var previewCounterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
 
-    var scopeNextCounter by remember { mutableIntStateOf(1) }
-    var counterConflictDialogState by remember { mutableStateOf(TableCounterConflictDialogState()) }
-    var preserveManualCounterSeed by remember { mutableStateOf(false) }
-    var manualSeedOverride by remember { mutableStateOf<Int?>(null) }
-    var isManualCounterMode by remember { mutableStateOf(false) }
-    var autoNextCounterValue by remember { mutableIntStateOf(1) }
-    var includePathInCounterScope by remember { mutableStateOf(true) }
-    var includeFilenameInCounterScope by remember { mutableStateOf(true) }
+    var counterUi by remember { mutableStateOf(TableCounterUiState()) }
 
     var previewNow by remember { mutableStateOf(Date()) }
 
@@ -249,13 +221,16 @@ fun TableEditorScreen(
 
         runCatching {
             val settings = AppSettingsStore.flow(context).first()
-            includePathInCounterScope = settings.includePathInCounterScope
-            includeFilenameInCounterScope = settings.includeFilenameInCounterScope
+            counterUi = updateCounterUiScopeFlags(
+                counterUi = counterUi,
+                includePathInCounterScope = settings.includePathInCounterScope,
+                includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
+            )
         }
     }
 
     val tableResolver = remember { TableResolver() }
-    val planForScope = remember(templateState, previewNow, previewCounterDigits, scopeNextCounter, dateFormat, timeFormat) {
+    val planForScope = remember(templateState, previewNow, previewCounterDigits, counterUi.scopeNextCounter, dateFormat, timeFormat) {
         tableResolver.plan(
             cells = templateState.cells,
             captureNow = previewNow,
@@ -264,75 +239,43 @@ fun TableEditorScreen(
                 dateFormat = dateFormat,
                 timeFormat = timeFormat
             ),
-            counterSeedOverride = scopeNextCounter,
+            counterSeedOverride = counterUi.scopeNextCounter,
             phraseSets = templateState.phraseSets
         )
     }
     val isManualCounterModeDisplay by remember(
-        isManualCounterMode,
-        preserveManualCounterSeed,
-        scopeNextCounter,
-        autoNextCounterValue
+        counterUi.isManualCounterMode,
+        counterUi.preserveManualCounterSeed,
+        counterUi.scopeNextCounter,
+        counterUi.autoNextCounterValue
     ) {
         derivedStateOf {
-            isManualCounterMode || (preserveManualCounterSeed && scopeNextCounter > autoNextCounterValue)
+            counterUi.isManualCounterMode ||
+                (counterUi.preserveManualCounterSeed && counterUi.scopeNextCounter > counterUi.autoNextCounterValue)
         }
     }
 
-    val counterStreamContext by remember(planForScope.resolvedCells, scopeNextCounter, isManualCounterModeDisplay) {
+    val counterStreamContext by remember(planForScope.resolvedCells, counterUi.scopeNextCounter, isManualCounterModeDisplay) {
         derivedStateOf {
-            buildCounterStreamContext(
+            buildTableCounterStreamContext(
                 resolvedCells = planForScope.resolvedCells,
-                nextCounter = scopeNextCounter,
-                isManualMode = isManualCounterModeDisplay,
-                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+                scopeNextCounter = counterUi.scopeNextCounter,
+                isManualCounterModeDisplay = isManualCounterModeDisplay,
             )
         }
     }
 
     val scopedCounterStream by remember(
         counterStreamContext,
-        includePathInCounterScope,
-        includeFilenameInCounterScope
+        counterUi.includePathInCounterScope,
+        counterUi.includeFilenameInCounterScope
     ) {
         derivedStateOf {
-            toCaptureScopedCounterStream(
-                streamContext = counterStreamContext,
-                includePathInScope = includePathInCounterScope,
-                includeFilenameInScope = includeFilenameInCounterScope
+            buildTableScopedCounterStream(
+                counterStreamContext = counterStreamContext,
+                includePathInCounterScope = counterUi.includePathInCounterScope,
+                includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
             )
-        }
-    }
-
-    fun applyCounterSeed(seed: Int, preserveManual: Boolean) {
-        val normalizedSeed = seed.coerceAtLeast(1)
-        preserveManualCounterSeed = preserveManual
-        manualSeedOverride = if (preserveManual) normalizedSeed else null
-        scopeNextCounter = normalizedSeed
-    }
-
-    fun updateCounterCellAndPolicy(
-        cellId: String,
-        seed: Int,
-        preserveManual: Boolean,
-        forcePolicyUpdate: Boolean
-    ) {
-        val normalizedSeed = seed.coerceAtLeast(1)
-        val updated = updateCell(templateState, cellId) { c ->
-            c.copy(typedValue = CellValue.CounterSeed(normalizedSeed))
-        }
-        onTemplateChange(updated)
-        applyCounterSeed(seed = normalizedSeed, preserveManual = preserveManual)
-        if (preserveManual || forcePolicyUpdate) {
-            scope.launch {
-                TableCounterPolicyCoordinator.setNextCounter(
-                    context = context,
-                    scopedStream = scopedCounterStream,
-                    desired = normalizedSeed,
-                    force = forcePolicyUpdate,
-                    counterDigits = previewCounterDigits,
-                )
-            }
         }
     }
 
@@ -340,66 +283,20 @@ fun TableEditorScreen(
     var lastScopeSnapshot by remember { mutableStateOf<CounterScopeSnapshot?>(null) }
 
     LaunchedEffect(scopedCounterStream.scopeParts.scopeKey, previewCounterDigits, templateState) {
-        // ✅ 정책(스트림키=relativePathPrefix) 기준 nextCounter 계산
-
-        val counterCell = templateState.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
-        val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start ?: 1
-        val streamNext = TableCounterPolicyCoordinator.getNextCounter(
+        val syncResult = syncCounterStateForScope(
             context = context,
-            scopedStream = scopedCounterStream,
-            counterDigits = previewCounterDigits,
-        ).coerceAtLeast(1)
-        isManualCounterMode = TableCounterPolicyCoordinator.isManualOverrideActive(
-            context = context,
-            scopedStream = scopedCounterStream
+            templateState = templateState,
+            counterUi = counterUi,
+            counterStreamContext = counterStreamContext,
+            scopedCounterStream = scopedCounterStream,
+            previewCounterDigits = previewCounterDigits,
+            isManualCounterModeDisplay = isManualCounterModeDisplay,
+            lastScopeSnapshot = lastScopeSnapshot,
+            updateCell = ::updateCell
         )
-        autoNextCounterValue = CounterManager.getNextCounter(
-            context = context,
-            relativePath = scopedCounterStream.captureStreamKey.relativePathKey,
-            counterPrefix = scopedCounterStream.captureStreamKey.prefix,
-            counterDigits = previewCounterDigits,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-        ).coerceAtLeast(1)
-
-        // ✅ 스트림이 바뀌면 "새 스트림의 next"로 맞춘다.
-        // ✅ 같은 스트림에서는 사용자 수동 seed(낮은 값 포함)를 유지한다.
-        val syncResult = TableCounterPolicyCoordinator.resolveSeedForScope(
-            input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
-                currentScopeSnapshot = buildCounterScopeSnapshot(
-                    streamContext = counterStreamContext,
-                    includePathInScope = includePathInCounterScope,
-                    includeFilenameInScope = includeFilenameInCounterScope,
-                ),
-                isManualMode = isManualCounterModeDisplay,
-                hasCounterCell = (counterCell != null),
-                currentSeed = currentSeed,
-                streamNext = streamNext,
-                previousScopeSnapshot = lastScopeSnapshot,
-                preserveManualCounterSeed = preserveManualCounterSeed,
-                manualSeedOverride = manualSeedOverride
-            )
-        )
-
-        preserveManualCounterSeed = syncResult.preserveManualCounterSeed
-
-        if (syncResult.shouldClearManualOverride) {
-            manualSeedOverride = null
-        }
-
-        scopeNextCounter = syncResult.desiredSeed
-        lastScopeSnapshot = buildCounterScopeSnapshot(
-            streamContext = counterStreamContext,
-            includePathInScope = includePathInCounterScope,
-            includeFilenameInScope = includeFilenameInCounterScope,
-        )
-
-        // ✅ 표시 ON/OFF와 무관하게, COUNTER 셀이 존재하면 seed는 정책 기준으로 항상 최신으로 맞춰둔다.
-        if (counterCell != null && currentSeed != syncResult.desiredSeed) {
-            val updated = updateCell(templateState, counterCell.cellId) { c ->
-                c.copy(typedValue = CellValue.CounterSeed(syncResult.desiredSeed))
-            }
-            onTemplateChange(updated)
-        }
+        counterUi = syncResult.counterUi
+        lastScopeSnapshot = syncResult.nextScopeSnapshot
+        syncResult.updatedTemplateState?.let(onTemplateChange)
     }
 
     var editingCellId by remember { mutableStateOf<String?>(null) }
@@ -438,13 +335,16 @@ fun TableEditorScreen(
             val conflict = evaluateCounterEditConflict(
                 oldValueText = editingOriginalValue,
                 newValueText = editingValue,
-                streamNext = autoNextCounterValue
+                streamNext = counterUi.autoNextCounterValue
             )
             if (parseNonNegativeInt(editingValue) == null) return
             if (conflict != null) {
-                counterConflictDialogState = openCounterConflictDialog(
-                    editingCellId = id,
-                    conflict = conflict
+                counterUi = updateCounterUiConflictDialogState(
+                    counterUi = counterUi,
+                    state = openCounterConflictDialog(
+                        editingCellId = id,
+                        conflict = conflict
+                    )
                 )
                 return
             }
@@ -480,20 +380,26 @@ fun TableEditorScreen(
             }
         }
 
-        onTemplateChange(updated)
         if (target?.dataType == TableCellDataType.COUNTER) {
             val seed = normalizedValueText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
             val normalizedSeed = seed.coerceAtLeast(1)
-            applyCounterSeed(seed = normalizedSeed, preserveManual = true)
-            scope.launch {
-                TableCounterPolicyCoordinator.setNextCounter(
-                    context = context,
-                    scopedStream = scopedCounterStream,
-                    desired = normalizedSeed,
-                    force = false,
-                    counterDigits = previewCounterDigits,
-                )
-            }
+            updateCounterCellAndPolicy(
+                context = context,
+                templateState = templateState,
+                cellId = id,
+                seed = normalizedSeed,
+                preserveManual = true,
+                forcePolicyUpdate = false,
+                scopedCounterStream = scopedCounterStream,
+                previewCounterDigits = previewCounterDigits,
+                counterUi = counterUi,
+                onTemplateChange = onTemplateChange,
+                setCounterUi = { counterUi = it },
+                updateCell = ::updateCell,
+                scope = scope
+            )
+        } else {
+            onTemplateChange(updated)
         }
         clearInlineEditingState()
     }
@@ -546,7 +452,7 @@ fun TableEditorScreen(
         }
     }
 
-    val plan = remember(templateState.cells, previewNow, previewCounterDigits, scopeNextCounter, dateFormat, timeFormat) {
+    val plan = remember(templateState.cells, previewNow, previewCounterDigits, counterUi.scopeNextCounter, dateFormat, timeFormat) {
         tableResolver.plan(
             cells = templateState.cells,
             captureNow = previewNow,
@@ -555,7 +461,7 @@ fun TableEditorScreen(
                 dateFormat = dateFormat,
                 timeFormat = timeFormat
             ),
-            counterSeedOverride = scopeNextCounter,
+            counterSeedOverride = counterUi.scopeNextCounter,
             phraseSets = templateState.phraseSets
         )
     }
@@ -573,72 +479,50 @@ fun TableEditorScreen(
         now = previewNow
     )
 
-    suspend fun fetchAutoNextCounter(): Int = TableCounterPolicyCoordinator.resetToAutoNext(
-        context = context,
-        scopedStream = scopedCounterStream,
-        counterDigits = previewCounterDigits,
-    ).coerceAtLeast(1)
-
-    fun restoreCounterCellToAutoNext(cellId: String) {
-        scope.launch {
-            val restored = fetchAutoNextCounter()
-            updateCounterCellAndPolicy(
-                cellId = cellId,
-                seed = restored,
-                preserveManual = false,
-                forcePolicyUpdate = false
-            )
-        }
+    fun handleCounterConflictDialogEffect(effect: com.example.dzlog.feature.table.policy.TableCounterConflictDialogEffect) {
+        applyCounterConflictDialogEffect(
+            effect = effect,
+            context = context,
+            templateState = templateState,
+            scopedCounterStream = scopedCounterStream,
+            previewCounterDigits = previewCounterDigits,
+            counterUi = counterUi,
+            onTemplateChange = onTemplateChange,
+            setCounterUi = { counterUi = it },
+            updateCell = ::updateCell,
+            scope = scope
+        )
     }
 
-    fun applyCounterConflictDialogEffect(effect: TableCounterConflictDialogEffect) {
-        when (effect) {
-            is TableCounterConflictDialogEffect.ApplyManualSeed -> {
-                updateCounterCellAndPolicy(
-                    cellId = effect.cellId,
-                    seed = effect.seed,
-                    preserveManual = true,
-                    forcePolicyUpdate = true
-                )
-            }
-
-            is TableCounterConflictDialogEffect.RestoreAutoNext -> {
-                restoreCounterCellToAutoNext(effect.cellId)
-            }
-
-            TableCounterConflictDialogEffect.None -> Unit
-        }
-    }
-
-    if (counterConflictDialogState.isVisible) {
+    if (counterUi.counterConflictDialogState.isVisible) {
         AlertDialog(
             onDismissRequest = {
-                val (nextState, effect) = dismissCounterConflictDialog(counterConflictDialogState)
-                counterConflictDialogState = nextState
-                applyCounterConflictDialogEffect(effect)
+                val (nextState, effect) = dismissCounterConflictDialog(counterUi.counterConflictDialogState)
+                counterUi = updateCounterUiConflictDialogState(counterUi, nextState)
+                handleCounterConflictDialogEffect(effect)
                 clearInlineEditingState()
             },
             title = { Text("카운터 충돌 경고") },
             text = {
                 Text(
                     "중복된 카운터가 발생할 수 있습니다. 계속 진행하시겠습니까?\n\n" +
-                        "입력값: ${counterConflictDialogState.pendingCounterCommitValue}\n" +
-                        "현재 스트림 next: ${counterConflictDialogState.pendingCounterStreamNextValue}"
+                        "입력값: ${counterUi.counterConflictDialogState.pendingCounterCommitValue}\n" +
+                        "현재 스트림 next: ${counterUi.counterConflictDialogState.pendingCounterStreamNextValue}"
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val (nextState, effect) = confirmCounterConflictDialog(counterConflictDialogState)
-                    counterConflictDialogState = nextState
-                    applyCounterConflictDialogEffect(effect)
+                    val (nextState, effect) = confirmCounterConflictDialog(counterUi.counterConflictDialogState)
+                    counterUi = updateCounterUiConflictDialogState(counterUi, nextState)
+                    handleCounterConflictDialogEffect(effect)
                     clearInlineEditingState()
                 }) { Text("진행", style = DDZTypography.ButtonText) }
             },
             dismissButton = {
                 TextButton(onClick = {
-                    val (nextState, effect) = dismissCounterConflictDialog(counterConflictDialogState)
-                    counterConflictDialogState = nextState
-                    applyCounterConflictDialogEffect(effect)
+                    val (nextState, effect) = dismissCounterConflictDialog(counterUi.counterConflictDialogState)
+                    counterUi = updateCounterUiConflictDialogState(counterUi, nextState)
+                    handleCounterConflictDialogEffect(effect)
                     clearInlineEditingState()
                 }) {
                     Text("취소", style = DDZTypography.ButtonText)
@@ -1018,7 +902,7 @@ fun TableEditorScreen(
                             hasGroup1 = hasGroup1,
                             hasGroup2 = hasGroup2,
                             isSavingTemplate = isSavingTemplate,
-                            autoNextCounterValue = autoNextCounterValue
+                            autoNextCounterValue = counterUi.autoNextCounterValue
                         ),
                         actions = LayoutTabActions(
                             onSelectCellId = { selectedCellId = it },
@@ -1104,16 +988,19 @@ fun TableEditorScreen(
                             onResetCounterSeedForSelected = {
                                 selectedCell?.let { cell ->
                                     if (cell.dataType != TableCellDataType.COUNTER) return@let
-                                    scope.launch {
-                                        val restored = fetchAutoNextCounter()
-                                        updateCounterCellAndPolicy(
-                                            cellId = cell.cellId,
-                                            seed = restored,
-                                            preserveManual = false,
-                                            forcePolicyUpdate = false
-                                        )
-                                        Toast.makeText(context, "카운터를 자동 기준으로 초기화했습니다.", Toast.LENGTH_SHORT).show()
-                                    }
+                                    restoreCounterCellToAutoNext(
+                                        context = context,
+                                        templateState = templateState,
+                                        cellId = cell.cellId,
+                                        scopedCounterStream = scopedCounterStream,
+                                        previewCounterDigits = previewCounterDigits,
+                                        counterUi = counterUi,
+                                        onTemplateChange = onTemplateChange,
+                                        setCounterUi = { counterUi = it },
+                                        updateCell = ::updateCell,
+                                        scope = scope
+                                    )
+                                    Toast.makeText(context, "카운터를 자동 기준으로 초기화했습니다.", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             onOpenRotatingTemplateDialogForSelected = { cellId ->
