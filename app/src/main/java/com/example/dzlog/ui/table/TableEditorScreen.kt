@@ -49,14 +49,12 @@ import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.GroupLevel
-import com.example.dzlog.domain.model.HourSystem
 import com.example.dzlog.domain.model.RotatingPhraseSet
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellKind
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.TimeFormatOptions
-import com.example.dzlog.domain.model.TimeSeparator
 import com.example.dzlog.domain.naming.NamingFormatDefaults
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
@@ -80,6 +78,10 @@ import com.example.dzlog.ui.table.editor.commitInlineEditIfNeeded as commitInlin
 import com.example.dzlog.ui.table.editor.isEditing
 import com.example.dzlog.ui.table.editor.clearInlineEditing
 import com.example.dzlog.ui.table.editor.startInlineEditing
+import com.example.dzlog.ui.table.format.TableFormatDialog
+import com.example.dzlog.ui.table.format.TableFormatDialogState
+import com.example.dzlog.ui.table.format.close
+import com.example.dzlog.ui.table.format.open
 import com.example.dzlog.ui.table.watermark.TableWatermarkUiState
 import com.example.dzlog.ui.table.watermark.applyBgAlphaChange
 import com.example.dzlog.ui.table.watermark.applyBgStyleChange
@@ -137,21 +139,7 @@ fun TableEditorScreen(
     val scope = rememberCoroutineScope()
     var isSavingTemplate by remember { mutableStateOf(false) }
 
-    var showFormatDialog by remember { mutableStateOf(false) }
-    var formatTargetCellId by remember { mutableStateOf<String?>(null) }
-    var formatTargetType by remember { mutableStateOf<TableCellDataType?>(null) }
-
-    fun closeFormatDialog() {
-        showFormatDialog = false
-        formatTargetCellId = null
-        formatTargetType = null
-    }
-
-    fun openFormatDialog(targetCellId: String, targetType: TableCellDataType) {
-        formatTargetCellId = targetCellId
-        formatTargetType = targetType
-        showFormatDialog = true
-    }
+    var formatDialog by remember { mutableStateOf(TableFormatDialogState()) }
 
     var rotatingUi by remember { mutableStateOf(RotatingPhraseUiState()) }
 
@@ -431,130 +419,13 @@ fun TableEditorScreen(
         )
     }
 
-    if (showFormatDialog) {
-        val targetId = formatTargetCellId
-        val targetType = formatTargetType
-        val targetCell = templateState.cells.firstOrNull { it.cellId == targetId }
-        val isDate = (targetType == TableCellDataType.DATE)
-        val isTime = (targetType == TableCellDataType.TIME)
-
-        AlertDialog(
-            onDismissRequest = { closeFormatDialog() },
-            title = {
-                Text(
-                    when {
-                        isDate -> "DATE 형식"
-                        isTime -> "TIME 형식"
-                        else -> "형식"
-                    }
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    when {
-                        isDate -> {
-                            val current = targetCell?.formatPattern.orEmpty()
-                            dateFormatOptions.forEach { p ->
-                                TextButton(
-                                    onClick = {
-                                        if (targetId != null) {
-                                            val updated = updateCell(templateState, targetId) { c ->
-                                                c.copy(formatPattern = p)
-                                            }
-                                            onTemplateChange(updated)
-                                        }
-                                        closeFormatDialog()
-                                    }
-                                ) {
-                                    Text(if (current == p) "✓  $p" else p, style = DDZTypography.ButtonText)
-                                }
-                            }
-                        }
-
-                        isTime -> {
-                            val initial = targetCell?.timeFormatOptions ?: TimeFormatOptions()
-                            var hourSystem by remember(targetId) { mutableStateOf(initial.hourSystem) }
-                            var includeSeconds by remember(targetId) { mutableStateOf(initial.includeSeconds) }
-                            var separator by remember(targetId) { mutableStateOf(initial.separator) }
-
-                            fun apply() {
-                                if (targetId == null) return
-                                val updated = updateCell(templateState, targetId) { c ->
-                                    c.copy(
-                                        timeFormatOptions = TimeFormatOptions(
-                                            hourSystem = hourSystem,
-                                            includeSeconds = includeSeconds,
-                                            separator = separator
-                                        ),
-                                        formatPattern = ""
-                                    )
-                                }
-                                onTemplateChange(updated)
-                            }
-
-                            Text("시간 표시 설정", style = DDZTypography.SectionTitle)
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("시간제", modifier = Modifier.width(72.dp))
-                                RadioButton(
-                                    selected = hourSystem == HourSystem.H24,
-                                    onClick = { hourSystem = HourSystem.H24; apply() }
-                                )
-                                Text("24h")
-                                Spacer(Modifier.width(12.dp))
-                                RadioButton(
-                                    selected = hourSystem == HourSystem.H12,
-                                    onClick = { hourSystem = HourSystem.H12; apply() }
-                                )
-                                Text("12h")
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("초 포함", modifier = Modifier.width(72.dp))
-                                Switch(
-                                    checked = includeSeconds,
-                                    onCheckedChange = { includeSeconds = it; apply() }
-                                )
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("구분자", modifier = Modifier.width(72.dp))
-                                listOf(TimeSeparator.COLON, TimeSeparator.NONE).forEach { s ->
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        RadioButton(
-                                            selected = separator == s,
-                                            onClick = { separator = s; apply() }
-                                        )
-                                        Text(if (s == TimeSeparator.NONE) "붙이기" else s.token)
-                                    }
-                                    Spacer(Modifier.width(8.dp))
-                                }
-                            }
-
-                            val preview = buildString {
-                                append(if (hourSystem == HourSystem.H24) "HH" else "hh")
-                                append(separator.token)
-                                append("mm")
-                                if (includeSeconds) {
-                                    append(separator.token)
-                                    append("ss")
-                                }
-                                if (hourSystem == HourSystem.H12) append(" a")
-                            }
-                            Text("미리보기: $preview", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                        }
-
-                        else -> Text("지원되지 않는 타입")
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { closeFormatDialog() }) {
-                    Text("닫기", style = DDZTypography.ButtonText)
-                }
-            }
-        )
-    }
+    TableFormatDialog(
+        state = formatDialog,
+        templateState = templateState,
+        onTemplateChange = onTemplateChange,
+        onClose = { formatDialog = formatDialog.close() },
+        dateFormatOptions = dateFormatOptions
+    )
 
     if (rotatingUi.isTemplateDialogOpen) {
         val dialogCell = templateState.cells.firstOrNull { it.cellId == rotatingUi.templateDialogCellId }
@@ -810,7 +681,9 @@ fun TableEditorScreen(
                             onStartInlineEditing = { cellId, value ->
                                 inlineEdit = startInlineEditing(inlineEdit, cellId, value)
                             },
-                            onOpenFormatDialog = ::openFormatDialog,
+                            onOpenFormatDialog = { cellId, type ->
+                                formatDialog = formatDialog.open(cellId, type)
+                            },
                             onEditingValueChange = { inlineEdit = inlineEdit.copy(editingValue = it) },
                             onCommitInline = ::commitInlineEditIfNeeded,
                             onTryCommitInlineAndContinue = {
