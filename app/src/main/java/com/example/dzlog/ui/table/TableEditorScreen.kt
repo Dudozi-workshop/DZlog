@@ -65,9 +65,6 @@ import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.feature.table.policy.confirmCounterConflictDialog
 import com.example.dzlog.feature.table.policy.dismissCounterConflictDialog
-import com.example.dzlog.feature.table.policy.evaluateCounterEditConflict
-import com.example.dzlog.feature.table.policy.openCounterConflictDialog
-import com.example.dzlog.feature.table.policy.parseNonNegativeInt
 import com.example.dzlog.feature.table.policy.saveTableTemplate
 import com.example.dzlog.ui.table.counter.TableCounterUiState
 import com.example.dzlog.ui.table.counter.applyCounterConflictDialogEffect
@@ -78,6 +75,11 @@ import com.example.dzlog.ui.table.counter.syncCounterStateForScope
 import com.example.dzlog.ui.table.counter.updateCounterCellAndPolicy
 import com.example.dzlog.ui.table.counter.updateCounterUiConflictDialogState
 import com.example.dzlog.ui.table.counter.updateCounterUiScopeFlags
+import com.example.dzlog.ui.table.editor.InlineEditState
+import com.example.dzlog.ui.table.editor.commitInlineEditIfNeeded as commitInlineEdit
+import com.example.dzlog.ui.table.editor.isEditing
+import com.example.dzlog.ui.table.editor.clearInlineEditing
+import com.example.dzlog.ui.table.editor.startInlineEditing
 import com.example.dzlog.ui.table.watermark.TableWatermarkUiState
 import com.example.dzlog.ui.table.watermark.applyBgAlphaChange
 import com.example.dzlog.ui.table.watermark.applyBgStyleChange
@@ -281,95 +283,42 @@ fun TableEditorScreen(
         syncResult.updatedTemplateState?.let(onTemplateChange)
     }
 
-    var editingCellId by remember { mutableStateOf<String?>(null) }
-    var editingValue by remember { mutableStateOf("") }
-    var editingOriginalValue by remember { mutableStateOf("") }
+    var inlineEdit by remember { mutableStateOf(InlineEditState()) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val inlineFocusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(editingCellId) {
-        if (editingCellId != null) {
+    LaunchedEffect(inlineEdit.editingCellId) {
+        if (inlineEdit.editingCellId != null) {
             delay(30)
             inlineFocusRequester.requestFocus()
             keyboardController?.show()
         }
     }
 
-    fun startInlineEditing(cellId: String, value: String) {
-        editingCellId = cellId
-        editingValue = value
-        editingOriginalValue = value
-    }
-
     fun clearInlineEditingState() {
-        editingCellId = null
-        editingValue = ""
-        editingOriginalValue = ""
+        inlineEdit = clearInlineEditing(inlineEdit)
     }
 
     fun commitInlineEditIfNeeded() {
-        val id = editingCellId ?: return
-        val cell = templateState.cells.firstOrNull { it.cellId == id }
-
-        // COUNTER 충돌 정책: stream next보다 작은 값을 입력하면 경고 후 진행 여부를 확인한다.
-        if (cell != null && cell.dataType == TableCellDataType.COUNTER) {
-            val conflict = evaluateCounterEditConflict(
-                oldValueText = editingOriginalValue,
-                newValueText = editingValue,
-                streamNext = counterUi.autoNextCounterValue
-            )
-            if (parseNonNegativeInt(editingValue) == null) return
-            if (conflict != null) {
-                counterUi = updateCounterUiConflictDialogState(
-                    counterUi = counterUi,
-                    state = openCounterConflictDialog(
-                        editingCellId = id,
-                        conflict = conflict
-                    )
-                )
-                return
-            }
+        val result = commitInlineEdit(
+            inlineState = inlineEdit,
+            templateState = templateState,
+            autoNextCounterValue = counterUi.autoNextCounterValue,
+            updateCell = ::updateCell
+        )
+        val committedCellId = inlineEdit.editingCellId
+        inlineEdit = result.nextInlineState
+        result.openedCounterConflict?.let {
+            counterUi = updateCounterUiConflictDialogState(counterUi, it)
         }
-
-        val target = templateState.cells.firstOrNull { it.cellId == id }
-        val normalizedValueText = if (target?.dataType == TableCellDataType.COUNTER) {
-            val value = parseNonNegativeInt(editingValue)
-            if (value == null) {
-                clearInlineEditingState()
-                return
-            }
-            value.toString()
-        } else {
-            editingValue
-        }
-
-        val updated = updateCell(templateState, id) { c ->
-            when (c.dataType) {
-                TableCellDataType.TEXT -> c.copy(
-                    rawText = normalizedValueText,
-                    typedValue = CellValue.Text(normalizedValueText)
-                )
-                TableCellDataType.NUMBER -> c.copy(
-                    rawText = normalizedValueText,
-                    typedValue = CellValue.Number(normalizedValueText)
-                )
-                TableCellDataType.COUNTER -> {
-                    val seed = normalizedValueText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
-                    c.copy(typedValue = CellValue.CounterSeed(seed))
-                }
-                else -> c
-            }
-        }
-
-        if (target?.dataType == TableCellDataType.COUNTER) {
-            val seed = normalizedValueText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
-            val normalizedSeed = seed.coerceAtLeast(1)
+        result.committedCounterSeed?.let { seed ->
+            val cellId = committedCellId ?: return@let
             updateCounterCellAndPolicy(
                 context = context,
                 templateState = templateState,
-                cellId = id,
-                seed = normalizedSeed,
+                cellId = cellId,
+                seed = seed,
                 preserveManual = true,
                 forcePolicyUpdate = false,
                 scopedCounterStream = scopedCounterStream,
@@ -380,10 +329,7 @@ fun TableEditorScreen(
                 updateCell = ::updateCell,
                 scope = scope
             )
-        } else {
-            onTemplateChange(updated)
-        }
-        clearInlineEditingState()
+        } ?: result.updatedTemplateState?.let(onTemplateChange)
     }
 
     if (selectedCellId == null && templateState.cells.isNotEmpty()) {
@@ -793,10 +739,10 @@ fun TableEditorScreen(
     fun requestTabSwitch(targetIndex: Int) {
         if (selectedTabIndex == targetIndex) return
 
-        if (editingCellId != null) {
+        if (inlineEdit.isEditing()) {
             commitInlineEditIfNeeded()
             // commit이 보류되면(=editingCellId가 유지됨) 전환 막음
-            if (editingCellId != null) return
+            if (inlineEdit.isEditing()) return
         }
         selectedTabIndex = targetIndex
     }
@@ -848,8 +794,8 @@ fun TableEditorScreen(
                             templateState = templateState,
                             plan = plan,
                             selectedCellId = selectedCellId,
-                            editingCellId = editingCellId,
-                            editingValue = editingValue,
+                            editingCellId = inlineEdit.editingCellId,
+                            editingValue = inlineEdit.editingValue,
                             inlineFocusRequester = inlineFocusRequester,
                             showCellSettingsPanel = showCellSettingsPanel,
                             selectedCell = selectedCell,
@@ -861,13 +807,15 @@ fun TableEditorScreen(
                         actions = LayoutTabActions(
                             onSelectCellId = { selectedCellId = it },
                             onShowCellSettingsPanel = { showCellSettingsPanel = it },
-                            onStartInlineEditing = ::startInlineEditing,
+                            onStartInlineEditing = { cellId, value ->
+                                inlineEdit = startInlineEditing(inlineEdit, cellId, value)
+                            },
                             onOpenFormatDialog = ::openFormatDialog,
-                            onEditingValueChange = { editingValue = it },
+                            onEditingValueChange = { inlineEdit = inlineEdit.copy(editingValue = it) },
                             onCommitInline = ::commitInlineEditIfNeeded,
                             onTryCommitInlineAndContinue = {
                                 commitInlineEditIfNeeded()
-                                editingCellId == null
+                                !inlineEdit.isEditing()
                             },
                             onInlineFocusLostCommit = {
                                 commitInlineEditIfNeeded()
