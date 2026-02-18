@@ -129,6 +129,8 @@ import com.example.dzlog.ui.table.section.LayoutTabContent
 import com.example.dzlog.ui.table.section.LayoutTabUiState
 import com.example.dzlog.ui.table.section.PreviewTabContent
 import com.example.dzlog.ui.table.section.TableEditorTabs
+import com.example.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
+import com.example.dzlog.ui.table.rotating.RotatingPhraseTemplateDialog
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
@@ -185,14 +187,14 @@ fun TableEditorScreen(
     var showPhraseSetEditDialog by remember { mutableStateOf(false) }
     var editingPhraseSetId by remember { mutableStateOf<String?>(null) }
 
-    fun openRotatingTemplateDialog(targetCellId: String) {
+    fun openRotatingPhraseTemplateDialog(targetCellId: String) {
         rotatingDialogCellId = targetCellId
         rotatingDialogRestoreState = templateState
         showRotatingTemplateDialog = true
         showCellSettingsPanel = false
     }
 
-    fun closeRotatingTemplateDialog() {
+    fun closeRotatingPhraseTemplateDialog() {
         showRotatingTemplateDialog = false
         rotatingDialogCellId = null
         rotatingDialogRestoreState = null
@@ -768,15 +770,15 @@ fun TableEditorScreen(
     if (showRotatingTemplateDialog) {
         val dialogCell = templateState.cells.firstOrNull { it.cellId == rotatingDialogCellId }
         if (dialogCell == null || dialogCell.dataType != TableCellDataType.ROTATING_TEXT) {
-            closeRotatingTemplateDialog()
+            closeRotatingPhraseTemplateDialog()
         } else {
-            RotatingTemplateDialog(
+            RotatingPhraseTemplateDialog(
                 cell = dialogCell,
                 phraseSets = templateState.phraseSets,
-                onDismiss = { closeRotatingTemplateDialog() },
+                onDismiss = { closeRotatingPhraseTemplateDialog() },
                 onRestore = {
                     rotatingDialogRestoreState?.let { onTemplateChange(it) }
-                    closeRotatingTemplateDialog()
+                    closeRotatingPhraseTemplateDialog()
                 },
                 onSelectSet = { phraseSetId ->
                     val updated = updateCell(templateState, dialogCell.cellId) { current ->
@@ -833,7 +835,7 @@ fun TableEditorScreen(
             showPhraseSetEditDialog = false
             editingPhraseSetId = null
         } else {
-            PhraseSetEditDialog(
+            RotatingPhraseSetEditDialog(
                 phraseSet = editingSet,
                 onClose = {
                     showPhraseSetEditDialog = false
@@ -1117,7 +1119,7 @@ fun TableEditorScreen(
                             onOpenRotatingTemplateDialogForSelected = { cellId ->
                                 val cell = templateState.cells.firstOrNull { it.cellId == cellId }
                                 if (cell != null && cell.dataType == TableCellDataType.ROTATING_TEXT) {
-                                    openRotatingTemplateDialog(cell.cellId)
+                                    openRotatingPhraseTemplateDialog(cell.cellId)
                                 } else {
                                     showCellSettingsPanel = true
                                 }
@@ -1191,533 +1193,6 @@ fun TableEditorScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun RotatingTemplateDialog(
-    cell: TableCellState,
-    phraseSets: List<RotatingPhraseSet>,
-    onDismiss: () -> Unit,
-    onRestore: () -> Unit,
-    onSelectSet: (String?) -> Unit,
-    onEveryChange: (Int) -> Unit,
-    onIncreaseEvery: () -> Unit,
-    onDecreaseEvery: () -> Unit,
-    onRequestCreateSet: () -> Unit,
-    onRequestDeleteSet: (String) -> Unit,
-    onRequestEditSet: (String) -> Unit
-) {
-    val selectedSet = phraseSets.firstOrNull { it.id == cell.phraseSetId }
-    val everyEnabled = selectedSet != null
-    val everyDisplay = (cell.everyOverride ?: selectedSet?.defaultEvery ?: 1).coerceAtLeast(1)
-    val listState = rememberLazyListState()
-    var showScrollIndicator by remember(cell.cellId, cell.phraseSetId) { mutableStateOf(false) }
-    val indicatorAlpha by animateFloatAsState(if (showScrollIndicator) 1f else 0f, label = "rotatingDialogScrollIndicator")
-    var everyInput by remember(cell.cellId, cell.phraseSetId, cell.everyOverride, selectedSet?.defaultEvery) {
-        mutableStateOf(everyDisplay.toString())
-    }
-
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (listState.isScrollInProgress) {
-            showScrollIndicator = true
-        } else {
-            delay(600)
-            showScrollIndicator = false
-        }
-    }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(9.dp),
-            shape = RoundedCornerShape(16.dp),
-            color = DDZColor.PrimaryBrown
-        ) {
-            Column(
-                modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = "문구 템플릿 설정",
-                    modifier = Modifier.padding(vertical = 6.dp),
-                    style = DDZTypography.CardTitle,
-                    color = DDZColor.TextPrimary
-                )
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 160.dp, max = 320.dp)
-                        .background(DDZColor.Card, RoundedCornerShape(10.dp))
-                        .padding(6.dp)
-                ) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clipToBounds(),
-                        state = listState,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        items(items = phraseSets, key = { it.id }) { set ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onSelectSet(set.id) }
-                                    .padding(horizontal = 6.dp, vertical = 1.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(
-                                    selected = cell.phraseSetId == set.id,
-                                    onClick = { onSelectSet(set.id) }
-                                )
-                                Text(
-                                    text = "${set.name} (${set.items.size}개)",
-                                    modifier = Modifier.weight(1f),
-                                    color = DDZColor.TextPrimary,
-                                    style = DDZTypography.Body
-                                )
-                                TextButton(onClick = { onRequestEditSet(set.id) }) { Text("✏️") }
-                                TextButton(onClick = { onRequestDeleteSet(set.id) }) { Text("🗑") }
-                            }
-                        }
-                    }
-
-                    if (phraseSets.isEmpty()) {
-                        Text(
-                            text = "항목을 추가해주세요.",
-                            modifier = Modifier.align(Alignment.Center),
-                            color = DDZColor.TextMuted,
-                            style = DDZTypography.Body
-                        )
-                    }
-
-                    val layoutInfo = listState.layoutInfo
-                    val visibleItems = layoutInfo.visibleItemsInfo
-                    val canScroll = layoutInfo.totalItemsCount > visibleItems.size
-
-                    if (showScrollIndicator && canScroll && layoutInfo.totalItemsCount > 0 && visibleItems.isNotEmpty()) {
-                        val density = LocalDensity.current
-                        val viewportHeightPx = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).coerceAtLeast(1)
-                        val avgItemHeightPx = visibleItems.map { it.size }.average().toFloat().takeIf { it > 0f } ?: 1f
-                        val totalContentHeightPx = (avgItemHeightPx * layoutInfo.totalItemsCount).coerceAtLeast(viewportHeightPx.toFloat())
-                        val thumbHeightPx = ((viewportHeightPx.toFloat() / totalContentHeightPx) * viewportHeightPx)
-                            .coerceIn(24f, viewportHeightPx.toFloat())
-                        val firstVisible = visibleItems.first()
-                        val scrollOffsetPx = (firstVisible.index * avgItemHeightPx) - firstVisible.offset
-                        val maxScrollPx = (totalContentHeightPx - viewportHeightPx).coerceAtLeast(1f)
-                        val thumbOffsetPx = ((scrollOffsetPx / maxScrollPx) * (viewportHeightPx - thumbHeightPx))
-                            .coerceIn(0f, (viewportHeightPx - thumbHeightPx).coerceAtLeast(0f))
-
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(end = 1.dp)
-                                .width(3.dp)
-                                .height(with(density) { thumbHeightPx.toDp() })
-                                .offset(y = with(density) { thumbOffsetPx.toDp() })
-                                .alpha(indicatorAlpha)
-                                .background(DDZColor.TextMuted.copy(alpha = 0.5f), RoundedCornerShape(99.dp))
-                        )
-                    }
-                }
-
-                Button(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = onRequestCreateSet
-                ) {
-                    Text("+ 새 템플릿 추가", style = DDZTypography.ButtonText)
-                }
-
-                Spacer(modifier = Modifier.height(11.dp))
-
-                Text(
-                    text = "N장마다 다음 문구로 변경",
-                    color = DDZColor.SageLight,
-                    style = DDZTypography.Caption
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Button(
-                        modifier = Modifier.height(38.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = DDZColor.Sage,
-                            contentColor = Color.Black
-                        ),
-                        onClick = onDecreaseEvery,
-                        enabled = everyEnabled
-                    ) { Text("-") }
-                    OutlinedTextField(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp),
-                        value = everyInput,
-                        onValueChange = { input ->
-                            val digits = input.filter { it.isDigit() }
-                            everyInput = digits
-                            val parsed = digits.toIntOrNull()
-                            if (parsed != null) {
-                                val clamped = parsed.coerceAtLeast(1)
-                                onEveryChange(clamped)
-                                if (clamped.toString() != digits) {
-                                    everyInput = clamped.toString()
-                                }
-                            }
-                        },
-                        enabled = everyEnabled,
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        textStyle = DDZTypography.Body.copy(lineHeight = 20.sp)
-                    )
-                    Button(
-                        modifier = Modifier.height(38.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = DDZColor.Sage,
-                            contentColor = Color.Black
-                        ),
-                        onClick = onIncreaseEvery,
-                        enabled = everyEnabled
-                    ) { Text("+") }
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 6.dp, bottom = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    TextButton(onClick = onRestore) {
-                        Text("복구", style = DDZTypography.ButtonText)
-                    }
-                    TextButton(onClick = onDismiss) {
-                        Text("닫기", style = DDZTypography.ButtonText)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PhraseSetEditDialog(
-    phraseSet: RotatingPhraseSet,
-    onClose: () -> Unit,
-    onUpdateSet: ((RotatingPhraseSet) -> RotatingPhraseSet) -> Unit,
-    onDeleteSet: (String) -> Unit
-) {
-    var showRenameDialog by remember(phraseSet.id) { mutableStateOf(false) }
-    var renameInput by remember(phraseSet.id) { mutableStateOf(phraseSet.name) }
-    var showDeleteConfirm by remember(phraseSet.id) { mutableStateOf(false) }
-
-    var showItemInputDialog by remember(phraseSet.id) { mutableStateOf(false) }
-    var editingItemIndex by remember(phraseSet.id) { mutableStateOf<Int?>(null) }
-    var itemInput by remember(phraseSet.id) { mutableStateOf("") }
-    val itemIds = remember(phraseSet.id) { mutableStateListOf<String>() }
-
-    LaunchedEffect(phraseSet.id, phraseSet.items.size) {
-        val targetSize = phraseSet.items.size
-        while (itemIds.size < targetSize) {
-            itemIds.add(UUID.randomUUID().toString())
-        }
-        while (itemIds.size > targetSize) {
-            itemIds.removeAt(itemIds.lastIndex)
-        }
-
-        val idx = editingItemIndex
-        if (idx != null && idx !in phraseSet.items.indices) {
-            editingItemIndex = null
-        }
-    }
-
-    val lazyListState = rememberLazyListState()
-    var showScrollIndicator by remember(phraseSet.id) { mutableStateOf(false) }
-    val indicatorAlpha by animateFloatAsState(if (showScrollIndicator) 1f else 0f, label = "phraseSetScrollIndicator")
-
-    LaunchedEffect(lazyListState.isScrollInProgress) {
-        if (lazyListState.isScrollInProgress) {
-            showScrollIndicator = true
-        } else {
-            delay(600)
-            showScrollIndicator = false
-        }
-    }
-
-    val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        onUpdateSet { set ->
-            val items = set.items
-            if (items.isEmpty()) return@onUpdateSet set
-
-            val fromIndex = from.index
-            val toIndex = to.index.coerceIn(0, items.lastIndex)
-            if (fromIndex !in items.indices || toIndex !in items.indices || fromIndex == toIndex) {
-                return@onUpdateSet set
-            }
-
-            val newList = items.toMutableList().apply {
-                add(toIndex, removeAt(fromIndex))
-            }
-            set.copy(items = newList)
-        }
-
-        if (from.index in itemIds.indices) {
-            val idToMove = itemIds.removeAt(from.index)
-            val insertIndex = to.index.coerceIn(0, itemIds.size)
-            itemIds.add(insertIndex, idToMove)
-        }
-    }
-
-    Dialog(onDismissRequest = onClose) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            shape = RoundedCornerShape(16.dp),
-            color = DDZColor.Card
-        ) {
-            Column(
-                modifier = Modifier.padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(onClick = onClose) {
-                        Text("< 뒤로", style = DDZTypography.ButtonText)
-                    }
-                    TextButton(onClick = { showDeleteConfirm = true }) {
-                        Text("🗑", style = DDZTypography.ButtonText)
-                    }
-                }
-
-                TextButton(onClick = {
-                    renameInput = phraseSet.name
-                    showRenameDialog = true
-                }) {
-                    Text(phraseSet.name, style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 180.dp, max = 340.dp)
-                        .background(DDZColor.Surface, RoundedCornerShape(10.dp))
-                        .padding(6.dp)
-                ) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clipToBounds(),
-                        state = lazyListState,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        items(
-                            phraseSet.items.size,
-                            key = { idx -> itemIds.getOrNull(idx) ?: "${phraseSet.id}-$idx" }
-                        ) { index ->
-                            val item = phraseSet.items.getOrNull(index) ?: return@items
-                            val stableId = itemIds.getOrNull(index) ?: "${phraseSet.id}-$index"
-
-                            ReorderableItem(reorderableState, key = stableId) { isDragging ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(
-                                            color = if (isDragging) DDZColor.Card.copy(alpha = 0.92f) else DDZColor.Card,
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
-                                        .clickable {
-                                            editingItemIndex = index
-                                            itemInput = item
-                                            showItemInputDialog = true
-                                        }
-                                        .padding(horizontal = 6.dp, vertical = 1.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = item,
-                                        modifier = Modifier.weight(1f),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        style = DDZTypography.Body,
-                                        color = DDZColor.TextPrimary
-                                    )
-                                    Text(
-                                        "☰",
-                                        modifier = with(this@ReorderableItem) { Modifier.draggableHandle() },
-                                        style = DDZTypography.Body,
-                                        color = DDZColor.TextMuted
-                                    )
-                                    TextButton(onClick = {
-                                        if (index in itemIds.indices) {
-                                            itemIds.removeAt(index)
-                                        }
-                                        onUpdateSet { set ->
-                                            set.copy(items = set.items.filterIndexed { idx, _ -> idx != index })
-                                        }
-                                    }) { Text("🗑") }
-                                }
-                            }
-                        }
-                    }
-
-                    if (phraseSet.items.isEmpty()) {
-                        Text(
-                            text = "항목을 추가해주세요.",
-                            modifier = Modifier.align(Alignment.Center),
-                            color = DDZColor.TextMuted,
-                            style = DDZTypography.Body
-                        )
-                    }
-
-                    val layoutInfo = lazyListState.layoutInfo
-                    val visibleItems = layoutInfo.visibleItemsInfo
-                    val canScroll = layoutInfo.totalItemsCount > visibleItems.size
-
-                    if (showScrollIndicator && canScroll && layoutInfo.totalItemsCount > 0 && visibleItems.isNotEmpty()) {
-                        val density = LocalDensity.current
-                        val viewportHeightPx = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).coerceAtLeast(1)
-                        val avgItemHeightPx = visibleItems.map { it.size }.average().toFloat().takeIf { it > 0f } ?: 1f
-                        val totalContentHeightPx = (avgItemHeightPx * layoutInfo.totalItemsCount).coerceAtLeast(viewportHeightPx.toFloat())
-                        val thumbHeightPx = ((viewportHeightPx.toFloat() / totalContentHeightPx) * viewportHeightPx)
-                            .coerceIn(24f, viewportHeightPx.toFloat())
-                        val firstVisible = visibleItems.first()
-                        val scrollOffsetPx = (firstVisible.index * avgItemHeightPx) - firstVisible.offset
-                        val maxScrollPx = (totalContentHeightPx - viewportHeightPx).coerceAtLeast(1f)
-                        val thumbOffsetPx = ((scrollOffsetPx / maxScrollPx) * (viewportHeightPx - thumbHeightPx))
-                            .coerceIn(0f, (viewportHeightPx - thumbHeightPx).coerceAtLeast(0f))
-
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(end = 1.dp)
-                                .width(3.dp)
-                                .height(with(density) { thumbHeightPx.toDp() })
-                                .offset(y = with(density) { thumbOffsetPx.toDp() })
-                                .alpha(indicatorAlpha)
-                                .background(DDZColor.TextMuted.copy(alpha = 0.5f), RoundedCornerShape(99.dp))
-                        )
-                    }
-                }
-
-                Button(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = {
-                        editingItemIndex = null
-                        itemInput = ""
-                        showItemInputDialog = true
-                    }
-                ) {
-                    Text("+ 문구 추가", style = DDZTypography.ButtonText)
-                }
-            }
-        }
-    }
-
-    if (showRenameDialog) {
-        AlertDialog(
-            onDismissRequest = { showRenameDialog = false },
-            title = { Text("세트 이름 변경") },
-            text = {
-                OutlinedTextField(
-                    value = renameInput,
-                    onValueChange = { renameInput = it },
-                    singleLine = true,
-                    label = { Text("세트 이름") }
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val trimmed = renameInput.trim()
-                    if (trimmed.isNotBlank()) {
-                        onUpdateSet { it.copy(name = trimmed) }
-                    }
-                    showRenameDialog = false
-                }) {
-                    Text("적용", style = DDZTypography.ButtonText)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRenameDialog = false }) {
-                    Text("취소", style = DDZTypography.ButtonText)
-                }
-            }
-        )
-    }
-
-    if (showItemInputDialog) {
-        val isEdit = editingItemIndex != null
-        AlertDialog(
-            onDismissRequest = { showItemInputDialog = false },
-            title = { Text(if (isEdit) "문구 수정" else "문구 추가") },
-            text = {
-                OutlinedTextField(
-                    value = itemInput,
-                    onValueChange = { itemInput = it },
-                    singleLine = true,
-                    label = { Text("문구") }
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val trimmed = itemInput.trim()
-                    if (trimmed.isNotBlank()) {
-                        if (editingItemIndex == null) {
-                            itemIds.add(UUID.randomUUID().toString())
-                            onUpdateSet { it.copy(items = it.items + trimmed) }
-                        } else {
-                            val idx = editingItemIndex!!
-                            onUpdateSet { set ->
-                                if (idx !in set.items.indices) {
-                                    set
-                                } else {
-                                    set.copy(
-                                        items = set.items.mapIndexed { i, value ->
-                                            if (i == idx) trimmed else value
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    showItemInputDialog = false
-                }) {
-                    Text("적용", style = DDZTypography.ButtonText)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showItemInputDialog = false }) {
-                    Text("취소", style = DDZTypography.ButtonText)
-                }
-            }
-        )
-    }
-
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("세트 삭제") },
-            text = { Text("${phraseSet.name} 세트를 삭제하시겠습니까?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDeleteSet(phraseSet.id)
-                    showDeleteConfirm = false
-                }) {
-                    Text("삭제", style = DDZTypography.ButtonText)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("취소", style = DDZTypography.ButtonText)
-                }
-            }
-        )
     }
 }
 
