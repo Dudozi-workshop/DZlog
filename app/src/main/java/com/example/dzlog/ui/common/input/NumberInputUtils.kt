@@ -1,4 +1,4 @@
-package com.example.dzlog.ui.table.rotating
+package com.example.dzlog.ui.common.input
 
 fun digitsOnly(input: String): String = input.filter { it.isDigit() }
 

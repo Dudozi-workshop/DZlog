@@ -38,7 +38,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.dzlog.domain.model.RotatingPhraseSet
 import com.example.dzlog.domain.model.TableCellState
+import com.example.dzlog.ui.common.components.EmptyHint
 import com.example.dzlog.ui.common.components.LazyListScrollIndicator
+import com.example.dzlog.ui.common.input.digitsOnly
+import com.example.dzlog.ui.common.input.parsePositiveIntOrNull
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 
@@ -122,7 +125,7 @@ fun RotatingPhraseTemplateDialog(
                     }
 
                     if (phraseSets.isEmpty()) {
-                        RotatingEmptyHint(modifier = Modifier.align(Alignment.Center))
+                        EmptyHint(modifier = Modifier.align(Alignment.Center))
                     }
 
                     LazyListScrollIndicator(

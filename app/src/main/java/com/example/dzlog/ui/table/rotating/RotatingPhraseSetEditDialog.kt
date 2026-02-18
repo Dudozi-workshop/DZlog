@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.example.dzlog.domain.model.RotatingPhraseSet
+import com.example.dzlog.ui.common.components.EmptyHint
 import com.example.dzlog.ui.common.components.LazyListScrollIndicator
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
@@ -193,7 +194,7 @@ fun RotatingPhraseSetEditDialog(
                     }
 
                     if (phraseSet.items.isEmpty()) {
-                        RotatingEmptyHint(modifier = Modifier.align(Alignment.Center))
+                        EmptyHint(modifier = Modifier.align(Alignment.Center))
                     }
 
                     LazyListScrollIndicator(
