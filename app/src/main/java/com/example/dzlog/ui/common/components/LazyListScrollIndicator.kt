@@ -1,4 +1,4 @@
-package com.example.dzlog.ui.table.rotating
+package com.example.dzlog.ui.common.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,27 +18,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.RoundedCornerShape
 import com.example.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.delay
 
 @Composable
-fun RotatingScrollIndicator(
+fun LazyListScrollIndicator(
     listState: LazyListState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    widthDp: Dp = 3.dp,
+    hideDelayMs: Long = 600L
 ) {
     var showScrollIndicator by remember(listState) { mutableStateOf(false) }
     val indicatorAlpha by animateFloatAsState(
         if (showScrollIndicator) 1f else 0f,
-        label = "rotatingScrollIndicator"
+        label = "lazyListScrollIndicator"
     )
 
     LaunchedEffect(listState.isScrollInProgress) {
         if (listState.isScrollInProgress) {
             showScrollIndicator = true
         } else {
-            delay(600)
+            delay(hideDelayMs)
             showScrollIndicator = false
         }
     }
@@ -62,7 +65,7 @@ fun RotatingScrollIndicator(
         Box(
             modifier = modifier
                 .padding(end = 1.dp)
-                .width(3.dp)
+                .width(widthDp)
                 .height(with(density) { thumbHeightPx.toDp() })
                 .offset(y = with(density) { thumbOffsetPx.toDp() })
                 .alpha(indicatorAlpha)

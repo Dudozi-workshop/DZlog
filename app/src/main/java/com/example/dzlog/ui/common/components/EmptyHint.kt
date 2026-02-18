@@ -1,4 +1,4 @@
-package com.example.dzlog.ui.table.rotating
+package com.example.dzlog.ui.common.components
 
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -7,7 +7,7 @@ import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 
 @Composable
-fun RotatingEmptyHint(
+fun EmptyHint(
     text: String = "항목을 추가해주세요.",
     modifier: Modifier = Modifier
 ) {
