@@ -488,14 +488,14 @@ fun HomeScreen(
                                 .weight(0.26f)
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(18.dp))
-                                .background(DDZColor.Success.copy(alpha = 0.22f))
+                                .background(DDZColor.SageLight.copy(alpha = 0.45f))
                                 .clickable(onClick = onOpenAlbum),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Collections,
                                 contentDescription = "앨범",
-                                tint = DDZColor.Success
+                                tint = DDZColor.Sage
                             )
                         }
                     }

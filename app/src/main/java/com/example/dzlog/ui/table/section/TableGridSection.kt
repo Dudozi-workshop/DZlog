@@ -158,7 +158,7 @@ fun TableGridSection(
                                                 onValueChange = onEditingValueChange,
                                                 singleLine = true,
                                                 textStyle = DDZTypography.Caption.copy(color = DDZColor.TextPrimary),
-                                                cursorBrush = SolidColor(DDZColor.Success),
+                                                cursorBrush = SolidColor(DDZColor.SageDark),
                                                 keyboardOptions = KeyboardOptions(
                                                     keyboardType = keyboardType,
                                                     imeAction = ImeAction.Done

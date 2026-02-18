@@ -69,7 +69,7 @@ fun RotatingPhraseTemplateDialog(
                 .fillMaxWidth()
                 .padding(9.dp),
             shape = RoundedCornerShape(16.dp),
-            color = DDZColor.PrimaryBrown
+            color = DDZColor.Primary
         ) {
             Column(
                 modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 6.dp),

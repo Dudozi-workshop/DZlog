@@ -211,12 +211,12 @@ private fun SegmentItem(
     modifier: Modifier = Modifier
 ) {
     val background = if (option.selected) {
-        DDZColor.Success.copy(alpha = 0.28f)
+        DDZColor.SageLight.copy(alpha = 0.45f)
     } else {
         DDZColor.Surface
     }
 
-    val textColor = if (option.selected) DDZColor.Success else DDZColor.Primary
+    val textColor = if (option.selected) DDZColor.SageDark else DDZColor.Primary
 
     Box(
         modifier = modifier

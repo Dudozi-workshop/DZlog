@@ -1218,7 +1218,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(DDZColor.PrimaryBrown)
+            .background(DDZColor.Primary)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -1229,7 +1229,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(captureAspect.ratioF)
-                .background(DDZColor.PrimaryBrown)
+                .background(DDZColor.Primary)
                 .border(1.dp, DDZColor.Border)
                 .clipToBounds()
         ) {
