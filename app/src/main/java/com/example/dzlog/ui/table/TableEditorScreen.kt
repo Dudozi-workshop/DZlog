@@ -31,7 +31,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
@@ -1240,6 +1241,7 @@ private fun RotatingTemplateDialog(
             ) {
                 Text(
                     text = "문구 템플릿 설정",
+                    modifier = Modifier.padding(vertical = 6.dp),
                     style = DDZTypography.CardTitle,
                     color = DDZColor.TextPrimary
                 )
@@ -1332,7 +1334,7 @@ private fun RotatingTemplateDialog(
 
                 Text(
                     text = "N장마다 다음 문구로 변경",
-                    color = DDZColor.TextMuted,
+                    color = DDZColor.SageLight,
                     style = DDZTypography.Caption
                 )
 
@@ -1341,8 +1343,12 @@ private fun RotatingTemplateDialog(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedButton(
+                    Button(
                         modifier = Modifier.height(38.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = DDZColor.Sage,
+                            contentColor = Color.Black
+                        ),
                         onClick = onDecreaseEvery,
                         enabled = everyEnabled
                     ) { Text("-") }
@@ -1368,8 +1374,12 @@ private fun RotatingTemplateDialog(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         textStyle = DDZTypography.Body.copy(lineHeight = 20.sp)
                     )
-                    OutlinedButton(
+                    Button(
                         modifier = Modifier.height(38.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = DDZColor.Sage,
+                            contentColor = Color.Black
+                        ),
                         onClick = onIncreaseEvery,
                         enabled = everyEnabled
                     ) { Text("+") }
