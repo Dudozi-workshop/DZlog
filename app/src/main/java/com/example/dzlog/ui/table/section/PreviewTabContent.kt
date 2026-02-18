@@ -20,7 +20,7 @@ import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.table.ResolvedCell
 import com.example.dzlog.domain.watermark.WatermarkBuilder
-import com.example.dzlog.ui.table.CameraLikeWatermarkPlacementPreview
+import com.example.dzlog.ui.table.watermark.CameraLikeWatermarkPlacementPreview
 import com.example.dzlog.ui.table.TableRowColSizeSection
 import com.example.dzlog.ui.theme.DDZColor
 

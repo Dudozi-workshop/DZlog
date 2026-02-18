@@ -6,19 +6,12 @@
 
 package com.example.dzlog.ui.table
 
-import android.graphics.RectF
 import android.widget.Toast
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -42,12 +35,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -56,17 +44,9 @@ import com.example.dzlog.R
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.datastore.AppSettingsStore
-import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
-import com.example.dzlog.data.preferences.KEY_WM_BG_ALPHA
-import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
-import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
-import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
-import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
-import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.domain.counter.policy.CounterScopeSnapshot
-import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.HourSystem
@@ -77,16 +57,12 @@ import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.TimeFormatOptions
 import com.example.dzlog.domain.model.TimeSeparator
-import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.NamingFormatDefaults
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
-import com.example.dzlog.domain.watermark.WatermarkBuilder
-import com.example.dzlog.feature.table.policy.TableWatermarkAction
-import com.example.dzlog.feature.table.policy.applyTableWatermarkAction
 import com.example.dzlog.feature.table.policy.confirmCounterConflictDialog
 import com.example.dzlog.feature.table.policy.dismissCounterConflictDialog
 import com.example.dzlog.feature.table.policy.evaluateCounterEditConflict
@@ -102,6 +78,13 @@ import com.example.dzlog.ui.table.counter.syncCounterStateForScope
 import com.example.dzlog.ui.table.counter.updateCounterCellAndPolicy
 import com.example.dzlog.ui.table.counter.updateCounterUiConflictDialogState
 import com.example.dzlog.ui.table.counter.updateCounterUiScopeFlags
+import com.example.dzlog.ui.table.watermark.TableWatermarkUiState
+import com.example.dzlog.ui.table.watermark.applyBgAlphaChange
+import com.example.dzlog.ui.table.watermark.applyBgStyleChange
+import com.example.dzlog.ui.table.watermark.applyHeightRatioChange
+import com.example.dzlog.ui.table.watermark.applyValueScaleChange
+import com.example.dzlog.ui.table.watermark.applyWidthRatioChange
+import com.example.dzlog.ui.table.watermark.loadTableWatermarkUiState
 import com.example.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
 import com.example.dzlog.ui.table.rotating.RotatingPhraseTemplateDialog
 import com.example.dzlog.ui.table.section.LayoutTabActions
@@ -111,7 +94,6 @@ import com.example.dzlog.ui.table.section.PreviewTabContent
 import com.example.dzlog.ui.table.section.TableEditorTabs
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
-import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -416,39 +398,11 @@ fun TableEditorScreen(
         buildGalleryRelativePath(templateState.cells)
     }
 
-    // ✅ 표 위치/크기(촬영 워터마크 표 렌더 파라미터) - 탭1에서 조절
-    var wmAnchor by remember { mutableStateOf(WatermarkTableAnchor.BOTTOM_RIGHT) }
-    var wmWidthRatio by remember { mutableIntStateOf(40) }
-    var wmHeightRatio by remember { mutableIntStateOf(20) }
-    // 0=BLACK, 1=WHITE, 2=TRANSPARENT
-    var wmBgStyle by remember { mutableIntStateOf(0) }
-    // 0~255
-    var wmBgAlpha by remember { mutableIntStateOf(80) }
-    // 60~160 (기본 100)
-    var wmValueScale by remember { mutableIntStateOf(100) }
-
-    // ✅ 촬영 프레임 비율(탭1 미리보기에서 사용)
-    var captureAspect by remember { mutableStateOf(CaptureAspect.R3_4) }
-
+    var watermarkUi by remember { mutableStateOf(TableWatermarkUiState()) }
 
     LaunchedEffect(Unit) {
         runCatching {
-            val prefs = context.dataStore.data.first()
-            wmAnchor = when (prefs[KEY_WM_TABLE_ANCHOR] ?: 3) {
-                0 -> WatermarkTableAnchor.TOP_LEFT
-                1 -> WatermarkTableAnchor.TOP_RIGHT
-                2 -> WatermarkTableAnchor.BOTTOM_LEFT
-                else -> WatermarkTableAnchor.BOTTOM_RIGHT
-            }
-            wmWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(40, 100)
-            wmHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 35)
-            wmBgStyle = (prefs[KEY_WM_TABLE_BG_STYLE] ?: 0).coerceIn(0, 2)
-            wmBgAlpha = (prefs[KEY_WM_BG_ALPHA] ?: 80).coerceIn(0, 255)
-            wmValueScale = (prefs[KEY_WM_VALUE_SCALE] ?: 100).coerceIn(60, 160)
-
-            captureAspect = CaptureAspect.from(
-                prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v
-            )
+            watermarkUi = loadTableWatermarkUiState(context)
         }
     }
 
@@ -1021,59 +975,39 @@ fun TableEditorScreen(
                     // ==========================
                     PreviewTabContent(
                         scrollState = previewTabScrollState,
-                        captureAspect = captureAspect,
+                        captureAspect = watermarkUi.captureAspect,
                         templateState = templateState,
                         resolvedCells = plan.resolvedCells,
-                        wmAnchor = wmAnchor,
-                        wmWidthRatio = wmWidthRatio,
-                        wmHeightRatio = wmHeightRatio,
-                        wmBgStyle = wmBgStyle,
-                        wmBgAlpha = wmBgAlpha,
-                        wmValueScale = wmValueScale,
+                        wmAnchor = watermarkUi.wmAnchor,
+                        wmWidthRatio = watermarkUi.wmWidthRatio,
+                        wmHeightRatio = watermarkUi.wmHeightRatio,
+                        wmBgStyle = watermarkUi.wmBgStyle,
+                        wmBgAlpha = watermarkUi.wmBgAlpha,
+                        wmValueScale = watermarkUi.wmValueScale,
                         onRowColWeightsChange = { updated -> onTemplateChange(updated) },
                         onWidthRatioChange = { width ->
                             scope.launch {
-                                val patch = applyTableWatermarkAction(
-                                    context,
-                                    TableWatermarkAction.WidthRatioChanged(width)
-                                )
-                                patch.widthRatio?.let { wmWidthRatio = it }
+                                watermarkUi = applyWidthRatioChange(context, width, watermarkUi)
                             }
                         },
                         onHeightRatioChange = { height ->
                             scope.launch {
-                                val patch = applyTableWatermarkAction(
-                                    context,
-                                    TableWatermarkAction.HeightRatioChanged(height)
-                                )
-                                patch.heightRatio?.let { wmHeightRatio = it }
+                                watermarkUi = applyHeightRatioChange(context, height, watermarkUi)
                             }
                         },
                         onBgStyleChange = { bgStyle ->
                             scope.launch {
-                                val patch = applyTableWatermarkAction(
-                                    context,
-                                    TableWatermarkAction.BgStyleChanged(bgStyle)
-                                )
-                                patch.bgStyle?.let { wmBgStyle = it }
+                                watermarkUi = applyBgStyleChange(context, bgStyle, watermarkUi)
                             }
                         },
                         onBgAlphaChange = { alpha ->
                             scope.launch {
-                                val patch = applyTableWatermarkAction(
-                                    context,
-                                    TableWatermarkAction.BgAlphaChanged(alpha)
-                                )
-                                patch.bgAlpha?.let { wmBgAlpha = it }
+                                watermarkUi = applyBgAlphaChange(context, alpha, watermarkUi)
                             }
                         },
                         onValueScaleChange = { scale ->
                             scope.launch {
-                                val patch = applyTableWatermarkAction(
-                                    context,
-                                    TableWatermarkAction.ValueScaleChanged(scale)
-                                )
-                                patch.valueScale?.let { wmValueScale = it }
+                                watermarkUi = applyValueScaleChange(context, scale, watermarkUi)
                             }
                         }
                     )
@@ -1083,95 +1017,6 @@ fun TableEditorScreen(
     }
 }
 
-@Composable
-internal fun CameraLikeWatermarkPlacementPreview(
-    captureAspect: CaptureAspect,
-    rows: Int,
-    cols: Int,
-    rowWeights: List<Float>?,
-    colWeights: List<Float>?,
-    watermarkCells: List<WatermarkBuilder.WatermarkCell>,
-    anchor: WatermarkTableAnchor,
-    tableWidthRatio: Int,
-    tableHeightRatio: Int,
-    bgStyle: Int,
-    bgAlpha: Int,
-    valueScale: Int
-) {
-    // bgStyle: 워터마크 표 배경 스타일
-    // - 0: BLACK
-    // - 1: WHITE
-    // - 2: TRANSPARENT (배경 렌더링 안 함)
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(DDZColor.Primary)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text("촬영 미리보기", color = DDZColor.Surface, style = DDZTypography.CardTitle)
-
-        // 카메라 프레임(비율 반영) 박스
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(captureAspect.ratioF)
-                .background(DDZColor.Primary)
-                .border(1.dp, DDZColor.Border)
-                .clipToBounds()
-        ) {
-            // 실제 카메라 영상 대신 “프레임 느낌” 배경 (단색+가이드 정도)
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                // 아주 약한 가이드(중앙 십자선) – 원하면 나중에 제거 가능
-                val w = size.width
-                val h = size.height
-
-                // center lines
-                drawRect(
-                    color = DDZColor.Surface.copy(alpha = 0.13f),
-                    topLeft = Offset(w / 2f - 0.5f, 0f),
-                    size = Size(1f, h)
-                )
-                drawRect(
-                    color = DDZColor.Surface.copy(alpha = 0.13f),
-                    topLeft = Offset(0f, h / 2f - 0.5f),
-                    size = Size(w, 1f)
-                )
-
-                // 워터마크 표 오버레이 (CameraScreen과 동일 엔진)
-                drawIntoCanvas { canvas ->
-                    val bounds = RectF(0f, 0f, w, h)
-
-                    drawWatermarkTableOnCanvas(
-                        canvas = canvas.nativeCanvas,
-                        bounds = bounds,
-                        cells = watermarkCells,
-                        rows = rows.coerceAtLeast(1),
-                        cols = cols.coerceAtLeast(1),
-                        showLabel = false,
-                        anchor = anchor,
-                        offsetXRatio = 0,
-                        offsetYRatio = 0,
-                        tableHeightRatio = tableHeightRatio,
-                        tableWidthRatio = tableWidthRatio,
-                        bgAlpha = bgAlpha.coerceIn(0, 255),
-                        bgStyle = bgStyle,
-                        labelScale = 100,
-                        valueScale = valueScale.coerceIn(60, 160),
-                        rowWeights = rowWeights,
-                        colWeights = colWeights
-                    )
-                }
-            }
-        }
-
-        Text(
-            "비율: ${captureAspect.label} / 크기: ${tableWidthRatio}%×${tableHeightRatio}% (위치는 카메라 화면에서 드래그)",
-            color = DDZColor.IconMuted,
-            style = DDZTypography.Caption
-        )
-    }
-}
 
 private fun updateCell(
     templateState: TableTemplateState,
