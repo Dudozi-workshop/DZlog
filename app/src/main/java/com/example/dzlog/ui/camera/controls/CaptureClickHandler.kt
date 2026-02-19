@@ -181,9 +181,8 @@ internal fun handleCaptureClick(
 
             if (continuousPreviewMode != ContinuousPreviewMode.OFF) {
                 onSetCapturedUri(entry.contentUri)
-            } else {
-                Toast.makeText(context, "저장 완료", Toast.LENGTH_SHORT).show()
             }
+            Toast.makeText(context, "저장 완료", Toast.LENGTH_SHORT).show()
         },
         onFail = { msg ->
             gate.set(false)

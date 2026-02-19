@@ -8,6 +8,7 @@ import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -80,6 +81,7 @@ fun LogGridScreen(
 
     val scope = rememberCoroutineScope()
     var reloadJob by remember { mutableStateOf<Job?>(null) }
+    var galleryToastShown by remember { mutableStateOf(false) }
 
     fun reloadImages() {
         // ✅ MediaStore 변경 이벤트가 연속으로 들어올 수 있어 디바운스 처리
@@ -131,6 +133,14 @@ fun LogGridScreen(
             reloadImages()
         }
     }
+
+    LaunchedEffect(items.size, isLoading) {
+        if (!galleryToastShown && !isLoading) {
+            Toast.makeText(context, "APP_GALLERY items=${items.size}", Toast.LENGTH_LONG).show()
+            galleryToastShown = true
+        }
+    }
+
 
     // ✅ 앱 밖 변경(휴지통 복구/삭제 등)을 앱이 즉시 반영하도록 MediaStore 변경 감지
     // 선택 중에는 reload를 막아 버벅임 감소 (선택 해제 후 필요 시 수동/다른 트리거로 갱신)

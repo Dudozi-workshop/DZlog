@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -40,6 +41,7 @@ import com.example.dzlog.data.template.defaultTableTemplateState
 import com.example.dzlog.data.template.tableTemplateStateFromJson
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.feature.settings.ui.SettingsScreen
+import com.example.dzlog.feature.table.policy.saveTableTemplate
 import com.example.dzlog.ui.camera.CameraScreen
 import com.example.dzlog.ui.home.HomeScreen
 import com.example.dzlog.ui.log.LogG1Screen
@@ -48,6 +50,7 @@ import com.example.dzlog.ui.log.LogGridScreen
 import com.example.dzlog.ui.log.LogViewerScreen
 import com.example.dzlog.ui.table.TableEditorScreen
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 
 enum class AppScreen {
@@ -112,6 +115,8 @@ fun AppRoot() {
     )
 
     var lastBackPressedMs by remember { mutableLongStateOf(0L) }
+    var hasRestoredTemplate by remember { mutableStateOf(false) }
+    val appScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         orientationMode = try {
@@ -131,6 +136,25 @@ fun AppRoot() {
                     tableTemplateViewModel.update(loaded)
                 }
             }
+        }
+        hasRestoredTemplate = true
+    }
+
+
+    fun updateTemplateState(updated: TableTemplateState) {
+        tableTemplateViewModel.update(updated)
+        if (!hasRestoredTemplate) return
+        appScope.launch {
+            saveTableTemplate(context, updated)
+        }
+    }
+
+    fun resetTemplateState() {
+        val reset = defaultTableTemplateState()
+        tableTemplateViewModel.update(reset)
+        if (!hasRestoredTemplate) return
+        appScope.launch {
+            saveTableTemplate(context, reset)
         }
     }
 
@@ -222,7 +246,7 @@ fun AppRoot() {
         Box(modifier = Modifier.alpha(0f)) {
             CameraScreen(
                 tableTemplateState = tableTemplateState,
-                onTemplateChange = tableTemplateViewModel::update,
+                onTemplateChange = ::updateTemplateState,
                 onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
                 onOpenAlbum = ::openAlbumRoot,
                 onOpenRecentCaptureGrid = ::openRecentCaptureGrid
@@ -244,7 +268,7 @@ fun AppRoot() {
             if (!keepCameraAliveBehindAlbum) {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
-                    onTemplateChange = tableTemplateViewModel::update,
+                    onTemplateChange = ::updateTemplateState,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid
@@ -255,8 +279,8 @@ fun AppRoot() {
         AppScreen.TABLE_EDITOR -> {
             TableEditorScreen(
                 templateState = tableTemplateState,
-                onTemplateChange = tableTemplateViewModel::update,
-                onReset = tableTemplateViewModel::reset,
+                onTemplateChange = ::updateTemplateState,
+                onReset = ::resetTemplateState,
                 onBack = { screen = previousScreen }
             )
         }

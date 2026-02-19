@@ -49,14 +49,20 @@ fun addRow(templateState: TableTemplateState): TableTemplateState {
 
 fun removeRow(templateState: TableTemplateState): TableTemplateState {
     val lastRowIndex = templateState.rows - 1
+    val remainingCells = templateState.cells.filterNot { it.rowIndex == lastRowIndex }
+    val sanitizedFileNameSlots = sanitizeFileNameSlots(
+        slots = templateState.fileNameSlots,
+        remainingCells = remainingCells
+    )
 
     val baseRowWeights = templateState.rowWeights ?: List(templateState.rows.coerceAtLeast(1)) { 1f }
     val nextRowWeights = if (baseRowWeights.isNotEmpty()) baseRowWeights.dropLast(1) else baseRowWeights
 
     return templateState.copy(
         rows = templateState.rows - 1,
-        cells = templateState.cells.filterNot { it.rowIndex == lastRowIndex },
-        rowWeights = nextRowWeights
+        cells = remainingCells,
+        rowWeights = nextRowWeights,
+        fileNameSlots = sanitizedFileNameSlots
     )
 }
 
@@ -89,14 +95,20 @@ fun addColumn(templateState: TableTemplateState): TableTemplateState {
 
 fun removeColumn(templateState: TableTemplateState): TableTemplateState {
     val lastColIndex = templateState.cols - 1
+    val remainingCells = templateState.cells.filterNot { it.colIndex == lastColIndex }
+    val sanitizedFileNameSlots = sanitizeFileNameSlots(
+        slots = templateState.fileNameSlots,
+        remainingCells = remainingCells
+    )
 
     val baseColWeights = templateState.colWeights ?: List(templateState.cols.coerceAtLeast(1)) { 1f }
     val nextColWeights = if (baseColWeights.isNotEmpty()) baseColWeights.dropLast(1) else baseColWeights
 
     return templateState.copy(
         cols = templateState.cols - 1,
-        cells = templateState.cells.filterNot { it.colIndex == lastColIndex },
-        colWeights = nextColWeights
+        cells = remainingCells,
+        colWeights = nextColWeights,
+        fileNameSlots = sanitizedFileNameSlots
     )
 }
 
@@ -138,4 +150,15 @@ fun compressFileNameSlots(slots: List<CellKey?>): List<CellKey?> {
 
 private fun List<CellKey?>.normalizeFileNameSlots(): List<CellKey?> {
     return take(FILE_NAME_SLOT_COUNT) + List((FILE_NAME_SLOT_COUNT - size).coerceAtLeast(0)) { null }
+}
+
+private fun sanitizeFileNameSlots(
+    slots: List<CellKey?>,
+    remainingCells: List<TableCellState>
+): List<CellKey?> {
+    val remainingCellIds = remainingCells.map { it.cellId }.toSet()
+    val keptOrNull = slots.normalizeFileNameSlots().map { slot ->
+        if (slot != null && slot !in remainingCellIds) null else slot
+    }
+    return compressFileNameSlots(keptOrNull)
 }

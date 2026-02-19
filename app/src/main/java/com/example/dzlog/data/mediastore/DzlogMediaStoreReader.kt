@@ -151,11 +151,7 @@ class DzlogMediaStoreReader(
      * - relativePath는 trailing "/" 포함 형태를 기대함.
      */
     fun loadImages(relativePath: String): List<MediaImageItem> {
-        // 기기/OS 조합에 따라 RELATIVE_PATH 값에 trailing '/'가 붙지 않는 케이스가 있어
-        // '=' 매칭이 실패할 수 있음. (e.g. "Pictures/DZlog/A/0812" vs "Pictures/DZlog/A/0812/")
-        // 둘 다 매칭하도록 보수적으로 처리한다.
         val relWithSlash = ensureTrailingSlash(relativePath)
-        val relNoSlash = relWithSlash.removeSuffix("/")
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DISPLAY_NAME,
@@ -163,17 +159,13 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.DATE_ADDED
         )
 
-        // A-2: exact match만 허용 (하위 폴더 포함 LIKE 제거)
         val selection = (
-                "(" +
-                        "(${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?) " +
-                        ") AND " +
-                        "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
-                        trashClause()
-                )
+            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND " +
+                    "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
+                    trashClause()
+            )
         val args = arrayOf(
-            relWithSlash,
-            relNoSlash,
+            relWithSlash + "%",
             "%/original/%"
         )
 
@@ -256,6 +248,8 @@ class DzlogMediaStoreReader(
         }
         return null
     }
+
+
 
     // -------------------------
     // Internal helpers
