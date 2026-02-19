@@ -461,6 +461,7 @@ internal fun CameraPreviewArea(
                 counterDigits = args.counterDigits,
                 usedCounter = args.scopeNextCounter,
                 now = args.now,
+                fileNameSlots = args.tableTemplateState.fileNameSlots,
                 includeDate = false,
                 includeTime = false
             ),

@@ -2,6 +2,7 @@ package com.example.dzlog.domain.capturepolicy
 
 import com.example.dzlog.domain.counter.CounterStreamContext
 import com.example.dzlog.domain.counter.buildCounterStreamContext
+import com.example.dzlog.domain.model.CellKey
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
@@ -37,6 +38,7 @@ internal object CaptureNamingPolicy {
         counterDigits: Int,
         usedCounter: Int,
         now: Date,
+        fileNameSlots: List<CellKey?>? = null,
         includeDate: Boolean = false,
         includeTime: Boolean = false
     ): String {
@@ -45,6 +47,7 @@ internal object CaptureNamingPolicy {
             fnDelim = fnDelim,
             includeDate = includeDate,
             includeTime = includeTime,
+            fileNameSlots = fileNameSlots,
             counterDigits = counterDigits,
             counterOverride = usedCounter,
             now = now
@@ -75,6 +78,7 @@ internal object CaptureNamingPolicy {
             fnDelim = captureContext.fnDelim,
             counterDigits = captureContext.counterDigits,
             usedCounter = usedCounter,
+            fileNameSlots = captureContext.fileNameSlots,
             now = Date()
         )
 

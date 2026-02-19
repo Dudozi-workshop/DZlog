@@ -98,6 +98,8 @@ import com.example.dzlog.ui.table.section.LayoutTabUiState
 import com.example.dzlog.ui.table.section.PreviewTabContent
 import com.example.dzlog.ui.table.section.TableEditorTabs
 import com.example.dzlog.ui.table.template.*
+import com.example.dzlog.ui.table.template.addToFileNameSlots
+import com.example.dzlog.ui.table.template.removeFromFileNameSlots
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.delay
@@ -724,12 +726,14 @@ fun TableEditorScreen(
                                 commitInlineEditIfNeeded()
                                 showCellSettingsPanel = false
                             },
-                            onSetFileNameIncludeForSelected = { checked ->
-                                selectedCell?.let { cell ->
-                                    val updated = updateCell(templateState, cell.cellId) { c ->
-                                        c.copy(fileNameInclude = checked)
-                                    }
-                                    onTemplateChange(updated)
+                            onToggleFileNameForSelected = { cellId, enabled ->
+                                val nextSlots = if (enabled) {
+                                    addToFileNameSlots(templateState.fileNameSlots, cellId)
+                                } else {
+                                    removeFromFileNameSlots(templateState.fileNameSlots, cellId)
+                                }
+                                if (nextSlots != templateState.fileNameSlots) {
+                                    onTemplateChange(templateState.copy(fileNameSlots = nextSlots))
                                 }
                             },
                             onPathGroupActionForSelected = { action ->

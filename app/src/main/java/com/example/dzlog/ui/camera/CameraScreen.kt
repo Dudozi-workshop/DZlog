@@ -337,6 +337,7 @@ fun CameraPreview(
             counterDigits = ui.prefs.counterDigits,
             usedCounter = ui.counter.scopeNextCounter,
             now = ui.capture.now,
+            fileNameSlots = tableTemplateState.fileNameSlots,
             includeDate = false,
             includeTime = false
         )

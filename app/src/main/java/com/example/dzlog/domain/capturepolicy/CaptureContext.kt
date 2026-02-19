@@ -1,5 +1,7 @@
 package com.example.dzlog.domain.capturepolicy
 
+import com.example.dzlog.domain.model.CellKey
+import com.example.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.example.dzlog.domain.table.ResolvedCell
 
 /**
@@ -15,8 +17,15 @@ import com.example.dzlog.domain.table.ResolvedCell
  */
 internal data class CaptureContext(
     val resolvedCells: List<ResolvedCell>,
+    val fileNameSlots: List<CellKey?>,
     val fnDelim: String,
     val counterDigits: Int,
     val dateFormat: String,
     val timeFormat: String
-)
+) {
+    init {
+        require(fileNameSlots.size == FILE_NAME_SLOT_COUNT) {
+            "fileNameSlots must have exactly $FILE_NAME_SLOT_COUNT entries."
+        }
+    }
+}

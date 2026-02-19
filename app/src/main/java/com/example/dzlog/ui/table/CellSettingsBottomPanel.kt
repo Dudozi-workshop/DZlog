@@ -1,5 +1,6 @@
 package com.example.dzlog.ui.table
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,17 +16,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.TableCellDataType
-import com.example.dzlog.R
 import com.example.dzlog.domain.model.TableCellState
+import com.example.dzlog.domain.model.TableTemplateState
+import com.example.dzlog.ui.table.template.addToFileNameSlots
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 
@@ -33,15 +36,19 @@ import com.example.dzlog.ui.theme.DDZTypography
 internal fun CellSettingsBottomPanel(
     modifier: Modifier,
     cell: TableCellState,
+    templateState: TableTemplateState,
     hasGroup1: Boolean,
     hasGroup2: Boolean,
-    onSetFileNameInclude: (Boolean) -> Unit,
+    onToggleFileNameForCell: (cellId: String, enabled: Boolean) -> Unit,
     onPathGroupAction: (PathGroupAction) -> Unit,
     onSetDataType: (TableCellDataType) -> Unit,
     onResetCounterSeed: (() -> Unit)? = null,
     autoNextCounterValue: Int = 1,
     onOpenRotatingTemplateDialog: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
+    val isIncluded = templateState.fileNameSlots.contains(cell.cellId)
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -49,7 +56,6 @@ internal fun CellSettingsBottomPanel(
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // ✅ 상단 핸들(중앙만) - 공간 최소화
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -64,28 +70,32 @@ internal fun CellSettingsBottomPanel(
             )
         }
 
-        // ✅ 파일명 그룹 (한 줄 병기)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("파일명 포함", style = DDZTypography.Body, color = DDZColor.TextMuted)
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (cell.fileNameInclude) "ON" else "OFF", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                    Switch(
-                        checked = cell.fileNameInclude,
-                        onCheckedChange = onSetFileNameInclude
-                    )
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        if (!isIncluded) {
+                            val nextSlots = addToFileNameSlots(templateState.fileNameSlots, cell.cellId)
+                            if (nextSlots == templateState.fileNameSlots) {
+                                Toast.makeText(context, "파일명은 최대 3개", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                        }
+                        onToggleFileNameForCell(cell.cellId, !isIncluded)
+                    }
+                ) {
+                    Text(if (isIncluded) "ON" else "OFF", style = DDZTypography.ButtonText)
                 }
             }
 
             Column(modifier = Modifier.weight(1f)) {
                 Text("저장경로", style = DDZTypography.Body, color = DDZColor.TextMuted)
-                // G2 선택 가능 조건
-                // - G1이 반드시 존재해야 함
-                // - 현재 셀이 G1이면: "G2가 이미 존재하는 경우에만" G1<->G2 스왑을 위해 허용
                 val canSelectG2 = hasGroup1 && (
                     cell.groupLevel != GroupLevel.G1 || hasGroup2
                 )
@@ -123,6 +133,49 @@ internal fun CellSettingsBottomPanel(
             }
         }
 
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("파일명 슬롯", style = DDZTypography.Body, color = DDZColor.TextMuted)
+            repeat(FILE_NAME_SLOT_COUNT) { index ->
+                val slotCellId = templateState.fileNameSlots.getOrNull(index)
+                val slotCell = templateState.cells.firstOrNull { it.cellId == slotCellId }
+                val slotText = when {
+                    slotCell == null -> "비어있음"
+                    slotCell.label.isNotBlank() -> slotCell.label
+                    slotCell.rawText.isNotBlank() -> slotCell.rawText
+                    else -> "(값 없음)"
+                }
+                val isSelectedSlot = slotCellId == cell.cellId
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                        .background(DDZColor.Card, RoundedCornerShape(14.dp))
+                        .border(
+                            width = if (isSelectedSlot) 1.5.dp else 1.dp,
+                            color = if (isSelectedSlot) DDZColor.Primary else DDZColor.Border,
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "${index + 1}",
+                        style = DDZTypography.Caption,
+                        color = DDZColor.TextMuted
+                    )
+                    Text(
+                        text = slotText,
+                        style = DDZTypography.Body,
+                        color = if (slotCell == null) DDZColor.TextMuted else DDZColor.TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
         if (cell.dataType == TableCellDataType.COUNTER && onResetCounterSeed != null) {
             Button(
                 modifier = Modifier.fillMaxWidth(),
@@ -138,18 +191,21 @@ internal fun CellSettingsBottomPanel(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onOpenRotatingTemplateDialog
             ) {
-                Text("문구 템플릿 설정", style = DDZTypography.ButtonText)
+                Text("로테이팅 문구 템플릿 설정", style = DDZTypography.ButtonText)
             }
         }
 
-        // ✅ Data Format: 카드형 3열
+        Spacer(Modifier.height(4.dp))
         Text("데이터 형식", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
         DataTypeCardGrid3(
             selected = cell.dataType,
             onSelect = onSetDataType
         )
+
+        Spacer(Modifier.height(2.dp))
     }
 }
+
 
 @Composable
 private fun DataTypeCardGrid3(
@@ -159,9 +215,9 @@ private fun DataTypeCardGrid3(
     val items = listOf(
         TableCellDataType.TEXT to "Text",
         TableCellDataType.NUMBER to "Number",
-        TableCellDataType.DATE to stringResource(R.string.label_date),
+        TableCellDataType.DATE to "Date",
         TableCellDataType.TIME to "Time",
-        TableCellDataType.COUNTER to stringResource(R.string.label_counter),
+        TableCellDataType.COUNTER to "Counter",
         TableCellDataType.ROTATING_TEXT to "순환 문구"
     )
 
@@ -196,7 +252,6 @@ private fun DataTypeCardGrid3(
                         }
                     }
                 }
-                // 3열 맞추기: row가 3개 미만이면 빈 칸 채움
                 repeat(3 - row.size) {
                     Spacer(modifier = Modifier.weight(1f))
                 }

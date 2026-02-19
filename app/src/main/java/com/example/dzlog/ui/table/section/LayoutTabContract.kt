@@ -41,7 +41,7 @@ data class LayoutTabActions(
     val onReset: () -> Unit,
     val onSave: () -> Unit,
     val onDismissSettingsPanel: () -> Unit,
-    val onSetFileNameIncludeForSelected: (Boolean) -> Unit,
+    val onToggleFileNameForSelected: (cellId: String, enabled: Boolean) -> Unit,
     val onPathGroupActionForSelected: (PathGroupAction) -> Unit,
     val onSetDataTypeForSelected: (TableCellDataType) -> Unit,
     val onResetCounterSeedForSelected: () -> Unit,

@@ -102,6 +102,7 @@ internal fun handleCaptureClick(
     val policyResult = CaptureNamingPolicy.buildForCaptureWithCounter(
         captureContext = CaptureContext(
             resolvedCells = planForCapture.resolvedCells,
+            fileNameSlots = tableTemplateState.fileNameSlots,
             fnDelim = fnDelim,
             counterDigits = counterDigits,
             dateFormat = dateFormat,

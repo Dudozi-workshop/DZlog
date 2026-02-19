@@ -151,6 +151,7 @@ fun HomeScreen(
         val preview = CaptureNamingPolicy.buildForCaptureWithCounter(
             captureContext = CaptureContext(
                 resolvedCells = plan.resolvedCells,
+                fileNameSlots = tableTemplateState.fileNameSlots,
                 fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
                 counterDigits = settings.counterPadding,
                 dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
