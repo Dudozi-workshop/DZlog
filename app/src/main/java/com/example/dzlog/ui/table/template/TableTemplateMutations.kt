@@ -1,7 +1,6 @@
 package com.example.dzlog.ui.table.template
 
 import com.example.dzlog.domain.model.CellKey
-import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.TableCellDataType
@@ -30,7 +29,7 @@ fun addRow(templateState: TableTemplateState): TableTemplateState {
             kind = TableCellKind.INPUT,
             dataType = TableCellDataType.TEXT,
             rawText = "",
-            typedValue = CellValue.Text(""),
+            typedValue = com.example.dzlog.domain.model.CellValue.Text(""),
             fileNameInclude = false,
             groupLevel = GroupLevel.NONE,
             label = ""
@@ -70,7 +69,7 @@ fun addColumn(templateState: TableTemplateState): TableTemplateState {
             kind = TableCellKind.INPUT,
             dataType = TableCellDataType.TEXT,
             rawText = "",
-            typedValue = CellValue.Text(""),
+            typedValue = com.example.dzlog.domain.model.CellValue.Text(""),
             fileNameInclude = false,
             groupLevel = GroupLevel.NONE,
             label = ""
@@ -100,7 +99,6 @@ fun removeColumn(templateState: TableTemplateState): TableTemplateState {
         colWeights = nextColWeights
     )
 }
-
 
 fun addToFileNameSlots(slots: List<CellKey?>, cellKey: CellKey): List<CellKey?> {
     val normalized = slots.normalizeFileNameSlots()
