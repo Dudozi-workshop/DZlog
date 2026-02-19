@@ -20,12 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.HourSystem
 import com.example.dzlog.domain.model.TableCellDataType
-import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.TimeFormatOptions
 import com.example.dzlog.domain.model.TimeSeparator
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
+import com.example.dzlog.ui.table.template.updateCell
 
 @Composable
 fun TableFormatDialog(
@@ -160,18 +160,6 @@ fun TableFormatDialog(
             TextButton(onClick = onClose) {
                 Text("닫기", style = DDZTypography.ButtonText)
             }
-        }
-    )
-}
-
-private fun updateCell(
-    templateState: TableTemplateState,
-    cellId: String,
-    transform: (TableCellState) -> TableCellState
-): TableTemplateState {
-    return templateState.copy(
-        cells = templateState.cells.map { cell ->
-            if (cell.cellId == cellId) transform(cell) else cell
         }
     )
 }

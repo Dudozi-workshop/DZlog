@@ -51,7 +51,6 @@ import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.RotatingPhraseSet
 import com.example.dzlog.domain.model.TableCellDataType
-import com.example.dzlog.domain.model.TableCellKind
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.TimeFormatOptions
@@ -78,6 +77,7 @@ import com.example.dzlog.ui.table.editor.commitInlineEditIfNeeded as commitInlin
 import com.example.dzlog.ui.table.editor.isEditing
 import com.example.dzlog.ui.table.editor.clearInlineEditing
 import com.example.dzlog.ui.table.editor.startInlineEditing
+import com.example.dzlog.ui.table.editor.shouldBlockTabSwitchAfterCommit
 import com.example.dzlog.ui.table.format.TableFormatDialog
 import com.example.dzlog.ui.table.format.TableFormatDialogState
 import com.example.dzlog.ui.table.format.close
@@ -91,11 +91,13 @@ import com.example.dzlog.ui.table.watermark.applyWidthRatioChange
 import com.example.dzlog.ui.table.watermark.loadTableWatermarkUiState
 import com.example.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
 import com.example.dzlog.ui.table.rotating.RotatingPhraseTemplateDialog
+import com.example.dzlog.ui.table.rotating.RotatingPhraseUiState
 import com.example.dzlog.ui.table.section.LayoutTabActions
 import com.example.dzlog.ui.table.section.LayoutTabContent
 import com.example.dzlog.ui.table.section.LayoutTabUiState
 import com.example.dzlog.ui.table.section.PreviewTabContent
 import com.example.dzlog.ui.table.section.TableEditorTabs
+import com.example.dzlog.ui.table.template.*
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.delay
@@ -103,18 +105,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
 import java.util.UUID
-
-
-data class RotatingPhraseUiState(
-    val isTemplateDialogOpen: Boolean = false,
-    val templateDialogCellId: String? = null,
-    val templateDialogRestore: TableTemplateState? = null,
-    val isCreateSetDialogOpen: Boolean = false,
-    val createSetName: String = "",
-    val pendingDeleteSetId: String? = null,
-    val isSetEditDialogOpen: Boolean = false,
-    val editingSetId: String? = null
-)
 
 
 @Composable
@@ -613,7 +603,7 @@ fun TableEditorScreen(
         if (inlineEdit.isEditing()) {
             commitInlineEditIfNeeded()
             // commit이 보류되면(=editingCellId가 유지됨) 전환 막음
-            if (inlineEdit.isEditing()) return
+            if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
         }
         selectedTabIndex = targetIndex
     }
@@ -838,98 +828,6 @@ fun TableEditorScreen(
     }
 }
 
-
-private fun updateCell(
-    templateState: TableTemplateState,
-    cellId: String,
-    transform: (TableCellState) -> TableCellState
-): TableTemplateState {
-    return templateState.copy(
-        cells = templateState.cells.map { cell ->
-            if (cell.cellId == cellId) transform(cell) else cell
-        }
-    )
-}
-
-private fun addRow(templateState: TableTemplateState): TableTemplateState {
-    val newRowIndex = templateState.rows
-    val newCells = (0 until templateState.cols).map { col ->
-        TableCellState(
-            rowIndex = newRowIndex,
-            colIndex = col,
-            kind = TableCellKind.INPUT,
-            dataType = TableCellDataType.TEXT,
-            rawText = "",
-            typedValue = CellValue.Text(""),
-            fileNameInclude = false,
-            groupLevel = GroupLevel.NONE,
-            label = ""
-        )
-    }
-
-    // Stage 1: rowWeights는 "행 단위 높이 비율"을 위한 데이터. 아직 렌더링에는 반영하지 않는다.
-    val baseRowWeights = templateState.rowWeights ?: List(templateState.rows.coerceAtLeast(1)) { 1f }
-    val nextRowWeights = baseRowWeights + 1f
-
-    return templateState.copy(
-        rows = templateState.rows + 1,
-        cells = templateState.cells + newCells,
-        rowWeights = nextRowWeights
-    )
-}
-
-private fun removeRow(templateState: TableTemplateState): TableTemplateState {
-    val lastRowIndex = templateState.rows - 1
-
-    val baseRowWeights = templateState.rowWeights ?: List(templateState.rows.coerceAtLeast(1)) { 1f }
-    val nextRowWeights = if (baseRowWeights.isNotEmpty()) baseRowWeights.dropLast(1) else baseRowWeights
-
-    return templateState.copy(
-        rows = templateState.rows - 1,
-        cells = templateState.cells.filterNot { it.rowIndex == lastRowIndex },
-        rowWeights = nextRowWeights
-    )
-}
-
-private fun addColumn(templateState: TableTemplateState): TableTemplateState {
-    val newColIndex = templateState.cols
-    val newCells = (0 until templateState.rows).map { row ->
-        TableCellState(
-            rowIndex = row,
-            colIndex = newColIndex,
-            kind = TableCellKind.INPUT,
-            dataType = TableCellDataType.TEXT,
-            rawText = "",
-            typedValue = CellValue.Text(""),
-            fileNameInclude = false,
-            groupLevel = GroupLevel.NONE,
-            label = ""
-        )
-    }
-
-    // Stage 1: colWeights는 "열 단위 너비 비율"을 위한 데이터. 아직 렌더링에는 반영하지 않는다.
-    val baseColWeights = templateState.colWeights ?: List(templateState.cols.coerceAtLeast(1)) { 1f }
-    val nextColWeights = baseColWeights + 1f
-
-    return templateState.copy(
-        cols = templateState.cols + 1,
-        cells = templateState.cells + newCells,
-        colWeights = nextColWeights
-    )
-}
-
-private fun removeColumn(templateState: TableTemplateState): TableTemplateState {
-    val lastColIndex = templateState.cols - 1
-
-    val baseColWeights = templateState.colWeights ?: List(templateState.cols.coerceAtLeast(1)) { 1f }
-    val nextColWeights = if (baseColWeights.isNotEmpty()) baseColWeights.dropLast(1) else baseColWeights
-
-    return templateState.copy(
-        cols = templateState.cols - 1,
-        cells = templateState.cells.filterNot { it.colIndex == lastColIndex },
-        colWeights = nextColWeights
-    )
-}
 
 /**
  * DataType 변경 시 공통 규칙(일관 UX)
