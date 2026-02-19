@@ -1,6 +1,8 @@
 package com.example.dzlog.data.template
 
+import com.example.dzlog.domain.model.CellKey
 import com.example.dzlog.domain.model.CellValue
+import com.example.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.HourSystem
 import com.example.dzlog.domain.model.TableCellDataType
@@ -28,6 +30,19 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
             val w = root.getJSONArray("colWeights")
             List(w.length()) { idx -> w.optDouble(idx, 1.0).toFloat() }
         } else null
+
+        val fileNameSlots: List<CellKey?> = if (root.has("fileNameSlots")) {
+            val slotArray = root.optJSONArray("fileNameSlots") ?: JSONArray()
+            List(FILE_NAME_SLOT_COUNT) { idx ->
+                when {
+                    slotArray.isNull(idx) -> null
+                    else -> slotArray.optString(idx)
+                        .takeUnless { it.isBlank() || it == "null" }
+                }
+            }
+        } else {
+            List(FILE_NAME_SLOT_COUNT) { null }
+        }
 
         val phraseSets = if (root.has("phraseSets")) {
             val sets = root.optJSONArray("phraseSets") ?: JSONArray()
@@ -109,7 +124,15 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                 )
             }
         }
-        TableTemplateState(rows = rows, cols = cols, cells = cells, rowWeights = rowWeights, colWeights = colWeights, phraseSets = phraseSets)
+        TableTemplateState(
+            rows = rows,
+            cols = cols,
+            cells = cells,
+            rowWeights = rowWeights,
+            colWeights = colWeights,
+            phraseSets = phraseSets,
+            fileNameSlots = fileNameSlots
+        )
     }.getOrNull()
 }
 
@@ -213,6 +236,12 @@ fun TableTemplateState.toJsonString(): String {
         w.forEach { jw.put(it.toDouble()) }
         root.put("colWeights", jw)
     }
+
+    val fileNameSlotsJson = JSONArray()
+    fileNameSlots.take(FILE_NAME_SLOT_COUNT).forEach { slot ->
+        fileNameSlotsJson.put(slot ?: JSONObject.NULL)
+    }
+    root.put("fileNameSlots", fileNameSlotsJson)
 
     if (phraseSets.isNotEmpty()) {
         val phraseSetsJson = JSONArray()
