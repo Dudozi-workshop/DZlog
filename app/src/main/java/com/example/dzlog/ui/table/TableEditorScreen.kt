@@ -760,6 +760,20 @@ fun TableEditorScreen(
                                     }
                                 }
                             },
+                            onReorderFileNameSlots = { fromIndex, toIndex ->
+                                if (fromIndex != toIndex && fromIndex in 0..2 && toIndex in 0..2) {
+                                    val slots = templateState.fileNameSlots.take(3).toMutableList()
+                                    while (slots.size < 3) slots.add(null)
+
+                                    val temp = slots[fromIndex]
+                                    slots[fromIndex] = slots[toIndex]
+                                    slots[toIndex] = temp
+
+                                    if (slots != templateState.fileNameSlots) {
+                                        onTemplateChange(templateState.copy(fileNameSlots = slots))
+                                    }
+                                }
+                            },
                             onPathGroupActionForSelected = { action ->
                                 selectedCell?.let { cell ->
                                     val updated = applyPathGroupAction(

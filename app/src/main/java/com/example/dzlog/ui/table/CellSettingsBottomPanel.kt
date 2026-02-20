@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,16 +14,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.example.dzlog.domain.model.GroupLevel
@@ -42,6 +50,7 @@ internal fun CellSettingsBottomPanel(
     hasGroup2: Boolean,
     onToggleFileNameForCell: (cellId: String, enabled: Boolean) -> Unit,
     onAssignFileNameSlotForCell: (cellId: String, slotIndex: Int) -> Unit,
+    onReorderFileNameSlots: (fromIndex: Int, toIndex: Int) -> Unit,
     onPathGroupAction: (PathGroupAction) -> Unit,
     onSetDataType: (TableCellDataType) -> Unit,
     onResetCounterSeed: (() -> Unit)? = null,
@@ -50,7 +59,7 @@ internal fun CellSettingsBottomPanel(
 ) {
     val context = LocalContext.current
     val isIncluded = templateState.fileNameSlots.contains(cell.cellId)
-    val slotIndexOfCell = templateState.fileNameSlots.indexOf(cell.cellId)
+    var dragFromIndex by remember { mutableStateOf<Int?>(null) }
 
     Column(
         modifier = modifier
@@ -111,7 +120,15 @@ internal fun CellSettingsBottomPanel(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 repeat(FILE_NAME_SLOT_COUNT) { index ->
-                    val isSelected = slotIndexOfCell == index
+                    val slotCellId = templateState.fileNameSlots.getOrNull(index)
+                    val slotCell = templateState.cells.firstOrNull { it.cellId == slotCellId }
+                    val slotText = when {
+                        slotCellId == null -> "비어있음"
+                        slotCell?.rawText?.isNotBlank() == true -> slotCell.rawText
+                        else -> "(값 없음)"
+                    }
+                    val isSelected = slotCellId == cell.cellId
+                    val isDragSource = dragFromIndex == index
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -121,17 +138,39 @@ internal fun CellSettingsBottomPanel(
                                 shape = RoundedCornerShape(14.dp)
                             )
                             .border(
-                                width = if (isSelected) 1.5.dp else 1.dp,
-                                color = if (isSelected) DDZColor.Primary else DDZColor.Border,
+                                width = if (isDragSource) 2.dp else if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isDragSource || isSelected) DDZColor.Primary else DDZColor.Border,
                                 shape = RoundedCornerShape(14.dp)
                             )
-                            .clickable { onAssignFileNameSlotForCell(cell.cellId, index) },
+                            .pointerInput(dragFromIndex) {
+                                detectTapGestures(
+                                    onLongPress = { dragFromIndex = index },
+                                    onTap = {
+                                        val from = dragFromIndex
+                                        when {
+                                            from != null && from != index -> {
+                                                onReorderFileNameSlots(from, index)
+                                                dragFromIndex = null
+                                            }
+
+                                            from == index -> {
+                                                dragFromIndex = null
+                                            }
+
+                                            else -> onAssignFileNameSlotForCell(cell.cellId, index)
+                                        }
+                                    }
+                                )
+                            }
+                            .padding(horizontal = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "${index + 1}",
+                            text = slotText,
                             style = DDZTypography.ButtonText,
-                            color = if (isSelected) Color.White else DDZColor.TextPrimary
+                            color = if (isSelected) Color.White else DDZColor.TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
