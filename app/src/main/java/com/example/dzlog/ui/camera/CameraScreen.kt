@@ -69,6 +69,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
+import com.example.dzlog.data.datastore.AppSettings
 import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
@@ -243,7 +244,7 @@ fun CameraPreview(
         includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
     )
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
-    var resumeResyncTick by remember { mutableIntStateOf(-1) }
+    var resumeResyncTick by remember { mutableIntStateOf(0) }
     var undoResyncTick by remember { mutableIntStateOf(0) }
     var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
 
@@ -333,6 +334,7 @@ fun CameraPreview(
         counterDigits = ui.prefs.counterDigits,
         resumeTick = resumeResyncTick,
         undoTick = undoResyncTick,
+        appSettings = appSettings,
         ui = ui
     )
 
@@ -877,21 +879,11 @@ private fun SyncCounterSeedEffect(
     counterDigits: Int,
     resumeTick: Int,
     undoTick: Int,
+    appSettings: AppSettings,
     ui: CameraUiState
 ) {
-    val appSettings by AppSettingsStore.flow(context).collectAsState(
-        initial = com.example.dzlog.data.datastore.AppSettings(
-            saveMode = SaveMode.BOTH,
-            continuousPreviewMode = ContinuousPreviewMode.OFF,
-            counterPadding = 3,
-            includePathInCounterScope = true,
-            includeFilenameInCounterScope = true,
-            toastEnabled = true,
-            hapticEnabled = true,
-            captureHapticEnabled = true,
-            blankWarningEnabled = true,
-        )
-    )
+    var lastResumeTick by remember { mutableIntStateOf(-1) }
+    var lastUndoTick by remember { mutableIntStateOf(-1) }
     val scopedStream = remember(
         streamContext.relativePathKey,
         streamContext.streamPrefix,
@@ -911,10 +903,6 @@ private fun SyncCounterSeedEffect(
         resumeTick,
         undoTick,
     ) {
-        if (resumeTick < 0 && ui.counter.lastScopeSnapshot == null) {
-            return@LaunchedEffect
-        }
-
         val scopeSnapshot = buildCounterScopeSnapshot(
             streamContext = streamContext,
             includePathInScope = appSettings.includePathInCounterScope,
@@ -937,11 +925,14 @@ private fun SyncCounterSeedEffect(
             previous = ui.counter.lastScopeSnapshot,
             current = scopeSnapshot
         )
-        ui.counter.scopeNextCounter = if (isNewStream) {
+        val isExternalResync = (resumeTick != lastResumeTick) || (undoTick != lastUndoTick)
+        ui.counter.scopeNextCounter = if (isNewStream || isExternalResync) {
             nextSeedFromStream
         } else {
             maxOf(ui.counter.scopeNextCounter, nextSeedFromStream)
         }
+        lastResumeTick = resumeTick
+        lastUndoTick = undoTick
         ui.counter.lastScopeSnapshot = scopeSnapshot
 
     }
