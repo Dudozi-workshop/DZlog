@@ -48,7 +48,6 @@ internal fun CellSettingsBottomPanel(
     hasGroup1: Boolean,
     hasGroup2: Boolean,
     onToggleFileNameForCell: (cellId: String, enabled: Boolean) -> Unit,
-    onAssignFileNameSlotForCell: (cellId: String, slotIndex: Int) -> Unit,
     onReorderFileNameSlots: (fromIndex: Int, toIndex: Int) -> Unit,
     onPathGroupAction: (PathGroupAction) -> Unit,
     onSetDataType: (TableCellDataType) -> Unit,
@@ -58,7 +57,8 @@ internal fun CellSettingsBottomPanel(
 ) {
     val context = LocalContext.current
     val isIncluded = templateState.fileNameSlots.contains(cell.cellId)
-    var dragFromIndex by remember { mutableStateOf<Int?>(null) }
+    var isSlotEditMode by remember { mutableStateOf(false) }
+    var selectedFromIndex by remember { mutableStateOf<Int?>(null) }
 
     Column(
         modifier = modifier
@@ -111,6 +111,12 @@ internal fun CellSettingsBottomPanel(
                 }
             }
 
+            Text(
+                text = if (isSlotEditMode) "슬롯 편집 중: 두 칸을 탭해 순서를 바꾸세요" else "슬롯을 길게 눌러 편집",
+                style = DDZTypography.Caption,
+                color = DDZColor.TextMuted
+            )
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -127,36 +133,43 @@ internal fun CellSettingsBottomPanel(
                         else -> "(값 없음)"
                     }
                     val isSelected = slotCellId == cell.cellId
-                    val isDragSource = dragFromIndex == index
+                    val isFromSelected = isSlotEditMode && selectedFromIndex == index
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .height(44.dp)
                             .background(
-                                color = if (isSelected) DDZColor.Primary else DDZColor.Surface,
+                                color = if (!isSlotEditMode && isSelected) DDZColor.Primary else DDZColor.Surface,
                                 shape = RoundedCornerShape(14.dp)
                             )
                             .border(
-                                width = if (isDragSource) 2.dp else if (isSelected) 1.5.dp else 1.dp,
-                                color = if (isDragSource || isSelected) DDZColor.Primary else DDZColor.Border,
+                                width = if (isFromSelected) 2.dp else if (!isSlotEditMode && isSelected) 1.5.dp else 1.dp,
+                                color = if (isFromSelected || (!isSlotEditMode && isSelected)) DDZColor.Primary else DDZColor.Border,
                                 shape = RoundedCornerShape(14.dp)
                             )
-                            .pointerInput(dragFromIndex) {
+                            .pointerInput(isSlotEditMode, selectedFromIndex) {
                                 detectTapGestures(
-                                    onLongPress = { dragFromIndex = index },
-                                    onTap = {
-                                        val from = dragFromIndex
-                                        if (from != null) {
-                                            if (from != index) {
-                                                onReorderFileNameSlots(from, index)
-                                            }
-                                            dragFromIndex = null
+                                    onLongPress = {
+                                        if (!isSlotEditMode) {
+                                            isSlotEditMode = true
+                                            selectedFromIndex = null
                                         } else {
-                                            val curr = templateState.fileNameSlots.indexOf(cell.cellId)
-                                            if (curr < 0) {
-                                                Toast.makeText(context, "ON 후 이동", Toast.LENGTH_SHORT).show()
-                                            } else if (curr != index) {
-                                                onReorderFileNameSlots(curr, index)
+                                            isSlotEditMode = false
+                                            selectedFromIndex = null
+                                        }
+                                    },
+                                    onTap = {
+                                        if (!isSlotEditMode) {
+                                            Toast.makeText(context, "길게 눌러 편집", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            val from = selectedFromIndex
+                                            if (from == null) {
+                                                selectedFromIndex = index
+                                            } else {
+                                                if (from != index) {
+                                                    onReorderFileNameSlots(from, index)
+                                                }
+                                                selectedFromIndex = null
                                             }
                                         }
                                     }
@@ -168,7 +181,7 @@ internal fun CellSettingsBottomPanel(
                         Text(
                             text = slotText,
                             style = DDZTypography.ButtonText,
-                            color = if (isSelected) Color.White else DDZColor.TextPrimary,
+                            color = if (!isSlotEditMode && isSelected) Color.White else DDZColor.TextPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
