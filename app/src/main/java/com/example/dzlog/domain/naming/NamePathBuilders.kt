@@ -1,5 +1,7 @@
 package com.example.dzlog.domain.naming
 
+import com.example.dzlog.domain.model.CellKey
+import com.example.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellState
@@ -85,6 +87,7 @@ fun buildDisplayNameFromResolvedCells(
     fnDelim: String,
     includeDate: Boolean,
     includeTime: Boolean,
+    fileNameSlots: List<CellKey?>? = null,
     counterDigits: Int = 0,
     counterOverride: Int? = null,
     now: Date = Date()
@@ -92,13 +95,24 @@ fun buildDisplayNameFromResolvedCells(
     val ordered = resolvedCells
         .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
 
-    val prefix = buildFileNamePrefixFromResolvedCells(
-        resolvedCells = resolvedCells,
-        fnDelim = fnDelim,
-        includeDate = includeDate,
-        includeTime = includeTime,
-        now = now
-    )
+    val prefix = if (fileNameSlots != null && fileNameSlots.any { it != null }) {
+        buildFileNamePrefixFromSlots(
+            resolvedCells = resolvedCells,
+            slots = fileNameSlots,
+            fnDelim = fnDelim,
+            includeDate = includeDate,
+            includeTime = includeTime,
+            now = now
+        )
+    } else {
+        buildFileNamePrefixFromResolvedCells(
+            resolvedCells = resolvedCells,
+            fnDelim = fnDelim,
+            includeDate = includeDate,
+            includeTime = includeTime,
+            now = now
+        )
+    }
 
     // COUNTER는 resolver가 padding까지 완료한 값을 제공한다.
     val counterText = ordered.firstOrNull { it.type == TableCellDataType.COUNTER }?.resolvedText
@@ -120,6 +134,43 @@ fun buildDisplayNameFromResolvedCells(
     val base = "${prefix}_${counterFinal}"
     val withExt = if (base.endsWith(".jpg", true) || base.endsWith(".jpeg", true)) base else "$base.jpg"
     return sanitizeFilePart(withExt)
+}
+
+fun buildFileNamePrefixFromSlots(
+    resolvedCells: List<ResolvedCell>,
+    slots: List<CellKey?>,
+    fnDelim: String,
+    includeDate: Boolean,
+    includeTime: Boolean,
+    now: Date = Date()
+): String {
+    val delim = fnDelim.ifBlank { "_" }
+    val normalizedSlots = slots.take(FILE_NAME_SLOT_COUNT) +
+        List((FILE_NAME_SLOT_COUNT - slots.size).coerceAtLeast(0)) { null }
+
+    val parts = normalizedSlots
+        .asSequence()
+        .mapNotNull { slot ->
+            slot?.let { key -> resolvedCells.firstOrNull { rc -> rc.id == key } }
+        }
+        .mapNotNull { rc ->
+            when (rc.type) {
+                TableCellDataType.COUNTER -> null
+                TableCellDataType.DATE,
+                TableCellDataType.TIME -> digitsOnly(rc.resolvedText)
+                else -> sanitizeFilePart(rc.resolvedText)
+            }.takeIf { !it.isNullOrBlank() }
+        }
+        .toMutableList()
+
+    if (includeDate || includeTime) {
+        if (includeDate) parts.add(SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(now))
+        if (includeTime) parts.add(SimpleDateFormat("HHmmss", Locale.getDefault()).format(now))
+    }
+
+    if (parts.isEmpty()) parts.add("DZlog")
+
+    return parts.joinToString(delim)
 }
 
 fun buildFileNamePrefixFromResolvedCells(

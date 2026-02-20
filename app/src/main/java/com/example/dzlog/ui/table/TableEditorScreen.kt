@@ -98,6 +98,8 @@ import com.example.dzlog.ui.table.section.LayoutTabUiState
 import com.example.dzlog.ui.table.section.PreviewTabContent
 import com.example.dzlog.ui.table.section.TableEditorTabs
 import com.example.dzlog.ui.table.template.*
+import com.example.dzlog.ui.table.template.addToFileNameSlots
+import com.example.dzlog.ui.table.template.removeFromFileNameSlots
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.delay
@@ -724,12 +726,52 @@ fun TableEditorScreen(
                                 commitInlineEditIfNeeded()
                                 showCellSettingsPanel = false
                             },
-                            onSetFileNameIncludeForSelected = { checked ->
-                                selectedCell?.let { cell ->
-                                    val updated = updateCell(templateState, cell.cellId) { c ->
-                                        c.copy(fileNameInclude = checked)
+                            onToggleFileNameForSelected = { cellId, enabled ->
+                                val nextSlots = if (enabled) {
+                                    addToFileNameSlots(templateState.fileNameSlots, cellId)
+                                } else {
+                                    removeFromFileNameSlots(templateState.fileNameSlots, cellId)
+                                }
+                                if (nextSlots != templateState.fileNameSlots) {
+                                    onTemplateChange(templateState.copy(fileNameSlots = nextSlots))
+                                }
+                            },
+                            onAssignFileNameSlotForSelected = { cellId, slotIndex ->
+                                if (slotIndex in 0..2) {
+                                    val slots = templateState.fileNameSlots.take(3).toMutableList()
+                                    while (slots.size < 3) slots.add(null)
+
+                                    val prev = slots[slotIndex]
+
+                                    for (i in slots.indices) {
+                                        if (slots[i] == cellId) slots[i] = null
                                     }
-                                    onTemplateChange(updated)
+
+                                    if (prev != null) {
+                                        for (i in slots.indices) {
+                                            if (slots[i] == prev) slots[i] = null
+                                        }
+                                    }
+
+                                    slots[slotIndex] = cellId
+
+                                    if (slots != templateState.fileNameSlots) {
+                                        onTemplateChange(templateState.copy(fileNameSlots = slots))
+                                    }
+                                }
+                            },
+                            onReorderFileNameSlots = { fromIndex, toIndex ->
+                                if (fromIndex != toIndex && fromIndex in 0..2 && toIndex in 0..2) {
+                                    val slots = templateState.fileNameSlots.take(3).toMutableList()
+                                    while (slots.size < 3) slots.add(null)
+
+                                    val temp = slots[fromIndex]
+                                    slots[fromIndex] = slots[toIndex]
+                                    slots[toIndex] = temp
+
+                                    if (slots != templateState.fileNameSlots) {
+                                        onTemplateChange(templateState.copy(fileNameSlots = slots))
+                                    }
                                 }
                             },
                             onPathGroupActionForSelected = { action ->
