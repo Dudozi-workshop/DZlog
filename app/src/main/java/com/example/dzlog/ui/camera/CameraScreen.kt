@@ -57,12 +57,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.datastore.AppSettingsStore
@@ -87,17 +91,13 @@ import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.example.dzlog.domain.counter.CounterStreamContext
 import com.example.dzlog.domain.counter.buildCounterStreamContext
-import com.example.dzlog.domain.counter.policy.CounterSeedInput
 import com.example.dzlog.domain.counter.policy.buildCounterScopeSnapshot
-import com.example.dzlog.domain.counter.policy.decideCounterSeed
 import com.example.dzlog.domain.counter.policy.isNewCounterScope
 import com.example.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.example.dzlog.domain.model.CaptureAspect
-import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.MediaImageItem
 import com.example.dzlog.domain.model.SaveMode
-import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.NamingFormatDefaults
@@ -106,9 +106,7 @@ import com.example.dzlog.domain.preview.decideTickUnit
 import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.feature.capture.io.createCaptureRepository
 import com.example.dzlog.feature.capture.permission.hasCameraPermission
-import com.example.dzlog.feature.capture.policy.CounterResyncPolicy
 import com.example.dzlog.feature.capture.policy.UndoCapturePolicy
-import com.example.dzlog.feature.capture.policy.stabilizeStreamNextCounter
 import com.example.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.example.dzlog.ui.camera.controls.CaptureButtonSection
 import com.example.dzlog.ui.camera.controls.ZoomControlSection
@@ -198,9 +196,11 @@ fun CameraPreview(
             includeFilenameInCounterScope = true,
             toastEnabled = true,
             hapticEnabled = true,
+            captureHapticEnabled = true,
             blankWarningEnabled = true,
         )
     )
+    val haptic = LocalHapticFeedback.current
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
@@ -243,6 +243,8 @@ fun CameraPreview(
         includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
     )
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
+    var resumeResyncTick by remember { mutableIntStateOf(-1) }
+    var undoResyncTick by remember { mutableIntStateOf(0) }
     var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
 
     suspend fun reloadLatestImage() {
@@ -254,12 +256,19 @@ fun CameraPreview(
 
     suspend fun syncAfterUndoDelete() {
         reloadLatestImage()
-        ui.counter.scopeNextCounter = CounterResyncPolicy.refreshNextCounterFromMediaStore(
-            context = context,
-            streamContext = counterStreamContext,
-            counterDigits = ui.prefs.counterDigits,
-            fnDelim = fnDelim
-        )
+        undoResyncTick += 1
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                resumeResyncTick += 1
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     LaunchedEffect(Unit) { reloadLatestImage() }
@@ -320,10 +329,10 @@ fun CameraPreview(
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
     SyncCounterSeedEffect(
         context = context,
-        tableCells = tableCells,
         streamContext = counterStreamContext,
         counterDigits = ui.prefs.counterDigits,
-        refreshTick = mediaStoreRefreshTick,
+        resumeTick = resumeResyncTick,
+        undoTick = undoResyncTick,
         ui = ui
     )
 
@@ -643,6 +652,7 @@ fun CameraPreview(
                             scopeNextCounter = ui.counter.scopeNextCounter,
                             includePathInCounterScope = appSettings.includePathInCounterScope,
                             includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+                            captureHapticEnabled = appSettings.captureHapticEnabled,
                             captureAspect = ui.prefs.captureAspect,
                             saveMode = ui.prefs.saveMode,
                             wmTableAnchor = ui.prefs.wmTableAnchor,
@@ -663,6 +673,9 @@ fun CameraPreview(
                             onAddToSessionStack = { uris ->
                                 UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
                                 scope.launch { reloadLatestImage() }
+                            },
+                            onHaptic = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             },
                             onSetCapturedUri = {
                                 ui.capture.capturedUri = it
@@ -860,10 +873,10 @@ private fun rememberCounterStreamContext(
 @Composable
 private fun SyncCounterSeedEffect(
     context: android.content.Context,
-    tableCells: List<com.example.dzlog.domain.model.TableCellState>,
     streamContext: CounterStreamContext,
     counterDigits: Int,
-    refreshTick: Int,
+    resumeTick: Int,
+    undoTick: Int,
     ui: CameraUiState
 ) {
     val appSettings by AppSettingsStore.flow(context).collectAsState(
@@ -875,6 +888,7 @@ private fun SyncCounterSeedEffect(
             includeFilenameInCounterScope = true,
             toastEnabled = true,
             hapticEnabled = true,
+            captureHapticEnabled = true,
             blankWarningEnabled = true,
         )
     )
@@ -894,20 +908,23 @@ private fun SyncCounterSeedEffect(
     LaunchedEffect(
         scopedStream.scopeParts.scopeKey,
         counterDigits,
-        refreshTick,
+        resumeTick,
+        undoTick,
     ) {
+        if (resumeTick < 0 && ui.counter.lastScopeSnapshot == null) {
+            return@LaunchedEffect
+        }
+
         val scopeSnapshot = buildCounterScopeSnapshot(
             streamContext = streamContext,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
         )
 
-        val templateCounterSeed = tableCells
-            .firstOrNull { it.dataType == TableCellDataType.COUNTER }
-            ?.typedValue
-            .let { it as? CellValue.CounterSeed }
-            ?.start
-            ?.coerceAtLeast(1)
+        if (ui.capture.isCapturing) {
+            ui.counter.lastScopeSnapshot = scopeSnapshot
+            return@LaunchedEffect
+        }
 
         val nextSeedFromStream = CaptureCounterPolicy.getNextCounter(
             context = context,
@@ -920,20 +937,11 @@ private fun SyncCounterSeedEffect(
             previous = ui.counter.lastScopeSnapshot,
             current = scopeSnapshot
         )
-        val stableStreamNext = stabilizeStreamNextCounter(
-            streamNextFromPolicy = nextSeedFromStream,
-            currentScopeNext = ui.counter.scopeNextCounter,
-            isNewStream = isNewStream
-        )
-        val input = CounterSeedInput(
-            streamNext = stableStreamNext,
-            currentSeed = ui.counter.scopeNextCounter,
-            isNewStream = isNewStream,
-            templateCounterSeed = templateCounterSeed,
-        )
-        val decision = decideCounterSeed(input)
-
-        ui.counter.scopeNextCounter = decision.desiredSeed
+        ui.counter.scopeNextCounter = if (isNewStream) {
+            nextSeedFromStream
+        } else {
+            maxOf(ui.counter.scopeNextCounter, nextSeedFromStream)
+        }
         ui.counter.lastScopeSnapshot = scopeSnapshot
 
     }

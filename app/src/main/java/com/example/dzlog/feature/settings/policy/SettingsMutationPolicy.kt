@@ -35,6 +35,11 @@ suspend fun updateHapticEnabled(context: Context, enabled: Boolean): String {
     return "진동: ${if (enabled) "ON" else "OFF"}"
 }
 
+suspend fun updateCaptureHapticEnabled(context: Context, enabled: Boolean): String {
+    AppSettingsStore.setCaptureHapticEnabled(context, enabled)
+    return "촬영 진동: ${if (enabled) "ON" else "OFF"}"
+}
+
 suspend fun updateBlankWarningEnabled(context: Context, enabled: Boolean): String {
     AppSettingsStore.setBlankWarningEnabled(context, enabled)
     return "공백 경고: ${if (enabled) "ON" else "OFF"}"

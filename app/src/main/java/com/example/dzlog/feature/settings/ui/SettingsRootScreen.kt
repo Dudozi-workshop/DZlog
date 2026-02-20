@@ -68,6 +68,7 @@ fun SettingsRootScreen(
             includeFilenameInCounterScope = true,
             toastEnabled = true,
             hapticEnabled = true,
+            captureHapticEnabled = true,
             blankWarningEnabled = true,
         )
     )
@@ -179,6 +180,7 @@ fun SettingsRootScreen(
         SystemAppCard(
             toastEnabled = settings.toastEnabled,
             hapticEnabled = settings.hapticEnabled,
+            captureHapticEnabled = settings.captureHapticEnabled,
             blankWarningEnabled = settings.blankWarningEnabled,
             isStorageGranted = isStorageGranted,
             onToastEnabledChange = { enabled ->
@@ -189,6 +191,11 @@ fun SettingsRootScreen(
             onHapticEnabledChange = { enabled ->
                 scope.launch {
                     applySettingsAction(context, SettingsAction.HapticEnabledChanged(enabled))?.let(::showSettingsToast)
+                }
+            },
+            onCaptureHapticEnabledChange = { enabled ->
+                scope.launch {
+                    applySettingsAction(context, SettingsAction.CaptureHapticEnabledChanged(enabled))?.let(::showSettingsToast)
                 }
             },
             onBlankWarningEnabledChange = { enabled ->
@@ -313,10 +320,12 @@ private fun QuickControlsCard(
 private fun SystemAppCard(
     toastEnabled: Boolean,
     hapticEnabled: Boolean,
+    captureHapticEnabled: Boolean,
     blankWarningEnabled: Boolean,
     isStorageGranted: Boolean,
     onToastEnabledChange: (Boolean) -> Unit,
     onHapticEnabledChange: (Boolean) -> Unit,
+    onCaptureHapticEnabledChange: (Boolean) -> Unit,
     onBlankWarningEnabledChange: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
@@ -340,6 +349,10 @@ private fun SystemAppCard(
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.weight(1f)) { Text("진동", style = DDZTypography.Body, color = DDZColor.TextPrimary) }
                 Switch(checked = hapticEnabled, onCheckedChange = onHapticEnabledChange)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.weight(1f)) { Text("촬영 진동", style = DDZTypography.Body, color = DDZColor.TextPrimary) }
+                Switch(checked = captureHapticEnabled, onCheckedChange = onCaptureHapticEnabledChange)
             }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.weight(1f)) { Text("공백 경고", style = DDZTypography.Body, color = DDZColor.TextPrimary) }

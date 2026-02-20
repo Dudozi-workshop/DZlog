@@ -44,6 +44,7 @@ internal fun handleCaptureClick(
     scopeNextCounter: Int,
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean,
+    captureHapticEnabled: Boolean,
     captureAspect: CaptureAspect,
     saveMode: com.example.dzlog.domain.model.SaveMode,
     wmTableAnchor: WatermarkTableAnchor,
@@ -72,6 +73,7 @@ internal fun handleCaptureClick(
     onApplyTemplatePatch: (TableTemplateState) -> Unit,
     onUpdateScopeNextCounter: (Int) -> Unit,
     onAddToSessionStack: (List<Uri>) -> Unit,
+    onHaptic: () -> Unit,
     onSetCapturedUri: (Uri?) -> Unit,
     onSetCapturing: (Boolean) -> Unit
 ) {
@@ -87,6 +89,9 @@ internal fun handleCaptureClick(
     // ✅ 중복 촬영 방지: 첫 클릭만 통과
     if (!gate.compareAndSet(false, true)) return
     onSetCapturing(true)
+    if (captureHapticEnabled) onHaptic()
+    val optimisticNext = (scopeNextCounter + 1).coerceAtLeast(1)
+    onUpdateScopeNextCounter(optimisticNext)
 
     val captureNow = Date()
     val planForCapture = tableResolver.plan(
@@ -145,9 +150,6 @@ internal fun handleCaptureClick(
         imageCapture = imageCaptureNonNull,
         request = req,
         onDone = { entry ->
-            gate.set(false)
-            onSetCapturing(false)
-
             onApplyTemplatePatch(tableTemplateState.applyPatch(planForCapture.patch))
 
             val committedCounter = CaptureNamingPolicy.parseUsedCounterFromDisplayName(
@@ -187,9 +189,12 @@ internal fun handleCaptureClick(
             if (continuousPreviewMode != ContinuousPreviewMode.OFF) {
                 onSetCapturedUri(entry.contentUri)
             }
-            Toast.makeText(context, "저장 완료", Toast.LENGTH_SHORT).show()
+
+            gate.set(false)
+            onSetCapturing(false)
         },
         onFail = { msg ->
+            onUpdateScopeNextCounter(scopeNextCounter)
             gate.set(false)
             onSetCapturing(false)
             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()

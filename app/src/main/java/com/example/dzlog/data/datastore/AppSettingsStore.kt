@@ -3,6 +3,7 @@ package com.example.dzlog.data.datastore
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.preferences.KEY_BLANK_WARNING_ENABLED
+import com.example.dzlog.data.preferences.KEY_CAPTURE_HAPTIC_ENABLED
 import com.example.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_HAPTIC_ENABLED
@@ -24,6 +25,7 @@ data class AppSettings(
     val includeFilenameInCounterScope: Boolean,
     val toastEnabled: Boolean,
     val hapticEnabled: Boolean,
+    val captureHapticEnabled: Boolean = true,
     val blankWarningEnabled: Boolean,
 )
 
@@ -39,6 +41,7 @@ object AppSettingsStore {
                 includeFilenameInCounterScope = prefs[KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE] ?: true,
                 toastEnabled = prefs[KEY_TOAST_ENABLED] ?: true,
                 hapticEnabled = prefs[KEY_HAPTIC_ENABLED] ?: true,
+                captureHapticEnabled = prefs[KEY_CAPTURE_HAPTIC_ENABLED] ?: true,
                 blankWarningEnabled = prefs[KEY_BLANK_WARNING_ENABLED] ?: true,
             )
         }
@@ -69,6 +72,10 @@ object AppSettingsStore {
 
     suspend fun setHapticEnabled(context: Context, enabled: Boolean) {
         context.dataStore.edit { it[KEY_HAPTIC_ENABLED] = enabled }
+    }
+
+    suspend fun setCaptureHapticEnabled(context: Context, enabled: Boolean) {
+        context.dataStore.edit { it[KEY_CAPTURE_HAPTIC_ENABLED] = enabled }
     }
 
     suspend fun setBlankWarningEnabled(context: Context, enabled: Boolean) {

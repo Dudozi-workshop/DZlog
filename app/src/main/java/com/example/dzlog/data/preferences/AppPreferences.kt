@@ -34,6 +34,7 @@ val KEY_INCLUDE_PATH_IN_COUNTER_SCOPE = booleanPreferencesKey("include_path_in_c
 val KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE = booleanPreferencesKey("include_filename_in_counter_scope")
 val KEY_TOAST_ENABLED = booleanPreferencesKey("toast_enabled")
 val KEY_HAPTIC_ENABLED = booleanPreferencesKey("haptic_enabled")
+val KEY_CAPTURE_HAPTIC_ENABLED = booleanPreferencesKey("capture_haptic_enabled")
 val KEY_BLANK_WARNING_ENABLED = booleanPreferencesKey("blank_warning_enabled")
 
 

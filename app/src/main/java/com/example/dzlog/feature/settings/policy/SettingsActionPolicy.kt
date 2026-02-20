@@ -12,6 +12,7 @@ sealed interface SettingsAction {
     data class IncludeFilenameInCounterScopeChanged(val enabled: Boolean) : SettingsAction
     data class ToastEnabledChanged(val enabled: Boolean) : SettingsAction
     data class HapticEnabledChanged(val enabled: Boolean) : SettingsAction
+    data class CaptureHapticEnabledChanged(val enabled: Boolean) : SettingsAction
     data class BlankWarningEnabledChanged(val enabled: Boolean) : SettingsAction
 }
 
@@ -24,6 +25,7 @@ suspend fun applySettingsAction(context: Context, action: SettingsAction): Strin
         is SettingsAction.IncludeFilenameInCounterScopeChanged -> updateIncludeFilenameInCounterScope(context, action.enabled)
         is SettingsAction.ToastEnabledChanged -> updateToastEnabled(context, action.enabled)
         is SettingsAction.HapticEnabledChanged -> updateHapticEnabled(context, action.enabled)
+        is SettingsAction.CaptureHapticEnabledChanged -> updateCaptureHapticEnabled(context, action.enabled)
         is SettingsAction.BlankWarningEnabledChanged -> updateBlankWarningEnabled(context, action.enabled)
     }
 }
