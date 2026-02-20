@@ -13,14 +13,9 @@ fun buildCounterScopeParts(
     includePathInScope: Boolean,
     includeFilenameInScope: Boolean,
 ): CounterScopeParts {
-    val relativePathKey = if (includePathInScope) relativePath else "*"
-    val prefixKey = if (includeFilenameInScope) prefix else "*"
-    val scopeKey = listOfNotNull(
-        relativePathKey.takeUnless { it == "*" },
-        prefixKey.takeUnless { it == "*" },
-    ).takeIf { it.isNotEmpty() }
-        ?.joinToString("|")
-        ?: "global"
+    val relativePathKey = if (includePathInScope) relativePath else "path=off"
+    val prefixKey = if (includeFilenameInScope) prefix else "name=off"
+    val scopeKey = "$relativePathKey|$prefixKey"
 
     return CounterScopeParts(
         relativePathKey = relativePathKey,

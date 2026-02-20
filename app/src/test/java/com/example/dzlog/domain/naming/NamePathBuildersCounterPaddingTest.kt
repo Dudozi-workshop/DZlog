@@ -32,8 +32,7 @@ class NamePathBuildersCounterPaddingTest {
             colIndex = 0,
             rawText = text,
             dataType = TableCellDataType.TEXT,
-            groupLevel = GroupLevel.NONE,
-            fileNameInclude = true
+            groupLevel = GroupLevel.NONE
         )
         return ResolvedCell(
             id = "cell-1",

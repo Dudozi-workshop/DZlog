@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -188,6 +189,19 @@ fun CameraPreview(
     val scope = rememberCoroutineScope()
     val repository = remember { createCaptureRepository() }
 
+    val appSettings by AppSettingsStore.flow(context).collectAsState(
+        initial = com.example.dzlog.data.datastore.AppSettings(
+            saveMode = SaveMode.BOTH,
+            continuousPreviewMode = ContinuousPreviewMode.OFF,
+            counterPadding = 3,
+            includePathInCounterScope = true,
+            includeFilenameInCounterScope = true,
+            toastEnabled = true,
+            hapticEnabled = true,
+            blankWarningEnabled = true,
+        )
+    )
+
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     var zoomPanelExpanded by remember { mutableStateOf(false) }
@@ -223,6 +237,7 @@ fun CameraPreview(
     val counterStreamContext = rememberCounterStreamContext(
         tableResolver = tableResolver,
         tableCells = tableCells,
+        fileNameSlots = tableTemplateState.fileNameSlots,
         counterDigits = ui.prefs.counterDigits,
         nextCounter = ui.counter.scopeNextCounter,
     )
@@ -625,6 +640,8 @@ fun CameraPreview(
                             timeFormat = timeFormat,
                             fnDelim = fnDelim,
                             scopeNextCounter = ui.counter.scopeNextCounter,
+                            includePathInCounterScope = appSettings.includePathInCounterScope,
+                            includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
                             captureAspect = ui.prefs.captureAspect,
                             saveMode = ui.prefs.saveMode,
                             wmTableAnchor = ui.prefs.wmTableAnchor,
@@ -808,13 +825,14 @@ private fun rememberMediaStoreRefreshTick(context: android.content.Context): Int
 private fun rememberCounterStreamContext(
     tableResolver: TableResolver,
     tableCells: List<com.example.dzlog.domain.model.TableCellState>,
+    fileNameSlots: List<com.example.dzlog.domain.model.CellKey?>,
     counterDigits: Int,
     nextCounter: Int,
 ): CounterStreamContext {
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-    return remember(tableCells, counterDigits, nextCounter) {
+    return remember(tableCells, fileNameSlots, counterDigits, nextCounter) {
         val scopeNow = Date()
         val planForScope = tableResolver.plan(
             cells = tableCells,
@@ -827,9 +845,11 @@ private fun rememberCounterStreamContext(
         )
         buildCounterStreamContext(
             resolvedCells = planForScope.resolvedCells,
+            fileNameSlots = fileNameSlots,
             nextCounter = nextCounter,
             isManualMode = false,
-            fnDelim = fnDelim
+            fnDelim = fnDelim,
+            includeFilenameInScope = true,
         )
     }
 }

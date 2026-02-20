@@ -133,9 +133,11 @@ fun HomeScreen(
         )
         val streamContext = buildCounterStreamContext(
             resolvedCells = plan.resolvedCells,
+            fileNameSlots = tableTemplateState.fileNameSlots,
             nextCounter = 1,
             isManualMode = false,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+            includeFilenameInScope = settings.includeFilenameInCounterScope,
         )
         val scopedStream = toCaptureScopedCounterStream(
             streamContext = streamContext,
@@ -156,6 +158,8 @@ fun HomeScreen(
                 counterDigits = settings.counterPadding,
                 dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
                 timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
+                includePathInCounterScope = settings.includePathInCounterScope,
+                includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
             ),
             usedCounter = streamNext
         )

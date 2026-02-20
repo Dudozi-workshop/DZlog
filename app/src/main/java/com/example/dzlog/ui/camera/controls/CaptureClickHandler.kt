@@ -42,6 +42,8 @@ internal fun handleCaptureClick(
     timeFormat: String,
     fnDelim: String,
     scopeNextCounter: Int,
+    includePathInCounterScope: Boolean,
+    includeFilenameInCounterScope: Boolean,
     captureAspect: CaptureAspect,
     saveMode: com.example.dzlog.domain.model.SaveMode,
     wmTableAnchor: WatermarkTableAnchor,
@@ -106,7 +108,9 @@ internal fun handleCaptureClick(
             fnDelim = fnDelim,
             counterDigits = counterDigits,
             dateFormat = dateFormat,
-            timeFormat = timeFormat
+            timeFormat = timeFormat,
+            includePathInCounterScope = includePathInCounterScope,
+            includeFilenameInCounterScope = includeFilenameInCounterScope,
         ),
         usedCounter = scopeNextCounter
     )

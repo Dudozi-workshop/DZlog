@@ -42,7 +42,6 @@ data class LayoutTabActions(
     val onSave: () -> Unit,
     val onDismissSettingsPanel: () -> Unit,
     val onToggleFileNameForSelected: (cellId: String, enabled: Boolean) -> Unit,
-    val onAssignFileNameSlotForSelected: (cellId: String, slotIndex: Int) -> Unit,
     val onReorderFileNameSlots: (fromIndex: Int, toIndex: Int) -> Unit,
     val onPathGroupActionForSelected: (PathGroupAction) -> Unit,
     val onSetDataTypeForSelected: (TableCellDataType) -> Unit,

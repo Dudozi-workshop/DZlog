@@ -1,5 +1,6 @@
 package com.example.dzlog.domain.counter
 
+import com.example.dzlog.domain.model.CellKey
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.domain.naming.resolveGroupValue
@@ -18,9 +19,11 @@ data class CounterStreamContext(
 
 fun buildCounterStreamContext(
     resolvedCells: List<ResolvedCell>,
+    fileNameSlots: List<CellKey?>,
     nextCounter: Int,
     isManualMode: Boolean,
-    fnDelim: String = "_"
+    fnDelim: String = "_",
+    includeFilenameInScope: Boolean = true,
 ): CounterStreamContext {
     val g1 = resolveGroupValue(resolvedCells, GroupLevel.G1)
     val g2 = resolveGroupValue(resolvedCells, GroupLevel.G2)
@@ -34,7 +37,9 @@ fun buildCounterStreamContext(
     )
     val streamPrefix = CounterManager.computeCounterStreamPrefix(
         resolvedCells = resolvedCells,
-        fnDelim = fnDelim
+        fnDelim = fnDelim,
+        fileNameSlots = fileNameSlots,
+        includeFilenameInScope = includeFilenameInScope
     )
 
     return CounterStreamContext(

@@ -40,7 +40,6 @@ class PathGroupReducerTest {
         rawText = "",
         typedValue = CellValue.Auto,
         groupLevel = group,
-        fileNameInclude = false,
         cellId = id,
         dataType = TableCellDataType.TEXT
     )

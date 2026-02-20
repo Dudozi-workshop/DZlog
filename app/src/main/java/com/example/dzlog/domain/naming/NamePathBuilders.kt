@@ -95,24 +95,14 @@ fun buildDisplayNameFromResolvedCells(
     val ordered = resolvedCells
         .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
 
-    val prefix = if (fileNameSlots != null) {
-        buildFileNamePrefixFromSlots(
-            resolvedCells = resolvedCells,
-            slots = fileNameSlots,
-            fnDelim = fnDelim,
-            includeDate = includeDate,
-            includeTime = includeTime,
-            now = now
-        )
-    } else {
-        buildFileNamePrefixFromResolvedCells(
-            resolvedCells = resolvedCells,
-            fnDelim = fnDelim,
-            includeDate = includeDate,
-            includeTime = includeTime,
-            now = now
-        )
-    }
+    val prefix = buildFileNamePrefixFromSlots(
+        resolvedCells = resolvedCells,
+        slots = fileNameSlots ?: List(FILE_NAME_SLOT_COUNT) { null },
+        fnDelim = fnDelim,
+        includeDate = includeDate,
+        includeTime = includeTime,
+        now = now
+    )
 
     // COUNTER는 resolver가 padding까지 완료한 값을 제공한다.
     val counterText = ordered.firstOrNull { it.type == TableCellDataType.COUNTER }?.resolvedText
@@ -168,46 +158,6 @@ fun buildFileNamePrefixFromSlots(
         if (includeTime) parts.add(SimpleDateFormat("HHmmss", Locale.getDefault()).format(now))
     }
 
-    if (parts.isEmpty()) parts.add("DZlog")
-
-    return parts.joinToString(delim)
-}
-
-fun buildFileNamePrefixFromResolvedCells(
-    resolvedCells: List<ResolvedCell>,
-    fnDelim: String,
-    includeDate: Boolean,
-    includeTime: Boolean,
-    now: Date = Date()
-): String {
-    val delim = fnDelim.ifBlank { "_" }
-    val ordered = resolvedCells
-        .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
-
-    val parts = ordered
-        .asSequence()
-        .filter { rc ->
-            val raw = rc.raw
-            // COUNTER는 항상 suffix로만 붙인다(중복 방지)
-            raw != null && raw.fileNameInclude && raw.dataType != TableCellDataType.COUNTER
-        }
-        .map { rc ->
-            val raw = rc.raw
-            if (raw != null && (raw.dataType == TableCellDataType.DATE || raw.dataType == TableCellDataType.TIME)) {
-                digitsOnly(rc.resolvedText)
-            } else {
-                sanitizeFilePart(rc.resolvedText)
-            }
-        }
-        .filter { it.isNotBlank() }
-        .toMutableList()
-
-    if (includeDate || includeTime) {
-        if (includeDate) parts.add(SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(now))
-        if (includeTime) parts.add(SimpleDateFormat("HHmmss", Locale.getDefault()).format(now))
-    }
-
-    // prefix(카운터 제외)가 공백이면 "DZlog"를 붙인다.
     if (parts.isEmpty()) parts.add("DZlog")
 
     return parts.joinToString(delim)

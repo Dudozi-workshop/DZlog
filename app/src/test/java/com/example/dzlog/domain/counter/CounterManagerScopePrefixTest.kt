@@ -29,7 +29,9 @@ class CounterManagerScopePrefixTest {
 
         val prefix = CounterManager.computeCounterPrefix(
             resolvedCells = listOf(text, date, time),
-            fnDelim = "_"
+            fnDelim = "_",
+            fileNameSlots = listOf(text.id, date.id, time.id),
+            includeFilenameInScope = true,
         )
 
         assertEquals("SITE-A", prefix)
@@ -42,7 +44,9 @@ class CounterManagerScopePrefixTest {
 
         val prefix = CounterManager.computeCounterPrefix(
             resolvedCells = listOf(a, b),
-            fnDelim = "-"
+            fnDelim = "-",
+            fileNameSlots = listOf(a.id, b.id, null),
+            includeFilenameInScope = true,
         )
 
         assertEquals("A-B", prefix)
@@ -58,7 +62,6 @@ class CounterManagerScopePrefixTest {
             rowIndex = row,
             colIndex = col,
             dataType = type,
-            fileNameInclude = true,
             groupLevel = GroupLevel.NONE,
             rawText = text
         )

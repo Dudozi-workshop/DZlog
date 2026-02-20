@@ -31,7 +31,8 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
             List(w.length()) { idx -> w.optDouble(idx, 1.0).toFloat() }
         } else null
 
-        val fileNameSlots: List<CellKey?> = if (root.has("fileNameSlots")) {
+        val hasFileNameSlots = root.has("fileNameSlots")
+        val loadedFileNameSlots: List<CellKey?> = if (hasFileNameSlots) {
             val slotArray = root.optJSONArray("fileNameSlots") ?: JSONArray()
             List(FILE_NAME_SLOT_COUNT) { idx ->
                 when {
@@ -72,6 +73,7 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
         }
 
         val arr = root.getJSONArray("cells")
+        val legacyIncludeCandidates = mutableListOf<TableCellState>()
         val cells = buildList {
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
@@ -93,6 +95,8 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                     else -> CellValue.Auto
                 }
 
+                val legacyFileNameInclude = o.optBoolean("fileNameInclude", false)
+
                 val timeOpts = if (o.has("timeFormatOptions")) {
                     val t = o.getJSONObject("timeFormatOptions")
                     TimeFormatOptions(
@@ -102,15 +106,13 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                     )
                 } else null
 
-                add(
-                    TableCellState(
+                val cell = TableCellState(
                         rowIndex = o.getInt("rowIndex"),
                         colIndex = o.getInt("colIndex"),
                         kind = TableCellKind.valueOf(o.getString("kind")),
                         rawText = rawText,
                         typedValue = typedValue,
                         timeFormatOptions = timeOpts,
-                        fileNameInclude = o.optBoolean("fileNameInclude", false),
                         groupLevel = GroupLevel.valueOf(o.optString("groupLevel", GroupLevel.NONE.name)),
                         cellId = o.optString("cellId", java.util.UUID.randomUUID().toString()),
                         rowSpan = o.optInt("rowSpan", 1),
@@ -121,9 +123,23 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         label = o.optString("label", ""),
                         formatPattern = o.optString("formatPattern", "")
                     )
-                )
+                add(cell)
+                if (legacyFileNameInclude && dataType != TableCellDataType.COUNTER) {
+                    legacyIncludeCandidates.add(cell)
+                }
             }
         }
+        val fileNameSlots = if (hasFileNameSlots) {
+            loadedFileNameSlots
+        } else {
+            val migrated = legacyIncludeCandidates
+                .sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
+                .map { it.cellId }
+                .distinct()
+                .take(FILE_NAME_SLOT_COUNT)
+            migrated + List(FILE_NAME_SLOT_COUNT - migrated.size) { null }
+        }
+
         TableTemplateState(
             rows = rows,
             cols = cols,
@@ -139,85 +155,85 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
 fun defaultTableTemplateState(): TableTemplateState {
     val rows = 2
     val cols = 4
+    val cells = listOf(
+        TableCellState(
+            rowIndex = 0,
+            colIndex = 0,
+            kind = TableCellKind.INPUT,
+            rawText = "T1",
+            typedValue = CellValue.Text("T1"),
+            groupLevel = GroupLevel.G1,
+            label = "Treatment"
+        ),
+        TableCellState(
+            rowIndex = 0,
+            colIndex = 1,
+            kind = TableCellKind.INPUT,
+            rawText = "S1",
+            typedValue = CellValue.Text("S1"),
+            groupLevel = GroupLevel.G2,
+            label = "Strain"
+        ),
+        TableCellState(
+            rowIndex = 0,
+            colIndex = 2,
+            kind = TableCellKind.INPUT,
+            rawText = "DZlog",
+            typedValue = CellValue.Text("DZlog"),
+            label = "Prefix"
+        ),
+        TableCellState(
+            rowIndex = 0,
+            colIndex = 3,
+            kind = TableCellKind.INPUT,
+            rawText = "B3",
+            typedValue = CellValue.Text("B3"),
+            label = "Batch"
+        ),
+        TableCellState(
+            rowIndex = 1,
+            colIndex = 0,
+            kind = TableCellKind.INPUT,
+            rawText = "",
+            typedValue = CellValue.Text(""),
+            label = "Note"
+        ),
+        TableCellState(
+            rowIndex = 1,
+            colIndex = 1,
+            kind = TableCellKind.INPUT,
+            rawText = "",
+            typedValue = CellValue.Text(""),
+            label = "Sample"
+        ),
+        TableCellState(
+            rowIndex = 1,
+            colIndex = 2,
+            kind = TableCellKind.INPUT,
+            rawText = "",
+            typedValue = CellValue.Text(""),
+            label = "Memo 1"
+        ),
+        TableCellState(
+            rowIndex = 1,
+            colIndex = 3,
+            kind = TableCellKind.INPUT,
+            rawText = "",
+            typedValue = CellValue.Text(""),
+            label = "Memo 2"
+        )
+    )
+
+    val fileNameSlots = cells
+        .sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
+        .take(FILE_NAME_SLOT_COUNT)
+        .map { it.cellId }
+
     return TableTemplateState(
         rows = rows,
         cols = cols,
-        cells = listOf(
-            TableCellState(
-                rowIndex = 0,
-                colIndex = 0,
-                kind = TableCellKind.INPUT,
-                rawText = "T1",
-                typedValue = CellValue.Text("T1"),
-                fileNameInclude = true,
-                groupLevel = GroupLevel.G1,
-                label = "Treatment"
-            ),
-            TableCellState(
-                rowIndex = 0,
-                colIndex = 1,
-                kind = TableCellKind.INPUT,
-                rawText = "S1",
-                typedValue = CellValue.Text("S1"),
-                fileNameInclude = true,
-                groupLevel = GroupLevel.G2,
-                label = "Strain"
-            ),
-            TableCellState(
-                rowIndex = 0,
-                colIndex = 2,
-                kind = TableCellKind.INPUT,
-                rawText = "DZlog",
-                typedValue = CellValue.Text("DZlog"),
-                fileNameInclude = true,
-                label = "Prefix"
-            ),
-            TableCellState(
-                rowIndex = 0,
-                colIndex = 3,
-                kind = TableCellKind.INPUT,
-                rawText = "B3",
-                typedValue = CellValue.Text("B3"),
-                fileNameInclude = false,
-                label = "Batch"
-            ),
-            TableCellState(
-                rowIndex = 1,
-                colIndex = 0,
-                kind = TableCellKind.INPUT,
-                rawText = "",
-                typedValue = CellValue.Text(""),
-                fileNameInclude = false,
-                label = "Note"
-            ),
-            TableCellState(
-                rowIndex = 1,
-                colIndex = 1,
-                kind = TableCellKind.INPUT,
-                rawText = "",
-                typedValue = CellValue.Text(""),
-                fileNameInclude = false,
-                label = "Sample"
-            ),
-            TableCellState(
-                rowIndex = 1,
-                colIndex = 2,
-                kind = TableCellKind.INPUT,
-                rawText = "",
-                typedValue = CellValue.Text(""),
-                fileNameInclude = false,
-                label = "Memo 1"
-            ),
-            TableCellState(
-                rowIndex = 1,
-                colIndex = 3,
-                kind = TableCellKind.INPUT,
-                rawText = "",
-                typedValue = CellValue.Text(""),
-                fileNameInclude = false,
-                label = "Memo 2"
-            )
-        )
+        cells = cells,
+        fileNameSlots = fileNameSlots
     )
 }
 
@@ -267,7 +283,6 @@ fun TableTemplateState.toJsonString(): String {
         o.put("colIndex", c.colIndex)
         o.put("kind", c.kind.name)
         o.put("rawText", c.rawText)
-        o.put("fileNameInclude", c.fileNameInclude)
         o.put("groupLevel", c.groupLevel.name)
         o.put("cellId", c.cellId)
         o.put("rowSpan", c.rowSpan)

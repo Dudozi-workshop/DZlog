@@ -35,7 +35,7 @@ class TableResolver {
         val ordered = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
 
         val counterCell = ordered.firstOrNull { it.dataType == TableCellDataType.COUNTER }
-        // COUNTER ON/OFF(fileNameInclude)는 표현 토글이며,
+        // COUNTER 표기 토글은 표현 레벨이며,
         // 카운터 계산은 stream SSOT(scopeNextCounter) override가 있으면 그것을 우선한다.
         val currentCounter = counterSeedOverride?.coerceAtLeast(1)
             ?: (parseCounterSeed(counterCell) ?: 1)

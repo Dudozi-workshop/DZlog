@@ -132,7 +132,6 @@ fun LayoutTabContent(
                 hasGroup2 = uiState.hasGroup2,
                 templateState = uiState.templateState,
                 onToggleFileNameForCell = actions.onToggleFileNameForSelected,
-                onAssignFileNameSlotForCell = actions.onAssignFileNameSlotForSelected,
                 onReorderFileNameSlots = actions.onReorderFileNameSlots,
                 onPathGroupAction = actions.onPathGroupActionForSelected,
                 onSetDataType = actions.onSetDataTypeForSelected,

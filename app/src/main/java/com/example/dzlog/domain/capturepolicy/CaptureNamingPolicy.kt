@@ -65,9 +65,11 @@ internal object CaptureNamingPolicy {
         val resolvedCells = captureContext.resolvedCells
         val streamContext = buildCounterStreamContext(
             resolvedCells = resolvedCells,
+            fileNameSlots = captureContext.fileNameSlots,
             nextCounter = usedCounter,
             isManualMode = false,
-            fnDelim = captureContext.fnDelim
+            fnDelim = captureContext.fnDelim,
+            includeFilenameInScope = captureContext.includeFilenameInCounterScope,
         )
         val g1 = resolveGroupValue(resolvedCells, GroupLevel.G1)
         val g2 = resolveGroupValue(resolvedCells, GroupLevel.G2)

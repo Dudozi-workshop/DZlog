@@ -223,6 +223,8 @@ fun TableEditorScreen(
         derivedStateOf {
             buildTableCounterStreamContext(
                 resolvedCells = planForScope.resolvedCells,
+                fileNameSlots = templateState.fileNameSlots,
+                includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
                 scopeNextCounter = counterUi.scopeNextCounter,
                 isManualCounterModeDisplay = isManualCounterModeDisplay,
             )
@@ -735,30 +737,6 @@ fun TableEditorScreen(
                                 }
                                 if (nextSlots != templateState.fileNameSlots) {
                                     onTemplateChange(templateState.copy(fileNameSlots = nextSlots))
-                                }
-                            },
-                            onAssignFileNameSlotForSelected = { cellId, slotIndex ->
-                                if (slotIndex in 0..2) {
-                                    val slots = templateState.fileNameSlots.take(3).toMutableList()
-                                    while (slots.size < 3) slots.add(null)
-
-                                    val prev = slots[slotIndex]
-
-                                    for (i in slots.indices) {
-                                        if (slots[i] == cellId) slots[i] = null
-                                    }
-
-                                    if (prev != null) {
-                                        for (i in slots.indices) {
-                                            if (slots[i] == prev) slots[i] = null
-                                        }
-                                    }
-
-                                    slots[slotIndex] = cellId
-
-                                    if (slots != templateState.fileNameSlots) {
-                                        onTemplateChange(templateState.copy(fileNameSlots = slots))
-                                    }
                                 }
                             },
                             onReorderFileNameSlots = { fromIndex, toIndex ->

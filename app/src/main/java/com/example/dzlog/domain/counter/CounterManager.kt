@@ -3,11 +3,12 @@ package com.example.dzlog.domain.counter
 import android.content.Context
 import com.example.dzlog.data.counter.scanUsedCountersFromMediaStore
 import com.example.dzlog.data.counterindex.CounterIndexRepository
+import com.example.dzlog.domain.model.CellKey
+import com.example.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.TableCellDataType
-import com.example.dzlog.domain.naming.buildFileNamePrefixFromResolvedCells
+import com.example.dzlog.domain.naming.sanitizeFilePart
 import com.example.dzlog.domain.table.ResolvedCell
-import java.util.Date
 
 /**
  * CounterManager
@@ -58,29 +59,35 @@ object CounterManager {
      */
     fun computeCounterPrefix(
         resolvedCells: List<ResolvedCell>,
-        fnDelim: String
+        fnDelim: String,
+        fileNameSlots: List<CellKey?>,
+        includeFilenameInScope: Boolean,
     ): String {
-        val scopeStableCells = resolvedCells.filterNot { rc ->
-            val dataType = rc.raw?.dataType ?: rc.type
-            dataType == TableCellDataType.DATE || dataType == TableCellDataType.TIME
-        }
+        if (!includeFilenameInScope) return "name=off"
 
-        // NOTE: includeDate/includeTime는 "강제 토큰" 추가 옵션이며,
-        // DATE/TIME 셀의 fileNameInclude 여부와는 별개다.
-        // counter 스트림에는 "설정된 셀 기반 prefix"만 반영하고, 강제 date/time 토큰은 제외한다.
-        return buildFileNamePrefixFromResolvedCells(
-            resolvedCells = scopeStableCells,
-            fnDelim = fnDelim,
-            includeDate = false,
-            includeTime = false,
-            now = Date()
-        )
+        val delim = fnDelim.ifBlank { "_" }
+        val normalizedSlots = fileNameSlots.take(FILE_NAME_SLOT_COUNT) + List((FILE_NAME_SLOT_COUNT - fileNameSlots.size).coerceAtLeast(0)) { null }
+
+        val parts = normalizedSlots
+            .asSequence()
+            .mapNotNull { slot -> slot?.let { key -> resolvedCells.firstOrNull { rc -> rc.id == key } } }
+            .mapNotNull { rc ->
+                when (rc.type) {
+                    TableCellDataType.COUNTER,
+                    TableCellDataType.DATE,
+                    TableCellDataType.TIME -> null
+                    else -> sanitizeFilePart(rc.resolvedText)
+                }?.takeIf { it.isNotBlank() }
+            }
+            .toList()
+
+        return if (parts.isEmpty()) "DZlog" else parts.joinToString(delim)
     }
 
     /**
      * 카운터 스트림용 prefix(단일 소스)
      *
-     * - basePrefix: fileNameInclude 셀 기반 prefix (COUNTER 제외)
+     * - basePrefix: 슬롯/해결값 기반 prefix (COUNTER 제외)
      * - g2Enabled : "G2 그룹 셀 존재 여부" (값이 비어도 true)
      *
      * 요구사항:
@@ -89,9 +96,16 @@ object CounterManager {
      */
     fun computeCounterStreamPrefix(
         resolvedCells: List<ResolvedCell>,
-        fnDelim: String
+        fnDelim: String,
+        fileNameSlots: List<CellKey?>,
+        includeFilenameInScope: Boolean,
     ): String {
-        val basePrefix = computeCounterPrefix(resolvedCells, fnDelim)
+        val basePrefix = computeCounterPrefix(
+            resolvedCells = resolvedCells,
+            fnDelim = fnDelim,
+            fileNameSlots = fileNameSlots,
+            includeFilenameInScope = includeFilenameInScope
+        )
         val g2Enabled = resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
         val tag = if (g2Enabled) "g2=1" else "g2=0"
         return "$basePrefix|$tag"

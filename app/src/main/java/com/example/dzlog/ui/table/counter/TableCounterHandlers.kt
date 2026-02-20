@@ -15,6 +15,7 @@ import com.example.dzlog.domain.counter.buildCounterStreamContext
 import com.example.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.example.dzlog.domain.counter.policy.buildCounterScopeSnapshot
 import com.example.dzlog.domain.counter.toCaptureScopedCounterStream
+import com.example.dzlog.domain.model.CellKey
 import com.example.dzlog.domain.model.CellValue
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellState
@@ -28,14 +29,18 @@ import kotlinx.coroutines.launch
 
 internal fun buildTableCounterStreamContext(
     resolvedCells: List<ResolvedCell>,
+    fileNameSlots: List<CellKey?>,
+    includeFilenameInCounterScope: Boolean,
     scopeNextCounter: Int,
     isManualCounterModeDisplay: Boolean
 ): CounterStreamContext =
     buildCounterStreamContext(
         resolvedCells = resolvedCells,
+        fileNameSlots = fileNameSlots,
         nextCounter = scopeNextCounter,
         isManualMode = isManualCounterModeDisplay,
-        fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+        fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+        includeFilenameInScope = includeFilenameInCounterScope,
     )
 
 internal fun buildTableScopedCounterStream(
