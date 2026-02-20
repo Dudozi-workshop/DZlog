@@ -6,6 +6,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.RecoverableSecurityException
+import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.database.ContentObserver
@@ -35,8 +36,8 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -97,8 +98,11 @@ import com.example.dzlog.domain.counter.policy.isNewCounterScope
 import com.example.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.ContinuousPreviewMode
+import com.example.dzlog.domain.model.WatermarkConfig
+import com.example.dzlog.domain.model.CellKey
 import com.example.dzlog.domain.model.MediaImageItem
 import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.NamingFormatDefaults
@@ -121,6 +125,7 @@ import com.example.dzlog.ui.log.parseG1G2FromRelativePath
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZSpacing
 import com.example.dzlog.ui.theme.DDZTypography
+import com.example.dzlog.data.preferences.persistCaptureAspect
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -189,7 +194,7 @@ fun CameraPreview(
     val repository = remember { createCaptureRepository() }
 
     val appSettings by AppSettingsStore.flow(context).collectAsState(
-        initial = com.example.dzlog.data.datastore.AppSettings(
+        initial = AppSettings(
             saveMode = SaveMode.BOTH,
             continuousPreviewMode = ContinuousPreviewMode.OFF,
             counterPadding = 3,
@@ -715,7 +720,7 @@ fun CameraPreview(
                 captureAspect = ui.prefs.captureAspect,
                 onCaptureAspectChange = { aspect ->
                     ui.prefs.captureAspect = aspect
-                    scope.launch { com.example.dzlog.data.preferences.persistCaptureAspect(context, aspect) }
+                    scope.launch { persistCaptureAspect(context, aspect) }
                 },
                 saveMode = ui.prefs.saveMode,
                 onSaveModeChange = { mode ->
@@ -759,7 +764,7 @@ private fun UndoCaptureButton(
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = Icons.Default.Undo,
+            imageVector = Icons.AutoMirrored.Filled.Undo,
             contentDescription = "Undo",
             tint = DDZColor.TextPrimary.copy(alpha = if (enabled) 1f else 0.45f)
         )
@@ -796,8 +801,8 @@ internal fun buildWatermarkConfig(
     bgStyle: Int,
     labelScale: Int,
     valueScale: Int
-): com.example.dzlog.domain.model.WatermarkConfig {
-    return com.example.dzlog.domain.model.WatermarkConfig(
+): WatermarkConfig {
+    return WatermarkConfig(
         showLabel = false,
         anchor = anchor,
         offsetXRatio = offsetXRatio,
@@ -812,7 +817,7 @@ internal fun buildWatermarkConfig(
 }
 
 @Composable
-private fun rememberMediaStoreRefreshTick(context: android.content.Context): Int {
+private fun rememberMediaStoreRefreshTick(context: Context): Int {
     var refreshTick by remember { mutableIntStateOf(0) }
 
     DisposableEffect(context) {
@@ -840,8 +845,8 @@ private fun rememberMediaStoreRefreshTick(context: android.content.Context): Int
 @Composable
 private fun rememberCounterStreamContext(
     tableResolver: TableResolver,
-    tableCells: List<com.example.dzlog.domain.model.TableCellState>,
-    fileNameSlots: List<com.example.dzlog.domain.model.CellKey?>,
+    tableCells: List<TableCellState>,
+    fileNameSlots: List<CellKey?>,
     counterDigits: Int,
     nextCounter: Int,
     includeFilenameInCounterScope: Boolean,
@@ -874,7 +879,7 @@ private fun rememberCounterStreamContext(
 
 @Composable
 private fun SyncCounterSeedEffect(
-    context: android.content.Context,
+    context: Context,
     streamContext: CounterStreamContext,
     counterDigits: Int,
     resumeTick: Int,
