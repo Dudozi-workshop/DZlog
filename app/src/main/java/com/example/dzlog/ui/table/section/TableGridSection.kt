@@ -118,6 +118,7 @@ fun TableGridSection(
                         ) {
                             if (cell != null) {
                                 val display = displayTextProvider(cell.cellId)
+                                val nameIdx = templateState.fileNameSlots.indexOf(cell.cellId).takeIf { it >= 0 }
 
                                 val canInlineEdit =
                                     (cell.dataType == TableCellDataType.TEXT ||
@@ -135,7 +136,7 @@ fun TableGridSection(
                                                 .fillMaxWidth()
                                                 .height(14.dp),
                                             contentAlignment = Alignment.CenterStart
-                                        ) { CellHeaderBadges(cell) }
+                                        ) { CellHeaderBadges(cell, nameIdx) }
 
                                         Box(
                                             modifier = Modifier
@@ -191,7 +192,7 @@ fun TableGridSection(
                                                 .fillMaxWidth()
                                                 .height(14.dp),
                                             contentAlignment = Alignment.CenterStart
-                                        ) { CellHeaderBadges(cell) }
+                                        ) { CellHeaderBadges(cell, nameIdx) }
 
                                         Box(
                                             modifier = Modifier

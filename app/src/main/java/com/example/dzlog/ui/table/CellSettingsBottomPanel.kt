@@ -146,17 +146,18 @@ internal fun CellSettingsBottomPanel(
                                     onLongPress = { dragFromIndex = index },
                                     onTap = {
                                         val from = dragFromIndex
-                                        when {
-                                            from != null && from != index -> {
+                                        if (from != null) {
+                                            if (from != index) {
                                                 onReorderFileNameSlots(from, index)
-                                                dragFromIndex = null
                                             }
-
-                                            from == index -> {
-                                                dragFromIndex = null
+                                            dragFromIndex = null
+                                        } else {
+                                            val curr = templateState.fileNameSlots.indexOf(cell.cellId)
+                                            if (curr < 0) {
+                                                Toast.makeText(context, "ON 후 이동", Toast.LENGTH_SHORT).show()
+                                            } else if (curr != index) {
+                                                onReorderFileNameSlots(curr, index)
                                             }
-
-                                            else -> onAssignFileNameSlotForCell(cell.cellId, index)
                                         }
                                     }
                                 )

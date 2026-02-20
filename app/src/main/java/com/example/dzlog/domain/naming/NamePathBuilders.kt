@@ -95,7 +95,7 @@ fun buildDisplayNameFromResolvedCells(
     val ordered = resolvedCells
         .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
 
-    val prefix = if (fileNameSlots != null && fileNameSlots.any { it != null }) {
+    val prefix = if (fileNameSlots != null) {
         buildFileNamePrefixFromSlots(
             resolvedCells = resolvedCells,
             slots = fileNameSlots,

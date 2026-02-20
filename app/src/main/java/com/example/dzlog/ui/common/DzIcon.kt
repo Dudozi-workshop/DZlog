@@ -25,11 +25,11 @@ sealed class DzIcon {
         }
     }
 
-    object NameTag : DzIcon() {
+    class NameTag(private val index: Int) : DzIcon() {
         @Composable
         override fun Render() {
             Text(
-                text = "🏷",
+                text = "🏷$index",
                 fontSize = 10.sp
             )
         }
