@@ -583,37 +583,6 @@ fun CameraPreview(
                 (boundImageCapture != null && ui.capture.capturedUri == null && !ui.capture.isCapturing && !zoomPanelExpanded)
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "scopePath=${ui.counter.debugRelativePathKey}",
-                    style = DDZTypography.Caption,
-                    color = DDZColor.Surface.copy(alpha = 0.9f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                )
-                Text(
-                    text = "scopePrefix=${ui.counter.debugPrefix}",
-                    style = DDZTypography.Caption,
-                    color = DDZColor.Surface.copy(alpha = 0.9f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                )
-                Text(
-                    text = "scopeKey=${ui.counter.debugScopeKey}",
-                    style = DDZTypography.Caption,
-                    color = DDZColor.Surface.copy(alpha = 0.9f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                )
-
                 ZoomControlSection(
                     zoomRatioTenths = ui.capture.actualZoomTenths,
                     maxZoomTenths = ui.capture.maxZoomTenths,
@@ -909,24 +878,24 @@ private fun SyncCounterSeedEffect(
             blankWarningEnabled = true,
         )
     )
-    val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-    LaunchedEffect(
-        counterDigits,
-        refreshTick,
+    val scopedStream = remember(
         streamContext.relativePathKey,
         streamContext.streamPrefix,
         appSettings.includePathInCounterScope,
         appSettings.includeFilenameInCounterScope,
     ) {
-        val scopedStream = toCaptureScopedCounterStream(
+        toCaptureScopedCounterStream(
             streamContext = streamContext,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
         )
-        val scopeParts = scopedStream.scopeParts
-        ui.counter.debugRelativePathKey = scopeParts.relativePathKey
-        ui.counter.debugPrefix = scopeParts.prefix
-        ui.counter.debugScopeKey = scopeParts.scopeKey
+    }
+    val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+    LaunchedEffect(
+        scopedStream.scopeParts.scopeKey,
+        counterDigits,
+        refreshTick,
+    ) {
         val scopeSnapshot = buildCounterScopeSnapshot(
             streamContext = streamContext,
             includePathInScope = appSettings.includePathInCounterScope,

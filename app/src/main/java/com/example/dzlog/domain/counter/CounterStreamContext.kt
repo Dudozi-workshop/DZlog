@@ -12,7 +12,6 @@ import com.example.dzlog.domain.table.ResolvedCell
 data class CounterStreamContext(
     val relativePathKey: String,
     val streamPrefix: String,
-    val scopeKey: String,
     val nextCounter: Int,
     val isManualMode: Boolean
 )
@@ -45,7 +44,6 @@ fun buildCounterStreamContext(
     return CounterStreamContext(
         relativePathKey = relativePathKey,
         streamPrefix = streamPrefix,
-        scopeKey = "$relativePathKey|$streamPrefix",
         nextCounter = nextCounter.coerceAtLeast(1),
         isManualMode = isManualMode
     )
