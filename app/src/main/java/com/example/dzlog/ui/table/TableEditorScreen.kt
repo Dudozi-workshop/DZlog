@@ -351,6 +351,7 @@ fun TableEditorScreen(
         fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
         includeDate = false,
         includeTime = false,
+        fileNameSlots = templateState.fileNameSlots,
         counterDigits = previewCounterDigits,
         // ✅ 파일명 suffix counter는 항상 스트림 값(SSOT)을 사용
         // COUNTER 셀의 표기 ON/OFF는 "표/워터마크 표현"에만 영향, 카운터 스트림/파일명에는 영향 없음.
