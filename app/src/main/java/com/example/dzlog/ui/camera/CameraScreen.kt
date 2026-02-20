@@ -240,6 +240,7 @@ fun CameraPreview(
         fileNameSlots = tableTemplateState.fileNameSlots,
         counterDigits = ui.prefs.counterDigits,
         nextCounter = ui.counter.scopeNextCounter,
+        includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
     )
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
     var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
@@ -582,6 +583,37 @@ fun CameraPreview(
                 (boundImageCapture != null && ui.capture.capturedUri == null && !ui.capture.isCapturing && !zoomPanelExpanded)
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "scopePath=${ui.counter.debugRelativePathKey}",
+                    style = DDZTypography.Caption,
+                    color = DDZColor.Surface.copy(alpha = 0.9f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+                Text(
+                    text = "scopePrefix=${ui.counter.debugPrefix}",
+                    style = DDZTypography.Caption,
+                    color = DDZColor.Surface.copy(alpha = 0.9f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+                Text(
+                    text = "scopeKey=${ui.counter.debugScopeKey}",
+                    style = DDZTypography.Caption,
+                    color = DDZColor.Surface.copy(alpha = 0.9f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+
                 ZoomControlSection(
                     zoomRatioTenths = ui.capture.actualZoomTenths,
                     maxZoomTenths = ui.capture.maxZoomTenths,
@@ -828,11 +860,12 @@ private fun rememberCounterStreamContext(
     fileNameSlots: List<com.example.dzlog.domain.model.CellKey?>,
     counterDigits: Int,
     nextCounter: Int,
+    includeFilenameInCounterScope: Boolean,
 ): CounterStreamContext {
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-    return remember(tableCells, fileNameSlots, counterDigits, nextCounter) {
+    return remember(tableCells, fileNameSlots, counterDigits, nextCounter, includeFilenameInCounterScope) {
         val scopeNow = Date()
         val planForScope = tableResolver.plan(
             cells = tableCells,
@@ -849,7 +882,7 @@ private fun rememberCounterStreamContext(
             nextCounter = nextCounter,
             isManualMode = false,
             fnDelim = fnDelim,
-            includeFilenameInScope = true,
+            includeFilenameInScope = includeFilenameInCounterScope,
         )
     }
 }
@@ -864,14 +897,36 @@ private fun SyncCounterSeedEffect(
     refreshTick: Int,
     ui: CameraUiState
 ) {
+    val appSettings by AppSettingsStore.flow(context).collectAsState(
+        initial = com.example.dzlog.data.datastore.AppSettings(
+            saveMode = SaveMode.BOTH,
+            continuousPreviewMode = ContinuousPreviewMode.OFF,
+            counterPadding = 3,
+            includePathInCounterScope = true,
+            includeFilenameInCounterScope = true,
+            toastEnabled = true,
+            hapticEnabled = true,
+            blankWarningEnabled = true,
+        )
+    )
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-    LaunchedEffect(streamContext.scopeKey, counterDigits, refreshTick) {
-        val appSettings = AppSettingsStore.flow(context).first()
+    LaunchedEffect(
+        counterDigits,
+        refreshTick,
+        streamContext.relativePathKey,
+        streamContext.streamPrefix,
+        appSettings.includePathInCounterScope,
+        appSettings.includeFilenameInCounterScope,
+    ) {
         val scopedStream = toCaptureScopedCounterStream(
             streamContext = streamContext,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
         )
+        val scopeParts = scopedStream.scopeParts
+        ui.counter.debugRelativePathKey = scopeParts.relativePathKey
+        ui.counter.debugPrefix = scopeParts.prefix
+        ui.counter.debugScopeKey = scopeParts.scopeKey
         val scopeSnapshot = buildCounterScopeSnapshot(
             streamContext = streamContext,
             includePathInScope = appSettings.includePathInCounterScope,

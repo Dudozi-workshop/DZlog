@@ -56,6 +56,9 @@ internal class CaptureUiState {
 internal class CounterScopeState {
     var scopeNextCounter by mutableIntStateOf(1)
     var lastScopeSnapshot by mutableStateOf<CounterScopeSnapshot?>(null)
+    var debugRelativePathKey by mutableStateOf("")
+    var debugPrefix by mutableStateOf("")
+    var debugScopeKey by mutableStateOf("")
 }
 
 @Stable

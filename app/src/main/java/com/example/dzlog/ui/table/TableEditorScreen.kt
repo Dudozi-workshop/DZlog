@@ -649,6 +649,27 @@ fun TableEditorScreen(
                 selectedTabIndex = selectedTabIndex,
                 onTabSelected = { requestTabSwitch(it) }
             )
+            Text(
+                text = "scopePath=${scopedCounterStream.scopeParts.relativePathKey}",
+                style = DDZTypography.Caption,
+                color = DDZColor.TextMuted,
+                maxLines = 1,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Text(
+                text = "scopePrefix=${scopedCounterStream.scopeParts.prefix}",
+                style = DDZTypography.Caption,
+                color = DDZColor.TextMuted,
+                maxLines = 1,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Text(
+                text = "scopeKey=${scopedCounterStream.scopeParts.scopeKey}",
+                style = DDZTypography.Caption,
+                color = DDZColor.TextMuted,
+                maxLines = 1,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
 
             when (selectedTabIndex) {
                 0 -> {

@@ -112,6 +112,9 @@ fun HomeScreen(
 
     var savePathPreview by remember { mutableStateOf("Pictures/DZlog/") }
     var filenamePreview by remember { mutableStateOf("DZlog_1.jpg") }
+    var scopeRelativePathKey by remember { mutableStateOf("") }
+    var scopePrefix by remember { mutableStateOf("") }
+    var scopeKey by remember { mutableStateOf("") }
 
     LaunchedEffect(
         tableTemplateState,
@@ -144,6 +147,10 @@ fun HomeScreen(
             includePathInScope = settings.includePathInCounterScope,
             includeFilenameInScope = settings.includeFilenameInCounterScope,
         )
+        val parts = scopedStream.scopeParts
+        scopeRelativePathKey = parts.relativePathKey
+        scopePrefix = parts.prefix
+        scopeKey = parts.scopeKey
         val streamNext = CaptureCounterPolicy.getNextCounter(
             context = context,
             scopedStream = scopedStream,
@@ -331,6 +338,28 @@ fun HomeScreen(
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
+
+                            Text(
+                                text = "scopePath=$scopeRelativePathKey",
+                                style = DDZTypography.Caption.copy(fontSize = 10.sp, lineHeight = 12.sp),
+                                color = DDZColor.TextMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "scopePrefix=$scopePrefix",
+                                style = DDZTypography.Caption.copy(fontSize = 10.sp, lineHeight = 12.sp),
+                                color = DDZColor.TextMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "scopeKey=$scopeKey",
+                                style = DDZTypography.Caption.copy(fontSize = 10.sp, lineHeight = 12.sp),
+                                color = DDZColor.TextMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
