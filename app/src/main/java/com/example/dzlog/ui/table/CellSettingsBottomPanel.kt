@@ -7,15 +7,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Autorenew
@@ -31,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,14 +73,21 @@ internal fun CellSettingsBottomPanel(
     val isIncluded = templateState.fileNameSlots.contains(cell.cellId)
     var isSlotEditMode by remember { mutableStateOf(false) }
     var selectedFromIndex by remember { mutableStateOf<Int?>(null) }
+    val optionsScrollState = rememberScrollState()
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(DDZColor.Surface, RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    BoxWithConstraints(
+        modifier = modifier.fillMaxWidth()
     ) {
+        val maxPanelHeight = maxHeight * 0.5f
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = maxPanelHeight)
+                .background(DDZColor.Surface, RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -244,50 +255,58 @@ internal fun CellSettingsBottomPanel(
             }
         }
 
-        if (cell.dataType == TableCellDataType.COUNTER && onResetCounterSeed != null) {
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onResetCounterSeed
-            ) {
-                Text("카운터 초기화 ($autoNextCounterValue)", style = DDZTypography.ButtonText)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false)
+                .verticalScroll(optionsScrollState),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (cell.dataType == TableCellDataType.COUNTER && onResetCounterSeed != null) {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onResetCounterSeed
+                ) {
+                    Text("카운터 초기화 ($autoNextCounterValue)", style = DDZTypography.ButtonText)
+                }
             }
-        }
 
-        if (cell.dataType == TableCellDataType.DATE) {
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { onOpenFormatDialog(cell.cellId, TableCellDataType.DATE) }
-            ) {
-                Text("날짜 형식", style = DDZTypography.ButtonText)
+            if (cell.dataType == TableCellDataType.DATE) {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { onOpenFormatDialog(cell.cellId, TableCellDataType.DATE) }
+                ) {
+                    Text("날짜 형식", style = DDZTypography.ButtonText)
+                }
             }
-        }
 
-        if (cell.dataType == TableCellDataType.TIME) {
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { onOpenFormatDialog(cell.cellId, TableCellDataType.TIME) }
-            ) {
-                Text("시간 형식", style = DDZTypography.ButtonText)
+            if (cell.dataType == TableCellDataType.TIME) {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { onOpenFormatDialog(cell.cellId, TableCellDataType.TIME) }
+                ) {
+                    Text("시간 형식", style = DDZTypography.ButtonText)
+                }
             }
-        }
 
-        if (cell.dataType == TableCellDataType.ROTATING_TEXT && onOpenRotatingTemplateDialog != null) {
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onOpenRotatingTemplateDialog
-            ) {
-                Text("순환 문구 설정", style = DDZTypography.ButtonText)
+            if (cell.dataType == TableCellDataType.ROTATING_TEXT && onOpenRotatingTemplateDialog != null) {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onOpenRotatingTemplateDialog
+                ) {
+                    Text("순환 문구 설정", style = DDZTypography.ButtonText)
+                }
             }
+
+            Spacer(Modifier.height(2.dp))
+            Text("데이터 형식", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+            DataTypeCardGrid3(
+                selected = cell.dataType,
+                onSelect = onSetDataType
+            )
+
+            Spacer(Modifier.height(10.dp))
         }
-
-        Spacer(Modifier.height(2.dp))
-        Text("데이터 형식", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
-        DataTypeCardGrid3(
-            selected = cell.dataType,
-            onSelect = onSetDataType
-        )
-
-        Spacer(Modifier.height(1.dp))
     }
 }
 

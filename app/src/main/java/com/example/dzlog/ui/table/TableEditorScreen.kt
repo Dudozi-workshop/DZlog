@@ -30,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -265,6 +266,8 @@ fun TableEditorScreen(
     }
 
     var inlineEdit by remember { mutableStateOf(InlineEditState()) }
+    val deletedRowsStack = remember { mutableStateListOf<List<TableCellState>>() }
+    val deletedColsStack = remember { mutableStateListOf<List<TableCellState>>() }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val inlineFocusRequester = remember { FocusRequester() }
@@ -688,16 +691,68 @@ fun TableEditorScreen(
                                 commitInlineEditIfNeeded()
                                 showCellSettingsPanel = true
                             },
-                            onAddRow = { onTemplateChange(addRow(templateState)) },
+                            onAddRow = {
+                                val restored = deletedRowsStack.lastOrNull()
+                                if (restored != null) {
+                                    deletedRowsStack.removeAt(deletedRowsStack.lastIndex)
+                                    val newRowIndex = templateState.rows
+                                    val restoredReindexed = restored.map { it.copy(rowIndex = newRowIndex) }
+                                    val baseRowWeights = templateState.rowWeights
+                                        ?: List(templateState.rows.coerceAtLeast(1)) { 1f }
+                                    onTemplateChange(
+                                        templateState.copy(
+                                            rows = templateState.rows + 1,
+                                            cells = templateState.cells + restoredReindexed,
+                                            rowWeights = baseRowWeights + 1f
+                                        )
+                                    )
+                                } else {
+                                    onTemplateChange(addRow(templateState))
+                                }
+                            },
                             onRemoveRow = {
+                                val lastRowIndex = templateState.rows - 1
+                                val lastRowCells = templateState.cells
+                                    .filter { it.rowIndex == lastRowIndex }
+                                    .sortedBy { it.colIndex }
+                                if (lastRowCells.isNotEmpty()) {
+                                    deletedRowsStack.add(lastRowCells)
+                                }
+
                                 val updated = removeRow(templateState)
                                 onTemplateChange(updated)
                                 if (updated.cells.none { it.cellId == selectedCellId }) {
                                     selectedCellId = updated.cells.firstOrNull()?.cellId
                                 }
                             },
-                            onAddCol = { onTemplateChange(addColumn(templateState)) },
+                            onAddCol = {
+                                val restored = deletedColsStack.lastOrNull()
+                                if (restored != null) {
+                                    deletedColsStack.removeAt(deletedColsStack.lastIndex)
+                                    val newColIndex = templateState.cols
+                                    val restoredReindexed = restored.map { it.copy(colIndex = newColIndex) }
+                                    val baseColWeights = templateState.colWeights
+                                        ?: List(templateState.cols.coerceAtLeast(1)) { 1f }
+                                    onTemplateChange(
+                                        templateState.copy(
+                                            cols = templateState.cols + 1,
+                                            cells = templateState.cells + restoredReindexed,
+                                            colWeights = baseColWeights + 1f
+                                        )
+                                    )
+                                } else {
+                                    onTemplateChange(addColumn(templateState))
+                                }
+                            },
                             onRemoveCol = {
+                                val lastColIndex = templateState.cols - 1
+                                val lastColCells = templateState.cells
+                                    .filter { it.colIndex == lastColIndex }
+                                    .sortedBy { it.rowIndex }
+                                if (lastColCells.isNotEmpty()) {
+                                    deletedColsStack.add(lastColCells)
+                                }
+
                                 val updated = removeColumn(templateState)
                                 onTemplateChange(updated)
                                 if (updated.cells.none { it.cellId == selectedCellId }) {
