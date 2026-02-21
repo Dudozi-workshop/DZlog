@@ -54,6 +54,7 @@ import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.TimeFormatOptions
+import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.naming.NamingFormatDefaults
 import com.example.dzlog.domain.naming.buildDisplayNameFromResolvedCells
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
@@ -83,7 +84,9 @@ import com.example.dzlog.ui.table.format.TableFormatDialogState
 import com.example.dzlog.ui.table.format.close
 import com.example.dzlog.ui.table.format.open
 import com.example.dzlog.ui.table.watermark.TableWatermarkUiState
+import com.example.dzlog.ui.table.watermark.applyAnchorOffsetDragChange
 import com.example.dzlog.ui.table.watermark.applyBgAlphaChange
+import com.example.dzlog.ui.table.watermark.applyCaptureAspectChange
 import com.example.dzlog.ui.table.watermark.applyBgStyleChange
 import com.example.dzlog.ui.table.watermark.applyHeightRatioChange
 import com.example.dzlog.ui.table.watermark.applyManualTextColorChange
@@ -693,7 +696,8 @@ fun TableEditorScreen(
                             hasGroup2 = hasGroup2,
                             isSavingTemplate = isSavingTemplate,
                             autoNextCounterValue = counterUi.autoNextCounterValue,
-                            phraseSets = templateState.phraseSets
+                            phraseSets = templateState.phraseSets,
+                            captureAspect = watermarkUi.captureAspect
                         ),
                         actions = LayoutTabActions(
                             onSelectCellId = { selectedCellId = it },
@@ -888,6 +892,8 @@ fun TableEditorScreen(
                         templateState = templateState,
                         resolvedCells = plan.resolvedCells,
                         wmAnchor = watermarkUi.wmAnchor,
+                        wmOffsetXRatio = watermarkUi.wmOffsetXRatio,
+                        wmOffsetYRatio = watermarkUi.wmOffsetYRatio,
                         wmWidthRatio = watermarkUi.wmWidthRatio,
                         wmHeightRatio = watermarkUi.wmHeightRatio,
                         wmBgStyle = watermarkUi.wmBgStyle,
@@ -896,6 +902,23 @@ fun TableEditorScreen(
                         wmTextColorMode = watermarkUi.wmTextColorMode,
                         wmManualTextColor = watermarkUi.wmManualTextColor,
                         wmTextAlign = watermarkUi.wmTextAlign,
+                        onCaptureAspectChange = { aspect ->
+                            scope.launch {
+                                watermarkUi = applyCaptureAspectChange(context, aspect, watermarkUi)
+                            }
+                        },
+                        onWatermarkDragPreview = { offsetX, offsetY ->
+                            watermarkUi = watermarkUi.copy(
+                                wmAnchor = WatermarkTableAnchor.CUSTOM,
+                                wmOffsetXRatio = offsetX.coerceIn(0, 100),
+                                wmOffsetYRatio = offsetY.coerceIn(0, 100)
+                            )
+                        },
+                        onWatermarkDragCommit = { offsetX, offsetY ->
+                            scope.launch {
+                                watermarkUi = applyAnchorOffsetDragChange(context, offsetX, offsetY, watermarkUi)
+                            }
+                        },
                         onRowColWeightsChange = { updated -> onTemplateChange(updated) },
                         onWidthRatioChange = { width ->
                             scope.launch {

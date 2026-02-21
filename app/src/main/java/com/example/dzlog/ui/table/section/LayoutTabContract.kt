@@ -1,6 +1,7 @@
 package com.example.dzlog.ui.table.section
 
 import androidx.compose.ui.focus.FocusRequester
+import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.RotatingPhraseSet
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellState
@@ -30,7 +31,8 @@ data class LayoutTabUiState(
     val hasGroup2: Boolean,
     val isSavingTemplate: Boolean,
     val autoNextCounterValue: Int,
-    val phraseSets: List<RotatingPhraseSet>
+    val phraseSets: List<RotatingPhraseSet>,
+    val captureAspect: CaptureAspect
 )
 
 data class LayoutTabActions(

@@ -4,6 +4,7 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,8 +12,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.CaptureAspect
@@ -20,15 +26,11 @@ import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.table.ResolvedCell
 import com.example.dzlog.domain.watermark.WatermarkBuilder
-import com.example.dzlog.ui.table.watermark.CameraLikeWatermarkPlacementPreview
 import com.example.dzlog.ui.table.TableRowColSizeSection
+import com.example.dzlog.ui.table.watermark.CameraLikeWatermarkPlacementPreview
 import com.example.dzlog.ui.theme.DDZColor
+import com.example.dzlog.ui.theme.DDZTypography
 
-/**
- * 탭1(표 미리보기) UI 전용 컴포넌트.
- * - 상태/저장(DataStore) 로직은 Screen이 소유
- * - 여기서는 UI 조립만 담당
- */
 @Composable
 fun PreviewTabContent(
     scrollState: ScrollState,
@@ -36,6 +38,8 @@ fun PreviewTabContent(
     templateState: TableTemplateState,
     resolvedCells: List<ResolvedCell>,
     wmAnchor: WatermarkTableAnchor,
+    wmOffsetXRatio: Int,
+    wmOffsetYRatio: Int,
     wmWidthRatio: Int,
     wmHeightRatio: Int,
     wmBgStyle: Int,
@@ -44,6 +48,9 @@ fun PreviewTabContent(
     wmTextColorMode: Int,
     wmManualTextColor: Int,
     wmTextAlign: Int,
+    onCaptureAspectChange: (CaptureAspect) -> Unit,
+    onWatermarkDragPreview: (Int, Int) -> Unit,
+    onWatermarkDragCommit: (Int, Int) -> Unit,
     onRowColWeightsChange: (TableTemplateState) -> Unit,
     onWidthRatioChange: (Int) -> Unit,
     onHeightRatioChange: (Int) -> Unit,
@@ -55,16 +62,34 @@ fun PreviewTabContent(
     onTextAlignChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // ✅ 프리뷰 렌더용 셀 목록은 resolvedCells가 바뀔 때만 재계산
     val watermarkCells = remember(resolvedCells) { WatermarkBuilder.buildTableCells(resolvedCells) }
+    var isWatermarkArmed by remember { mutableStateOf(false) }
+
+    val scrollModifier = if (isWatermarkArmed) Modifier else Modifier.verticalScroll(scrollState)
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(scrollState)
+            .then(scrollModifier)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(
+                CaptureAspect.R1_1 to "1:1",
+                CaptureAspect.R3_4 to "3:4",
+                CaptureAspect.R9_16 to "9:16"
+            ).forEach { (aspect, label) ->
+                OutlinedButton(onClick = { onCaptureAspectChange(aspect) }) {
+                    Text(
+                        text = label,
+                        color = if (captureAspect == aspect) DDZColor.Primary else DDZColor.TextPrimary,
+                        style = DDZTypography.ButtonText
+                    )
+                }
+            }
+        }
+
         CameraLikeWatermarkPlacementPreview(
             captureAspect = captureAspect,
             rows = templateState.rows,
@@ -73,6 +98,8 @@ fun PreviewTabContent(
             colWeights = templateState.colWeights,
             watermarkCells = watermarkCells,
             anchor = wmAnchor,
+            offsetXRatio = wmOffsetXRatio,
+            offsetYRatio = wmOffsetYRatio,
             tableWidthRatio = wmWidthRatio,
             tableHeightRatio = wmHeightRatio,
             bgStyle = wmBgStyle,
@@ -80,7 +107,11 @@ fun PreviewTabContent(
             valueScale = wmValueScale,
             textColorMode = wmTextColorMode,
             manualTextColor = wmManualTextColor,
-            textAlign = wmTextAlign
+            textAlign = wmTextAlign,
+            armed = isWatermarkArmed,
+            onArmedChange = { isWatermarkArmed = it },
+            onDragPreview = onWatermarkDragPreview,
+            onDragCommit = onWatermarkDragCommit
         )
 
         TableRowColSizeSection(

@@ -1,8 +1,11 @@
 package com.example.dzlog.ui.table.watermark
 
 import android.content.Context
+import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_WM_BG_ALPHA
+import com.example.dzlog.data.preferences.KEY_WM_OFFSET_X
+import com.example.dzlog.data.preferences.KEY_WM_OFFSET_Y
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
@@ -28,8 +31,11 @@ suspend fun loadTableWatermarkUiState(context: Context): TableWatermarkUiState {
             0 -> WatermarkTableAnchor.TOP_LEFT
             1 -> WatermarkTableAnchor.TOP_RIGHT
             2 -> WatermarkTableAnchor.BOTTOM_LEFT
-            else -> WatermarkTableAnchor.BOTTOM_RIGHT
+            3 -> WatermarkTableAnchor.BOTTOM_RIGHT
+            else -> WatermarkTableAnchor.CUSTOM
         },
+        wmOffsetXRatio = (prefs[KEY_WM_OFFSET_X] ?: 0).coerceIn(0, 100),
+        wmOffsetYRatio = (prefs[KEY_WM_OFFSET_Y] ?: 0).coerceIn(0, 100),
         wmWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(40, 100),
         wmHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 35),
         wmBgStyle = (prefs[KEY_WM_TABLE_BG_STYLE] ?: 0).coerceIn(0, 2),
@@ -48,6 +54,37 @@ suspend fun loadTableWatermarkUiState(context: Context): TableWatermarkUiState {
             WatermarkTextAlign.RIGHT
         ),
         captureAspect = CaptureAspect.from(prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v)
+    )
+}
+
+suspend fun applyCaptureAspectChange(
+    context: Context,
+    aspect: CaptureAspect,
+    currentState: TableWatermarkUiState
+): TableWatermarkUiState {
+    context.dataStore.edit { prefs ->
+        prefs[KEY_CAPTURE_ASPECT] = aspect.v
+    }
+    return currentState.copy(captureAspect = aspect)
+}
+
+suspend fun applyAnchorOffsetDragChange(
+    context: Context,
+    offsetXRatio: Int,
+    offsetYRatio: Int,
+    currentState: TableWatermarkUiState
+): TableWatermarkUiState {
+    val nx = offsetXRatio.coerceIn(0, 100)
+    val ny = offsetYRatio.coerceIn(0, 100)
+    context.dataStore.edit { prefs ->
+        prefs[KEY_WM_TABLE_ANCHOR] = 4
+        prefs[KEY_WM_OFFSET_X] = nx
+        prefs[KEY_WM_OFFSET_Y] = ny
+    }
+    return currentState.copy(
+        wmAnchor = WatermarkTableAnchor.CUSTOM,
+        wmOffsetXRatio = nx,
+        wmOffsetYRatio = ny
     )
 }
 

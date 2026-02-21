@@ -8,6 +8,8 @@ import com.example.dzlog.domain.model.WatermarkTextColorMode
 
 data class TableWatermarkUiState(
     val wmAnchor: WatermarkTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT,
+    val wmOffsetXRatio: Int = 0,
+    val wmOffsetYRatio: Int = 0,
     val wmWidthRatio: Int = 40,
     val wmHeightRatio: Int = 20,
     val wmBgStyle: Int = 0,
