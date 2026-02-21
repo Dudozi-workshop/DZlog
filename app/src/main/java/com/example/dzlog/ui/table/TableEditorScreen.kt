@@ -907,12 +907,8 @@ fun TableEditorScreen(
                                 watermarkUi = applyCaptureAspectChange(context, aspect, watermarkUi)
                             }
                         },
-                        onWatermarkDragPreview = { offsetX, offsetY ->
-                            watermarkUi = watermarkUi.copy(
-                                wmAnchor = WatermarkTableAnchor.CUSTOM,
-                                wmOffsetXRatio = offsetX.coerceIn(0, 100),
-                                wmOffsetYRatio = offsetY.coerceIn(0, 100)
-                            )
+                        onWatermarkDragPreview = { _, _ ->
+                            // 드래그 중에는 로컬 프리뷰만 갱신하고 상위 상태/SSOT 갱신은 하지 않음
                         },
                         onWatermarkDragCommit = { offsetX, offsetY ->
                             scope.launch {

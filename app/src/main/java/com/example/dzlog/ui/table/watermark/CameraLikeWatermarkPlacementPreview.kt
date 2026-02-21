@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -134,9 +135,11 @@ internal fun CameraLikeWatermarkPlacementPreview(
                         val nextX = if (dragMaxXPx <= 0f) 0 else ((dragLeftPx / dragMaxXPx) * 100f).roundToInt().coerceIn(0, 100)
                         val nextY = if (dragMaxYPx <= 0f) 0 else ((dragTopPx / dragMaxYPx) * 100f).roundToInt().coerceIn(0, 100)
 
-                        dragOffsetXRatio = nextX
-                        dragOffsetYRatio = nextY
-                        onDragPreview(nextX, nextY)
+                        if (nextX != dragOffsetXRatio || nextY != dragOffsetYRatio) {
+                            dragOffsetXRatio = nextX
+                            dragOffsetYRatio = nextY
+                            onDragPreview(nextX, nextY)
+                        }
                         change.consume()
                     }
                 )
