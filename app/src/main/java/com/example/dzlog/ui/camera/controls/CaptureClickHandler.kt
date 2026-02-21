@@ -54,8 +54,10 @@ internal fun handleCaptureClick(
     wmTableHeightRatio: Int,
     wmBgAlpha: Int,
     wmBgStyle: Int,
-    wmLabelScale: Int,
     wmValueScale: Int,
+    wmTextColorMode: Int,
+    wmManualTextColor: Int,
+    wmTextAlign: Int,
     usableTopRatio: Float,
     usableBottomRatio: Float,
     repository: DzlogRepositoryImpl,
@@ -67,8 +69,10 @@ internal fun handleCaptureClick(
         tableHeightRatio: Int,
         tableBgAlpha: Int,
         bgStyle: Int,
-        labelScale: Int,
-        valueScale: Int
+        valueScale: Int,
+        textColorMode: Int,
+        manualTextColor: Int,
+        textAlign: Int
     ) -> com.example.dzlog.domain.model.WatermarkConfig,
     onApplyTemplatePatch: (TableTemplateState) -> Unit,
     onUpdateScopeNextCounter: (Int) -> Unit,
@@ -140,8 +144,10 @@ internal fun handleCaptureClick(
             wmTableHeightRatio,
             wmBgAlpha,
             wmBgStyle,
-            wmLabelScale,
-            wmValueScale
+            wmValueScale,
+            wmTextColorMode,
+            wmManualTextColor,
+            wmTextAlign
         )
     )
 

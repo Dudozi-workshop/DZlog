@@ -1,8 +1,16 @@
 package com.example.dzlog.watermark
 
-import android.graphics.*
-import com.example.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Typeface
+import com.example.dzlog.domain.model.WatermarkManualTextColor
 import com.example.dzlog.domain.model.WatermarkTableAnchor
+import com.example.dzlog.domain.model.WatermarkTextAlign
+import com.example.dzlog.domain.model.WatermarkTextColorMode
+import com.example.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 import kotlin.math.abs
 
 private const val BG_STYLE_BLACK = 0
@@ -48,11 +56,7 @@ fun computeWatermarkTableLayout(
         WatermarkTableAnchor.CUSTOM -> maxY * (offsetYRatio.coerceIn(0, 100) / 100f)
     }
 
-    return WatermarkTableLayout(
-        rect = RectF(left, top, left + tableW, top + tableH),
-        maxX = maxX,
-        maxY = maxY
-    )
+    return WatermarkTableLayout(RectF(left, top, left + tableW, top + tableH), maxX, maxY)
 }
 
 fun computeWatermarkTableLayoutPx(
@@ -88,11 +92,7 @@ fun computeWatermarkTableLayoutPx(
         WatermarkTableAnchor.CUSTOM -> offsetTopPx.coerceIn(0f, maxY)
     }
 
-    return WatermarkTableLayout(
-        rect = RectF(left, top, left + tableW, top + tableH),
-        maxX = maxX,
-        maxY = maxY
-    )
+    return WatermarkTableLayout(RectF(left, top, left + tableW, top + tableH), maxX, maxY)
 }
 
 private fun drawBackgroundRect(
@@ -108,11 +108,7 @@ private fun drawBackgroundRect(
     val a = bgAlpha.coerceIn(0, 255)
     if (a <= 0) return
 
-    val (r, g, b) = if (bgStyle == BG_STYLE_WHITE) {
-        Triple(255, 255, 255)
-    } else {
-        Triple(0, 0, 0)
-    }
+    val (r, g, b) = if (bgStyle == BG_STYLE_WHITE) Triple(255, 255, 255) else Triple(0, 0, 0)
     val bgPaint = Paint().apply { color = Color.argb(a, r, g, b) }
     canvas.drawRect(left, top, left + tableW, top + tableH, bgPaint)
 }
@@ -139,6 +135,58 @@ private fun computeSizes(total: Float, weights: List<Float>): List<Float> {
     return sizes
 }
 
+
+private fun resolveValueTextColor(bgStyle: Int, textColorMode: Int, manualTextColor: Int): Int {
+    return if (textColorMode == WatermarkTextColorMode.MANUAL) {
+        if (manualTextColor == WatermarkManualTextColor.WHITE) Color.WHITE else Color.BLACK
+    } else {
+        when (bgStyle) {
+            BG_STYLE_WHITE -> Color.BLACK
+            BG_STYLE_BLACK -> Color.WHITE
+            BG_STYLE_TRANSPARENT -> Color.BLACK
+            else -> Color.BLACK
+        }
+    }
+}
+
+private fun resolveTextDrawX(
+    cellLeft: Float,
+    cellWidth: Float,
+    pad: Float,
+    text: String,
+    paint: Paint,
+    textAlign: Int
+): Float {
+    val textWidth = paint.measureText(text)
+    val leftTextX = cellLeft + pad
+    val rightTextX = cellLeft + cellWidth - pad
+    val centerTextX = cellLeft + (cellWidth / 2f)
+    return when (textAlign) {
+        WatermarkTextAlign.CENTER -> centerTextX - (textWidth / 2f)
+        WatermarkTextAlign.RIGHT -> rightTextX - textWidth
+        else -> leftTextX
+    }
+}
+
+
+private fun ellipsizeToWidth(text: String, paint: Paint, maxWidthPx: Float): String {
+    if (text.isEmpty()) return text
+    if (maxWidthPx <= 0f) return ""
+    if (paint.measureText(text) <= maxWidthPx) return text
+
+    val ellipsis = "…"
+    val ellipsisWidth = paint.measureText(ellipsis)
+    if (ellipsisWidth > maxWidthPx) return ellipsis
+
+    var end = text.length
+    while (end > 0) {
+        val candidate = text.substring(0, end) + ellipsis
+        if (paint.measureText(candidate) <= maxWidthPx) return candidate
+        end--
+    }
+    return ellipsis
+}
+
 private fun computeOffsets(sizes: List<Float>): List<Float> {
     val offsets = ArrayList<Float>(sizes.size + 1)
     var acc = 0f
@@ -155,28 +203,25 @@ fun drawWatermarkTableFromResolvedCells(
     cells: List<WatermarkCell>,
     rows: Int,
     cols: Int,
-    showLabel: Boolean,
     anchor: WatermarkTableAnchor,
     offsetXRatio: Int,
     offsetYRatio: Int,
     tableHeightRatio: Int,
     tableWidthRatio: Int,
     bgAlpha: Int,
-    labelScale: Int,
     valueScale: Int,
+    textColorMode: Int = WatermarkTextColorMode.AUTO,
+    manualTextColor: Int = WatermarkManualTextColor.BLACK,
+    textAlign: Int = WatermarkTextAlign.LEFT,
     rowWeights: List<Float>? = null,
     colWeights: List<Float>? = null,
     bgStyle: Int = BG_STYLE_BLACK
 ): Bitmap {
-    // ✅ 너가 준 함수 본문 그대로 붙여넣기
     val out = src.copy(Bitmap.Config.ARGB_8888, true)
     val canvas = Canvas(out)
 
     val w = out.width.toFloat()
     val h = out.height.toFloat()
-
-    // ✅ 비율(3:4/9:16/1:1)에 상관없이 "표 크기"가 동일해야 하므로
-    // 표 크기 계산 기준을 width(가로)로 통일한다.
     val base = w
     val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
     val tableH = base * (tableHeightRatio.coerceIn(10, 35) / 100f)
@@ -187,43 +232,31 @@ fun drawWatermarkTableFromResolvedCells(
     val left = when (anchor) {
         WatermarkTableAnchor.TOP_LEFT,
         WatermarkTableAnchor.BOTTOM_LEFT -> 0f
-
         WatermarkTableAnchor.TOP_RIGHT,
         WatermarkTableAnchor.BOTTOM_RIGHT -> maxX
-
-        WatermarkTableAnchor.CUSTOM ->
-            maxX * (offsetXRatio.coerceIn(0, 100) / 100f)
+        WatermarkTableAnchor.CUSTOM -> maxX * (offsetXRatio.coerceIn(0, 100) / 100f)
     }
 
     val top = when (anchor) {
         WatermarkTableAnchor.TOP_LEFT,
         WatermarkTableAnchor.TOP_RIGHT -> 0f
-
         WatermarkTableAnchor.BOTTOM_LEFT,
         WatermarkTableAnchor.BOTTOM_RIGHT -> maxY
-
-        WatermarkTableAnchor.CUSTOM ->
-            maxY * (offsetYRatio.coerceIn(0, 100) / 100f)
+        WatermarkTableAnchor.CUSTOM -> maxY * (offsetYRatio.coerceIn(0, 100) / 100f)
     }
+
     drawBackgroundRect(canvas, left, top, tableW, tableH, bgAlpha, bgStyle)
 
     val safeRows = rows.coerceAtLeast(1)
     val safeCols = cols.coerceAtLeast(1)
 
-    val rW = resolveWeightsOrOnes(rowWeights, safeRows)
-    val cW = resolveWeightsOrOnes(colWeights, safeCols)
-    val rowHeights = computeSizes(tableH, rW)
-    val colWidths = computeSizes(tableW, cW)
+    val rowHeights = computeSizes(tableH, resolveWeightsOrOnes(rowWeights, safeRows))
+    val colWidths = computeSizes(tableW, resolveWeightsOrOnes(colWeights, safeCols))
     val rowOffsets = computeOffsets(rowHeights)
     val colOffsets = computeOffsets(colWidths)
 
-    val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.LTGRAY
-        textSize = (tableH * 0.12f * (labelScale / 100f)).coerceAtLeast(14f)
-    }
-
     val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
+        color = resolveValueTextColor(bgStyle, textColorMode, manualTextColor)
         typeface = Typeface.DEFAULT_BOLD
         textSize = (tableH * 0.16f * (valueScale / 100f)).coerceAtLeast(18f)
     }
@@ -237,27 +270,21 @@ fun drawWatermarkTableFromResolvedCells(
 
             val cell = cells[idx]
             val cellH = rowHeights[r]
+            val cellW = colWidths[c]
             val x = left + colOffsets[c]
             val y = top + rowOffsets[r]
+            val cellRect = RectF(x, y, x + cellW, y + cellH)
 
-            if (showLabel) {
-                canvas.drawText(
-                    cell.label,
-                    x + pad,
-                    y + pad + labelPaint.textSize,
-                    labelPaint
-                )
-                canvas.drawText(
-                    cell.valueText,
-                    x + pad,
-                    y + cellH - pad,
-                    valuePaint
-                )
-            } else {
-                val fm = valuePaint.fontMetrics
-                val centerY = y + cellH / 2f - (fm.ascent + fm.descent) / 2
-                canvas.drawText(cell.valueText, x + pad, centerY, valuePaint)
-            }
+            val fm = valuePaint.fontMetrics
+            val centerY = y + cellH / 2f - (fm.ascent + fm.descent) / 2
+            val availableWidth = (cellRect.width() - (pad * 2f)).coerceAtLeast(0f)
+            val drawText = ellipsizeToWidth(cell.valueText, valuePaint, availableWidth)
+            val drawX = resolveTextDrawX(x, cellW, pad, drawText, valuePaint, textAlign)
+
+            canvas.save()
+            canvas.clipRect(cellRect)
+            canvas.drawText(drawText, drawX, centerY, valuePaint)
+            canvas.restore()
         }
     }
 
@@ -270,15 +297,16 @@ fun drawWatermarkTableOnCanvas(
     cells: List<WatermarkCell>,
     rows: Int,
     cols: Int,
-    showLabel: Boolean,
     anchor: WatermarkTableAnchor,
     offsetXRatio: Int,
     offsetYRatio: Int,
     tableHeightRatio: Int,
     tableWidthRatio: Int,
     bgAlpha: Int,
-    labelScale: Int,
     valueScale: Int,
+    textColorMode: Int = WatermarkTextColorMode.AUTO,
+    manualTextColor: Int = WatermarkManualTextColor.BLACK,
+    textAlign: Int = WatermarkTextAlign.LEFT,
     rowWeights: List<Float>? = null,
     colWeights: List<Float>? = null,
     bgStyle: Int = BG_STYLE_BLACK,
@@ -308,6 +336,7 @@ fun drawWatermarkTableOnCanvas(
             tableWidthRatio = tableWidthRatio
         )
     }
+
     val tableW = layout.rect.width()
     val tableH = layout.rect.height()
     val left = layout.rect.left
@@ -318,20 +347,13 @@ fun drawWatermarkTableOnCanvas(
     val safeRows = rows.coerceAtLeast(1)
     val safeCols = cols.coerceAtLeast(1)
 
-    val rW = resolveWeightsOrOnes(rowWeights, safeRows)
-    val cW = resolveWeightsOrOnes(colWeights, safeCols)
-    val rowHeights = computeSizes(tableH, rW)
-    val colWidths = computeSizes(tableW, cW)
+    val rowHeights = computeSizes(tableH, resolveWeightsOrOnes(rowWeights, safeRows))
+    val colWidths = computeSizes(tableW, resolveWeightsOrOnes(colWeights, safeCols))
     val rowOffsets = computeOffsets(rowHeights)
     val colOffsets = computeOffsets(colWidths)
 
-    val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.LTGRAY
-        textSize = (tableH * 0.12f * (labelScale / 100f)).coerceAtLeast(14f)
-    }
-
     val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
+        color = resolveValueTextColor(bgStyle, textColorMode, manualTextColor)
         typeface = Typeface.DEFAULT_BOLD
         textSize = (tableH * 0.16f * (valueScale / 100f)).coerceAtLeast(18f)
     }
@@ -345,27 +367,21 @@ fun drawWatermarkTableOnCanvas(
 
             val cell = cells[idx]
             val cellH = rowHeights[r]
+            val cellW = colWidths[c]
             val x = left + colOffsets[c]
             val y = top + rowOffsets[r]
+            val cellRect = RectF(x, y, x + cellW, y + cellH)
 
-            if (showLabel) {
-                canvas.drawText(
-                    cell.label,
-                    x + pad,
-                    y + pad + labelPaint.textSize,
-                    labelPaint
-                )
-                canvas.drawText(
-                    cell.valueText,
-                    x + pad,
-                    y + cellH - pad,
-                    valuePaint
-                )
-            } else {
-                val fm = valuePaint.fontMetrics
-                val centerY = y + cellH / 2f - (fm.ascent + fm.descent) / 2
-                canvas.drawText(cell.valueText, x + pad, centerY, valuePaint)
-            }
+            val fm = valuePaint.fontMetrics
+            val centerY = y + cellH / 2f - (fm.ascent + fm.descent) / 2
+            val availableWidth = (cellRect.width() - (pad * 2f)).coerceAtLeast(0f)
+            val drawText = ellipsizeToWidth(cell.valueText, valuePaint, availableWidth)
+            val drawX = resolveTextDrawX(x, cellW, pad, drawText, valuePaint, textAlign)
+
+            canvas.save()
+            canvas.clipRect(cellRect)
+            canvas.drawText(drawText, drawX, centerY, valuePaint)
+            canvas.restore()
         }
     }
 }

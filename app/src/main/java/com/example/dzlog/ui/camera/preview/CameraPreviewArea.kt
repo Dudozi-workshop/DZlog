@@ -480,8 +480,10 @@ internal fun CameraPreviewArea(
                 tableHeightRatio = args.watermarkUi.tableHeightRatio,
                 tableBgAlpha = args.watermarkUi.bgAlpha,
                 bgStyle = args.watermarkUi.bgStyle,
-                labelScale = args.watermarkUi.labelScale,
-                valueScale = args.watermarkUi.valueScale
+                valueScale = args.watermarkUi.valueScale,
+                textColorMode = args.watermarkUi.textColorMode,
+                manualTextColor = args.watermarkUi.manualTextColor,
+                textAlign = args.watermarkUi.textAlign
             )
         )
 

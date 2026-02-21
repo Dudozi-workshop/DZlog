@@ -2,6 +2,7 @@ package com.example.dzlog.watermark
 
 import android.graphics.Bitmap
 import com.example.dzlog.domain.model.CaptureRequest
+
 fun renderWatermarkForRequest(
     renderer: WatermarkRenderer,
     originalBmp: Bitmap,
@@ -15,15 +16,16 @@ fun renderWatermarkForRequest(
         cells = cells,
         rows = request.tableTemplate.rows,
         cols = request.tableTemplate.cols,
-        showLabel = wm.showLabel,
         anchor = wm.anchor,
         offsetXRatio = wm.offsetXRatio,
         offsetYRatio = wm.offsetYRatio,
         tableHeightRatio = wm.tableHeightRatio,
         tableWidthRatio = wm.tableWidthRatio,
         bgAlpha = wm.tableBgAlpha,
-        labelScale = wm.labelScale,
         valueScale = wm.valueScale,
+        textColorMode = wm.textColorMode,
+        manualTextColor = wm.manualTextColor,
+        textAlign = wm.textAlign,
         rowWeights = request.tableTemplate.rowWeights,
         colWeights = request.tableTemplate.colWeights,
         bgStyle = wm.bgStyle

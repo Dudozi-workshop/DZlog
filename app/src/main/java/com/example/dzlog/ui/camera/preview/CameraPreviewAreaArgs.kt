@@ -21,8 +21,10 @@ internal data class WatermarkUiArgs(
     val offsetYRatio: Int,
     val bgAlpha: Int,
     val bgStyle: Int,
-    val labelScale: Int,
-    val valueScale: Int
+    val valueScale: Int,
+    val textColorMode: Int,
+    val manualTextColor: Int,
+    val textAlign: Int
 )
 
 /**

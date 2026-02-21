@@ -132,10 +132,24 @@ fun AppRoot() {
             val prefs = context.dataStore.data.first()
             val json = prefs[KEY_TABLE_TEMPLATE_JSON]
             if (!json.isNullOrBlank()) {
-                tableTemplateStateFromJson(json)?.let { loaded ->
+                val loaded = tableTemplateStateFromJson(json)
+                if (loaded != null) {
                     tableTemplateViewModel.update(loaded)
+                } else {
+                    val reset = defaultTableTemplateState()
+                    tableTemplateViewModel.update(reset)
+                    saveTableTemplate(context, reset)
+                    Toast.makeText(
+                        context,
+                        "저장된 템플릿을 불러올 수 없어 기본값으로 초기화했습니다.",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
+        }.onFailure {
+            val reset = defaultTableTemplateState()
+            tableTemplateViewModel.update(reset)
+            runCatching { saveTableTemplate(context, reset) }
         }
         hasRestoredTemplate = true
     }

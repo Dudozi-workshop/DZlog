@@ -86,6 +86,9 @@ import com.example.dzlog.ui.table.watermark.TableWatermarkUiState
 import com.example.dzlog.ui.table.watermark.applyBgAlphaChange
 import com.example.dzlog.ui.table.watermark.applyBgStyleChange
 import com.example.dzlog.ui.table.watermark.applyHeightRatioChange
+import com.example.dzlog.ui.table.watermark.applyManualTextColorChange
+import com.example.dzlog.ui.table.watermark.applyTextAlignChange
+import com.example.dzlog.ui.table.watermark.applyTextColorModeChange
 import com.example.dzlog.ui.table.watermark.applyValueScaleChange
 import com.example.dzlog.ui.table.watermark.applyWidthRatioChange
 import com.example.dzlog.ui.table.watermark.loadTableWatermarkUiState
@@ -890,6 +893,9 @@ fun TableEditorScreen(
                         wmBgStyle = watermarkUi.wmBgStyle,
                         wmBgAlpha = watermarkUi.wmBgAlpha,
                         wmValueScale = watermarkUi.wmValueScale,
+                        wmTextColorMode = watermarkUi.wmTextColorMode,
+                        wmManualTextColor = watermarkUi.wmManualTextColor,
+                        wmTextAlign = watermarkUi.wmTextAlign,
                         onRowColWeightsChange = { updated -> onTemplateChange(updated) },
                         onWidthRatioChange = { width ->
                             scope.launch {
@@ -914,6 +920,21 @@ fun TableEditorScreen(
                         onValueScaleChange = { scale ->
                             scope.launch {
                                 watermarkUi = applyValueScaleChange(context, scale, watermarkUi)
+                            }
+                        },
+                        onTextColorModeChange = { mode ->
+                            scope.launch {
+                                watermarkUi = applyTextColorModeChange(context, mode, watermarkUi)
+                            }
+                        },
+                        onManualTextColorChange = { color ->
+                            scope.launch {
+                                watermarkUi = applyManualTextColorChange(context, color, watermarkUi)
+                            }
+                        },
+                        onTextAlignChange = { align ->
+                            scope.launch {
+                                watermarkUi = applyTextAlignChange(context, align, watermarkUi)
                             }
                         }
                     )

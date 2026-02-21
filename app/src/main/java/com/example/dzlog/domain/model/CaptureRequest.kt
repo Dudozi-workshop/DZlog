@@ -34,7 +34,6 @@ data class CaptureRequest(
 )
 
 data class WatermarkConfig(
-    val showLabel: Boolean,
     val anchor: WatermarkTableAnchor,
     val offsetXRatio: Int,
     val offsetYRatio: Int,
@@ -42,6 +41,8 @@ data class WatermarkConfig(
     val tableWidthRatio: Int,
     val tableBgAlpha: Int,
     val bgStyle: Int, // 0=BLACK, 1=WHITE, 2=TRANSPARENT
-    val labelScale: Int,
-    val valueScale: Int
+    val valueScale: Int,
+    val textColorMode: Int, // 0=AUTO, 1=MANUAL
+    val manualTextColor: Int, // 0=WHITE, 1=BLACK
+    val textAlign: Int // 0=LEFT, 1=CENTER, 2=RIGHT
 )

@@ -40,7 +40,10 @@ internal fun CameraLikeWatermarkPlacementPreview(
     tableHeightRatio: Int,
     bgStyle: Int,
     bgAlpha: Int,
-    valueScale: Int
+    valueScale: Int,
+    textColorMode: Int,
+    manualTextColor: Int,
+    textAlign: Int
 ) {
     // bgStyle: 워터마크 표 배경 스타일
     // - 0: BLACK
@@ -92,7 +95,6 @@ internal fun CameraLikeWatermarkPlacementPreview(
                         cells = watermarkCells,
                         rows = rows.coerceAtLeast(1),
                         cols = cols.coerceAtLeast(1),
-                        showLabel = false,
                         anchor = anchor,
                         offsetXRatio = 0,
                         offsetYRatio = 0,
@@ -100,8 +102,10 @@ internal fun CameraLikeWatermarkPlacementPreview(
                         tableWidthRatio = tableWidthRatio,
                         bgAlpha = bgAlpha.coerceIn(0, 255),
                         bgStyle = bgStyle,
-                        labelScale = 100,
                         valueScale = valueScale.coerceIn(60, 160),
+                        textColorMode = textColorMode,
+                        manualTextColor = manualTextColor,
+                        textAlign = textAlign,
                         rowWeights = rowWeights,
                         colWeights = colWeights
                     )

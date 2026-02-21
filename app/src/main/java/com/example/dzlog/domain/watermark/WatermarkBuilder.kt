@@ -10,7 +10,6 @@ import com.example.dzlog.domain.table.ResolvedCell
 object WatermarkBuilder {
 
     data class WatermarkCell(
-        val label: String,
         val valueText: String
     )
 
@@ -20,8 +19,7 @@ object WatermarkBuilder {
      */
     fun buildTableCells(resolvedCells: List<ResolvedCell>): List<WatermarkCell> {
         return resolvedCells.map { rc ->
-            val label = rc.raw?.label.orEmpty()
-            WatermarkCell(label = label, valueText = rc.resolvedText)
+            WatermarkCell(valueText = rc.resolvedText)
         }
     }
 }

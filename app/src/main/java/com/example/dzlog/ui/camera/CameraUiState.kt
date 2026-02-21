@@ -12,6 +12,9 @@ import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.model.WatermarkTableAnchor
+import com.example.dzlog.domain.model.WatermarkTextColorMode
+import com.example.dzlog.domain.model.WatermarkManualTextColor
+import com.example.dzlog.domain.model.WatermarkTextAlign
 import com.example.dzlog.ui.camera.preview.TapFocusUiState
 import java.util.Date
 import java.util.concurrent.atomic.AtomicBoolean
@@ -34,8 +37,10 @@ internal class CameraPrefsState {
     var wmBgAlpha by mutableIntStateOf(80)
     // 0=BLACK, 1=WHITE, 2=TRANSPARENT
     var wmBgStyle by mutableIntStateOf(0)
-    var wmLabelScale by mutableIntStateOf(100)
     var wmValueScale by mutableIntStateOf(100)
+    var wmTextColorMode by mutableIntStateOf(WatermarkTextColorMode.AUTO)
+    var wmManualTextColor by mutableIntStateOf(WatermarkManualTextColor.BLACK)
+    var wmTextAlign by mutableIntStateOf(WatermarkTextAlign.LEFT)
 }
 
 @Stable

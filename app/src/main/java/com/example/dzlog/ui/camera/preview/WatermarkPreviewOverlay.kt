@@ -75,7 +75,6 @@ fun WatermarkPreviewOverlay(
                 cells = cells,
                 rows = request.tableTemplate.rows,
                 cols = request.tableTemplate.cols,
-                showLabel = request.watermark.showLabel,
                 anchor = request.watermark.anchor,
                 offsetXRatio = request.watermark.offsetXRatio,
                 offsetYRatio = request.watermark.offsetYRatio,
@@ -83,8 +82,10 @@ fun WatermarkPreviewOverlay(
                 tableWidthRatio = request.watermark.tableWidthRatio,
                 bgAlpha = request.watermark.tableBgAlpha,
                 bgStyle = request.watermark.bgStyle,
-                labelScale = request.watermark.labelScale,
                 valueScale = request.watermark.valueScale,
+                textColorMode = request.watermark.textColorMode,
+                manualTextColor = request.watermark.manualTextColor,
+                textAlign = request.watermark.textAlign,
                 overrideOffsetLeftPx = overrideOffsetPx?.x,
                 overrideOffsetTopPx = overrideOffsetPx?.y
             )

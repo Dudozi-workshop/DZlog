@@ -9,6 +9,9 @@ import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
+import com.example.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MODE
+import com.example.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MANUAL
+import com.example.dzlog.data.preferences.KEY_WM_TEXT_ALIGN
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.data.template.toJsonString
 import com.example.dzlog.domain.model.TableTemplateState
@@ -52,6 +55,18 @@ private suspend fun persistWatermarkValueScale(context: Context, valueScale: Int
     context.dataStore.edit { it[KEY_WM_VALUE_SCALE] = valueScale }
 }
 
+private suspend fun persistWatermarkTextColorMode(context: Context, mode: Int) {
+    context.dataStore.edit { it[KEY_WM_TEXT_COLOR_MODE] = mode }
+}
+
+private suspend fun persistWatermarkManualTextColor(context: Context, color: Int) {
+    context.dataStore.edit { it[KEY_WM_TEXT_COLOR_MANUAL] = color }
+}
+
+private suspend fun persistWatermarkTextAlign(context: Context, align: Int) {
+    context.dataStore.edit { it[KEY_WM_TEXT_ALIGN] = align }
+}
+
 sealed interface TableWatermarkAction {
     data class AnchorChanged(val anchor: WatermarkTableAnchor) : TableWatermarkAction
     data class WidthRatioChanged(val width: Int) : TableWatermarkAction
@@ -59,6 +74,9 @@ sealed interface TableWatermarkAction {
     data class BgStyleChanged(val bgStyle: Int) : TableWatermarkAction
     data class BgAlphaChanged(val alpha: Int) : TableWatermarkAction
     data class ValueScaleChanged(val scale: Int) : TableWatermarkAction
+    data class TextColorModeChanged(val mode: Int) : TableWatermarkAction
+    data class ManualTextColorChanged(val color: Int) : TableWatermarkAction
+    data class TextAlignChanged(val align: Int) : TableWatermarkAction
 }
 
 data class TableWatermarkStatePatch(
@@ -67,7 +85,10 @@ data class TableWatermarkStatePatch(
     val heightRatio: Int? = null,
     val bgStyle: Int? = null,
     val bgAlpha: Int? = null,
-    val valueScale: Int? = null
+    val valueScale: Int? = null,
+    val textColorMode: Int? = null,
+    val manualTextColor: Int? = null,
+    val textAlign: Int? = null
 )
 
 suspend fun applyTableWatermarkAction(
@@ -107,6 +128,24 @@ suspend fun applyTableWatermarkAction(
             val normalized = action.scale.coerceIn(60, 160)
             persistWatermarkValueScale(context, normalized)
             TableWatermarkStatePatch(valueScale = normalized)
+        }
+
+        is TableWatermarkAction.TextColorModeChanged -> {
+            val normalized = action.mode.coerceIn(0, 1)
+            persistWatermarkTextColorMode(context, normalized)
+            TableWatermarkStatePatch(textColorMode = normalized)
+        }
+
+        is TableWatermarkAction.ManualTextColorChanged -> {
+            val normalized = action.color.coerceIn(0, 1)
+            persistWatermarkManualTextColor(context, normalized)
+            TableWatermarkStatePatch(manualTextColor = normalized)
+        }
+
+        is TableWatermarkAction.TextAlignChanged -> {
+            val normalized = action.align.coerceIn(0, 2)
+            persistWatermarkTextAlign(context, normalized)
+            TableWatermarkStatePatch(textAlign = normalized)
         }
     }
 }

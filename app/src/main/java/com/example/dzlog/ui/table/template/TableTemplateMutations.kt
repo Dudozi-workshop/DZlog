@@ -30,8 +30,7 @@ fun addRow(templateState: TableTemplateState): TableTemplateState {
             dataType = TableCellDataType.TEXT,
             rawText = "",
             typedValue = com.example.dzlog.domain.model.CellValue.Text(""),
-            groupLevel = GroupLevel.NONE,
-            label = ""
+            groupLevel = GroupLevel.NONE
         )
     }
 
@@ -75,8 +74,7 @@ fun addColumn(templateState: TableTemplateState): TableTemplateState {
             dataType = TableCellDataType.TEXT,
             rawText = "",
             typedValue = com.example.dzlog.domain.model.CellValue.Text(""),
-            groupLevel = GroupLevel.NONE,
-            label = ""
+            groupLevel = GroupLevel.NONE
         )
     }
 

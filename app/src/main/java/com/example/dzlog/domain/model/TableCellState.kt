@@ -33,9 +33,7 @@ data class TableCellState(
      * Optional display pattern (currently used for DATE; TIME는 향후 timeFormatOptions로 완전 대체).
      * Example: "yyyy.MM.dd"
      */
-    val formatPattern: String = "",
-
-    val label: String = ""
+    val formatPattern: String = ""
 ) {
     /**
      * UI(TextField)에 넣을 "편집용 문자열".

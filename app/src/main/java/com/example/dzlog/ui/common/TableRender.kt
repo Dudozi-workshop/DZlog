@@ -71,8 +71,6 @@ fun TableRender(
                     cells = cells,
                     rows = templateState.rows,
                     cols = templateState.cols,
-                    // ✅ Display 전용: 라벨은 항상 숨김
-                    showLabel = false,
                     anchor = WatermarkTableAnchor.TOP_LEFT,
                     offsetXRatio = offsetXRatio,
                     offsetYRatio = offsetYRatio,
@@ -80,8 +78,6 @@ fun TableRender(
                     tableWidthRatio = tableWidthRatio,
                     bgAlpha = bgAlpha,
                     bgStyle = bgStyle,
-                    // 라벨 비표시이므로 labelScale은 의미 없음
-                    labelScale = 100,
                     valueScale = valueScale
                 )
             }

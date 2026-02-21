@@ -1,8 +1,8 @@
 package com.example.dzlog.watermark
 
 import android.graphics.Bitmap
-import com.example.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 import com.example.dzlog.domain.model.WatermarkTableAnchor
+import com.example.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 
 class WatermarkRendererImpl : WatermarkRenderer {
     override fun renderTable(
@@ -10,15 +10,16 @@ class WatermarkRendererImpl : WatermarkRenderer {
         cells: List<WatermarkCell>,
         rows: Int,
         cols: Int,
-        showLabel: Boolean,
         anchor: WatermarkTableAnchor,
         offsetXRatio: Int,
         offsetYRatio: Int,
         tableHeightRatio: Int,
         tableWidthRatio: Int,
         bgAlpha: Int,
-        labelScale: Int,
         valueScale: Int,
+        textColorMode: Int,
+        manualTextColor: Int,
+        textAlign: Int,
         rowWeights: List<Float>?,
         colWeights: List<Float>?,
         bgStyle: Int
@@ -28,15 +29,16 @@ class WatermarkRendererImpl : WatermarkRenderer {
             cells = cells,
             rows = rows,
             cols = cols,
-            showLabel = showLabel,
             anchor = anchor,
             offsetXRatio = offsetXRatio,
             offsetYRatio = offsetYRatio,
             tableHeightRatio = tableHeightRatio,
             tableWidthRatio = tableWidthRatio,
             bgAlpha = bgAlpha,
-            labelScale = labelScale,
             valueScale = valueScale,
+            textColorMode = textColorMode,
+            manualTextColor = manualTextColor,
+            textAlign = textAlign,
             rowWeights = rowWeights,
             colWeights = colWeights,
             bgStyle = bgStyle

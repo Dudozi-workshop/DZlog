@@ -80,7 +80,6 @@ import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_SAVE_MODE
 import com.example.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
 import com.example.dzlog.data.preferences.KEY_WM_BG_ALPHA
-import com.example.dzlog.data.preferences.KEY_WM_LABEL_SCALE
 import com.example.dzlog.data.preferences.KEY_WM_OFFSET_X
 import com.example.dzlog.data.preferences.KEY_WM_OFFSET_Y
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
@@ -88,6 +87,9 @@ import com.example.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.example.dzlog.data.preferences.KEY_WM_VALUE_SCALE
+import com.example.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MODE
+import com.example.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MANUAL
+import com.example.dzlog.data.preferences.KEY_WM_TEXT_ALIGN
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
@@ -105,6 +107,9 @@ import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
+import com.example.dzlog.domain.model.WatermarkTextColorMode
+import com.example.dzlog.domain.model.WatermarkManualTextColor
+import com.example.dzlog.domain.model.WatermarkTextAlign
 import com.example.dzlog.domain.naming.NamingFormatDefaults
 import com.example.dzlog.domain.preview.computeNextDelayMillis
 import com.example.dzlog.domain.preview.decideTickUnit
@@ -432,8 +437,10 @@ fun CameraPreview(
             ui.prefs.wmOffsetYRatio,
             ui.prefs.wmBgAlpha,
             ui.prefs.wmBgStyle,
-            ui.prefs.wmLabelScale,
             ui.prefs.wmValueScale,
+            ui.prefs.wmTextColorMode,
+            ui.prefs.wmManualTextColor,
+            ui.prefs.wmTextAlign,
             settingsButtonBottomY,
             shutterButtonTopY,
             safeTopY,
@@ -503,8 +510,10 @@ fun CameraPreview(
                     offsetYRatio = ui.prefs.wmOffsetYRatio,
                     bgAlpha = ui.prefs.wmBgAlpha,
                     bgStyle = ui.prefs.wmBgStyle,
-                    labelScale = ui.prefs.wmLabelScale,
-                    valueScale = ui.prefs.wmValueScale
+                    valueScale = ui.prefs.wmValueScale,
+                    textColorMode = ui.prefs.wmTextColorMode,
+                    manualTextColor = ui.prefs.wmManualTextColor,
+                    textAlign = ui.prefs.wmTextAlign
                 )
             )
         }
@@ -669,8 +678,10 @@ fun CameraPreview(
                             wmTableHeightRatio = ui.prefs.wmTableHeightRatio,
                             wmBgAlpha = ui.prefs.wmBgAlpha,
                             wmBgStyle = ui.prefs.wmBgStyle,
-                            wmLabelScale = ui.prefs.wmLabelScale,
                             wmValueScale = ui.prefs.wmValueScale,
+                            wmTextColorMode = ui.prefs.wmTextColorMode,
+                            wmManualTextColor = ui.prefs.wmManualTextColor,
+                            wmTextAlign = ui.prefs.wmTextAlign,
                             usableTopRatio = ui.capture.usableTopRatio,
                             usableBottomRatio = ui.capture.usableBottomRatio,
                             repository = repository,
@@ -799,11 +810,12 @@ internal fun buildWatermarkConfig(
     tableHeightRatio: Int,
     tableBgAlpha: Int,
     bgStyle: Int,
-    labelScale: Int,
-    valueScale: Int
+    valueScale: Int,
+    textColorMode: Int,
+    manualTextColor: Int,
+    textAlign: Int
 ): WatermarkConfig {
     return WatermarkConfig(
-        showLabel = false,
         anchor = anchor,
         offsetXRatio = offsetXRatio,
         offsetYRatio = offsetYRatio,
@@ -811,8 +823,10 @@ internal fun buildWatermarkConfig(
         tableHeightRatio = tableHeightRatio,
         tableBgAlpha = tableBgAlpha,
         bgStyle = bgStyle,
-        labelScale = labelScale,
-        valueScale = valueScale
+        valueScale = valueScale,
+        textColorMode = textColorMode,
+        manualTextColor = manualTextColor,
+        textAlign = textAlign
     )
 }
 
@@ -959,8 +973,10 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
 
         ui.prefs.wmBgAlpha = (prefs[KEY_WM_BG_ALPHA] ?: 80).coerceIn(0, 255)
         ui.prefs.wmBgStyle = (prefs[KEY_WM_TABLE_BG_STYLE] ?: 0).coerceIn(0, 2)
-        ui.prefs.wmLabelScale = (prefs[KEY_WM_LABEL_SCALE] ?: 100).coerceIn(60, 160)
         ui.prefs.wmValueScale = (prefs[KEY_WM_VALUE_SCALE] ?: 100).coerceIn(60, 160)
+        ui.prefs.wmTextColorMode = (prefs[KEY_WM_TEXT_COLOR_MODE] ?: WatermarkTextColorMode.AUTO).coerceIn(0, 1)
+        ui.prefs.wmManualTextColor = (prefs[KEY_WM_TEXT_COLOR_MANUAL] ?: WatermarkManualTextColor.BLACK).coerceIn(0, 1)
+        ui.prefs.wmTextAlign = (prefs[KEY_WM_TEXT_ALIGN] ?: WatermarkTextAlign.LEFT).coerceIn(0, 2)
 
         ui.prefs.captureAspect = CaptureAspect.from(
             prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v
@@ -996,7 +1012,9 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.wmOffsetYRatio = 0
         ui.prefs.wmBgAlpha = 80
         ui.prefs.wmBgStyle = 0
-        ui.prefs.wmLabelScale = 100
         ui.prefs.wmValueScale = 100
+        ui.prefs.wmTextColorMode = WatermarkTextColorMode.AUTO
+        ui.prefs.wmManualTextColor = WatermarkManualTextColor.BLACK
+        ui.prefs.wmTextAlign = WatermarkTextAlign.LEFT
     }
 }

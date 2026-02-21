@@ -41,12 +41,18 @@ fun PreviewTabContent(
     wmBgStyle: Int,
     wmBgAlpha: Int,
     wmValueScale: Int,
+    wmTextColorMode: Int,
+    wmManualTextColor: Int,
+    wmTextAlign: Int,
     onRowColWeightsChange: (TableTemplateState) -> Unit,
     onWidthRatioChange: (Int) -> Unit,
     onHeightRatioChange: (Int) -> Unit,
     onBgStyleChange: (Int) -> Unit,
     onBgAlphaChange: (Int) -> Unit,
     onValueScaleChange: (Int) -> Unit,
+    onTextColorModeChange: (Int) -> Unit,
+    onManualTextColorChange: (Int) -> Unit,
+    onTextAlignChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     // ✅ 프리뷰 렌더용 셀 목록은 resolvedCells가 바뀔 때만 재계산
@@ -71,7 +77,10 @@ fun PreviewTabContent(
             tableHeightRatio = wmHeightRatio,
             bgStyle = wmBgStyle,
             bgAlpha = wmBgAlpha,
-            valueScale = wmValueScale
+            valueScale = wmValueScale,
+            textColorMode = wmTextColorMode,
+            manualTextColor = wmManualTextColor,
+            textAlign = wmTextAlign
         )
 
         TableRowColSizeSection(
@@ -111,8 +120,14 @@ fun PreviewTabContent(
 
             HorizontalDivider()
 
-            TableValueTextSizeSection(
+            TableTextStyleSection(
+                wmTextColorMode = wmTextColorMode,
+                wmManualTextColor = wmManualTextColor,
+                wmTextAlign = wmTextAlign,
                 wmValueScale = wmValueScale,
+                onTextColorModeChange = onTextColorModeChange,
+                onManualTextColorChange = onManualTextColorChange,
+                onTextAlignChange = onTextAlignChange,
                 onValueScaleChange = onValueScaleChange
             )
         }

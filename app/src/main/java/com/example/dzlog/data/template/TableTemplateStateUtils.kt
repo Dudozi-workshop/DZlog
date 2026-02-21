@@ -73,6 +73,12 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
         }
 
         val arr = root.getJSONArray("cells")
+        for (i in 0 until arr.length()) {
+            val o = arr.getJSONObject(i)
+            if (o.has("label")) {
+                error("Legacy template with label field is no longer supported")
+            }
+        }
         val legacyIncludeCandidates = mutableListOf<TableCellState>()
         val cells = buildList {
             for (i in 0 until arr.length()) {
@@ -120,7 +126,6 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         dataType = dataType,
                         phraseSetId = o.optString("phraseSetId").ifBlank { null },
                         everyOverride = if (o.has("everyOverride")) o.optInt("everyOverride").coerceAtLeast(1) else null,
-                        label = o.optString("label", ""),
                         formatPattern = o.optString("formatPattern", "")
                     )
                 add(cell)
@@ -163,7 +168,6 @@ fun defaultTableTemplateState(): TableTemplateState {
             rawText = "T1",
             typedValue = CellValue.Text("T1"),
             groupLevel = GroupLevel.G1,
-            label = "Treatment"
         ),
         TableCellState(
             rowIndex = 0,
@@ -172,7 +176,6 @@ fun defaultTableTemplateState(): TableTemplateState {
             rawText = "S1",
             typedValue = CellValue.Text("S1"),
             groupLevel = GroupLevel.G2,
-            label = "Strain"
         ),
         TableCellState(
             rowIndex = 0,
@@ -180,7 +183,6 @@ fun defaultTableTemplateState(): TableTemplateState {
             kind = TableCellKind.INPUT,
             rawText = "DZlog",
             typedValue = CellValue.Text("DZlog"),
-            label = "Prefix"
         ),
         TableCellState(
             rowIndex = 0,
@@ -188,7 +190,6 @@ fun defaultTableTemplateState(): TableTemplateState {
             kind = TableCellKind.INPUT,
             rawText = "B3",
             typedValue = CellValue.Text("B3"),
-            label = "Batch"
         ),
         TableCellState(
             rowIndex = 1,
@@ -196,7 +197,6 @@ fun defaultTableTemplateState(): TableTemplateState {
             kind = TableCellKind.INPUT,
             rawText = "",
             typedValue = CellValue.Text(""),
-            label = "Note"
         ),
         TableCellState(
             rowIndex = 1,
@@ -204,7 +204,6 @@ fun defaultTableTemplateState(): TableTemplateState {
             kind = TableCellKind.INPUT,
             rawText = "",
             typedValue = CellValue.Text(""),
-            label = "Sample"
         ),
         TableCellState(
             rowIndex = 1,
@@ -212,7 +211,6 @@ fun defaultTableTemplateState(): TableTemplateState {
             kind = TableCellKind.INPUT,
             rawText = "",
             typedValue = CellValue.Text(""),
-            label = "Memo 1"
         ),
         TableCellState(
             rowIndex = 1,
@@ -220,7 +218,6 @@ fun defaultTableTemplateState(): TableTemplateState {
             kind = TableCellKind.INPUT,
             rawText = "",
             typedValue = CellValue.Text(""),
-            label = "Memo 2"
         )
     )
 
@@ -288,7 +285,6 @@ fun TableTemplateState.toJsonString(): String {
         o.put("rowSpan", c.rowSpan)
         o.put("colSpan", c.colSpan)
         o.put("dataType", c.dataType.name)
-        o.put("label", c.label)
         o.put("formatPattern", c.formatPattern)
 
         // COUNTER seed 저장
