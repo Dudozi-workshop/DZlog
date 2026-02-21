@@ -9,6 +9,12 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -58,6 +64,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
     textColorMode: Int,
     manualTextColor: Int,
     textAlign: Int,
+    onCaptureAspectChange: (CaptureAspect) -> Unit,
     armed: Boolean,
     onArmedChange: (Boolean) -> Unit,
     onDragPreview: (Int, Int) -> Unit,
@@ -163,6 +170,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = 300.dp)
                 .aspectRatio(3f / 4f)
                 .background(DDZColor.Primary)
                 .border(1.dp, DDZColor.Border)
@@ -259,7 +267,37 @@ internal fun CameraLikeWatermarkPlacementPreview(
             }
         }
 
-        Text("비율: ${captureAspect.label} / 크기: ${tableWidthRatio}%×${tableHeightRatio}%", color = DDZColor.IconMuted, style = DDZTypography.Caption)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                "비율: ${captureAspect.label} / 크기: ${tableWidthRatio}%×${tableHeightRatio}%",
+                color = DDZColor.IconMuted,
+                style = DDZTypography.Caption
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf(
+                    CaptureAspect.R1_1 to "1:1",
+                    CaptureAspect.R3_4 to "3:4",
+                    CaptureAspect.R9_16 to "9:16"
+                ).forEach { (aspect, label) ->
+                    OutlinedButton(
+                        onClick = { onCaptureAspectChange(aspect) },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                        modifier = Modifier.sizeIn(minHeight = 28.dp)
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (captureAspect == aspect) DDZColor.Primary else DDZColor.TextPrimary,
+                            style = DDZTypography.Caption
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

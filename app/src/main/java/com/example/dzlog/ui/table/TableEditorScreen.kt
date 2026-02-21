@@ -678,7 +678,7 @@ fun TableEditorScreen(
                         uiState = LayoutTabUiState(
                             savePathPreview = savePathPreview,
                             filenamePreview = filenamePreview,
-                            counterModeLabel = if (isManualCounterModeDisplay) "메뉴얼" else "자동",
+                            counterModeLabel = if (isManualCounterModeDisplay) "수동" else "자동",
                             templateState = templateState,
                             plan = plan,
                             previewNow = previewNow,

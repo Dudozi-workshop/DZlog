@@ -4,7 +4,6 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,8 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,8 +25,6 @@ import com.example.dzlog.domain.table.ResolvedCell
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.ui.table.TableRowColSizeSection
 import com.example.dzlog.ui.table.watermark.CameraLikeWatermarkPlacementPreview
-import com.example.dzlog.ui.theme.DDZColor
-import com.example.dzlog.ui.theme.DDZTypography
 
 @Composable
 fun PreviewTabContent(
@@ -74,22 +69,6 @@ fun PreviewTabContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(
-                CaptureAspect.R1_1 to "1:1",
-                CaptureAspect.R3_4 to "3:4",
-                CaptureAspect.R9_16 to "9:16"
-            ).forEach { (aspect, label) ->
-                OutlinedButton(onClick = { onCaptureAspectChange(aspect) }) {
-                    Text(
-                        text = label,
-                        color = if (captureAspect == aspect) DDZColor.Primary else DDZColor.TextPrimary,
-                        style = DDZTypography.ButtonText
-                    )
-                }
-            }
-        }
-
         CameraLikeWatermarkPlacementPreview(
             captureAspect = captureAspect,
             rows = templateState.rows,
@@ -108,6 +87,7 @@ fun PreviewTabContent(
             textColorMode = wmTextColorMode,
             manualTextColor = wmManualTextColor,
             textAlign = wmTextAlign,
+            onCaptureAspectChange = onCaptureAspectChange,
             armed = isWatermarkArmed,
             onArmedChange = { isWatermarkArmed = it },
             onDragPreview = onWatermarkDragPreview,
