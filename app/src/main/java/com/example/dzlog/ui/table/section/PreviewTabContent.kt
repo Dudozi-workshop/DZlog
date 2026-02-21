@@ -25,6 +25,7 @@ import com.example.dzlog.domain.table.ResolvedCell
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.ui.table.TableRowColSizeSection
 import com.example.dzlog.ui.table.watermark.CameraLikeWatermarkPlacementPreview
+import com.example.dzlog.ui.theme.DDZColor
 
 @Composable
 fun PreviewTabContent(
