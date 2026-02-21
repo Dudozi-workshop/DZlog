@@ -137,7 +137,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
                     },
                     onDragCancel = {
                         dragActive = false
-                        hasOverride = false
+                        overrideReleaseTick += 1
                     },
                     onDragEnd = {
                         if (dragActive) {
