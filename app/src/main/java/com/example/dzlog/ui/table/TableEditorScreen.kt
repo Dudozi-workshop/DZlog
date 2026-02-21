@@ -9,11 +9,12 @@ package com.example.dzlog.ui.table
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
@@ -38,9 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.example.dzlog.R
 import com.example.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.example.dzlog.data.counter.clampCounterDigits
 import com.example.dzlog.data.datastore.AppSettingsStore
@@ -628,10 +627,10 @@ fun TableEditorScreen(
                     containerColor = DDZColor.Background,
                     navigationIconContentColor = DDZColor.TextPrimary
                 ),
-                navigationIcon = {
+                actions = {
                     TextButton(onClick = onBack) {
                         Text(
-                            stringResource(R.string.action_back),
+                            "뒤로",
                             style = DDZTypography.ButtonText,
                             color = DDZColor.TextPrimary
                         )
@@ -656,7 +655,7 @@ fun TableEditorScreen(
                         uiState = LayoutTabUiState(
                             savePathPreview = savePathPreview,
                             filenamePreview = filenamePreview,
-                            counterModeLabel = if (isManualCounterModeDisplay) "메뉴얼" else "오토",
+                            counterModeLabel = if (isManualCounterModeDisplay) "메뉴얼" else "자동",
                             templateState = templateState,
                             plan = plan,
                             selectedCellId = selectedCellId,
@@ -714,13 +713,13 @@ fun TableEditorScreen(
                                         .onFailure {
                                             Toast.makeText(
                                                 context,
-                                                "Save failed: ${it.message}",
+                                                "저장 실패: ${it.message}",
                                                 Toast.LENGTH_SHORT
                                             ).show()
                                             isSavingTemplate = false
                                         }
                                         .onSuccess {
-                                            Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
                                             onBack()
                                         }
                                 }

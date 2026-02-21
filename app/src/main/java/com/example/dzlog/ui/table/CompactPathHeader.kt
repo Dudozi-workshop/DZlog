@@ -32,7 +32,7 @@ internal fun CompactPathHeader(
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text("SAVE PATH", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+        Text("저장경로", style = DDZTypography.Caption, color = DDZColor.TextMuted)
         Text(
             savePath,
             style = DDZTypography.Body,

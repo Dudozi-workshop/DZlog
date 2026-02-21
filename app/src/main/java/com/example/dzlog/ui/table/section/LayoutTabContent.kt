@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,6 +22,7 @@ import com.example.dzlog.ui.table.BottomFixedActionBar
 import com.example.dzlog.ui.table.CellSettingsBottomPanel
 import com.example.dzlog.ui.table.CompactPathHeader
 import com.example.dzlog.ui.theme.DDZColor
+import com.example.dzlog.ui.theme.DDZTypography
 
 @Composable
 fun LayoutTabContent(
@@ -42,7 +44,7 @@ fun LayoutTabContent(
                 )
 
                 Spacer(Modifier.height(10.dp))
-                DDZSectionHeader(title = "GRID LAYOUT")
+                DDZSectionHeader(title = "셀 구성")
                 Spacer(Modifier.height(6.dp))
 
                 Box(
@@ -101,7 +103,18 @@ fun LayoutTabContent(
                     )
                 }
 
-                Spacer(Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "셀을 눌러 편집을 시작하세요.",
+                        style = DDZTypography.Caption,
+                        color = DDZColor.TextMuted
+                    )
+                }
             }
 
             BottomFixedActionBar(

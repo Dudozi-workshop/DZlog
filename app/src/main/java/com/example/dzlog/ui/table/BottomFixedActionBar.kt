@@ -40,21 +40,21 @@ internal fun BottomFixedActionBar(
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(modifier = Modifier.weight(1f), onClick = onAddRow) {
-                Text("+Row", style = DDZTypography.ButtonText)
+                Text("행 +", style = DDZTypography.ButtonText)
             }
             Button(modifier = Modifier.weight(1f), onClick = onRemoveRow, enabled = rows > 1) {
-                Text("-Row", style = DDZTypography.ButtonText)
+                Text("행 -", style = DDZTypography.ButtonText)
             }
             Button(modifier = Modifier.weight(1f), onClick = onAddCol) {
-                Text("+Col", style = DDZTypography.ButtonText)
+                Text("열 +", style = DDZTypography.ButtonText)
             }
             Button(modifier = Modifier.weight(1f), onClick = onRemoveCol, enabled = cols > 1) {
-                Text("-Col", style = DDZTypography.ButtonText)
+                Text("열 -", style = DDZTypography.ButtonText)
             }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(modifier = Modifier.weight(1f), onClick = onReset) {
-                Text("Reset", style = DDZTypography.ButtonText)
+                Text("초기화", style = DDZTypography.ButtonText)
             }
             Button(modifier = Modifier.weight(1f), onClick = onSave, enabled = !isSaving) {
                 if (isSaving) {
@@ -63,9 +63,9 @@ internal fun BottomFixedActionBar(
                         strokeWidth = 2.dp
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text("Saving...", style = DDZTypography.ButtonText)
+                    Text("저장 중...", style = DDZTypography.ButtonText)
                 } else {
-                    Text("Save", style = DDZTypography.ButtonText)
+                    Text("저장", style = DDZTypography.ButtonText)
                 }
             }
         }
