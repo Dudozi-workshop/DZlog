@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -27,21 +28,19 @@ import androidx.compose.material.icons.filled.Numbers
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -74,7 +73,7 @@ internal fun CellSettingsBottomPanel(
     val isIncluded = templateState.fileNameSlots.contains(cell.cellId)
     var isSlotEditMode by remember { mutableStateOf(false) }
     var selectedFromIndex by remember { mutableStateOf<Int?>(null) }
-    val optionsScrollState = rememberScrollState()
+    val panelScrollState = rememberScrollState()
 
     val density = LocalDensity.current
     val maxPanelHeight = with(density) {
@@ -87,7 +86,7 @@ internal fun CellSettingsBottomPanel(
             .heightIn(max = maxPanelHeight)
             .background(DDZColor.Surface, RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
             .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Box(
             modifier = Modifier
@@ -103,22 +102,24 @@ internal fun CellSettingsBottomPanel(
             )
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("파일명", style = DDZTypography.Body, color = DDZColor.TextMuted)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(panelScrollState),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(if (isIncluded) "ON" else "OFF", style = DDZTypography.Body, color = DDZColor.TextMuted)
-                    Switch(
-                        checked = isIncluded,
-                        onCheckedChange = { checked ->
-                            if (checked) {
+                    Text("파일명", style = DDZTypography.Body, color = DDZColor.TextMuted)
+                    Button(
+                        modifier = Modifier.height(30.dp),
+                        onClick = {
+                            val enable = !isIncluded
+                            if (enable) {
                                 val nextSlots = addToFileNameSlots(templateState.fileNameSlots, cell.cellId)
                                 if (nextSlots == templateState.fileNameSlots) {
                                     Toast.makeText(context, "파일명은 최대 3개까지 설정할 수 있습니다.", Toast.LENGTH_SHORT).show()
@@ -126,143 +127,136 @@ internal fun CellSettingsBottomPanel(
                                     onToggleFileNameForCell(cell.cellId, true)
                                 }
                             } else {
+                                isSlotEditMode = false
+                                selectedFromIndex = null
                                 onToggleFileNameForCell(cell.cellId, false)
                             }
                         }
-                    )
-                }
-            }
-
-            Text(
-                text = if (isSlotEditMode) "슬롯 편집 중: 두 칸을 탭해 순서를 바꾸세요" else "슬롯을 길게 눌러 편집",
-                style = DDZTypography.Caption,
-                color = DDZColor.TextMuted
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(DDZColor.Card, RoundedCornerShape(14.dp))
-                    .padding(7.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                repeat(FILE_NAME_SLOT_COUNT) { index ->
-                    val slotCellId = templateState.fileNameSlots.getOrNull(index)
-                    val slotCell = templateState.cells.firstOrNull { it.cellId == slotCellId }
-                    val slotText = when {
-                        slotCellId == null -> "비어있음"
-                        slotCell?.rawText?.isNotBlank() == true -> slotCell.rawText
-                        else -> "(값 없음)"
+                    ) {
+                        Text(if (isIncluded) "ON" else "OFF", style = DDZTypography.Caption)
                     }
-                    val isSelected = slotCellId == cell.cellId
-                    val isFromSelected = isSlotEditMode && selectedFromIndex == index
-                    Box(
+                }
+
+                if (isIncluded) {
+                    Text(
+                        text = if (isSlotEditMode) "슬롯 편집 중: 두 칸을 탭해 순서를 바꾸세요" else "슬롯을 길게 눌러 편집",
+                        style = DDZTypography.Caption,
+                        color = DDZColor.TextMuted
+                    )
+
+                    Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                            .background(
-                                color = if (!isSlotEditMode && isSelected) DDZColor.Primary else DDZColor.Surface,
-                                shape = RoundedCornerShape(14.dp)
-                            )
-                            .border(
-                                width = if (isFromSelected) 2.dp else if (!isSlotEditMode && isSelected) 1.5.dp else 1.dp,
-                                color = if (isFromSelected || (!isSlotEditMode && isSelected)) DDZColor.Primary else DDZColor.Border,
-                                shape = RoundedCornerShape(14.dp)
-                            )
-                            .pointerInput(isSlotEditMode, selectedFromIndex) {
-                                detectTapGestures(
-                                    onLongPress = {
-                                        if (!isSlotEditMode) {
-                                            isSlotEditMode = true
-                                            selectedFromIndex = null
-                                        } else {
-                                            isSlotEditMode = false
-                                            selectedFromIndex = null
-                                        }
-                                    },
-                                    onTap = {
-                                        if (!isSlotEditMode) {
-                                            Toast.makeText(context, "길게 눌러 편집", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            val from = selectedFromIndex
-                                            if (from == null) {
-                                                selectedFromIndex = index
-                                            } else {
-                                                if (from != index) {
-                                                    onReorderFileNameSlots(from, index)
-                                                }
+                            .fillMaxWidth()
+                            .background(DDZColor.Card, RoundedCornerShape(14.dp))
+                            .padding(7.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        repeat(FILE_NAME_SLOT_COUNT) { index ->
+                            val slotCellId = templateState.fileNameSlots.getOrNull(index)
+                            val slotCell = templateState.cells.firstOrNull { it.cellId == slotCellId }
+                            val slotText = when {
+                                slotCellId == null -> "비어있음"
+                                slotCell?.rawText?.isNotBlank() == true -> slotCell.rawText
+                                else -> "(값 없음)"
+                            }
+                            val isSelected = slotCellId == cell.cellId
+                            val isFromSelected = isSlotEditMode && selectedFromIndex == index
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .background(
+                                        color = if (isSelected) DDZColor.Primary else DDZColor.Surface,
+                                        shape = RoundedCornerShape(14.dp)
+                                    )
+                                    .border(
+                                        width = if (isFromSelected) 2.dp else if (isSelected) 1.5.dp else 1.dp,
+                                        color = if (isFromSelected) DDZColor.Card else if (isSelected) DDZColor.Primary else DDZColor.Border,
+                                        shape = RoundedCornerShape(14.dp)
+                                    )
+                                    .pointerInput(isSlotEditMode, selectedFromIndex) {
+                                        detectTapGestures(
+                                            onLongPress = {
+                                                isSlotEditMode = !isSlotEditMode
                                                 selectedFromIndex = null
+                                            },
+                                            onTap = {
+                                                if (!isSlotEditMode) {
+                                                    Toast.makeText(context, "길게 눌러 편집", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    val from = selectedFromIndex
+                                                    if (from == null) {
+                                                        selectedFromIndex = index
+                                                    } else {
+                                                        if (from != index) {
+                                                            onReorderFileNameSlots(from, index)
+                                                        }
+                                                        selectedFromIndex = null
+                                                    }
+                                                }
                                             }
-                                        }
+                                        )
                                     }
+                                    .padding(horizontal = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = slotText,
+                                    style = DDZTypography.ButtonText,
+                                    color = if (isSelected) Color.White else DDZColor.TextPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
-                            .padding(horizontal = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = slotText,
-                            style = DDZTypography.ButtonText,
-                            color = if (!isSlotEditMode && isSelected) Color.White else DDZColor.TextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        }
                     }
                 }
             }
-        }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("저장경로", style = DDZTypography.Body, color = DDZColor.TextMuted)
-                val canSelectG2 = hasGroup1 && (
-                    cell.groupLevel != GroupLevel.G1 || hasGroup2
-                )
-                val isNone = cell.groupLevel == GroupLevel.NONE
-                val isG1 = cell.groupLevel == GroupLevel.G1
-                val isG2 = cell.groupLevel == GroupLevel.G2
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("저장경로", style = DDZTypography.Body, color = DDZColor.TextMuted)
+                    val canSelectG2 = hasGroup1 && (
+                        cell.groupLevel != GroupLevel.G1 || hasGroup2
+                    )
+                    val isNone = cell.groupLevel == GroupLevel.NONE
+                    val isG1 = cell.groupLevel == GroupLevel.G1
+                    val isG2 = cell.groupLevel == GroupLevel.G2
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(DDZColor.Card, RoundedCornerShape(12.dp))
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        modifier = Modifier.weight(1f),
-                        onClick = { onPathGroupAction(PathGroupAction.NONE) }
-                    ) { Text(if (isNone) "없음 ✓" else "없음", style = DDZTypography.ButtonText) }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(DDZColor.Card, RoundedCornerShape(12.dp))
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = { onPathGroupAction(PathGroupAction.NONE) }
+                        ) { Text(if (isNone) "없음 ✓" else "없음", style = DDZTypography.ButtonText) }
 
-                    Button(
-                        modifier = Modifier.weight(1f),
-                        onClick = { onPathGroupAction(PathGroupAction.G1) }
-                    ) { Text(if (isG1) "G1 ✓" else "G1", style = DDZTypography.ButtonText) }
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = { onPathGroupAction(PathGroupAction.G1) }
+                        ) { Text(if (isG1) "G1 ✓" else "G1", style = DDZTypography.ButtonText) }
 
-                    Button(
-                        modifier = Modifier.weight(1f),
-                        onClick = { onPathGroupAction(PathGroupAction.G2) },
-                        enabled = canSelectG2
-                    ) { Text(if (isG2) "G2 ✓" else "G2", style = DDZTypography.ButtonText) }
-                }
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = { onPathGroupAction(PathGroupAction.G2) },
+                            enabled = canSelectG2
+                        ) { Text(if (isG2) "G2 ✓" else "G2", style = DDZTypography.ButtonText) }
+                    }
 
-                if (!canSelectG2) {
-                    Text("※ G2는 G1 설정 후 사용 가능 (현재 G1 셀에는 G2 설정 불가)", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    if (!canSelectG2) {
+                        Text("※ G2는 G1 설정 후 사용 가능 (현재 G1 셀에는 G2 설정 불가)", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    }
                 }
             }
-        }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f, fill = false)
-                .verticalScroll(optionsScrollState),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
             if (cell.dataType == TableCellDataType.COUNTER && onResetCounterSeed != null) {
                 Button(
                     modifier = Modifier.fillMaxWidth(),
