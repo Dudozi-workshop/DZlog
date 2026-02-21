@@ -675,6 +675,11 @@ fun TableEditorScreen(
                             counterModeLabel = if (isManualCounterModeDisplay) "메뉴얼" else "자동",
                             templateState = templateState,
                             plan = plan,
+                            previewNow = previewNow,
+                            previewCounterDigits = previewCounterDigits,
+                            scopeNextCounter = counterUi.scopeNextCounter,
+                            dateFormat = dateFormat,
+                            timeFormat = timeFormat,
                             selectedCellId = selectedCellId,
                             editingCellId = inlineEdit.editingCellId,
                             editingValue = inlineEdit.editingValue,
@@ -684,7 +689,8 @@ fun TableEditorScreen(
                             hasGroup1 = hasGroup1,
                             hasGroup2 = hasGroup2,
                             isSavingTemplate = isSavingTemplate,
-                            autoNextCounterValue = counterUi.autoNextCounterValue
+                            autoNextCounterValue = counterUi.autoNextCounterValue,
+                            phraseSets = templateState.phraseSets
                         ),
                         actions = LayoutTabActions(
                             onSelectCellId = { selectedCellId = it },

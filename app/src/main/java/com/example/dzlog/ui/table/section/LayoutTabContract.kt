@@ -1,11 +1,13 @@
 package com.example.dzlog.ui.table.section
 
 import androidx.compose.ui.focus.FocusRequester
+import com.example.dzlog.domain.model.RotatingPhraseSet
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.table.ResolvePlan
 import com.example.dzlog.ui.table.PathGroupAction
+import java.util.Date
 
 data class LayoutTabUiState(
     val savePathPreview: String,
@@ -13,6 +15,11 @@ data class LayoutTabUiState(
     val counterModeLabel: String,
     val templateState: TableTemplateState,
     val plan: ResolvePlan,
+    val previewNow: Date,
+    val previewCounterDigits: Int,
+    val scopeNextCounter: Int,
+    val dateFormat: String,
+    val timeFormat: String,
     val selectedCellId: String?,
     val editingCellId: String?,
     val editingValue: String,
@@ -22,7 +29,8 @@ data class LayoutTabUiState(
     val hasGroup1: Boolean,
     val hasGroup2: Boolean,
     val isSavingTemplate: Boolean,
-    val autoNextCounterValue: Int
+    val autoNextCounterValue: Int,
+    val phraseSets: List<RotatingPhraseSet>
 )
 
 data class LayoutTabActions(

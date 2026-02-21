@@ -39,8 +39,7 @@ fun LayoutTabContent(
             Column(modifier = Modifier.weight(1f)) {
                 CompactPathHeader(
                     savePath = uiState.savePathPreview,
-                    fileName = uiState.filenamePreview,
-                    counterModeLabel = uiState.counterModeLabel
+                    fileName = uiState.filenamePreview
                 )
 
                 Spacer(Modifier.height(10.dp))
@@ -153,7 +152,13 @@ fun LayoutTabContent(
                 onOpenRotatingTemplateDialog = {
                     uiState.selectedCell?.let { actions.onOpenRotatingTemplateDialogForSelected(it.cellId) }
                 },
-                onOpenFormatDialog = actions.onOpenFormatDialog
+                onOpenFormatDialog = actions.onOpenFormatDialog,
+                previewNow = uiState.previewNow,
+                previewCounterDigits = uiState.previewCounterDigits,
+                scopeNextCounter = uiState.scopeNextCounter,
+                dateFormat = uiState.dateFormat,
+                timeFormat = uiState.timeFormat,
+                phraseSets = uiState.phraseSets
             )
         }
     }

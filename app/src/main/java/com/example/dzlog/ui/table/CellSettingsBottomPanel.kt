@@ -46,12 +46,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.example.dzlog.domain.model.GroupLevel
+import com.example.dzlog.domain.model.RotatingPhraseSet
 import com.example.dzlog.domain.model.TableCellDataType
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
+import com.example.dzlog.domain.table.TableResolver
 import com.example.dzlog.ui.table.template.addToFileNameSlots
 import com.example.dzlog.ui.theme.DDZColor
 import com.example.dzlog.ui.theme.DDZTypography
+import java.util.Date
 
 @Composable
 internal fun CellSettingsBottomPanel(
@@ -67,7 +70,13 @@ internal fun CellSettingsBottomPanel(
     onResetCounterSeed: (() -> Unit)? = null,
     autoNextCounterValue: Int = 1,
     onOpenRotatingTemplateDialog: (() -> Unit)? = null,
-    onOpenFormatDialog: (cellId: String, type: TableCellDataType) -> Unit
+    onOpenFormatDialog: (cellId: String, type: TableCellDataType) -> Unit,
+    previewNow: Date,
+    previewCounterDigits: Int,
+    scopeNextCounter: Int,
+    dateFormat: String,
+    timeFormat: String,
+    phraseSets: List<RotatingPhraseSet>
 ) {
     val context = LocalContext.current
     val isIncluded = templateState.fileNameSlots.contains(cell.cellId)
@@ -78,6 +87,28 @@ internal fun CellSettingsBottomPanel(
     val density = LocalDensity.current
     val maxPanelHeight = with(density) {
         LocalWindowInfo.current.containerSize.height.toDp() * 0.5f
+    }
+
+    val resolvedByCellId = remember(
+        templateState.cells,
+        previewNow,
+        previewCounterDigits,
+        scopeNextCounter,
+        dateFormat,
+        timeFormat,
+        phraseSets
+    ) {
+        TableResolver().plan(
+            cells = templateState.cells,
+            captureNow = previewNow,
+            config = TableResolver.Config(
+                counterDigits = previewCounterDigits,
+                dateFormat = dateFormat,
+                timeFormat = timeFormat
+            ),
+            counterSeedOverride = scopeNextCounter,
+            phraseSets = phraseSets
+        ).resolvedCells.associate { it.id to it.resolvedText }
     }
 
     Column(
@@ -153,11 +184,9 @@ internal fun CellSettingsBottomPanel(
                     ) {
                         repeat(FILE_NAME_SLOT_COUNT) { index ->
                             val slotCellId = templateState.fileNameSlots.getOrNull(index)
-                            val slotCell = templateState.cells.firstOrNull { it.cellId == slotCellId }
                             val slotText = when {
                                 slotCellId == null -> "비어있음"
-                                slotCell?.rawText?.isNotBlank() == true -> slotCell.rawText
-                                else -> "(값 없음)"
+                                else -> resolvedByCellId[slotCellId].orEmpty().ifBlank { "(값 없음)" }
                             }
                             val isSelected = slotCellId == cell.cellId
                             val isFromSelected = isSlotEditMode && selectedFromIndex == index
@@ -171,7 +200,7 @@ internal fun CellSettingsBottomPanel(
                                     )
                                     .border(
                                         width = if (isFromSelected) 2.dp else if (isSelected) 1.5.dp else 1.dp,
-                                        color = if (isFromSelected) DDZColor.Card else if (isSelected) DDZColor.Primary else DDZColor.Border,
+                                        color = if (isFromSelected) DDZColor.SageDark else if (isSelected) DDZColor.Primary else DDZColor.Border,
                                         shape = RoundedCornerShape(14.dp)
                                     )
                                     .pointerInput(isSlotEditMode, selectedFromIndex) {
@@ -257,6 +286,13 @@ internal fun CellSettingsBottomPanel(
                 }
             }
 
+            Spacer(Modifier.height(2.dp))
+            Text("데이터 형식", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+            DataTypeCardGrid3(
+                selected = cell.dataType,
+                onSelect = onSetDataType
+            )
+
             if (cell.dataType == TableCellDataType.COUNTER && onResetCounterSeed != null) {
                 Button(
                     modifier = Modifier.fillMaxWidth(),
@@ -292,13 +328,6 @@ internal fun CellSettingsBottomPanel(
                     Text("순환 문구 설정", style = DDZTypography.ButtonText)
                 }
             }
-
-            Spacer(Modifier.height(2.dp))
-            Text("데이터 형식", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
-            DataTypeCardGrid3(
-                selected = cell.dataType,
-                onSelect = onSetDataType
-            )
 
             Spacer(Modifier.height(10.dp))
         }
