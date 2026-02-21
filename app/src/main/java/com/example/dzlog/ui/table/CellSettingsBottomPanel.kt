@@ -89,7 +89,9 @@ internal fun CellSettingsBottomPanel(
         LocalWindowInfo.current.containerSize.height.toDp() * 0.5f
     }
 
+    val resolver = remember { TableResolver() }
     val resolvedByCellId = remember(
+        resolver,
         templateState.cells,
         previewNow,
         previewCounterDigits,
@@ -98,7 +100,7 @@ internal fun CellSettingsBottomPanel(
         timeFormat,
         phraseSets
     ) {
-        TableResolver().plan(
+        resolver.plan(
             cells = templateState.cells,
             captureNow = previewNow,
             config = TableResolver.Config(
@@ -139,6 +141,50 @@ internal fun CellSettingsBottomPanel(
                 .verticalScroll(panelScrollState),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("저장경로", style = DDZTypography.Body, color = DDZColor.TextMuted)
+                    val canSelectG2 = hasGroup1 && (
+                        cell.groupLevel != GroupLevel.G1 || hasGroup2
+                    )
+                    val isNone = cell.groupLevel == GroupLevel.NONE
+                    val isG1 = cell.groupLevel == GroupLevel.G1
+                    val isG2 = cell.groupLevel == GroupLevel.G2
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(DDZColor.Card, RoundedCornerShape(12.dp))
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = { onPathGroupAction(PathGroupAction.NONE) }
+                        ) { Text(if (isNone) "없음 ✓" else "없음", style = DDZTypography.ButtonText) }
+
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = { onPathGroupAction(PathGroupAction.G1) }
+                        ) { Text(if (isG1) "G1 ✓" else "G1", style = DDZTypography.ButtonText) }
+
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = { onPathGroupAction(PathGroupAction.G2) },
+                            enabled = canSelectG2
+                        ) { Text(if (isG2) "G2 ✓" else "G2", style = DDZTypography.ButtonText) }
+                    }
+
+                    if (!canSelectG2) {
+                        Text("※ G2는 G1 설정 후 사용 가능 (현재 G1 셀에는 G2 설정 불가)", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    }
+                }
+            }
+
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -238,50 +284,6 @@ internal fun CellSettingsBottomPanel(
                                 )
                             }
                         }
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("저장경로", style = DDZTypography.Body, color = DDZColor.TextMuted)
-                    val canSelectG2 = hasGroup1 && (
-                        cell.groupLevel != GroupLevel.G1 || hasGroup2
-                    )
-                    val isNone = cell.groupLevel == GroupLevel.NONE
-                    val isG1 = cell.groupLevel == GroupLevel.G1
-                    val isG2 = cell.groupLevel == GroupLevel.G2
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(DDZColor.Card, RoundedCornerShape(12.dp))
-                            .padding(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            modifier = Modifier.weight(1f),
-                            onClick = { onPathGroupAction(PathGroupAction.NONE) }
-                        ) { Text(if (isNone) "없음 ✓" else "없음", style = DDZTypography.ButtonText) }
-
-                        Button(
-                            modifier = Modifier.weight(1f),
-                            onClick = { onPathGroupAction(PathGroupAction.G1) }
-                        ) { Text(if (isG1) "G1 ✓" else "G1", style = DDZTypography.ButtonText) }
-
-                        Button(
-                            modifier = Modifier.weight(1f),
-                            onClick = { onPathGroupAction(PathGroupAction.G2) },
-                            enabled = canSelectG2
-                        ) { Text(if (isG2) "G2 ✓" else "G2", style = DDZTypography.ButtonText) }
-                    }
-
-                    if (!canSelectG2) {
-                        Text("※ G2는 G1 설정 후 사용 가능 (현재 G1 셀에는 G2 설정 불가)", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                     }
                 }
             }

@@ -23,7 +23,8 @@ import com.example.dzlog.ui.theme.DDZTypography
 @Composable
 internal fun CompactPathHeader(
     savePath: String,
-    fileName: String
+    fileName: String,
+    fileNameRightLabel: String? = null
 ) {
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -94,6 +95,15 @@ internal fun CompactPathHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            fileNameRightLabel?.takeIf { it.isNotBlank() }?.let { label ->
+                Text(
+                    text = label,
+                    style = DDZTypography.Caption,
+                    color = DDZColor.TextMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }

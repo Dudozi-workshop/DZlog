@@ -39,7 +39,8 @@ fun LayoutTabContent(
             Column(modifier = Modifier.weight(1f)) {
                 CompactPathHeader(
                     savePath = uiState.savePathPreview,
-                    fileName = uiState.filenamePreview
+                    fileName = uiState.filenamePreview,
+                    fileNameRightLabel = uiState.counterModeLabel
                 )
 
                 Spacer(Modifier.height(10.dp))
