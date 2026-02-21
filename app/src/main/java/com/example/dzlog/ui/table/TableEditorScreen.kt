@@ -284,6 +284,20 @@ fun TableEditorScreen(
         inlineEdit = clearInlineEditing(inlineEdit)
     }
 
+    fun sanitizePathGroupAfterStructureChange(state: TableTemplateState): TableTemplateState {
+        val hasG1 = state.cells.any { it.groupLevel == GroupLevel.G1 }
+        if (hasG1) return state
+
+        val nextCells = state.cells.map { cellState ->
+            if (cellState.groupLevel == GroupLevel.G2) {
+                cellState.copy(groupLevel = GroupLevel.NONE)
+            } else {
+                cellState
+            }
+        }
+        return state.copy(cells = nextCells)
+    }
+
     fun commitInlineEditIfNeeded() {
         val result = commitInlineEdit(
             inlineState = inlineEdit,
@@ -699,15 +713,14 @@ fun TableEditorScreen(
                                     val restoredReindexed = restored.map { it.copy(rowIndex = newRowIndex) }
                                     val baseRowWeights = templateState.rowWeights
                                         ?: List(templateState.rows.coerceAtLeast(1)) { 1f }
-                                    onTemplateChange(
-                                        templateState.copy(
-                                            rows = templateState.rows + 1,
-                                            cells = templateState.cells + restoredReindexed,
-                                            rowWeights = baseRowWeights + 1f
-                                        )
+                                    val updated = templateState.copy(
+                                        rows = templateState.rows + 1,
+                                        cells = templateState.cells + restoredReindexed,
+                                        rowWeights = baseRowWeights + 1f
                                     )
+                                    onTemplateChange(sanitizePathGroupAfterStructureChange(updated))
                                 } else {
-                                    onTemplateChange(addRow(templateState))
+                                    onTemplateChange(sanitizePathGroupAfterStructureChange(addRow(templateState)))
                                 }
                             },
                             onRemoveRow = {
@@ -720,9 +733,10 @@ fun TableEditorScreen(
                                 }
 
                                 val updated = removeRow(templateState)
-                                onTemplateChange(updated)
-                                if (updated.cells.none { it.cellId == selectedCellId }) {
-                                    selectedCellId = updated.cells.firstOrNull()?.cellId
+                                val sanitized = sanitizePathGroupAfterStructureChange(updated)
+                                onTemplateChange(sanitized)
+                                if (sanitized.cells.none { it.cellId == selectedCellId }) {
+                                    selectedCellId = sanitized.cells.firstOrNull()?.cellId
                                 }
                             },
                             onAddCol = {
@@ -733,15 +747,14 @@ fun TableEditorScreen(
                                     val restoredReindexed = restored.map { it.copy(colIndex = newColIndex) }
                                     val baseColWeights = templateState.colWeights
                                         ?: List(templateState.cols.coerceAtLeast(1)) { 1f }
-                                    onTemplateChange(
-                                        templateState.copy(
-                                            cols = templateState.cols + 1,
-                                            cells = templateState.cells + restoredReindexed,
-                                            colWeights = baseColWeights + 1f
-                                        )
+                                    val updated = templateState.copy(
+                                        cols = templateState.cols + 1,
+                                        cells = templateState.cells + restoredReindexed,
+                                        colWeights = baseColWeights + 1f
                                     )
+                                    onTemplateChange(sanitizePathGroupAfterStructureChange(updated))
                                 } else {
-                                    onTemplateChange(addColumn(templateState))
+                                    onTemplateChange(sanitizePathGroupAfterStructureChange(addColumn(templateState)))
                                 }
                             },
                             onRemoveCol = {
@@ -754,9 +767,10 @@ fun TableEditorScreen(
                                 }
 
                                 val updated = removeColumn(templateState)
-                                onTemplateChange(updated)
-                                if (updated.cells.none { it.cellId == selectedCellId }) {
-                                    selectedCellId = updated.cells.firstOrNull()?.cellId
+                                val sanitized = sanitizePathGroupAfterStructureChange(updated)
+                                onTemplateChange(sanitized)
+                                if (sanitized.cells.none { it.cellId == selectedCellId }) {
+                                    selectedCellId = sanitized.cells.firstOrNull()?.cellId
                                 }
                             },
                             onReset = onReset,
