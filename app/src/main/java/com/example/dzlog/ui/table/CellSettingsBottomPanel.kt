@@ -16,7 +16,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Autorenew
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.ExposurePlus1
+import androidx.compose.material.icons.filled.Numbers
+import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.FILE_NAME_SLOT_COUNT
@@ -53,7 +62,8 @@ internal fun CellSettingsBottomPanel(
     onSetDataType: (TableCellDataType) -> Unit,
     onResetCounterSeed: (() -> Unit)? = null,
     autoNextCounterValue: Int = 1,
-    onOpenRotatingTemplateDialog: (() -> Unit)? = null
+    onOpenRotatingTemplateDialog: (() -> Unit)? = null,
+    onOpenFormatDialog: (cellId: String, type: TableCellDataType) -> Unit
 ) {
     val context = LocalContext.current
     val isIncluded = templateState.fileNameSlots.contains(cell.cellId)
@@ -243,24 +253,41 @@ internal fun CellSettingsBottomPanel(
             }
         }
 
+        if (cell.dataType == TableCellDataType.DATE) {
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { onOpenFormatDialog(cell.cellId, TableCellDataType.DATE) }
+            ) {
+                Text("날짜 형식", style = DDZTypography.ButtonText)
+            }
+        }
+
+        if (cell.dataType == TableCellDataType.TIME) {
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { onOpenFormatDialog(cell.cellId, TableCellDataType.TIME) }
+            ) {
+                Text("시간 형식", style = DDZTypography.ButtonText)
+            }
+        }
 
         if (cell.dataType == TableCellDataType.ROTATING_TEXT && onOpenRotatingTemplateDialog != null) {
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onOpenRotatingTemplateDialog
             ) {
-                Text("로테이팅 문구 템플릿 설정", style = DDZTypography.ButtonText)
+                Text("순환 문구 설정", style = DDZTypography.ButtonText)
             }
         }
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(2.dp))
         Text("데이터 형식", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
         DataTypeCardGrid3(
             selected = cell.dataType,
             onSelect = onSetDataType
         )
 
-        Spacer(Modifier.height(2.dp))
+        Spacer(Modifier.height(1.dp))
     }
 }
 
@@ -271,19 +298,19 @@ private fun DataTypeCardGrid3(
     onSelect: (TableCellDataType) -> Unit
 ) {
     val items = listOf(
-        TableCellDataType.TEXT to "Text",
-        TableCellDataType.NUMBER to "Number",
-        TableCellDataType.DATE to "Date",
-        TableCellDataType.TIME to "Time",
-        TableCellDataType.COUNTER to "Counter",
-        TableCellDataType.ROTATING_TEXT to "순환 문구"
+        Triple(TableCellDataType.TEXT, Icons.Default.TextFields, "텍스트"),
+        Triple(TableCellDataType.NUMBER, Icons.Default.Numbers, "숫자"),
+        Triple(TableCellDataType.DATE, Icons.Default.DateRange, "날짜"),
+        Triple(TableCellDataType.TIME, Icons.Default.AccessTime, "시간"),
+        Triple(TableCellDataType.COUNTER, Icons.Default.ExposurePlus1, "카운터"),
+        Triple(TableCellDataType.ROTATING_TEXT, Icons.Default.Autorenew, "순환 문구")
     )
 
     val rows = items.chunked(3)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         rows.forEach { row ->
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                row.forEach { (type, label) ->
+                row.forEach { (type, icon, koLabel) ->
                     val isSelected = selected == type
                     Box(
                         modifier = Modifier
@@ -302,11 +329,25 @@ private fun DataTypeCardGrid3(
                             .padding(10.dp)
                     ) {
                         Column(
+                            modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxSize()
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(label, style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                            Text(type.name, style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = koLabel,
+                                tint = DDZColor.TextPrimary,
+                                modifier = Modifier.height(30.dp)
+                            )
+                            Text(
+                                text = koLabel,
+                                style = DDZTypography.Caption,
+                                color = DDZColor.TextPrimary,
+                                textAlign = TextAlign.Center,
+                                maxLines = if (type == TableCellDataType.ROTATING_TEXT) 2 else 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }

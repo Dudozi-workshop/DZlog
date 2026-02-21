@@ -152,7 +152,8 @@ fun LayoutTabContent(
                 autoNextCounterValue = uiState.autoNextCounterValue,
                 onOpenRotatingTemplateDialog = {
                     uiState.selectedCell?.let { actions.onOpenRotatingTemplateDialogForSelected(it.cellId) }
-                }
+                },
+                onOpenFormatDialog = actions.onOpenFormatDialog
             )
         }
     }

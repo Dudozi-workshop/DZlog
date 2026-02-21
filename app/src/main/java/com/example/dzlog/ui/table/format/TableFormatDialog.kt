@@ -54,9 +54,9 @@ fun TableFormatDialog(
         title = {
             Text(
                 when {
-                    isDate -> "DATE 형식"
-                    isTime -> "TIME 형식"
-                    else -> "형식"
+                    isDate -> "날짜 형식"
+                    isTime -> "시간 형식"
+                    else -> "형식 설정"
                 }
             )
         },
