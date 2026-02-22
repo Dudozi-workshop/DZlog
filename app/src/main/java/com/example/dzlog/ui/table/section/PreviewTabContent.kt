@@ -9,11 +9,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -98,8 +96,7 @@ fun PreviewTabContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 240.dp)
-                    .aspectRatio(3f / 4f)
+                    .height(240.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .clipToBounds()
                     .background(DDZColor.Primary)

@@ -132,6 +132,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
                 },
                 onDrag = { change, dragAmount ->
                     if (!dragActive) return@detectDragGestures
+                    change.consume()
                     dragLeftPx = (dragLeftPx + dragAmount.x).coerceIn(0f, dragMaxXPx)
                     dragTopPx = (dragTopPx + dragAmount.y).coerceIn(0f, dragMaxYPx)
                     val ratioX = if (dragMaxXPx <= 0f) 0 else ((dragLeftPx / dragMaxXPx) * 100f).roundToInt().coerceIn(0, 100)
@@ -139,7 +140,6 @@ internal fun CameraLikeWatermarkPlacementPreview(
                     dragOffsetXRatio = ratioX
                     dragOffsetYRatio = ratioY
                     onDragPreview(ratioX, ratioY)
-                    change.consume()
                 }
             )
         }
@@ -147,16 +147,10 @@ internal fun CameraLikeWatermarkPlacementPreview(
         Modifier
     }
 
-    Box(
-        modifier = modifier
-            .then(tapModifier)
-            .then(dragModifier)
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier.then(tapModifier).then(dragModifier)) {
+        Canvas(Modifier.fillMaxSize()) {
             val boxW = size.width
             val boxH = size.height
-            if (boxW <= 0f || boxH <= 0f) return@Canvas
-
             val contentRect = computeContentRect(boxW, boxH, captureAspect.ratioF)
             val baseTableRect = computeTableRect(
                 contentRect = contentRect,
