@@ -2,24 +2,10 @@ package com.example.dzlog.ui.table.watermark
 
 import android.graphics.RectF
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,15 +21,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.dp
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.ui.theme.DDZColor
-import com.example.dzlog.ui.theme.DDZTypography
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
-import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 @Composable
 internal fun CameraLikeWatermarkPlacementPreview(
@@ -64,11 +48,11 @@ internal fun CameraLikeWatermarkPlacementPreview(
     textColorMode: Int,
     manualTextColor: Int,
     textAlign: Int,
-    onCaptureAspectChange: (CaptureAspect) -> Unit,
     armed: Boolean,
     onArmedChange: (Boolean) -> Unit,
     onDragPreview: (Int, Int) -> Unit,
-    onDragCommit: (Int, Int) -> Unit
+    onDragCommit: (Int, Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var dragOffsetXRatio by remember(anchor, offsetXRatio) { mutableIntStateOf(offsetXRatio.coerceIn(0, 100)) }
     var dragOffsetYRatio by remember(anchor, offsetYRatio) { mutableIntStateOf(offsetYRatio.coerceIn(0, 100)) }
@@ -88,214 +72,172 @@ internal fun CameraLikeWatermarkPlacementPreview(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(DDZColor.Primary)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text("촬영 미리보기", color = DDZColor.Surface, style = DDZTypography.CardTitle)
-
-        val tapModifier = Modifier.pointerInput(captureAspect, anchor, offsetXRatio, offsetYRatio, tableWidthRatio, tableHeightRatio) {
-            detectTapGestures { tapOffset ->
-                val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
-                val tableRect = computeTableRect(
-                    contentRect = contentRect,
-                    anchor = anchor,
-                    offsetXRatio = dragOffsetXRatio,
-                    offsetYRatio = dragOffsetYRatio,
-                    tableWidthRatio = tableWidthRatio,
-                    tableHeightRatio = tableHeightRatio
-                )
-                val nextArmed = tableRect.contains(tapOffset.x, tapOffset.y)
-                onArmedChange(nextArmed)
-                if (!nextArmed) {
-                    dragActive = false
-                    hasOverride = false
-                }
-            }
-        }
-
-        val dragModifier = if (armed) {
-            Modifier.pointerInput(captureAspect, anchor, tableWidthRatio, tableHeightRatio, dragOffsetXRatio, dragOffsetYRatio) {
-                detectDragGestures(
-                    onDragStart = { start ->
-                        val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
-                        val tableRect = computeTableRect(
-                            contentRect = contentRect,
-                            anchor = anchor,
-                            offsetXRatio = dragOffsetXRatio,
-                            offsetYRatio = dragOffsetYRatio,
-                            tableWidthRatio = tableWidthRatio,
-                            tableHeightRatio = tableHeightRatio
-                        )
-                        dragActive = tableRect.contains(start.x, start.y)
-                        if (!dragActive) {
-                            onArmedChange(false)
-                            hasOverride = false
-                            return@detectDragGestures
-                        }
-                        dragLeftPx = tableRect.left - contentRect.left
-                        dragTopPx = tableRect.top - contentRect.top
-                        dragMaxXPx = (contentRect.width() - tableRect.width()).coerceAtLeast(0f)
-                        dragMaxYPx = (contentRect.height() - tableRect.height()).coerceAtLeast(0f)
-                        hasOverride = true
-                    },
-                    onDragCancel = {
-                        dragActive = false
-                        overrideReleaseTick += 1
-                    },
-                    onDragEnd = {
-                        if (dragActive) {
-                            val ratioX = if (dragMaxXPx <= 0f) 0 else ((dragLeftPx / dragMaxXPx) * 100f).roundToInt().coerceIn(0, 100)
-                            val ratioY = if (dragMaxYPx <= 0f) 0 else ((dragTopPx / dragMaxYPx) * 100f).roundToInt().coerceIn(0, 100)
-                            onDragCommit(ratioX, ratioY)
-                            overrideReleaseTick += 1
-                        }
-                        dragActive = false
-                    },
-                    onDrag = { change, dragAmount ->
-                        if (!dragActive) return@detectDragGestures
-                        dragLeftPx = (dragLeftPx + dragAmount.x).coerceIn(0f, dragMaxXPx)
-                        dragTopPx = (dragTopPx + dragAmount.y).coerceIn(0f, dragMaxYPx)
-                        change.consume()
-                    }
-                )
-            }
-        } else {
-            Modifier
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 300.dp)
-                .aspectRatio(3f / 4f)
-                .background(DDZColor.Primary)
-                .border(1.dp, DDZColor.Border)
-                .then(tapModifier)
-                .then(dragModifier)
-        ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val boxW = size.width
-                val boxH = size.height
-                if (boxW <= 0f || boxH <= 0f) return@Canvas
-
-                val contentRect = computeContentRect(boxW, boxH, captureAspect.ratioF)
-                val baseTableRect = computeTableRect(
-                    contentRect = contentRect,
-                    anchor = anchor,
-                    offsetXRatio = dragOffsetXRatio,
-                    offsetYRatio = dragOffsetYRatio,
-                    tableWidthRatio = tableWidthRatio,
-                    tableHeightRatio = tableHeightRatio
-                )
-                val base = contentRect.width()
-                val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
-                val tableH = base * (tableHeightRatio.coerceIn(10, 35) / 100f)
-                val drawTableRect = if (hasOverride) {
-                    RectF(
-                        contentRect.left + dragLeftPx,
-                        contentRect.top + dragTopPx,
-                        contentRect.left + dragLeftPx + tableW,
-                        contentRect.top + dragTopPx + tableH
-                    )
-                } else {
-                    baseTableRect
-                }
-
-                if (contentRect.top > 0f) {
-                    drawRect(DDZColor.PrimaryDark.copy(alpha = 0.7f), Offset(0f, 0f), Size(boxW, contentRect.top))
-                    drawRect(
-                        DDZColor.PrimaryDark.copy(alpha = 0.7f),
-                        Offset(0f, contentRect.bottom),
-                        Size(boxW, (boxH - contentRect.bottom).coerceAtLeast(0f))
-                    )
-                }
-                if (contentRect.left > 0f) {
-                    drawRect(DDZColor.PrimaryDark.copy(alpha = 0.7f), Offset(0f, contentRect.top), Size(contentRect.left, contentRect.height()))
-                    drawRect(
-                        DDZColor.PrimaryDark.copy(alpha = 0.7f),
-                        Offset(contentRect.right, contentRect.top),
-                        Size((boxW - contentRect.right).coerceAtLeast(0f), contentRect.height())
-                    )
-                }
-
-                drawRect(DDZColor.Surface.copy(alpha = 0.13f), Offset(contentRect.centerX() - 0.5f, contentRect.top), Size(1f, contentRect.height()))
-                drawRect(DDZColor.Surface.copy(alpha = 0.13f), Offset(contentRect.left, contentRect.centerY() - 0.5f), Size(contentRect.width(), 1f))
-
-                val displayAnchor = if (hasOverride || anchor == WatermarkTableAnchor.CUSTOM || dragActive) {
-                    WatermarkTableAnchor.CUSTOM
-                } else {
-                    anchor
-                }
-
-                drawIntoCanvas { canvas ->
-                    drawWatermarkTableOnCanvas(
-                        canvas = canvas.nativeCanvas,
-                        bounds = contentRect,
-                        cells = watermarkCells,
-                        rows = rows.coerceAtLeast(1),
-                        cols = cols.coerceAtLeast(1),
-                        anchor = displayAnchor,
-                        offsetXRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetXRatio else 0,
-                        offsetYRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetYRatio else 0,
-                        tableHeightRatio = tableHeightRatio,
-                        tableWidthRatio = tableWidthRatio,
-                        bgAlpha = bgAlpha.coerceIn(0, 255),
-                        bgStyle = bgStyle,
-                        valueScale = valueScale.coerceIn(60, 160),
-                        textColorMode = textColorMode,
-                        manualTextColor = manualTextColor,
-                        textAlign = textAlign,
-                        rowWeights = rowWeights,
-                        colWeights = colWeights,
-                        overrideOffsetLeftPx = if (hasOverride) dragLeftPx else null,
-                        overrideOffsetTopPx = if (hasOverride) dragTopPx else null
-                    )
-                }
-
-                if (armed) {
-                    drawRect(
-                        color = DDZColor.Surface,
-                        topLeft = Offset(drawTableRect.left, drawTableRect.top),
-                        size = Size(drawTableRect.width(), drawTableRect.height()),
-                        style = Stroke(width = 2f)
-                    )
-                }
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                "비율: ${captureAspect.label} / 크기: ${tableWidthRatio}%×${tableHeightRatio}%",
-                color = DDZColor.IconMuted,
-                style = DDZTypography.Caption
+    val tapModifier = Modifier.pointerInput(captureAspect, anchor, offsetXRatio, offsetYRatio, tableWidthRatio, tableHeightRatio) {
+        detectTapGestures { tapOffset ->
+            val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
+            val tableRect = computeTableRect(
+                contentRect = contentRect,
+                anchor = anchor,
+                offsetXRatio = dragOffsetXRatio,
+                offsetYRatio = dragOffsetYRatio,
+                tableWidthRatio = tableWidthRatio,
+                tableHeightRatio = tableHeightRatio
             )
+            val nextArmed = tableRect.contains(tapOffset.x, tapOffset.y)
+            onArmedChange(nextArmed)
+            if (!nextArmed) {
+                dragActive = false
+                hasOverride = false
+            }
+        }
+    }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                listOf(
-                    CaptureAspect.R1_1 to "1:1",
-                    CaptureAspect.R3_4 to "3:4",
-                    CaptureAspect.R9_16 to "9:16"
-                ).forEach { (aspect, label) ->
-                    OutlinedButton(
-                        onClick = { onCaptureAspectChange(aspect) },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                        modifier = Modifier.sizeIn(minHeight = 28.dp)
-                    ) {
-                        Text(
-                            text = label,
-                            color = if (captureAspect == aspect) DDZColor.Primary else DDZColor.TextPrimary,
-                            style = DDZTypography.Caption
-                        )
+    val dragModifier = if (armed) {
+        Modifier.pointerInput(captureAspect, anchor, tableWidthRatio, tableHeightRatio, dragOffsetXRatio, dragOffsetYRatio) {
+            detectDragGestures(
+                onDragStart = { start ->
+                    val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
+                    val tableRect = computeTableRect(
+                        contentRect = contentRect,
+                        anchor = anchor,
+                        offsetXRatio = dragOffsetXRatio,
+                        offsetYRatio = dragOffsetYRatio,
+                        tableWidthRatio = tableWidthRatio,
+                        tableHeightRatio = tableHeightRatio
+                    )
+                    dragActive = tableRect.contains(start.x, start.y)
+                    if (!dragActive) {
+                        onArmedChange(false)
+                        hasOverride = false
+                        return@detectDragGestures
                     }
+                    dragLeftPx = tableRect.left - contentRect.left
+                    dragTopPx = tableRect.top - contentRect.top
+                    dragMaxXPx = (contentRect.width() - tableRect.width()).coerceAtLeast(0f)
+                    dragMaxYPx = (contentRect.height() - tableRect.height()).coerceAtLeast(0f)
+                    hasOverride = true
+                },
+                onDragCancel = {
+                    dragActive = false
+                    overrideReleaseTick += 1
+                },
+                onDragEnd = {
+                    if (dragActive) {
+                        val ratioX = if (dragMaxXPx <= 0f) 0 else ((dragLeftPx / dragMaxXPx) * 100f).roundToInt().coerceIn(0, 100)
+                        val ratioY = if (dragMaxYPx <= 0f) 0 else ((dragTopPx / dragMaxYPx) * 100f).roundToInt().coerceIn(0, 100)
+                        onDragCommit(ratioX, ratioY)
+                        overrideReleaseTick += 1
+                    }
+                    dragActive = false
+                },
+                onDrag = { change, dragAmount ->
+                    if (!dragActive) return@detectDragGestures
+                    dragLeftPx = (dragLeftPx + dragAmount.x).coerceIn(0f, dragMaxXPx)
+                    dragTopPx = (dragTopPx + dragAmount.y).coerceIn(0f, dragMaxYPx)
+                    val ratioX = if (dragMaxXPx <= 0f) 0 else ((dragLeftPx / dragMaxXPx) * 100f).roundToInt().coerceIn(0, 100)
+                    val ratioY = if (dragMaxYPx <= 0f) 0 else ((dragTopPx / dragMaxYPx) * 100f).roundToInt().coerceIn(0, 100)
+                    dragOffsetXRatio = ratioX
+                    dragOffsetYRatio = ratioY
+                    onDragPreview(ratioX, ratioY)
+                    change.consume()
                 }
+            )
+        }
+    } else {
+        Modifier
+    }
+
+    Box(
+        modifier = modifier
+            .then(tapModifier)
+            .then(dragModifier)
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val boxW = size.width
+            val boxH = size.height
+            if (boxW <= 0f || boxH <= 0f) return@Canvas
+
+            val contentRect = computeContentRect(boxW, boxH, captureAspect.ratioF)
+            val baseTableRect = computeTableRect(
+                contentRect = contentRect,
+                anchor = anchor,
+                offsetXRatio = dragOffsetXRatio,
+                offsetYRatio = dragOffsetYRatio,
+                tableWidthRatio = tableWidthRatio,
+                tableHeightRatio = tableHeightRatio
+            )
+            val base = contentRect.width()
+            val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
+            val tableH = base * (tableHeightRatio.coerceIn(10, 35) / 100f)
+            val drawTableRect = if (hasOverride) {
+                RectF(
+                    contentRect.left + dragLeftPx,
+                    contentRect.top + dragTopPx,
+                    contentRect.left + dragLeftPx + tableW,
+                    contentRect.top + dragTopPx + tableH
+                )
+            } else {
+                baseTableRect
+            }
+
+            if (contentRect.top > 0f) {
+                drawRect(DDZColor.PrimaryDark.copy(alpha = 0.7f), Offset(0f, 0f), Size(boxW, contentRect.top))
+                drawRect(
+                    DDZColor.PrimaryDark.copy(alpha = 0.7f),
+                    Offset(0f, contentRect.bottom),
+                    Size(boxW, (boxH - contentRect.bottom).coerceAtLeast(0f))
+                )
+            }
+            if (contentRect.left > 0f) {
+                drawRect(DDZColor.PrimaryDark.copy(alpha = 0.7f), Offset(0f, contentRect.top), Size(contentRect.left, contentRect.height()))
+                drawRect(
+                    DDZColor.PrimaryDark.copy(alpha = 0.7f),
+                    Offset(contentRect.right, contentRect.top),
+                    Size((boxW - contentRect.right).coerceAtLeast(0f), contentRect.height())
+                )
+            }
+
+            drawRect(DDZColor.Surface.copy(alpha = 0.13f), Offset(contentRect.centerX() - 0.5f, contentRect.top), Size(1f, contentRect.height()))
+            drawRect(DDZColor.Surface.copy(alpha = 0.13f), Offset(contentRect.left, contentRect.centerY() - 0.5f), Size(contentRect.width(), 1f))
+
+            val displayAnchor = if (hasOverride || anchor == WatermarkTableAnchor.CUSTOM || dragActive) {
+                WatermarkTableAnchor.CUSTOM
+            } else {
+                anchor
+            }
+
+            drawIntoCanvas { canvas ->
+                drawWatermarkTableOnCanvas(
+                    canvas = canvas.nativeCanvas,
+                    bounds = contentRect,
+                    cells = watermarkCells,
+                    rows = rows.coerceAtLeast(1),
+                    cols = cols.coerceAtLeast(1),
+                    anchor = displayAnchor,
+                    offsetXRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetXRatio else 0,
+                    offsetYRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetYRatio else 0,
+                    tableHeightRatio = tableHeightRatio,
+                    tableWidthRatio = tableWidthRatio,
+                    bgAlpha = bgAlpha.coerceIn(0, 255),
+                    bgStyle = bgStyle,
+                    valueScale = valueScale.coerceIn(60, 160),
+                    textColorMode = textColorMode,
+                    manualTextColor = manualTextColor,
+                    textAlign = textAlign,
+                    rowWeights = rowWeights,
+                    colWeights = colWeights,
+                    overrideOffsetLeftPx = if (hasOverride) dragLeftPx else null,
+                    overrideOffsetTopPx = if (hasOverride) dragTopPx else null
+                )
+            }
+
+            if (armed) {
+                drawRect(
+                    color = DDZColor.Surface,
+                    topLeft = Offset(drawTableRect.left, drawTableRect.top),
+                    size = Size(drawTableRect.width(), drawTableRect.height()),
+                    style = Stroke(width = 2f)
+                )
             }
         }
     }
