@@ -80,6 +80,7 @@ import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_SAVE_MODE
 import com.example.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
 import com.example.dzlog.data.preferences.KEY_WM_BG_ALPHA
+import com.example.dzlog.data.preferences.KEY_WM_GRID_ENABLED
 import com.example.dzlog.data.preferences.KEY_WM_OFFSET_X
 import com.example.dzlog.data.preferences.KEY_WM_OFFSET_Y
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
@@ -441,6 +442,7 @@ fun CameraPreview(
             ui.prefs.wmTextColorMode,
             ui.prefs.wmManualTextColor,
             ui.prefs.wmTextAlign,
+            ui.prefs.wmGridEnabled,
             settingsButtonBottomY,
             shutterButtonTopY,
             safeTopY,
@@ -513,7 +515,8 @@ fun CameraPreview(
                     valueScale = ui.prefs.wmValueScale,
                     textColorMode = ui.prefs.wmTextColorMode,
                     manualTextColor = ui.prefs.wmManualTextColor,
-                    textAlign = ui.prefs.wmTextAlign
+                    textAlign = ui.prefs.wmTextAlign,
+                    wmGridEnabled = ui.prefs.wmGridEnabled
                 )
             )
         }
@@ -682,6 +685,7 @@ fun CameraPreview(
                             wmTextColorMode = ui.prefs.wmTextColorMode,
                             wmManualTextColor = ui.prefs.wmManualTextColor,
                             wmTextAlign = ui.prefs.wmTextAlign,
+                            wmGridEnabled = ui.prefs.wmGridEnabled,
                             usableTopRatio = ui.capture.usableTopRatio,
                             usableBottomRatio = ui.capture.usableBottomRatio,
                             repository = repository,
@@ -813,7 +817,8 @@ internal fun buildWatermarkConfig(
     valueScale: Int,
     textColorMode: Int,
     manualTextColor: Int,
-    textAlign: Int
+    textAlign: Int,
+    gridEnabled: Boolean
 ): WatermarkConfig {
     return WatermarkConfig(
         anchor = anchor,
@@ -826,7 +831,8 @@ internal fun buildWatermarkConfig(
         valueScale = valueScale,
         textColorMode = textColorMode,
         manualTextColor = manualTextColor,
-        textAlign = textAlign
+        textAlign = textAlign,
+        gridEnabled = gridEnabled
     )
 }
 
@@ -977,6 +983,7 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.wmTextColorMode = (prefs[KEY_WM_TEXT_COLOR_MODE] ?: WatermarkTextColorMode.AUTO).coerceIn(0, 1)
         ui.prefs.wmManualTextColor = (prefs[KEY_WM_TEXT_COLOR_MANUAL] ?: WatermarkManualTextColor.BLACK).coerceIn(0, 1)
         ui.prefs.wmTextAlign = (prefs[KEY_WM_TEXT_ALIGN] ?: WatermarkTextAlign.LEFT).coerceIn(0, 2)
+        ui.prefs.wmGridEnabled = prefs[KEY_WM_GRID_ENABLED] ?: true
 
         ui.prefs.captureAspect = CaptureAspect.from(
             prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v
@@ -1016,5 +1023,6 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.wmTextColorMode = WatermarkTextColorMode.AUTO
         ui.prefs.wmManualTextColor = WatermarkManualTextColor.BLACK
         ui.prefs.wmTextAlign = WatermarkTextAlign.LEFT
+        ui.prefs.wmGridEnabled = true
     }
 }

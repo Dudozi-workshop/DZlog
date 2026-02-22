@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import com.example.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.example.dzlog.data.preferences.KEY_WM_BG_ALPHA
+import com.example.dzlog.data.preferences.KEY_WM_GRID_ENABLED
 import com.example.dzlog.data.preferences.KEY_WM_OFFSET_X
 import com.example.dzlog.data.preferences.KEY_WM_OFFSET_Y
 import com.example.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
@@ -53,6 +54,7 @@ suspend fun loadTableWatermarkUiState(context: Context): TableWatermarkUiState {
             WatermarkTextAlign.LEFT,
             WatermarkTextAlign.RIGHT
         ),
+        wmGridEnabled = prefs[KEY_WM_GRID_ENABLED] ?: true,
         captureAspect = CaptureAspect.from(prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v)
     )
 }
@@ -158,4 +160,16 @@ suspend fun applyTextAlignChange(
 ): TableWatermarkUiState {
     val patch = applyTableWatermarkAction(context, TableWatermarkAction.TextAlignChanged(align))
     return currentState.copy(wmTextAlign = patch.textAlign ?: currentState.wmTextAlign)
+}
+
+
+suspend fun applyGridEnabledChange(
+    context: Context,
+    enabled: Boolean,
+    currentState: TableWatermarkUiState
+): TableWatermarkUiState {
+    context.dataStore.edit { prefs ->
+        prefs[KEY_WM_GRID_ENABLED] = enabled
+    }
+    return currentState.copy(wmGridEnabled = enabled)
 }

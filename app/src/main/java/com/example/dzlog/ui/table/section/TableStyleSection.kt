@@ -1,9 +1,12 @@
 package com.example.dzlog.ui.table.section
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -18,7 +21,9 @@ import com.example.dzlog.ui.theme.DDZTypography
 @Composable
 fun TableStyleSection(
     wmBgStyle: Int,
-    onBgStyleChange: (Int) -> Unit
+    wmGridEnabled: Boolean,
+    onBgStyleChange: (Int) -> Unit,
+    onGridEnabledChange: (Boolean) -> Unit
 ) {
     Text("배경", style = DDZTypography.Caption, color = DDZColor.TextMuted)
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -39,5 +44,14 @@ fun TableStyleSection(
             onClick = { onBgStyleChange(2) }
         )
         Text("투명", color = DDZColor.TextPrimary)
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("격자선", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+        Switch(checked = wmGridEnabled, onCheckedChange = onGridEnabledChange)
     }
 }

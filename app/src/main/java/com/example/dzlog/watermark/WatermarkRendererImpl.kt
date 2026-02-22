@@ -22,7 +22,8 @@ class WatermarkRendererImpl : WatermarkRenderer {
         textAlign: Int,
         rowWeights: List<Float>?,
         colWeights: List<Float>?,
-        bgStyle: Int
+        bgStyle: Int,
+        drawGrid: Boolean
     ): Bitmap {
         return drawWatermarkTableFromResolvedCells(
             src = originalBmp,
@@ -41,7 +42,8 @@ class WatermarkRendererImpl : WatermarkRenderer {
             textAlign = textAlign,
             rowWeights = rowWeights,
             colWeights = colWeights,
-            bgStyle = bgStyle
+            bgStyle = bgStyle,
+            drawGrid = drawGrid
         )
     }
 }

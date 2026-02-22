@@ -41,6 +41,7 @@ internal class CameraPrefsState {
     var wmTextColorMode by mutableIntStateOf(WatermarkTextColorMode.AUTO)
     var wmManualTextColor by mutableIntStateOf(WatermarkManualTextColor.BLACK)
     var wmTextAlign by mutableIntStateOf(WatermarkTextAlign.LEFT)
+    var wmGridEnabled by mutableStateOf(true)
 }
 
 @Stable

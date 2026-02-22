@@ -58,6 +58,7 @@ internal fun handleCaptureClick(
     wmTextColorMode: Int,
     wmManualTextColor: Int,
     wmTextAlign: Int,
+    wmGridEnabled: Boolean,
     usableTopRatio: Float,
     usableBottomRatio: Float,
     repository: DzlogRepositoryImpl,
@@ -72,7 +73,8 @@ internal fun handleCaptureClick(
         valueScale: Int,
         textColorMode: Int,
         manualTextColor: Int,
-        textAlign: Int
+        textAlign: Int,
+        gridEnabled: Boolean
     ) -> com.example.dzlog.domain.model.WatermarkConfig,
     onApplyTemplatePatch: (TableTemplateState) -> Unit,
     onUpdateScopeNextCounter: (Int) -> Unit,
@@ -147,7 +149,8 @@ internal fun handleCaptureClick(
             wmValueScale,
             wmTextColorMode,
             wmManualTextColor,
-            wmTextAlign
+            wmTextAlign,
+            wmGridEnabled
         )
     )
 

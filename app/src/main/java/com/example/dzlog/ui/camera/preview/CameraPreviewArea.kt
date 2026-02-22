@@ -483,7 +483,8 @@ internal fun CameraPreviewArea(
                 valueScale = args.watermarkUi.valueScale,
                 textColorMode = args.watermarkUi.textColorMode,
                 manualTextColor = args.watermarkUi.manualTextColor,
-                textAlign = args.watermarkUi.textAlign
+                textAlign = args.watermarkUi.textAlign,
+                gridEnabled = args.watermarkUi.wmGridEnabled
             )
         )
 

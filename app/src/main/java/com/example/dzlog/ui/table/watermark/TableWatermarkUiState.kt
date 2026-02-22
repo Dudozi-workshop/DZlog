@@ -18,5 +18,6 @@ data class TableWatermarkUiState(
     val wmTextColorMode: Int = WatermarkTextColorMode.AUTO,
     val wmManualTextColor: Int = WatermarkManualTextColor.BLACK,
     val wmTextAlign: Int = WatermarkTextAlign.LEFT,
+    val wmGridEnabled: Boolean = true,
     val captureAspect: CaptureAspect = CaptureAspect.R3_4
 )

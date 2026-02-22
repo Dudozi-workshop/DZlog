@@ -6,20 +6,16 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,6 +32,7 @@ import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.table.ResolvedCell
 import com.example.dzlog.domain.watermark.WatermarkBuilder
+import com.example.dzlog.ui.common.DDZSegmentedControl
 import com.example.dzlog.ui.table.TableRowColSizeSection
 import com.example.dzlog.ui.table.watermark.CameraLikeWatermarkPlacementPreview
 import com.example.dzlog.ui.theme.DDZColor
@@ -58,6 +55,7 @@ fun PreviewTabContent(
     wmTextColorMode: Int,
     wmManualTextColor: Int,
     wmTextAlign: Int,
+    wmGridEnabled: Boolean,
     onCaptureAspectChange: (CaptureAspect) -> Unit,
     onWatermarkDragPreview: (Int, Int) -> Unit,
     onWatermarkDragCommit: (Int, Int) -> Unit,
@@ -70,17 +68,17 @@ fun PreviewTabContent(
     onTextColorModeChange: (Int) -> Unit,
     onManualTextColorChange: (Int) -> Unit,
     onTextAlignChange: (Int) -> Unit,
+    onGridEnabledChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val watermarkCells = remember(resolvedCells) { WatermarkBuilder.buildTableCells(resolvedCells) }
     var isWatermarkArmed by remember { mutableStateOf(false) }
 
-    val scrollModifier = if (isWatermarkArmed) Modifier else Modifier.verticalScroll(scrollState)
+    val settingsScrollModifier = if (isWatermarkArmed) Modifier else Modifier.verticalScroll(scrollState)
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .then(scrollModifier)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -93,13 +91,10 @@ fun PreviewTabContent(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("촬영 미리보기", color = DDZColor.Surface, style = DDZTypography.CardTitle)
-
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 240.dp)
-                    .aspectRatio(3f / 4f)
+                    .height(240.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .clipToBounds()
                     .background(DDZColor.Primary)
@@ -123,6 +118,7 @@ fun PreviewTabContent(
                     textColorMode = wmTextColorMode,
                     manualTextColor = wmManualTextColor,
                     textAlign = wmTextAlign,
+                    drawGrid = wmGridEnabled,
                     armed = isWatermarkArmed,
                     onArmedChange = { isWatermarkArmed = it },
                     onDragPreview = onWatermarkDragPreview,
@@ -131,83 +127,82 @@ fun PreviewTabContent(
                         .fillMaxSize()
                         .clipToBounds()
                 )
+            }
 
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 8.dp)
-                        .background(DDZColor.Card.copy(alpha = 0.86f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    listOf(
-                        CaptureAspect.R1_1 to "1:1",
-                        CaptureAspect.R3_4 to "3:4",
-                        CaptureAspect.R9_16 to "9:16"
-                    ).forEach { (aspect, label) ->
-                        OutlinedButton(
-                            onClick = { onCaptureAspectChange(aspect) },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                            modifier = Modifier.sizeIn(minHeight = 28.dp)
-                        ) {
-                            Text(
-                                text = label,
-                                color = if (captureAspect == aspect) DDZColor.Primary else DDZColor.TextPrimary,
-                                style = DDZTypography.Caption
-                            )
-                        }
-                    }
-                }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "비율 설정",
+                    color = DDZColor.Card,
+                    style = DDZTypography.Caption
+                )
+
+                val aspectOptions = listOf(CaptureAspect.R1_1, CaptureAspect.R3_4, CaptureAspect.R9_16)
+                val selectedIndex = aspectOptions.indexOf(captureAspect).coerceAtLeast(0)
+
+                DDZSegmentedControl(
+                    options = listOf("1:1", "3:4", "9:16"),
+                    selectedIndex = selectedIndex,
+                    onSelect = { index -> onCaptureAspectChange(aspectOptions[index]) }
+                )
             }
         }
-
-        TableRowColSizeSection(
-            templateState = templateState,
-            onTemplateChange = onRowColWeightsChange
-        )
-
-        Spacer(Modifier.height(4.dp))
 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .weight(1f)
+                .then(settingsScrollModifier)
                 .background(DDZColor.Card)
                 .padding(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            WatermarkPlacementSection(
-                wmWidthRatio = wmWidthRatio,
-                wmHeightRatio = wmHeightRatio,
-                onWidthRatioChange = onWidthRatioChange,
-                onHeightRatioChange = onHeightRatioChange
-            )
+                TableRowColSizeSection(
+                    templateState = templateState,
+                    onTemplateChange = onRowColWeightsChange
+                )
 
-            HorizontalDivider()
+                Spacer(Modifier.height(4.dp))
 
-            TableStyleSection(
-                wmBgStyle = wmBgStyle,
-                onBgStyleChange = onBgStyleChange
-            )
+                WatermarkPlacementSection(
+                    wmWidthRatio = wmWidthRatio,
+                    wmHeightRatio = wmHeightRatio,
+                    onWidthRatioChange = onWidthRatioChange,
+                    onHeightRatioChange = onHeightRatioChange
+                )
 
-            HorizontalDivider()
+                HorizontalDivider()
 
-            TableOpacitySection(
-                wmBgAlpha = wmBgAlpha,
-                onBgAlphaChange = onBgAlphaChange
-            )
+                TableStyleSection(
+                    wmBgStyle = wmBgStyle,
+                    wmGridEnabled = wmGridEnabled,
+                    onBgStyleChange = onBgStyleChange,
+                    onGridEnabledChange = onGridEnabledChange
+                )
 
-            HorizontalDivider()
+                HorizontalDivider()
 
-            TableTextStyleSection(
-                wmTextColorMode = wmTextColorMode,
-                wmManualTextColor = wmManualTextColor,
-                wmTextAlign = wmTextAlign,
-                wmValueScale = wmValueScale,
-                onTextColorModeChange = onTextColorModeChange,
-                onManualTextColorChange = onManualTextColorChange,
-                onTextAlignChange = onTextAlignChange,
-                onValueScaleChange = onValueScaleChange
-            )
+                TableOpacitySection(
+                    wmBgAlpha = wmBgAlpha,
+                    onBgAlphaChange = onBgAlphaChange
+                )
+
+                HorizontalDivider()
+
+                TableTextStyleSection(
+                    wmTextColorMode = wmTextColorMode,
+                    wmManualTextColor = wmManualTextColor,
+                    wmTextAlign = wmTextAlign,
+                    wmValueScale = wmValueScale,
+                    onTextColorModeChange = onTextColorModeChange,
+                    onManualTextColorChange = onManualTextColorChange,
+                    onTextAlignChange = onTextAlignChange,
+                    onValueScaleChange = onValueScaleChange
+                )
+            }
         }
     }
 }
