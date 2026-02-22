@@ -134,7 +134,7 @@ private fun drawBackgroundRect(
 
 
 private fun resolveGridColor(bgStyle: Int): Int = when (bgStyle) {
-    BG_STYLE_WHITE -> Color.argb(110, 0, 0, 0)
+    BG_STYLE_WHITE, BG_STYLE_TRANSPARENT -> Color.argb(110, 0, 0, 0)
     else -> Color.argb(110, 255, 255, 255)
 }
 

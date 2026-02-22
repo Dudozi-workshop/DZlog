@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
@@ -73,12 +74,11 @@ fun PreviewTabContent(
     val watermarkCells = remember(resolvedCells) { WatermarkBuilder.buildTableCells(resolvedCells) }
     var isWatermarkArmed by remember { mutableStateOf(false) }
 
-    val scrollModifier = if (isWatermarkArmed) Modifier else Modifier.verticalScroll(scrollState)
+    val settingsScrollModifier = if (isWatermarkArmed) Modifier else Modifier.verticalScroll(scrollState)
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .then(scrollModifier)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -91,8 +91,6 @@ fun PreviewTabContent(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("촬영 미리보기", color = DDZColor.Surface, style = DDZTypography.CardTitle)
-
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -153,55 +151,62 @@ fun PreviewTabContent(
             }
         }
 
-        TableRowColSizeSection(
-            templateState = templateState,
-            onTemplateChange = onRowColWeightsChange
-        )
-
-        Spacer(Modifier.height(4.dp))
-
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(DDZColor.Card)
-                .padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .weight(1f, fill = true)
         ) {
-            WatermarkPlacementSection(
-                wmWidthRatio = wmWidthRatio,
-                wmHeightRatio = wmHeightRatio,
-                onWidthRatioChange = onWidthRatioChange,
-                onHeightRatioChange = onHeightRatioChange
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(settingsScrollModifier)
+                    .background(DDZColor.Card)
+                    .padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                TableRowColSizeSection(
+                    templateState = templateState,
+                    onTemplateChange = onRowColWeightsChange
+                )
 
-            HorizontalDivider()
+                Spacer(Modifier.height(4.dp))
 
-            TableStyleSection(
-                wmBgStyle = wmBgStyle,
-                wmGridEnabled = wmGridEnabled,
-                onBgStyleChange = onBgStyleChange,
-                onGridEnabledChange = onGridEnabledChange
-            )
+                WatermarkPlacementSection(
+                    wmWidthRatio = wmWidthRatio,
+                    wmHeightRatio = wmHeightRatio,
+                    onWidthRatioChange = onWidthRatioChange,
+                    onHeightRatioChange = onHeightRatioChange
+                )
 
-            HorizontalDivider()
+                HorizontalDivider()
 
-            TableOpacitySection(
-                wmBgAlpha = wmBgAlpha,
-                onBgAlphaChange = onBgAlphaChange
-            )
+                TableStyleSection(
+                    wmBgStyle = wmBgStyle,
+                    wmGridEnabled = wmGridEnabled,
+                    onBgStyleChange = onBgStyleChange,
+                    onGridEnabledChange = onGridEnabledChange
+                )
 
-            HorizontalDivider()
+                HorizontalDivider()
 
-            TableTextStyleSection(
-                wmTextColorMode = wmTextColorMode,
-                wmManualTextColor = wmManualTextColor,
-                wmTextAlign = wmTextAlign,
-                wmValueScale = wmValueScale,
-                onTextColorModeChange = onTextColorModeChange,
-                onManualTextColorChange = onManualTextColorChange,
-                onTextAlignChange = onTextAlignChange,
-                onValueScaleChange = onValueScaleChange
-            )
+                TableOpacitySection(
+                    wmBgAlpha = wmBgAlpha,
+                    onBgAlphaChange = onBgAlphaChange
+                )
+
+                HorizontalDivider()
+
+                TableTextStyleSection(
+                    wmTextColorMode = wmTextColorMode,
+                    wmManualTextColor = wmManualTextColor,
+                    wmTextAlign = wmTextAlign,
+                    wmValueScale = wmValueScale,
+                    onTextColorModeChange = onTextColorModeChange,
+                    onManualTextColorChange = onManualTextColorChange,
+                    onTextAlignChange = onTextAlignChange,
+                    onValueScaleChange = onValueScaleChange
+                )
+            }
         }
     }
 }
