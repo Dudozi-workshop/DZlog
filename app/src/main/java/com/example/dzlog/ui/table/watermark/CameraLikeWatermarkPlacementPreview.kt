@@ -1,5 +1,7 @@
 package com.example.dzlog.ui.table.watermark
 
+import android.graphics.Bitmap
+import android.graphics.Canvas as AndroidCanvas
 import android.graphics.RectF
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -7,6 +9,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -21,10 +24,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.watermark.WatermarkBuilder
 import com.example.dzlog.ui.theme.DDZColor
+import com.example.dzlog.watermark.computeWatermarkTableRect
 import com.example.dzlog.watermark.drawWatermarkTableOnCanvas
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -63,6 +69,60 @@ internal fun CameraLikeWatermarkPlacementPreview(
     var dragMaxYPx by remember { mutableFloatStateOf(0f) }
     var hasOverride by remember { mutableStateOf(false) }
     var overrideReleaseTick by remember { mutableIntStateOf(0) }
+    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+
+    val previewContentRect = remember(canvasSize, captureAspect) {
+        computeContentRect(canvasSize.width.toFloat(), canvasSize.height.toFloat(), captureAspect.ratioF)
+    }
+    val tableWidthPx = remember(previewContentRect, tableWidthRatio) {
+        (previewContentRect.width() * (tableWidthRatio.coerceIn(40, 100) / 100f)).roundToInt().coerceAtLeast(1)
+    }
+    val tableHeightPx = remember(previewContentRect, tableHeightRatio) {
+        (previewContentRect.width() * (tableHeightRatio.coerceIn(10, 35) / 100f)).roundToInt().coerceAtLeast(1)
+    }
+    val normalizedTableHeightRatio = remember(tableWidthRatio, tableHeightRatio) {
+        if (tableWidthRatio <= 0) 10 else ((tableHeightRatio * 100f) / tableWidthRatio)
+            .roundToInt()
+            .coerceIn(10, 200)
+    }
+
+    val tableBitmap = remember(
+        watermarkCells,
+        rows,
+        cols,
+        rowWeights,
+        colWeights,
+        bgStyle,
+        bgAlpha,
+        valueScale,
+        textColorMode,
+        manualTextColor,
+        textAlign,
+        tableWidthPx,
+        tableHeightPx,
+        normalizedTableHeightRatio
+    ) {
+        createTableBitmap(
+            width = tableWidthPx,
+            height = tableHeightPx,
+            cells = watermarkCells,
+            rows = rows,
+            cols = cols,
+            rowWeights = rowWeights,
+            colWeights = colWeights,
+            bgStyle = bgStyle,
+            bgAlpha = bgAlpha,
+            valueScale = valueScale,
+            textColorMode = textColorMode,
+            manualTextColor = manualTextColor,
+            textAlign = textAlign,
+            normalizedTableHeightRatio = normalizedTableHeightRatio
+        )
+    }
+
+    DisposableEffect(tableBitmap) {
+        onDispose { tableBitmap?.recycle() }
+    }
 
     LaunchedEffect(overrideReleaseTick) {
         if (overrideReleaseTick == 0) return@LaunchedEffect
@@ -75,8 +135,8 @@ internal fun CameraLikeWatermarkPlacementPreview(
     val tapModifier = Modifier.pointerInput(captureAspect, anchor, offsetXRatio, offsetYRatio, tableWidthRatio, tableHeightRatio) {
         detectTapGestures { tapOffset ->
             val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
-            val tableRect = computeTableRect(
-                contentRect = contentRect,
+            val tableRect = computeWatermarkTableRect(
+                bounds = contentRect,
                 anchor = anchor,
                 offsetXRatio = dragOffsetXRatio,
                 offsetYRatio = dragOffsetYRatio,
@@ -97,8 +157,8 @@ internal fun CameraLikeWatermarkPlacementPreview(
             detectDragGestures(
                 onDragStart = { start ->
                     val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
-                    val tableRect = computeTableRect(
-                        contentRect = contentRect,
+                    val tableRect = computeWatermarkTableRect(
+                        bounds = contentRect,
                         anchor = anchor,
                         offsetXRatio = dragOffsetXRatio,
                         offsetYRatio = dragOffsetYRatio,
@@ -147,13 +207,18 @@ internal fun CameraLikeWatermarkPlacementPreview(
         Modifier
     }
 
-    Box(modifier = modifier.then(tapModifier).then(dragModifier)) {
+    Box(
+        modifier = modifier
+            .onSizeChanged { canvasSize = it }
+            .then(tapModifier)
+            .then(dragModifier)
+    ) {
         Canvas(Modifier.fillMaxSize()) {
             val boxW = size.width
             val boxH = size.height
             val contentRect = computeContentRect(boxW, boxH, captureAspect.ratioF)
-            val baseTableRect = computeTableRect(
-                contentRect = contentRect,
+            val baseTableRect = computeWatermarkTableRect(
+                bounds = contentRect,
                 anchor = anchor,
                 offsetXRatio = dragOffsetXRatio,
                 offsetYRatio = dragOffsetYRatio,
@@ -194,35 +259,39 @@ internal fun CameraLikeWatermarkPlacementPreview(
             drawRect(DDZColor.Surface.copy(alpha = 0.13f), Offset(contentRect.centerX() - 0.5f, contentRect.top), Size(1f, contentRect.height()))
             drawRect(DDZColor.Surface.copy(alpha = 0.13f), Offset(contentRect.left, contentRect.centerY() - 0.5f), Size(contentRect.width(), 1f))
 
-            val displayAnchor = if (hasOverride || anchor == WatermarkTableAnchor.CUSTOM || dragActive) {
-                WatermarkTableAnchor.CUSTOM
-            } else {
-                anchor
-            }
-
             drawIntoCanvas { canvas ->
-                drawWatermarkTableOnCanvas(
-                    canvas = canvas.nativeCanvas,
-                    bounds = contentRect,
-                    cells = watermarkCells,
-                    rows = rows.coerceAtLeast(1),
-                    cols = cols.coerceAtLeast(1),
-                    anchor = displayAnchor,
-                    offsetXRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetXRatio else 0,
-                    offsetYRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetYRatio else 0,
-                    tableHeightRatio = tableHeightRatio,
-                    tableWidthRatio = tableWidthRatio,
-                    bgAlpha = bgAlpha.coerceIn(0, 255),
-                    bgStyle = bgStyle,
-                    valueScale = valueScale.coerceIn(60, 160),
-                    textColorMode = textColorMode,
-                    manualTextColor = manualTextColor,
-                    textAlign = textAlign,
-                    rowWeights = rowWeights,
-                    colWeights = colWeights,
-                    overrideOffsetLeftPx = if (hasOverride) dragLeftPx else null,
-                    overrideOffsetTopPx = if (hasOverride) dragTopPx else null
-                )
+                val bitmap = tableBitmap
+                if (bitmap != null && !bitmap.isRecycled) {
+                    canvas.nativeCanvas.drawBitmap(bitmap, drawTableRect.left, drawTableRect.top, null)
+                } else {
+                    val displayAnchor = if (hasOverride || anchor == WatermarkTableAnchor.CUSTOM || dragActive) {
+                        WatermarkTableAnchor.CUSTOM
+                    } else {
+                        anchor
+                    }
+                    drawWatermarkTableOnCanvas(
+                        canvas = canvas.nativeCanvas,
+                        bounds = contentRect,
+                        cells = watermarkCells,
+                        rows = rows.coerceAtLeast(1),
+                        cols = cols.coerceAtLeast(1),
+                        anchor = displayAnchor,
+                        offsetXRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetXRatio else 0,
+                        offsetYRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetYRatio else 0,
+                        tableHeightRatio = tableHeightRatio,
+                        tableWidthRatio = tableWidthRatio,
+                        bgAlpha = bgAlpha.coerceIn(0, 255),
+                        bgStyle = bgStyle,
+                        valueScale = valueScale.coerceIn(60, 160),
+                        textColorMode = textColorMode,
+                        manualTextColor = manualTextColor,
+                        textAlign = textAlign,
+                        rowWeights = rowWeights,
+                        colWeights = colWeights,
+                        overrideOffsetLeftPx = if (hasOverride) dragLeftPx else null,
+                        overrideOffsetTopPx = if (hasOverride) dragTopPx else null
+                    )
+                }
             }
 
             if (armed) {
@@ -235,6 +304,49 @@ internal fun CameraLikeWatermarkPlacementPreview(
             }
         }
     }
+}
+
+private fun createTableBitmap(
+    width: Int,
+    height: Int,
+    cells: List<WatermarkBuilder.WatermarkCell>,
+    rows: Int,
+    cols: Int,
+    rowWeights: List<Float>?,
+    colWeights: List<Float>?,
+    bgStyle: Int,
+    bgAlpha: Int,
+    valueScale: Int,
+    textColorMode: Int,
+    manualTextColor: Int,
+    textAlign: Int,
+    normalizedTableHeightRatio: Int
+): Bitmap? {
+    if (width <= 0 || height <= 0) return null
+
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = AndroidCanvas(bitmap)
+    drawWatermarkTableOnCanvas(
+        canvas = canvas,
+        bounds = RectF(0f, 0f, width.toFloat(), height.toFloat()),
+        cells = cells,
+        rows = rows.coerceAtLeast(1),
+        cols = cols.coerceAtLeast(1),
+        anchor = WatermarkTableAnchor.TOP_LEFT,
+        offsetXRatio = 0,
+        offsetYRatio = 0,
+        tableHeightRatio = normalizedTableHeightRatio,
+        tableWidthRatio = 100,
+        bgAlpha = bgAlpha.coerceIn(0, 255),
+        bgStyle = bgStyle,
+        valueScale = valueScale.coerceIn(60, 160),
+        textColorMode = textColorMode,
+        manualTextColor = manualTextColor,
+        textAlign = textAlign,
+        rowWeights = rowWeights,
+        colWeights = colWeights
+    )
+    return bitmap
 }
 
 private fun computeContentRect(boxWidth: Float, boxHeight: Float, aspectRatio: Float): RectF {
@@ -253,46 +365,4 @@ private fun computeContentRect(boxWidth: Float, boxHeight: Float, aspectRatio: F
         val leftOffset = (boxWidth - contentWidth) / 2f
         RectF(leftOffset, 0f, leftOffset + contentWidth, contentHeight)
     }
-}
-
-private fun computeTableRect(
-    contentRect: RectF,
-    anchor: WatermarkTableAnchor,
-    offsetXRatio: Int,
-    offsetYRatio: Int,
-    tableWidthRatio: Int,
-    tableHeightRatio: Int
-): RectF {
-    val base = contentRect.width()
-    val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
-    val tableH = base * (tableHeightRatio.coerceIn(10, 35) / 100f)
-    val maxX = (contentRect.width() - tableW).coerceAtLeast(0f)
-    val maxY = (contentRect.height() - tableH).coerceAtLeast(0f)
-
-    val left = when (anchor) {
-        WatermarkTableAnchor.TOP_LEFT,
-        WatermarkTableAnchor.BOTTOM_LEFT -> 0f
-
-        WatermarkTableAnchor.TOP_RIGHT,
-        WatermarkTableAnchor.BOTTOM_RIGHT -> maxX
-
-        WatermarkTableAnchor.CUSTOM -> (maxX * (offsetXRatio.coerceIn(0, 100) / 100f)).coerceIn(0f, maxX)
-    }
-
-    val top = when (anchor) {
-        WatermarkTableAnchor.TOP_LEFT,
-        WatermarkTableAnchor.TOP_RIGHT -> 0f
-
-        WatermarkTableAnchor.BOTTOM_LEFT,
-        WatermarkTableAnchor.BOTTOM_RIGHT -> maxY
-
-        WatermarkTableAnchor.CUSTOM -> (maxY * (offsetYRatio.coerceIn(0, 100) / 100f)).coerceIn(0f, maxY)
-    }
-
-    return RectF(
-        contentRect.left + left,
-        contentRect.top + top,
-        contentRect.left + left + tableW,
-        contentRect.top + top + tableH
-    )
 }

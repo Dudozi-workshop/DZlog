@@ -6,18 +6,15 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,6 +31,7 @@ import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.table.ResolvedCell
 import com.example.dzlog.domain.watermark.WatermarkBuilder
+import com.example.dzlog.ui.common.DDZSegmentedControl
 import com.example.dzlog.ui.table.TableRowColSizeSection
 import com.example.dzlog.ui.table.watermark.CameraLikeWatermarkPlacementPreview
 import com.example.dzlog.ui.theme.DDZColor
@@ -128,33 +126,27 @@ fun PreviewTabContent(
                         .fillMaxSize()
                         .clipToBounds()
                 )
+            }
 
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 8.dp)
-                        .background(DDZColor.Card.copy(alpha = 0.86f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    listOf(
-                        CaptureAspect.R1_1 to "1:1",
-                        CaptureAspect.R3_4 to "3:4",
-                        CaptureAspect.R9_16 to "9:16"
-                    ).forEach { (aspect, label) ->
-                        OutlinedButton(
-                            onClick = { onCaptureAspectChange(aspect) },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                            modifier = Modifier.sizeIn(minHeight = 28.dp)
-                        ) {
-                            Text(
-                                text = label,
-                                color = if (captureAspect == aspect) DDZColor.Primary else DDZColor.TextPrimary,
-                                style = DDZTypography.Caption
-                            )
-                        }
-                    }
-                }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "비율 설정",
+                    color = DDZColor.Card,
+                    style = DDZTypography.Caption
+                )
+
+                val aspectOptions = listOf(CaptureAspect.R1_1, CaptureAspect.R3_4, CaptureAspect.R9_16)
+                val selectedIndex = aspectOptions.indexOf(captureAspect).coerceAtLeast(0)
+
+                DDZSegmentedControl(
+                    options = listOf("1:1", "3:4", "9:16"),
+                    selectedIndex = selectedIndex,
+                    onSelect = { index -> onCaptureAspectChange(aspectOptions[index]) }
+                )
             }
         }
 

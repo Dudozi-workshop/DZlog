@@ -59,6 +59,25 @@ fun computeWatermarkTableLayout(
     return WatermarkTableLayout(RectF(left, top, left + tableW, top + tableH), maxX, maxY)
 }
 
+fun computeWatermarkTableRect(
+    bounds: RectF,
+    anchor: WatermarkTableAnchor,
+    offsetXRatio: Int,
+    offsetYRatio: Int,
+    tableHeightRatio: Int,
+    tableWidthRatio: Int
+): RectF {
+    val layout = computeWatermarkTableLayout(
+        bounds = bounds,
+        anchor = anchor,
+        offsetXRatio = offsetXRatio,
+        offsetYRatio = offsetYRatio,
+        tableHeightRatio = tableHeightRatio,
+        tableWidthRatio = tableWidthRatio
+    )
+    return RectF(layout.rect)
+}
+
 fun computeWatermarkTableLayoutPx(
     bounds: RectF,
     anchor: WatermarkTableAnchor,
