@@ -35,7 +35,7 @@ fun computeWatermarkTableLayout(
     val h = bounds.height()
     val base = w
     val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
-    val tableH = base * (tableHeightRatio.coerceIn(10, 35) / 100f)
+    val tableH = base * (tableHeightRatio.coerceIn(10, 200) / 100f)
 
     val maxX = (w - tableW).coerceAtLeast(0f)
     val maxY = (h - tableH).coerceAtLeast(0f)
@@ -90,7 +90,7 @@ fun computeWatermarkTableLayoutPx(
     val h = bounds.height()
     val base = w
     val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
-    val tableH = base * (tableHeightRatio.coerceIn(10, 35) / 100f)
+    val tableH = base * (tableHeightRatio.coerceIn(10, 200) / 100f)
 
     val maxX = (w - tableW).coerceAtLeast(0f)
     val maxY = (h - tableH).coerceAtLeast(0f)
@@ -243,7 +243,7 @@ fun drawWatermarkTableFromResolvedCells(
     val h = out.height.toFloat()
     val base = w
     val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
-    val tableH = base * (tableHeightRatio.coerceIn(10, 35) / 100f)
+    val tableH = base * (tableHeightRatio.coerceIn(10, 200) / 100f)
 
     val maxX = (w - tableW).coerceAtLeast(0f)
     val maxY = (h - tableH).coerceAtLeast(0f)
