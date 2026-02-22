@@ -86,6 +86,7 @@ fun WatermarkPreviewOverlay(
                 textColorMode = request.watermark.textColorMode,
                 manualTextColor = request.watermark.manualTextColor,
                 textAlign = request.watermark.textAlign,
+                drawGrid = request.watermark.gridEnabled,
                 overrideOffsetLeftPx = overrideOffsetPx?.x,
                 overrideOffsetTopPx = overrideOffsetPx?.y
             )

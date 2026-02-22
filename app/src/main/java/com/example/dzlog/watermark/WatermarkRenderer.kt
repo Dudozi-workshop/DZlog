@@ -22,6 +22,7 @@ interface WatermarkRenderer {
         textAlign: Int,
         rowWeights: List<Float>? = null,
         colWeights: List<Float>? = null,
-        bgStyle: Int = 0
+        bgStyle: Int = 0,
+        drawGrid: Boolean = true
     ): Bitmap
 }

@@ -132,6 +132,37 @@ private fun drawBackgroundRect(
     canvas.drawRect(left, top, left + tableW, top + tableH, bgPaint)
 }
 
+
+private fun resolveGridColor(bgStyle: Int): Int = when (bgStyle) {
+    BG_STYLE_WHITE -> Color.argb(110, 0, 0, 0)
+    else -> Color.argb(110, 255, 255, 255)
+}
+
+private fun drawGridLines(
+    canvas: Canvas,
+    left: Float,
+    top: Float,
+    tableW: Float,
+    tableH: Float,
+    rowOffsets: List<Float>,
+    colOffsets: List<Float>,
+    bgStyle: Int
+) {
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = resolveGridColor(bgStyle)
+        strokeWidth = 1.2f
+    }
+
+    for (xOffset in colOffsets) {
+        val x = left + xOffset
+        canvas.drawLine(x, top, x, top + tableH, paint)
+    }
+    for (yOffset in rowOffsets) {
+        val y = top + yOffset
+        canvas.drawLine(left, y, left + tableW, y, paint)
+    }
+}
+
 private fun resolveWeightsOrOnes(weights: List<Float>?, n: Int): List<Float> {
     if (n <= 0) return emptyList()
     if (weights == null || weights.size != n) return List(n) { 1f }
@@ -234,7 +265,8 @@ fun drawWatermarkTableFromResolvedCells(
     textAlign: Int = WatermarkTextAlign.LEFT,
     rowWeights: List<Float>? = null,
     colWeights: List<Float>? = null,
-    bgStyle: Int = BG_STYLE_BLACK
+    bgStyle: Int = BG_STYLE_BLACK,
+    drawGrid: Boolean = true
 ): Bitmap {
     val out = src.copy(Bitmap.Config.ARGB_8888, true)
     val canvas = Canvas(out)
@@ -273,6 +305,10 @@ fun drawWatermarkTableFromResolvedCells(
     val colWidths = computeSizes(tableW, resolveWeightsOrOnes(colWeights, safeCols))
     val rowOffsets = computeOffsets(rowHeights)
     val colOffsets = computeOffsets(colWidths)
+
+    if (drawGrid) {
+        drawGridLines(canvas, left, top, tableW, tableH, rowOffsets, colOffsets, bgStyle)
+    }
 
     val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = resolveValueTextColor(bgStyle, textColorMode, manualTextColor)
@@ -330,7 +366,8 @@ fun drawWatermarkTableOnCanvas(
     colWeights: List<Float>? = null,
     bgStyle: Int = BG_STYLE_BLACK,
     overrideOffsetLeftPx: Float? = null,
-    overrideOffsetTopPx: Float? = null
+    overrideOffsetTopPx: Float? = null,
+    drawGrid: Boolean = true
 ) {
     val layout = if (
         anchor == WatermarkTableAnchor.CUSTOM &&
@@ -370,6 +407,10 @@ fun drawWatermarkTableOnCanvas(
     val colWidths = computeSizes(tableW, resolveWeightsOrOnes(colWeights, safeCols))
     val rowOffsets = computeOffsets(rowHeights)
     val colOffsets = computeOffsets(colWidths)
+
+    if (drawGrid) {
+        drawGridLines(canvas, left, top, tableW, tableH, rowOffsets, colOffsets, bgStyle)
+    }
 
     val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = resolveValueTextColor(bgStyle, textColorMode, manualTextColor)

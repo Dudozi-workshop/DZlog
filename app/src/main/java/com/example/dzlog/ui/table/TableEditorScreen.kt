@@ -89,6 +89,7 @@ import com.example.dzlog.ui.table.watermark.applyBgAlphaChange
 import com.example.dzlog.ui.table.watermark.applyCaptureAspectChange
 import com.example.dzlog.ui.table.watermark.applyBgStyleChange
 import com.example.dzlog.ui.table.watermark.applyHeightRatioChange
+import com.example.dzlog.ui.table.watermark.applyGridEnabledChange
 import com.example.dzlog.ui.table.watermark.applyManualTextColorChange
 import com.example.dzlog.ui.table.watermark.applyTextAlignChange
 import com.example.dzlog.ui.table.watermark.applyTextColorModeChange
@@ -902,6 +903,7 @@ fun TableEditorScreen(
                         wmTextColorMode = watermarkUi.wmTextColorMode,
                         wmManualTextColor = watermarkUi.wmManualTextColor,
                         wmTextAlign = watermarkUi.wmTextAlign,
+                        wmGridEnabled = watermarkUi.wmGridEnabled,
                         onCaptureAspectChange = { aspect ->
                             scope.launch {
                                 watermarkUi = applyCaptureAspectChange(context, aspect, watermarkUi)
@@ -954,6 +956,11 @@ fun TableEditorScreen(
                         onTextAlignChange = { align ->
                             scope.launch {
                                 watermarkUi = applyTextAlignChange(context, align, watermarkUi)
+                            }
+                        },
+                        onGridEnabledChange = { enabled ->
+                            scope.launch {
+                                watermarkUi = applyGridEnabledChange(context, enabled, watermarkUi)
                             }
                         }
                     )

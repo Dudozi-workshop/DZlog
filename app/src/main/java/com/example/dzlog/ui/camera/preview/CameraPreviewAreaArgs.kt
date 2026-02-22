@@ -24,7 +24,8 @@ internal data class WatermarkUiArgs(
     val valueScale: Int,
     val textColorMode: Int,
     val manualTextColor: Int,
-    val textAlign: Int
+    val textAlign: Int,
+    val wmGridEnabled: Boolean
 )
 
 /**

@@ -25,6 +25,7 @@ val KEY_WM_VALUE_SCALE = intPreferencesKey("wm_value_scale")
 val KEY_WM_TEXT_COLOR_MODE = intPreferencesKey("wm_text_color_mode")
 val KEY_WM_TEXT_COLOR_MANUAL = intPreferencesKey("wm_text_color_manual")
 val KEY_WM_TEXT_ALIGN = intPreferencesKey("wm_text_align")
+val KEY_WM_GRID_ENABLED = booleanPreferencesKey("wm_grid_enabled")
 val KEY_TABLE_TEMPLATE_JSON = stringPreferencesKey("table_template_json")
 
 val KEY_COUNTER_MANUAL_NEXT_OVERRIDES_V1 = stringPreferencesKey("counter_manual_next_overrides_v1")

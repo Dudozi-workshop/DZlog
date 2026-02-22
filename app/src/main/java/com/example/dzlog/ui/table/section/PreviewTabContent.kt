@@ -54,6 +54,7 @@ fun PreviewTabContent(
     wmTextColorMode: Int,
     wmManualTextColor: Int,
     wmTextAlign: Int,
+    wmGridEnabled: Boolean,
     onCaptureAspectChange: (CaptureAspect) -> Unit,
     onWatermarkDragPreview: (Int, Int) -> Unit,
     onWatermarkDragCommit: (Int, Int) -> Unit,
@@ -66,6 +67,7 @@ fun PreviewTabContent(
     onTextColorModeChange: (Int) -> Unit,
     onManualTextColorChange: (Int) -> Unit,
     onTextAlignChange: (Int) -> Unit,
+    onGridEnabledChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val watermarkCells = remember(resolvedCells) { WatermarkBuilder.buildTableCells(resolvedCells) }
@@ -118,6 +120,7 @@ fun PreviewTabContent(
                     textColorMode = wmTextColorMode,
                     manualTextColor = wmManualTextColor,
                     textAlign = wmTextAlign,
+                    drawGrid = wmGridEnabled,
                     armed = isWatermarkArmed,
                     onArmedChange = { isWatermarkArmed = it },
                     onDragPreview = onWatermarkDragPreview,
@@ -175,7 +178,9 @@ fun PreviewTabContent(
 
             TableStyleSection(
                 wmBgStyle = wmBgStyle,
-                onBgStyleChange = onBgStyleChange
+                wmGridEnabled = wmGridEnabled,
+                onBgStyleChange = onBgStyleChange,
+                onGridEnabledChange = onGridEnabledChange
             )
 
             HorizontalDivider()

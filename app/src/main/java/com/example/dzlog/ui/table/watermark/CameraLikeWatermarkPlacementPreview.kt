@@ -54,6 +54,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
     textColorMode: Int,
     manualTextColor: Int,
     textAlign: Int,
+    drawGrid: Boolean,
     armed: Boolean,
     onArmedChange: (Boolean) -> Unit,
     onDragPreview: (Int, Int) -> Unit,
@@ -78,7 +79,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
         (previewContentRect.width() * (tableWidthRatio.coerceIn(40, 100) / 100f)).roundToInt().coerceAtLeast(1)
     }
     val tableHeightPx = remember(previewContentRect, tableHeightRatio) {
-        (previewContentRect.width() * (tableHeightRatio.coerceIn(10, 35) / 100f)).roundToInt().coerceAtLeast(1)
+        (previewContentRect.width() * (tableHeightRatio.coerceIn(10, 200) / 100f)).roundToInt().coerceAtLeast(1)
     }
     val normalizedTableHeightRatio = remember(tableWidthRatio, tableHeightRatio) {
         if (tableWidthRatio <= 0) 10 else ((tableHeightRatio * 100f) / tableWidthRatio)
@@ -100,7 +101,8 @@ internal fun CameraLikeWatermarkPlacementPreview(
         textAlign,
         tableWidthPx,
         tableHeightPx,
-        normalizedTableHeightRatio
+        normalizedTableHeightRatio,
+        drawGrid
     ) {
         createTableBitmap(
             width = tableWidthPx,
@@ -116,7 +118,8 @@ internal fun CameraLikeWatermarkPlacementPreview(
             textColorMode = textColorMode,
             manualTextColor = manualTextColor,
             textAlign = textAlign,
-            normalizedTableHeightRatio = normalizedTableHeightRatio
+            normalizedTableHeightRatio = normalizedTableHeightRatio,
+            drawGrid = drawGrid
         )
     }
 
@@ -124,10 +127,18 @@ internal fun CameraLikeWatermarkPlacementPreview(
         onDispose { tableBitmap?.recycle() }
     }
 
+    LaunchedEffect(offsetXRatio, offsetYRatio, dragOffsetXRatio, dragOffsetYRatio, dragActive, hasOverride) {
+        if (!dragActive && hasOverride) {
+            if (offsetXRatio == dragOffsetXRatio && offsetYRatio == dragOffsetYRatio) {
+                hasOverride = false
+            }
+        }
+    }
+
     LaunchedEffect(overrideReleaseTick) {
         if (overrideReleaseTick == 0) return@LaunchedEffect
-        delay(80)
-        if (!dragActive) {
+        delay(400)
+        if (!dragActive && hasOverride) {
             hasOverride = false
         }
     }
@@ -153,7 +164,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
     }
 
     val dragModifier = if (armed) {
-        Modifier.pointerInput(captureAspect, anchor, tableWidthRatio, tableHeightRatio, dragOffsetXRatio, dragOffsetYRatio) {
+        Modifier.pointerInput(captureAspect, anchor, tableWidthRatio, tableHeightRatio) {
             detectDragGestures(
                 onDragStart = { start ->
                     val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
@@ -185,6 +196,8 @@ internal fun CameraLikeWatermarkPlacementPreview(
                     if (dragActive) {
                         val ratioX = if (dragMaxXPx <= 0f) 0 else ((dragLeftPx / dragMaxXPx) * 100f).roundToInt().coerceIn(0, 100)
                         val ratioY = if (dragMaxYPx <= 0f) 0 else ((dragTopPx / dragMaxYPx) * 100f).roundToInt().coerceIn(0, 100)
+                        dragOffsetXRatio = ratioX
+                        dragOffsetYRatio = ratioY
                         onDragCommit(ratioX, ratioY)
                         overrideReleaseTick += 1
                     }
@@ -199,7 +212,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
                     val ratioY = if (dragMaxYPx <= 0f) 0 else ((dragTopPx / dragMaxYPx) * 100f).roundToInt().coerceIn(0, 100)
                     dragOffsetXRatio = ratioX
                     dragOffsetYRatio = ratioY
-                    onDragPreview(ratioX, ratioY)
+                    // 드래그 중에는 로컬 상태만 갱신(상위 상태/SSOT 저장 금지)
                 }
             )
         }
@@ -227,7 +240,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
             )
             val base = contentRect.width()
             val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
-            val tableH = base * (tableHeightRatio.coerceIn(10, 35) / 100f)
+            val tableH = base * (tableHeightRatio.coerceIn(10, 200) / 100f)
             val drawTableRect = if (hasOverride) {
                 RectF(
                     contentRect.left + dragLeftPx,
@@ -286,6 +299,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
                         textColorMode = textColorMode,
                         manualTextColor = manualTextColor,
                         textAlign = textAlign,
+                        drawGrid = drawGrid,
                         rowWeights = rowWeights,
                         colWeights = colWeights,
                         overrideOffsetLeftPx = if (hasOverride) dragLeftPx else null,
@@ -320,7 +334,8 @@ private fun createTableBitmap(
     textColorMode: Int,
     manualTextColor: Int,
     textAlign: Int,
-    normalizedTableHeightRatio: Int
+    normalizedTableHeightRatio: Int,
+    drawGrid: Boolean
 ): Bitmap? {
     if (width <= 0 || height <= 0) return null
 
@@ -343,6 +358,7 @@ private fun createTableBitmap(
         textColorMode = textColorMode,
         manualTextColor = manualTextColor,
         textAlign = textAlign,
+        drawGrid = drawGrid,
         rowWeights = rowWeights,
         colWeights = colWeights
     )
