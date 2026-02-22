@@ -31,7 +31,6 @@ import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 @Composable
-@Suppress("UNUSED_PARAMETER")
 internal fun CameraLikeWatermarkPlacementPreview(
     captureAspect: CaptureAspect,
     rows: Int,
@@ -83,7 +82,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
         }
     }
 
-    val tapModifier = Modifier.pointerInput(captureAspect, anchor, offsetXRatio, offsetYRatio, tableWidthRatio, tableHeightRatio) {
+    val tapModifier = Modifier.pointerInput(captureAspect, anchor, tableWidthRatio, tableHeightRatio) {
         detectTapGestures { tapOffset ->
             val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
             val tableRect = computeWatermarkTableRect(
@@ -152,6 +151,7 @@ internal fun CameraLikeWatermarkPlacementPreview(
                     val ratioY = if (dragMaxYPx <= 0f) 0 else ((dragTopPx / dragMaxYPx) * 100f).roundToInt().coerceIn(0, 100)
                     dragOffsetXRatio = ratioX
                     dragOffsetYRatio = ratioY
+                    onDragPreview(ratioX, ratioY)
                 }
             )
         }

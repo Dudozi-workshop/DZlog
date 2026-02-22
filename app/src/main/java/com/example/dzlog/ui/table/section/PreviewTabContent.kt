@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
@@ -151,19 +150,15 @@ fun PreviewTabContent(
             }
         }
 
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f, fill = true)
+                .weight(1f)
+                .then(settingsScrollModifier)
+                .background(DDZColor.Card)
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(settingsScrollModifier)
-                    .background(DDZColor.Card)
-                    .padding(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
                 TableRowColSizeSection(
                     templateState = templateState,
                     onTemplateChange = onRowColWeightsChange
@@ -209,4 +204,3 @@ fun PreviewTabContent(
             }
         }
     }
-}
