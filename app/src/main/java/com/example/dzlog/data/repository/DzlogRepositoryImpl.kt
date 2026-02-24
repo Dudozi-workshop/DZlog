@@ -255,18 +255,8 @@ class DzlogRepositoryImpl(
         if (source.width == 0 || source.height == 0) return source
 
         val fullRect = RectF(0f, 0f, source.width.toFloat(), source.height.toFloat())
-        val usableTop = (fullRect.top + (fullRect.height() * request.usableTopRatio.coerceIn(0f, 1f)))
-            .coerceIn(fullRect.top, fullRect.bottom)
-        val usableBottom = (fullRect.top + (fullRect.height() * request.usableBottomRatio.coerceIn(0f, 1f)))
-            .coerceIn(fullRect.top, fullRect.bottom)
-        val usableRect = RectF(
-            fullRect.left,
-            minOf(usableTop, usableBottom),
-            fullRect.right,
-            maxOf(usableTop, usableBottom)
-        )
         val framing = computeAnchoredCaptureRect(
-            contentRect = usableRect,
+            contentRect = fullRect,
             captureAspectRatio = request.captureAspect.ratioF
         )
         val targetRect = framing.captureRect
@@ -281,7 +271,7 @@ class DzlogRepositoryImpl(
 
         Log.d(
             "DZlogCrop",
-            "crop aspect=${request.captureAspect.label} src=${source.width}x${source.height} rect=($left,$top)-($right,$bottom) usable=(${usableRect.top.toInt()}-${usableRect.bottom.toInt()}) anchorY=${framing.anchorY}"
+            "crop aspect=${request.captureAspect.label} src=${source.width}x${source.height} rect=($left,$top)-($right,$bottom) anchorY=${framing.anchorY}"
         )
 
         return Bitmap.createBitmap(source, left, top, width, height)

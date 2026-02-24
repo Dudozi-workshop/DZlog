@@ -3,14 +3,13 @@ package com.example.dzlog.ui.camera.controller
 import android.content.Context
 import android.graphics.RectF
 import android.util.Log
-import android.util.Rational
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.MeteringPoint
 import androidx.camera.core.Preview
-import androidx.camera.core.UseCaseGroup
+import androidx.camera.core.AspectRatio
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
@@ -35,49 +34,27 @@ internal fun bindCamera(
         val cameraProvider = cameraProviderFuture.get()
 
         val rotation = previewView.display.rotation
-        Log.d("DZlog", "BIND aspect=${aspect.label} w/h=${aspect.w}/${aspect.h}")
+        Log.d("DZlog", "BIND requested=${aspect.label} fixed=3:4")
 
         val previewBuilder = Preview.Builder()
             .setTargetRotation(rotation)
+            .setTargetAspectRatio(AspectRatio.RATIO_4_3)
         val preview = previewBuilder.build()
             .apply { surfaceProvider = previewView.surfaceProvider }
 
         val imageCaptureBuilder = ImageCapture.Builder()
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
             .setTargetRotation(rotation)
+            .setTargetAspectRatio(AspectRatio.RATIO_4_3)
         val imageCapture = imageCaptureBuilder.build()
-
-        // ✅ 프리뷰는 화면을 꽉 채우도록(FILL_CENTER) 그리고,
-        // ✅ 실제 저장 비율은 후처리(cropToAspect)로 맞추는 구조이므로
-        // CameraX ViewPort는 "PreviewView(화면)" 기준으로 잡아 Preview/ImageCapture의 FOV를 일치시킨다.
-        val groupBuilder = UseCaseGroup.Builder()
-            .addUseCase(preview)
-            .addUseCase(imageCapture)
-
-        // PreviewView가 레이아웃 된 상태면 viewPort를 가져올 수 있음(가능하면 이걸 우선)
-        val pv = previewView.viewPort
-        if (pv != null) {
-            groupBuilder.setViewPort(pv)
-        } else {
-            // 레이아웃 전이라 viewPort가 null인 경우: 화면 비율로 fallback
-            val w = previewView.width
-            val h = previewView.height
-            if (w > 0 && h > 0) {
-                groupBuilder.setViewPort(
-                    androidx.camera.core.ViewPort.Builder(Rational(w, h), rotation)
-                        .setScaleType(androidx.camera.core.ViewPort.FILL_CENTER)
-                        .build()
-                )
-            }
-        }
-        val useCaseGroup = groupBuilder.build()
 
         try {
             cameraProvider.unbindAll()
             val camera = cameraProvider.bindToLifecycle(
                 lifecycleOwner,
                 CameraSelector.DEFAULT_BACK_CAMERA,
-                useCaseGroup
+                preview,
+                imageCapture
             )
             onBound(imageCapture, camera)
         } catch (_: Exception) {
