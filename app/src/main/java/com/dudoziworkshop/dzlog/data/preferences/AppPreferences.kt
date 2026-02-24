@@ -45,6 +45,7 @@ val KEY_TOAST_ENABLED = booleanPreferencesKey("toast_enabled")
 val KEY_HAPTIC_ENABLED = booleanPreferencesKey("haptic_enabled")
 val KEY_CAPTURE_HAPTIC_ENABLED = booleanPreferencesKey("capture_haptic_enabled")
 val KEY_BLANK_WARNING_ENABLED = booleanPreferencesKey("blank_warning_enabled")
+val KEY_CAPTURE_QUALITY_MODE = stringPreferencesKey("capture_quality_mode")
 
 
 enum class OrientationMode(val v: Int) {
