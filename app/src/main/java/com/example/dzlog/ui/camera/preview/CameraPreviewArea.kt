@@ -12,7 +12,11 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -28,11 +32,14 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.lifecycle.Observer
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
+import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.CaptureRequest
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.TableCellDataType
@@ -49,6 +56,7 @@ import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.roundToInt
+import androidx.compose.ui.unit.IntOffset
 
 /**
  * CameraPreviewArea
@@ -74,7 +82,7 @@ internal fun CameraPreviewArea(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DDZColor.PrimaryDark.copy(alpha = 0f))
+            .background(DDZColor.Background)
             .clipToBounds()
     ) {
         val previewView = remember(context) {
@@ -85,6 +93,8 @@ internal fun CameraPreviewArea(
         }
 
         var captureRect by remember { mutableStateOf(RectF(0f, 0f, 0f, 0f)) }
+        var previewBoxWidthPx by remember { mutableStateOf(0f) }
+        var previewBoxHeightPx by remember { mutableStateOf(0f) }
         var usableTopRatio by remember { mutableStateOf(0f) }
         var usableBottomRatio by remember { mutableStateOf(1f) }
         var watermarkRect by remember { mutableStateOf<RectF?>(null) }
@@ -144,30 +154,21 @@ internal fun CameraPreviewArea(
         fun updateCaptureRect() {
             val contentRect = resolvePreviewContentRect(
                 previewView = previewView,
-                overlayWidth = previewView.width.toFloat(),
-                overlayHeight = previewView.height.toFloat()
-            )
-            val usableRect = resolveUsableRect(
-                contentRect = contentRect,
-                settingsButtonBottomY = args.settingsButtonBottomY,
-                shutterButtonTopY = args.shutterButtonTopY,
-                safeTopY = args.safeTopY,
-                safeBottomY = args.safeBottomY,
-                verticalMarginPx = args.usableVerticalMarginPx
+                overlayWidth = previewBoxWidthPx.takeIf { it > 0f } ?: previewView.width.toFloat(),
+                overlayHeight = previewBoxHeightPx.takeIf { it > 0f } ?: previewView.height.toFloat()
             )
             captureRect = computeCaptureAreaRect(
                 contentRect = contentRect,
                 captureAspectRatio = captureAspect.ratioF,
-                usableRect = usableRect
+                usableRect = contentRect
             )
-            val (nextTopRatio, nextBottomRatio) = computeUsableVerticalRatios(contentRect, usableRect)
-            usableTopRatio = nextTopRatio
-            usableBottomRatio = nextBottomRatio
-            args.onUsableVerticalRatioChange(nextTopRatio, nextBottomRatio)
+            usableTopRatio = 0f
+            usableBottomRatio = 1f
+            args.onUsableVerticalRatioChange(0f, 1f)
             if (!previewLogged) {
                 Log.d(
                     "DZlogPreview",
-                    "Preview crop=${captureRect.width().toInt()}x${captureRect.height().toInt()} aspect=${captureAspect.label} content=${contentRect.width().toInt()}x${contentRect.height().toInt()} usableTop=${usableRect.top.toInt()} usableBottom=${usableRect.bottom.toInt()}"
+                    "Preview crop=${captureRect.width().toInt()}x${captureRect.height().toInt()} aspect=${captureAspect.label} content=${contentRect.width().toInt()}x${contentRect.height().toInt()} usableTop=0 usableBottom=${contentRect.bottom.toInt()}"
                 )
                 previewLogged = true
             }
@@ -192,13 +193,16 @@ internal fun CameraPreviewArea(
             }
         }
 
-        LaunchedEffect(captureAspect, args.settingsButtonBottomY, args.shutterButtonTopY, args.safeTopY, args.safeBottomY, args.usableVerticalMarginPx) {
+        LaunchedEffect(captureAspect) {
             updateCaptureRect()
+        }
+
+        LaunchedEffect(previewView, lifecycleOwner) {
             bindCamera(
                 context = context,
                 lifecycleOwner = lifecycleOwner,
                 previewView = previewView,
-                aspect = captureAspect
+                aspect = CaptureAspect.R3_4
             ) { cap, camera ->
                 onBoundImageCaptureChange(cap)
                 onBoundCameraChange(camera)
@@ -488,24 +492,47 @@ internal fun CameraPreviewArea(
             )
         )
 
-        CameraPreviewHost(
-            previewView = previewView,
-            previewContentRect = if (captureRect.width() > 0f && captureRect.height() > 0f) captureRect else null,
-            previewRequest = previewRequest,
-            showWmPreview = args.showWmPreview,
-            showGrid = args.showGrid,
-            capturedUri = capturedUri,
-            continuousPreviewMode = args.continuousPreviewMode,
-            aspectRatio = captureAspect.ratioF,
-            captureAspectRatio = captureAspect.ratioF,
-            onDismissCaptured = onDismissCaptured,
-            tapFocusUi = tapFocusUi,
-            isWatermarkArmed = isWatermarkArmed,
-            watermarkOffsetOverridePx = dragPreviewOffsetPx,
-            onWatermarkRectChange = { watermarkRect = it }
-        )
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val density = LocalDensity.current
+            val widthPx = with(density) { maxWidth.toPx() }
+            val safeAspect = captureAspect.ratioF.coerceAtLeast(0.01f)
+            val top9By16Px = args.settingsButtonBottomY ?: 0f
+            val height9By16Px = if (widthPx > 0f) widthPx / (9f / 16f) else 0f
+            val anchorCenterYPx = top9By16Px + (height9By16Px / 2f)
+            val heightCurrentPx = if (widthPx > 0f) widthPx / safeAspect else 0f
+            val topCurrentPx = anchorCenterYPx - (heightCurrentPx / 2f)
 
-        Box(modifier = gestureModifier)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(safeAspect)
+                    .offset { IntOffset(0, topCurrentPx.roundToInt()) }
+                    .onSizeChanged { size ->
+                        previewBoxWidthPx = size.width.toFloat()
+                        previewBoxHeightPx = size.height.toFloat()
+                    }
+                    .clipToBounds()
+            ) {
+                CameraPreviewHost(
+                    previewView = previewView,
+                    previewContentRect = if (captureRect.width() > 0f && captureRect.height() > 0f) captureRect else null,
+                    previewRequest = previewRequest,
+                    showWmPreview = args.showWmPreview,
+                    showGrid = args.showGrid,
+                    capturedUri = capturedUri,
+                    continuousPreviewMode = args.continuousPreviewMode,
+                    aspectRatio = captureAspect.ratioF,
+                    captureAspectRatio = captureAspect.ratioF,
+                    onDismissCaptured = onDismissCaptured,
+                    tapFocusUi = tapFocusUi,
+                    isWatermarkArmed = isWatermarkArmed,
+                    watermarkOffsetOverridePx = dragPreviewOffsetPx,
+                    onWatermarkRectChange = { watermarkRect = it }
+                )
+
+                Box(modifier = gestureModifier)
+            }
+        }
     }
 }
 
