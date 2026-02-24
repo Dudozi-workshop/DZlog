@@ -87,6 +87,8 @@ fun WatermarkPreviewOverlay(
                 manualTextColor = request.watermark.manualTextColor,
                 textAlign = request.watermark.textAlign,
                 drawGrid = request.watermark.gridEnabled,
+                rowWeights = request.tableTemplate.rowWeights,
+                colWeights = request.tableTemplate.colWeights,
                 overrideOffsetLeftPx = overrideOffsetPx?.x,
                 overrideOffsetTopPx = overrideOffsetPx?.y
             )
