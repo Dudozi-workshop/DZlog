@@ -145,7 +145,11 @@ fun PreviewTabContent(
                 DDZSegmentedControl(
                     options = listOf("1:1", "3:4", "9:16"),
                     selectedIndex = selectedIndex,
-                    onSelect = { index -> onCaptureAspectChange(aspectOptions[index]) }
+                    onSelect = { index -> onCaptureAspectChange(aspectOptions[index]) },
+                    modifier = Modifier.height(30.dp),
+                    horizontalPadding = 8.dp,
+                    verticalPadding = 4.dp,
+                    textStyle = DDZTypography.Caption
                 )
             }
         }

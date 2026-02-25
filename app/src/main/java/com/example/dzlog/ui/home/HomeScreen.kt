@@ -215,8 +215,6 @@ fun HomeScreen(
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
                             .size(40.dp)
-                            .clip(CircleShape)
-                            .background(DDZColor.Card)
                     ) {
                         IconButton(
                             onClick = onOpenSettings,
@@ -225,7 +223,7 @@ fun HomeScreen(
                             Icon(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = "설정",
-                                tint = DDZColor.Primary
+                                tint = DDZColor.SageDarkStrong
                             )
                         }
                     }

@@ -1,6 +1,7 @@
 package com.example.dzlog.ui.camera.controls
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,9 +48,10 @@ internal fun ZoomControlSection(
             modifier = Modifier
                 .defaultMinSize(minWidth = 42.dp, minHeight = 30.dp)
                 .background(
-                    color = DDZColor.Card.copy(alpha = 0.28f),
+                    color = DDZColor.Card.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(999.dp)
                 )
+                .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(999.dp))
                 .clickable(onClick = onToggleExpanded)
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
