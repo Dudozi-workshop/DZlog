@@ -4,6 +4,7 @@ package com.example.dzlog.ui.camera.preview
 
 import android.graphics.RectF
 import android.os.SystemClock
+import androidx.compose.ui.unit.dp
 import android.util.Log
 import android.view.View
 import androidx.camera.core.Camera
