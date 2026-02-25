@@ -47,7 +47,7 @@ internal fun ZoomControlSection(
             modifier = Modifier
                 .defaultMinSize(minWidth = 42.dp, minHeight = 30.dp)
                 .background(
-                    color = DDZColor.Card.copy(alpha = 0.50f),
+                    color = DDZColor.Card.copy(alpha = 0.28f),
                     shape = RoundedCornerShape(999.dp)
                 )
                 .clickable(onClick = onToggleExpanded)
@@ -56,7 +56,7 @@ internal fun ZoomControlSection(
         ) {
             Text(
                 text = zoomLabel,
-                color = DDZColor.PrimaryDark,
+                color = DDZColor.TextStrong,
                 style = DDZTypography.Caption
             )
         }

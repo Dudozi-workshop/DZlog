@@ -16,4 +16,10 @@ object DDZColor {
     val Sage = Color(0xFFA8B59B)
     val SageDark = Color(0xFF8FA08A)
     val SageLight = Color(0xFFD7E0CF)
+
+    // Camera emphasis palette (촬영 화면 가독성 강화용)
+    val SagePrimary = Color(0xFF6E8B74)
+    val SageDarkStrong = Color(0xFF4F6657)
+    val SageBorder = Color(0xFF9FB3A7)
+    val TextStrong = Color(0xFF2F3A33)
 }

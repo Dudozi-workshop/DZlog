@@ -570,7 +570,7 @@ fun CameraPreview(
             ) {
                 Text(
                     text = topDisplayName,
-                    color = DDZColor.Primary,
+                    color = DDZColor.TextStrong,
                     style = DDZTypography.Caption,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -582,6 +582,7 @@ fun CameraPreview(
                             color = DDZColor.Card.copy(alpha = 0.5f),
                             shape = RoundedCornerShape(8.dp)
                         )
+                        .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(8.dp))
                         .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
                 )
 
@@ -589,6 +590,7 @@ fun CameraPreview(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .background(DDZColor.PrimaryDark.copy(alpha = 0f))
+                        .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(8.dp))
                         .defaultMinSize(minWidth = 32.dp, minHeight = 32.dp)
                         .onGloballyPositioned { coordinates ->
                             settingsButtonBottomY = coordinates.positionInRoot().y + coordinates.size.height
@@ -599,7 +601,7 @@ fun CameraPreview(
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = "촬영 설정",
-                        tint = DDZColor.Surface
+                        tint = DDZColor.SageDarkStrong
                     )
                 }
             }
@@ -778,15 +780,15 @@ private fun UndoCaptureButton(
         modifier = modifier
             .size(48.dp)
             .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, DDZColor.Border, RoundedCornerShape(12.dp))
-            .background(DDZColor.Card.copy(alpha = if (enabled) 0.7f else 0.35f))
+            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(12.dp))
+            .background(if (enabled) DDZColor.SagePrimary else androidx.compose.ui.graphics.Color.Transparent)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.Undo,
             contentDescription = "Undo",
-            tint = DDZColor.TextPrimary.copy(alpha = if (enabled) 1f else 0.45f)
+            tint = if (enabled) androidx.compose.ui.graphics.Color.White else DDZColor.SageDark
         )
     }
 }
@@ -801,8 +803,8 @@ private fun RecentCaptureThumbButton(
         modifier = modifier
             .size(48.dp)
             .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, DDZColor.Border, RoundedCornerShape(12.dp))
-            .background(DDZColor.Card.copy(alpha = 0.5f))
+            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(12.dp))
+            .background(androidx.compose.ui.graphics.Color.Transparent)
             .clickable(onClick = onClick)
     ) {
         latestImage?.let {

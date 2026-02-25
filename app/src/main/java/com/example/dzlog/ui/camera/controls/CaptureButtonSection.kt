@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -24,29 +27,36 @@ internal fun CaptureButtonSection(
     ready: Boolean,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed = interactionSource.collectIsPressedAsState().value
+
     Box(
         modifier = Modifier
             .size(78.dp)
             .background(
-                color = if (ready) DDZColor.Surface else DDZColor.IconMuted,
+                color = when {
+                    !ready -> DDZColor.IconMuted
+                    pressed -> DDZColor.SageDarkStrong
+                    else -> DDZColor.SagePrimary
+                },
                 shape = CircleShape
             )
             // NOTE: 터치는 항상 받음(ready=false면 상위에서 토스트 처리)
-            .clickable { onClick() },
+            .clickable(interactionSource = interactionSource, indication = null) { onClick() },
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
                 .size(64.dp)
                 .background(
-                    color = if (ready) DDZColor.PrimaryDark else DDZColor.Border,
+                    color = if (ready) androidx.compose.ui.graphics.Color.White else DDZColor.Border,
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "●",
-                color = if (ready) DDZColor.Surface else DDZColor.TextMuted,
+                color = if (ready) DDZColor.SagePrimary else DDZColor.TextMuted,
                 style = DDZTypography.CardTitle
             )
         }
