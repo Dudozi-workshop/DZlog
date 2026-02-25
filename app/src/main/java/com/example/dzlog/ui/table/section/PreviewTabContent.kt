@@ -146,9 +146,9 @@ fun PreviewTabContent(
                     options = listOf("1:1", "3:4", "9:16"),
                     selectedIndex = selectedIndex,
                     onSelect = { index -> onCaptureAspectChange(aspectOptions[index]) },
-                    modifier = Modifier.height(30.dp),
-                    horizontalPadding = 8.dp,
-                    verticalPadding = 4.dp,
+                    modifier = Modifier.height(26.dp),
+                    horizontalPadding = 6.dp,
+                    verticalPadding = 2.dp,
                     textStyle = DDZTypography.Caption
                 )
             }

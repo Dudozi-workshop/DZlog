@@ -223,7 +223,7 @@ fun HomeScreen(
                             Icon(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = "설정",
-                                tint = DDZColor.SageDarkStrong
+                                tint = DDZColor.Primary
                             )
                         }
                     }
