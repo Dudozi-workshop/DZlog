@@ -590,7 +590,6 @@ fun CameraPreview(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .background(DDZColor.PrimaryDark.copy(alpha = 0f))
-                        .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(8.dp))
                         .defaultMinSize(minWidth = 32.dp, minHeight = 32.dp)
                         .onGloballyPositioned { coordinates ->
                             settingsButtonBottomY = coordinates.positionInRoot().y + coordinates.size.height
@@ -629,7 +628,7 @@ fun CameraPreview(
                     }
                 )
 
-                Box(modifier = Modifier.height(DDZSpacing.itemGap))
+                Box(modifier = Modifier.height(4.dp))
 
                 Box(
                     modifier = Modifier
