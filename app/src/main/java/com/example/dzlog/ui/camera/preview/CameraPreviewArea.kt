@@ -87,7 +87,7 @@ internal fun CameraPreviewArea(
     ) {
         val previewView = remember(context) {
             PreviewView(context).apply {
-                scaleType = PreviewView.ScaleType.FILL_CENTER
+                scaleType = PreviewView.ScaleType.FIT_CENTER
                 implementationMode = PreviewView.ImplementationMode.COMPATIBLE
             }
         }
@@ -194,15 +194,21 @@ internal fun CameraPreviewArea(
         }
 
         LaunchedEffect(captureAspect) {
+            previewView.scaleType = when (captureAspect) {
+                CaptureAspect.R3_4 -> PreviewView.ScaleType.FIT_CENTER
+                CaptureAspect.R1_1 -> PreviewView.ScaleType.FILL_CENTER
+                CaptureAspect.R9_16 -> PreviewView.ScaleType.FILL_CENTER
+            }
             updateCaptureRect()
         }
 
-        LaunchedEffect(previewView, lifecycleOwner) {
+        LaunchedEffect(previewView, lifecycleOwner, args.photoQualityMode) {
             bindCamera(
                 context = context,
                 lifecycleOwner = lifecycleOwner,
                 previewView = previewView,
-                aspect = CaptureAspect.R3_4
+                aspect = CaptureAspect.R3_4,
+                photoQualityMode = args.photoQualityMode
             ) { cap, camera ->
                 onBoundImageCaptureChange(cap)
                 onBoundCameraChange(camera)
@@ -473,6 +479,7 @@ internal fun CameraPreviewArea(
             watermarkCells = WatermarkBuilder.buildTableCells(plan.resolvedCells),
             saveMode = args.saveMode,
             captureAspect = captureAspect,
+            photoQualityMode = args.photoQualityMode,
             tableTemplate = args.tableTemplateState,
             usableTopRatio = usableTopRatio,
             usableBottomRatio = usableBottomRatio,
@@ -495,12 +502,20 @@ internal fun CameraPreviewArea(
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val density = LocalDensity.current
             val widthPx = with(density) { maxWidth.toPx() }
+            val parentHeightPx = with(density) { maxHeight.toPx() }
             val safeAspect = captureAspect.ratioF.coerceAtLeast(0.01f)
-            val top9By16Px = args.settingsButtonBottomY ?: 0f
+            val top9By16Px: Float? = args.settingsButtonBottomY
             val height9By16Px = if (widthPx > 0f) widthPx / (9f / 16f) else 0f
-            val anchorCenterYPx = top9By16Px + (height9By16Px / 2f)
+            val anchorCenterYPx = if (top9By16Px != null && height9By16Px > 0f) {
+                top9By16Px + (height9By16Px / 2f)
+            } else {
+                parentHeightPx / 2f
+            }
             val heightCurrentPx = if (widthPx > 0f) widthPx / safeAspect else 0f
-            val topCurrentPx = anchorCenterYPx - (heightCurrentPx / 2f)
+            val rawTopCurrentPx = anchorCenterYPx - (heightCurrentPx / 2f)
+            val minTopPx = 0f
+            val maxTopPx = (parentHeightPx - heightCurrentPx).coerceAtLeast(0f)
+            val topCurrentPx = rawTopCurrentPx.coerceIn(minTopPx, maxTopPx)
 
             Box(
                 modifier = Modifier

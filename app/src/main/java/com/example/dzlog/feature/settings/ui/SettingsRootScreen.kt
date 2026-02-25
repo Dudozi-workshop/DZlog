@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,6 +31,7 @@ import com.example.dzlog.R
 import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.model.PhotoQualityMode
 import com.example.dzlog.feature.settings.components.SegmentedControl
 import com.example.dzlog.feature.settings.policy.SettingsAction
 import com.example.dzlog.feature.settings.policy.applySettingsAction
@@ -63,6 +65,7 @@ fun SettingsRootScreen(
         initial = com.example.dzlog.data.datastore.AppSettings(
             saveMode = SaveMode.BOTH,
             continuousPreviewMode = ContinuousPreviewMode.OFF,
+            photoQualityMode = PhotoQualityMode.BALANCED,
             counterPadding = 0,
             includePathInCounterScope = true,
             includeFilenameInCounterScope = true,
@@ -110,6 +113,7 @@ fun SettingsRootScreen(
         QuickControlsCard(
             saveMode = settings.saveMode,
             continuousPreviewMode = settings.continuousPreviewMode,
+            photoQualityMode = settings.photoQualityMode,
             counterPadding = settings.counterPadding,
             includePathInCounterScope = settings.includePathInCounterScope,
             includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
@@ -121,6 +125,11 @@ fun SettingsRootScreen(
             onContinuousPreviewModeChange = { mode ->
                 scope.launch {
                     applySettingsAction(context, SettingsAction.ContinuousPreviewModeChanged(mode))?.let(::showSettingsToast)
+                }
+            },
+            onPhotoQualityModeChange = { mode ->
+                scope.launch {
+                    applySettingsAction(context, SettingsAction.PhotoQualityModeChanged(mode))?.let(::showSettingsToast)
                 }
             },
             onCounterPaddingChange = { digits ->
@@ -213,11 +222,13 @@ fun SettingsRootScreen(
 private fun QuickControlsCard(
     saveMode: SaveMode,
     continuousPreviewMode: ContinuousPreviewMode,
+    photoQualityMode: PhotoQualityMode,
     counterPadding: Int,
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean,
     onSaveModeChange: (SaveMode) -> Unit,
     onContinuousPreviewModeChange: (ContinuousPreviewMode) -> Unit,
+    onPhotoQualityModeChange: (PhotoQualityMode) -> Unit,
     onCounterPaddingChange: (Int) -> Unit,
     onIncludePathInCounterScopeChange: (Boolean) -> Unit,
     onIncludeFilenameInCounterScopeChange: (Boolean) -> Unit
@@ -261,6 +272,29 @@ private fun QuickControlsCard(
                     onContinuousPreviewModeChange(m)
                 }
             )
+
+            Text("사진 품질", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf(
+                    PhotoQualityMode.SPEED to "속도 우선: 저장 빠름 · 용량 작음",
+                    PhotoQualityMode.BALANCED to "균형: 속도/품질 균형",
+                    PhotoQualityMode.QUALITY to "화질 우선: 더 선명 · 저장 느릴 수 있음/용량 큼"
+                ).forEach { (mode, description) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        RadioButton(
+                            selected = photoQualityMode == mode,
+                            onClick = { onPhotoQualityModeChange(mode) }
+                        )
+                        Column {
+                            Text(mode.label, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                            Text(description, style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                        }
+                    }
+                }
+            }
             // MVP 정책: 카운터 자동부착 ON 고정 → UI 제거
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {

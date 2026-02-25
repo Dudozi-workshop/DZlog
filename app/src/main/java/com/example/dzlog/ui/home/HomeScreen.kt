@@ -57,6 +57,7 @@ import com.example.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.MediaImageItem
 import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.model.PhotoQualityMode
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.naming.NamingFormatDefaults
 import com.example.dzlog.domain.table.TableResolver
@@ -98,6 +99,7 @@ fun HomeScreen(
         initial = com.example.dzlog.data.datastore.AppSettings(
             saveMode = SaveMode.BOTH,
             continuousPreviewMode = ContinuousPreviewMode.OFF,
+            photoQualityMode = PhotoQualityMode.BALANCED,
             counterPadding = 0,
             includePathInCounterScope = true,
             includeFilenameInCounterScope = true,

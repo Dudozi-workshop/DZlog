@@ -15,6 +15,7 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.example.dzlog.domain.model.CaptureAspect
+import com.example.dzlog.domain.model.PhotoQualityMode
 import java.util.concurrent.TimeUnit
 
 /**
@@ -27,6 +28,7 @@ internal fun bindCamera(
     lifecycleOwner: LifecycleOwner,
     previewView: PreviewView,
     aspect: CaptureAspect,
+    photoQualityMode: PhotoQualityMode,
     onBound: (imageCapture: ImageCapture?, camera: Camera?) -> Unit
 ) {
     val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -34,7 +36,7 @@ internal fun bindCamera(
         val cameraProvider = cameraProviderFuture.get()
 
         val rotation = previewView.display.rotation
-        Log.d("DZlog", "BIND requested=${aspect.label} fixed=3:4")
+        Log.d("DZlog", "BIND requested=${aspect.label} fixed=3:4 quality=${photoQualityMode.name}")
 
         val previewBuilder = Preview.Builder()
             .setTargetRotation(rotation)
@@ -43,7 +45,7 @@ internal fun bindCamera(
             .apply { surfaceProvider = previewView.surfaceProvider }
 
         val imageCaptureBuilder = ImageCapture.Builder()
-            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .setCaptureMode(photoQualityMode.toCaptureMode())
             .setTargetRotation(rotation)
             .setTargetAspectRatio(AspectRatio.RATIO_4_3)
         val imageCapture = imageCaptureBuilder.build()

@@ -5,6 +5,7 @@ import androidx.compose.runtime.Stable
 import androidx.lifecycle.LifecycleOwner
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.ContinuousPreviewMode
+import com.example.dzlog.domain.model.PhotoQualityMode
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
@@ -41,6 +42,7 @@ internal data class CameraPreviewAreaArgs(
     val captureAspect: CaptureAspect,
     val saveMode: SaveMode,
     val continuousPreviewMode: ContinuousPreviewMode,
+    val photoQualityMode: PhotoQualityMode,
     val counterDigits: Int,
     val dateFormat: String,
     val timeFormat: String,

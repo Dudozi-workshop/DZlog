@@ -10,6 +10,7 @@ import com.example.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.example.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.ContinuousPreviewMode
+import com.example.dzlog.domain.model.PhotoQualityMode
 import com.example.dzlog.domain.model.GroupLevel
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
@@ -47,6 +48,7 @@ internal fun handleCaptureClick(
     captureHapticEnabled: Boolean,
     captureAspect: CaptureAspect,
     saveMode: com.example.dzlog.domain.model.SaveMode,
+    photoQualityMode: PhotoQualityMode,
     wmTableAnchor: WatermarkTableAnchor,
     wmOffsetXRatio: Int,
     wmOffsetYRatio: Int,
@@ -134,6 +136,7 @@ internal fun handleCaptureClick(
         watermarkCells = WatermarkBuilder.buildTableCells(planForCapture.resolvedCells),
         saveMode = saveMode,
         captureAspect = captureAspect,
+        photoQualityMode = photoQualityMode,
         tableTemplate = tableTemplateState,
         usableTopRatio = usableTopRatio.coerceIn(0f, 1f),
         usableBottomRatio = usableBottomRatio.coerceIn(0f, 1f),

@@ -39,7 +39,7 @@ internal fun CameraPreviewHost(
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { _: Context -> previewView },
-        update = { it.scaleType = PreviewView.ScaleType.FILL_CENTER }
+        update = { _ -> }
     )
 
 

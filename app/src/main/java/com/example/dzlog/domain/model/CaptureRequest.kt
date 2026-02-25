@@ -22,6 +22,9 @@ data class CaptureRequest(
     // 촬영 비율(프리뷰와 저장 일치)
     val captureAspect: CaptureAspect,
 
+    // 사진 품질 모드(촬영/저장 품질 정책)
+    val photoQualityMode: PhotoQualityMode = PhotoQualityMode.BALANCED,
+
     // 표 템플릿(레이아웃 정보)
     val tableTemplate: TableTemplateState,
 

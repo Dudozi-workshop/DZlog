@@ -17,6 +17,7 @@ import com.example.dzlog.data.mediastore.MediaStoreSaver
 import com.example.dzlog.domain.camera.computeAnchoredCaptureRect
 import com.example.dzlog.domain.model.CaptureRequest
 import com.example.dzlog.domain.model.LogEntry
+import com.example.dzlog.domain.model.PhotoQualityMode
 import com.example.dzlog.domain.model.SaveMode
 import com.example.dzlog.domain.naming.buildGalleryRelativePath
 import com.example.dzlog.watermark.WatermarkRenderer
@@ -90,6 +91,8 @@ class DzlogRepositoryImpl(
                             val origRel = buildOriginalRelativePath(request.group1, request.group2)
 
                             val displayName = request.displayName
+                            val qualityMode = request.photoQualityMode
+                            val jpegQuality = qualityMode.jpegQuality
                             when (request.saveMode) {
                                 SaveMode.WATERMARK_ONLY -> {
                                     val wmBmp = renderWatermarkForRequest(
@@ -101,9 +104,10 @@ class DzlogRepositoryImpl(
                                     val saved = kotlin.runCatching {
                                         saver.saveJpeg(
                                             context = context,
-                                            bitmap = wmBmp,
+                                            bitmap = applyPhotoQualityPolicy(wmBmp, qualityMode),
                                             displayName = displayName,
-                                            relativePath = baseRel
+                                            relativePath = baseRel,
+                                            jpegQuality = jpegQuality
                                         )
                                     }.getOrNull()
                                     val entry = LogEntry(
@@ -131,9 +135,10 @@ class DzlogRepositoryImpl(
                                     val savedWm = kotlin.runCatching {
                                         saver.saveJpeg(
                                             context = context,
-                                            bitmap = wmBmp,
+                                            bitmap = applyPhotoQualityPolicy(wmBmp, qualityMode),
                                             displayName = displayName,
-                                            relativePath = baseRel
+                                            relativePath = baseRel,
+                                            jpegQuality = jpegQuality
                                         )
                                     }.getOrNull()
 
@@ -141,9 +146,10 @@ class DzlogRepositoryImpl(
                                     val savedOriginal = kotlin.runCatching {
                                         saver.saveJpeg(
                                             context = context,
-                                            bitmap = originalBmp,
+                                            bitmap = applyPhotoQualityPolicy(originalBmp, qualityMode),
                                             displayName = displayName,
-                                            relativePath = origRel
+                                            relativePath = origRel,
+                                            jpegQuality = jpegQuality
                                         )
                                     }.getOrNull()
                                     val entry = LogEntry(
@@ -164,9 +170,10 @@ class DzlogRepositoryImpl(
                                     val saved = kotlin.runCatching {
                                         saver.saveJpeg(
                                             context = context,
-                                            bitmap = originalBmp,
+                                            bitmap = applyPhotoQualityPolicy(originalBmp, qualityMode),
                                             displayName = displayName,
-                                            relativePath = origRel
+                                            relativePath = origRel,
+                                            jpegQuality = jpegQuality
                                         )
                                     }.getOrNull()
 
@@ -249,6 +256,22 @@ class DzlogRepositoryImpl(
             else -> return source
         }
         return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+    }
+
+
+    private fun applyPhotoQualityPolicy(source: Bitmap, mode: PhotoQualityMode): Bitmap {
+        val maxLongEdge = mode.maxLongEdgePx ?: return source
+        val width = source.width
+        val height = source.height
+        if (width <= 0 || height <= 0) return source
+
+        val longEdge = maxOf(width, height)
+        if (longEdge <= maxLongEdge) return source
+
+        val scale = maxLongEdge.toFloat() / longEdge.toFloat()
+        val targetWidth = (width * scale).toInt().coerceAtLeast(1)
+        val targetHeight = (height * scale).toInt().coerceAtLeast(1)
+        return Bitmap.createScaledBitmap(source, targetWidth, targetHeight, true)
     }
 
     private fun cropToAspect(source: Bitmap, request: CaptureRequest): Bitmap {

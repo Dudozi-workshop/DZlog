@@ -11,6 +11,7 @@ import com.example.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.example.dzlog.domain.model.CaptureAspect
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.model.PhotoQualityMode
 import com.example.dzlog.domain.model.WatermarkTableAnchor
 import com.example.dzlog.domain.model.WatermarkTextColorMode
 import com.example.dzlog.domain.model.WatermarkManualTextColor
@@ -24,6 +25,7 @@ internal class CameraPrefsState {
     var captureAspect by mutableStateOf(CaptureAspect.R3_4)
     var saveMode by mutableStateOf(SaveMode.BOTH)
     var continuousPreviewMode by mutableStateOf(ContinuousPreviewMode.OFF)
+    var photoQualityMode by mutableStateOf(PhotoQualityMode.BALANCED)
     var counterDigits by mutableIntStateOf(COUNTER_DIGITS_DEFAULT)
     var showGrid by mutableStateOf(false)
     var zoomRatioTenths by mutableIntStateOf(10)

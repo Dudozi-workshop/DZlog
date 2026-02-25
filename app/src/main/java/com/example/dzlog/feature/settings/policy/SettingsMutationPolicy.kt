@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.dzlog.data.datastore.AppSettingsStore
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.model.PhotoQualityMode
 
 suspend fun updateSaveMode(context: Context, mode: SaveMode): String {
     AppSettingsStore.setSaveMode(context, mode)
@@ -13,6 +14,11 @@ suspend fun updateSaveMode(context: Context, mode: SaveMode): String {
 suspend fun updateContinuousPreviewMode(context: Context, mode: ContinuousPreviewMode): String {
     AppSettingsStore.setContinuousPreviewMode(context, mode)
     return "미리보기: ${mode.name}"
+}
+
+suspend fun updatePhotoQualityMode(context: Context, mode: PhotoQualityMode): String {
+    AppSettingsStore.setPhotoQualityMode(context, mode)
+    return "사진 품질: ${mode.label}"
 }
 
 suspend fun updateCounterPadding(context: Context, digits: Int): String {

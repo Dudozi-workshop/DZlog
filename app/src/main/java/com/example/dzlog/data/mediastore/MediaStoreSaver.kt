@@ -15,7 +15,8 @@ interface MediaStoreSaver {
         context: Context,
         bitmap: Bitmap,
         displayName: String,
-        relativePath: String
+        relativePath: String,
+        jpegQuality: Int = 95
     ): SavedMedia
 
     fun deleteByUri(context: Context, uri: Uri): Boolean

@@ -10,16 +10,19 @@ import com.example.dzlog.data.preferences.KEY_HAPTIC_ENABLED
 import com.example.dzlog.data.preferences.KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE
 import com.example.dzlog.data.preferences.KEY_INCLUDE_PATH_IN_COUNTER_SCOPE
 import com.example.dzlog.data.preferences.KEY_SAVE_MODE
+import com.example.dzlog.data.preferences.KEY_PHOTO_QUALITY_MODE
 import com.example.dzlog.data.preferences.KEY_TOAST_ENABLED
 import com.example.dzlog.data.preferences.dataStore
 import com.example.dzlog.domain.model.ContinuousPreviewMode
 import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.model.PhotoQualityMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 data class AppSettings(
     val saveMode: SaveMode,
     val continuousPreviewMode: ContinuousPreviewMode,
+    val photoQualityMode: PhotoQualityMode = PhotoQualityMode.BALANCED,
     val counterPadding: Int,
     val includePathInCounterScope: Boolean,
     val includeFilenameInCounterScope: Boolean,
@@ -36,6 +39,7 @@ object AppSettingsStore {
             AppSettings(
                 saveMode = SaveMode.from(prefs[KEY_SAVE_MODE] ?: SaveMode.BOTH.v),
                 continuousPreviewMode = ContinuousPreviewMode.from(prefs[KEY_CONTINUOUS_PREVIEW_MODE] ?: ContinuousPreviewMode.OFF.v),
+                photoQualityMode = PhotoQualityMode.from(prefs[KEY_PHOTO_QUALITY_MODE] ?: PhotoQualityMode.BALANCED.v),
                 counterPadding = prefs[KEY_COUNTER_DIGITS] ?: 0,
                 includePathInCounterScope = prefs[KEY_INCLUDE_PATH_IN_COUNTER_SCOPE] ?: true,
                 includeFilenameInCounterScope = prefs[KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE] ?: true,
@@ -52,6 +56,10 @@ object AppSettingsStore {
 
     suspend fun setContinuousPreviewMode(context: Context, mode: ContinuousPreviewMode) {
         context.dataStore.edit { it[KEY_CONTINUOUS_PREVIEW_MODE] = mode.v }
+    }
+
+    suspend fun setPhotoQualityMode(context: Context, mode: PhotoQualityMode) {
+        context.dataStore.edit { it[KEY_PHOTO_QUALITY_MODE] = mode.v }
     }
 
     suspend fun setCounterPadding(context: Context, digits: Int) {

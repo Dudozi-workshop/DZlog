@@ -43,6 +43,7 @@ import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.feature.settings.ui.SettingsScreen
 import com.example.dzlog.feature.table.policy.saveTableTemplate
 import com.example.dzlog.ui.camera.CameraScreen
+import com.example.dzlog.domain.model.PhotoQualityMode
 import com.example.dzlog.ui.home.HomeScreen
 import com.example.dzlog.ui.log.LogG1Screen
 import com.example.dzlog.ui.log.LogG2Screen
@@ -105,6 +106,7 @@ fun AppRoot() {
         initial = com.example.dzlog.data.datastore.AppSettings(
             saveMode = com.example.dzlog.domain.model.SaveMode.BOTH,
             continuousPreviewMode = com.example.dzlog.domain.model.ContinuousPreviewMode.OFF,
+            photoQualityMode = PhotoQualityMode.BALANCED,
             counterPadding = 0,
             includePathInCounterScope = true,
             includeFilenameInCounterScope = true,

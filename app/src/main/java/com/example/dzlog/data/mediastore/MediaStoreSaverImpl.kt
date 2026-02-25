@@ -16,7 +16,8 @@ class MediaStoreSaverImpl : MediaStoreSaver {
         context: Context,
         bitmap: Bitmap,
         displayName: String,
-        relativePath: String
+        relativePath: String,
+        jpegQuality: Int
     ): SavedMedia {
         val resolver = context.contentResolver
         val normalizedRelativePath = normalizeRelativePath(relativePath)
@@ -41,7 +42,7 @@ class MediaStoreSaverImpl : MediaStoreSaver {
 
         try {
             resolver.openOutputStream(uri)?.use { out ->
-                val ok = bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                val ok = bitmap.compress(Bitmap.CompressFormat.JPEG, jpegQuality.coerceIn(1, 100), out)
                 if (!ok) throw IllegalStateException(context.getString(R.string.error_bitmap_compress_failed))
             } ?: throw IllegalStateException("openOutputStream returned null")
 

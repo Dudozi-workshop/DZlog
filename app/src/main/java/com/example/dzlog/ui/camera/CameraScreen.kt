@@ -78,6 +78,7 @@ import com.example.dzlog.data.preferences.KEY_CAMERA_GRID_ON
 import com.example.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
 import com.example.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.example.dzlog.data.preferences.KEY_SAVE_MODE
+import com.example.dzlog.data.preferences.KEY_PHOTO_QUALITY_MODE
 import com.example.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
 import com.example.dzlog.data.preferences.KEY_WM_BG_ALPHA
 import com.example.dzlog.data.preferences.KEY_WM_GRID_ENABLED
@@ -105,6 +106,7 @@ import com.example.dzlog.domain.model.WatermarkConfig
 import com.example.dzlog.domain.model.CellKey
 import com.example.dzlog.domain.model.MediaImageItem
 import com.example.dzlog.domain.model.SaveMode
+import com.example.dzlog.domain.model.PhotoQualityMode
 import com.example.dzlog.domain.model.TableCellState
 import com.example.dzlog.domain.model.TableTemplateState
 import com.example.dzlog.domain.model.WatermarkTableAnchor
@@ -203,6 +205,7 @@ fun CameraPreview(
         initial = AppSettings(
             saveMode = SaveMode.BOTH,
             continuousPreviewMode = ContinuousPreviewMode.OFF,
+            photoQualityMode = PhotoQualityMode.BALANCED,
             counterPadding = 3,
             includePathInCounterScope = true,
             includeFilenameInCounterScope = true,
@@ -456,6 +459,7 @@ fun CameraPreview(
                 captureAspect = ui.prefs.captureAspect,
                 saveMode = ui.prefs.saveMode,
                 continuousPreviewMode = ui.prefs.continuousPreviewMode,
+                photoQualityMode = appSettings.photoQualityMode,
                 counterDigits = ui.prefs.counterDigits,
                 dateFormat = dateFormat,
                 timeFormat = timeFormat,
@@ -674,6 +678,7 @@ fun CameraPreview(
                             captureHapticEnabled = appSettings.captureHapticEnabled,
                             captureAspect = ui.prefs.captureAspect,
                             saveMode = ui.prefs.saveMode,
+                            photoQualityMode = appSettings.photoQualityMode,
                             wmTableAnchor = ui.prefs.wmTableAnchor,
                             wmOffsetXRatio = ui.prefs.wmOffsetXRatio,
                             wmOffsetYRatio = ui.prefs.wmOffsetYRatio,
@@ -995,6 +1000,9 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.continuousPreviewMode = ContinuousPreviewMode.from(
             prefs[KEY_CONTINUOUS_PREVIEW_MODE] ?: ContinuousPreviewMode.OFF.v
         )
+        ui.prefs.photoQualityMode = PhotoQualityMode.from(
+            prefs[KEY_PHOTO_QUALITY_MODE] ?: PhotoQualityMode.BALANCED.v
+        )
 
         ui.prefs.counterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
         ui.prefs.showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
@@ -1006,6 +1014,7 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.captureAspect = CaptureAspect.R3_4
         ui.prefs.saveMode = SaveMode.WATERMARK_ONLY
         ui.prefs.continuousPreviewMode = ContinuousPreviewMode.OFF
+        ui.prefs.photoQualityMode = PhotoQualityMode.BALANCED
         ui.prefs.counterDigits = COUNTER_DIGITS_DEFAULT
         ui.prefs.showWmPreview = true
         ui.prefs.showGrid = false
