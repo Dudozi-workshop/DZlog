@@ -6,12 +6,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
@@ -128,15 +128,16 @@ fun PreviewTabContent(
                 )
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(24.dp)
             ) {
                 Text(
                     text = "비율 설정",
                     color = DDZColor.Card,
-                    style = DDZTypography.Caption
+                    style = DDZTypography.Caption,
+                    modifier = Modifier.align(Alignment.CenterStart)
                 )
 
                 val aspectOptions = listOf(CaptureAspect.R1_1, CaptureAspect.R3_4, CaptureAspect.R9_16)
@@ -146,9 +147,12 @@ fun PreviewTabContent(
                     options = listOf("1:1", "3:4", "9:16"),
                     selectedIndex = selectedIndex,
                     onSelect = { index -> onCaptureAspectChange(aspectOptions[index]) },
-                    modifier = Modifier.height(26.dp),
-                    horizontalPadding = 6.dp,
-                    verticalPadding = 2.dp,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .width(104.dp)
+                        .height(24.dp),
+                    horizontalPadding = 2.dp,
+                    verticalPadding = 1.dp,
                     textStyle = DDZTypography.Caption
                 )
             }

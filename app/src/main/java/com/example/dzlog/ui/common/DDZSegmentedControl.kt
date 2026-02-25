@@ -33,7 +33,7 @@ fun DDZSegmentedControl(
     verticalPadding: Dp = 0.dp,
     textStyle: TextStyle = DDZTypography.SegmentSmall
 ) {
-    val shape = RoundedCornerShape(999.dp)
+    val shape = RoundedCornerShape(8.dp)
 
     Row(
         modifier = modifier
