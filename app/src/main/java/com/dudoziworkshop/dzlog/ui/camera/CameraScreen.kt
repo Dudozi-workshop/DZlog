@@ -107,6 +107,7 @@ import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
@@ -259,6 +260,7 @@ fun CameraPreview(
     val counterStreamContext = rememberCounterStreamContext(
         tableResolver = tableResolver,
         tableCells = tableCells,
+        phraseSets = tableTemplateState.phraseSets,
         fileNameSlots = tableTemplateState.fileNameSlots,
         counterDigits = ui.prefs.counterDigits,
         nextCounter = ui.counter.scopeNextCounter,
@@ -890,6 +892,7 @@ private fun rememberMediaStoreRefreshTick(context: Context): Int {
 private fun rememberCounterStreamContext(
     tableResolver: TableResolver,
     tableCells: List<TableCellState>,
+    phraseSets: List<RotatingPhraseSet>,
     fileNameSlots: List<CellKey?>,
     counterDigits: Int,
     nextCounter: Int,
@@ -899,7 +902,7 @@ private fun rememberCounterStreamContext(
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-    return remember(tableCells, fileNameSlots, counterDigits, nextCounter, includeFilenameInCounterScope, captureNow) {
+    return remember(tableCells, phraseSets, fileNameSlots, counterDigits, nextCounter, includeFilenameInCounterScope, captureNow) {
         val planForScope = tableResolver.plan(
             cells = tableCells,
             captureNow = captureNow,
@@ -907,7 +910,9 @@ private fun rememberCounterStreamContext(
                 counterDigits = counterDigits,
                 dateFormat = dateFormat,
                 timeFormat = timeFormat
-            )
+            ),
+            counterSeedOverride = nextCounter,
+            phraseSets = phraseSets,
         )
         buildCounterStreamContext(
             resolvedCells = planForScope.resolvedCells,
