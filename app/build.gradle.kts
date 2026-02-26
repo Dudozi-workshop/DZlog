@@ -10,11 +10,11 @@ plugins {
 }
 
 extensions.configure<ApplicationExtension> {
-    namespace = "com.example.dzlog"
+    namespace = "com.dudoziworkshop.dzlog"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.dzlog"
+        applicationId = "com.dudoziworkshop.dzlog"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
