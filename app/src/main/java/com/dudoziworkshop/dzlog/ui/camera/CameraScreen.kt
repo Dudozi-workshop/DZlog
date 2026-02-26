@@ -939,6 +939,7 @@ private fun SyncCounterSeedEffect(
 ) {
     var lastResumeTick by remember { mutableIntStateOf(-1) }
     var lastUndoTick by remember { mutableIntStateOf(-1) }
+    var lastSaveMode by remember { mutableStateOf<SaveMode?>(null) }
     val scopedStream = remember(
         streamContext.relativePathKey,
         streamContext.streamPrefix,
@@ -959,6 +960,9 @@ private fun SyncCounterSeedEffect(
         resumeTick,
         undoTick,
         isTemplateReady,
+        appSettings.saveMode,
+        appSettings.includePathInCounterScope,
+        appSettings.includeFilenameInCounterScope,
     ) {
         if (!isTemplateReady) {
             // 템플릿 미준비(초기/임시 상태)에서는 seed 계산/스냅샷 갱신을 수행하지 않는다.
@@ -989,14 +993,15 @@ private fun SyncCounterSeedEffect(
             previous = ui.counter.lastScopeSnapshot,
             current = scopeSnapshot
         )
-        val isExternalResync = (resumeTick != lastResumeTick) || (undoTick != lastUndoTick)
+        val saveModeChanged = (lastSaveMode != null && lastSaveMode != appSettings.saveMode)
+        val isExternalResync = (resumeTick != lastResumeTick) || (undoTick != lastUndoTick) || saveModeChanged
         CounterDebugDump.dump(
             tag = "Camera",
             context = context,
             scopedStream = scopedStream,
             appSettings = appSettings,
             nextSeed = nextSeedFromStream,
-            note = "isNewStream=$isNewStream externalResync=$isExternalResync templateReady=$isTemplateReady",
+            note = "isNewStream=$isNewStream externalResync=$isExternalResync saveModeChanged=$saveModeChanged templateReady=$isTemplateReady",
         )
         val currentScopeSeed = ui.counter.scopeNextCounter
         ui.counter.scopeNextCounter = when {
@@ -1012,6 +1017,7 @@ private fun SyncCounterSeedEffect(
         }
         lastResumeTick = resumeTick
         lastUndoTick = undoTick
+        lastSaveMode = appSettings.saveMode
         ui.counter.lastScopeSnapshot = scopeSnapshot
 
     }

@@ -117,7 +117,10 @@ fun HomeScreen(
     var filenamePreview by remember { mutableStateOf("DZlog_1.jpg") }
 
     LaunchedEffect(
-        tableTemplateState,
+        tableTemplateState.cells,
+        tableTemplateState.fileNameSlots,
+        tableTemplateState.phraseSets,
+        settings.saveMode,
         settings.counterPadding,
         settings.includePathInCounterScope,
         settings.includeFilenameInCounterScope
