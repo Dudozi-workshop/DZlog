@@ -59,11 +59,9 @@ class TableTemplateViewModel : ViewModel() {
         tableTemplateState = state
     }
 
-    fun reset() {
-        tableTemplateState = defaultTableTemplateState()
-    }
 }
 
+@Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 @Composable
 fun AppRoot() {
     var screen by remember { mutableStateOf(AppScreen.HOME) }

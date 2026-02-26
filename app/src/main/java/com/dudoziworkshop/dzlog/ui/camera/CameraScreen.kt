@@ -117,10 +117,11 @@ import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnit
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
-import com.dudoziworkshop.dzlog.feature.capture.io.createCaptureRepository
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreSaverImpl
+import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.ui.camera.controls.CaptureButtonSection
 import com.dudoziworkshop.dzlog.ui.camera.controls.ZoomControlSection
 import com.dudoziworkshop.dzlog.ui.camera.controls.handleCaptureClick
@@ -199,7 +200,12 @@ fun CameraPreview(
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
     val scope = rememberCoroutineScope()
-    val repository = remember { createCaptureRepository() }
+    val repository: DzlogRepositoryImpl = remember {
+        DzlogRepositoryImpl(
+            saver = MediaStoreSaverImpl(),
+            watermarkRenderer = com.dudoziworkshop.dzlog.watermark.WatermarkRendererImpl()
+        )
+    }
 
     val appSettings by AppSettingsStore.flow(context).collectAsState(
         initial = AppSettings(
