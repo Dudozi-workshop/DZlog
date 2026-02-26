@@ -117,6 +117,7 @@ import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnit
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
+import com.dudoziworkshop.dzlog.debug.CounterDebugDump
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
@@ -262,6 +263,7 @@ fun CameraPreview(
         counterDigits = ui.prefs.counterDigits,
         nextCounter = ui.counter.scopeNextCounter,
         includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+        captureNow = ui.capture.now,
     )
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
     var resumeResyncTick by remember { mutableIntStateOf(0) }
@@ -347,6 +349,15 @@ fun CameraPreview(
         scope.launch { syncAfterUndoDelete() }
     }
 
+    val hasTemplateCells = tableTemplateState.cells.isNotEmpty()
+    val hasAnyFilenameSlot = tableTemplateState.fileNameSlots.any { it != null }
+    val allFilenameSlotsOff = tableTemplateState.fileNameSlots.all { it == null }
+    val isTemplateReady = hasTemplateCells && (
+        !appSettings.includeFilenameInCounterScope ||
+            allFilenameSlotsOff ||
+            hasAnyFilenameSlot
+    )
+
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
     SyncCounterSeedEffect(
         context = context,
@@ -354,6 +365,7 @@ fun CameraPreview(
         counterDigits = ui.prefs.counterDigits,
         resumeTick = resumeResyncTick,
         undoTick = undoResyncTick,
+        isTemplateReady = isTemplateReady,
         appSettings = appSettings,
         ui = ui
     )
@@ -427,7 +439,7 @@ fun CameraPreview(
             lifecycleOwner,
             scope,
             ui.prefs.captureAspect,
-            ui.prefs.saveMode,
+            appSettings.saveMode,
             ui.prefs.continuousPreviewMode,
             ui.prefs.counterDigits,
             dateFormat,
@@ -463,7 +475,7 @@ fun CameraPreview(
                 lifecycleOwner = lifecycleOwner,
                 scope = scope,
                 captureAspect = ui.prefs.captureAspect,
-                saveMode = ui.prefs.saveMode,
+                saveMode = appSettings.saveMode,
                 continuousPreviewMode = ui.prefs.continuousPreviewMode,
                 photoQualityMode = appSettings.photoQualityMode,
                 counterDigits = ui.prefs.counterDigits,
@@ -684,7 +696,7 @@ fun CameraPreview(
                             includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
                             captureHapticEnabled = appSettings.captureHapticEnabled,
                             captureAspect = ui.prefs.captureAspect,
-                            saveMode = ui.prefs.saveMode,
+                            saveMode = appSettings.saveMode,
                             photoQualityMode = appSettings.photoQualityMode,
                             wmTableAnchor = ui.prefs.wmTableAnchor,
                             wmOffsetXRatio = ui.prefs.wmOffsetXRatio,
@@ -882,15 +894,15 @@ private fun rememberCounterStreamContext(
     counterDigits: Int,
     nextCounter: Int,
     includeFilenameInCounterScope: Boolean,
+    captureNow: Date,
 ): CounterStreamContext {
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-    return remember(tableCells, fileNameSlots, counterDigits, nextCounter, includeFilenameInCounterScope) {
-        val scopeNow = Date()
+    return remember(tableCells, fileNameSlots, counterDigits, nextCounter, includeFilenameInCounterScope, captureNow) {
         val planForScope = tableResolver.plan(
             cells = tableCells,
-            captureNow = scopeNow,
+            captureNow = captureNow,
             config = TableResolver.Config(
                 counterDigits = counterDigits,
                 dateFormat = dateFormat,
@@ -916,6 +928,7 @@ private fun SyncCounterSeedEffect(
     counterDigits: Int,
     resumeTick: Int,
     undoTick: Int,
+    isTemplateReady: Boolean,
     appSettings: AppSettings,
     ui: CameraUiState
 ) {
@@ -926,6 +939,7 @@ private fun SyncCounterSeedEffect(
         streamContext.streamPrefix,
         appSettings.includePathInCounterScope,
         appSettings.includeFilenameInCounterScope,
+        isTemplateReady,
     ) {
         toCaptureScopedCounterStream(
             streamContext = streamContext,
@@ -939,7 +953,14 @@ private fun SyncCounterSeedEffect(
         counterDigits,
         resumeTick,
         undoTick,
+        isTemplateReady,
     ) {
+        if (!isTemplateReady) {
+            // 템플릿 미준비(초기/임시 상태)에서는 seed 계산/스냅샷 갱신을 수행하지 않는다.
+            // 초기 prefix(DZlog)로 잘못 계산된 next=1이 UI seed를 덮어쓰지 않도록 방지한다.
+            return@LaunchedEffect
+        }
+
         val scopeSnapshot = buildCounterScopeSnapshot(
             streamContext = streamContext,
             includePathInScope = appSettings.includePathInCounterScope,
@@ -955,7 +976,8 @@ private fun SyncCounterSeedEffect(
             context = context,
             scopedStream = scopedStream,
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = fnDelim,
+            saveMode = appSettings.saveMode,
         ).coerceAtLeast(1)
 
         val isNewStream = isNewCounterScope(
@@ -963,10 +985,25 @@ private fun SyncCounterSeedEffect(
             current = scopeSnapshot
         )
         val isExternalResync = (resumeTick != lastResumeTick) || (undoTick != lastUndoTick)
-        ui.counter.scopeNextCounter = if (isNewStream || isExternalResync) {
-            nextSeedFromStream
-        } else {
-            maxOf(ui.counter.scopeNextCounter, nextSeedFromStream)
+        CounterDebugDump.dump(
+            tag = "Camera",
+            context = context,
+            scopedStream = scopedStream,
+            appSettings = appSettings,
+            nextSeed = nextSeedFromStream,
+            note = "isNewStream=$isNewStream externalResync=$isExternalResync templateReady=$isTemplateReady",
+        )
+        val currentScopeSeed = ui.counter.scopeNextCounter
+        ui.counter.scopeNextCounter = when {
+            // 규칙 A: 외부 리싱크(undo/resume)는 seed 하향 반영이 가능해야 한다.
+            isExternalResync -> nextSeedFromStream
+
+            // 규칙 B: 새 스트림 판정 시, 임시 상태에서 next=1로 내려오는 경우의 덮어쓰기를 방지한다.
+            isNewStream && nextSeedFromStream == 1 && currentScopeSeed > 1 -> currentScopeSeed
+            isNewStream -> nextSeedFromStream
+
+            // 규칙 C: 일반 케이스는 기존처럼 상향 동기화(max) 유지.
+            else -> maxOf(currentScopeSeed, nextSeedFromStream)
         }
         lastResumeTick = resumeTick
         lastUndoTick = undoTick

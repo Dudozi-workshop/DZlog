@@ -54,6 +54,7 @@ import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
+import com.dudoziworkshop.dzlog.debug.CounterDebugDump
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
@@ -150,8 +151,17 @@ fun HomeScreen(
             context = context,
             scopedStream = scopedStream,
             counterDigits = settings.counterPadding,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+            saveMode = settings.saveMode,
         ).coerceAtLeast(1)
+        CounterDebugDump.dump(
+            tag = "HomePreview",
+            context = context,
+            scopedStream = scopedStream,
+            appSettings = settings,
+            nextSeed = streamNext,
+            note = null,
+        )
         val preview = CaptureNamingPolicy.buildForCaptureWithCounter(
             captureContext = CaptureContext(
                 resolvedCells = plan.resolvedCells,

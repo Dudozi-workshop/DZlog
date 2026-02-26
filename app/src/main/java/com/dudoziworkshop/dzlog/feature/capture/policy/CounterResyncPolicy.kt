@@ -3,8 +3,8 @@ package com.dudoziworkshop.dzlog.feature.capture.policy
 import android.content.Context
 import com.dudoziworkshop.dzlog.data.counter.parseCounterFromDisplayNameForPolicy
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
-import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreQueryUtils
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
+import com.dudoziworkshop.dzlog.domain.counter.CounterManager
 import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
 import kotlinx.coroutines.flow.first
@@ -55,16 +55,13 @@ internal object CounterResyncPolicy {
         val fileNamePrefix = scopedStream.captureStreamKey.prefix
             .substringBefore("|g2=", scopedStream.captureStreamKey.prefix)
 
-        val latestDisplayName = MediaStoreQueryUtils.queryLatestDisplayNameInRelativePath(
-            resolver = context.contentResolver,
-            relativePath = relativePath
-        )
-
-        val parsedSeed = parseNextCounterFromDisplayName(
-            latestDisplayName = latestDisplayName,
-            fileNamePrefix = fileNamePrefix,
+        val nextCounterFromScan = CounterManager.getNextCounter(
+            context = context,
+            relativePath = relativePath,
+            counterPrefix = fileNamePrefix,
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = fnDelim,
+            saveMode = appSettings.saveMode,
         )
 
         CaptureCounterPolicy.clearManualCounterOverride(
@@ -72,6 +69,6 @@ internal object CounterResyncPolicy {
             scopedStream = scopedStream
         )
 
-        return parsedSeed.nextCounter
+        return nextCounterFromScan
     }
 }

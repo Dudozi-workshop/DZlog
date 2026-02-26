@@ -41,6 +41,7 @@ import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -164,6 +165,7 @@ fun TableEditorScreen(
     var previewCounterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
 
     var counterUi by remember { mutableStateOf(TableCounterUiState()) }
+    var tableSaveMode by remember { mutableStateOf(SaveMode.BOTH) }
 
     var previewNow by remember { mutableStateOf(Date()) }
 
@@ -191,6 +193,7 @@ fun TableEditorScreen(
                 includePathInCounterScope = settings.includePathInCounterScope,
                 includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
             )
+            tableSaveMode = settings.saveMode
         }
     }
 
@@ -257,6 +260,7 @@ fun TableEditorScreen(
             counterStreamContext = counterStreamContext,
             scopedCounterStream = scopedCounterStream,
             previewCounterDigits = previewCounterDigits,
+            saveMode = tableSaveMode,
             isManualCounterModeDisplay = isManualCounterModeDisplay,
             lastScopeSnapshot = lastScopeSnapshot,
             updateCell = ::updateCell
@@ -322,6 +326,7 @@ fun TableEditorScreen(
                 forcePolicyUpdate = false,
                 scopedCounterStream = scopedCounterStream,
                 previewCounterDigits = previewCounterDigits,
+                saveMode = tableSaveMode,
                 counterUi = counterUi,
                 onTemplateChange = onTemplateChange,
                 setCounterUi = { counterUi = it },
@@ -386,6 +391,7 @@ fun TableEditorScreen(
             templateState = templateState,
             scopedCounterStream = scopedCounterStream,
             previewCounterDigits = previewCounterDigits,
+            saveMode = tableSaveMode,
             counterUi = counterUi,
             onTemplateChange = onTemplateChange,
             setCounterUi = { counterUi = it },
@@ -856,6 +862,7 @@ fun TableEditorScreen(
                                         cellId = cell.cellId,
                                         scopedCounterStream = scopedCounterStream,
                                         previewCounterDigits = previewCounterDigits,
+                                        saveMode = tableSaveMode,
                                         counterUi = counterUi,
                                         onTemplateChange = onTemplateChange,
                                         setCounterUi = { counterUi = it },
