@@ -17,6 +17,7 @@ import com.dudoziworkshop.dzlog.domain.counter.policy.buildCounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.CellValue
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -87,6 +88,7 @@ internal fun updateCounterCellAndPolicy(
     forcePolicyUpdate: Boolean,
     scopedCounterStream: CaptureScopedCounterStream,
     previewCounterDigits: Int,
+    saveMode: SaveMode,
     counterUi: TableCounterUiState,
     onTemplateChange: (TableTemplateState) -> Unit,
     setCounterUi: (TableCounterUiState) -> Unit,
@@ -108,6 +110,7 @@ internal fun updateCounterCellAndPolicy(
                 desired = normalizedSeed,
                 force = forcePolicyUpdate,
                 counterDigits = previewCounterDigits,
+                saveMode = saveMode,
             )
         }
     }
@@ -117,10 +120,12 @@ internal suspend fun fetchAutoNextCounter(
     context: Context,
     scopedCounterStream: CaptureScopedCounterStream,
     previewCounterDigits: Int,
+    saveMode: SaveMode,
 ): Int = TableCounterPolicyCoordinator.resetToAutoNext(
     context = context,
     scopedStream = scopedCounterStream,
     counterDigits = previewCounterDigits,
+    saveMode = saveMode,
 ).coerceAtLeast(1)
 
 internal fun restoreCounterCellToAutoNext(
@@ -129,6 +134,7 @@ internal fun restoreCounterCellToAutoNext(
     cellId: String,
     scopedCounterStream: CaptureScopedCounterStream,
     previewCounterDigits: Int,
+    saveMode: SaveMode,
     counterUi: TableCounterUiState,
     onTemplateChange: (TableTemplateState) -> Unit,
     setCounterUi: (TableCounterUiState) -> Unit,
@@ -139,7 +145,8 @@ internal fun restoreCounterCellToAutoNext(
         val restored = fetchAutoNextCounter(
             context = context,
             scopedCounterStream = scopedCounterStream,
-            previewCounterDigits = previewCounterDigits
+            previewCounterDigits = previewCounterDigits,
+            saveMode = saveMode,
         )
         updateCounterCellAndPolicy(
             context = context,
@@ -150,6 +157,7 @@ internal fun restoreCounterCellToAutoNext(
             forcePolicyUpdate = false,
             scopedCounterStream = scopedCounterStream,
             previewCounterDigits = previewCounterDigits,
+            saveMode = saveMode,
             counterUi = counterUi,
             onTemplateChange = onTemplateChange,
             setCounterUi = setCounterUi,
@@ -165,6 +173,7 @@ internal fun applyCounterConflictDialogEffect(
     templateState: TableTemplateState,
     scopedCounterStream: CaptureScopedCounterStream,
     previewCounterDigits: Int,
+    saveMode: SaveMode,
     counterUi: TableCounterUiState,
     onTemplateChange: (TableTemplateState) -> Unit,
     setCounterUi: (TableCounterUiState) -> Unit,
@@ -182,6 +191,7 @@ internal fun applyCounterConflictDialogEffect(
                 forcePolicyUpdate = true,
                 scopedCounterStream = scopedCounterStream,
                 previewCounterDigits = previewCounterDigits,
+                saveMode = saveMode,
                 counterUi = counterUi,
                 onTemplateChange = onTemplateChange,
                 setCounterUi = setCounterUi,
@@ -197,6 +207,7 @@ internal fun applyCounterConflictDialogEffect(
                 cellId = effect.cellId,
                 scopedCounterStream = scopedCounterStream,
                 previewCounterDigits = previewCounterDigits,
+                saveMode = saveMode,
                 counterUi = counterUi,
                 onTemplateChange = onTemplateChange,
                 setCounterUi = setCounterUi,
@@ -222,6 +233,7 @@ internal suspend fun syncCounterStateForScope(
     counterStreamContext: CounterStreamContext,
     scopedCounterStream: CaptureScopedCounterStream,
     previewCounterDigits: Int,
+    saveMode: SaveMode,
     isManualCounterModeDisplay: Boolean,
     lastScopeSnapshot: CounterScopeSnapshot?,
     updateCell: (TableTemplateState, String, (TableCellState) -> TableCellState) -> TableTemplateState,
@@ -232,6 +244,7 @@ internal suspend fun syncCounterStateForScope(
         context = context,
         scopedStream = scopedCounterStream,
         counterDigits = previewCounterDigits,
+        saveMode = saveMode,
     ).coerceAtLeast(1)
     val isManualCounterMode = TableCounterPolicyCoordinator.isManualOverrideActive(
         context = context,

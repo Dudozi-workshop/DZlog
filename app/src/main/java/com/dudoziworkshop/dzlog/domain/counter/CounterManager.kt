@@ -1,11 +1,14 @@
 package com.dudoziworkshop.dzlog.domain.counter
 
 import android.content.Context
+import com.dudoziworkshop.dzlog.data.counter.CounterScanTarget
 import com.dudoziworkshop.dzlog.data.counter.scanUsedCountersFromMediaStore
+import com.dudoziworkshop.dzlog.data.counter.toCounterScanTarget
 import com.dudoziworkshop.dzlog.data.counterindex.CounterIndexRepository
 import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.naming.sanitizeFilePart
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
@@ -24,6 +27,20 @@ import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
  * - 초기화 의미 = 해당 스트림의 max + 1
  */
 object CounterManager {
+
+    fun computeScanRelativePaths(
+        baseRel: String,
+        target: CounterScanTarget
+    ): List<String> {
+        val normalizedBaseRel = normalizeRelativePathPrefix(baseRel)
+        val originalRel = appendOriginalDirectory(normalizedBaseRel)
+
+        return when (target) {
+            CounterScanTarget.WATER_ONLY -> listOf(normalizedBaseRel)
+            CounterScanTarget.ORIGINAL_ONLY -> listOf(originalRel)
+            CounterScanTarget.BOTH -> listOf(normalizedBaseRel, originalRel)
+        }
+    }
 
     /**
      * Build a counter-stream key for relativePath.
@@ -122,6 +139,18 @@ object CounterManager {
         return relativePathKey.substringBefore("|g2=", relativePathKey)
     }
 
+    private fun normalizeRelativePathPrefix(baseRel: String): String {
+        val trimmed = baseRel.trim()
+        if (trimmed.isBlank()) return ""
+        val collapsed = trimmed.replace(Regex("/+"), "/")
+        return if (collapsed.endsWith('/')) collapsed else "$collapsed/"
+    }
+
+    private fun appendOriginalDirectory(baseRel: String): String {
+        val normalized = normalizeRelativePathPrefix(baseRel)
+        return if (normalized.endsWith("original/")) normalized else "${normalized}original/"
+    }
+
     /**
      * 해당 스트림(relativePath  counterPrefix)에서 사용된 카운터 집합을 반환한다.
      *
@@ -133,7 +162,8 @@ object CounterManager {
         relativePath: String,
         counterPrefix: String,
         counterDigits: Int,
-        fnDelim: String
+        fnDelim: String,
+        saveMode: SaveMode,
     ): Set<Int> {
         val repo = CounterIndexRepository.getInstance(context)
 
@@ -141,6 +171,12 @@ object CounterManager {
         val streamPrefix = counterPrefix
         val basePrefix = basePrefixFromStreamPrefix(streamPrefix)
         val physicalRelativePath = physicalRelativePathFromStreamKey(relativePath)
+        val scanTarget = saveMode.toCounterScanTarget()
+        val scanPaths = if (physicalRelativePath.isBlank()) {
+            emptyList()
+        } else {
+            computeScanRelativePaths(physicalRelativePath, scanTarget)
+        }
 
         // 1) Room 기준 조회 (현재 streamPrefix)
         val fromDb: Set<Int> = runCatching {
@@ -149,12 +185,12 @@ object CounterManager {
 
         if (fromDb.isNotEmpty()) {
             val scannedFromMediaStore: Set<Int> = runCatching {
-                scanUsedCountersFromMediaStore(
+                scanUsedCountersFromPaths(
                     context = context,
-                    relativePathPrefix = physicalRelativePath,
+                    relativePathPrefixes = scanPaths,
                     fileNamePrefix = basePrefix,
                     counterDigits = counterDigits,
-                    fnDelim = fnDelim
+                    fnDelim = fnDelim,
                 )
             }.getOrDefault(fromDb)
 
@@ -170,12 +206,12 @@ object CounterManager {
         // - 따라서 스캔은 항상 basePrefix로 수행해야 한다.
         //   (streamPrefix로 스캔하면 파일이 있어도 못 찾고 next=1로 되돌아갈 수 있음)
         val scanned: Set<Int> = runCatching {
-            scanUsedCountersFromMediaStore(
+            scanUsedCountersFromPaths(
                 context = context,
-                relativePathPrefix = physicalRelativePath,
+                relativePathPrefixes = scanPaths,
                 fileNamePrefix = basePrefix,
                 counterDigits = counterDigits,
-                fnDelim = fnDelim
+                fnDelim = fnDelim,
             )
         }.getOrDefault(emptySet())
 
@@ -199,15 +235,41 @@ object CounterManager {
         relativePath: String,
         counterPrefix: String,
         counterDigits: Int,
-        fnDelim: String
+        fnDelim: String,
+        saveMode: SaveMode,
     ): Int {
         val used = getUsedCounters(
             context = context,
             relativePath = relativePath,
             counterPrefix = counterPrefix,
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = fnDelim,
+            saveMode = saveMode,
         )
         return (used.maxOrNull() ?: 0) + 1
+    }
+
+    private fun scanUsedCountersFromPaths(
+        context: Context,
+        relativePathPrefixes: List<String>,
+        fileNamePrefix: String,
+        counterDigits: Int,
+        fnDelim: String,
+    ): Set<Int> {
+        if (relativePathPrefixes.isEmpty()) return emptySet()
+
+        return relativePathPrefixes
+            .asSequence()
+            .filter { it.isNotBlank() }
+            .flatMap { rel ->
+                scanUsedCountersFromMediaStore(
+                    context = context,
+                    relativePathPrefix = rel,
+                    fileNamePrefix = fileNamePrefix,
+                    counterDigits = counterDigits,
+                    fnDelim = fnDelim,
+                ).asSequence()
+            }
+            .toSet()
     }
 }

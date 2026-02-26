@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.feature.table.policy
 import android.content.Context
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterSeedInput
 import com.dudoziworkshop.dzlog.domain.counter.policy.decideCounterSeed
@@ -43,12 +44,14 @@ internal object TableCounterPolicyCoordinator {
         context: Context,
         scopedStream: CaptureScopedCounterStream,
         counterDigits: Int,
+        saveMode: SaveMode,
     ): Int {
         return CaptureCounterPolicy.getNextCounter(
             context = context,
             scopedStream = scopedStream,
             counterDigits = counterDigits,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+            saveMode = saveMode,
         ).coerceAtLeast(1)
     }
 
@@ -59,6 +62,7 @@ internal object TableCounterPolicyCoordinator {
         desired: Int,
         force: Boolean,
         counterDigits: Int,
+        saveMode: SaveMode,
     ) {
         CaptureCounterPolicy.setNextCounter(
             context = context,
@@ -66,7 +70,8 @@ internal object TableCounterPolicyCoordinator {
             desired = desired,
             force = force,
             counterDigits = counterDigits,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+            saveMode = saveMode,
         )
     }
 
@@ -84,12 +89,14 @@ internal object TableCounterPolicyCoordinator {
         context: Context,
         scopedStream: CaptureScopedCounterStream,
         counterDigits: Int,
+        saveMode: SaveMode,
     ): Int {
         return CaptureCounterPolicy.resetToAutoNext(
             context = context,
             scopedStream = scopedStream,
             counterDigits = counterDigits,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+            saveMode = saveMode,
         )
     }
 

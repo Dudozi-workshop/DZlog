@@ -9,6 +9,7 @@ import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.counter.CounterManager
 import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.toCaptureStreamKey
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import kotlinx.coroutines.flow.first
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -27,13 +28,15 @@ internal object CaptureCounterPolicy {
         context: Context,
         streamContext: CounterStreamContext,
         counterDigits: Int,
-        fnDelim: String
+        fnDelim: String,
+        saveMode: SaveMode,
     ): Int {
         return getNextCounter(
             context = context,
             key = toCaptureStreamKey(streamContext),
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = fnDelim,
+            saveMode = saveMode,
         )
     }
 
@@ -41,13 +44,15 @@ internal object CaptureCounterPolicy {
         context: Context,
         scopedStream: CaptureScopedCounterStream,
         counterDigits: Int,
-        fnDelim: String
+        fnDelim: String,
+        saveMode: SaveMode,
     ): Int {
         return getNextCounter(
             context = context,
             key = scopedStream.captureStreamKey,
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = fnDelim,
+            saveMode = saveMode,
         )
     }
 
@@ -55,14 +60,16 @@ internal object CaptureCounterPolicy {
         context: Context,
         key: CaptureStreamKey,
         counterDigits: Int,
-        fnDelim: String
+        fnDelim: String,
+        saveMode: SaveMode,
     ): Int {
         val autoNext = CounterManager.getNextCounter(
             context = context,
             relativePath = key.relativePathKey,
             counterPrefix = key.prefix,
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = fnDelim,
+            saveMode = saveMode,
         ).coerceAtLeast(1)
 
         val manualOverride = loadManualNextOverrides(context)[streamKey(key)]
@@ -133,7 +140,8 @@ internal object CaptureCounterPolicy {
         desired: Int,
         force: Boolean,
         counterDigits: Int,
-        fnDelim: String
+        fnDelim: String,
+        saveMode: SaveMode,
     ) {
         val normalized = desired.coerceAtLeast(1)
 
@@ -143,7 +151,8 @@ internal object CaptureCounterPolicy {
             relativePath = key.relativePathKey,
             counterPrefix = key.prefix,
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = fnDelim,
+            saveMode = saveMode,
         ).coerceAtLeast(1)
 
         val streamKey = streamKey(key)
@@ -176,7 +185,8 @@ internal object CaptureCounterPolicy {
         desired: Int,
         force: Boolean,
         counterDigits: Int,
-        fnDelim: String
+        fnDelim: String,
+        saveMode: SaveMode,
     ) {
         setNextCounter(
             context = context,
@@ -184,7 +194,8 @@ internal object CaptureCounterPolicy {
             desired = desired,
             force = force,
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = fnDelim,
+            saveMode = saveMode,
         )
     }
 
@@ -194,7 +205,8 @@ internal object CaptureCounterPolicy {
         desired: Int,
         force: Boolean,
         counterDigits: Int,
-        fnDelim: String
+        fnDelim: String,
+        saveMode: SaveMode,
     ) {
         setNextCounter(
             context = context,
@@ -202,7 +214,8 @@ internal object CaptureCounterPolicy {
             desired = desired,
             force = force,
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = fnDelim,
+            saveMode = saveMode,
         )
     }
 
@@ -264,7 +277,8 @@ internal object CaptureCounterPolicy {
         context: Context,
         streamContext: CounterStreamContext,
         counterDigits: Int,
-        fnDelim: String
+        fnDelim: String,
+        saveMode: SaveMode,
     ): Int {
         clearManualCounterOverride(
             context = context,
@@ -274,7 +288,8 @@ internal object CaptureCounterPolicy {
             context = context,
             streamContext = streamContext,
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = fnDelim,
+            saveMode = saveMode,
         )
     }
 
@@ -282,7 +297,8 @@ internal object CaptureCounterPolicy {
         context: Context,
         scopedStream: CaptureScopedCounterStream,
         counterDigits: Int,
-        fnDelim: String
+        fnDelim: String,
+        saveMode: SaveMode,
     ): Int {
         clearManualCounterOverride(
             context = context,
@@ -292,7 +308,8 @@ internal object CaptureCounterPolicy {
             context = context,
             scopedStream = scopedStream,
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = fnDelim,
+            saveMode = saveMode,
         )
     }
 

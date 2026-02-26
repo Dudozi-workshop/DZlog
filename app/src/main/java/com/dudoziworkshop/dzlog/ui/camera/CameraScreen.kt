@@ -955,7 +955,8 @@ private fun SyncCounterSeedEffect(
             context = context,
             scopedStream = scopedStream,
             counterDigits = counterDigits,
-            fnDelim = fnDelim
+            fnDelim = fnDelim,
+            saveMode = appSettings.saveMode,
         ).coerceAtLeast(1)
 
         val isNewStream = isNewCounterScope(

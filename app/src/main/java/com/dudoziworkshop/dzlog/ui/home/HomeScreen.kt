@@ -150,7 +150,8 @@ fun HomeScreen(
             context = context,
             scopedStream = scopedStream,
             counterDigits = settings.counterPadding,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+            saveMode = settings.saveMode,
         ).coerceAtLeast(1)
         val preview = CaptureNamingPolicy.buildForCaptureWithCounter(
             captureContext = CaptureContext(
