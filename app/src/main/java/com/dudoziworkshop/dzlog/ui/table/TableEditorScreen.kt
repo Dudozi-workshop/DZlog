@@ -20,6 +20,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -34,13 +35,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.data.counter.clampCounterDigits
+import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.model.CellValue
+import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
+import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -163,6 +168,22 @@ fun TableEditorScreen(
 
     var previewCounterDigits by remember { mutableIntStateOf(COUNTER_DIGITS_DEFAULT) }
 
+    val settings by AppSettingsStore.flow(context).collectAsState(
+        initial = AppSettings(
+            saveMode = SaveMode.BOTH,
+            continuousPreviewMode = ContinuousPreviewMode.OFF,
+            photoQualityMode = PhotoQualityMode.BALANCED,
+            counterPadding = previewCounterDigits,
+            includePathInCounterScope = true,
+            includeFilenameInCounterScope = true,
+            toastEnabled = true,
+            hapticEnabled = true,
+            captureHapticEnabled = true,
+            blankWarningEnabled = true,
+        )
+    )
+    val tableSaveMode = settings.saveMode
+
     var counterUi by remember { mutableStateOf(TableCounterUiState()) }
 
     var previewNow by remember { mutableStateOf(Date()) }
@@ -183,15 +204,14 @@ fun TableEditorScreen(
         }.onFailure {
             previewCounterDigits = COUNTER_DIGITS_DEFAULT
         }
+    }
 
-        runCatching {
-            val settings = AppSettingsStore.flow(context).first()
-            counterUi = updateCounterUiScopeFlags(
-                counterUi = counterUi,
-                includePathInCounterScope = settings.includePathInCounterScope,
-                includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
-            )
-        }
+    LaunchedEffect(settings.includePathInCounterScope, settings.includeFilenameInCounterScope) {
+        counterUi = updateCounterUiScopeFlags(
+            counterUi = counterUi,
+            includePathInCounterScope = settings.includePathInCounterScope,
+            includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
+        )
     }
 
     val tableResolver = remember { TableResolver() }
@@ -220,12 +240,20 @@ fun TableEditorScreen(
         }
     }
 
-    val counterStreamContext by remember(planForScope.resolvedCells, counterUi.scopeNextCounter, isManualCounterModeDisplay) {
+    val counterStreamContext by remember(
+        planForScope.resolvedCells,
+        counterUi.scopeNextCounter,
+        isManualCounterModeDisplay,
+        settings.includeDateInCounterScope,
+        settings.includeTimeInCounterScope,
+    ) {
         derivedStateOf {
             buildTableCounterStreamContext(
                 resolvedCells = planForScope.resolvedCells,
                 fileNameSlots = templateState.fileNameSlots,
                 includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
+                includeDateInCounterScope = settings.includeDateInCounterScope,
+                includeTimeInCounterScope = settings.includeTimeInCounterScope,
                 scopeNextCounter = counterUi.scopeNextCounter,
                 isManualCounterModeDisplay = isManualCounterModeDisplay,
             )
@@ -249,7 +277,7 @@ fun TableEditorScreen(
     // ✅ 스트림 변경 감지용 (스트림이 바뀌면 seed를 "새 스트림 next"로 강제 동기화)
     var lastScopeSnapshot by remember { mutableStateOf<CounterScopeSnapshot?>(null) }
 
-    LaunchedEffect(scopedCounterStream.scopeParts.scopeKey, previewCounterDigits, templateState) {
+    LaunchedEffect(scopedCounterStream.scopeParts.scopeKey, previewCounterDigits, templateState, tableSaveMode) {
         val syncResult = syncCounterStateForScope(
             context = context,
             templateState = templateState,
@@ -257,6 +285,7 @@ fun TableEditorScreen(
             counterStreamContext = counterStreamContext,
             scopedCounterStream = scopedCounterStream,
             previewCounterDigits = previewCounterDigits,
+            saveMode = tableSaveMode,
             isManualCounterModeDisplay = isManualCounterModeDisplay,
             lastScopeSnapshot = lastScopeSnapshot,
             updateCell = ::updateCell
@@ -322,6 +351,7 @@ fun TableEditorScreen(
                 forcePolicyUpdate = false,
                 scopedCounterStream = scopedCounterStream,
                 previewCounterDigits = previewCounterDigits,
+                saveMode = tableSaveMode,
                 counterUi = counterUi,
                 onTemplateChange = onTemplateChange,
                 setCounterUi = { counterUi = it },
@@ -386,6 +416,7 @@ fun TableEditorScreen(
             templateState = templateState,
             scopedCounterStream = scopedCounterStream,
             previewCounterDigits = previewCounterDigits,
+            saveMode = tableSaveMode,
             counterUi = counterUi,
             onTemplateChange = onTemplateChange,
             setCounterUi = { counterUi = it },
@@ -856,6 +887,7 @@ fun TableEditorScreen(
                                         cellId = cell.cellId,
                                         scopedCounterStream = scopedCounterStream,
                                         previewCounterDigits = previewCounterDigits,
+                                        saveMode = tableSaveMode,
                                         counterUi = counterUi,
                                         onTemplateChange = onTemplateChange,
                                         setCounterUi = { counterUi = it },

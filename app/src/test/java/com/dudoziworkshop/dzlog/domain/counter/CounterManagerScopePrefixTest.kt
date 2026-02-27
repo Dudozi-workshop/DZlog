@@ -52,6 +52,40 @@ class CounterManagerScopePrefixTest {
         assertEquals("A-B", prefix)
     }
 
+    @Test
+    fun `computeCounterPrefix includes date and time only when scope options are enabled`() {
+        val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
+        val date = resolvedCell(1, TableCellDataType.DATE, "2026-03-01")
+        val time = resolvedCell(2, TableCellDataType.TIME, "12:34")
+
+        val defaultPrefix = CounterManager.computeCounterPrefix(
+            resolvedCells = listOf(text, date, time),
+            fnDelim = "_",
+            fileNameSlots = listOf(text.id, date.id, time.id),
+            includeFilenameInScope = true,
+        )
+
+        val dateOnlyPrefix = CounterManager.computeCounterPrefix(
+            resolvedCells = listOf(text, date, time),
+            fnDelim = "_",
+            fileNameSlots = listOf(text.id, date.id, time.id),
+            includeFilenameInScope = true,
+            scopeOptions = CounterScopeOptions(includeDateInCounterScope = true, includeTimeInCounterScope = false),
+        )
+
+        val allEnabledPrefix = CounterManager.computeCounterPrefix(
+            resolvedCells = listOf(text, date, time),
+            fnDelim = "_",
+            fileNameSlots = listOf(text.id, date.id, time.id),
+            includeFilenameInScope = true,
+            scopeOptions = CounterScopeOptions(includeDateInCounterScope = true, includeTimeInCounterScope = true),
+        )
+
+        assertEquals("N600", defaultPrefix)
+        assertEquals("N600_2026-03-01", dateOnlyPrefix)
+        assertEquals("N600_2026-03-01_1234", allEnabledPrefix)
+    }
+
     private fun resolvedCell(
         col: Int,
         type: TableCellDataType,

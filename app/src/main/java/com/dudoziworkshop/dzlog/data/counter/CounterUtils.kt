@@ -23,6 +23,11 @@ internal fun parseCounterFromDisplayNameForPolicy(
     counterDigits: Int,
     fnDelim: String
 ): Int? {
+    // Phase 0 note:
+    // This parser intentionally depends on (prefix + delimiter + numeric token) only,
+    // so it can be shared by both watermark and original file scans.
+    // Assumption: original file names follow the same counter suffix convention.
+
     val base = displayName.substringBeforeLast('.', displayName).trim()
     if (base.isBlank()) return null
 
