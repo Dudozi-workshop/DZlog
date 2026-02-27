@@ -117,6 +117,8 @@ fun SettingsRootScreen(
             counterPadding = settings.counterPadding,
             includePathInCounterScope = settings.includePathInCounterScope,
             includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
+            includeDateInCounterScope = settings.includeDateInCounterScope,
+            includeTimeInCounterScope = settings.includeTimeInCounterScope,
             onSaveModeChange = { mode ->
                 scope.launch {
                     applySettingsAction(context, SettingsAction.SaveModeChanged(mode))?.let(::showSettingsToast)
@@ -145,6 +147,16 @@ fun SettingsRootScreen(
             onIncludeFilenameInCounterScopeChange = { enabled ->
                 scope.launch {
                     applySettingsAction(context, SettingsAction.IncludeFilenameInCounterScopeChanged(enabled))?.let(::showSettingsToast)
+                }
+            },
+            onIncludeDateInCounterScopeChange = { enabled ->
+                scope.launch {
+                    AppSettingsStore.setIncludeDateInCounterScope(context, enabled)
+                }
+            },
+            onIncludeTimeInCounterScopeChange = { enabled ->
+                scope.launch {
+                    AppSettingsStore.setIncludeTimeInCounterScope(context, enabled)
                 }
             }
         )
@@ -226,12 +238,16 @@ private fun QuickControlsCard(
     counterPadding: Int,
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean,
+    includeDateInCounterScope: Boolean,
+    includeTimeInCounterScope: Boolean,
     onSaveModeChange: (SaveMode) -> Unit,
     onContinuousPreviewModeChange: (ContinuousPreviewMode) -> Unit,
     onPhotoQualityModeChange: (PhotoQualityMode) -> Unit,
     onCounterPaddingChange: (Int) -> Unit,
     onIncludePathInCounterScopeChange: (Boolean) -> Unit,
-    onIncludeFilenameInCounterScopeChange: (Boolean) -> Unit
+    onIncludeFilenameInCounterScopeChange: (Boolean) -> Unit,
+    onIncludeDateInCounterScopeChange: (Boolean) -> Unit,
+    onIncludeTimeInCounterScopeChange: (Boolean) -> Unit
 ) {
     DDZCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.sectionGap)) {
@@ -345,6 +361,26 @@ private fun QuickControlsCard(
                     Text("카운터 범위에 파일명 반영", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                 }
                 Switch(checked = includeFilenameInCounterScope, onCheckedChange = onIncludeFilenameInCounterScopeChange)
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("날짜가 바뀌면 카운터 초기화", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                }
+                Switch(checked = includeDateInCounterScope, onCheckedChange = onIncludeDateInCounterScopeChange)
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("시간이 바뀌면 카운터 초기화", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                }
+                Switch(checked = includeTimeInCounterScope, onCheckedChange = onIncludeTimeInCounterScopeChange)
             }
         }
     }

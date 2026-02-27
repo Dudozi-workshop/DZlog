@@ -45,6 +45,8 @@ internal fun handleCaptureClick(
     scopeNextCounter: Int,
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean,
+    includeDateInCounterScope: Boolean,
+    includeTimeInCounterScope: Boolean,
     captureHapticEnabled: Boolean,
     captureAspect: CaptureAspect,
     saveMode: com.dudoziworkshop.dzlog.domain.model.SaveMode,
@@ -124,6 +126,8 @@ internal fun handleCaptureClick(
             timeFormat = timeFormat,
             includePathInCounterScope = includePathInCounterScope,
             includeFilenameInCounterScope = includeFilenameInCounterScope,
+            includeDateInCounterScope = includeDateInCounterScope,
+            includeTimeInCounterScope = includeTimeInCounterScope,
         ),
         usedCounter = scopeNextCounter
     )

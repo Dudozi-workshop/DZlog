@@ -7,8 +7,10 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_CAPTURE_HAPTIC_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.dudoziworkshop.dzlog.data.preferences.KEY_HAPTIC_ENABLED
+import com.dudoziworkshop.dzlog.data.preferences.KEY_INCLUDE_DATE_IN_COUNTER_SCOPE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_INCLUDE_PATH_IN_COUNTER_SCOPE
+import com.dudoziworkshop.dzlog.data.preferences.KEY_INCLUDE_TIME_IN_COUNTER_SCOPE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SAVE_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_PHOTO_QUALITY_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_TOAST_ENABLED
@@ -26,6 +28,8 @@ data class AppSettings(
     val counterPadding: Int,
     val includePathInCounterScope: Boolean,
     val includeFilenameInCounterScope: Boolean,
+    val includeDateInCounterScope: Boolean = false,
+    val includeTimeInCounterScope: Boolean = false,
     val toastEnabled: Boolean,
     val hapticEnabled: Boolean,
     val captureHapticEnabled: Boolean = true,
@@ -43,6 +47,8 @@ object AppSettingsStore {
                 counterPadding = prefs[KEY_COUNTER_DIGITS] ?: 0,
                 includePathInCounterScope = prefs[KEY_INCLUDE_PATH_IN_COUNTER_SCOPE] ?: true,
                 includeFilenameInCounterScope = prefs[KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE] ?: true,
+                includeDateInCounterScope = prefs[KEY_INCLUDE_DATE_IN_COUNTER_SCOPE] ?: false,
+                includeTimeInCounterScope = prefs[KEY_INCLUDE_TIME_IN_COUNTER_SCOPE] ?: false,
                 toastEnabled = prefs[KEY_TOAST_ENABLED] ?: true,
                 hapticEnabled = prefs[KEY_HAPTIC_ENABLED] ?: true,
                 captureHapticEnabled = prefs[KEY_CAPTURE_HAPTIC_ENABLED] ?: true,
@@ -72,6 +78,14 @@ object AppSettingsStore {
 
     suspend fun setIncludeFilenameInCounterScope(context: Context, enabled: Boolean) {
         context.dataStore.edit { it[KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE] = enabled }
+    }
+
+    suspend fun setIncludeDateInCounterScope(context: Context, enabled: Boolean) {
+        context.dataStore.edit { it[KEY_INCLUDE_DATE_IN_COUNTER_SCOPE] = enabled }
+    }
+
+    suspend fun setIncludeTimeInCounterScope(context: Context, enabled: Boolean) {
+        context.dataStore.edit { it[KEY_INCLUDE_TIME_IN_COUNTER_SCOPE] = enabled }
     }
 
     suspend fun setToastEnabled(context: Context, enabled: Boolean) {

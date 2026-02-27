@@ -151,6 +151,7 @@ internal fun CameraSettingsOverlayPanel(
                         SegmentOption("표", showTable) { onShowTableChange(!showTable) }
                     )
                 )
+
             }
         }
     }

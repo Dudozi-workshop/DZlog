@@ -23,6 +23,7 @@ fun buildCounterStreamContext(
     isManualMode: Boolean,
     fnDelim: String = "_",
     includeFilenameInScope: Boolean = true,
+    scopeOptions: CounterScopeOptions = CounterScopeOptions(),
 ): CounterStreamContext {
     val g1 = resolveGroupValue(resolvedCells, GroupLevel.G1)
     val g2 = resolveGroupValue(resolvedCells, GroupLevel.G2)
@@ -38,7 +39,8 @@ fun buildCounterStreamContext(
         resolvedCells = resolvedCells,
         fnDelim = fnDelim,
         fileNameSlots = fileNameSlots,
-        includeFilenameInScope = includeFilenameInScope
+        includeFilenameInScope = includeFilenameInScope,
+        scopeOptions = scopeOptions,
     )
 
     return CounterStreamContext(

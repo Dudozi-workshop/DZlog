@@ -13,5 +13,6 @@ data class ResolvedCell(
     val type: TableCellDataType,
     val raw: TableCellState? = null,
     val resolvedText: String,
-    val isEmpty: Boolean
+    val isEmpty: Boolean,
+    val scopeToken: String? = null,
 )

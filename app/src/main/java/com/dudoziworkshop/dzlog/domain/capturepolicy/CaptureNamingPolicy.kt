@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.domain.capturepolicy
 
 import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
+import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterStreamContext
 import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
@@ -70,6 +71,10 @@ internal object CaptureNamingPolicy {
             isManualMode = false,
             fnDelim = captureContext.fnDelim,
             includeFilenameInScope = captureContext.includeFilenameInCounterScope,
+            scopeOptions = CounterScopeOptions(
+                includeDateInCounterScope = captureContext.includeDateInCounterScope,
+                includeTimeInCounterScope = captureContext.includeTimeInCounterScope,
+            ),
         )
         val g1 = resolveGroupValue(resolvedCells, GroupLevel.G1)
         val g2 = resolveGroupValue(resolvedCells, GroupLevel.G2)

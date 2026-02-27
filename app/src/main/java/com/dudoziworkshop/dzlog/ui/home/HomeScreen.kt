@@ -53,6 +53,7 @@ import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureContext
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterStreamContext
+import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
 import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.debug.CounterDebugDump
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
@@ -123,7 +124,9 @@ fun HomeScreen(
         settings.saveMode,
         settings.counterPadding,
         settings.includePathInCounterScope,
-        settings.includeFilenameInCounterScope
+        settings.includeFilenameInCounterScope,
+        settings.includeDateInCounterScope,
+        settings.includeTimeInCounterScope,
     ) {
         val now = Date()
         val resolver = TableResolver()
@@ -144,6 +147,10 @@ fun HomeScreen(
             isManualMode = false,
             fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
             includeFilenameInScope = settings.includeFilenameInCounterScope,
+            scopeOptions = CounterScopeOptions(
+                includeDateInCounterScope = settings.includeDateInCounterScope,
+                includeTimeInCounterScope = settings.includeTimeInCounterScope,
+            ),
         )
         val scopedStream = toCaptureScopedCounterStream(
             streamContext = streamContext,
@@ -175,6 +182,8 @@ fun HomeScreen(
                 timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
                 includePathInCounterScope = settings.includePathInCounterScope,
                 includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
+                includeDateInCounterScope = settings.includeDateInCounterScope,
+                includeTimeInCounterScope = settings.includeTimeInCounterScope,
             ),
             usedCounter = streamNext
         )

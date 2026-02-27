@@ -116,12 +116,14 @@ class TableResolver {
                 // DATE는 항상 현재(captureNow) 기준으로 표시한다.
                 val pattern = cell.formatPattern.ifBlank { config.dateFormat }
                 val resolved = SimpleDateFormat(pattern, config.locale).format(captureNow)
+                val scopeToken = SimpleDateFormat("yyyyMMdd", Locale.US).format(captureNow)
                 ResolvedCell(
                     id = cell.cellId,
                     type = cell.dataType,
                     raw = cell,
                     resolvedText = resolved,
-                    isEmpty = resolved.isBlank()
+                    isEmpty = resolved.isBlank(),
+                    scopeToken = scopeToken
                 )
             }
 
@@ -132,12 +134,15 @@ class TableResolver {
                     ?: cell.formatPattern.ifBlank { config.timeFormat }
 
                 val resolved = SimpleDateFormat(pattern, config.locale).format(captureNow)
+                val scopeTokenPattern = if (cell.timeFormatOptions?.includeSeconds == true) "HHmmss" else "HHmm"
+                val scopeToken = SimpleDateFormat(scopeTokenPattern, Locale.US).format(captureNow)
                 ResolvedCell(
                     id = cell.cellId,
                     type = cell.dataType,
                     raw = cell,
                     resolvedText = resolved,
-                    isEmpty = resolved.isBlank()
+                    isEmpty = resolved.isBlank(),
+                    scopeToken = scopeToken
                 )
             }
 

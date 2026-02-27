@@ -96,6 +96,7 @@ import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
+import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.policy.buildCounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.isNewCounterScope
@@ -265,6 +266,8 @@ fun CameraPreview(
         counterDigits = ui.prefs.counterDigits,
         nextCounter = ui.counter.scopeNextCounter,
         includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+        includeDateInCounterScope = appSettings.includeDateInCounterScope,
+        includeTimeInCounterScope = appSettings.includeTimeInCounterScope,
         captureNow = ui.capture.now,
     )
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
@@ -696,6 +699,8 @@ fun CameraPreview(
                             scopeNextCounter = ui.counter.scopeNextCounter,
                             includePathInCounterScope = appSettings.includePathInCounterScope,
                             includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+                            includeDateInCounterScope = appSettings.includeDateInCounterScope,
+                            includeTimeInCounterScope = appSettings.includeTimeInCounterScope,
                             captureHapticEnabled = appSettings.captureHapticEnabled,
                             captureAspect = ui.prefs.captureAspect,
                             saveMode = appSettings.saveMode,
@@ -897,12 +902,24 @@ private fun rememberCounterStreamContext(
     counterDigits: Int,
     nextCounter: Int,
     includeFilenameInCounterScope: Boolean,
+    includeDateInCounterScope: Boolean,
+    includeTimeInCounterScope: Boolean,
     captureNow: Date,
 ): CounterStreamContext {
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-    return remember(tableCells, phraseSets, fileNameSlots, counterDigits, nextCounter, includeFilenameInCounterScope, captureNow) {
+    return remember(
+        tableCells,
+        phraseSets,
+        fileNameSlots,
+        counterDigits,
+        nextCounter,
+        includeFilenameInCounterScope,
+        includeDateInCounterScope,
+        includeTimeInCounterScope,
+        captureNow,
+    ) {
         val planForScope = tableResolver.plan(
             cells = tableCells,
             captureNow = captureNow,
@@ -921,6 +938,10 @@ private fun rememberCounterStreamContext(
             isManualMode = false,
             fnDelim = fnDelim,
             includeFilenameInScope = includeFilenameInCounterScope,
+            scopeOptions = CounterScopeOptions(
+                includeDateInCounterScope = includeDateInCounterScope,
+                includeTimeInCounterScope = includeTimeInCounterScope,
+            ),
         )
     }
 }

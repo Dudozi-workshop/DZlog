@@ -23,7 +23,10 @@ import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
  * 정책:
  * - 스트림 키 = relativePath + counterPrefix
  * - counterPrefix = "파일명 포함 셀" 기반 prefix
- * - 날짜/시간은 파일명에는 포함되더라도, counterPrefix에는 포함하지 않음
+ * - DATE/TIME 셀은 파일명/경로에 포함될 수 있으나,
+ *   counterPrefix는 scopeToken(정규화 토큰)을 우선 사용하며,
+ *   반영 여부는 CounterScopeOptions(includeDateInCounterScope/includeTimeInCounterScope)로 결정
+ * - 옵션이 false이면 DATE/TIME 변화는 카운터 스트림 분리(초기화)에 영향을 주지 않음
  * - 초기화 의미 = 해당 스트림의 max + 1
  */
 object CounterManager {
@@ -72,13 +75,17 @@ object CounterManager {
      * @param resolvedCells TableResolver.plan().resolvedCells 그대로 전달
      * @param fnDelim 파일명 구분자 (ex "_")
      *
-     * 날짜/시간은 counter 스트림에 영향을 주지 않도록 항상 제외한다.
+     * 규칙:
+     * - COUNTER는 항상 제외
+     * - DATE/TIME은 CounterScopeOptions 옵션이 true일 때만 포함 (scopeToken 우선)
+     * - 그 외 타입은 resolvedText를 sanitize 후 포함
      */
     fun computeCounterPrefix(
         resolvedCells: List<ResolvedCell>,
         fnDelim: String,
         fileNameSlots: List<CellKey?>,
         includeFilenameInScope: Boolean,
+        scopeOptions: CounterScopeOptions = CounterScopeOptions(),
     ): String {
         if (!includeFilenameInScope) return "name=off"
 
@@ -89,12 +96,16 @@ object CounterManager {
             .asSequence()
             .mapNotNull { slot -> slot?.let { key -> resolvedCells.firstOrNull { rc -> rc.id == key } } }
             .mapNotNull { rc ->
-                when (rc.type) {
-                    TableCellDataType.COUNTER,
-                    TableCellDataType.DATE,
-                    TableCellDataType.TIME -> null
-                    else -> sanitizeFilePart(rc.resolvedText)
-                }?.takeIf { it.isNotBlank() }
+                val token: String? = when (rc.type) {
+                    TableCellDataType.COUNTER -> null
+                    TableCellDataType.DATE -> if (scopeOptions.includeDateInCounterScope) rc.scopeToken else null
+                    TableCellDataType.TIME -> if (scopeOptions.includeTimeInCounterScope) rc.scopeToken else null
+                    else -> rc.resolvedText
+                }
+
+                token
+                    ?.let { sanitizeFilePart(it) }
+                    ?.takeIf { it.isNotBlank() }
             }
             .toList()
 
@@ -106,6 +117,7 @@ object CounterManager {
      *
      * - basePrefix: 슬롯/해결값 기반 prefix (COUNTER 제외)
      * - g2Enabled : "G2 그룹 셀 존재 여부" (값이 비어도 true)
+     * - streamPrefix = computeCounterPrefix(...) + "|g2=0/1"
      *
      * 요구사항:
      * - 저장경로가 우연히 같아도(G2 값이 비어 g1 폴더만 쓰는 경우 등),
@@ -116,12 +128,14 @@ object CounterManager {
         fnDelim: String,
         fileNameSlots: List<CellKey?>,
         includeFilenameInScope: Boolean,
+        scopeOptions: CounterScopeOptions = CounterScopeOptions(),
     ): String {
         val basePrefix = computeCounterPrefix(
             resolvedCells = resolvedCells,
             fnDelim = fnDelim,
             fileNameSlots = fileNameSlots,
-            includeFilenameInScope = includeFilenameInScope
+            includeFilenameInScope = includeFilenameInScope,
+            scopeOptions = scopeOptions,
         )
         val g2Enabled = resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
         val tag = if (g2Enabled) "g2=1" else "g2=0"

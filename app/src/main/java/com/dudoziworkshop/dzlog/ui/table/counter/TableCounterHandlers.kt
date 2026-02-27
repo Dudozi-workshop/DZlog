@@ -10,6 +10,7 @@ package com.dudoziworkshop.dzlog.ui.table.counter
 
 import android.content.Context
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
+import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
 import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
@@ -33,6 +34,8 @@ internal fun buildTableCounterStreamContext(
     resolvedCells: List<ResolvedCell>,
     fileNameSlots: List<CellKey?>,
     includeFilenameInCounterScope: Boolean,
+    includeDateInCounterScope: Boolean,
+    includeTimeInCounterScope: Boolean,
     scopeNextCounter: Int,
     isManualCounterModeDisplay: Boolean
 ): CounterStreamContext =
@@ -43,6 +46,10 @@ internal fun buildTableCounterStreamContext(
         isManualMode = isManualCounterModeDisplay,
         fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
         includeFilenameInScope = includeFilenameInCounterScope,
+        scopeOptions = CounterScopeOptions(
+            includeDateInCounterScope = includeDateInCounterScope,
+            includeTimeInCounterScope = includeTimeInCounterScope,
+        ),
     )
 
 internal fun buildTableScopedCounterStream(

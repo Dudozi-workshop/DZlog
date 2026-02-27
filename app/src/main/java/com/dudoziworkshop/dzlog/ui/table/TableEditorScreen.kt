@@ -240,12 +240,20 @@ fun TableEditorScreen(
         }
     }
 
-    val counterStreamContext by remember(planForScope.resolvedCells, counterUi.scopeNextCounter, isManualCounterModeDisplay) {
+    val counterStreamContext by remember(
+        planForScope.resolvedCells,
+        counterUi.scopeNextCounter,
+        isManualCounterModeDisplay,
+        settings.includeDateInCounterScope,
+        settings.includeTimeInCounterScope,
+    ) {
         derivedStateOf {
             buildTableCounterStreamContext(
                 resolvedCells = planForScope.resolvedCells,
                 fileNameSlots = templateState.fileNameSlots,
                 includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
+                includeDateInCounterScope = settings.includeDateInCounterScope,
+                includeTimeInCounterScope = settings.includeTimeInCounterScope,
                 scopeNextCounter = counterUi.scopeNextCounter,
                 isManualCounterModeDisplay = isManualCounterModeDisplay,
             )
