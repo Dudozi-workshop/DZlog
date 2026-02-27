@@ -1025,12 +1025,14 @@ private fun SyncCounterSeedEffect(
             note = "isNewStream=$isNewStream externalResync=$isExternalResync saveModeChanged=$saveModeChanged templateReady=$isTemplateReady",
         )
         val currentScopeSeed = ui.counter.scopeNextCounter
+        val allowResetToOneOnNewStream =
+            appSettings.includeDateInCounterScope || appSettings.includeTimeInCounterScope
         ui.counter.scopeNextCounter = when {
             // 규칙 A: 외부 리싱크(undo/resume)는 seed 하향 반영이 가능해야 한다.
             isExternalResync -> nextSeedFromStream
 
             // 규칙 B: 새 스트림 판정 시, 임시 상태에서 next=1로 내려오는 경우의 덮어쓰기를 방지한다.
-            isNewStream && nextSeedFromStream == 1 && currentScopeSeed > 1 -> currentScopeSeed
+            isNewStream && !allowResetToOneOnNewStream && nextSeedFromStream == 1 && currentScopeSeed > 1 -> currentScopeSeed
             isNewStream -> nextSeedFromStream
 
             // 규칙 C: 일반 케이스는 기존처럼 상향 동기화(max) 유지.
