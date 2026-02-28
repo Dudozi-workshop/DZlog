@@ -31,20 +31,29 @@ import com.dudoziworkshop.dzlog.domain.model.LogGroupSummary
 @Composable
 fun LogG1Screen(
     onBack: () -> Unit,
-    onSelectG1: (String) -> Unit
+    onOpenG2: (String) -> Unit,
+    onOpenGridByRuleC: (
+        title: String,
+        waterRel: String,
+        originalRel: String,
+        waterCount: Int,
+        originalCount: Int,
+    ) -> Unit,
 ) {
     val context = LocalContext.current
     val reader = remember { DzlogMediaStoreReader(context.contentResolver) }
 
-    var g1Summaries by remember { mutableStateOf<List<LogGroupSummary>>(emptyList()) }
+    var rootNode by remember { mutableStateOf<DzlogMediaStoreReader.G1Node?>(null) }
+    var g1Nodes by remember { mutableStateOf<List<DzlogMediaStoreReader.G1Node>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         isLoading = true
-        runCatching { reader.loadG1Summaries() }
+        runCatching { reader.loadG1Nodes() }
             .onSuccess {
-                g1Summaries = it
+                rootNode = it.firstOrNull { node -> node.name == DzlogMediaStoreReader.ROOT_G1 }
+                g1Nodes = it.filter { node -> node.name != DzlogMediaStoreReader.ROOT_G1 }
                 error = null
                 isLoading = false
             }
@@ -75,12 +84,12 @@ fun LogG1Screen(
             Spacer(Modifier.height(12.dp))
             Button(onClick = {
                 error = null
-                g1Summaries = emptyList()
+                g1Nodes = emptyList()
             }) { Text("닫기") }
             return@Column
         }
 
-        if (g1Summaries.isEmpty()) {
+        if (g1Nodes.isEmpty() && rootNode == null) {
             Text("저장된 DZlog 결과물이 없습니다.")
             Spacer(Modifier.height(6.dp))
             Text("(Pictures/DZlog/ 하위에 저장된 사진이 있어야 표시됩니다.)")
@@ -88,13 +97,59 @@ fun LogG1Screen(
         }
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(g1Summaries, key = { it.name }) { summary ->
+            rootNode?.takeIf { node -> node.waterCount + node.originalCount > 0 }?.let { node ->
+                item(key = "dzlog-root") {
+                    val summary = LogGroupSummary(
+                        name = node.name,
+                        photoCount = node.waterCount + node.originalCount,
+                        latestDateAddedSeconds = node.latestDateAddedSeconds,
+                        latestContentUri = node.latestContentUri,
+                    )
+                    LogGroupCard(
+                        summary = summary,
+                        titleOverride = DzlogMediaStoreReader.ROOT_G1,
+                        isRootHighlight = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .clickable {
+                                onOpenGridByRuleC(
+                                    DzlogMediaStoreReader.ROOT_G1,
+                                    node.waterRel,
+                                    node.originalRel,
+                                    node.waterCount,
+                                    node.originalCount,
+                                )
+                            }
+                    )
+                }
+            }
+            items(g1Nodes, key = { it.name }) { node ->
+                val summary = LogGroupSummary(
+                    name = node.name,
+                    photoCount = node.waterCount + node.originalCount,
+                    latestDateAddedSeconds = node.latestDateAddedSeconds,
+                    latestContentUri = node.latestContentUri,
+                )
                 LogGroupCard(
                     summary = summary,
+                    titleOverride = node.name,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
-                        .clickable { onSelectG1(summary.name) }
+                        .clickable {
+                            if (node.hasG2) {
+                                onOpenG2(node.name)
+                            } else {
+                                onOpenGridByRuleC(
+                                    node.name,
+                                    node.waterRel,
+                                    node.originalRel,
+                                    node.waterCount,
+                                    node.originalCount,
+                                )
+                            }
+                        }
                 )
             }
         }

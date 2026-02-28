@@ -1,7 +1,6 @@
 package com.dudoziworkshop.dzlog.feature.settings.ui
 
 import android.os.Build
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -84,12 +83,6 @@ fun SettingsRootScreen(
     val isStorageGranted = remember { isStorageReadGranted(context) }
 
 
-    fun showSettingsToast(message: String) {
-        if (settings.toastEnabled) {
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-        }
-    }
-
     Column(
         modifier = Modifier
             .verticalScroll(rememberScrollState())
@@ -121,32 +114,32 @@ fun SettingsRootScreen(
             includeTimeInCounterScope = settings.includeTimeInCounterScope,
             onSaveModeChange = { mode ->
                 scope.launch {
-                    applySettingsAction(context, SettingsAction.SaveModeChanged(mode))?.let(::showSettingsToast)
+                    applySettingsAction(context, SettingsAction.SaveModeChanged(mode))
                 }
             },
             onContinuousPreviewModeChange = { mode ->
                 scope.launch {
-                    applySettingsAction(context, SettingsAction.ContinuousPreviewModeChanged(mode))?.let(::showSettingsToast)
+                    applySettingsAction(context, SettingsAction.ContinuousPreviewModeChanged(mode))
                 }
             },
             onPhotoQualityModeChange = { mode ->
                 scope.launch {
-                    applySettingsAction(context, SettingsAction.PhotoQualityModeChanged(mode))?.let(::showSettingsToast)
+                    applySettingsAction(context, SettingsAction.PhotoQualityModeChanged(mode))
                 }
             },
             onCounterPaddingChange = { digits ->
                 scope.launch {
-                    applySettingsAction(context, SettingsAction.CounterPaddingChanged(digits))?.let(::showSettingsToast)
+                    applySettingsAction(context, SettingsAction.CounterPaddingChanged(digits))
                 }
             },
             onIncludePathInCounterScopeChange = { enabled ->
                 scope.launch {
-                    applySettingsAction(context, SettingsAction.IncludePathInCounterScopeChanged(enabled))?.let(::showSettingsToast)
+                    applySettingsAction(context, SettingsAction.IncludePathInCounterScopeChanged(enabled))
                 }
             },
             onIncludeFilenameInCounterScopeChange = { enabled ->
                 scope.launch {
-                    applySettingsAction(context, SettingsAction.IncludeFilenameInCounterScopeChanged(enabled))?.let(::showSettingsToast)
+                    applySettingsAction(context, SettingsAction.IncludeFilenameInCounterScopeChanged(enabled))
                 }
             },
             onIncludeDateInCounterScopeChange = { enabled ->
@@ -206,22 +199,22 @@ fun SettingsRootScreen(
             isStorageGranted = isStorageGranted,
             onToastEnabledChange = { enabled ->
                 scope.launch {
-                    applySettingsAction(context, SettingsAction.ToastEnabledChanged(enabled))?.let(::showSettingsToast)
+                    applySettingsAction(context, SettingsAction.ToastEnabledChanged(enabled))
                 }
             },
             onHapticEnabledChange = { enabled ->
                 scope.launch {
-                    applySettingsAction(context, SettingsAction.HapticEnabledChanged(enabled))?.let(::showSettingsToast)
+                    applySettingsAction(context, SettingsAction.HapticEnabledChanged(enabled))
                 }
             },
             onCaptureHapticEnabledChange = { enabled ->
                 scope.launch {
-                    applySettingsAction(context, SettingsAction.CaptureHapticEnabledChanged(enabled))?.let(::showSettingsToast)
+                    applySettingsAction(context, SettingsAction.CaptureHapticEnabledChanged(enabled))
                 }
             },
             onBlankWarningEnabledChange = { enabled ->
                 scope.launch {
-                    applySettingsAction(context, SettingsAction.BlankWarningEnabledChanged(enabled))?.let(::showSettingsToast)
+                    applySettingsAction(context, SettingsAction.BlankWarningEnabledChanged(enabled))
                 }
             }
         )

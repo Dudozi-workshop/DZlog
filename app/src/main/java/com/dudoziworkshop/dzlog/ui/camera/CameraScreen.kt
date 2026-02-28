@@ -119,7 +119,6 @@ import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnit
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
-import com.dudoziworkshop.dzlog.debug.CounterDebugDump
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
@@ -278,7 +277,15 @@ fun CameraPreview(
     suspend fun reloadLatestImage() {
         latestImage = withContext(Dispatchers.IO) {
             val reader = DzlogMediaStoreReader(context.contentResolver)
-            runCatching { reader.loadLatestImage() }.getOrNull()
+            val baseRelativePath = counterStreamContext.relativePathKey
+                .substringBefore("|g2=", counterStreamContext.relativePathKey)
+                .let { if (it.endsWith('/')) it else "$it/" }
+            val targetRelativePath = if (appSettings.saveMode == SaveMode.ORIGINAL_ONLY) {
+                "${baseRelativePath}original/"
+            } else {
+                baseRelativePath
+            }
+            runCatching { reader.loadLatestImageInRelativePath(targetRelativePath) }.getOrNull()
         }
     }
 
@@ -301,6 +308,7 @@ fun CameraPreview(
 
     LaunchedEffect(Unit) { reloadLatestImage() }
     LaunchedEffect(mediaStoreRefreshTick) { reloadLatestImage() }
+    LaunchedEffect(appSettings.saveMode, counterStreamContext.relativePathKey) { reloadLatestImage() }
 
     val sessionCaptureStack = remember { mutableStateListOf<List<Uri>>() }
     var pendingUndoDeleteUris by remember { mutableStateOf<List<Uri>?>(null) }
@@ -1016,14 +1024,6 @@ private fun SyncCounterSeedEffect(
         )
         val saveModeChanged = (lastSaveMode != null && lastSaveMode != appSettings.saveMode)
         val isExternalResync = (resumeTick != lastResumeTick) || (undoTick != lastUndoTick) || saveModeChanged
-        CounterDebugDump.dump(
-            tag = "Camera",
-            context = context,
-            scopedStream = scopedStream,
-            appSettings = appSettings,
-            nextSeed = nextSeedFromStream,
-            note = "isNewStream=$isNewStream externalResync=$isExternalResync saveModeChanged=$saveModeChanged templateReady=$isTemplateReady",
-        )
         val currentScopeSeed = ui.counter.scopeNextCounter
         val allowResetToOneOnNewStream =
             appSettings.includeDateInCounterScope || appSettings.includeTimeInCounterScope

@@ -2,113 +2,61 @@ package com.dudoziworkshop.dzlog.data.mediastore
 
 import android.content.ContentResolver
 import android.content.ContentUris
+import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import com.dudoziworkshop.dzlog.domain.model.LogGroupSummary
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 
 /**
- * DZlog 결과물(워터마크 이미지)만 조회하기 위한 MediaStore Reader.
+ * DZlog 결과물 조회용 MediaStore Reader.
  *
  * 정책:
- * - 포함: Pictures/DZlog/ 하위
- * - 제외: .../original/ 하위 (원본 저장 폴더)
+ * - 포함: Pictures/DZlog/ 하위 전체 (original 포함)
  */
 class DzlogMediaStoreReader(
     private val contentResolver: ContentResolver
 ) {
 
+    data class G1Node(
+        val name: String,
+        val waterRel: String,
+        val originalRel: String,
+        val waterCount: Int,
+        val originalCount: Int,
+        val hasG2: Boolean,
+        val latestDateAddedSeconds: Long,
+        val latestContentUri: Uri?,
+    )
+
+    data class G2Node(
+        val label: String,
+        val waterRel: String,
+        val originalRel: String,
+        val waterCount: Int,
+        val originalCount: Int,
+        val latestDateAddedSeconds: Long,
+        val latestContentUri: Uri?,
+    )
+
     private val dzlogBaseLike = "Pictures/DZlog/%"
-
-
-    /**
-     * G1 목록 + 대표 썸네일/개수/최근날짜 요약.
-     * - 정렬: 최근날짜 DESC, 그 다음 이름 ASC (기본은 맨 위)
-     */
-    fun loadG1Summaries(): List<LogGroupSummary> {
+    fun loadG1Nodes(): List<G1Node> {
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.RELATIVE_PATH,
-            MediaStore.Images.Media.DATE_ADDED
+            MediaStore.Images.Media.DATE_ADDED,
         )
-
         val selection = (
-                "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND " +
-        "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
-        trashClause()
-        )
-        val args = arrayOf(dzlogBaseLike, "%/original/%")
-
-
-        data class Agg(var count: Int, var latestSec: Long, var latestId: Long)
-        val map = linkedMapOf<String, Agg>()
-
-        contentResolver.query(uri, projection, selection, args, null)?.use { c ->
-            val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-            val relIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
-            val dateIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
-            while (c.moveToNext()) {
-                val id = c.getLong(idIdx)
-                val rp = c.getString(relIdx).orEmpty()
-                if (isOriginalPath(rp)) continue
-                val sec = c.getLong(dateIdx)
-
-                val g1 = extractG1(rp)
-                val agg = map.getOrPut(g1) { Agg(count = 0, latestSec = Long.MIN_VALUE, latestId = -1L) }
-                agg.count += 1
-                if (sec >= agg.latestSec) {
-                    agg.latestSec = sec
-                    agg.latestId = id
-                }
-            }
-        }
-
-        val summaries = map.map { (name, agg) ->
-            LogGroupSummary(
-                name = name,
-                photoCount = agg.count,
-                latestDateAddedSeconds = if (agg.latestSec == Long.MIN_VALUE) 0L else agg.latestSec,
-                latestContentUri = if (agg.latestId > 0) ContentUris.withAppendedId(uri, agg.latestId) else null
-            )
-        }
-
-        return summaries.sortedWith(
-            compareByDescending<LogGroupSummary> { it.name == DEFAULT_G1 } // false first
-                .thenByDescending { it.latestDateAddedSeconds }
-                .thenBy { it.name }
-        ).let { list ->
-            // (기본)은 항상 맨 위
-            val base = list.filter { it.name == DEFAULT_G1 }
-            val rest = list.filter { it.name != DEFAULT_G1 }
-            base + rest
-        }
-    }
-
-
-    /**
-     * 특정 G1 하위의 G2 목록 + 대표 썸네일/개수/최근날짜 요약.
-     * - 정렬: 최근날짜 DESC, 그 다음 이름 ASC (기본은 맨 위)
-     */
-    fun loadG2Summaries(g1: String): List<LogGroupSummary> {
-        val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-        val projection = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.RELATIVE_PATH,
-            MediaStore.Images.Media.DATE_ADDED
-        )
-
-        val g1Norm = normalizeG1(g1)
-        val like = if (g1Norm == DEFAULT_G1) dzlogBaseLike else "Pictures/DZlog/$g1Norm/%"
-        val selection = (
-            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND " +
-                    "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
+            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?" +
                 trashClause()
-                )
-        val args = arrayOf(like, "%/original/%")
+        )
+        val args = arrayOf(dzlogBaseLike)
 
-        data class Agg(var count: Int, var latestSec: Long, var latestId: Long)
-        val map = linkedMapOf<String, Agg>()
+        val g1Names = linkedSetOf<String>()
+        val g1HasG2 = mutableMapOf<String, Boolean>()
+        data class LatestAgg(var sec: Long, var id: Long)
+        val g1Latest = mutableMapOf<String, LatestAgg>()
+        val rootLatest = LatestAgg(Long.MIN_VALUE, -1L)
 
         contentResolver.query(uri, projection, selection, args, null)?.use { c ->
             val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
@@ -116,34 +64,158 @@ class DzlogMediaStoreReader(
             val dateIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
             while (c.moveToNext()) {
                 val id = c.getLong(idIdx)
-                val rp = c.getString(relIdx).orEmpty()
-                if (isOriginalPath(rp)) continue
+                val rp = ensureTrailingSlash(c.getString(relIdx).orEmpty())
                 val sec = c.getLong(dateIdx)
+                val segments = extractDzlogSegments(rp)
 
-                val g2 = extractG2(rp, g1Norm)
-                val agg = map.getOrPut(g2) { Agg(count = 0, latestSec = Long.MIN_VALUE, latestId = -1L) }
-                agg.count += 1
-                if (sec >= agg.latestSec) {
-                    agg.latestSec = sec
-                    agg.latestId = id
+                if (segments.isEmpty() || (segments.size == 1 && segments[0] == "original")) {
+                    if (sec >= rootLatest.sec) {
+                        rootLatest.sec = sec
+                        rootLatest.id = id
+                    }
+                }
+
+                if (segments.isEmpty()) continue
+
+                val g1 = segments[0]
+                if (g1 == "original") continue
+
+                g1Names += g1
+                val latest = g1Latest.getOrPut(g1) { LatestAgg(Long.MIN_VALUE, -1L) }
+                if (sec >= latest.sec) {
+                    latest.sec = sec
+                    latest.id = id
+                }
+                if (segments.size >= 2 && segments[1] != "original") {
+                    g1HasG2[g1] = true
                 }
             }
         }
 
-        val summaries = map.map { (name, agg) ->
-            LogGroupSummary(
-                name = name,
-                photoCount = agg.count,
-                latestDateAddedSeconds = if (agg.latestSec == Long.MIN_VALUE) 0L else agg.latestSec,
-                latestContentUri = if (agg.latestId > 0) ContentUris.withAppendedId(uri, agg.latestId) else null
+        val rootWaterRel = "Pictures/DZlog/"
+        val rootOriginalRel = "Pictures/DZlog/original/"
+        val rootNode = G1Node(
+            name = ROOT_G1,
+            waterRel = rootWaterRel,
+            originalRel = rootOriginalRel,
+            waterCount = countImagesInRelativePath(rootWaterRel),
+            originalCount = countImagesInRelativePath(rootOriginalRel),
+            hasG2 = g1Names.isNotEmpty(),
+            latestDateAddedSeconds = if (rootLatest.sec == Long.MIN_VALUE) 0L else rootLatest.sec,
+            latestContentUri = if (rootLatest.id > 0) ContentUris.withAppendedId(uri, rootLatest.id) else null,
+        )
+
+        val g1Nodes = g1Names.map { g1 ->
+            val waterRel = "Pictures/DZlog/$g1/"
+            val originalRel = "${waterRel}original/"
+            val latestAgg = g1Latest[g1]
+            val latestSec = latestAgg?.sec ?: Long.MIN_VALUE
+            val latestId = latestAgg?.id ?: -1L
+            G1Node(
+                name = g1,
+                waterRel = waterRel,
+                originalRel = originalRel,
+                waterCount = countImagesInRelativePath(waterRel),
+                originalCount = countImagesInRelativePath(originalRel),
+                hasG2 = g1HasG2[g1] == true,
+                latestDateAddedSeconds = if (latestSec == Long.MIN_VALUE) 0L else latestSec,
+                latestContentUri = if (latestId > 0) ContentUris.withAppendedId(uri, latestId) else null,
             )
+        }.sortedBy { it.name }
+
+        return listOf(rootNode) + g1Nodes
+    }
+    fun loadG2Nodes(g1: String): Pair<G2Node?, List<G2Node>> {
+        val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        val g1Key = g1.trim().takeIf { it.isNotBlank() } ?: ROOT_G1
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.RELATIVE_PATH,
+            MediaStore.Images.Media.DATE_ADDED,
+        )
+        val selection = (
+            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?" +
+                trashClause()
+        )
+        val args = arrayOf("Pictures/DZlog/$g1Key/%")
+
+        data class LatestAgg(var sec: Long, var id: Long)
+        val rootLatest = LatestAgg(Long.MIN_VALUE, -1L)
+        val g2Latest = mutableMapOf<String, LatestAgg>()
+        val g2Names = linkedSetOf<String>()
+
+        contentResolver.query(uri, projection, selection, args, null)?.use { c ->
+            val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val relIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
+            val dateIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+            while (c.moveToNext()) {
+                val id = c.getLong(idIdx)
+                val rp = ensureTrailingSlash(c.getString(relIdx).orEmpty())
+                val sec = c.getLong(dateIdx)
+                val restSegments = extractAfterG1Segments(rp, g1Key)
+
+                if (restSegments.isEmpty() || (restSegments.size == 1 && restSegments[0] == "original")) {
+                    if (sec >= rootLatest.sec) {
+                        rootLatest.sec = sec
+                        rootLatest.id = id
+                    }
+                    continue
+                }
+
+                val g2Name = restSegments.firstOrNull().orEmpty()
+                if (g2Name == "original" || g2Name.isBlank()) continue
+
+                g2Names += g2Name
+                val latest = g2Latest.getOrPut(g2Name) { LatestAgg(Long.MIN_VALUE, -1L) }
+                if (sec >= latest.sec) {
+                    latest.sec = sec
+                    latest.id = id
+                }
+            }
         }
 
-        // (기본)은 항상 맨 위
-        val base = summaries.filter { it.name == DEFAULT_G2 }
-        val rest = summaries.filter { it.name != DEFAULT_G2 }
-            .sortedWith(compareByDescending<LogGroupSummary> { it.latestDateAddedSeconds }.thenBy { it.name })
-        return base + rest
+        val rootWaterRel = "Pictures/DZlog/$g1Key/"
+        val rootOriginalRel = "${rootWaterRel}original/"
+        val rootWaterCount = countImagesInRelativePath(rootWaterRel)
+        val rootOriginalCount = countImagesInRelativePath(rootOriginalRel)
+        val groupRootNode = if (rootWaterCount + rootOriginalCount > 0) {
+            G2Node(
+                label = GROUP_ROOT_LABEL,
+                waterRel = rootWaterRel,
+                originalRel = rootOriginalRel,
+                waterCount = rootWaterCount,
+                originalCount = rootOriginalCount,
+                latestDateAddedSeconds = if (rootLatest.sec == Long.MIN_VALUE) 0L else rootLatest.sec,
+                latestContentUri = if (rootLatest.id > 0) ContentUris.withAppendedId(uri, rootLatest.id) else null,
+            )
+        } else {
+            null
+        }
+
+        val g2Nodes = g2Names.mapNotNull { g2 ->
+            val waterRel = "Pictures/DZlog/$g1Key/$g2/"
+            val originalRel = "${waterRel}original/"
+            val waterCount = countImagesInRelativePath(waterRel)
+            val originalCount = countImagesInRelativePath(originalRel)
+            if (waterCount == 0 && originalCount == 0) {
+                null
+            } else {
+                val latest = g2Latest[g2]
+                val latestSec = latest?.sec ?: Long.MIN_VALUE
+                val latestId = latest?.id ?: -1L
+                G2Node(
+                    label = g2,
+                    waterRel = waterRel,
+                    originalRel = originalRel,
+                    waterCount = waterCount,
+                    originalCount = originalCount,
+                    latestDateAddedSeconds = if (latestSec == Long.MIN_VALUE) 0L else latestSec,
+                    latestContentUri = if (latestId > 0) ContentUris.withAppendedId(uri, latestId) else null,
+                )
+            }
+        }.sortedBy { it.label }
+
+        return groupRootNode to g2Nodes
     }
 
     /**
@@ -160,14 +232,10 @@ class DzlogMediaStoreReader(
         )
 
         val selection = (
-            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND " +
-                    "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
-                    trashClause()
-            )
-        val args = arrayOf(
-            relWithSlash + "%",
-            "%/original/%"
+            "${MediaStore.Images.Media.RELATIVE_PATH} = ?" +
+                trashClause()
         )
+        val args = arrayOf(relWithSlash)
 
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
@@ -184,9 +252,6 @@ class DzlogMediaStoreReader(
                 val displayName = c.getString(nameIdx).orEmpty()
                 val rp = c.getString(relIdx).orEmpty()
                 val dateAdded = c.getLong(dateIdx)
-
-                // ✅ 원본 폴더는 앱 로그에서 제외
-                if (isOriginalPath(rp)) continue
 
                 val contentUri = ContentUris.withAppendedId(uri, id)
                 out.add(
@@ -205,8 +270,7 @@ class DzlogMediaStoreReader(
 
     /**
      * DZlog 전체 결과물 중 "가장 최근" 1장.
-     * - Pictures/DZlog/ 하위
-     * - .../original/ 제외
+     * - Pictures/DZlog/ 하위 (original 포함)
      */
     fun loadLatestImage(): MediaImageItem? {
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
@@ -217,11 +281,10 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.DATE_ADDED
         )
         val selection = (
-            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND " +
-                    "${MediaStore.Images.Media.RELATIVE_PATH} NOT LIKE ?" +
-                    trashClause()
-                )
-        val args = arrayOf(dzlogBaseLike, "%/original/%")
+            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?" +
+                trashClause()
+        )
+        val args = arrayOf(dzlogBaseLike)
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
         contentResolver.query(uri, projection, selection, args, sortOrder)?.use { c ->
@@ -236,7 +299,6 @@ class DzlogMediaStoreReader(
             val rp = c.getString(relIdx).orEmpty()
             val dateAdded = c.getLong(dateIdx)
 
-            if (isOriginalPath(rp)) return null
             val contentUri = ContentUris.withAppendedId(uri, id)
             return MediaImageItem(
                 id = id,
@@ -250,47 +312,95 @@ class DzlogMediaStoreReader(
     }
 
 
+    fun countImagesInRelativePath(relativePath: String): Int {
+        val relWithSlash = ensureTrailingSlash(relativePath)
+        val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(MediaStore.Images.Media._ID)
+        val selection = (
+            "${MediaStore.Images.Media.RELATIVE_PATH} = ?" +
+                trashClause()
+        )
+        val args = arrayOf(relWithSlash)
+
+        contentResolver.query(uri, projection, selection, args, null)?.use { c ->
+            return c.count
+        }
+        return 0
+    }
+
+    fun loadLatestImageInRelativePath(relativePath: String): MediaImageItem? {
+        val relWithSlash = ensureTrailingSlash(relativePath)
+        val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.RELATIVE_PATH,
+            MediaStore.Images.Media.DATE_ADDED
+        )
+        val selection = (
+            "${MediaStore.Images.Media.RELATIVE_PATH} = ?" +
+                trashClause()
+        )
+        val args = arrayOf(relWithSlash)
+        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+
+        contentResolver.query(uri, projection, selection, args, sortOrder)?.use { c ->
+            if (!c.moveToFirst()) return null
+            val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val nameIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+            val relIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
+            val dateIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+
+            val id = c.getLong(idIdx)
+            val displayName = c.getString(nameIdx).orEmpty()
+            val rp = c.getString(relIdx).orEmpty()
+            val dateAdded = c.getLong(dateIdx)
+
+            val contentUri = ContentUris.withAppendedId(uri, id)
+            return MediaImageItem(
+                id = id,
+                uri = contentUri,
+                displayName = displayName,
+                relativePath = rp,
+                dateAddedSeconds = dateAdded
+            )
+        }
+        return null
+    }
+
 
     // -------------------------
     // Internal helpers
     // -------------------------
 
-    private fun isOriginalPath(relativePath: String): Boolean {
-        return relativePath.contains("/original/")
-    }
-
-    private fun extractG1(relativePath: String): String {
-        // 기대 형태: Pictures/DZlog/ 또는 Pictures/DZlog/<G1>/ 또는 .../<G1>/<G2>/
-        val norm = ensureTrailingSlash(relativePath)
-        val prefix = "Pictures/DZlog/"
-        if (!norm.startsWith(prefix)) return DEFAULT_G1
-        val rest = norm.removePrefix(prefix)
-        if (rest.isBlank() || rest == "/") return DEFAULT_G1
-        val first = rest.substringBefore('/')
-        return first.ifBlank { DEFAULT_G1 }
-    }
-
-    private fun extractG2(relativePath: String, g1: String): String {
-        val norm = ensureTrailingSlash(relativePath)
-        val prefix = if (g1 == DEFAULT_G1) "Pictures/DZlog/" else "Pictures/DZlog/$g1/"
-        if (!norm.startsWith(prefix)) return DEFAULT_G2
-        val rest = norm.removePrefix(prefix)
-        // rest: "" or "<g2>/" or "<g2>/<...>/"
-        val first = rest.substringBefore('/')
-        return first.ifBlank { DEFAULT_G2 }
-    }
-
-    private fun normalizeG1(g1: String): String {
-        return g1.takeIf { it.isNotBlank() && it != DEFAULT_G1 } ?: DEFAULT_G1
-    }
-
     private fun ensureTrailingSlash(path: String): String {
         return if (path.endsWith('/')) path else "$path/"
     }
 
+    private fun extractDzlogSegments(relativePath: String): List<String> {
+        val prefix = "Pictures/DZlog/"
+        if (!relativePath.startsWith(prefix)) return emptyList()
+        return relativePath
+            .removePrefix(prefix)
+            .trim('/')
+            .split('/')
+            .filter { it.isNotBlank() }
+    }
+
+    private fun extractAfterG1Segments(relativePath: String, g1: String): List<String> {
+        val prefix = "Pictures/DZlog/$g1/"
+        val norm = ensureTrailingSlash(relativePath)
+        if (!norm.startsWith(prefix)) return emptyList()
+        return norm
+            .removePrefix(prefix)
+            .trim('/')
+            .split('/')
+            .filter { it.isNotBlank() }
+    }
+
     companion object {
-        const val DEFAULT_G1 = "(기본)"
-        const val DEFAULT_G2 = "(기본)"
+        const val ROOT_G1 = "DZlog"
+        const val GROUP_ROOT_LABEL = "하위 그룹 없음"
     }
 }
 

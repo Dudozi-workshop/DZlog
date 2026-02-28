@@ -8,7 +8,6 @@ import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -34,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,6 +61,10 @@ import kotlinx.coroutines.withContext
 fun LogGridScreen(
     g1: String,
     g2: String,
+    titleLabel: String,
+    relativePath: String,
+    originalRelativePath: String?,
+    onOpenOriginalFolder: (String) -> Unit,
     items: List<MediaImageItem>,
     isSelectionMode: Boolean,
     selectedIds: Set<Long>,
@@ -77,11 +81,11 @@ fun LogGridScreen(
 
     var error by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
-    val relativePath = remember(g1, g2) { buildRelativePathFromG1G2(g1, g2) }
+    var originalCount by remember { mutableIntStateOf(0) }
+    var originalLatestUri by remember { mutableStateOf<String?>(null) }
 
     val scope = rememberCoroutineScope()
     var reloadJob by remember { mutableStateOf<Job?>(null) }
-    var galleryToastShown by remember { mutableStateOf(false) }
 
     fun reloadImages() {
         // ✅ MediaStore 변경 이벤트가 연속으로 들어올 수 있어 디바운스 처리
@@ -134,13 +138,26 @@ fun LogGridScreen(
         }
     }
 
-    LaunchedEffect(items.size, isLoading) {
-        if (!galleryToastShown && !isLoading) {
-            Toast.makeText(context, "APP_GALLERY items=${items.size}", Toast.LENGTH_LONG).show()
-            galleryToastShown = true
+
+
+    suspend fun reloadOriginalCard() {
+        if (originalRelativePath.isNullOrBlank()) {
+            originalCount = 0
+            originalLatestUri = null
+        } else {
+            val (count, latestUri) = withContext(Dispatchers.IO) {
+                val count = reader.countImagesInRelativePath(originalRelativePath)
+                val latest = reader.loadLatestImageInRelativePath(originalRelativePath)?.uri?.toString()
+                count to latest
+            }
+            originalCount = count
+            originalLatestUri = latestUri
         }
     }
 
+    LaunchedEffect(originalRelativePath) {
+        reloadOriginalCard()
+    }
 
     // ✅ 앱 밖 변경(휴지통 복구/삭제 등)을 앱이 즉시 반영하도록 MediaStore 변경 감지
     // 선택 중에는 reload를 막아 버벅임 감소 (선택 해제 후 필요 시 수동/다른 트리거로 갱신)
@@ -151,6 +168,9 @@ fun LogGridScreen(
                 // 선택 모드 중엔 자동 재조회로 UI가 흔들리고 버벅임이 심해져서 차단
                 if (isSelectionMode) return
                 reloadImages()
+                scope.launch {
+                    reloadOriginalCard()
+                }
             }
         }
 
@@ -183,8 +203,15 @@ fun LogGridScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("INSIDE GROUP")
-                        Text("$g1 / $g2")
+                        Text(titleLabel)
+                        if (!originalRelativePath.isNullOrBlank() && originalCount > 0) {
+                            Spacer(Modifier.height(8.dp))
+                            LogOriginalPhotoEntryCard(
+                                count = originalCount,
+                                latestUriString = originalLatestUri,
+                                onClick = { onOpenOriginalFolder(originalRelativePath) }
+                            )
+                        }
                     }
                 }
             }
@@ -204,7 +231,7 @@ fun LogGridScreen(
 
             if (items.isEmpty()) {
                 Text("사진이 없습니다.")
-                Text("(결과물만 표시되며 original/ 폴더는 제외됩니다.)")
+                Text("(선택한 폴더의 사진만 표시됩니다.)")
                 return@Column
             }
 
@@ -272,15 +299,6 @@ fun LogGridScreen(
         }
     }
     // SelectionBottomBar는 Box 하단 고정으로 이동됨
-}
-
-private fun buildRelativePathFromG1G2(g1: String, g2: String): String {
-    val default = "(기본)"
-    return when {
-        g1 == default -> "Pictures/DZlog/"
-        g2 == default -> "Pictures/DZlog/$g1/"
-        else -> "Pictures/DZlog/$g1/$g2/"
-    }
 }
 
 private fun shareImages(context: android.content.Context, items: List<MediaImageItem>) {

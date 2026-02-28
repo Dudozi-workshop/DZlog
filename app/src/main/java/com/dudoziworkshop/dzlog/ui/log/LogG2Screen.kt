@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -31,26 +32,21 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.R
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.LogGroupSummary
-import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePath
 import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
 
-/**
- * G2 화면은 G1과 UI를 구분하기 위해 "큰 타일"(2열 그리드)로 구성.
- * - 길게 누르기: 선택 모드 진입 (삭제 목적)
- * - 선택 모드에서 Delete: 선택한 G2 폴더의 결과물 사진들을 MediaStore 삭제 요청
- */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LogG2Screen(
     g1: String,
     onBack: () -> Unit,
-    onSelectG2: (String) -> Unit,
+    onOpenGridForRelativePath: (g2Label: String, relativePath: String, originalRelativePath: String?) -> Unit,
 ) {
     val context = LocalContext.current
     val resolver = context.contentResolver
     val reader = remember { DzlogMediaStoreReader(resolver) }
 
-    var g2Summaries by remember { mutableStateOf<List<LogGroupSummary>>(emptyList()) }
+    var groupRootNode by remember { mutableStateOf<DzlogMediaStoreReader.G2Node?>(null) }
+    var g2Nodes by remember { mutableStateOf<List<DzlogMediaStoreReader.G2Node>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -62,11 +58,35 @@ fun LogG2Screen(
         selectedG2 = emptySet()
     }
 
+    fun toSummary(node: DzlogMediaStoreReader.G2Node): LogGroupSummary {
+        return LogGroupSummary(
+            name = node.label,
+            photoCount = node.waterCount + node.originalCount,
+            latestDateAddedSeconds = node.latestDateAddedSeconds,
+            latestContentUri = node.latestContentUri,
+        )
+    }
+
+    fun openByCounts(
+        label: String,
+        waterRel: String,
+        originalRel: String,
+        waterCount: Int,
+        originalCount: Int,
+    ) {
+        when {
+            waterCount > 0 -> onOpenGridForRelativePath(label, waterRel, originalRel)
+            originalCount > 0 -> onOpenGridForRelativePath(label, originalRel, null)
+            else -> Toast.makeText(context, "사진이 없습니다", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     fun reload() {
         isLoading = true
-        runCatching { reader.loadG2Summaries(g1) }
-            .onSuccess {
-                g2Summaries = it
+        runCatching { reader.loadG2Nodes(g1) }
+            .onSuccess { (rootNode, nodes) ->
+                groupRootNode = rootNode
+                g2Nodes = nodes
                 error = null
                 isLoading = false
             }
@@ -78,8 +98,7 @@ fun LogG2Screen(
 
     val deleteLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
-    ) { result ->
-        // 시스템 삭제 요청 결과에 상관없이 목록은 다시 조회(삭제 취소 시 동일 결과)
+    ) {
         reload()
         resetSelection()
     }
@@ -108,7 +127,6 @@ fun LogG2Screen(
         ) {
             Text("DZlog / $g1")
             Button(onClick = {
-                // G2 화면을 나가면 선택은 초기화
                 resetSelection()
                 onBack()
             }) { Text(stringResource(R.string.action_back)) }
@@ -126,16 +144,13 @@ fun LogG2Screen(
             return@Column
         }
 
-        if (g2Summaries.isEmpty()) {
+        if (g2Nodes.isEmpty() && groupRootNode == null) {
             Text("아직 사진이 없습니다.")
             return@Column
         }
 
-        // 선택 모드 UI
         if (isSelectionMode) {
-            SelectionTopBar(
-                selectedCount = selectedG2.size
-            )
+            SelectionTopBar(selectedCount = selectedG2.size)
         }
 
         LazyVerticalGrid(
@@ -146,46 +161,74 @@ fun LogG2Screen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(g2Summaries, key = { it.name }) { summary ->
-                val selected = selectedG2.contains(summary.name)
+            groupRootNode?.let { node ->
+                item(key = "group-root") {
+                    LogGroupTileCard(
+                        summary = toSummary(node),
+                        isSelected = false,
+                        isGroupRootHighlight = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .combinedClickable(
+                                onClick = {
+                                    openByCounts(
+                                        label = node.label,
+                                        waterRel = node.waterRel,
+                                        originalRel = node.originalRel,
+                                        waterCount = node.waterCount,
+                                        originalCount = node.originalCount,
+                                    )
+                                },
+                                onLongClick = { }
+                            )
+                    )
+                }
+            }
+
+            items(g2Nodes, key = { it.label }) { node ->
+                val selected = selectedG2.contains(node.label)
                 LogGroupTileCard(
-                    summary = summary,
+                    summary = toSummary(node),
                     isSelected = selected,
                     modifier = Modifier
                         .fillMaxWidth()
                         .combinedClickable(
                             onClick = {
                                 if (isSelectionMode) {
-                                    selectedG2 = if (selected) selectedG2 - summary.name else selectedG2 + summary.name
+                                    selectedG2 = if (selected) selectedG2 - node.label else selectedG2 + node.label
                                 } else {
-                                    onSelectG2(summary.name)
+                                    openByCounts(
+                                        label = node.label,
+                                        waterRel = node.waterRel,
+                                        originalRel = node.originalRel,
+                                        waterCount = node.waterCount,
+                                        originalCount = node.originalCount,
+                                    )
                                 }
                             },
                             onLongClick = {
                                 isSelectionMode = true
-                                selectedG2 = selectedG2 + summary.name
+                                selectedG2 = selectedG2 + node.label
                             }
                         )
                 )
             }
         }
 
-        // 하단 선택 액션바
         if (isSelectionMode) {
             SelectionBottomBar(
                 onClose = { resetSelection() },
                 onSelectAll = {
-                    selectedG2 = g2Summaries.map { it.name }.toSet()
+                    selectedG2 = g2Nodes.map { it.label }.toSet()
                 },
-                onShare = { /* G2 단위 공유는 MVP에서는 미사용 */ },
+                onShare = { },
                 shareEnabled = false,
                 onDelete = if (selectedG2.isNotEmpty()) {
                     {
                         val allUris = mutableListOf<android.net.Uri>()
-                        selectedG2.forEach { g2 ->
-                            val rel = buildGalleryRelativePath(g1, if (g2 == "(기본)") "" else g2)
-                            val imgs = reader.loadImages(rel)
-                            allUris.addAll(imgs.map { it.uri })
+                        g2Nodes.filter { selectedG2.contains(it.label) }.forEach { node ->
+                            allUris.addAll(reader.loadImages(node.waterRel).map { it.uri })
+                            allUris.addAll(reader.loadImages(node.originalRel).map { it.uri })
                         }
                         startDeleteRequest(allUris)
                     }

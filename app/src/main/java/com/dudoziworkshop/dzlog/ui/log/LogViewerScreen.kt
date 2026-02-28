@@ -48,6 +48,8 @@ import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
 fun LogViewerScreen(
     g1: String,
     g2: String,
+    titleLabel: String,
+    relativePath: String,
     items: List<MediaImageItem>,
     startIndex: Int,
     isSelectionMode: Boolean,
@@ -65,7 +67,6 @@ fun LogViewerScreen(
     val reader = remember { DzlogMediaStoreReader(resolver) }
 
     fun reloadAfterDelete() {
-        val relativePath = buildRelativePathFromG1G2(g1, g2)
         runCatching { reader.loadImages(relativePath) }
             .onSuccess { reloaded ->
                 onItemsReloaded(reloaded)
@@ -148,8 +149,7 @@ fun LogViewerScreen(
                 )
             } else {
                 ViewerTopBar(
-                    g1 = g1,
-                    g2 = g2,
+                    titleLabel = titleLabel,
                     current = if (items.isEmpty()) 0 else (pagerState.currentPage + 1),
                     total = items.size,
                     onBack = onBack
@@ -200,8 +200,7 @@ fun LogViewerScreen(
 
 @Composable
 private fun ViewerTopBar(
-    g1: String,
-    g2: String,
+    titleLabel: String,
     current: Int,
     total: Int,
     onBack: () -> Unit,
@@ -221,7 +220,7 @@ private fun ViewerTopBar(
             Text("$current / $total", color = Color.White)
         }
         Spacer(Modifier.height(6.dp))
-        Text("DZlog / $g1 / $g2", color = Color.White)
+        Text("DZlog / $titleLabel", color = Color.White)
     }
 }
 
@@ -240,15 +239,6 @@ private fun ViewerBottomBar(
     ) {
         Button(onClick = onShare, enabled = enabled) { Text("Share") }
         Button(onClick = onDelete, enabled = enabled) { Text(stringResource(R.string.action_delete)) }
-    }
-}
-
-private fun buildRelativePathFromG1G2(g1: String, g2: String): String {
-    val default = "(기본)"
-    return when {
-        g1 == default -> "Pictures/DZlog/"
-        g2 == default -> "Pictures/DZlog/$g1/"
-        else -> "Pictures/DZlog/$g1/$g2/"
     }
 }
 

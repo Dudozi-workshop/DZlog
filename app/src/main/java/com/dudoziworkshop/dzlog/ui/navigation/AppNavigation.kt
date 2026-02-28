@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
+import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ORIENTATION_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
 import com.dudoziworkshop.dzlog.data.preferences.OrientationMode
@@ -26,6 +27,7 @@ import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.template.defaultTableTemplateState
 import com.dudoziworkshop.dzlog.data.template.tableTemplateStateFromJson
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePath
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
@@ -35,6 +37,7 @@ import com.dudoziworkshop.dzlog.ui.log.LogG1Screen
 import com.dudoziworkshop.dzlog.ui.log.LogG2Screen
 import com.dudoziworkshop.dzlog.ui.log.LogGridScreen
 import com.dudoziworkshop.dzlog.ui.log.LogViewerScreen
+import com.dudoziworkshop.dzlog.ui.log.ORIGINAL_PHOTOS_TITLE
 import com.dudoziworkshop.dzlog.ui.table.TableEditorScreen
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -72,6 +75,10 @@ fun AppRoot() {
 // 앨범(G1/G2/그리드/뷰어) 상태
     var selectedG1 by remember { mutableStateOf<String?>(null) }
     var selectedG2 by remember { mutableStateOf<String?>(null) }
+    var selectedRelativePath by remember { mutableStateOf<String?>(null) }
+    var selectedAlbumTitle by remember { mutableStateOf<String?>(null) }
+    var albumGridEntryScreen by remember { mutableStateOf(AppScreen.ALBUM_G2) }
+    var gridOriginalRelativePath by remember { mutableStateOf<String?>(null) }
     var gridItems by remember { mutableStateOf<List<com.dudoziworkshop.dzlog.domain.model.MediaImageItem>>(emptyList()) }
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -174,6 +181,16 @@ fun AppRoot() {
         screen = target
     }
 
+    fun computeAlbumTitle(selectedTitle: String?, g1: String, g2: String?): String {
+        selectedTitle?.let { return it }
+        val g2Norm = g2?.trim().orEmpty()
+        return when {
+            g1 == DzlogMediaStoreReader.ROOT_G1 && g2Norm.isBlank() -> DzlogMediaStoreReader.ROOT_G1
+            g2Norm.isBlank() -> "DZlog / $g1"
+            else -> "DZlog / $g1 / $g2Norm"
+        }
+    }
+
     fun isAlbumScreen(target: AppScreen): Boolean {
         return target == AppScreen.ALBUM_G1 ||
             target == AppScreen.ALBUM_G2 ||
@@ -184,6 +201,10 @@ fun AppRoot() {
     fun openAlbumRoot() {
         selectedG1 = null
         selectedG2 = null
+        selectedRelativePath = null
+        selectedAlbumTitle = null
+        albumGridEntryScreen = AppScreen.ALBUM_G1
+        gridOriginalRelativePath = null
         gridItems = emptyList()
         isSelectionMode = false
         selectedIds = emptySet()
@@ -194,8 +215,20 @@ fun AppRoot() {
     }
 
     fun openRecentCaptureGrid(g1: String, g2: String, startIndex: Int) {
+        val g2Value = g2.trim()
         selectedG1 = g1
-        selectedG2 = g2
+        selectedG2 = g2Value
+        if (g2Value == ORIGINAL_PHOTOS_TITLE) {
+            val base = buildGalleryRelativePath(g1, "")
+            selectedRelativePath = "${base}original/"
+            selectedAlbumTitle = ORIGINAL_PHOTOS_TITLE
+            gridOriginalRelativePath = null
+        } else {
+            selectedRelativePath = buildGalleryRelativePath(g1, g2Value)
+            selectedAlbumTitle = null
+            gridOriginalRelativePath = null
+        }
+        albumGridEntryScreen = AppScreen.ALBUM_G2
         gridItems = emptyList()
         isSelectionMode = false
         selectedIds = emptySet()
@@ -233,7 +266,7 @@ fun AppRoot() {
                 } else if (directReturnToCameraFromAlbumGrid) {
                     screen = AppScreen.CAMERA
                 } else {
-                    screen = AppScreen.ALBUM_G2
+                    screen = albumGridEntryScreen
                 }
             }
             AppScreen.ALBUM_VIEWER -> screen = if (directReturnToCameraFromAlbumGrid) AppScreen.CAMERA else AppScreen.ALBUM_GRID
@@ -291,15 +324,69 @@ fun AppRoot() {
             onOpenTableDetail = { navigateTo(AppScreen.TABLE_EDITOR) }
         )
         AppScreen.ALBUM_G1 -> {
+            fun openGridByCounts(
+                title: String,
+                waterRel: String,
+                originalRel: String,
+                waterCount: Int,
+                originalCount: Int,
+            ) {
+                when {
+                    waterCount > 0 -> {
+                        selectedG1 = title
+                        selectedG2 = if (title == DzlogMediaStoreReader.ROOT_G1) "" else title
+                        selectedRelativePath = waterRel
+                        selectedAlbumTitle = if (title == DzlogMediaStoreReader.ROOT_G1) DzlogMediaStoreReader.ROOT_G1 else null
+                        gridOriginalRelativePath = originalRel
+                        albumGridEntryScreen = AppScreen.ALBUM_G1
+                        gridItems = emptyList()
+                        isSelectionMode = false
+                        selectedIds = emptySet()
+                        viewerStartIndex = 0
+                        screen = AppScreen.ALBUM_GRID
+                    }
+
+                    originalCount > 0 -> {
+                        selectedG1 = title
+                        selectedG2 = ORIGINAL_PHOTOS_TITLE
+                        selectedRelativePath = originalRel
+                        selectedAlbumTitle = ORIGINAL_PHOTOS_TITLE
+                        gridOriginalRelativePath = null
+                        albumGridEntryScreen = AppScreen.ALBUM_G1
+                        gridItems = emptyList()
+                        isSelectionMode = false
+                        selectedIds = emptySet()
+                        viewerStartIndex = 0
+                        screen = AppScreen.ALBUM_GRID
+                    }
+
+                    else -> {
+                        Toast.makeText(context, "사진이 없습니다", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+
             LogG1Screen(
                 onBack = { screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME },
-                onSelectG1 = { g1 ->
+                onOpenG2 = { g1 ->
                     selectedG1 = g1
                     selectedG2 = null
+                    selectedRelativePath = null
+                    selectedAlbumTitle = null
+                    gridOriginalRelativePath = null
                     gridItems = emptyList()
                     isSelectionMode = false
                     selectedIds = emptySet()
                     screen = AppScreen.ALBUM_G2
+                },
+                onOpenGridByRuleC = { title, waterRel, originalRel, waterCount, originalCount ->
+                    openGridByCounts(
+                        title = title,
+                        waterRel = waterRel,
+                        originalRel = originalRel,
+                        waterCount = waterCount,
+                        originalCount = originalCount,
+                    )
                 }
             )
         }
@@ -313,10 +400,17 @@ fun AppRoot() {
                     g1 = g1,
                     onBack = {
                         selectedG2 = null
+                        selectedRelativePath = null
+                        selectedAlbumTitle = null
+                        gridOriginalRelativePath = null
                         screen = AppScreen.ALBUM_G1
                     },
-                    onSelectG2 = { g2 ->
-                        selectedG2 = g2
+                    onOpenGridForRelativePath = { g2Label, relativePath, originalRelativePath ->
+                        selectedG2 = g2Label
+                        selectedRelativePath = relativePath
+                        selectedAlbumTitle = if (relativePath.contains("/original/")) ORIGINAL_PHOTOS_TITLE else null
+                        albumGridEntryScreen = AppScreen.ALBUM_G2
+                        gridOriginalRelativePath = originalRelativePath
                         gridItems = emptyList()
                         isSelectionMode = false
                         selectedIds = emptySet()
@@ -329,12 +423,16 @@ fun AppRoot() {
         AppScreen.ALBUM_GRID -> {
             val g1 = selectedG1
             val g2 = selectedG2
-            if (g1 == null || g2 == null) {
+            val relativePath = selectedRelativePath
+            if (g1 == null || g2 == null || relativePath == null) {
                 screen = if (g1 == null) AppScreen.ALBUM_G1 else AppScreen.ALBUM_G2
             } else {
+                val titleLabel = computeAlbumTitle(selectedAlbumTitle, g1, g2)
                 LogGridScreen(
                     g1 = g1,
                     g2 = g2,
+                    titleLabel = titleLabel,
+                    relativePath = relativePath,
                     items = gridItems,
                     isSelectionMode = isSelectionMode,
                     selectedIds = selectedIds,
@@ -342,6 +440,16 @@ fun AppRoot() {
                     onOpenViewer = { idx ->
                         viewerStartIndex = idx
                         screen = AppScreen.ALBUM_VIEWER
+                    },
+                    originalRelativePath = gridOriginalRelativePath,
+                    onOpenOriginalFolder = { originalPath ->
+                        selectedRelativePath = originalPath
+                        selectedAlbumTitle = ORIGINAL_PHOTOS_TITLE
+                        gridOriginalRelativePath = null
+                        gridItems = emptyList()
+                        viewerStartIndex = 0
+                        isSelectionMode = false
+                        selectedIds = emptySet()
                     },
                     onToggleSelection = { id ->
                         selectedIds =
@@ -368,12 +476,16 @@ fun AppRoot() {
         AppScreen.ALBUM_VIEWER -> {
             val g1 = selectedG1
             val g2 = selectedG2
-            if (g1 == null || g2 == null) {
+            val relativePath = selectedRelativePath
+            if (g1 == null || g2 == null || relativePath == null) {
                 screen = if (g1 == null) AppScreen.ALBUM_G1 else AppScreen.ALBUM_G2
             } else {
+                val titleLabel = computeAlbumTitle(selectedAlbumTitle, g1, g2)
                 LogViewerScreen(
                     g1 = g1,
                     g2 = g2,
+                    titleLabel = titleLabel,
+                    relativePath = relativePath,
                     items = gridItems,
                     startIndex = viewerStartIndex,
                     isSelectionMode = isSelectionMode,

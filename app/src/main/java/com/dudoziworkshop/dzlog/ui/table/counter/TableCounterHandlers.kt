@@ -24,7 +24,6 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
-import com.dudoziworkshop.dzlog.debug.CounterDebugDump
 import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogEffect
 import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterPolicyCoordinator
 import kotlinx.coroutines.CoroutineScope
@@ -254,16 +253,6 @@ internal suspend fun syncCounterStateForScope(
         counterDigits = previewCounterDigits,
         saveMode = saveMode,
     ).coerceAtLeast(1)
-    CounterDebugDump.dumpLite(
-        tag = "Table",
-        context = context,
-        scopedStream = scopedCounterStream,
-        saveMode = saveMode,
-        includePathInCounterScope = counterUi.includePathInCounterScope,
-        includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
-        nextSeed = streamNext,
-        note = "manualDisplay=$isManualCounterModeDisplay",
-    )
     val isManualCounterMode = TableCounterPolicyCoordinator.isManualOverrideActive(
         context = context,
         scopedStream = scopedCounterStream
