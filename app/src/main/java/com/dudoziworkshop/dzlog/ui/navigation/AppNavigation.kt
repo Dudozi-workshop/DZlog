@@ -77,6 +77,8 @@ fun AppRoot() {
     var selectedG2 by remember { mutableStateOf<String?>(null) }
     var selectedRelativePath by remember { mutableStateOf<String?>(null) }
     var selectedAlbumTitle by remember { mutableStateOf<String?>(null) }
+    var albumOriginalReturnRelativePath by remember { mutableStateOf<String?>(null) }
+    var albumOriginalReturnTitle by remember { mutableStateOf<String?>(null) }
     var albumGridEntryScreen by remember { mutableStateOf(AppScreen.ALBUM_G2) }
     var gridOriginalRelativePath by remember { mutableStateOf<String?>(null) }
     var gridItems by remember { mutableStateOf<List<com.dudoziworkshop.dzlog.domain.model.MediaImageItem>>(emptyList()) }
@@ -203,6 +205,8 @@ fun AppRoot() {
         selectedG2 = null
         selectedRelativePath = null
         selectedAlbumTitle = null
+        albumOriginalReturnRelativePath = null
+        albumOriginalReturnTitle = null
         albumGridEntryScreen = AppScreen.ALBUM_G1
         gridOriginalRelativePath = null
         gridItems = emptyList()
@@ -228,6 +232,8 @@ fun AppRoot() {
             selectedAlbumTitle = null
             gridOriginalRelativePath = null
         }
+        albumOriginalReturnRelativePath = null
+        albumOriginalReturnTitle = null
         albumGridEntryScreen = AppScreen.ALBUM_G2
         gridItems = emptyList()
         isSelectionMode = false
@@ -263,6 +269,11 @@ fun AppRoot() {
                 if (isSelectionMode) {
                     isSelectionMode = false
                     selectedIds = emptySet()
+                } else if (selectedAlbumTitle == ORIGINAL_PHOTOS_TITLE && albumOriginalReturnRelativePath != null) {
+                    selectedRelativePath = albumOriginalReturnRelativePath
+                    selectedAlbumTitle = albumOriginalReturnTitle
+                    albumOriginalReturnRelativePath = null
+                    albumOriginalReturnTitle = null
                 } else if (directReturnToCameraFromAlbumGrid) {
                     screen = AppScreen.CAMERA
                 } else {
@@ -443,6 +454,8 @@ fun AppRoot() {
                     },
                     originalRelativePath = gridOriginalRelativePath,
                     onOpenOriginalFolder = { originalPath ->
+                        albumOriginalReturnRelativePath = selectedRelativePath
+                        albumOriginalReturnTitle = selectedAlbumTitle
                         selectedRelativePath = originalPath
                         selectedAlbumTitle = ORIGINAL_PHOTOS_TITLE
                         gridOriginalRelativePath = null
