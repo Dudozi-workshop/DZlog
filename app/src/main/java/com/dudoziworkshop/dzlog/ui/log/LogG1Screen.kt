@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.LogGroupSummary
+import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
 @Suppress("UNUSED_PARAMETER")
 @OptIn(ExperimentalFoundationApi::class)
@@ -76,9 +78,13 @@ fun LogG1Screen(
             Row(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "DZlog",
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(top = 20.dp),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
+                    color = DDZColor.Primary,
                     textAlign = TextAlign.Center,
                 )
             }

@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.ui.log
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,7 +28,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.LogGroupSummary
-import com.dudoziworkshop.dzlog.ui.theme.Beige100
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -44,13 +44,19 @@ fun LogGroupCard(
 ) {
     val cardBackground = when {
         isRootHighlight || isGroupRootHighlight -> DDZColor.SageLight
-        else -> Beige100
+        else -> DDZColor.Card
+    }
+
+    val borderColor = when {
+        isRootHighlight || isGroupRootHighlight -> DDZColor.Sage
+        else -> DDZColor.Border
     }
 
     Row(
         modifier = modifier
             .padding(vertical = 8.dp)
             .clip(RoundedCornerShape(20.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(20.dp))
             .background(cardBackground)
             .padding(20.dp)
             .alpha(if (isSelected) 0.7f else 1f),
@@ -61,19 +67,19 @@ fun LogGroupCard(
                 text = titleOverride ?: summary.name,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = DDZColor.TextPrimary,
             )
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(12.dp))
             Text(
                 text = "${summary.photoCount}장",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = DDZColor.TextPrimary,
             )
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 text = formatDateKorean(summary.latestDateAddedSeconds),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = DDZColor.TextMuted,
             )
         }
 
@@ -147,11 +153,16 @@ fun LogGroupTileCard(
             }
 
             Column(modifier = Modifier.padding(12.dp)) {
-                Text(text = summary.name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = summary.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = DDZColor.TextPrimary,
+                )
                 Spacer(Modifier.height(6.dp))
                 Text(
                     text = "${summary.photoCount}장 · ${formatDateKorean(summary.latestDateAddedSeconds)}",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = DDZColor.TextMuted,
                 )
             }
         }
@@ -201,7 +212,7 @@ fun LogOriginalPhotoEntryCard(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "$count장",
+                    text = "$count 장",
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
