@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -45,6 +46,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,6 +61,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
@@ -82,6 +85,8 @@ fun LogViewerScreen(
     val context = LocalContext.current
     val resolver = context.contentResolver
     val reader = remember { DzlogMediaStoreReader(resolver) }
+    val favoritesRepository = remember(context) { FavoritesProvider.repo(context) }
+    val favoriteIds by favoritesRepository.favoriteIdsFlow.collectAsState(initial = emptySet())
     val scope = rememberCoroutineScope()
 
     fun reloadAfterDelete() {
@@ -114,7 +119,6 @@ fun LogViewerScreen(
 
     var uiVisible by remember { mutableStateOf(false) }
     var showInfoSheet by remember { mutableStateOf(false) }
-    var favoriteIds by remember { mutableStateOf(setOf<Long>()) }
 
     LaunchedEffect(safeStart) {
         if (items.isNotEmpty()) {
@@ -190,6 +194,7 @@ fun LogViewerScreen(
                 ThumbnailFilmstrip(
                     items = items,
                     currentPage = pagerState.currentPage,
+                    favoriteIds = favoriteIds,
                     onThumbnailClick = { index ->
                         scope.launch {
                             pagerState.animateScrollToPage(index)
@@ -200,12 +205,9 @@ fun LogViewerScreen(
                 ViewerBottomPill(
                     onFavorite = {
                         val item = currentItem ?: return@ViewerBottomPill
-                        favoriteIds = if (favoriteIds.contains(item.id)) {
-                            favoriteIds - item.id
-                        } else {
-                            favoriteIds + item.id
+                        scope.launch {
+                            favoritesRepository.toggleFavorite(item)
                         }
-                        // TODO: favorite 상태를 영구 저장할 수 있도록 데이터 계층과 연동
                     },
                     isFavorite = currentItem?.id?.let(favoriteIds::contains) == true,
                     onInfo = {
@@ -310,6 +312,7 @@ private fun ViewerBottomPill(
 private fun ThumbnailFilmstrip(
     items: List<MediaImageItem>,
     currentPage: Int,
+    favoriteIds: Set<Long>,
     onThumbnailClick: (Int) -> Unit,
 ) {
     LazyRow(
@@ -332,7 +335,26 @@ private fun ThumbnailFilmstrip(
                     .clickable { onThumbnailClick(index) },
                 color = Color.Black
             ) {
-                DzThumbnail(uriString = item.uri.toString())
+                Box(modifier = Modifier.fillMaxSize()) {
+                    DzThumbnail(uriString = item.uri.toString())
+
+                    if (favoriteIds.contains(item.id)) {
+                        Box(
+                            modifier = Modifier
+                                .padding(4.dp)
+                                .align(Alignment.TopEnd)
+                                .background(Color(0xCC000000), shape = CircleShape)
+                                .padding(2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Favorite,
+                                contentDescription = null,
+                                tint = Color(0xFFFF5C7A),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }

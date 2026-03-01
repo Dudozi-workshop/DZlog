@@ -8,11 +8,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.dudoziworkshop.dzlog.data.counterindex.CounterIndexDao
 import com.dudoziworkshop.dzlog.data.counterindex.CounterIndexEntity
+import com.dudoziworkshop.dzlog.data.favorites.FavoriteEntity
+import com.dudoziworkshop.dzlog.data.favorites.FavoritesDao
 
-@Database(entities = [LogEntity::class, CounterIndexEntity::class], version = 3)
+@Database(entities = [LogEntity::class, CounterIndexEntity::class, FavoriteEntity::class], version = 4)
 abstract class LogDatabase : RoomDatabase() {
     abstract fun logDao(): LogDao
     abstract fun counterIndexDao(): CounterIndexDao
+    abstract fun favoritesDao(): FavoritesDao
 
     companion object {
         @Volatile
@@ -56,6 +59,24 @@ abstract class LogDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS favorites (
+                        mediaId INTEGER NOT NULL,
+                        uriString TEXT NOT NULL,
+                        relativePath TEXT NOT NULL,
+                        displayName TEXT NOT NULL,
+                        dateAddedSeconds INTEGER NOT NULL,
+                        favoritedAtMillis INTEGER NOT NULL,
+                        PRIMARY KEY(mediaId)
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getInstance(context: Context): LogDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -63,7 +84,7 @@ abstract class LogDatabase : RoomDatabase() {
                     LogDatabase::class.java,
                     "dzlog.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build().also { INSTANCE = it }
             }
         }

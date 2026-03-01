@@ -11,6 +11,7 @@ import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,10 +27,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,11 +43,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
@@ -51,6 +58,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+private enum class GridSortOption { DATE, FAVORITE }
 
 /**
  * 그룹 내부 그리드 화면
@@ -75,6 +84,8 @@ fun LogGridScreen(
     val context = LocalContext.current
     val resolver = context.contentResolver
     val reader = remember { DzlogMediaStoreReader(resolver) }
+    val favoritesRepository = remember(context) { FavoritesProvider.repo(context) }
+    val favoriteIds by favoritesRepository.favoriteIdsFlow.collectAsState(initial = emptySet())
 
     val titleText = remember(relativePath) {
         relativePath
@@ -90,6 +101,17 @@ fun LogGridScreen(
 
     val scope = rememberCoroutineScope()
     var reloadJob by remember { mutableStateOf<Job?>(null) }
+    var sortOption by rememberSaveable { mutableStateOf(GridSortOption.DATE) }
+
+    val displayItems = remember(items, favoriteIds, sortOption) {
+        when (sortOption) {
+            GridSortOption.DATE -> items
+            GridSortOption.FAVORITE -> items.sortedWith(
+                compareByDescending<MediaImageItem> { favoriteIds.contains(it.id) }
+                    .thenByDescending { it.dateAddedSeconds }
+            )
+        }
+    }
 
     fun reloadImages() {
         // ✅ MediaStore 변경 이벤트가 연속으로 들어올 수 있어 디바운스 처리
@@ -201,9 +223,9 @@ fun LogGridScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(titleText)
                         if (!originalRelativePath.isNullOrBlank() && originalCount > 0) {
                             Spacer(Modifier.height(8.dp))
@@ -213,6 +235,18 @@ fun LogGridScreen(
                                 onClick = { onOpenOriginalFolder(originalRelativePath) }
                             )
                         }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SortToggleChip(
+                            text = "날짜",
+                            selected = sortOption == GridSortOption.DATE,
+                            onClick = { sortOption = GridSortOption.DATE }
+                        )
+                        SortToggleChip(
+                            text = "좋아요",
+                            selected = sortOption == GridSortOption.FAVORITE,
+                            onClick = { sortOption = GridSortOption.FAVORITE }
+                        )
                     }
                 }
             }
@@ -242,7 +276,7 @@ fun LogGridScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxSize().padding(bottom = bottomInset)
             ) {
-                itemsIndexed(items, key = { _, it -> it.id }) { idx, item ->
+                itemsIndexed(displayItems, key = { _, it -> it.id }) { _, item ->
                     val selected = selectedIds.contains(item.id)
                     Card(
                         modifier = Modifier
@@ -250,15 +284,30 @@ fun LogGridScreen(
                             .aspectRatio(1f)
                             .combinedClickable(
                                 onClick = {
-                                    if (isSelectionMode) onToggleSelection(item.id) else onOpenViewer(
-                                        idx
-                                    )
+                                    if (isSelectionMode) onToggleSelection(item.id) else onOpenViewer(items.indexOfFirst { it.id == item.id }.coerceAtLeast(0))
                                 },
                                 onLongClick = { onEnterSelectionWith(item.id) }
                             )
                     ) {
                         Box(modifier = Modifier.fillMaxSize()) {
                             DzThumbnail(uriString = item.uri.toString())
+
+                            if (favoriteIds.contains(item.id)) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(6.dp)
+                                        .align(Alignment.TopEnd)
+                                        .background(Color(0xCC000000), shape = androidx.compose.foundation.shape.CircleShape)
+                                        .padding(2.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Favorite,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFF5C7A),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
 
                             if (selected) {
                                 Box(
@@ -302,7 +351,30 @@ fun LogGridScreen(
     // SelectionBottomBar는 Box 하단 고정으로 이동됨
 }
 
+@Composable
+private fun SortToggleChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .background(
+                color = if (selected) Color(0xFF2D2D2D) else Color(0xFF1B1B1B),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = text,
+            color = if (selected) Color.White else Color.LightGray,
+        )
+    }
+}
+
 private fun shareImages(context: android.content.Context, items: List<MediaImageItem>) {
+
     if (items.isEmpty()) return
     val uris = ArrayList(items.map { it.uri })
     val intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
