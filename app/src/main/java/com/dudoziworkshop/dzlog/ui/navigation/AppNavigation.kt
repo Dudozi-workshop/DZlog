@@ -233,6 +233,16 @@ fun AppRoot() {
         return if (directReturnToCameraFromAlbumGrid) AppScreen.CAMERA else albumGridEntryScreen
     }
 
+    fun requireValidAlbumLocationOrFallback(): AlbumLocation? {
+        val location = albumLocation
+        if (location == null || location.relativePath.isBlank()) {
+            // 앨범 그리드/뷰어 상위 복귀는 albumGridEntryScreen을 SSOT로 사용한다.
+            screen = resolveAlbumFallbackScreen()
+            return null
+        }
+        return location
+    }
+
     fun openWaterGrid(location: AlbumLocation) {
         albumLocation = location
         clearOriginalContext()
@@ -512,11 +522,8 @@ fun AppRoot() {
         }
         // 📸 앨범 내 사진 목록 화면
         AppScreen.ALBUM_GRID -> {
-            val location = albumLocation
-            if (location == null || location.relativePath.isBlank()) {
-                // 앨범 그리드/뷰어 상위 복귀는 albumGridEntryScreen을 SSOT로 사용한다.
-                screen = resolveAlbumFallbackScreen()
-            } else {
+            val location = requireValidAlbumLocationOrFallback()
+            if (location != null) {
                 val titleLabel = computeAlbumTitle(location)
                 LogGridScreen(
                     g1 = location.g1,
@@ -567,11 +574,8 @@ fun AppRoot() {
 
 // 📷 앨범 내 개별 사진 뷰어 화면
         AppScreen.ALBUM_VIEWER -> {
-            val location = albumLocation
-            if (location == null || location.relativePath.isBlank()) {
-                // 앨범 그리드/뷰어 상위 복귀는 albumGridEntryScreen을 SSOT로 사용한다.
-                screen = resolveAlbumFallbackScreen()
-            } else {
+            val location = requireValidAlbumLocationOrFallback()
+            if (location != null) {
                 val titleLabel = computeAlbumTitle(location)
                 LogViewerScreen(
                     g1 = location.g1,
