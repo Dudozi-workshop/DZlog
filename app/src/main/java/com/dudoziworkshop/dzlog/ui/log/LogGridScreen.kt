@@ -29,10 +29,12 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -49,11 +51,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
+import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.ui.theme.dzTopInset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -70,6 +76,8 @@ private enum class GridSortOption { DATE, FAVORITE }
  */
 @Composable
 fun LogGridScreen(
+    headerTitle: String,
+    isOriginalGrid: Boolean,
     relativePath: String,
     originalRelativePath: String?,
     onOpenOriginalFolder: (String) -> Unit,
@@ -82,19 +90,13 @@ fun LogGridScreen(
     onEnterSelectionWith: (id: Long) -> Unit,
     onExitSelection: () -> Unit,
     onSelectAll: () -> Unit,
+    onBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val resolver = context.contentResolver
     val reader = remember { DzlogMediaStoreReader(resolver) }
     val favoritesRepository = remember(context) { FavoritesProvider.repo(context) }
     val favoriteIds by favoritesRepository.favoriteIdsFlow.collectAsState(initial = emptySet())
-
-    val titleText = remember(relativePath) {
-        relativePath
-            .trimEnd('/')
-            .substringAfterLast('/')
-            .ifBlank { relativePath }
-    }
 
     var error by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
@@ -228,23 +230,40 @@ fun LogGridScreen(
                     )
                 }
             } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = dzTopInset()),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = dzTopInset()),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(titleText)
-                        if (!originalRelativePath.isNullOrBlank() && originalCount > 0) {
-                            Spacer(Modifier.height(8.dp))
-                            LogOriginalPhotoEntryCard(
-                                count = originalCount,
-                                latestUriString = originalLatestUri,
-                                onClick = { onOpenOriginalFolder(originalRelativePath) }
-                            )
-                        }
+                    IconButton(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .align(Alignment.CenterStart),
+                        onClick = onBack
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "back",
+                            tint = DDZColor.Primary,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                    Text(
+                        text = headerTitle,
+                        modifier = Modifier.padding(horizontal = 56.dp),
+                        textAlign = TextAlign.Center,
+                        style = DDZTypography.ScreenTitle,
+                        color = DDZColor.Primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Row(
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         SortToggleChip(
                             text = "날짜",
                             selected = sortOption == GridSortOption.DATE,
@@ -257,9 +276,19 @@ fun LogGridScreen(
                         )
                     }
                 }
+
+                Spacer(Modifier.height(12.dp))
+
+                if (!isOriginalGrid && !originalRelativePath.isNullOrBlank() && originalCount > 0) {
+                    LogOriginalPhotoEntryCard(
+                        count = originalCount,
+                        latestUriString = originalLatestUri,
+                        onClick = { onOpenOriginalFolder(originalRelativePath) }
+                    )
+                }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
 
             if (error != null) {
                 Text("오류: $error")

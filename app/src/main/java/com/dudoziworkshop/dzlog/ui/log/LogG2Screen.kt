@@ -7,9 +7,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,9 +20,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,9 +33,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.R
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
@@ -37,6 +45,8 @@ import com.dudoziworkshop.dzlog.domain.model.LogGroupSummary
 import com.dudoziworkshop.dzlog.feature.log.policy.buildDeleteTargetsForG2Selection
 import com.dudoziworkshop.dzlog.feature.log.policy.collectDeleteUris
 import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
+import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.ui.theme.dzTopInset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -154,19 +164,36 @@ fun LogG2Screen(
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = dzTopInset()),
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("DZlog / $g1")
-            Button(onClick = {
-                if (isSelectionMode) {
-                    resetSelection()
-                } else {
-                    onBack()
+            IconButton(
+                modifier = Modifier.size(40.dp),
+                onClick = {
+                    if (isSelectionMode) {
+                        resetSelection()
+                    } else {
+                        onBack()
+                    }
                 }
-            }) { Text(stringResource(R.string.action_back)) }
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.action_back),
+                    tint = DDZColor.Primary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Text(
+                text = "DZlog / $g1",
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.Center,
+                color = DDZColor.Primary,
+                style = DDZTypography.ScreenTitle,
+            )
+            Box(modifier = Modifier.size(40.dp))
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
 
         if (isLoading) {
             CircularProgressIndicator()
@@ -193,7 +220,8 @@ fun LogG2Screen(
                 .weight(1f, fill = true)
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 16.dp),
         ) {
             groupRootNode?.let { node ->
                 item(key = "group-root") {

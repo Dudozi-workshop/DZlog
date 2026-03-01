@@ -303,6 +303,52 @@ fun AppRoot() {
         navigateTo(AppScreen.ALBUM_GRID)
     }
 
+
+    fun buildGridHeaderTitle(location: AlbumLocation): String {
+        val base = buildString {
+            append("DZlog / ")
+            append(location.g1)
+            if (location.g2Label.isNotBlank()) {
+                append(" / ")
+                append(location.g2Label)
+            }
+        }
+        return if (isOriginalRelativePath(location.relativePath)) "$base / 원본" else base
+    }
+
+    fun handleAlbumGridBack() {
+        if (isSelectionMode) {
+            isSelectionMode = false
+            selectedIds = emptySet()
+            return
+        }
+
+        val location = albumLocation
+        if (location == null) {
+            screen = resolveAlbumFallbackScreen()
+            return
+        }
+
+        if (isOriginalRelativePath(location.relativePath)) {
+            val context = originalNavContext
+            if (context?.parent == OriginalParent.WATER && context.returnLocation != null) {
+                albumLocation = context.returnLocation
+                clearOriginalContext()
+                resetGridUiState()
+            } else {
+                clearOriginalContext()
+                screen = resolveAlbumFallbackScreen()
+            }
+            return
+        }
+
+        if (directReturnToCameraFromAlbumGrid) {
+            screen = AppScreen.CAMERA
+        } else {
+            screen = albumGridEntryScreen
+        }
+    }
+
     val keepCameraAliveBehindAlbum = albumEntryScreen == AppScreen.CAMERA && isAlbumScreen(screen)
 
     BackHandler(enabled = true) {
@@ -325,31 +371,7 @@ fun AppRoot() {
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
 
             AppScreen.ALBUM_GRID -> {
-                if (isSelectionMode) {
-                    isSelectionMode = false
-                    selectedIds = emptySet()
-                } else {
-                    val location = albumLocation
-                    if (location == null) {
-                        screen = resolveAlbumFallbackScreen()
-                    } else if (isOriginalRelativePath(location.relativePath)) {
-                        // 원본 그리드 back은 경로 추측이 아니라 original 문맥 슬롯으로만 결정한다.
-                        // WATER인데 returnLocation이 비면 LIST 복귀로 처리해 비정상 상태를 막는다.
-                        val context = originalNavContext
-                        if (context?.parent == OriginalParent.WATER && context.returnLocation != null) {
-                            albumLocation = context.returnLocation
-                            clearOriginalContext()
-                            resetGridUiState()
-                        } else {
-                            clearOriginalContext()
-                            screen = resolveAlbumFallbackScreen()
-                        }
-                    } else if (directReturnToCameraFromAlbumGrid) {
-                        screen = AppScreen.CAMERA
-                    } else {
-                        screen = albumGridEntryScreen
-                    }
-                }
+                handleAlbumGridBack()
             }
             AppScreen.ALBUM_VIEWER -> screen = if (directReturnToCameraFromAlbumGrid) AppScreen.CAMERA else AppScreen.ALBUM_GRID
             AppScreen.ALBUM_G1 -> screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
@@ -515,6 +537,8 @@ fun AppRoot() {
             val location = requireValidAlbumLocationOrFallback()
             if (location != null) {
                 LogGridScreen(
+                    headerTitle = buildGridHeaderTitle(location),
+                    isOriginalGrid = isOriginalRelativePath(location.relativePath),
                     relativePath = location.relativePath,
                     items = gridItems,
                     isSelectionMode = isSelectionMode,
@@ -553,7 +577,8 @@ fun AppRoot() {
                     onSelectAll = {
                         isSelectionMode = true
                         selectedIds = gridItems.map { it.id }.toSet()
-                    }
+                    },
+                    onBack = { handleAlbumGridBack() }
                 )
             }
         }

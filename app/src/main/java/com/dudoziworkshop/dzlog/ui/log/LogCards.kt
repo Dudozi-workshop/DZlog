@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -108,63 +107,62 @@ fun LogGroupTileCard(
     isGroupRootHighlight: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier,
-        colors = if (isGroupRootHighlight) {
-            CardDefaults.cardColors(containerColor = DDZColor.SageLight)
-        } else {
-            CardDefaults.cardColors()
-        }
+    val cardBackground = if (isGroupRootHighlight) DDZColor.SageLight else DDZColor.Card
+    val borderColor = if (isGroupRootHighlight) DDZColor.Sage else DDZColor.Border
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(20.dp))
+            .background(cardBackground)
+            .alpha(if (isSelected) 0.7f else 1f)
+            .padding(10.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1.15f)
-                    .clip(RoundedCornerShape(18.dp))
-            ) {
-                val uri = summary.latestContentUri
-                if (uri != null) {
-                    DzThumbnail(uri.toString())
-                }
-
-                if (isSelected) {
-                    // 선택 상태 시 살짝 dim + 체크 표시
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black)
-                            .alpha(0.18f)
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .size(26.dp)
-                            .clip(RoundedCornerShape(13.dp))
-                            .background(Color.Black)
-                            .alpha(0.35f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("✓", style = MaterialTheme.typography.titleMedium, color = Color.White)
-                    }
-                }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1.2f)
+                .clip(RoundedCornerShape(18.dp))
+        ) {
+            summary.latestContentUri?.let { uri ->
+                DzThumbnail(uri.toString())
             }
 
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = summary.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = DDZColor.TextPrimary,
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black)
+                        .alpha(0.18f)
                 )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = "${summary.photoCount}장 · ${formatDateKorean(summary.latestDateAddedSeconds)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = DDZColor.TextMuted,
-                )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .size(26.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(Color.Black)
+                        .alpha(0.35f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("✓", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                }
             }
+        }
+
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = summary.name,
+                style = MaterialTheme.typography.titleMedium,
+                color = DDZColor.TextPrimary,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "${summary.photoCount}장 · ${formatDateKorean(summary.latestDateAddedSeconds)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = DDZColor.TextMuted,
+            )
         }
     }
 }
