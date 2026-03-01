@@ -182,7 +182,7 @@ fun AppRoot() {
     }
 
     fun navigateTo(target: AppScreen) {
-        if (screen == AppScreen.CAMERA && target != AppScreen.CAMERA && !사지isAlbumScreen(target)) {
+        if (screen == AppScreen.CAMERA && target != AppScreen.CAMERA && !isAlbumScreen(target)) {
             cameraSessionCaptureStack.clear()
         }
         previousScreen = screen
@@ -247,7 +247,7 @@ fun AppRoot() {
         navigateTo(AppScreen.ALBUM_GRID)
     }
 
-    val keepCameraAliveBehindAlbum = albumEntryScreen == AppScreen.CAMERA && isAlbumScreen(screen)
+    val keepCameraAliveBehindAlbum = albumEntryScreen == AppScreen.CAMERA && !isAlbumScreen(screen)
 
     BackHandler(enabled = true) {
         // 기본 내비게이션(화면 기준)
