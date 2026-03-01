@@ -20,7 +20,7 @@ class MediaStoreSaverImpl : MediaStoreSaver {
         jpegQuality: Int
     ): SavedMedia {
         val resolver = context.contentResolver
-        val normalizedRelativePath = normalizeRelativePath(relativePath)
+        val normalizedRelativePath = MediaStoreQueryPolicy.normalizeRelativePath(relativePath)
         val (resolvedName, isNameAdjusted) = resolveUniqueDisplayName(
             resolver = resolver,
             relativePath = normalizedRelativePath,
@@ -99,9 +99,9 @@ class MediaStoreSaverImpl : MediaStoreSaver {
         displayName: String
     ): Boolean {
         val projection = arrayOf(MediaStore.Images.Media._ID)
-        val selection = "${MediaStore.Images.Media.RELATIVE_PATH}=? AND " +
-                "${MediaStore.Images.Media.DISPLAY_NAME}=?"
-        val selectionArgs = arrayOf(relativePath, displayName)
+        val where = MediaStoreQueryPolicy.whereExactRelativePath(relativePath)
+        val selection = "${where.selection} AND ${MediaStore.Images.Media.DISPLAY_NAME}=?"
+        val selectionArgs = arrayOf(*where.selectionArgs, displayName)
         resolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection,
@@ -155,10 +155,9 @@ class MediaStoreSaverImpl : MediaStoreSaver {
             MediaStore.Images.Media.RELATIVE_PATH
         )
 
-        // RELATIVE_PATH는 보통 끝에 "/"가 붙어 저장됨
-        val rel = normalizeRelativePath(relativePath)
-        val selection = "${MediaStore.Images.Media.RELATIVE_PATH}=?"
-        val selectionArgs = arrayOf(rel)
+        // RELATIVE_PATH는 기기/버전에 따라 trailing slash 표현이 달라질 수 있다.
+        // 폴더 정확일치 정책은 유지하되 withSlash/withoutSlash 둘 다 조회한다.
+        val where = MediaStoreQueryPolicy.whereExactRelativePath(relativePath)
 
         // 최신부터 보면 조기 종료 가능
         val sort = "${MediaStore.Images.Media.DATE_ADDED} DESC"
@@ -166,8 +165,8 @@ class MediaStoreSaverImpl : MediaStoreSaver {
         resolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection,
-            selection,
-            selectionArgs,
+            where.selection,
+            where.selectionArgs,
             sort
         )?.use { cursor ->
             val nameIdx = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
@@ -191,19 +190,6 @@ class MediaStoreSaverImpl : MediaStoreSaver {
     // ----------------------
     // Helpers
     // ----------------------
-
-
-    /**
-     * RELATIVE_PATH는 "Pictures/DZlog/..." 형태로 들어오면
-     * 내부적으로 끝에 "/"가 붙는 경우가 많아서 통일.
-     */
-    private fun normalizeRelativePath(relativePath: String): String {
-        val p = relativePath
-            .trim()
-            .trimStart('/')
-            .replace("\\", "/")
-        return if (p.endsWith("/")) p else "$p/"
-    }
 
     /**
      * 파일명에서 마지막 카운터를 찾는다.

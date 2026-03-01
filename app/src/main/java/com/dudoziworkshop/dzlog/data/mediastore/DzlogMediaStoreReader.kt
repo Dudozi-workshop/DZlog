@@ -3,7 +3,6 @@ package com.dudoziworkshop.dzlog.data.mediastore
 import android.content.ContentResolver
 import android.content.ContentUris
 import android.net.Uri
-import android.os.Build
 import android.provider.MediaStore
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 
@@ -46,11 +45,7 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATE_ADDED,
         )
-        val selection = (
-            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?" +
-                trashClause()
-        )
-        val args = arrayOf(dzlogBaseLike)
+        val where = MediaStoreQueryPolicy.whereRelativePathLike(dzlogBaseLike)
 
         val g1Names = linkedSetOf<String>()
         val g1HasG2 = mutableMapOf<String, Boolean>()
@@ -58,7 +53,7 @@ class DzlogMediaStoreReader(
         val g1Latest = mutableMapOf<String, LatestAgg>()
         val rootLatest = LatestAgg(Long.MIN_VALUE, -1L)
 
-        contentResolver.query(uri, projection, selection, args, null)?.use { c ->
+        contentResolver.query(uri, projection, where.selection, where.selectionArgs, null)?.use { c ->
             val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val relIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
             val dateIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
@@ -128,23 +123,25 @@ class DzlogMediaStoreReader(
     fun loadG2Nodes(g1: String): Pair<G2Node?, List<G2Node>> {
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val g1Key = g1.trim().takeIf { it.isNotBlank() } ?: ROOT_G1
+
+        // ROOT_G1("DZlog")는 UI 라벨이며 실제 G1 폴더명이 아니다.
+        // 잘못 전달된 경우 "Pictures/DZlog/DZlog/%"로 조회되지 않도록 조기 반환한다.
+        if (g1Key == ROOT_G1) {
+            return null to emptyList()
+        }
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATE_ADDED,
         )
-        val selection = (
-            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?" +
-                trashClause()
-        )
-        val args = arrayOf("Pictures/DZlog/$g1Key/%")
+        val where = MediaStoreQueryPolicy.whereRelativePathLike("Pictures/DZlog/$g1Key/%")
 
         data class LatestAgg(var sec: Long, var id: Long)
         val rootLatest = LatestAgg(Long.MIN_VALUE, -1L)
         val g2Latest = mutableMapOf<String, LatestAgg>()
         val g2Names = linkedSetOf<String>()
 
-        contentResolver.query(uri, projection, selection, args, null)?.use { c ->
+        contentResolver.query(uri, projection, where.selection, where.selectionArgs, null)?.use { c ->
             val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val relIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
             val dateIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
@@ -220,10 +217,11 @@ class DzlogMediaStoreReader(
 
     /**
      * 특정 경로(프로젝트=저장경로) 아래의 결과물 이미지 목록.
-     * - relativePath는 trailing "/" 포함 형태를 기대함.
+     * - RELATIVE_PATH 는 기기/버전에 따라 trailing slash 표현이 달라질 수 있어
+     *   withSlash/withoutSlash 둘 다 허용하되, 폴더 단위 완전일치(=) 정책은 유지한다.
      */
     fun loadImages(relativePath: String): List<MediaImageItem> {
-        val relWithSlash = ensureTrailingSlash(relativePath)
+        val where = MediaStoreQueryPolicy.whereExactRelativePath(relativePath)
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DISPLAY_NAME,
@@ -231,17 +229,11 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.DATE_ADDED
         )
 
-        val selection = (
-            "${MediaStore.Images.Media.RELATIVE_PATH} = ?" +
-                trashClause()
-        )
-        val args = arrayOf(relWithSlash)
-
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val out = mutableListOf<MediaImageItem>()
 
-        contentResolver.query(uri, projection, selection, args, sortOrder)?.use { c ->
+        contentResolver.query(uri, projection, where.selection, where.selectionArgs, sortOrder)?.use { c ->
             val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val nameIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
             val relIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
@@ -280,14 +272,10 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATE_ADDED
         )
-        val selection = (
-            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?" +
-                trashClause()
-        )
-        val args = arrayOf(dzlogBaseLike)
+        val where = MediaStoreQueryPolicy.whereRelativePathLike(dzlogBaseLike)
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
-        contentResolver.query(uri, projection, selection, args, sortOrder)?.use { c ->
+        contentResolver.query(uri, projection, where.selection, where.selectionArgs, sortOrder)?.use { c ->
             if (!c.moveToFirst()) return null
             val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val nameIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
@@ -313,23 +301,18 @@ class DzlogMediaStoreReader(
 
 
     fun countImagesInRelativePath(relativePath: String): Int {
-        val relWithSlash = ensureTrailingSlash(relativePath)
+        val where = MediaStoreQueryPolicy.whereExactRelativePath(relativePath)
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(MediaStore.Images.Media._ID)
-        val selection = (
-            "${MediaStore.Images.Media.RELATIVE_PATH} = ?" +
-                trashClause()
-        )
-        val args = arrayOf(relWithSlash)
 
-        contentResolver.query(uri, projection, selection, args, null)?.use { c ->
+        contentResolver.query(uri, projection, where.selection, where.selectionArgs, null)?.use { c ->
             return c.count
         }
         return 0
     }
 
     fun loadLatestImageInRelativePath(relativePath: String): MediaImageItem? {
-        val relWithSlash = ensureTrailingSlash(relativePath)
+        val where = MediaStoreQueryPolicy.whereExactRelativePath(relativePath)
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
@@ -337,14 +320,9 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATE_ADDED
         )
-        val selection = (
-            "${MediaStore.Images.Media.RELATIVE_PATH} = ?" +
-                trashClause()
-        )
-        val args = arrayOf(relWithSlash)
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
-        contentResolver.query(uri, projection, selection, args, sortOrder)?.use { c ->
+        contentResolver.query(uri, projection, where.selection, where.selectionArgs, sortOrder)?.use { c ->
             if (!c.moveToFirst()) return null
             val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val nameIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
@@ -401,13 +379,5 @@ class DzlogMediaStoreReader(
     companion object {
         const val ROOT_G1 = "DZlog"
         const val GROUP_ROOT_LABEL = "하위 그룹 없음"
-    }
-}
-
-private fun trashClause(): String {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        " AND (${MediaStore.Images.Media.IS_TRASHED} = 0 OR ${MediaStore.Images.Media.IS_TRASHED} IS NULL)"
-    } else {
-        ""
     }
 }

@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.navigation
 
 import android.widget.Toast
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
@@ -8,6 +9,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +40,7 @@ import com.dudoziworkshop.dzlog.ui.log.LogG2Screen
 import com.dudoziworkshop.dzlog.ui.log.LogGridScreen
 import com.dudoziworkshop.dzlog.ui.log.LogViewerScreen
 import com.dudoziworkshop.dzlog.ui.log.ORIGINAL_PHOTOS_TITLE
+import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
 import com.dudoziworkshop.dzlog.ui.table.TableEditorScreen
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -76,9 +79,7 @@ fun AppRoot() {
     var selectedG1 by remember { mutableStateOf<String?>(null) }
     var selectedG2 by remember { mutableStateOf<String?>(null) }
     var selectedRelativePath by remember { mutableStateOf<String?>(null) }
-    var selectedAlbumTitle by remember { mutableStateOf<String?>(null) }
     var albumOriginalReturnRelativePath by remember { mutableStateOf<String?>(null) }
-    var albumOriginalReturnTitle by remember { mutableStateOf<String?>(null) }
     var albumOriginalReturnOriginalRelativePath by remember { mutableStateOf<String?>(null) }
     var albumGridEntryScreen by remember { mutableStateOf(AppScreen.ALBUM_G2) }
     var gridOriginalRelativePath by remember { mutableStateOf<String?>(null) }
@@ -86,6 +87,7 @@ fun AppRoot() {
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var viewerStartIndex by remember { mutableIntStateOf(0) }
+    val cameraSessionCaptureStack = remember { mutableStateListOf<List<Uri>>() }
 
     // 기존 상태
 
@@ -180,12 +182,15 @@ fun AppRoot() {
     }
 
     fun navigateTo(target: AppScreen) {
+        if (screen == AppScreen.CAMERA && target != AppScreen.CAMERA && !사지isAlbumScreen(target)) {
+            cameraSessionCaptureStack.clear()
+        }
         previousScreen = screen
         screen = target
     }
 
-    fun computeAlbumTitle(selectedTitle: String?, g1: String, g2: String?): String {
-        selectedTitle?.let { return it }
+    fun computeAlbumTitle(g1: String, g2: String?, relativePath: String): String {
+        if (isOriginalRelativePath(relativePath)) return ORIGINAL_PHOTOS_TITLE
         val g2Norm = g2?.trim().orEmpty()
         return when {
             g1 == DzlogMediaStoreReader.ROOT_G1 && g2Norm.isBlank() -> DzlogMediaStoreReader.ROOT_G1
@@ -205,9 +210,7 @@ fun AppRoot() {
         selectedG1 = null
         selectedG2 = null
         selectedRelativePath = null
-        selectedAlbumTitle = null
         albumOriginalReturnRelativePath = null
-        albumOriginalReturnTitle = null
         albumOriginalReturnOriginalRelativePath = null
         albumGridEntryScreen = AppScreen.ALBUM_G1
         gridOriginalRelativePath = null
@@ -227,15 +230,12 @@ fun AppRoot() {
         if (g2Value == ORIGINAL_PHOTOS_TITLE) {
             val base = buildGalleryRelativePath(g1, "")
             selectedRelativePath = "${base}original/"
-            selectedAlbumTitle = ORIGINAL_PHOTOS_TITLE
             gridOriginalRelativePath = null
         } else {
             selectedRelativePath = buildGalleryRelativePath(g1, g2Value)
-            selectedAlbumTitle = null
             gridOriginalRelativePath = null
         }
         albumOriginalReturnRelativePath = null
-        albumOriginalReturnTitle = null
         albumOriginalReturnOriginalRelativePath = null
         albumGridEntryScreen = AppScreen.ALBUM_G2
         gridItems = emptyList()
@@ -266,22 +266,20 @@ fun AppRoot() {
 
             AppScreen.SETTINGS -> screen = AppScreen.HOME
             AppScreen.TABLE_EDITOR -> screen = previousScreen
-            AppScreen.CAMERA -> screen = AppScreen.HOME
+            AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
 
             AppScreen.ALBUM_GRID -> {
                 if (isSelectionMode) {
                     isSelectionMode = false
                     selectedIds = emptySet()
-                } else if (selectedAlbumTitle == ORIGINAL_PHOTOS_TITLE && albumOriginalReturnRelativePath != null) {
+                } else if (albumOriginalReturnRelativePath != null && selectedRelativePath?.let(::isOriginalRelativePath) == true) {
                     selectedRelativePath = albumOriginalReturnRelativePath
-                    selectedAlbumTitle = albumOriginalReturnTitle
                     gridOriginalRelativePath = albumOriginalReturnOriginalRelativePath
                     gridItems = emptyList()
                     viewerStartIndex = 0
                     isSelectionMode = false
                     selectedIds = emptySet()
                     albumOriginalReturnRelativePath = null
-                    albumOriginalReturnTitle = null
                     albumOriginalReturnOriginalRelativePath = null
                 } else if (directReturnToCameraFromAlbumGrid) {
                     screen = AppScreen.CAMERA
@@ -302,7 +300,8 @@ fun AppRoot() {
                 onTemplateChange = ::updateTemplateState,
                 onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
                 onOpenAlbum = ::openAlbumRoot,
-                onOpenRecentCaptureGrid = ::openRecentCaptureGrid
+                onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
+                sessionCaptureStack = cameraSessionCaptureStack
             )
         }
     }
@@ -324,7 +323,8 @@ fun AppRoot() {
                     onTemplateChange = ::updateTemplateState,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
                     onOpenAlbum = ::openAlbumRoot,
-                    onOpenRecentCaptureGrid = ::openRecentCaptureGrid
+                    onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
+                    sessionCaptureStack = cameraSessionCaptureStack
                 )
             }
         }
@@ -356,7 +356,6 @@ fun AppRoot() {
                         selectedG1 = title
                         selectedG2 = if (title == DzlogMediaStoreReader.ROOT_G1) "" else title
                         selectedRelativePath = waterRel
-                        selectedAlbumTitle = if (title == DzlogMediaStoreReader.ROOT_G1) DzlogMediaStoreReader.ROOT_G1 else null
                         gridOriginalRelativePath = originalRel
                         albumGridEntryScreen = AppScreen.ALBUM_G1
                         gridItems = emptyList()
@@ -370,7 +369,6 @@ fun AppRoot() {
                         selectedG1 = title
                         selectedG2 = ORIGINAL_PHOTOS_TITLE
                         selectedRelativePath = originalRel
-                        selectedAlbumTitle = ORIGINAL_PHOTOS_TITLE
                         gridOriginalRelativePath = null
                         albumGridEntryScreen = AppScreen.ALBUM_G1
                         gridItems = emptyList()
@@ -392,7 +390,6 @@ fun AppRoot() {
                     selectedG1 = g1
                     selectedG2 = null
                     selectedRelativePath = null
-                    selectedAlbumTitle = null
                     gridOriginalRelativePath = null
                     gridItems = emptyList()
                     isSelectionMode = false
@@ -421,14 +418,12 @@ fun AppRoot() {
                     onBack = {
                         selectedG2 = null
                         selectedRelativePath = null
-                        selectedAlbumTitle = null
                         gridOriginalRelativePath = null
                         screen = AppScreen.ALBUM_G1
                     },
                     onOpenGridForRelativePath = { g2Label, relativePath, originalRelativePath ->
                         selectedG2 = g2Label
                         selectedRelativePath = relativePath
-                        selectedAlbumTitle = if (relativePath.contains("/original/")) ORIGINAL_PHOTOS_TITLE else null
                         albumGridEntryScreen = AppScreen.ALBUM_G2
                         gridOriginalRelativePath = originalRelativePath
                         gridItems = emptyList()
@@ -447,7 +442,7 @@ fun AppRoot() {
             if (g1 == null || g2 == null || relativePath == null) {
                 screen = if (g1 == null) AppScreen.ALBUM_G1 else AppScreen.ALBUM_G2
             } else {
-                val titleLabel = computeAlbumTitle(selectedAlbumTitle, g1, g2)
+                val titleLabel = computeAlbumTitle(g1, g2, relativePath)
                 LogGridScreen(
                     g1 = g1,
                     g2 = g2,
@@ -464,10 +459,8 @@ fun AppRoot() {
                     originalRelativePath = gridOriginalRelativePath,
                     onOpenOriginalFolder = { originalPath ->
                         albumOriginalReturnRelativePath = selectedRelativePath
-                        albumOriginalReturnTitle = selectedAlbumTitle
                         albumOriginalReturnOriginalRelativePath = gridOriginalRelativePath
                         selectedRelativePath = originalPath
-                        selectedAlbumTitle = ORIGINAL_PHOTOS_TITLE
                         gridOriginalRelativePath = null
                         gridItems = emptyList()
                         viewerStartIndex = 0
@@ -503,7 +496,7 @@ fun AppRoot() {
             if (g1 == null || g2 == null || relativePath == null) {
                 screen = if (g1 == null) AppScreen.ALBUM_G1 else AppScreen.ALBUM_G2
             } else {
-                val titleLabel = computeAlbumTitle(selectedAlbumTitle, g1, g2)
+                val titleLabel = computeAlbumTitle(g1, g2, relativePath)
                 LogViewerScreen(
                     g1 = g1,
                     g2 = g2,

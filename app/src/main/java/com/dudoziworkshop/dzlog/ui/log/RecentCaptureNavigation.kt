@@ -33,3 +33,7 @@ fun parseG1G2FromRelativePath(relativePath: String): Pair<String, String> {
     val g2 = parts.getOrNull(1).orEmpty()
     return g1 to g2
 }
+
+fun isOriginalRelativePath(relativePath: String): Boolean {
+    return parseG1G2FromRelativePath(relativePath).second == ORIGINAL_PHOTOS_TITLE
+}

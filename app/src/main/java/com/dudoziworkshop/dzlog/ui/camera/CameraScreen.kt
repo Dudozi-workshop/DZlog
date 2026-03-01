@@ -42,11 +42,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -153,7 +153,8 @@ fun CameraScreen(
     onTemplateChange: (TableTemplateState) -> Unit,
     onOpenTableEditor: () -> Unit,
     onOpenAlbum: () -> Unit,
-    onOpenRecentCaptureGrid: (g1: String, g2: String, startIndex: Int) -> Unit
+    onOpenRecentCaptureGrid: (g1: String, g2: String, startIndex: Int) -> Unit,
+    sessionCaptureStack: SnapshotStateList<List<Uri>>
 ) {
     val context = LocalContext.current
 
@@ -178,7 +179,8 @@ fun CameraScreen(
                 onTemplateChange = onTemplateChange,
                 onOpenTableEditor = onOpenTableEditor,
                 onOpenAlbum = onOpenAlbum,
-                onOpenRecentCaptureGrid = onOpenRecentCaptureGrid
+                onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
+                sessionCaptureStack = sessionCaptureStack
             )
         } else {
             Text(
@@ -197,7 +199,8 @@ fun CameraPreview(
     onTemplateChange: (TableTemplateState) -> Unit,
     onOpenTableEditor: () -> Unit,
     onOpenAlbum: () -> Unit,
-    onOpenRecentCaptureGrid: (g1: String, g2: String, startIndex: Int) -> Unit
+    onOpenRecentCaptureGrid: (g1: String, g2: String, startIndex: Int) -> Unit,
+    sessionCaptureStack: SnapshotStateList<List<Uri>>
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
@@ -310,7 +313,6 @@ fun CameraPreview(
     LaunchedEffect(mediaStoreRefreshTick) { reloadLatestImage() }
     LaunchedEffect(appSettings.saveMode, counterStreamContext.relativePathKey) { reloadLatestImage() }
 
-    val sessionCaptureStack = remember { mutableStateListOf<List<Uri>>() }
     var pendingUndoDeleteUris by remember { mutableStateOf<List<Uri>?>(null) }
 
     val undoDeleteLauncher = rememberLauncherForActivityResult(
