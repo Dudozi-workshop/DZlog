@@ -17,7 +17,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -90,6 +92,7 @@ fun LogViewerScreen(
     val favoritesRepository = remember(context) { FavoritesProvider.repo(context) }
     val favoriteIds by favoritesRepository.favoriteIdsFlow.collectAsState(initial = emptySet())
     val scope = rememberCoroutineScope()
+    val filmstripListState = rememberLazyListState()
 
     fun reloadAfterDelete() {
         runCatching { reader.loadImages(relativePath) }
@@ -138,6 +141,12 @@ fun LogViewerScreen(
     }
 
     val currentItem = items.getOrNull(pagerState.currentPage)
+
+    LaunchedEffect(pagerState.currentPage, items.size) {
+        if (items.isEmpty()) return@LaunchedEffect
+        if (pagerState.currentPage !in items.indices) return@LaunchedEffect
+        filmstripListState.animateScrollToItem(pagerState.currentPage)
+    }
 
     Box(
         modifier = Modifier
@@ -193,7 +202,6 @@ fun LogViewerScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                val filmstripListState = rememberLazyListState()
                 ThumbnailFilmstrip(
                     items = items,
                     currentPage = pagerState.currentPage,
@@ -202,6 +210,7 @@ fun LogViewerScreen(
                     onThumbnailClick = { index ->
                         scope.launch {
                             pagerState.animateScrollToPage(index)
+                            filmstripListState.animateScrollToItem(index)
                         }
                     }
                 )
@@ -248,12 +257,11 @@ private fun ViewerTopOverlay(
             .fillMaxWidth()
             .statusBarsPadding()
             .background(Color(0x66000000))
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp),
+                .fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
             IconButton(
@@ -266,7 +274,7 @@ private fun ViewerTopOverlay(
             Text(
                 text = "DZLOG VIEWER",
                 color = Color.White,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
 
@@ -320,54 +328,49 @@ private fun ThumbnailFilmstrip(
     listState: LazyListState,
     onThumbnailClick: (Int) -> Unit,
 ) {
-    LaunchedEffect(currentPage, items.size) {
-        if (items.isEmpty()) return@LaunchedEffect
-        if (currentPage !in items.indices) return@LaunchedEffect
-        val maxIndex = (items.size - 1).coerceAtLeast(0)
-        val centerOffset = 2
-        val targetIndex = (currentPage - centerOffset).coerceIn(0, maxIndex)
-        listState.animateScrollToItem(targetIndex)
-    }
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val thumbSize = 60.dp
+        val sidePadding = ((maxWidth - thumbSize) / 2).coerceAtLeast(0.dp)
 
-    LazyRow(
-        state = listState,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-            val selected = index == currentPage
-            val isFavorite = favoriteIds.contains(item.id)
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier
-                    .size(60.dp)
-                    .border(
-                        width = if (selected) 2.dp else 1.dp,
-                        color = if (selected) Color.White else Color.Gray,
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    .clickable { onThumbnailClick(index) },
-                color = Color.Black
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    DzThumbnail(uriString = item.uri.toString())
+        LazyRow(
+            state = listState,
+            contentPadding = PaddingValues(horizontal = sidePadding),
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                val selected = index == currentPage
+                val isFavorite = favoriteIds.contains(item.id)
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .size(thumbSize)
+                        .border(
+                            width = if (selected) 2.dp else 1.dp,
+                            color = if (selected) Color.White else Color.Gray,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .clickable { onThumbnailClick(index) },
+                    color = Color.Black
+                ) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        DzThumbnail(uriString = item.uri.toString())
 
-                    if (isFavorite) {
-                        Box(
-                            modifier = Modifier
-                                .padding(4.dp)
-                                .align(Alignment.TopEnd)
-                                .background(Color(0xCC000000), shape = CircleShape)
-                                .padding(2.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Favorite,
-                                contentDescription = null,
-                                tint = Color(0xFFFF5C7A),
-                                modifier = Modifier.size(14.dp)
-                            )
+                        if (isFavorite) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(4.dp)
+                                    .align(Alignment.TopEnd)
+                                    .background(Color(0xCC000000), shape = CircleShape)
+                                    .padding(2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Favorite,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFF5C7A),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
                         }
                     }
                 }
