@@ -37,6 +37,7 @@ import com.dudoziworkshop.dzlog.domain.model.LogGroupSummary
 import com.dudoziworkshop.dzlog.feature.log.policy.buildDeleteTargetsForG2Selection
 import com.dudoziworkshop.dzlog.feature.log.policy.collectDeleteUris
 import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
+import com.dudoziworkshop.dzlog.ui.theme.dzTopInset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -152,7 +153,7 @@ fun LogG2Screen(
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(top = dzTopInset()),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text("DZlog / $g1")

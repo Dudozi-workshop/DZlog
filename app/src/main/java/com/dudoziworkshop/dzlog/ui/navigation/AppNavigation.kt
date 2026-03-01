@@ -451,7 +451,7 @@ fun AppRoot() {
             }
 
             LogG1Screen(
-                onBack = { screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME },
+                onGoHome = { screen = AppScreen.HOME },
                 onOpenG2 = { g1 ->
                     albumLocation = AlbumLocation(
                         g1 = g1,

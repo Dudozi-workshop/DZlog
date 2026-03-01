@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -73,6 +72,7 @@ import com.dudoziworkshop.dzlog.ui.log.dzFormatDate
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import com.dudoziworkshop.dzlog.ui.theme.dzTopInset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.Dispatchers
@@ -224,7 +224,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 56.dp, max = 72.dp)
-                        .statusBarsPadding()
+                        .padding(top = dzTopInset())
                         .padding(vertical = gap * 0.35f),
                 ) {
                     Text(

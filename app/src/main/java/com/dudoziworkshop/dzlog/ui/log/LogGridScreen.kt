@@ -54,6 +54,7 @@ import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
+import com.dudoziworkshop.dzlog.ui.theme.dzTopInset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -221,12 +222,14 @@ fun LogGridScreen(
             // Top bar
             if (isSelectionMode) {
                 // ✅ 상단은 카운트만 (뒤로가기/타이틀 겹침 방지)
-                SelectionTopBar(
-                    selectedCount = selectedIds.size
-                )
+                Box(modifier = Modifier.fillMaxWidth().padding(top = dzTopInset())) {
+                    SelectionTopBar(
+                        selectedCount = selectedIds.size
+                    )
+                }
             } else {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(top = dzTopInset()),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Top
                 ) {
