@@ -15,36 +15,40 @@ fun buildTwoPartTitle(
     sep: String = " / ",
 ): String {
     val p1 = g1.trim()
-    val p2 = g2?.trim().orEmpty().ifBlank { "" }
+    val p2 = g2?.trim().orEmpty()
+    val sepLen = sep.length
+    val ellLen = 1
 
     if (p2.isBlank()) {
-        val limit = minOf(p1.length, totalBudget)
+        if (p1.length <= totalBudget) return p1
+        val limit = maxOf(1, totalBudget - ellLen)
         return ellipsizePrefix(p1, limit)
     }
 
-    val sepLen = sep.length
-    val avail = (totalBudget - sepLen).coerceAtLeast(2)
-    val len1 = p1.length
-    val len2 = p2.length
+    val rawLen = p1.length + sepLen + p2.length
+    if (rawLen <= totalBudget) return p1 + sep + p2
 
-    var l1: Int
-    var l2: Int
-
-    if (len1 > bothLongFixed && len2 > bothLongFixed) {
-        l1 = bothLongFixed
-        l2 = bothLongFixed
-    } else if (len1 <= len2) {
-        l1 = minOf(len1, avail)
-        l2 = minOf(maxOf(0, avail - l1), len2)
-    } else {
-        l2 = minOf(len2, avail)
-        l1 = minOf(maxOf(0, avail - l2), len1)
+    if (p1.length > bothLongFixed && p2.length > bothLongFixed) {
+        val avail = (totalBudget - sepLen).coerceAtLeast(2)
+        val each = maxOf(1, minOf(bothLongFixed, (avail / 2) - ellLen))
+        return ellipsizePrefix(p1, each) + sep + ellipsizePrefix(p2, each)
     }
 
-    l1 = if (len1 > 0) maxOf(1, l1) else 0
-    l2 = if (len2 > 0) maxOf(1, l2) else 0
+    if (p1.length <= p2.length) {
+        val remainingForP2 = totalBudget - sepLen - p1.length
+        if (remainingForP2 <= 0) {
+            return ellipsizePrefix(p1, maxOf(1, totalBudget - ellLen))
+        }
+        if (p2.length <= remainingForP2) return p1 + sep + p2
+        val p2Limit = maxOf(1, remainingForP2 - ellLen)
+        return p1 + sep + ellipsizePrefix(p2, p2Limit)
+    }
 
-    val s1 = ellipsizePrefix(p1, l1)
-    val s2 = ellipsizePrefix(p2, l2)
-    return "$s1$sep$s2"
+    val remainingForP1 = totalBudget - sepLen - p2.length
+    if (remainingForP1 <= 0) {
+        return ellipsizePrefix(p2, maxOf(1, totalBudget - ellLen))
+    }
+    if (p1.length <= remainingForP1) return p1 + sep + p2
+    val p1Limit = maxOf(1, remainingForP1 - ellLen)
+    return ellipsizePrefix(p1, p1Limit) + sep + p2
 }

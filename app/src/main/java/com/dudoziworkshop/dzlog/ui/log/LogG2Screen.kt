@@ -37,7 +37,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.R
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
@@ -189,6 +191,8 @@ fun LogG2Screen(
                 textAlign = TextAlign.Center,
                 color = DDZColor.Primary,
                 style = DDZTypography.ScreenTitle,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             Box(modifier = Modifier.size(40.dp))
         }
@@ -230,6 +234,10 @@ fun LogG2Screen(
                         summary = toSummary(node),
                         isSelected = selected,
                         isGroupRootHighlight = true,
+                        titleOverride = if (node.label == "하위 그룹 없음") "하위 없음" else null,
+                        titleMaxLines = 1,
+                        titleOverflow = TextOverflow.Ellipsis,
+                        titleFontWeight = FontWeight.SemiBold,
                         modifier = Modifier
                             .fillMaxWidth()
                             .combinedClickable(

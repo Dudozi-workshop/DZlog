@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.LogGroupSummary
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -67,6 +68,8 @@ fun LogGroupCard(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = DDZColor.TextPrimary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(12.dp))
             Text(
@@ -105,6 +108,10 @@ fun LogGroupTileCard(
     summary: LogGroupSummary,
     isSelected: Boolean,
     isGroupRootHighlight: Boolean = false,
+    titleOverride: String? = null,
+    titleMaxLines: Int = Int.MAX_VALUE,
+    titleOverflow: TextOverflow = TextOverflow.Clip,
+    titleFontWeight: FontWeight? = null,
     modifier: Modifier = Modifier,
 ) {
     val cardBackground = if (isGroupRootHighlight) DDZColor.SageLight else DDZColor.Card
@@ -153,9 +160,12 @@ fun LogGroupTileCard(
 
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
-                text = summary.name,
+                text = titleOverride ?: summary.name,
                 style = MaterialTheme.typography.titleMedium,
+                fontWeight = titleFontWeight,
                 color = DDZColor.TextPrimary,
+                maxLines = titleMaxLines,
+                overflow = titleOverflow,
             )
             Spacer(Modifier.height(6.dp))
             Text(

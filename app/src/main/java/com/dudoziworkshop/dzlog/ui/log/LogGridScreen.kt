@@ -57,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -260,12 +261,13 @@ fun LogGridScreen(
                                 else -> headerTitle to null
                             }
                         }
+                        val density = LocalDensity.current
                         val textStyle = DDZTypography.ScreenTitle
                         val fontSizeSp = if (textStyle.fontSize.value > 0f) textStyle.fontSize.value else 20f
-                        val avgCharDp = (fontSizeSp * 0.55f).dp
+                        val avgCharDp = (fontSizeSp * 0.55f * density.fontScale).dp
                         val availDp = maxWidth.coerceAtLeast(0.dp)
                         val rawBudget = if (avgCharDp.value > 0f) floor(availDp.value / avgCharDp.value).toInt() else 8
-                        val totalBudget = rawBudget.coerceIn(8, 18)
+                        val totalBudget = (rawBudget - 4).coerceIn(8, 16)
                         val displayTitle = buildTwoPartTitle(
                             g1 = parts.first,
                             g2 = parts.second,
