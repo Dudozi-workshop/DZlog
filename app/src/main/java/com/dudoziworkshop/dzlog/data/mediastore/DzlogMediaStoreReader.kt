@@ -124,8 +124,12 @@ class DzlogMediaStoreReader(
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val g1Key = g1.trim().takeIf { it.isNotBlank() } ?: ROOT_G1
 
-        // ROOT_G1("DZlog")는 UI 라벨이며 실제 G1 폴더명이 아니다.
-        // 잘못 전달된 경우 "Pictures/DZlog/DZlog/%"로 조회되지 않도록 조기 반환한다.
+        // ROOT_G1("DZlog")는 실제 G1 폴더가 아니라
+        // UI상 루트를 의미하는 논리 라벨이다.
+        //
+        // 따라서 g1Key == ROOT_G1 인 경우
+        // "Pictures/DZlog/DZlog/%" 형태의 잘못된 조회가 발생하지 않도록
+        // G2 조회를 수행하지 않고 조기 반환한다.
         if (g1Key == ROOT_G1) {
             return null to emptyList()
         }
@@ -377,6 +381,22 @@ class DzlogMediaStoreReader(
     }
 
     companion object {
+        /**
+         * ROOT_G1은 실제 G1 폴더명이 아니라
+         * "경로 미지정(루트)"을 표현하기 위한 UI 논리상 라벨이다.
+         *
+         * ⚠️ 중요:
+         * - 이 값은 실제 저장 폴더명이 아니다.
+         * - 사용자가 G1 이름을 "DZlog"로 직접 지정할 경우
+         *   루트와 충돌하여 G2 인식이 정상 동작하지 않을 수 있다.
+         *
+         * 현재 설계 가정:
+         * - 사용자가 의도적으로 G1을 "DZlog"로 설정하지 않는다는 전제.
+         *
+         * 구조적으로 완전한 안전성을 확보하려면
+         * ROOT는 문자열이 아니라 null 기반 표현으로 리팩터링해야 한다.
+         * (현재 단계에서는 안정성 유지를 위해 문자열 유지)
+         */
         const val ROOT_G1 = "DZlog"
         const val GROUP_ROOT_LABEL = "하위 그룹 없음"
     }

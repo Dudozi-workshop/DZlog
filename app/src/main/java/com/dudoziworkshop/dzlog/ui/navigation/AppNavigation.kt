@@ -29,7 +29,6 @@ import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.template.defaultTableTemplateState
 import com.dudoziworkshop.dzlog.data.template.tableTemplateStateFromJson
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePath
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
@@ -57,6 +56,23 @@ enum class AppScreen {
     ALBUM_VIEWER
 }
 
+enum class OriginalParent {
+    WATER,
+    LIST
+}
+
+data class AlbumLocation(
+    val g1: String,
+    val g2Label: String,
+    val relativePath: String,
+    val originalLinkPath: String?
+)
+
+data class OriginalNavContext(
+    val parent: OriginalParent,
+    val returnLocation: AlbumLocation?
+)
+
 class TableTemplateViewModel : ViewModel() {
     var tableTemplateState by mutableStateOf(defaultTableTemplateState())
         private set
@@ -76,13 +92,9 @@ fun AppRoot() {
     var directReturnToCameraFromAlbumGrid by remember { mutableStateOf(false) }
 
 // 앨범(G1/G2/그리드/뷰어) 상태
-    var selectedG1 by remember { mutableStateOf<String?>(null) }
-    var selectedG2 by remember { mutableStateOf<String?>(null) }
-    var selectedRelativePath by remember { mutableStateOf<String?>(null) }
-    var albumOriginalReturnRelativePath by remember { mutableStateOf<String?>(null) }
-    var albumOriginalReturnOriginalRelativePath by remember { mutableStateOf<String?>(null) }
+    var albumLocation by remember { mutableStateOf<AlbumLocation?>(null) }
+    var originalNavContext by remember { mutableStateOf<OriginalNavContext?>(null) }
     var albumGridEntryScreen by remember { mutableStateOf(AppScreen.ALBUM_G2) }
-    var gridOriginalRelativePath by remember { mutableStateOf<String?>(null) }
     var gridItems by remember { mutableStateOf<List<com.dudoziworkshop.dzlog.domain.model.MediaImageItem>>(emptyList()) }
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -181,6 +193,13 @@ fun AppRoot() {
         }
     }
 
+    fun isAlbumScreen(target: AppScreen): Boolean {
+        return target == AppScreen.ALBUM_G1 ||
+            target == AppScreen.ALBUM_G2 ||
+            target == AppScreen.ALBUM_GRID ||
+            target == AppScreen.ALBUM_VIEWER
+    }
+
     fun navigateTo(target: AppScreen) {
         if (screen == AppScreen.CAMERA && target != AppScreen.CAMERA && !isAlbumScreen(target)) {
             cameraSessionCaptureStack.clear()
@@ -189,65 +208,102 @@ fun AppRoot() {
         screen = target
     }
 
-    fun computeAlbumTitle(g1: String, g2: String?, relativePath: String): String {
-        if (isOriginalRelativePath(relativePath)) return ORIGINAL_PHOTOS_TITLE
-        val g2Norm = g2?.trim().orEmpty()
+    fun computeAlbumTitle(location: AlbumLocation): String {
+        if (isOriginalRelativePath(location.relativePath)) return ORIGINAL_PHOTOS_TITLE
+        val g2Norm = location.g2Label.trim()
         return when {
-            g1 == DzlogMediaStoreReader.ROOT_G1 && g2Norm.isBlank() -> DzlogMediaStoreReader.ROOT_G1
-            g2Norm.isBlank() -> "DZlog / $g1"
-            else -> "DZlog / $g1 / $g2Norm"
+            location.g1 == DzlogMediaStoreReader.ROOT_G1 && g2Norm.isBlank() -> DzlogMediaStoreReader.ROOT_G1
+            g2Norm.isBlank() -> "DZlog / ${location.g1}"
+            else -> "DZlog / ${location.g1} / $g2Norm"
         }
     }
 
-    fun isAlbumScreen(target: AppScreen): Boolean {
-        return target == AppScreen.ALBUM_G1 ||
-            target == AppScreen.ALBUM_G2 ||
-            target == AppScreen.ALBUM_GRID ||
-            target == AppScreen.ALBUM_VIEWER
-    }
-
-    fun openAlbumRoot() {
-        selectedG1 = null
-        selectedG2 = null
-        selectedRelativePath = null
-        albumOriginalReturnRelativePath = null
-        albumOriginalReturnOriginalRelativePath = null
-        albumGridEntryScreen = AppScreen.ALBUM_G1
-        gridOriginalRelativePath = null
+    fun resetGridUiState() {
         gridItems = emptyList()
         isSelectionMode = false
         selectedIds = emptySet()
         viewerStartIndex = 0
+    }
+
+    fun clearOriginalContext() {
+        originalNavContext = null
+    }
+
+    fun resolveAlbumFallbackScreen(): AppScreen {
+        return if (directReturnToCameraFromAlbumGrid) AppScreen.CAMERA else albumGridEntryScreen
+    }
+
+    fun openWaterGrid(location: AlbumLocation) {
+        albumLocation = location
+        clearOriginalContext()
+        resetGridUiState()
+    }
+
+    // 원본 진입은 이 함수로만 처리해 "진입 문맥(부모)"을 단일 경로로 보존한다.
+    // 경로 추측이 아닌 문맥 저장으로 back 복귀를 안정화한다.
+    fun openOriginalGridFrom(
+        parent: OriginalParent,
+        originalPath: String,
+        returnLocationIfWater: AlbumLocation?
+    ) {
+        val current = albumLocation
+        val g1 = current?.g1 ?: return
+        val g2Label = current.g2Label
+        val normalizedOriginalPath = originalPath.trim()
+        albumLocation = AlbumLocation(
+            g1 = g1,
+            g2Label = g2Label,
+            relativePath = normalizedOriginalPath,
+            originalLinkPath = null
+        )
+        originalNavContext = when (parent) {
+            OriginalParent.WATER -> {
+                // WATER 진입인데 복귀 위치가 없으면 안전하게 LIST 복귀로 강등한다.
+                if (returnLocationIfWater != null) {
+                    OriginalNavContext(parent = OriginalParent.WATER, returnLocation = returnLocationIfWater)
+                } else {
+                    OriginalNavContext(parent = OriginalParent.LIST, returnLocation = null)
+                }
+            }
+            OriginalParent.LIST -> OriginalNavContext(parent = OriginalParent.LIST, returnLocation = null)
+        }
+        resetGridUiState()
+    }
+
+    fun openAlbumRoot() {
+        albumLocation = null
+        clearOriginalContext()
+        albumGridEntryScreen = AppScreen.ALBUM_G1
+        resetGridUiState()
         albumEntryScreen = screen
         directReturnToCameraFromAlbumGrid = false
         navigateTo(AppScreen.ALBUM_G1)
     }
 
-    fun openRecentCaptureGrid(g1: String, g2: String, startIndex: Int) {
-        val g2Value = g2.trim()
-        selectedG1 = g1
-        selectedG2 = g2Value
-        if (g2Value == ORIGINAL_PHOTOS_TITLE) {
-            val base = buildGalleryRelativePath(g1, "")
-            selectedRelativePath = "${base}original/"
-            gridOriginalRelativePath = null
-        } else {
-            selectedRelativePath = buildGalleryRelativePath(g1, g2Value)
-            gridOriginalRelativePath = null
+    fun openRecentCaptureGrid(g1: String, g2: String, relativePath: String, startIndex: Int) {
+        val location = AlbumLocation(
+            g1 = g1,
+            g2Label = g2.trim(),
+            relativePath = relativePath.trim(),
+            originalLinkPath = null
+        )
+        openWaterGrid(location)
+        if (isOriginalRelativePath(location.relativePath)) {
+            // 원본만 존재 → 부모는 리스트 → back은 상위 리스트로.
+            openOriginalGridFrom(
+                parent = OriginalParent.LIST,
+                originalPath = location.relativePath,
+                returnLocationIfWater = null
+            )
         }
-        albumOriginalReturnRelativePath = null
-        albumOriginalReturnOriginalRelativePath = null
-        albumGridEntryScreen = AppScreen.ALBUM_G2
-        gridItems = emptyList()
-        isSelectionMode = false
-        selectedIds = emptySet()
         viewerStartIndex = startIndex
+        albumGridEntryScreen = AppScreen.ALBUM_G2
         albumEntryScreen = screen
         directReturnToCameraFromAlbumGrid = (screen == AppScreen.CAMERA)
         navigateTo(AppScreen.ALBUM_GRID)
     }
 
-    val keepCameraAliveBehindAlbum = albumEntryScreen == AppScreen.CAMERA && !isAlbumScreen(screen)
+    val keepCameraAliveBehindAlbum = albumEntryScreen == AppScreen.CAMERA && isAlbumScreen(screen)
 
     BackHandler(enabled = true) {
         // 기본 내비게이션(화면 기준)
@@ -272,19 +328,27 @@ fun AppRoot() {
                 if (isSelectionMode) {
                     isSelectionMode = false
                     selectedIds = emptySet()
-                } else if (albumOriginalReturnRelativePath != null && selectedRelativePath?.let(::isOriginalRelativePath) == true) {
-                    selectedRelativePath = albumOriginalReturnRelativePath
-                    gridOriginalRelativePath = albumOriginalReturnOriginalRelativePath
-                    gridItems = emptyList()
-                    viewerStartIndex = 0
-                    isSelectionMode = false
-                    selectedIds = emptySet()
-                    albumOriginalReturnRelativePath = null
-                    albumOriginalReturnOriginalRelativePath = null
-                } else if (directReturnToCameraFromAlbumGrid) {
-                    screen = AppScreen.CAMERA
                 } else {
-                    screen = albumGridEntryScreen
+                    val location = albumLocation
+                    if (location == null) {
+                        screen = resolveAlbumFallbackScreen()
+                    } else if (isOriginalRelativePath(location.relativePath)) {
+                        // 원본 그리드 back은 경로 추측이 아니라 original 문맥 슬롯으로만 결정한다.
+                        // WATER인데 returnLocation이 비면 LIST 복귀로 처리해 비정상 상태를 막는다.
+                        val context = originalNavContext
+                        if (context?.parent == OriginalParent.WATER && context.returnLocation != null) {
+                            albumLocation = context.returnLocation
+                            clearOriginalContext()
+                            resetGridUiState()
+                        } else {
+                            clearOriginalContext()
+                            screen = resolveAlbumFallbackScreen()
+                        }
+                    } else if (directReturnToCameraFromAlbumGrid) {
+                        screen = AppScreen.CAMERA
+                    } else {
+                        screen = albumGridEntryScreen
+                    }
                 }
             }
             AppScreen.ALBUM_VIEWER -> screen = if (directReturnToCameraFromAlbumGrid) AppScreen.CAMERA else AppScreen.ALBUM_GRID
@@ -317,16 +381,14 @@ fun AppRoot() {
         )
 
         AppScreen.CAMERA -> {
-            if (!keepCameraAliveBehindAlbum) {
-                CameraScreen(
-                    tableTemplateState = tableTemplateState,
-                    onTemplateChange = ::updateTemplateState,
-                    onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
-                    onOpenAlbum = ::openAlbumRoot,
-                    onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
-                    sessionCaptureStack = cameraSessionCaptureStack
-                )
-            }
+            CameraScreen(
+                tableTemplateState = tableTemplateState,
+                onTemplateChange = ::updateTemplateState,
+                onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
+                onOpenAlbum = ::openAlbumRoot,
+                onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
+                sessionCaptureStack = cameraSessionCaptureStack
+            )
         }
 
         AppScreen.TABLE_EDITOR -> {
@@ -353,28 +415,32 @@ fun AppRoot() {
             ) {
                 when {
                     waterCount > 0 -> {
-                        selectedG1 = title
-                        selectedG2 = if (title == DzlogMediaStoreReader.ROOT_G1) "" else title
-                        selectedRelativePath = waterRel
-                        gridOriginalRelativePath = originalRel
+                        val location = AlbumLocation(
+                            g1 = title,
+                            g2Label = if (title == DzlogMediaStoreReader.ROOT_G1) "" else title,
+                            relativePath = waterRel,
+                            originalLinkPath = originalRel
+                        )
+                        openWaterGrid(location)
                         albumGridEntryScreen = AppScreen.ALBUM_G1
-                        gridItems = emptyList()
-                        isSelectionMode = false
-                        selectedIds = emptySet()
-                        viewerStartIndex = 0
                         screen = AppScreen.ALBUM_GRID
                     }
 
                     originalCount > 0 -> {
-                        selectedG1 = title
-                        selectedG2 = ORIGINAL_PHOTOS_TITLE
-                        selectedRelativePath = originalRel
-                        gridOriginalRelativePath = null
+                        val baseLocation = AlbumLocation(
+                            g1 = title,
+                            g2Label = ORIGINAL_PHOTOS_TITLE,
+                            relativePath = originalRel,
+                            originalLinkPath = null
+                        )
+                        openWaterGrid(baseLocation)
+                        // 원본만 존재 → 부모는 리스트 → back은 상위 리스트로.
+                        openOriginalGridFrom(
+                            parent = OriginalParent.LIST,
+                            originalPath = originalRel,
+                            returnLocationIfWater = null
+                        )
                         albumGridEntryScreen = AppScreen.ALBUM_G1
-                        gridItems = emptyList()
-                        isSelectionMode = false
-                        selectedIds = emptySet()
-                        viewerStartIndex = 0
                         screen = AppScreen.ALBUM_GRID
                     }
 
@@ -387,13 +453,14 @@ fun AppRoot() {
             LogG1Screen(
                 onBack = { screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME },
                 onOpenG2 = { g1 ->
-                    selectedG1 = g1
-                    selectedG2 = null
-                    selectedRelativePath = null
-                    gridOriginalRelativePath = null
-                    gridItems = emptyList()
-                    isSelectionMode = false
-                    selectedIds = emptySet()
+                    albumLocation = AlbumLocation(
+                        g1 = g1,
+                        g2Label = "",
+                        relativePath = "",
+                        originalLinkPath = null
+                    )
+                    clearOriginalContext()
+                    resetGridUiState()
                     screen = AppScreen.ALBUM_G2
                 },
                 onOpenGridByRuleC = { title, waterRel, originalRel, waterCount, originalCount ->
@@ -409,26 +476,35 @@ fun AppRoot() {
         }
 
         AppScreen.ALBUM_G2 -> {
-            val g1 = selectedG1
+            val g1 = albumLocation?.g1
             if (g1 == null) {
                 screen = AppScreen.ALBUM_G1
             } else {
                 LogG2Screen(
                     g1 = g1,
                     onBack = {
-                        selectedG2 = null
-                        selectedRelativePath = null
-                        gridOriginalRelativePath = null
+                        albumLocation = null
+                        clearOriginalContext()
+                        resetGridUiState()
                         screen = AppScreen.ALBUM_G1
                     },
                     onOpenGridForRelativePath = { g2Label, relativePath, originalRelativePath ->
-                        selectedG2 = g2Label
-                        selectedRelativePath = relativePath
+                        val location = AlbumLocation(
+                            g1 = g1,
+                            g2Label = g2Label,
+                            relativePath = relativePath,
+                            originalLinkPath = originalRelativePath
+                        )
+                        openWaterGrid(location)
+                        if (isOriginalRelativePath(relativePath) && originalRelativePath.isNullOrBlank()) {
+                            // 원본만 존재 → 부모는 리스트 → back은 상위 리스트로.
+                            openOriginalGridFrom(
+                                parent = OriginalParent.LIST,
+                                originalPath = relativePath,
+                                returnLocationIfWater = null
+                            )
+                        }
                         albumGridEntryScreen = AppScreen.ALBUM_G2
-                        gridOriginalRelativePath = originalRelativePath
-                        gridItems = emptyList()
-                        isSelectionMode = false
-                        selectedIds = emptySet()
                         screen = AppScreen.ALBUM_GRID
                     }
                 )
@@ -436,18 +512,17 @@ fun AppRoot() {
         }
         // 📸 앨범 내 사진 목록 화면
         AppScreen.ALBUM_GRID -> {
-            val g1 = selectedG1
-            val g2 = selectedG2
-            val relativePath = selectedRelativePath
-            if (g1 == null || g2 == null || relativePath == null) {
-                screen = if (g1 == null) AppScreen.ALBUM_G1 else AppScreen.ALBUM_G2
+            val location = albumLocation
+            if (location == null || location.relativePath.isBlank()) {
+                // 앨범 그리드/뷰어 상위 복귀는 albumGridEntryScreen을 SSOT로 사용한다.
+                screen = resolveAlbumFallbackScreen()
             } else {
-                val titleLabel = computeAlbumTitle(g1, g2, relativePath)
+                val titleLabel = computeAlbumTitle(location)
                 LogGridScreen(
-                    g1 = g1,
-                    g2 = g2,
+                    g1 = location.g1,
+                    g2 = location.g2Label,
                     titleLabel = titleLabel,
-                    relativePath = relativePath,
+                    relativePath = location.relativePath,
                     items = gridItems,
                     isSelectionMode = isSelectionMode,
                     selectedIds = selectedIds,
@@ -456,16 +531,18 @@ fun AppRoot() {
                         viewerStartIndex = idx
                         screen = AppScreen.ALBUM_VIEWER
                     },
-                    originalRelativePath = gridOriginalRelativePath,
-                    onOpenOriginalFolder = { originalPath ->
-                        albumOriginalReturnRelativePath = selectedRelativePath
-                        albumOriginalReturnOriginalRelativePath = gridOriginalRelativePath
-                        selectedRelativePath = originalPath
-                        gridOriginalRelativePath = null
-                        gridItems = emptyList()
-                        viewerStartIndex = 0
-                        isSelectionMode = false
-                        selectedIds = emptySet()
+                    originalRelativePath = location.originalLinkPath,
+                    onOpenOriginalFolder = { _ ->
+                        val current = albumLocation
+                        val originalPath = current?.originalLinkPath
+                        if (current != null && !originalPath.isNullOrBlank()) {
+                            // 원본사진을 워터 하위로 들어왔으므로 back은 워터로 복귀해야 한다.
+                            openOriginalGridFrom(
+                                parent = OriginalParent.WATER,
+                                originalPath = originalPath,
+                                returnLocationIfWater = current
+                            )
+                        }
                     },
                     onToggleSelection = { id ->
                         selectedIds =
@@ -490,18 +567,17 @@ fun AppRoot() {
 
 // 📷 앨범 내 개별 사진 뷰어 화면
         AppScreen.ALBUM_VIEWER -> {
-            val g1 = selectedG1
-            val g2 = selectedG2
-            val relativePath = selectedRelativePath
-            if (g1 == null || g2 == null || relativePath == null) {
-                screen = if (g1 == null) AppScreen.ALBUM_G1 else AppScreen.ALBUM_G2
+            val location = albumLocation
+            if (location == null || location.relativePath.isBlank()) {
+                // 앨범 그리드/뷰어 상위 복귀는 albumGridEntryScreen을 SSOT로 사용한다.
+                screen = resolveAlbumFallbackScreen()
             } else {
-                val titleLabel = computeAlbumTitle(g1, g2, relativePath)
+                val titleLabel = computeAlbumTitle(location)
                 LogViewerScreen(
-                    g1 = g1,
-                    g2 = g2,
+                    g1 = location.g1,
+                    g2 = location.g2Label,
                     titleLabel = titleLabel,
-                    relativePath = relativePath,
+                    relativePath = location.relativePath,
                     items = gridItems,
                     startIndex = viewerStartIndex,
                     isSelectionMode = isSelectionMode,

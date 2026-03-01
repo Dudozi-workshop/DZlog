@@ -132,10 +132,7 @@ fun LogGridScreen(
         items.filter { selectedIds.contains(it.id) }
 
     LaunchedEffect(relativePath) {
-        // 최초 진입 시 1회 로드
-        if (items.isEmpty()) {
-            reloadImages()
-        }
+        reloadImages()
     }
 
 

@@ -94,7 +94,7 @@ fun HomeScreen(
     onStartCamera: () -> Unit,
     onOpenTableEditor: () -> Unit,
     onOpenAlbum: () -> Unit,
-    onOpenRecentCaptureGrid: (g1: String, g2: String, startIndex: Int) -> Unit
+    onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val settings by AppSettingsStore.flow(context).collectAsState(
@@ -471,7 +471,7 @@ fun HomeScreen(
                                         onOpenAlbum()
                                     } else {
                                         val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
-                                        onOpenRecentCaptureGrid(g1, g2, 0)
+                                        onOpenRecentCaptureGrid(g1, g2, it.relativePath, 0)
                                     }
                                 }
                         ) {

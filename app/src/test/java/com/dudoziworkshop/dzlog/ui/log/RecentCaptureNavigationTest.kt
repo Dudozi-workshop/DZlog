@@ -2,6 +2,8 @@ package com.dudoziworkshop.dzlog.ui.log
 
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RecentCaptureNavigationTest {
@@ -61,4 +63,31 @@ class RecentCaptureNavigationTest {
 
         assertEquals("N600" to ORIGINAL_PHOTOS_TITLE, parsed)
     }
+
+
+    @Test
+    fun `isOriginalRelativePath returns true for root original with and without trailing slash`() {
+        assertTrue(isOriginalRelativePath("Pictures/DZlog/original/"))
+        assertTrue(isOriginalRelativePath("Pictures/DZlog/original"))
+    }
+
+    @Test
+    fun `isOriginalRelativePath returns true for g1 original with and without trailing slash`() {
+        assertTrue(isOriginalRelativePath("Pictures/DZlog/N600/original/"))
+        assertTrue(isOriginalRelativePath("Pictures/DZlog/N600/original"))
+    }
+
+    @Test
+    fun `isOriginalRelativePath returns true for g1 g2 original with and without trailing slash`() {
+        assertTrue(isOriginalRelativePath("Pictures/DZlog/N600/A1/original/"))
+        assertTrue(isOriginalRelativePath("Pictures/DZlog/N600/A1/original"))
+    }
+
+    @Test
+    fun `isOriginalRelativePath returns false for water paths`() {
+        assertFalse(isOriginalRelativePath("Pictures/DZlog/"))
+        assertFalse(isOriginalRelativePath("Pictures/DZlog/N600/"))
+        assertFalse(isOriginalRelativePath("Pictures/DZlog/N600/A1/"))
+    }
+
 }

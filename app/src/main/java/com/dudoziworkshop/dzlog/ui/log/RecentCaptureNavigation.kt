@@ -35,5 +35,10 @@ fun parseG1G2FromRelativePath(relativePath: String): Pair<String, String> {
 }
 
 fun isOriginalRelativePath(relativePath: String): Boolean {
-    return parseG1G2FromRelativePath(relativePath).second == ORIGINAL_PHOTOS_TITLE
+    // 원본 폴더 판별은 depth(root/G1/G2)와 무관하게
+    // ".../original/" suffix를 SSOT로 사용한다.
+    val normalized = relativePath.trim().let {
+        if (it.endsWith('/')) it else "$it/"
+    }
+    return normalized.endsWith("/original/")
 }
