@@ -137,7 +137,6 @@ fun LogG2Screen(
                 Toast.makeText(context, "삭제할 사진이 없습니다", Toast.LENGTH_SHORT).show()
                 return@launch
             }
-            Toast.makeText(context, "총 ${uris.size}장 삭제", Toast.LENGTH_SHORT).show()
             startDeleteRequest(uris)
         }
     }
