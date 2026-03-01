@@ -18,8 +18,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
-import com.dudoziworkshop.dzlog.ui.common.buildThreePartTitle
-import com.dudoziworkshop.dzlog.ui.common.buildTwoPartTitle
+import com.dudoziworkshop.dzlog.ui.common.buildFileNameTitleWithCounter
+import com.dudoziworkshop.dzlog.ui.common.buildPrefixedTwoPartPath
 import com.dudoziworkshop.dzlog.ui.common.estimateBudget
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -78,12 +78,15 @@ internal fun CompactPathHeader(
                     availWidth = maxWidth,
                     textStyle = valueStyle,
                     minBudget = 10,
-                    maxBudget = 19,
+                    maxBudget = 28,
                 )
-                val displayPath = buildTwoPartTitle(
+                val displayPath = buildPrefixedTwoPartPath(
+                    prefix = "Pictures/DZlog",
                     g1 = g1Part,
                     g2 = g2Part.ifBlank { null },
                     totalBudget = budget,
+                    sep = "/",
+                    bothLongFixed = 5,
                 )
                 Text(
                     text = displayPath,
@@ -110,19 +113,19 @@ internal fun CompactPathHeader(
                 overflow = TextOverflow.Ellipsis
             )
             BoxWithConstraints(modifier = Modifier.weight(1f)) {
-                val fileParts = remember(fileName) {
-                    fileName.split("_", limit = 3).filter { it.isNotBlank() }
-                }
                 val valueStyle = DDZTypography.Body.copy(fontSize = 11.sp, lineHeight = 14.sp)
                 val budget = estimateBudget(
                     availWidth = maxWidth,
                     textStyle = valueStyle,
                     minBudget = 12,
-                    maxBudget = 25,
+                    maxBudget = 32,
                 )
-                val displayName = buildThreePartTitle(
-                    parts = fileParts,
+                val displayName = buildFileNameTitleWithCounter(
+                    fileName = fileName,
                     totalBudget = budget,
+                    sep = "/",
+                    maxSlots = 3,
+                    slotsBothLongFixed = 5,
                 )
                 Text(
                     text = displayName,

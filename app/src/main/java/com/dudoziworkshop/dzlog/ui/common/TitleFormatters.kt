@@ -12,7 +12,7 @@ fun buildTwoPartTitle(
     g2: String?,
     totalBudget: Int,
     bothLongFixed: Int = 5,
-    sep: String = " / ",
+    sep: String = "/",
 ): String {
     val p1 = g1.trim()
     val p2 = g2?.trim().orEmpty()
@@ -57,7 +57,7 @@ fun buildTwoPartTitle(
 fun buildThreePartTitle(
     parts: List<String>,
     totalBudget: Int,
-    sep: String = " / ",
+    sep: String = "/",
 ): String {
     val cleaned = parts.map { it.trim() }.filter { it.isNotBlank() }.take(3)
     if (cleaned.isEmpty()) return ""
@@ -90,4 +90,124 @@ fun buildThreePartTitle(
         val limit = limits[i]
         if (cleaned[i].length <= limit) cleaned[i] else ellipsizePrefix(cleaned[i], maxOf(1, limit - 1))
     }
+}
+private val TRAILING_DIGITS_REGEX = Regex("(\\d+)$")
+
+fun stripExtension(fileName: String): String {
+    val t = fileName.trim()
+    val idx = t.lastIndexOf('.')
+    return if (idx > 0) t.substring(0, idx) else t
+}
+
+fun buildThreePartTitlePinnedLast(
+    parts: List<String>,
+    totalBudget: Int,
+    sep: String = "/",
+): String {
+    val base = parts.map { it.trim() }.filter { it.isNotBlank() }.joinToString("_")
+    return buildFileNameTitleWithCounter(
+        fileName = base,
+        totalBudget = totalBudget,
+        sep = sep,
+        maxSlots = 2,
+        slotsBothLongFixed = 5,
+    )
+}
+
+
+fun buildFileNameTitleWithCounter(
+    fileName: String,
+    totalBudget: Int,
+    sep: String = "/",
+    maxSlots: Int,
+    slotsBothLongFixed: Int,
+): String {
+    val base = stripExtension(fileName)
+    val counter = TRAILING_DIGITS_REGEX.find(base)?.groupValues?.getOrNull(1)
+    val prefixName = if (counter != null) base.removeSuffix(counter).trimEnd('_') else base
+    val slots = prefixName
+        .split("_")
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .take(maxSlots)
+
+    if (counter == null) {
+        return when (slots.size) {
+            0 -> ""
+            1 -> ellipsizePrefix(slots[0], maxOf(1, totalBudget - 1))
+            2 -> buildTwoPartTitle(slots[0], slots[1], totalBudget, bothLongFixed = slotsBothLongFixed, sep = sep)
+            else -> {
+                val allLong = slots.all { it.length > slotsBothLongFixed }
+                if (allLong) {
+                    slots.joinToString(sep) { part -> ellipsizePrefix(part, slotsBothLongFixed) }
+                } else {
+                    buildThreePartTitle(slots, totalBudget, sep)
+                }
+            }
+        }
+    }
+
+    val sepLen = sep.length
+    val remaining = totalBudget - (counter.length + sepLen)
+    if (remaining <= 0) return "…$sep$counter"
+
+    val slotsCompressed = when (slots.size) {
+        0 -> "…"
+        1 -> {
+            val p = slots[0]
+            if (p.length <= remaining) p else ellipsizePrefix(p, maxOf(1, remaining - 1))
+        }
+        2 -> buildTwoPartTitle(
+            g1 = slots[0],
+            g2 = slots[1],
+            totalBudget = remaining,
+            bothLongFixed = slotsBothLongFixed,
+            sep = sep,
+        )
+        else -> {
+            val allLong = slots.all { it.length > slotsBothLongFixed }
+            if (allLong) {
+                val fixedSlots = slots.joinToString(sep) { part -> ellipsizePrefix(part, slotsBothLongFixed) }
+                if (fixedSlots.length <= remaining) fixedSlots else buildThreePartTitle(slots, remaining, sep)
+            } else {
+                buildThreePartTitle(slots, remaining, sep)
+            }
+        }
+    }
+
+    return "$slotsCompressed$sep$counter"
+}
+
+fun buildPrefixedTwoPartPath(
+    prefix: String,
+    g1: String,
+    g2: String?,
+    totalBudget: Int,
+    sep: String = "/",
+    bothLongFixed: Int = 5,
+): String {
+    val fixedPrefix = prefix.trim()
+    val p1 = g1.trim()
+    val p2 = g2?.trim().orEmpty().ifBlank { "" }
+    val sepLen = sep.length
+
+    val tailRaw = if (p2.isNotBlank()) "$p1$sep$p2" else p1
+    val raw = "$fixedPrefix$sep$tailRaw"
+    if (raw.length <= totalBudget) return raw
+
+    val remaining = totalBudget - (fixedPrefix.length + sepLen)
+    if (remaining <= 0) {
+        return fixedPrefix
+    }
+    if (remaining < 2) {
+        return "$fixedPrefix$sep…"
+    }
+    val tail = buildTwoPartTitle(
+        g1 = p1,
+        g2 = p2.ifBlank { null },
+        totalBudget = remaining,
+        bothLongFixed = bothLongFixed,
+        sep = sep,
+    )
+    return "$fixedPrefix$sep$tail"
 }

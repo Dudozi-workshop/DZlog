@@ -255,7 +255,7 @@ fun LogGridScreen(
 
                     BoxWithConstraints(modifier = Modifier.weight(1f)) {
                         val parts = remember(headerTitle) {
-                            val split = headerTitle.split(" / ", limit = 2)
+                            val split = headerTitle.split("/", limit = 2)
                             when (split.size) {
                                 2 -> split[0] to split[1]
                                 else -> headerTitle to null

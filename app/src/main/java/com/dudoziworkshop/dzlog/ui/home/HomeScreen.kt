@@ -67,8 +67,8 @@ import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZCard
 import com.dudoziworkshop.dzlog.ui.common.TablePreviewCard
 import com.dudoziworkshop.dzlog.ui.common.rememberTablePreviewSettings
-import com.dudoziworkshop.dzlog.ui.common.buildTwoPartTitle
-import com.dudoziworkshop.dzlog.ui.common.buildThreePartTitle
+import com.dudoziworkshop.dzlog.ui.common.buildFileNameTitleWithCounter
+import com.dudoziworkshop.dzlog.ui.common.buildPrefixedTwoPartPath
 import com.dudoziworkshop.dzlog.ui.common.estimateBudget
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
 import com.dudoziworkshop.dzlog.ui.log.dzFormatDate
@@ -330,12 +330,15 @@ fun HomeScreen(
                                         availWidth = maxWidth,
                                         textStyle = valueStyle,
                                         minBudget = 8,
-                                        maxBudget = 13,
+                                        maxBudget = 26,
                                     )
-                                    val displayPath = buildTwoPartTitle(
+                                    val displayPath = buildPrefixedTwoPartPath(
+                                        prefix = "Pictures/DZlog",
                                         g1 = g1Part,
                                         g2 = g2Part.ifBlank { null },
                                         totalBudget = budget,
+                                        sep = "/",
+                                        bothLongFixed = 4,
                                     )
                                     Text(
                                         text = displayPath,
@@ -362,9 +365,6 @@ fun HomeScreen(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 BoxWithConstraints(modifier = Modifier.weight(1f)) {
-                                    val fileParts = remember(filenamePreview) {
-                                        filenamePreview.split("_", limit = 3).filter { it.isNotBlank() }
-                                    }
                                     val valueStyle = DDZTypography.Body.copy(
                                         fontSize = 11.sp,
                                         lineHeight = 14.sp
@@ -373,11 +373,14 @@ fun HomeScreen(
                                         availWidth = maxWidth,
                                         textStyle = valueStyle,
                                         minBudget = 10,
-                                        maxBudget = 22,
+                                        maxBudget = 26,
                                     )
-                                    val displayName = buildThreePartTitle(
-                                        parts = fileParts,
+                                    val displayName = buildFileNameTitleWithCounter(
+                                        fileName = filenamePreview,
                                         totalBudget = budget,
+                                        sep = "/",
+                                        maxSlots = 2,
+                                        slotsBothLongFixed = 4,
                                     )
                                     Text(
                                         text = displayName,
