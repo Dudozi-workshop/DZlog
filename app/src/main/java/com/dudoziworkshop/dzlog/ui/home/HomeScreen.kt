@@ -67,6 +67,9 @@ import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZCard
 import com.dudoziworkshop.dzlog.ui.common.TablePreviewCard
 import com.dudoziworkshop.dzlog.ui.common.rememberTablePreviewSettings
+import com.dudoziworkshop.dzlog.ui.common.buildTwoPartTitle
+import com.dudoziworkshop.dzlog.ui.common.buildThreePartTitle
+import com.dudoziworkshop.dzlog.ui.common.estimateBudget
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
 import com.dudoziworkshop.dzlog.ui.log.dzFormatDate
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
@@ -315,17 +318,34 @@ fun HomeScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                Text(
-                                    text = savePathPreview,
-                                    modifier = Modifier.weight(1f),
-                                    style = DDZTypography.Body.copy(
+                                BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                                    val (g1Part, g2Part) = remember(savePathPreview) {
+                                        parseG1G2FromRelativePath(savePathPreview)
+                                    }
+                                    val valueStyle = DDZTypography.Body.copy(
                                         fontSize = 11.sp,
                                         lineHeight = 14.sp
-                                    ),
-                                    color = DDZColor.TextPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                    )
+                                    val budget = estimateBudget(
+                                        availWidth = maxWidth,
+                                        textStyle = valueStyle,
+                                        minBudget = 8,
+                                        maxBudget = 13,
+                                    )
+                                    val displayPath = buildTwoPartTitle(
+                                        g1 = g1Part,
+                                        g2 = g2Part.ifBlank { null },
+                                        totalBudget = budget,
+                                    )
+                                    Text(
+                                        text = displayPath,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        style = valueStyle,
+                                        color = DDZColor.TextPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
 
                             Row(
@@ -341,17 +361,33 @@ fun HomeScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                Text(
-                                    text = filenamePreview,
-                                    modifier = Modifier.weight(1f),
-                                    style = DDZTypography.Body.copy(
+                                BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                                    val fileParts = remember(filenamePreview) {
+                                        filenamePreview.split("_", limit = 3).filter { it.isNotBlank() }
+                                    }
+                                    val valueStyle = DDZTypography.Body.copy(
                                         fontSize = 11.sp,
                                         lineHeight = 14.sp
-                                    ),
-                                    color = DDZColor.TextPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                    )
+                                    val budget = estimateBudget(
+                                        availWidth = maxWidth,
+                                        textStyle = valueStyle,
+                                        minBudget = 10,
+                                        maxBudget = 22,
+                                    )
+                                    val displayName = buildThreePartTitle(
+                                        parts = fileParts,
+                                        totalBudget = budget,
+                                    )
+                                    Text(
+                                        text = displayName,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        style = valueStyle,
+                                        color = DDZColor.TextPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
                     }

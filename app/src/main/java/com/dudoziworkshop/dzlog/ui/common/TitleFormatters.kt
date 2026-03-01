@@ -52,3 +52,42 @@ fun buildTwoPartTitle(
     val p1Limit = maxOf(1, remainingForP1 - ellLen)
     return ellipsizePrefix(p1, p1Limit) + sep + p2
 }
+
+
+fun buildThreePartTitle(
+    parts: List<String>,
+    totalBudget: Int,
+    sep: String = " / ",
+): String {
+    val cleaned = parts.map { it.trim() }.filter { it.isNotBlank() }.take(3)
+    if (cleaned.isEmpty()) return ""
+    if (cleaned.size == 1) return ellipsizePrefix(cleaned[0], maxOf(1, totalBudget - 1))
+
+    val sepLen = sep.length
+    val rawLen = cleaned.sumOf { it.length } + sepLen * (cleaned.size - 1)
+    if (rawLen <= totalBudget) return cleaned.joinToString(sep)
+
+    val baseBudget = (totalBudget - sepLen * (cleaned.size - 1)).coerceAtLeast(cleaned.size)
+    val lens = cleaned.map { it.length }
+    val limits = MutableList(cleaned.size) { 1 }
+    var remaining = baseBudget - cleaned.size
+
+    val order = lens.indices.sortedBy { lens[it] }
+    while (remaining > 0) {
+        var allocated = false
+        for (idx in order) {
+            if (limits[idx] < lens[idx]) {
+                limits[idx] += 1
+                remaining -= 1
+                allocated = true
+                if (remaining == 0) break
+            }
+        }
+        if (!allocated) break
+    }
+
+    return cleaned.indices.joinToString(sep) { i ->
+        val limit = limits[i]
+        if (cleaned[i].length <= limit) cleaned[i] else ellipsizePrefix(cleaned[i], maxOf(1, limit - 1))
+    }
+}

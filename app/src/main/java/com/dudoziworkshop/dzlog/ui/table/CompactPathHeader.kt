@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.ui.table
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -17,6 +18,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
+import com.dudoziworkshop.dzlog.ui.common.buildThreePartTitle
+import com.dudoziworkshop.dzlog.ui.common.buildTwoPartTitle
+import com.dudoziworkshop.dzlog.ui.common.estimateBudget
+import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
@@ -64,14 +69,31 @@ internal fun CompactPathHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = savePath,
-                modifier = Modifier.weight(1f),
-                style = DDZTypography.Body.copy(fontSize = 11.sp, lineHeight = 14.sp),
-                color = DDZColor.TextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                val (g1Part, g2Part) = remember(savePath) {
+                    parseG1G2FromRelativePath(savePath)
+                }
+                val valueStyle = DDZTypography.Body.copy(fontSize = 11.sp, lineHeight = 14.sp)
+                val budget = estimateBudget(
+                    availWidth = maxWidth,
+                    textStyle = valueStyle,
+                    minBudget = 10,
+                    maxBudget = 19,
+                )
+                val displayPath = buildTwoPartTitle(
+                    g1 = g1Part,
+                    g2 = g2Part.ifBlank { null },
+                    totalBudget = budget,
+                )
+                Text(
+                    text = displayPath,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = valueStyle,
+                    color = DDZColor.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
 
         Row(
@@ -87,14 +109,30 @@ internal fun CompactPathHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = fileName,
-                modifier = Modifier.weight(1f),
-                style = DDZTypography.Body.copy(fontSize = 11.sp, lineHeight = 14.sp),
-                color = DDZColor.TextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                val fileParts = remember(fileName) {
+                    fileName.split("_", limit = 3).filter { it.isNotBlank() }
+                }
+                val valueStyle = DDZTypography.Body.copy(fontSize = 11.sp, lineHeight = 14.sp)
+                val budget = estimateBudget(
+                    availWidth = maxWidth,
+                    textStyle = valueStyle,
+                    minBudget = 12,
+                    maxBudget = 25,
+                )
+                val displayName = buildThreePartTitle(
+                    parts = fileParts,
+                    totalBudget = budget,
+                )
+                Text(
+                    text = displayName,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = valueStyle,
+                    color = DDZColor.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             fileNameRightLabel?.takeIf { it.isNotBlank() }?.let { label ->
                 Text(
                     text = label,
