@@ -34,6 +34,7 @@ fun LogGroupCard(
     titleOverride: String? = null,
     isRootHighlight: Boolean = false,
     isGroupRootHighlight: Boolean = false,
+    isSelected: Boolean = false,
 ) {
     Card(
         modifier = modifier,
@@ -46,7 +47,8 @@ fun LogGroupCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(16.dp)
+                .alpha(if (isSelected) 0.7f else 1f),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -73,6 +75,10 @@ fun LogGroupCard(
                 if (uri != null) {
                     DzThumbnail(uri.toString())
                 }
+            }
+
+            if (isSelected) {
+                Text("✓", style = MaterialTheme.typography.titleLarge)
             }
         }
     }

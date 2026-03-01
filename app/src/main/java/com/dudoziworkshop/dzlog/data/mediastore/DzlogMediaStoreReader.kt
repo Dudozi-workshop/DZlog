@@ -232,8 +232,33 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATE_ADDED
         )
-
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+        return queryImages(where, projection, sortOrder)
+    }
+
+    /**
+     * prefix 하위 전체를 조회한다.
+     * - normalizeRelativePath로 trailing slash를 강제해 Exact 조회와 용도를 분리한다.
+     * - 예: "Pictures/DZlog/N600/" -> LIKE "Pictures/DZlog/N600/%"
+     */
+    fun loadImagesUnderPrefix(relativePathPrefix: String): List<MediaImageItem> {
+        val normalizedPrefix = MediaStoreQueryPolicy.normalizeRelativePath(relativePathPrefix)
+        val where = MediaStoreQueryPolicy.whereRelativePathLike("${normalizedPrefix}%")
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.RELATIVE_PATH,
+            MediaStore.Images.Media.DATE_ADDED
+        )
+        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+        return queryImages(where, projection, sortOrder)
+    }
+
+    private fun queryImages(
+        where: MediaStoreQueryPolicy.WhereClause,
+        projection: Array<String>,
+        sortOrder: String,
+    ): List<MediaImageItem> {
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val out = mutableListOf<MediaImageItem>()
 

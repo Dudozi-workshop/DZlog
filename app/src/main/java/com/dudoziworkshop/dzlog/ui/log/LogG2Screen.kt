@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.log
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -24,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -32,7 +34,12 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.R
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.LogGroupSummary
+import com.dudoziworkshop.dzlog.feature.log.policy.buildDeleteTargetsForG2Selection
+import com.dudoziworkshop.dzlog.feature.log.policy.collectDeleteUris
 import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -44,6 +51,7 @@ fun LogG2Screen(
     val context = LocalContext.current
     val resolver = context.contentResolver
     val reader = remember { DzlogMediaStoreReader(resolver) }
+    val scope = rememberCoroutineScope()
 
     var groupRootNode by remember { mutableStateOf<DzlogMediaStoreReader.G2Node?>(null) }
     var g2Nodes by remember { mutableStateOf<List<DzlogMediaStoreReader.G2Node>>(emptyList()) }
@@ -115,8 +123,31 @@ fun LogG2Screen(
         )
     }
 
+    fun prepareDeleteRequest() {
+        scope.launch {
+            val targets = buildDeleteTargetsForG2Selection(
+                g1 = g1,
+                selected = selectedG2,
+                groupRootSelected = selectedG2.contains(DzlogMediaStoreReader.GROUP_ROOT_LABEL),
+            )
+            val uris = withContext(Dispatchers.IO) {
+                collectDeleteUris(reader, targets)
+            }
+            if (uris.isEmpty()) {
+                Toast.makeText(context, "삭제할 사진이 없습니다", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            Toast.makeText(context, "총 ${uris.size}장 삭제", Toast.LENGTH_SHORT).show()
+            startDeleteRequest(uris)
+        }
+    }
+
     LaunchedEffect(g1) {
         reload()
+        resetSelection()
+    }
+
+    BackHandler(enabled = isSelectionMode) {
         resetSelection()
     }
 
@@ -127,8 +158,11 @@ fun LogG2Screen(
         ) {
             Text("DZlog / $g1")
             Button(onClick = {
-                resetSelection()
-                onBack()
+                if (isSelectionMode) {
+                    resetSelection()
+                } else {
+                    onBack()
+                }
             }) { Text(stringResource(R.string.action_back)) }
         }
 
@@ -163,23 +197,35 @@ fun LogG2Screen(
         ) {
             groupRootNode?.let { node ->
                 item(key = "group-root") {
+                    val selected = selectedG2.contains(DzlogMediaStoreReader.GROUP_ROOT_LABEL)
                     LogGroupTileCard(
                         summary = toSummary(node),
-                        isSelected = false,
+                        isSelected = selected,
                         isGroupRootHighlight = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .combinedClickable(
                                 onClick = {
-                                    openByCounts(
-                                        label = node.label,
-                                        waterRel = node.waterRel,
-                                        originalRel = node.originalRel,
-                                        waterCount = node.waterCount,
-                                        originalCount = node.originalCount,
-                                    )
+                                    if (isSelectionMode) {
+                                        selectedG2 = if (selected) {
+                                            selectedG2 - DzlogMediaStoreReader.GROUP_ROOT_LABEL
+                                        } else {
+                                            selectedG2 + DzlogMediaStoreReader.GROUP_ROOT_LABEL
+                                        }
+                                    } else {
+                                        openByCounts(
+                                            label = node.label,
+                                            waterRel = node.waterRel,
+                                            originalRel = node.originalRel,
+                                            waterCount = node.waterCount,
+                                            originalCount = node.originalCount,
+                                        )
+                                    }
                                 },
-                                onLongClick = { }
+                                onLongClick = {
+                                    isSelectionMode = true
+                                    selectedG2 = selectedG2 + DzlogMediaStoreReader.GROUP_ROOT_LABEL
+                                }
                             )
                     )
                 }
@@ -219,19 +265,17 @@ fun LogG2Screen(
             SelectionBottomBar(
                 onClose = { resetSelection() },
                 onSelectAll = {
-                    selectedG2 = g2Nodes.map { it.label }.toSet()
+                    selectedG2 = buildSet {
+                        if (groupRootNode != null) {
+                            add(DzlogMediaStoreReader.GROUP_ROOT_LABEL)
+                        }
+                        addAll(g2Nodes.map { it.label })
+                    }
                 },
                 onShare = { },
                 shareEnabled = false,
                 onDelete = if (selectedG2.isNotEmpty()) {
-                    {
-                        val allUris = mutableListOf<android.net.Uri>()
-                        g2Nodes.filter { selectedG2.contains(it.label) }.forEach { node ->
-                            allUris.addAll(reader.loadImages(node.waterRel).map { it.uri })
-                            allUris.addAll(reader.loadImages(node.originalRel).map { it.uri })
-                        }
-                        startDeleteRequest(allUris)
-                    }
+                    { prepareDeleteRequest() }
                 } else null
             )
         }
