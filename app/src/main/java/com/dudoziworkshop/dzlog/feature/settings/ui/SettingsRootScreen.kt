@@ -44,6 +44,7 @@ import com.dudoziworkshop.dzlog.ui.common.rememberTablePreviewSettings
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import com.dudoziworkshop.dzlog.ui.theme.dzTopInset
 import kotlinx.coroutines.launch
 import java.util.Date
 
@@ -89,7 +90,12 @@ fun SettingsRootScreen(
             .padding(DDZSpacing.screenPadding)
     ) {
         // Header
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = dzTopInset())
+        ) {
             Text(
                 text = "설정",
                 style = DDZTypography.ScreenTitle,

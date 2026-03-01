@@ -8,6 +8,7 @@ package com.dudoziworkshop.dzlog.ui.table
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -107,6 +108,7 @@ import com.dudoziworkshop.dzlog.ui.table.watermark.applyWidthRatioChange
 import com.dudoziworkshop.dzlog.ui.table.watermark.loadTableWatermarkUiState
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import com.dudoziworkshop.dzlog.ui.theme.dzTopInset
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -665,6 +667,8 @@ fun TableEditorScreen(
         containerColor = DDZColor.Background,
         topBar = {
             TopAppBar(
+                modifier = Modifier.padding(top = dzTopInset()),
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 title = {
                     Text(
                         "표 상세설정",
