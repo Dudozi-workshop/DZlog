@@ -1,70 +1,88 @@
-@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@file:OptIn(
+    androidx.compose.foundation.ExperimentalFoundationApi::class,
+    androidx.compose.material3.ExperimentalMaterial3Api::class
+)
 
 package com.dudoziworkshop.dzlog.ui.log
 
 import android.content.Intent
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.Button
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.dudoziworkshop.dzlog.R
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Date
+import java.util.Locale
+import kotlinx.coroutines.launch
 
-/**
- * 사진 뷰어
- * - 좌/우 스와이프: 같은 그룹 내 이동
- * - 탭: UI 숨김/표시
- * - 길게누르기: 선택 모드 진입(현재 사진 선택)
- * * - 하단: 공유 / 삭제
- */
 @Composable
 fun LogViewerScreen(
-    g1: String,
-    g2: String,
-    titleLabel: String,
     relativePath: String,
     items: List<MediaImageItem>,
     startIndex: Int,
-    isSelectionMode: Boolean,
-    selectedIds: Set<Long>,
     onBack: () -> Unit,
-    onEnterSelectionWith: (id: Long) -> Unit,
-    onToggleSelection: (id: Long) -> Unit,
-    onExitSelection: () -> Unit,
-    onSelectAll: () -> Unit,
     onItemsReloaded: (List<MediaImageItem>) -> Unit,
     onRequestCloseViewer: () -> Unit,
 ) {
     val context = LocalContext.current
     val resolver = context.contentResolver
     val reader = remember { DzlogMediaStoreReader(resolver) }
+    val scope = rememberCoroutineScope()
 
     fun reloadAfterDelete() {
         runCatching { reader.loadImages(relativePath) }
@@ -74,7 +92,6 @@ fun LogViewerScreen(
                     onRequestCloseViewer()
                 }
             }
-        onExitSelection()
     }
 
     val deleteLauncher = rememberLauncherForActivityResult(
@@ -95,150 +112,262 @@ fun LogViewerScreen(
     val safeStart = startIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
     val pagerState = rememberPagerState(initialPage = safeStart, pageCount = { items.size })
 
-    var uiVisible by remember { mutableStateOf(true) }
+    var uiVisible by remember { mutableStateOf(false) }
+    var showInfoSheet by remember { mutableStateOf(false) }
+    var favoriteIds by remember { mutableStateOf(setOf<Long>()) }
 
-    // startIndex가 바뀌면 뷰어 시작 위치 이동(같은 세션에서 재진입 고려)
     LaunchedEffect(safeStart) {
         if (items.isNotEmpty()) {
             pagerState.scrollToPage(safeStart)
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+    LaunchedEffect(items.size) {
+        if (items.isEmpty()) return@LaunchedEffect
+        val max = (items.size - 1).coerceAtLeast(0)
+        val clamped = pagerState.currentPage.coerceIn(0, max)
+        if (clamped != pagerState.currentPage) {
+            pagerState.scrollToPage(clamped)
+        }
+    }
+
+    val currentItem = items.getOrNull(pagerState.currentPage)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
         if (items.isNotEmpty()) {
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 val item = items[page]
-                val selected = selectedIds.contains(item.id)
-
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .combinedClickable(
-                            onClick = {
-                                // 선택 모드에서는 탭=선택/해제, 일반 모드에서는 UI 토글
-                                if (isSelectionMode) {
-                                    onToggleSelection(item.id)
-                                } else {
-                                    uiVisible = !uiVisible
-                                }
-                            },
-                            onLongClick = {
-                                // 길게 누르면 선택 모드 진입 + 현재 사진 선택
-                                onEnterSelectionWith(item.id)
-                                uiVisible = true
-                            }
-                        ),
+                        .clickable { uiVisible = !uiVisible },
                     contentAlignment = Alignment.Center
                 ) {
-                    DzFullImage(uriString = item.uri.toString())
-
-                    if (isSelectionMode && selected) {
-                        Box(modifier = Modifier.fillMaxSize().background(Color(0x3300FF00)))
-                    }
+                    DzFullImage(
+                        uriString = item.uri.toString(),
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
             }
         }
 
-        if (uiVisible) {
-            if (isSelectionMode) {
-                SelectionTopBar(
-                    selectedCount = selectedIds.size
-                )
-            } else {
-                ViewerTopBar(
-                    titleLabel = titleLabel,
-                    current = if (items.isEmpty()) 0 else (pagerState.currentPage + 1),
-                    total = items.size,
-                    onBack = onBack
-                )
-            }
-
-            Spacer(Modifier.height(6.dp))
-
-// ✅ 하단 바 (공유/삭제)
-            Box(modifier = Modifier.align(Alignment.BottomCenter)) {
-
-                // ✅ 선택모드: Close/All을 하단으로 이동 (상단 겹침 방지)
-                if (isSelectionMode) {
-                    SelectionBottomBar(
-                        onClose = onExitSelection,
-                        onSelectAll = onSelectAll,
-                        onShare = {
-                            val toShare = items.filter { selectedIds.contains(it.id) }
-                            shareImages(context, toShare)
-                        },
-                        shareEnabled = selectedIds.isNotEmpty(),
-                        onDelete = if (selectedIds.isNotEmpty()) {
-                            {
-                                val toDelete = items.filter { selectedIds.contains(it.id) }
-                                startDeleteRequest(toDelete.map { it.uri })
-                            }
-                        } else null
-                    )
-                    Spacer(Modifier.height(8.dp))
-                } else {
-                    // 1) 하단 액션 바(공유/삭제)
-                    ViewerBottomBar(
-                        enabled = items.isNotEmpty(),
-                        onShare = {
-                            val current = items.getOrNull(pagerState.currentPage) ?: return@ViewerBottomBar
-                            shareImages(context, listOf(current))
-                        },
-                        onDelete = {
-                            val current = items.getOrNull(pagerState.currentPage) ?: return@ViewerBottomBar
-                            startDeleteRequest(listOf(current.uri))
-                        }
-                    )
+        AnimatedVisibility(
+            visible = uiVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            ViewerTopOverlay(
+                current = currentItem,
+                onBack = onBack,
+                onShare = {
+                    val item = currentItem ?: return@ViewerTopOverlay
+                    shareImages(context, listOf(item))
                 }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = uiVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ThumbnailFilmstrip(
+                    items = items,
+                    currentPage = pagerState.currentPage,
+                    onThumbnailClick = { index ->
+                        scope.launch {
+                            pagerState.animateScrollToPage(index)
+                        }
+                    }
+                )
+
+                ViewerBottomPill(
+                    onFavorite = {
+                        val item = currentItem ?: return@ViewerBottomPill
+                        favoriteIds = if (favoriteIds.contains(item.id)) {
+                            favoriteIds - item.id
+                        } else {
+                            favoriteIds + item.id
+                        }
+                        // TODO: favorite 상태를 영구 저장할 수 있도록 데이터 계층과 연동
+                    },
+                    isFavorite = currentItem?.id?.let(favoriteIds::contains) == true,
+                    onInfo = {
+                        if (currentItem != null) showInfoSheet = true
+                    },
+                    onDelete = {
+                        val item = currentItem ?: return@ViewerBottomPill
+                        startDeleteRequest(listOf(item.uri))
+                    }
+                )
             }
+        }
+    }
+
+    if (showInfoSheet && currentItem != null) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showInfoSheet = false },
+            sheetState = sheetState,
+        ) {
+            InfoSheetContent(item = currentItem)
         }
     }
 }
 
 @Composable
-private fun ViewerTopBar(
-    titleLabel: String,
-    current: Int,
-    total: Int,
+private fun ViewerTopOverlay(
+    current: MediaImageItem?,
     onBack: () -> Unit,
+    onShare: () -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .background(Color(0x66000000))
-            .padding(10.dp)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Button(onClick = onBack) { Text(stringResource(R.string.action_back)) }
-            Text("$current / $total", color = Color.White)
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+            }
+
+            Text(
+                text = "DZLOG VIEWER",
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+
+            IconButton(
+                onClick = onShare,
+                modifier = Modifier.align(Alignment.CenterEnd),
+                enabled = current != null
+            ) {
+                Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White)
+            }
         }
-        Spacer(Modifier.height(6.dp))
-        Text("DZlog / $titleLabel", color = Color.White)
     }
 }
 
 @Composable
-private fun ViewerBottomBar(
-    enabled: Boolean,
-    onShare: () -> Unit,
+private fun ViewerBottomPill(
+    onFavorite: () -> Unit,
+    isFavorite: Boolean,
+    onInfo: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0x66000000))
-            .padding(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
+            .clip(RoundedCornerShape(28.dp))
+            .background(Color(0x88000000))
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Button(onClick = onShare, enabled = enabled) { Text("Share") }
-        Button(onClick = onDelete, enabled = enabled) { Text(stringResource(R.string.action_delete)) }
+        IconButton(onClick = onFavorite) {
+            Icon(
+                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                contentDescription = "Favorite",
+                tint = if (isFavorite) Color(0xFFFF5C7A) else Color.White
+            )
+        }
+        IconButton(onClick = onInfo) {
+            Icon(Icons.Default.Info, contentDescription = "Info", tint = Color.White)
+        }
+        IconButton(onClick = onDelete) {
+            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun ThumbnailFilmstrip(
+    items: List<MediaImageItem>,
+    currentPage: Int,
+    onThumbnailClick: (Int) -> Unit,
+) {
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+            val selected = index == currentPage
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier
+                    .size(60.dp)
+                    .border(
+                        width = if (selected) 2.dp else 1.dp,
+                        color = if (selected) Color.White else Color.Gray,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .clickable { onThumbnailClick(index) },
+                color = Color.Black
+            ) {
+                DzThumbnail(uriString = item.uri.toString())
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoSheetContent(item: MediaImageItem) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = "사진 정보",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        HorizontalDivider()
+        InfoRow(label = "저장경로", value = item.relativePath)
+        InfoRow(label = "파일명", value = item.displayName)
+        InfoRow(label = "촬영일시", value = formatDateTime(item.dateAddedSeconds))
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(text = label, style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -259,4 +388,20 @@ private fun shareImages(context: android.content.Context, items: List<MediaImage
         }
     }
     context.startActivity(Intent.createChooser(intent, "공유"))
+}
+
+private fun formatDateTime(dateAddedSeconds: Long): String {
+    val locale = Locale.getDefault()
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val zonedDateTime = Instant.ofEpochSecond(dateAddedSeconds).atZone(ZoneId.systemDefault())
+        DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
+            .withLocale(locale)
+            .format(zonedDateTime)
+    } else {
+        java.text.DateFormat.getDateTimeInstance(
+            java.text.DateFormat.MEDIUM,
+            java.text.DateFormat.MEDIUM,
+            locale
+        ).format(Date(dateAddedSeconds * 1000))
+    }
 }

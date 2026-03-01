@@ -208,16 +208,6 @@ fun AppRoot() {
         screen = target
     }
 
-    fun computeAlbumTitle(location: AlbumLocation): String {
-        if (isOriginalRelativePath(location.relativePath)) return ORIGINAL_PHOTOS_TITLE
-        val g2Norm = location.g2Label.trim()
-        return when {
-            location.g1 == DzlogMediaStoreReader.ROOT_G1 && g2Norm.isBlank() -> DzlogMediaStoreReader.ROOT_G1
-            g2Norm.isBlank() -> "DZlog / ${location.g1}"
-            else -> "DZlog / ${location.g1} / $g2Norm"
-        }
-    }
-
     fun resetGridUiState() {
         gridItems = emptyList()
         isSelectionMode = false
@@ -524,11 +514,7 @@ fun AppRoot() {
         AppScreen.ALBUM_GRID -> {
             val location = requireValidAlbumLocationOrFallback()
             if (location != null) {
-                val titleLabel = computeAlbumTitle(location)
                 LogGridScreen(
-                    g1 = location.g1,
-                    g2 = location.g2Label,
-                    titleLabel = titleLabel,
                     relativePath = location.relativePath,
                     items = gridItems,
                     isSelectionMode = isSelectionMode,
@@ -576,34 +562,11 @@ fun AppRoot() {
         AppScreen.ALBUM_VIEWER -> {
             val location = requireValidAlbumLocationOrFallback()
             if (location != null) {
-                val titleLabel = computeAlbumTitle(location)
                 LogViewerScreen(
-                    g1 = location.g1,
-                    g2 = location.g2Label,
-                    titleLabel = titleLabel,
                     relativePath = location.relativePath,
                     items = gridItems,
                     startIndex = viewerStartIndex,
-                    isSelectionMode = isSelectionMode,
-                    selectedIds = selectedIds,
                     onBack = { screen = if (directReturnToCameraFromAlbumGrid) AppScreen.CAMERA else AppScreen.ALBUM_GRID },
-                    onEnterSelectionWith = { id ->
-                        isSelectionMode = true
-                        selectedIds = selectedIds + id
-                    },
-                    onToggleSelection = { id ->
-                        selectedIds =
-                            if (selectedIds.contains(id)) selectedIds - id else selectedIds + id
-                        if (selectedIds.isEmpty()) isSelectionMode = false
-                    },
-                    onExitSelection = {
-                        isSelectionMode = false
-                        selectedIds = emptySet()
-                    },
-                    onSelectAll = {
-                        isSelectionMode = true
-                        selectedIds = gridItems.map { it.id }.toSet()
-                    },
                     onItemsReloaded = { gridItems = it },
                     onRequestCloseViewer = {
                         isSelectionMode = false

@@ -59,9 +59,6 @@ import kotlinx.coroutines.withContext
  */
 @Composable
 fun LogGridScreen(
-    g1: String,
-    g2: String,
-    titleLabel: String,
     relativePath: String,
     originalRelativePath: String?,
     onOpenOriginalFolder: (String) -> Unit,
@@ -78,6 +75,13 @@ fun LogGridScreen(
     val context = LocalContext.current
     val resolver = context.contentResolver
     val reader = remember { DzlogMediaStoreReader(resolver) }
+
+    val titleText = remember(relativePath) {
+        relativePath
+            .trimEnd('/')
+            .substringAfterLast('/')
+            .ifBlank { relativePath }
+    }
 
     var error by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
@@ -200,7 +204,7 @@ fun LogGridScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text(titleLabel)
+                        Text(titleText)
                         if (!originalRelativePath.isNullOrBlank() && originalCount > 0) {
                             Spacer(Modifier.height(8.dp))
                             LogOriginalPhotoEntryCard(
