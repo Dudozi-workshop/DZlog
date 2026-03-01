@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Card
@@ -111,6 +112,10 @@ fun LogGridScreen(
                     .thenByDescending { it.dateAddedSeconds }
             )
         }
+    }
+
+    val indexById = remember(items) {
+        items.mapIndexed { index, item -> item.id to index }.toMap()
     }
 
     fun reloadImages() {
@@ -278,13 +283,19 @@ fun LogGridScreen(
             ) {
                 itemsIndexed(displayItems, key = { _, it -> it.id }) { _, item ->
                     val selected = selectedIds.contains(item.id)
+                    val isFavorite = favoriteIds.contains(item.id)
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(1f)
                             .combinedClickable(
                                 onClick = {
-                                    if (isSelectionMode) onToggleSelection(item.id) else onOpenViewer(items.indexOfFirst { it.id == item.id }.coerceAtLeast(0))
+                                    if (isSelectionMode) {
+                                        onToggleSelection(item.id)
+                                    } else {
+                                        val originalIndex = indexById[item.id] ?: 0
+                                        onOpenViewer(originalIndex)
+                                    }
                                 },
                                 onLongClick = { onEnterSelectionWith(item.id) }
                             )
@@ -292,12 +303,12 @@ fun LogGridScreen(
                         Box(modifier = Modifier.fillMaxSize()) {
                             DzThumbnail(uriString = item.uri.toString())
 
-                            if (favoriteIds.contains(item.id)) {
+                            if (isFavorite) {
                                 Box(
                                     modifier = Modifier
                                         .padding(6.dp)
                                         .align(Alignment.TopEnd)
-                                        .background(Color(0xCC000000), shape = androidx.compose.foundation.shape.CircleShape)
+                                        .background(Color(0xCC000000), shape = CircleShape)
                                         .padding(2.dp)
                                 ) {
                                     Icon(

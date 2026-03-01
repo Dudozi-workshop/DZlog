@@ -24,8 +24,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -191,10 +193,12 @@ fun LogViewerScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val filmstripListState = rememberLazyListState()
                 ThumbnailFilmstrip(
                     items = items,
                     currentPage = pagerState.currentPage,
                     favoriteIds = favoriteIds,
+                    listState = filmstripListState,
                     onThumbnailClick = { index ->
                         scope.launch {
                             pagerState.animateScrollToPage(index)
@@ -313,9 +317,20 @@ private fun ThumbnailFilmstrip(
     items: List<MediaImageItem>,
     currentPage: Int,
     favoriteIds: Set<Long>,
+    listState: LazyListState,
     onThumbnailClick: (Int) -> Unit,
 ) {
+    LaunchedEffect(currentPage, items.size) {
+        if (items.isEmpty()) return@LaunchedEffect
+        if (currentPage !in items.indices) return@LaunchedEffect
+        val maxIndex = (items.size - 1).coerceAtLeast(0)
+        val centerOffset = 2
+        val targetIndex = (currentPage - centerOffset).coerceIn(0, maxIndex)
+        listState.animateScrollToItem(targetIndex)
+    }
+
     LazyRow(
+        state = listState,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp),
@@ -323,6 +338,7 @@ private fun ThumbnailFilmstrip(
     ) {
         itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
             val selected = index == currentPage
+            val isFavorite = favoriteIds.contains(item.id)
             Surface(
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
@@ -338,7 +354,7 @@ private fun ThumbnailFilmstrip(
                 Box(modifier = Modifier.fillMaxSize()) {
                     DzThumbnail(uriString = item.uri.toString())
 
-                    if (favoriteIds.contains(item.id)) {
+                    if (isFavorite) {
                         Box(
                             modifier = Modifier
                                 .padding(4.dp)
