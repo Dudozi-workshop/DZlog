@@ -184,7 +184,7 @@ fun LogG2Screen(
                 )
             }
             Text(
-                text = "DZlog / $g1",
+                text = g1,
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center,
                 color = DDZColor.Primary,

@@ -11,10 +11,12 @@ import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,9 +30,12 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -49,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -58,6 +64,7 @@ import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
+import com.dudoziworkshop.dzlog.ui.common.buildTwoPartTitle
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.ui.theme.dzTopInset
@@ -66,8 +73,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-private enum class GridSortOption { DATE, FAVORITE }
+import kotlin.math.floor
 
 /**
  * 그룹 내부 그리드 화면
@@ -105,15 +111,13 @@ fun LogGridScreen(
 
     val scope = rememberCoroutineScope()
     var reloadJob by remember { mutableStateOf<Job?>(null) }
-    var sortOption by rememberSaveable { mutableStateOf(GridSortOption.DATE) }
+    var favoriteOnly by rememberSaveable { mutableStateOf(false) }
 
-    val displayItems = remember(items, favoriteIds, sortOption) {
-        when (sortOption) {
-            GridSortOption.DATE -> items
-            GridSortOption.FAVORITE -> items.sortedWith(
-                compareByDescending<MediaImageItem> { favoriteIds.contains(it.id) }
-                    .thenByDescending { it.dateAddedSeconds }
-            )
+    val displayItems = remember(items, favoriteIds, favoriteOnly) {
+        if (favoriteOnly) {
+            items.filter { favoriteIds.contains(it.id) }
+        } else {
+            items
         }
     }
 
@@ -230,16 +234,14 @@ fun LogGridScreen(
                     )
                 }
             } else {
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = dzTopInset()),
-                    contentAlignment = Alignment.Center
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .align(Alignment.CenterStart),
+                        modifier = Modifier.size(40.dp),
                         onClick = onBack
                     ) {
                         Icon(
@@ -250,30 +252,63 @@ fun LogGridScreen(
                         )
                     }
 
-                    Text(
-                        text = headerTitle,
-                        modifier = Modifier.padding(horizontal = 56.dp),
-                        textAlign = TextAlign.Center,
-                        style = DDZTypography.ScreenTitle,
-                        color = DDZColor.Primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                        val parts = remember(headerTitle) {
+                            val split = headerTitle.split(" / ", limit = 2)
+                            when (split.size) {
+                                2 -> split[0] to split[1]
+                                else -> headerTitle to null
+                            }
+                        }
+                        val textStyle = DDZTypography.ScreenTitle
+                        val fontSizeSp = if (textStyle.fontSize.value > 0f) textStyle.fontSize.value else 20f
+                        val avgCharDp = (fontSizeSp * 0.55f).dp
+                        val availDp = maxWidth.coerceAtLeast(0.dp)
+                        val rawBudget = if (avgCharDp.value > 0f) floor(availDp.value / avgCharDp.value).toInt() else 8
+                        val totalBudget = rawBudget.coerceIn(8, 18)
+                        val displayTitle = buildTwoPartTitle(
+                            g1 = parts.first,
+                            g2 = parts.second,
+                            totalBudget = totalBudget,
+                        )
 
-                    Row(
-                        modifier = Modifier.align(Alignment.CenterEnd),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Text(
+                            text = displayTitle,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                            style = DDZTypography.ScreenTitle,
+                            color = DDZColor.Primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(DDZColor.Card)
+                            .border(1.dp, DDZColor.Border, RoundedCornerShape(14.dp))
+                            .clickable { favoriteOnly = !favoriteOnly },
+                        contentAlignment = Alignment.Center
                     ) {
-                        SortToggleChip(
-                            text = "날짜",
-                            selected = sortOption == GridSortOption.DATE,
-                            onClick = { sortOption = GridSortOption.DATE }
+                        Icon(
+                            imageVector = if (favoriteOnly) Icons.Default.GridView else Icons.Default.FavoriteBorder,
+                            contentDescription = if (favoriteOnly) "전체 보기" else "좋아요만 보기",
+                            tint = DDZColor.Primary,
+                            modifier = Modifier.size(20.dp)
                         )
-                        SortToggleChip(
-                            text = "좋아요",
-                            selected = sortOption == GridSortOption.FAVORITE,
-                            onClick = { sortOption = GridSortOption.FAVORITE }
-                        )
+                    }
+                }
+
+                if (isOriginalGrid) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        OriginalBadge()
                     }
                 }
 
@@ -304,6 +339,11 @@ fun LogGridScreen(
             if (items.isEmpty()) {
                 Text("사진이 없습니다.")
                 Text("(선택한 폴더의 사진만 표시됩니다.)")
+                return@Column
+            }
+
+            if (favoriteOnly && displayItems.isEmpty()) {
+                Text("좋아요한 사진이 없습니다.")
                 return@Column
             }
 
@@ -394,24 +434,21 @@ fun LogGridScreen(
     // SelectionBottomBar는 Box 하단 고정으로 이동됨
 }
 
+
 @Composable
-private fun SortToggleChip(
-    text: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
+private fun OriginalBadge() {
     Box(
         modifier = Modifier
-            .background(
-                color = if (selected) Color(0xFF2D2D2D) else Color(0xFF1B1B1B),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(DDZColor.SageLight)
+            .border(1.dp, DDZColor.Sage, RoundedCornerShape(10.dp))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center
     ) {
         Text(
-            text = text,
-            color = if (selected) Color.White else Color.LightGray,
+            text = "원본",
+            style = DDZTypography.Caption,
+            color = DDZColor.Primary,
         )
     }
 }

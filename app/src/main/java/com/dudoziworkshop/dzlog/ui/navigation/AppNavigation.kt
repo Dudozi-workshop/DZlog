@@ -45,6 +45,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 
+
 enum class AppScreen {
     HOME,
     CAMERA,
@@ -305,15 +306,20 @@ fun AppRoot() {
 
 
     fun buildGridHeaderTitle(location: AlbumLocation): String {
-        val base = buildString {
-            append("DZlog / ")
-            append(location.g1)
-            if (location.g2Label.isNotBlank()) {
-                append(" / ")
-                append(location.g2Label)
-            }
+        val g1 = location.g1.trim()
+        val rawG2 = location.g2Label.trim()
+
+        val isOriginalLikeLabel = rawG2 == ORIGINAL_PHOTOS_TITLE ||
+            rawG2.contains("원본") ||
+            rawG2.equals("original", ignoreCase = true)
+
+        val g2LabelToShow = rawG2.takeIf {
+            it.isNotBlank() &&
+                it != g1 &&
+                !isOriginalLikeLabel
         }
-        return if (isOriginalRelativePath(location.relativePath)) "$base / 원본" else base
+
+        return if (g2LabelToShow != null) "$g1 / $g2LabelToShow" else g1
     }
 
     fun handleAlbumGridBack() {
