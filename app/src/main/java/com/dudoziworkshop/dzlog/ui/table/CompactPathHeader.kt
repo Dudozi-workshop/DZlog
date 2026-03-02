@@ -18,9 +18,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
-import com.dudoziworkshop.dzlog.ui.common.buildFileNameTitleWithCounter
-import com.dudoziworkshop.dzlog.ui.common.buildPrefixedTwoPartPath
-import com.dudoziworkshop.dzlog.ui.common.estimateBudget
+import com.dudoziworkshop.dzlog.ui.common.splitFileNameForDisplay
+import com.dudoziworkshop.dzlog.ui.common.buildSavePathTitle
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -74,19 +73,11 @@ internal fun CompactPathHeader(
                     parseG1G2FromRelativePath(savePath)
                 }
                 val valueStyle = DDZTypography.Body.copy(fontSize = 11.sp, lineHeight = 14.sp)
-                val budget = estimateBudget(
-                    availWidth = maxWidth,
-                    textStyle = valueStyle,
-                    minBudget = 10,
-                    maxBudget = 28,
-                )
-                val displayPath = buildPrefixedTwoPartPath(
+                val displayPath = buildSavePathTitle(
                     prefix = "Pictures/DZlog",
                     g1 = g1Part,
                     g2 = g2Part.ifBlank { null },
-                    totalBudget = budget,
                     sep = "/",
-                    bothLongFixed = 5,
                 )
                 Text(
                     text = displayPath,
@@ -114,18 +105,58 @@ internal fun CompactPathHeader(
             )
             BoxWithConstraints(modifier = Modifier.weight(1f)) {
                 val valueStyle = DDZTypography.Body.copy(fontSize = 11.sp, lineHeight = 14.sp)
-                val displayName = buildFileNameTitleWithCounter(
-                    fileName = fileName,
-                    sep = "_",
-                )
-                Text(
-                    text = displayName,
-                    modifier = Modifier.fillMaxWidth(),
-                    style = valueStyle,
-                    color = DDZColor.TextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                val fileNameParts = splitFileNameForDisplay(fileName)
+                val counter = fileNameParts.counter
+                if (counter.isNullOrBlank()) {
+                    Text(
+                        text = fileNameParts.prefixText,
+                        modifier = Modifier.fillMaxWidth(),
+                        style = valueStyle,
+                        color = DDZColor.TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                } else {
+                    val combined = fileNameParts.prefixText + "_" + counter
+                    val combinedWidth = with(density) {
+                        textMeasurer.measure(
+                            text = combined,
+                            style = valueStyle,
+                        ).size.width.toDp()
+                    }
+
+                    if (combinedWidth <= maxWidth) {
+                        Text(
+                            text = combined,
+                            modifier = Modifier.fillMaxWidth(),
+                            style = valueStyle,
+                            color = DDZColor.TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Clip
+                        )
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = fileNameParts.prefixText,
+                                modifier = Modifier.weight(1f),
+                                style = valueStyle,
+                                color = DDZColor.TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "_" + counter,
+                                style = valueStyle,
+                                color = DDZColor.TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Clip
+                            )
+                        }
+                    }
+                }
             }
             fileNameRightLabel?.takeIf { it.isNotBlank() }?.let { label ->
                 Text(
