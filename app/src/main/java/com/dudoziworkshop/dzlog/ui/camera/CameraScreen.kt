@@ -131,6 +131,7 @@ import com.dudoziworkshop.dzlog.ui.camera.preview.CameraPreviewAreaArgs
 import com.dudoziworkshop.dzlog.ui.camera.preview.WatermarkUiArgs
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsOverlayPanel
 import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
+import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -172,7 +173,7 @@ fun CameraScreen(
         if (!hasPermission) launcher.launch(Manifest.permission.CAMERA)
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(DDZColor.PrimaryDark.copy(alpha = 0f))) {
+    Box(modifier = Modifier.dzScreen()) {
         if (hasPermission) {
             CameraPreview(
                 tableTemplateState = tableTemplateState,
@@ -232,7 +233,7 @@ fun CameraPreview(
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     var zoomPanelExpanded by remember { mutableStateOf(false) }
     val ui = remember { CameraUiState() }
-    var settingsButtonBottomY by remember { mutableStateOf<Float?>(null) }
+    var topBarBottomY by remember { mutableStateOf<Float?>(null) }
     var shutterButtonTopY by remember { mutableStateOf<Float?>(null) }
     var cameraRootHeightPx by remember { mutableStateOf(0f) }
     val density = LocalDensity.current
@@ -479,7 +480,7 @@ fun CameraPreview(
             ui.prefs.wmManualTextColor,
             ui.prefs.wmTextAlign,
             ui.prefs.wmGridEnabled,
-            settingsButtonBottomY,
+            topBarBottomY,
             shutterButtonTopY,
             safeTopY,
             safeBottomY,
@@ -512,7 +513,7 @@ fun CameraPreview(
                     scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
                 },
                 onMaxZoomTenthsChange = { ui.capture.maxZoomTenths = it.coerceAtLeast(10) },
-                settingsButtonBottomY = settingsButtonBottomY,
+                topBarBottomY = topBarBottomY,
                 shutterButtonTopY = shutterButtonTopY,
                 safeTopY = safeTopY,
                 safeBottomY = safeBottomY,
@@ -585,13 +586,12 @@ fun CameraPreview(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(
-                    top = DDZSpacing.screenPadding + DDZSpacing.sectionGap + DDZSpacing.itemGap,
                     start = DDZSpacing.screenPadding,
                     end = DDZSpacing.screenPadding
                 )
                 .fillMaxWidth()
         ) {
-            val topBarMinHeight = 32.dp + (DDZSpacing.itemGap * 2)
+            val topBarMinHeight = 28.dp + DDZSpacing.itemGap
             val settingsButtonReservedWidth = 32.dp + (DDZSpacing.cardPadding * 2)
             val filenameMaxWidth = (maxWidth - settingsButtonReservedWidth - DDZSpacing.itemGap)
                 .coerceAtLeast(0.dp)
@@ -600,12 +600,15 @@ fun CameraPreview(
                 modifier = Modifier
                     .fillMaxWidth()
                     .defaultMinSize(minHeight = topBarMinHeight)
+                    .onGloballyPositioned { coordinates ->
+                        topBarBottomY = coordinates.positionInRoot().y + coordinates.size.height
+                    }
             ) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .widthIn(max = filenameMaxWidth)
-                        .defaultMinSize(minHeight = 32.dp)
+                        .defaultMinSize(minHeight = 28.dp)
                         .background(
                             color = DDZColor.Card.copy(alpha = 0.5f),
                             shape = RoundedCornerShape(8.dp)
@@ -615,7 +618,7 @@ fun CameraPreview(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                         ) { onOpenTableEditor() }
-                        .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
+                        .padding(horizontal = DDZSpacing.cardPadding, vertical = 4.dp)
                 ) {
                     CounterAwareFileNameText(
                         fileName = topDisplayName,
@@ -629,11 +632,8 @@ fun CameraPreview(
                         .align(Alignment.CenterEnd)
                         .background(DDZColor.PrimaryDark.copy(alpha = 0f))
                         .defaultMinSize(minWidth = 32.dp, minHeight = 32.dp)
-                        .onGloballyPositioned { coordinates ->
-                            settingsButtonBottomY = coordinates.positionInRoot().y + coordinates.size.height
-                        }
                         .clickable { ui.showWizard = true }
-                        .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
+                        .padding(horizontal = DDZSpacing.cardPadding, vertical = 4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
@@ -647,7 +647,7 @@ fun CameraPreview(
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = DDZSpacing.screenPadding + DDZSpacing.itemGap),
+                .padding(bottom = DDZSpacing.screenPadding),
             contentAlignment = Alignment.Center
         ) {
             val enabledNow =
@@ -666,7 +666,7 @@ fun CameraPreview(
                     }
                 )
 
-                Box(modifier = Modifier.height(4.dp))
+                Box(modifier = Modifier.height(2.dp))
 
                 Box(
                     modifier = Modifier
@@ -770,7 +770,7 @@ fun CameraPreview(
                         },
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
-                            .padding(end = 16.dp)
+                            .padding(end = 12.dp)
                     )
                 }
             }
@@ -817,7 +817,7 @@ private fun UndoCaptureButton(
 ) {
     Box(
         modifier = modifier
-            .size(48.dp)
+            .size(40.dp)
             .clip(RoundedCornerShape(12.dp))
             .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(12.dp))
             .background(if (enabled) DDZColor.SagePrimary else androidx.compose.ui.graphics.Color.Transparent)
@@ -840,7 +840,7 @@ private fun RecentCaptureThumbButton(
 ) {
     Box(
         modifier = modifier
-            .size(48.dp)
+            .size(40.dp)
             .clip(RoundedCornerShape(12.dp))
             .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(12.dp))
             .background(androidx.compose.ui.graphics.Color.Transparent)

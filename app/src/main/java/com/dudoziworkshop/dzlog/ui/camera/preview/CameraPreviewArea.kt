@@ -507,15 +507,28 @@ internal fun CameraPreviewArea(
             val widthPx = with(density) { maxWidth.toPx() }
             val parentHeightPx = with(density) { maxHeight.toPx() }
             val safeAspect = captureAspect.ratioF.coerceAtLeast(0.01f)
-            val top9By16Px: Float? = args.settingsButtonBottomY
-            val height9By16Px = if (widthPx > 0f) widthPx / (9f / 16f) else 0f
-            val anchorCenterYPx = if (top9By16Px != null && height9By16Px > 0f) {
-                top9By16Px + (height9By16Px / 2f)
-            } else {
-                parentHeightPx / 2f
+
+            // ===== Preview Layout Anchor Rule =====
+            // 9:16 프리뷰는 상단바(bottomY) 바로 아래에 붙인다.
+            // 3:4, 1:1 프리뷰는 9:16의 centerY를 기준으로 중앙 정렬한다.
+            // 상단바 높이 변경(파일명/설정 버튼 크기 변경 등)이 발생해도 프리뷰가 자동으로 재배치되도록
+            // topBarBottomY 측정값을 anchor로 사용한다.
+            // 이 규칙은 “9:16 최대 세로 확보 + 비율 변경 시 중심 흔들림 최소화”를 위한 고정 설계다.
+            val previewWidthPx = widthPx
+            val h916 = if (previewWidthPx > 0f) previewWidthPx * 16f / 9f else 0f
+            val top916 = args.topBarBottomY ?: 0f
+            val centerY = top916 + (h916 / 2f)
+            val h34 = if (previewWidthPx > 0f) previewWidthPx * 4f / 3f else 0f
+            val top34 = centerY - (h34 / 2f)
+            val h11 = previewWidthPx
+            val top11 = centerY - (h11 / 2f)
+
+            val rawTopCurrentPx = when (captureAspect) {
+                CaptureAspect.R9_16 -> top916
+                CaptureAspect.R3_4 -> top34
+                CaptureAspect.R1_1 -> top11
             }
-            val heightCurrentPx = if (widthPx > 0f) widthPx / safeAspect else 0f
-            val rawTopCurrentPx = anchorCenterYPx - (heightCurrentPx / 2f)
+            val heightCurrentPx = if (previewWidthPx > 0f) previewWidthPx / safeAspect else 0f
             val minTopPx = 0f
             val maxTopPx = (parentHeightPx - heightCurrentPx).coerceAtLeast(0f)
             val topCurrentPx = rawTopCurrentPx.coerceIn(minTopPx, maxTopPx)

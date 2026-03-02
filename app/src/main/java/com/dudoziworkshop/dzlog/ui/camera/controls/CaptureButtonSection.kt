@@ -32,7 +32,7 @@ internal fun CaptureButtonSection(
 
     Box(
         modifier = Modifier
-            .size(78.dp)
+            .size(70.dp)
             .background(
                 color = when {
                     !ready -> DDZColor.IconMuted
@@ -47,7 +47,7 @@ internal fun CaptureButtonSection(
     ) {
         Box(
             modifier = Modifier
-                .size(64.dp)
+                .size(56.dp)
                 .background(
                     color = if (ready) androidx.compose.ui.graphics.Color.White else DDZColor.Border,
                     shape = CircleShape

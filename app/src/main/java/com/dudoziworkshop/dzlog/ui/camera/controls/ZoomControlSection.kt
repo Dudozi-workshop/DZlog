@@ -42,18 +42,18 @@ internal fun ZoomControlSection(
                 color = DDZColor.PrimaryDark.copy(alpha = 0f),
                 shape = RoundedCornerShape(999.dp)
             )
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = 8.dp, vertical = 2.dp)
     ) {
         Box(
             modifier = Modifier
-                .defaultMinSize(minWidth = 42.dp, minHeight = 30.dp)
+                .defaultMinSize(minWidth = 40.dp, minHeight = 28.dp)
                 .background(
                     color = DDZColor.Card.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(999.dp)
                 )
                 .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(999.dp))
                 .clickable(onClick = onToggleExpanded)
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = 10.dp, vertical = 4.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
