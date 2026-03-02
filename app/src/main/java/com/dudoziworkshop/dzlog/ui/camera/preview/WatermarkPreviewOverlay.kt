@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.watermark.computeWatermarkBoundsRect
 import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableLayout
 import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableLayoutPx
 import com.dudoziworkshop.dzlog.watermark.drawWatermarkTableOnCanvas
@@ -57,8 +58,11 @@ fun WatermarkPreviewOverlay(
         )
     }
 
-    LaunchedEffect(layout.rect.left, layout.rect.top, layout.rect.right, layout.rect.bottom) {
-        onTableRectChange(RectF(layout.rect))
+    val rawRect = layout.rect
+    val boundsRect = computeWatermarkBoundsRect(rawRect, request.watermark.rotationCwDeg)
+
+    LaunchedEffect(boundsRect.left, boundsRect.top, boundsRect.right, boundsRect.bottom) {
+        onTableRectChange(RectF(boundsRect))
     }
 
     val cells = request.watermarkCells
@@ -90,15 +94,16 @@ fun WatermarkPreviewOverlay(
                 rowWeights = request.tableTemplate.rowWeights,
                 colWeights = request.tableTemplate.colWeights,
                 overrideOffsetLeftPx = overrideOffsetPx?.x,
-                overrideOffsetTopPx = overrideOffsetPx?.y
+                overrideOffsetTopPx = overrideOffsetPx?.y,
+                rotationCwDeg = request.watermark.rotationCwDeg
             )
         }
 
         if (isArmed) {
             drawRect(
                 color = DDZColor.Surface.copy(alpha = 0.85f),
-                topLeft = Offset(layout.rect.left, layout.rect.top),
-                size = androidx.compose.ui.geometry.Size(layout.rect.width(), layout.rect.height()),
+                topLeft = Offset(boundsRect.left, boundsRect.top),
+                size = androidx.compose.ui.geometry.Size(boundsRect.width(), boundsRect.height()),
                 style = Stroke(width = 2.dp.toPx())
             )
         }

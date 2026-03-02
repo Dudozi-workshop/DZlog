@@ -34,8 +34,8 @@ fun computeWatermarkTableLayout(
     val w = bounds.width()
     val h = bounds.height()
     val base = w
-    val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
-    val tableH = base * (tableHeightRatio.coerceIn(10, 200) / 100f)
+    val tableW = base * (tableWidthRatio.coerceIn(10, 100) / 100f)
+    val tableH = base * (tableHeightRatio.coerceIn(10, 100) / 100f)
 
     val maxX = (w - tableW).coerceAtLeast(0f)
     val maxY = (h - tableH).coerceAtLeast(0f)
@@ -89,8 +89,8 @@ fun computeWatermarkTableLayoutPx(
     val w = bounds.width()
     val h = bounds.height()
     val base = w
-    val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
-    val tableH = base * (tableHeightRatio.coerceIn(10, 200) / 100f)
+    val tableW = base * (tableWidthRatio.coerceIn(10, 100) / 100f)
+    val tableH = base * (tableHeightRatio.coerceIn(10, 100) / 100f)
 
     val maxX = (w - tableW).coerceAtLeast(0f)
     val maxY = (h - tableH).coerceAtLeast(0f)
@@ -112,6 +112,19 @@ fun computeWatermarkTableLayoutPx(
     }
 
     return WatermarkTableLayout(RectF(left, top, left + tableW, top + tableH), maxX, maxY)
+}
+
+fun computeWatermarkBoundsRect(rawRect: RectF, rotationCwDeg: Int): RectF {
+    val normalized = ((rotationCwDeg % 360) + 360) % 360
+    if (normalized != 90) return RectF(rawRect)
+
+    val cx = rawRect.centerX()
+    val cy = rawRect.centerY()
+    val w = rawRect.width()
+    val h = rawRect.height()
+    val newW = h
+    val newH = w
+    return RectF(cx - newW / 2f, cy - newH / 2f, cx + newW / 2f, cy + newH / 2f)
 }
 
 private fun drawBackgroundRect(
@@ -266,34 +279,31 @@ fun drawWatermarkTableFromResolvedCells(
     rowWeights: List<Float>? = null,
     colWeights: List<Float>? = null,
     bgStyle: Int = BG_STYLE_BLACK,
-    drawGrid: Boolean = true
+    drawGrid: Boolean = true,
+    rotationCwDeg: Int = 0
 ): Bitmap {
     val out = src.copy(Bitmap.Config.ARGB_8888, true)
     val canvas = Canvas(out)
 
     val w = out.width.toFloat()
     val h = out.height.toFloat()
-    val base = w
-    val tableW = base * (tableWidthRatio.coerceIn(40, 100) / 100f)
-    val tableH = base * (tableHeightRatio.coerceIn(10, 200) / 100f)
+    val layout = computeWatermarkTableLayout(
+        bounds = RectF(0f, 0f, w, h),
+        anchor = anchor,
+        offsetXRatio = offsetXRatio,
+        offsetYRatio = offsetYRatio,
+        tableHeightRatio = tableHeightRatio,
+        tableWidthRatio = tableWidthRatio
+    )
+    val tableW = layout.rect.width()
+    val tableH = layout.rect.height()
+    val left = layout.rect.left
+    val top = layout.rect.top
 
-    val maxX = (w - tableW).coerceAtLeast(0f)
-    val maxY = (h - tableH).coerceAtLeast(0f)
-
-    val left = when (anchor) {
-        WatermarkTableAnchor.TOP_LEFT,
-        WatermarkTableAnchor.BOTTOM_LEFT -> 0f
-        WatermarkTableAnchor.TOP_RIGHT,
-        WatermarkTableAnchor.BOTTOM_RIGHT -> maxX
-        WatermarkTableAnchor.CUSTOM -> maxX * (offsetXRatio.coerceIn(0, 100) / 100f)
-    }
-
-    val top = when (anchor) {
-        WatermarkTableAnchor.TOP_LEFT,
-        WatermarkTableAnchor.TOP_RIGHT -> 0f
-        WatermarkTableAnchor.BOTTOM_LEFT,
-        WatermarkTableAnchor.BOTTOM_RIGHT -> maxY
-        WatermarkTableAnchor.CUSTOM -> maxY * (offsetYRatio.coerceIn(0, 100) / 100f)
+    val shouldRotate = (rotationCwDeg % 360 + 360) % 360 == 90
+    if (shouldRotate) {
+        canvas.save()
+        canvas.rotate(90f, left + tableW / 2f, top + tableH / 2f)
     }
 
     drawBackgroundRect(canvas, left, top, tableW, tableH, bgAlpha, bgStyle)
@@ -343,6 +353,8 @@ fun drawWatermarkTableFromResolvedCells(
         }
     }
 
+    if (shouldRotate) canvas.restore()
+
     return out
 }
 
@@ -367,7 +379,8 @@ fun drawWatermarkTableOnCanvas(
     bgStyle: Int = BG_STYLE_BLACK,
     overrideOffsetLeftPx: Float? = null,
     overrideOffsetTopPx: Float? = null,
-    drawGrid: Boolean = true
+    drawGrid: Boolean = true,
+    rotationCwDeg: Int = 0
 ) {
     val layout = if (
         anchor == WatermarkTableAnchor.CUSTOM &&
@@ -398,6 +411,12 @@ fun drawWatermarkTableOnCanvas(
     val left = layout.rect.left
     val top = layout.rect.top
 
+    val shouldRotate = (rotationCwDeg % 360 + 360) % 360 == 90
+    if (shouldRotate) {
+        canvas.save()
+        canvas.rotate(90f, left + tableW / 2f, top + tableH / 2f)
+    }
+
     drawBackgroundRect(canvas, left, top, tableW, tableH, bgAlpha, bgStyle)
 
     val safeRows = rows.coerceAtLeast(1)
@@ -444,4 +463,6 @@ fun drawWatermarkTableOnCanvas(
             canvas.restore()
         }
     }
+
+    if (shouldRotate) canvas.restore()
 }

@@ -22,14 +22,14 @@ fun WatermarkPlacementSection(
     Text("가로 크기: ${wmWidthRatio}%", color = DDZColor.TextPrimary)
     Slider(
         value = wmWidthRatio.toFloat(),
-        onValueChange = { onWidthRatioChange(it.toInt().coerceIn(40, 100)) },
-        valueRange = 40f..100f
+        onValueChange = { onWidthRatioChange(it.toInt().coerceIn(10, 100)) },
+        valueRange = 10f..100f
     )
 
     Text("세로 크기: ${wmHeightRatio}%", color = DDZColor.TextPrimary)
     Slider(
         value = wmHeightRatio.toFloat(),
-        onValueChange = { onHeightRatioChange(it.toInt().coerceIn(10, 35)) },
-        valueRange = 10f..35f
+        onValueChange = { onHeightRatioChange(it.toInt().coerceIn(10, 100)) },
+        valueRange = 10f..100f
     )
 }

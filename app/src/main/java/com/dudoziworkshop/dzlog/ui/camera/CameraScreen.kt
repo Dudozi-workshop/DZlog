@@ -1,4 +1,7 @@
-@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@file:OptIn(
+    androidx.compose.foundation.ExperimentalFoundationApi::class,
+    androidx.compose.foundation.layout.ExperimentalLayoutApi::class
+)
 
 package com.dudoziworkshop.dzlog.ui.camera
 
@@ -23,13 +26,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.asPaddingValues
@@ -37,6 +44,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -83,6 +91,7 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BG_ALPHA
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_GRID_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_X
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_Y
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_ROTATION_CW_90
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
@@ -233,7 +242,6 @@ fun CameraPreview(
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     var zoomPanelExpanded by remember { mutableStateOf(false) }
     val ui = remember { CameraUiState() }
-    var topBarBottomY by remember { mutableStateOf<Float?>(null) }
     var shutterButtonTopY by remember { mutableStateOf<Float?>(null) }
     var cameraRootHeightPx by remember { mutableStateOf(0f) }
     val density = LocalDensity.current
@@ -442,337 +450,309 @@ fun CameraPreview(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DDZColor.PrimaryDark.copy(alpha = 0f))
-            .onGloballyPositioned { coordinates ->
-                cameraRootHeightPx = coordinates.size.height.toFloat()
-            }
-    ) {
-        val previewAreaArgs = remember(
-            context,
-            lifecycleOwner,
-            scope,
-            ui.prefs.captureAspect,
-            appSettings.saveMode,
-            ui.prefs.continuousPreviewMode,
-            ui.prefs.counterDigits,
-            dateFormat,
-            timeFormat,
-            fnDelim,
-            ui.counter.scopeNextCounter,
-            tableTemplateState,
-            tableResolver,
-            ui.capture.now,
-            ui.prefs.showWmPreview,
-            ui.prefs.showGrid,
-            ui.prefs.zoomRatioTenths,
-            ui.prefs.wmTableAnchor,
-            ui.prefs.wmTableWidthRatio,
-            ui.prefs.wmTableHeightRatio,
-            ui.prefs.wmOffsetXRatio,
-            ui.prefs.wmOffsetYRatio,
-            ui.prefs.wmBgAlpha,
-            ui.prefs.wmBgStyle,
-            ui.prefs.wmValueScale,
-            ui.prefs.wmTextColorMode,
-            ui.prefs.wmManualTextColor,
-            ui.prefs.wmTextAlign,
-            ui.prefs.wmGridEnabled,
-            topBarBottomY,
-            shutterButtonTopY,
-            safeTopY,
-            safeBottomY,
-            usableVerticalMarginPx
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(DDZColor.PrimaryDark.copy(alpha = 0f))
+                .onGloballyPositioned { coordinates ->
+                    cameraRootHeightPx = coordinates.size.height.toFloat()
+                }
         ) {
-            CameraPreviewAreaArgs(
-                context = context,
-                lifecycleOwner = lifecycleOwner,
-                scope = scope,
-                captureAspect = ui.prefs.captureAspect,
-                saveMode = appSettings.saveMode,
-                continuousPreviewMode = ui.prefs.continuousPreviewMode,
-                photoQualityMode = appSettings.photoQualityMode,
-                counterDigits = ui.prefs.counterDigits,
-                dateFormat = dateFormat,
-                timeFormat = timeFormat,
-                fnDelim = fnDelim,
-                scopeNextCounter = ui.counter.scopeNextCounter,
-                tableTemplateState = tableTemplateState,
-                tableResolver = tableResolver,
-                now = ui.capture.now,
-                showWmPreview = ui.prefs.showWmPreview,
-                showGrid = ui.prefs.showGrid,
-                zoomRatioTenths = ui.prefs.zoomRatioTenths,
-                maxZoomTenths = ui.capture.maxZoomTenths,
-                onActualZoomTenthsChange = { ui.capture.actualZoomTenths = it },
-                onRequestedZoomTenthsCommit = { next ->
-                    val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
-                    ui.prefs.zoomRatioTenths = normalized
-                    scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
-                },
-                onMaxZoomTenthsChange = { ui.capture.maxZoomTenths = it.coerceAtLeast(10) },
-                topBarBottomY = topBarBottomY,
-                shutterButtonTopY = shutterButtonTopY,
-                safeTopY = safeTopY,
-                safeBottomY = safeBottomY,
-                usableVerticalMarginPx = usableVerticalMarginPx,
-                onUsableVerticalRatioChange = { topRatio, bottomRatio ->
-                    ui.capture.usableTopRatio = topRatio
-                    ui.capture.usableBottomRatio = bottomRatio
-                },
-                onWatermarkOffsetRatioPreview = { x, y ->
-                    ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
-                    ui.prefs.wmOffsetXRatio = x
-                    ui.prefs.wmOffsetYRatio = y
-                },
-                onWatermarkOffsetRatioCommit = { x, y ->
-                    val nx = x.coerceIn(0, 100)
-                    val ny = y.coerceIn(0, 100)
-                    ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
-                    ui.prefs.wmOffsetXRatio = nx
-                    ui.prefs.wmOffsetYRatio = ny
-                    scope.launch {
-                        context.dataStore.edit {
-                            it[KEY_WM_TABLE_ANCHOR] = 4
-                            it[KEY_WM_OFFSET_X] = nx
-                            it[KEY_WM_OFFSET_Y] = ny
-                        }
-                    }
-                },
+            CameraTopBar(
+                topDisplayName = topDisplayName,
                 onOpenTableEditor = onOpenTableEditor,
-                watermarkUi = WatermarkUiArgs(
-                    anchor = ui.prefs.wmTableAnchor,
-                    tableWidthRatio = ui.prefs.wmTableWidthRatio,
-                    tableHeightRatio = ui.prefs.wmTableHeightRatio,
-                    offsetXRatio = ui.prefs.wmOffsetXRatio,
-                    offsetYRatio = ui.prefs.wmOffsetYRatio,
-                    bgAlpha = ui.prefs.wmBgAlpha,
-                    bgStyle = ui.prefs.wmBgStyle,
-                    valueScale = ui.prefs.wmValueScale,
-                    textColorMode = ui.prefs.wmTextColorMode,
-                    manualTextColor = ui.prefs.wmManualTextColor,
-                    textAlign = ui.prefs.wmTextAlign,
-                    wmGridEnabled = ui.prefs.wmGridEnabled
-                )
+                onOpenSettings = { ui.showWizard = true },
             )
-        }
-
-        CameraPreviewArea(
-            args = previewAreaArgs,
-            boundCamera = boundCamera,
-            onBoundCameraChange = { boundCamera = it },
-            onBoundImageCaptureChange = { boundImageCapture = it },
-            capturedUri = ui.capture.capturedUri,
-            onDismissCaptured = { ui.capture.capturedUri = null },
-            tapFocusUi = ui.capture.tapFocusUi,
-            onTapFocusUiChange = { ui.capture.tapFocusUi = it }
-        )
-
-
-        if (zoomPanelExpanded) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { zoomPanelExpanded = false }
-            )
-        }
-
-        BoxWithConstraints(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(
-                    start = DDZSpacing.screenPadding,
-                    end = DDZSpacing.screenPadding
-                )
-                .fillMaxWidth()
-        ) {
-            val topBarMinHeight = 28.dp + DDZSpacing.itemGap
-            val settingsButtonReservedWidth = 32.dp + (DDZSpacing.cardPadding * 2)
-            val filenameMaxWidth = (maxWidth - settingsButtonReservedWidth - DDZSpacing.itemGap)
-                .coerceAtLeast(0.dp)
 
             Box(
                 modifier = Modifier
+                    .weight(1f)
                     .fillMaxWidth()
-                    .defaultMinSize(minHeight = topBarMinHeight)
-                    .onGloballyPositioned { coordinates ->
-                        topBarBottomY = coordinates.positionInRoot().y + coordinates.size.height
-                    }
             ) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .widthIn(max = filenameMaxWidth)
-                        .defaultMinSize(minHeight = 28.dp)
-                        .background(
-                            color = DDZColor.Card.copy(alpha = 0.5f),
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(8.dp))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) { onOpenTableEditor() }
-                        .padding(horizontal = DDZSpacing.cardPadding, vertical = 4.dp)
-                ) {
-                    CounterAwareFileNameText(
-                        fileName = topDisplayName,
-                        style = DDZTypography.Caption,
-                        color = DDZColor.TextStrong,
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .background(DDZColor.PrimaryDark.copy(alpha = 0f))
-                        .defaultMinSize(minWidth = 32.dp, minHeight = 32.dp)
-                        .clickable { ui.showWizard = true }
-                        .padding(horizontal = DDZSpacing.cardPadding, vertical = 4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "촬영 설정",
-                        tint = DDZColor.SageDarkStrong
-                    )
-                }
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = DDZSpacing.screenPadding),
-            contentAlignment = Alignment.Center
-        ) {
-            val enabledNow =
-                (boundImageCapture != null && ui.capture.capturedUri == null && !ui.capture.isCapturing && !zoomPanelExpanded)
-
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                ZoomControlSection(
-                    zoomRatioTenths = ui.capture.actualZoomTenths,
-                    maxZoomTenths = ui.capture.maxZoomTenths,
-                    expanded = zoomPanelExpanded,
-                    onToggleExpanded = { zoomPanelExpanded = !zoomPanelExpanded },
-                    onZoomTenthsChange = { next ->
-                        val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
-                        ui.prefs.zoomRatioTenths = normalized
-                        scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
-                    }
-                )
-
-                Box(modifier = Modifier.height(2.dp))
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .onGloballyPositioned { coordinates ->
-                            shutterButtonTopY = coordinates.positionInRoot().y
-                        }
-                ) {
-                    RecentCaptureThumbButton(
-                        latestImage = latestImage,
-                        onClick = {
-                            val it = latestImage
-                            if (it == null) {
-                                onOpenAlbum()
-                            } else {
-                                val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
-                                onOpenRecentCaptureGrid(g1, g2, it.relativePath, 0)
-                            }
-                        },
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .padding(start = 16.dp)
-                    )
-
-                    Box(modifier = Modifier.align(Alignment.Center)) {
-                        CaptureButtonSection(
-                            ready = enabledNow,
-                            onClick = {
-                            if (zoomPanelExpanded) {
-                                zoomPanelExpanded = false
-                                return@CaptureButtonSection
-                            }
-                            handleCaptureClick(
+                    val previewAreaArgs = remember(
+                        context,
+                        lifecycleOwner,
+                        scope,
+                        ui.prefs.captureAspect,
+                        appSettings.saveMode,
+                        ui.prefs.continuousPreviewMode,
+                        ui.prefs.counterDigits,
+                        dateFormat,
+                        timeFormat,
+                        fnDelim,
+                        ui.counter.scopeNextCounter,
+                        tableTemplateState,
+                        tableResolver,
+                        ui.capture.now,
+                        ui.prefs.showWmPreview,
+                        ui.prefs.showGrid,
+                        ui.prefs.zoomRatioTenths,
+                        ui.prefs.wmTableAnchor,
+                        ui.prefs.wmTableWidthRatio,
+                        ui.prefs.wmTableHeightRatio,
+                        ui.prefs.wmOffsetXRatio,
+                        ui.prefs.wmOffsetYRatio,
+                        ui.prefs.wmBgAlpha,
+                        ui.prefs.wmBgStyle,
+                        ui.prefs.wmValueScale,
+                        ui.prefs.wmTextColorMode,
+                        ui.prefs.wmManualTextColor,
+                        ui.prefs.wmTextAlign,
+                        ui.prefs.wmGridEnabled,
+                        ui.prefs.wmRotationCwDeg,
+                        shutterButtonTopY,
+                        safeTopY,
+                        safeBottomY,
+                        usableVerticalMarginPx
+                    ) {
+                        CameraPreviewAreaArgs(
                             context = context,
-                            gate = ui.capture.captureGate,
-                            imageCapture = boundImageCapture,
-                            capturedUriPresent = (ui.capture.capturedUri != null),
+                            lifecycleOwner = lifecycleOwner,
+                            scope = scope,
+                            captureAspect = ui.prefs.captureAspect,
+                            saveMode = appSettings.saveMode,
                             continuousPreviewMode = ui.prefs.continuousPreviewMode,
-                            tableResolver = tableResolver,
-                            tableTemplateState = tableTemplateState,
+                            photoQualityMode = appSettings.photoQualityMode,
                             counterDigits = ui.prefs.counterDigits,
                             dateFormat = dateFormat,
                             timeFormat = timeFormat,
                             fnDelim = fnDelim,
                             scopeNextCounter = ui.counter.scopeNextCounter,
-                            includePathInCounterScope = appSettings.includePathInCounterScope,
-                            includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-                            includeDateInCounterScope = appSettings.includeDateInCounterScope,
-                            includeTimeInCounterScope = appSettings.includeTimeInCounterScope,
-                            captureHapticEnabled = appSettings.captureHapticEnabled,
-                            captureAspect = ui.prefs.captureAspect,
-                            saveMode = appSettings.saveMode,
-                            photoQualityMode = appSettings.photoQualityMode,
-                            wmTableAnchor = ui.prefs.wmTableAnchor,
-                            wmOffsetXRatio = ui.prefs.wmOffsetXRatio,
-                            wmOffsetYRatio = ui.prefs.wmOffsetYRatio,
-                            wmTableWidthRatio = ui.prefs.wmTableWidthRatio,
-                            wmTableHeightRatio = ui.prefs.wmTableHeightRatio,
-                            wmBgAlpha = ui.prefs.wmBgAlpha,
-                            wmBgStyle = ui.prefs.wmBgStyle,
-                            wmValueScale = ui.prefs.wmValueScale,
-                            wmTextColorMode = ui.prefs.wmTextColorMode,
-                            wmManualTextColor = ui.prefs.wmManualTextColor,
-                            wmTextAlign = ui.prefs.wmTextAlign,
-                            wmGridEnabled = ui.prefs.wmGridEnabled,
-                            usableTopRatio = ui.capture.usableTopRatio,
-                            usableBottomRatio = ui.capture.usableBottomRatio,
-                            repository = repository,
-                            buildWatermarkConfig = ::buildWatermarkConfig,
-                            onApplyTemplatePatch = { onTemplateChange(it) },
-                            onUpdateScopeNextCounter = { ui.counter.scopeNextCounter = it },
-                            onAddToSessionStack = { uris ->
-                                UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
-                                scope.launch { reloadLatestImage() }
+                            tableTemplateState = tableTemplateState,
+                            tableResolver = tableResolver,
+                            now = ui.capture.now,
+                            showWmPreview = ui.prefs.showWmPreview,
+                            showGrid = ui.prefs.showGrid,
+                            zoomRatioTenths = ui.prefs.zoomRatioTenths,
+                            maxZoomTenths = ui.capture.maxZoomTenths,
+                            onActualZoomTenthsChange = { ui.capture.actualZoomTenths = it },
+                            onRequestedZoomTenthsCommit = { next ->
+                                val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
+                                ui.prefs.zoomRatioTenths = normalized
+                                scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
                             },
-                            onHaptic = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onMaxZoomTenthsChange = { ui.capture.maxZoomTenths = it.coerceAtLeast(10) },
+                            shutterButtonTopY = shutterButtonTopY,
+                            safeTopY = safeTopY,
+                            safeBottomY = safeBottomY,
+                            usableVerticalMarginPx = usableVerticalMarginPx,
+                            onUsableVerticalRatioChange = { topRatio, bottomRatio ->
+                                ui.capture.usableTopRatio = topRatio
+                                ui.capture.usableBottomRatio = bottomRatio
                             },
-                            onSetCapturedUri = {
-                                ui.capture.capturedUri = it
+                            onWatermarkOffsetRatioPreview = { x, y ->
+                                ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
+                                ui.prefs.wmOffsetXRatio = x
+                                ui.prefs.wmOffsetYRatio = y
                             },
-                            onSetCapturing = { ui.capture.isCapturing = it }
+                            onWatermarkOffsetRatioCommit = { x, y ->
+                                val nx = x.coerceIn(0, 100)
+                                val ny = y.coerceIn(0, 100)
+                                ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
+                                ui.prefs.wmOffsetXRatio = nx
+                                ui.prefs.wmOffsetYRatio = ny
+                                scope.launch {
+                                    context.dataStore.edit {
+                                        it[KEY_WM_TABLE_ANCHOR] = 4
+                                        it[KEY_WM_OFFSET_X] = nx
+                                        it[KEY_WM_OFFSET_Y] = ny
+                                    }
+                                }
+                            },
+                            onOpenTableEditor = onOpenTableEditor,
+                            watermarkUi = WatermarkUiArgs(
+                                anchor = ui.prefs.wmTableAnchor,
+                                tableWidthRatio = ui.prefs.wmTableWidthRatio,
+                                tableHeightRatio = ui.prefs.wmTableHeightRatio,
+                                offsetXRatio = ui.prefs.wmOffsetXRatio,
+                                offsetYRatio = ui.prefs.wmOffsetYRatio,
+                                bgAlpha = ui.prefs.wmBgAlpha,
+                                bgStyle = ui.prefs.wmBgStyle,
+                                valueScale = ui.prefs.wmValueScale,
+                                textColorMode = ui.prefs.wmTextColorMode,
+                                manualTextColor = ui.prefs.wmManualTextColor,
+                                textAlign = ui.prefs.wmTextAlign,
+                                wmGridEnabled = ui.prefs.wmGridEnabled,
+                                rotationCwDeg = ui.prefs.wmRotationCwDeg
                             )
-                            }
                         )
                     }
 
-                    UndoCaptureButton(
-                        enabled = sessionCaptureStack.isNotEmpty() && pendingUndoDeleteUris == null,
-                        onClick = {
-                            if (pendingUndoDeleteUris != null) return@UndoCaptureButton
-                            val targetUris = UndoCapturePolicy.consumeLatestCapture(
-                                stack = sessionCaptureStack
-                            )
-                            if (targetUris.isEmpty()) return@UndoCaptureButton
-
-                            if (launchScopedDeleteRequest(targetUris)) {
-                                return@UndoCaptureButton
-                            }
-                            performUndoDelete(targetUris)
-                        },
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(end = 12.dp)
+                    CameraPreviewArea(
+                        args = previewAreaArgs,
+                        boundCamera = boundCamera,
+                        onBoundCameraChange = { boundCamera = it },
+                        onBoundImageCaptureChange = { boundImageCapture = it },
+                        capturedUri = ui.capture.capturedUri,
+                        onDismissCaptured = { ui.capture.capturedUri = null },
+                        tapFocusUi = ui.capture.tapFocusUi,
+                        onTapFocusUiChange = { ui.capture.tapFocusUi = it }
                     )
-                }
+
+
+                    if (zoomPanelExpanded) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { zoomPanelExpanded = false }
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility)
+                            .padding(bottom = DDZSpacing.screenPadding),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val enabledNow =
+                            (boundImageCapture != null && ui.capture.capturedUri == null && !ui.capture.isCapturing && !zoomPanelExpanded)
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            ZoomControlSection(
+                                zoomRatioTenths = ui.capture.actualZoomTenths,
+                                maxZoomTenths = ui.capture.maxZoomTenths,
+                                expanded = zoomPanelExpanded,
+                                onToggleExpanded = { zoomPanelExpanded = !zoomPanelExpanded },
+                                onZoomTenthsChange = { next ->
+                                    val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
+                                    ui.prefs.zoomRatioTenths = normalized
+                                    scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
+                                }
+                            )
+
+                            Box(modifier = Modifier.height(2.dp))
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onGloballyPositioned { coordinates ->
+                                        shutterButtonTopY = coordinates.positionInRoot().y
+                                    }
+                            ) {
+                                RecentCaptureThumbButton(
+                                    latestImage = latestImage,
+                                    onClick = {
+                                        val it = latestImage
+                                        if (it == null) {
+                                            onOpenAlbum()
+                                        } else {
+                                            val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
+                                            onOpenRecentCaptureGrid(g1, g2, it.relativePath, 0)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.CenterStart)
+                                        .padding(start = 16.dp)
+                                )
+
+                                Box(modifier = Modifier.align(Alignment.Center)) {
+                                    CaptureButtonSection(
+                                        ready = enabledNow,
+                                        onClick = {
+                                            if (zoomPanelExpanded) {
+                                                zoomPanelExpanded = false
+                                                return@CaptureButtonSection
+                                            }
+                                            handleCaptureClick(
+                                                context = context,
+                                                gate = ui.capture.captureGate,
+                                                imageCapture = boundImageCapture,
+                                                capturedUriPresent = (ui.capture.capturedUri != null),
+                                                continuousPreviewMode = ui.prefs.continuousPreviewMode,
+                                                tableResolver = tableResolver,
+                                                tableTemplateState = tableTemplateState,
+                                                counterDigits = ui.prefs.counterDigits,
+                                                dateFormat = dateFormat,
+                                                timeFormat = timeFormat,
+                                                fnDelim = fnDelim,
+                                                scopeNextCounter = ui.counter.scopeNextCounter,
+                                                includePathInCounterScope = appSettings.includePathInCounterScope,
+                                                includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+                                                includeDateInCounterScope = appSettings.includeDateInCounterScope,
+                                                includeTimeInCounterScope = appSettings.includeTimeInCounterScope,
+                                                captureHapticEnabled = appSettings.captureHapticEnabled,
+                                                captureAspect = ui.prefs.captureAspect,
+                                                saveMode = appSettings.saveMode,
+                                                photoQualityMode = appSettings.photoQualityMode,
+                                                wmTableAnchor = ui.prefs.wmTableAnchor,
+                                                wmOffsetXRatio = ui.prefs.wmOffsetXRatio,
+                                                wmOffsetYRatio = ui.prefs.wmOffsetYRatio,
+                                                wmTableWidthRatio = ui.prefs.wmTableWidthRatio,
+                                                wmTableHeightRatio = ui.prefs.wmTableHeightRatio,
+                                                wmBgAlpha = ui.prefs.wmBgAlpha,
+                                                wmBgStyle = ui.prefs.wmBgStyle,
+                                                wmValueScale = ui.prefs.wmValueScale,
+                                                wmTextColorMode = ui.prefs.wmTextColorMode,
+                                                wmManualTextColor = ui.prefs.wmManualTextColor,
+                                                wmTextAlign = ui.prefs.wmTextAlign,
+                                                wmGridEnabled = ui.prefs.wmGridEnabled,
+                                                wmRotationCwDeg = ui.prefs.wmRotationCwDeg,
+                                                usableTopRatio = ui.capture.usableTopRatio,
+                                                usableBottomRatio = ui.capture.usableBottomRatio,
+                                                repository = repository,
+                                                buildWatermarkConfig = ::buildWatermarkConfig,
+                                                onApplyTemplatePatch = { onTemplateChange(it) },
+                                                onUpdateScopeNextCounter = { ui.counter.scopeNextCounter = it },
+                                                onAddToSessionStack = { uris ->
+                                                    UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
+                                                    scope.launch { reloadLatestImage() }
+                                                },
+                                                onHaptic = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                },
+                                                onSetCapturedUri = {
+                                                    ui.capture.capturedUri = it
+                                                },
+                                                onSetCapturing = { ui.capture.isCapturing = it }
+                                            )
+                                        }
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .padding(end = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    WatermarkRotateButton(
+                                        onClick = {
+                                            val nextRotation = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
+                                            ui.prefs.wmRotationCwDeg = nextRotation
+                                            // 회전은 0°/90°만 토글한다. 위치/크기는 사용자가 직접 이동/조절한다.
+                                            scope.launch {
+                                                context.dataStore.edit {
+                                                    it[KEY_WM_ROTATION_CW_90] = nextRotation
+                                                }
+                                            }
+                                        }
+                                    )
+
+                                    UndoCaptureButton(
+                                        enabled = sessionCaptureStack.isNotEmpty() && pendingUndoDeleteUris == null,
+                                        onClick = {
+                                            if (pendingUndoDeleteUris != null) return@UndoCaptureButton
+                                            val targetUris = UndoCapturePolicy.consumeLatestCapture(
+                                                stack = sessionCaptureStack
+                                            )
+                                            if (targetUris.isEmpty()) return@UndoCaptureButton
+
+                                            if (launchScopedDeleteRequest(targetUris)) {
+                                                return@UndoCaptureButton
+                                            }
+                                            performUndoDelete(targetUris)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
             }
         }
 
@@ -806,6 +786,93 @@ fun CameraPreview(
                 onDismiss = { ui.showWizard = false }
             )
         }
+    }
+}
+
+@Composable
+private fun CameraTopBar(
+    topDisplayName: String,
+    onOpenTableEditor: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .padding(
+                start = DDZSpacing.screenPadding,
+                end = DDZSpacing.screenPadding
+            )
+            .fillMaxWidth()
+    ) {
+        val topBarMinHeight = 28.dp + DDZSpacing.itemGap
+        val settingsButtonReservedWidth = 32.dp + (DDZSpacing.cardPadding * 2)
+        val filenameMaxWidth = (maxWidth - settingsButtonReservedWidth - DDZSpacing.itemGap)
+            .coerceAtLeast(0.dp)
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = topBarMinHeight)
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .widthIn(max = filenameMaxWidth)
+                    .defaultMinSize(minHeight = 28.dp)
+                    .background(
+                        color = DDZColor.Card.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(8.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { onOpenTableEditor() }
+                    .padding(horizontal = DDZSpacing.cardPadding, vertical = 4.dp)
+            ) {
+                CounterAwareFileNameText(
+                    fileName = topDisplayName,
+                    style = DDZTypography.Caption,
+                    color = DDZColor.TextStrong,
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .background(DDZColor.PrimaryDark.copy(alpha = 0f))
+                    .defaultMinSize(minWidth = 32.dp, minHeight = 32.dp)
+                    .clickable { onOpenSettings() }
+                    .padding(horizontal = DDZSpacing.cardPadding, vertical = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "촬영 설정",
+                    tint = DDZColor.SageDarkStrong
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WatermarkRotateButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(12.dp))
+            .background(androidx.compose.ui.graphics.Color.Transparent)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.RotateRight,
+            contentDescription = "워터마크 90도 회전",
+            tint = DDZColor.SageDarkStrong
+        )
     }
 }
 
@@ -864,7 +931,8 @@ internal fun buildWatermarkConfig(
     textColorMode: Int,
     manualTextColor: Int,
     textAlign: Int,
-    gridEnabled: Boolean
+    gridEnabled: Boolean,
+    rotationCwDeg: Int
 ): WatermarkConfig {
     return WatermarkConfig(
         anchor = anchor,
@@ -878,7 +946,8 @@ internal fun buildWatermarkConfig(
         textColorMode = textColorMode,
         manualTextColor = manualTextColor,
         textAlign = textAlign,
-        gridEnabled = gridEnabled
+        gridEnabled = gridEnabled,
+        rotationCwDeg = if (rotationCwDeg == 90) 90 else 0
     )
 }
 
@@ -1062,8 +1131,8 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
             else -> WatermarkTableAnchor.CUSTOM
         }
 
-        ui.prefs.wmTableWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(40, 100)
-        ui.prefs.wmTableHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 35)
+        ui.prefs.wmTableWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(10, 100)
+        ui.prefs.wmTableHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 100)
         ui.prefs.wmOffsetXRatio = (prefs[KEY_WM_OFFSET_X] ?: 0).coerceIn(0, 100)
         ui.prefs.wmOffsetYRatio = (prefs[KEY_WM_OFFSET_Y] ?: 0).coerceIn(0, 100)
 
@@ -1074,6 +1143,7 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.wmManualTextColor = (prefs[KEY_WM_TEXT_COLOR_MANUAL] ?: WatermarkManualTextColor.BLACK).coerceIn(0, 1)
         ui.prefs.wmTextAlign = (prefs[KEY_WM_TEXT_ALIGN] ?: WatermarkTextAlign.LEFT).coerceIn(0, 2)
         ui.prefs.wmGridEnabled = prefs[KEY_WM_GRID_ENABLED] ?: true
+        ui.prefs.wmRotationCwDeg = if ((prefs[KEY_WM_ROTATION_CW_90] ?: 0) == 90) 90 else 0
 
         ui.prefs.captureAspect = CaptureAspect.from(
             prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v
@@ -1118,5 +1188,6 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.wmManualTextColor = WatermarkManualTextColor.BLACK
         ui.prefs.wmTextAlign = WatermarkTextAlign.LEFT
         ui.prefs.wmGridEnabled = true
+        ui.prefs.wmRotationCwDeg = 0
     }
 }

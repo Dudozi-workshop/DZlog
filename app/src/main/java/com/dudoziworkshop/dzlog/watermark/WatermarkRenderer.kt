@@ -23,6 +23,7 @@ interface WatermarkRenderer {
         rowWeights: List<Float>? = null,
         colWeights: List<Float>? = null,
         bgStyle: Int = 0,
-        drawGrid: Boolean = true
+        drawGrid: Boolean = true,
+        rotationCwDeg: Int = 0
     ): Bitmap
 }

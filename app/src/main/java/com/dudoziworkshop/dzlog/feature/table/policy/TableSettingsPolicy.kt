@@ -102,13 +102,13 @@ suspend fun applyTableWatermarkAction(
         }
 
         is TableWatermarkAction.WidthRatioChanged -> {
-            val normalized = action.width.coerceIn(40, 100)
+            val normalized = action.width.coerceIn(10, 100)
             persistWatermarkWidthRatio(context, normalized)
             TableWatermarkStatePatch(widthRatio = normalized)
         }
 
         is TableWatermarkAction.HeightRatioChanged -> {
-            val normalized = action.height.coerceIn(10, 35)
+            val normalized = action.height.coerceIn(10, 100)
             persistWatermarkHeightRatio(context, normalized)
             TableWatermarkStatePatch(heightRatio = normalized)
         }

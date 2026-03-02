@@ -29,6 +29,7 @@ fun renderWatermarkForRequest(
         rowWeights = request.tableTemplate.rowWeights,
         colWeights = request.tableTemplate.colWeights,
         bgStyle = wm.bgStyle,
-        drawGrid = wm.gridEnabled
+        drawGrid = wm.gridEnabled,
+        rotationCwDeg = wm.rotationCwDeg
     )
 }

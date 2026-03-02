@@ -48,5 +48,6 @@ data class WatermarkConfig(
     val textColorMode: Int, // 0=AUTO, 1=MANUAL
     val manualTextColor: Int, // 0=WHITE, 1=BLACK
     val textAlign: Int, // 0=LEFT, 1=CENTER, 2=RIGHT
-    val gridEnabled: Boolean = true
+    val gridEnabled: Boolean = true,
+    val rotationCwDeg: Int = 0
 )

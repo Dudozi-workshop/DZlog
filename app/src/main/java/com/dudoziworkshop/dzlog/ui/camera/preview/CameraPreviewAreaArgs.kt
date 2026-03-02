@@ -26,7 +26,8 @@ internal data class WatermarkUiArgs(
     val textColorMode: Int,
     val manualTextColor: Int,
     val textAlign: Int,
-    val wmGridEnabled: Boolean
+    val wmGridEnabled: Boolean,
+    val rotationCwDeg: Int
 )
 
 /**
@@ -61,7 +62,6 @@ internal data class CameraPreviewAreaArgs(
     val onActualZoomTenthsChange: (Int) -> Unit,
     val onRequestedZoomTenthsCommit: (Int) -> Unit,
     val onMaxZoomTenthsChange: (Int) -> Unit,
-    val topBarBottomY: Float?,
     val shutterButtonTopY: Float?,
     val safeTopY: Float?,
     val safeBottomY: Float?,

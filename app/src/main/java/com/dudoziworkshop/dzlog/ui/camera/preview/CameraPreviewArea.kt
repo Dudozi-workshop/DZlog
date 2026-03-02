@@ -498,7 +498,8 @@ internal fun CameraPreviewArea(
                 textColorMode = args.watermarkUi.textColorMode,
                 manualTextColor = args.watermarkUi.manualTextColor,
                 textAlign = args.watermarkUi.textAlign,
-                gridEnabled = args.watermarkUi.wmGridEnabled
+                gridEnabled = args.watermarkUi.wmGridEnabled,
+                rotationCwDeg = args.watermarkUi.rotationCwDeg
             )
         )
 
@@ -509,14 +510,12 @@ internal fun CameraPreviewArea(
             val safeAspect = captureAspect.ratioF.coerceAtLeast(0.01f)
 
             // ===== Preview Layout Anchor Rule =====
-            // 9:16 프리뷰는 상단바(bottomY) 바로 아래에 붙인다.
+            // 9:16 프리뷰는 PreviewArea의 top(=상단바 바로 아래)에 붙인다.
             // 3:4, 1:1 프리뷰는 9:16의 centerY를 기준으로 중앙 정렬한다.
-            // 상단바 높이 변경(파일명/설정 버튼 크기 변경 등)이 발생해도 프리뷰가 자동으로 재배치되도록
-            // topBarBottomY 측정값을 anchor로 사용한다.
             // 이 규칙은 “9:16 최대 세로 확보 + 비율 변경 시 중심 흔들림 최소화”를 위한 고정 설계다.
             val previewWidthPx = widthPx
             val h916 = if (previewWidthPx > 0f) previewWidthPx * 16f / 9f else 0f
-            val top916 = args.topBarBottomY ?: 0f
+            val top916 = 0f
             val centerY = top916 + (h916 / 2f)
             val h34 = if (previewWidthPx > 0f) previewWidthPx * 4f / 3f else 0f
             val top34 = centerY - (h34 / 2f)

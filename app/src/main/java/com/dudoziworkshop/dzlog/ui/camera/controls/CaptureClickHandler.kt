@@ -63,6 +63,7 @@ internal fun handleCaptureClick(
     wmManualTextColor: Int,
     wmTextAlign: Int,
     wmGridEnabled: Boolean,
+    wmRotationCwDeg: Int,
     usableTopRatio: Float,
     usableBottomRatio: Float,
     repository: DzlogRepositoryImpl,
@@ -78,7 +79,8 @@ internal fun handleCaptureClick(
         textColorMode: Int,
         manualTextColor: Int,
         textAlign: Int,
-        gridEnabled: Boolean
+        gridEnabled: Boolean,
+        rotationCwDeg: Int
     ) -> com.dudoziworkshop.dzlog.domain.model.WatermarkConfig,
     onApplyTemplatePatch: (TableTemplateState) -> Unit,
     onUpdateScopeNextCounter: (Int) -> Unit,
@@ -157,7 +159,8 @@ internal fun handleCaptureClick(
             wmTextColorMode,
             wmManualTextColor,
             wmTextAlign,
-            wmGridEnabled
+            wmGridEnabled,
+            wmRotationCwDeg
         )
     )
 
