@@ -1,6 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.common
 
-fun ellipsizePrefix(text: String, maxChars: Int): String {
+private fun ellipsizePrefix(text: String, maxChars: Int): String {
     val t = text.trim()
     if (t.length <= maxChars) return t
     if (maxChars <= 0) return "…"
@@ -54,47 +54,9 @@ fun buildTwoPartTitle(
 }
 
 
-private fun buildThreePartTitle(
-    parts: List<String>,
-    totalBudget: Int,
-    sep: String = "/",
-): String {
-    val cleaned = parts.map { it.trim() }.filter { it.isNotBlank() }.take(3)
-    if (cleaned.isEmpty()) return ""
-    if (cleaned.size == 1) return ellipsizePrefix(cleaned[0], maxOf(1, totalBudget - 1))
-
-    val sepLen = sep.length
-    val rawLen = cleaned.sumOf { it.length } + sepLen * (cleaned.size - 1)
-    if (rawLen <= totalBudget) return cleaned.joinToString(sep)
-
-    val baseBudget = (totalBudget - sepLen * (cleaned.size - 1)).coerceAtLeast(cleaned.size)
-    val lens = cleaned.map { it.length }
-    val limits = MutableList(cleaned.size) { 1 }
-    var remaining = baseBudget - cleaned.size
-
-    val order = lens.indices.sortedBy { lens[it] }
-    while (remaining > 0) {
-        var allocated = false
-        for (idx in order) {
-            if (limits[idx] < lens[idx]) {
-                limits[idx] += 1
-                remaining -= 1
-                allocated = true
-                if (remaining == 0) break
-            }
-        }
-        if (!allocated) break
-    }
-
-    return cleaned.indices.joinToString(sep) { i ->
-        val limit = limits[i]
-        if (cleaned[i].length <= limit) cleaned[i] else ellipsizePrefix(cleaned[i], maxOf(1, limit - 1))
-    }
-}
-
 private val TRAILING_DIGITS_REGEX = Regex("(\\d+)$")
 
-fun stripExtension(fileName: String): String {
+private fun stripExtension(fileName: String): String {
     val t = fileName.trim()
     val idx = t.lastIndexOf('.')
     return if (idx > 0) t.substring(0, idx) else t
@@ -135,15 +97,6 @@ private fun ellipsizeByUnitsPrefix(s: String, unitLimit: Double): String {
     }
     if (sb.isEmpty()) return "…"
     return sb.toString() + "…"
-}
-
-private fun buildThreePartTitlePinnedLast(
-    parts: List<String>,
-    totalBudget: Int,
-    sep: String = "_",
-): String {
-    val base = parts.map { it.trim() }.filter { it.isNotBlank() }.joinToString("_")
-    return buildFileNameTitleWithCounter(base, sep)
 }
 
 data class FileNameDisplayParts(
@@ -202,19 +155,6 @@ fun splitFileNameForDisplay(fileName: String): FileNameDisplayParts {
     return FileNameDisplayParts(prefixText = prefixText, counter = counter)
 }
 
-private fun buildFileNameTitleWithCounter(
-    fileName: String,
-    sep: String = "_",
-): String {
-    val parts = splitFileNameForDisplay(fileName)
-    return when {
-        parts.counter.isNullOrBlank() -> parts.prefixText
-        parts.prefixText.isBlank() -> parts.counter
-        else -> "${parts.prefixText}$sep${parts.counter}"
-    }
-}
-
-
 fun buildSavePathTitle(
     prefix: String,
     g1: String,
@@ -263,37 +203,4 @@ fun buildSavePathTitle(
     }
 
     return "$fixedPrefix$sep$aText$sep$bText"
-}
-
-private fun buildPrefixedTwoPartPath(
-    prefix: String,
-    g1: String,
-    g2: String?,
-    totalBudget: Int,
-    sep: String = "/",
-    bothLongFixed: Int = 5,
-): String {
-    val fixedPrefix = prefix.trim()
-    val p1 = g1.trim()
-    val p2 = g2?.trim().orEmpty().ifBlank { "" }
-
-    val tailRaw = if (p2.isNotBlank()) "$p1$sep$p2" else p1
-    val raw = "$fixedPrefix$sep$tailRaw"
-    if (raw.length <= totalBudget) return raw
-
-    val remaining = totalBudget - (fixedPrefix.length + sep.length)
-    if (remaining <= 0) {
-        return fixedPrefix
-    }
-    if (remaining < 2) {
-        return "$fixedPrefix$sep…"
-    }
-    val tail = buildTwoPartTitle(
-        g1 = p1,
-        g2 = p2.ifBlank { null },
-        totalBudget = remaining,
-        bothLongFixed = bothLongFixed,
-        sep = sep,
-    )
-    return "$fixedPrefix$sep$tail"
 }

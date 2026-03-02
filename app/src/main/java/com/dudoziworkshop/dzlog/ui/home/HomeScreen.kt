@@ -317,7 +317,7 @@ fun HomeScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                                Box(modifier = Modifier.weight(1f)) {
                                     val (g1Part, g2Part) = remember(savePathPreview) {
                                         parseG1G2FromRelativePath(savePathPreview)
                                     }
