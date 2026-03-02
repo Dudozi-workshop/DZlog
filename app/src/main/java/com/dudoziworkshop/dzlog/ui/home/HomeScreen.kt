@@ -369,18 +369,9 @@ fun HomeScreen(
                                         fontSize = 11.sp,
                                         lineHeight = 14.sp
                                     )
-                                    val budget = estimateBudget(
-                                        availWidth = maxWidth,
-                                        textStyle = valueStyle,
-                                        minBudget = 10,
-                                        maxBudget = 26,
-                                    )
                                     val displayName = buildFileNameTitleWithCounter(
                                         fileName = filenamePreview,
-                                        totalBudget = budget,
-                                        sep = "/",
-                                        maxSlots = 2,
-                                        slotsBothLongFixed = 4,
+                                        sep = "_",
                                     )
                                     Text(
                                         text = displayName,

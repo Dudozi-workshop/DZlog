@@ -114,18 +114,9 @@ internal fun CompactPathHeader(
             )
             BoxWithConstraints(modifier = Modifier.weight(1f)) {
                 val valueStyle = DDZTypography.Body.copy(fontSize = 11.sp, lineHeight = 14.sp)
-                val budget = estimateBudget(
-                    availWidth = maxWidth,
-                    textStyle = valueStyle,
-                    minBudget = 12,
-                    maxBudget = 32,
-                )
                 val displayName = buildFileNameTitleWithCounter(
                     fileName = fileName,
-                    totalBudget = budget,
-                    sep = "/",
-                    maxSlots = 3,
-                    slotsBothLongFixed = 5,
+                    sep = "_",
                 )
                 Text(
                     text = displayName,
