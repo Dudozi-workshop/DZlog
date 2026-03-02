@@ -169,6 +169,36 @@ fun computeWatermarkTableLayoutPxClampedForRotation(
     )
 }
 
+fun computeBoundsSize(rawW: Float, rawH: Float, rotationCwDeg: Int): Pair<Float, Float> {
+    val normalized = ((rotationCwDeg % 360) + 360) % 360
+    return if (normalized == 90) rawH to rawW else rawW to rawH
+}
+
+fun rawRectFromBounds(boundsRect: RectF, rawW: Float, rawH: Float): RectF {
+    val cx = boundsRect.centerX()
+    val cy = boundsRect.centerY()
+    return RectF(cx - rawW / 2f, cy - rawH / 2f, cx + rawW / 2f, cy + rawH / 2f)
+}
+
+fun boundsRectFromOffset(
+    captureRect: RectF,
+    boundsW: Float,
+    boundsH: Float,
+    boundsLeftPx: Float,
+    boundsTopPx: Float
+): RectF {
+    val maxX = (captureRect.width() - boundsW).coerceAtLeast(0f)
+    val maxY = (captureRect.height() - boundsH).coerceAtLeast(0f)
+    val left = boundsLeftPx.coerceIn(0f, maxX)
+    val top = boundsTopPx.coerceIn(0f, maxY)
+    return RectF(
+        captureRect.left + left,
+        captureRect.top + top,
+        captureRect.left + left + boundsW,
+        captureRect.top + top + boundsH
+    )
+}
+
 fun computeWatermarkBoundsRect(rawRect: RectF, rotationCwDeg: Int): RectF {
     val normalized = ((rotationCwDeg % 360) + 360) % 360
     if (normalized != 90) return RectF(rawRect)
@@ -324,6 +354,8 @@ fun drawWatermarkTableFromResolvedCells(
     anchor: WatermarkTableAnchor,
     offsetXRatio: Int,
     offsetYRatio: Int,
+    boundsOffsetX10000: Int = 0,
+    boundsOffsetY10000: Int = 0,
     tableHeightRatio: Int,
     tableWidthRatio: Int,
     bgAlpha: Int,
@@ -342,18 +374,40 @@ fun drawWatermarkTableFromResolvedCells(
 
     val w = out.width.toFloat()
     val h = out.height.toFloat()
+    val imageBounds = RectF(0f, 0f, w, h)
     val layout = computeWatermarkTableLayout(
-        bounds = RectF(0f, 0f, w, h),
+        bounds = imageBounds,
         anchor = anchor,
         offsetXRatio = offsetXRatio,
         offsetYRatio = offsetYRatio,
         tableHeightRatio = tableHeightRatio,
         tableWidthRatio = tableWidthRatio
     )
-    val tableW = layout.rect.width()
-    val tableH = layout.rect.height()
-    val left = layout.rect.left
-    val top = layout.rect.top
+    val rawRect = if (anchor == WatermarkTableAnchor.CUSTOM) {
+        val baseW = imageBounds.width()
+        val rawW = baseW * (tableWidthRatio.coerceIn(10, 100) / 100f)
+        val rawH = baseW * (tableHeightRatio.coerceIn(10, 100) / 100f)
+        val (boundsW, boundsH) = computeBoundsSize(rawW, rawH, rotationCwDeg)
+        val boundsMaxX = (imageBounds.width() - boundsW).coerceAtLeast(0f)
+        val boundsMaxY = (imageBounds.height() - boundsH).coerceAtLeast(0f)
+        val boundsLeftPx = boundsMaxX * (boundsOffsetX10000.coerceIn(0, 10000) / 10000f)
+        val boundsTopPx = boundsMaxY * (boundsOffsetY10000.coerceIn(0, 10000) / 10000f)
+        // UI/저장 모두 boundsOffset10000 기반으로 boundsRect를 만든 뒤 rawRect로 역산하여 동일 위치를 보장한다.
+        val boundsRect = boundsRectFromOffset(
+            captureRect = imageBounds,
+            boundsW = boundsW,
+            boundsH = boundsH,
+            boundsLeftPx = boundsLeftPx,
+            boundsTopPx = boundsTopPx
+        )
+        rawRectFromBounds(boundsRect, rawW, rawH)
+    } else {
+        layout.rect
+    }
+    val tableW = rawRect.width()
+    val tableH = rawRect.height()
+    val left = rawRect.left
+    val top = rawRect.top
 
     val shouldRotate = (rotationCwDeg % 360 + 360) % 360 == 90
     if (shouldRotate) {

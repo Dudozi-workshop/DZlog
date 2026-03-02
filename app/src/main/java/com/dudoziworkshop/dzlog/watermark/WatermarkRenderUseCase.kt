@@ -19,6 +19,8 @@ fun renderWatermarkForRequest(
         anchor = wm.anchor,
         offsetXRatio = wm.offsetXRatio,
         offsetYRatio = wm.offsetYRatio,
+        boundsOffsetX10000 = wm.boundsOffsetX10000,
+        boundsOffsetY10000 = wm.boundsOffsetY10000,
         tableHeightRatio = wm.tableHeightRatio,
         tableWidthRatio = wm.tableWidthRatio,
         bgAlpha = wm.tableBgAlpha,

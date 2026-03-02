@@ -40,6 +40,8 @@ data class WatermarkConfig(
     val anchor: WatermarkTableAnchor,
     val offsetXRatio: Int,
     val offsetYRatio: Int,
+    val boundsOffsetX10000: Int = 0,
+    val boundsOffsetY10000: Int = 0,
     val tableHeightRatio: Int,
     val tableWidthRatio: Int,
     val tableBgAlpha: Int,

@@ -36,6 +36,8 @@ internal class CameraPrefsState {
     var wmTableHeightRatio by mutableIntStateOf(20)
     var wmOffsetXRatio by mutableIntStateOf(0)
     var wmOffsetYRatio by mutableIntStateOf(0)
+    var wmBoundsOffsetX10000 by mutableIntStateOf(0)
+    var wmBoundsOffsetY10000 by mutableIntStateOf(0)
     var wmBgAlpha by mutableIntStateOf(80)
     // 0=BLACK, 1=WHITE, 2=TRANSPARENT
     var wmBgStyle by mutableIntStateOf(0)

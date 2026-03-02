@@ -13,6 +13,8 @@ interface WatermarkRenderer {
         anchor: WatermarkTableAnchor,
         offsetXRatio: Int,
         offsetYRatio: Int,
+        boundsOffsetX10000: Int = 0,
+        boundsOffsetY10000: Int = 0,
         tableHeightRatio: Int,
         tableWidthRatio: Int,
         bgAlpha: Int,

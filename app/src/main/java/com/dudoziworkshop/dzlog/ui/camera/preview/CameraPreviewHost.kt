@@ -33,7 +33,8 @@ internal fun CameraPreviewHost(
     tapFocusUi: TapFocusUiState?,
     isWatermarkArmed: Boolean,
     watermarkOffsetOverridePx: Offset?,
-    onWatermarkRectChange: (RectF?) -> Unit
+    onWatermarkBoundsRectChange: (RectF?) -> Unit,
+    onWatermarkRawRectChange: (RectF?) -> Unit
 ) {
     @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
     AndroidView(
@@ -61,7 +62,8 @@ internal fun CameraPreviewHost(
         previewContentRect = previewContentRect,
         overrideOffsetPx = watermarkOffsetOverridePx,
         isArmed = isWatermarkArmed,
-        onTableRectChange = onWatermarkRectChange
+        onBoundsRectChange = onWatermarkBoundsRectChange,
+        onRawRectChange = onWatermarkRawRectChange
     )
 
     CaptureResultOverlay(

@@ -90,7 +90,9 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BG_ALPHA
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_GRID_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_X
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_X_10000
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_Y
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_Y_10000
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_ROTATION_CW_90
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
@@ -152,6 +154,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 import java.util.Date
 
 private val USABLE_VERTICAL_MARGIN = 10.dp
@@ -560,6 +563,35 @@ fun CameraPreview(
                                     }
                                 }
                             },
+                            onWatermarkBoundsOffset10000Preview = { x10000, y10000 ->
+                                val nx10000 = x10000.coerceIn(0, 10000)
+                                val ny10000 = y10000.coerceIn(0, 10000)
+                                ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
+                                ui.prefs.wmBoundsOffsetX10000 = nx10000
+                                ui.prefs.wmBoundsOffsetY10000 = ny10000
+                                ui.prefs.wmOffsetXRatio = (nx10000 / 100f).roundToInt().coerceIn(0, 100)
+                                ui.prefs.wmOffsetYRatio = (ny10000 / 100f).roundToInt().coerceIn(0, 100)
+                            },
+                            onWatermarkBoundsOffset10000Commit = { x10000, y10000 ->
+                                val nx10000 = x10000.coerceIn(0, 10000)
+                                val ny10000 = y10000.coerceIn(0, 10000)
+                                val nx = (nx10000 / 100f).roundToInt().coerceIn(0, 100)
+                                val ny = (ny10000 / 100f).roundToInt().coerceIn(0, 100)
+                                ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
+                                ui.prefs.wmBoundsOffsetX10000 = nx10000
+                                ui.prefs.wmBoundsOffsetY10000 = ny10000
+                                ui.prefs.wmOffsetXRatio = nx
+                                ui.prefs.wmOffsetYRatio = ny
+                                scope.launch {
+                                    context.dataStore.edit {
+                                        it[KEY_WM_TABLE_ANCHOR] = 4
+                                        it[KEY_WM_BOUNDS_OFFSET_X_10000] = nx10000
+                                        it[KEY_WM_BOUNDS_OFFSET_Y_10000] = ny10000
+                                        it[KEY_WM_OFFSET_X] = nx
+                                        it[KEY_WM_OFFSET_Y] = ny
+                                    }
+                                }
+                            },
                             onOpenTableEditor = onOpenTableEditor,
                             watermarkUi = WatermarkUiArgs(
                                 anchor = ui.prefs.wmTableAnchor,
@@ -567,6 +599,8 @@ fun CameraPreview(
                                 tableHeightRatio = ui.prefs.wmTableHeightRatio,
                                 offsetXRatio = ui.prefs.wmOffsetXRatio,
                                 offsetYRatio = ui.prefs.wmOffsetYRatio,
+                                boundsOffsetX10000 = ui.prefs.wmBoundsOffsetX10000,
+                                boundsOffsetY10000 = ui.prefs.wmBoundsOffsetY10000,
                                 bgAlpha = ui.prefs.wmBgAlpha,
                                 bgStyle = ui.prefs.wmBgStyle,
                                 valueScale = ui.prefs.wmValueScale,
@@ -682,6 +716,8 @@ fun CameraPreview(
                                                 wmTableAnchor = ui.prefs.wmTableAnchor,
                                                 wmOffsetXRatio = ui.prefs.wmOffsetXRatio,
                                                 wmOffsetYRatio = ui.prefs.wmOffsetYRatio,
+                                                wmBoundsOffsetX10000 = ui.prefs.wmBoundsOffsetX10000,
+                                                wmBoundsOffsetY10000 = ui.prefs.wmBoundsOffsetY10000,
                                                 wmTableWidthRatio = ui.prefs.wmTableWidthRatio,
                                                 wmTableHeightRatio = ui.prefs.wmTableHeightRatio,
                                                 wmBgAlpha = ui.prefs.wmBgAlpha,
@@ -923,6 +959,8 @@ internal fun buildWatermarkConfig(
     anchor: WatermarkTableAnchor,
     offsetXRatio: Int,
     offsetYRatio: Int,
+    boundsOffsetX10000: Int,
+    boundsOffsetY10000: Int,
     tableWidthRatio: Int,
     tableHeightRatio: Int,
     tableBgAlpha: Int,
@@ -938,6 +976,8 @@ internal fun buildWatermarkConfig(
         anchor = anchor,
         offsetXRatio = offsetXRatio,
         offsetYRatio = offsetYRatio,
+        boundsOffsetX10000 = boundsOffsetX10000.coerceIn(0, 10000),
+        boundsOffsetY10000 = boundsOffsetY10000.coerceIn(0, 10000),
         tableWidthRatio = tableWidthRatio,
         tableHeightRatio = tableHeightRatio,
         tableBgAlpha = tableBgAlpha,
@@ -1135,6 +1175,8 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.wmTableHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 100)
         ui.prefs.wmOffsetXRatio = (prefs[KEY_WM_OFFSET_X] ?: 0).coerceIn(0, 100)
         ui.prefs.wmOffsetYRatio = (prefs[KEY_WM_OFFSET_Y] ?: 0).coerceIn(0, 100)
+        ui.prefs.wmBoundsOffsetX10000 = (prefs[KEY_WM_BOUNDS_OFFSET_X_10000] ?: (ui.prefs.wmOffsetXRatio * 100)).coerceIn(0, 10000)
+        ui.prefs.wmBoundsOffsetY10000 = (prefs[KEY_WM_BOUNDS_OFFSET_Y_10000] ?: (ui.prefs.wmOffsetYRatio * 100)).coerceIn(0, 10000)
 
         ui.prefs.wmBgAlpha = (prefs[KEY_WM_BG_ALPHA] ?: 80).coerceIn(0, 255)
         ui.prefs.wmBgStyle = (prefs[KEY_WM_TABLE_BG_STYLE] ?: 0).coerceIn(0, 2)
@@ -1181,6 +1223,8 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.wmTableHeightRatio = 20
         ui.prefs.wmOffsetXRatio = 0
         ui.prefs.wmOffsetYRatio = 0
+        ui.prefs.wmBoundsOffsetX10000 = 0
+        ui.prefs.wmBoundsOffsetY10000 = 0
         ui.prefs.wmBgAlpha = 80
         ui.prefs.wmBgStyle = 0
         ui.prefs.wmValueScale = 100

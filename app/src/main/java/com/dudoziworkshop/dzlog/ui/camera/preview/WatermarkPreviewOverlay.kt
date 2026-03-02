@@ -15,9 +15,11 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.watermark.boundsRectFromOffset
+import com.dudoziworkshop.dzlog.watermark.computeBoundsSize
 import com.dudoziworkshop.dzlog.watermark.computeWatermarkBoundsRect
 import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableLayout
-import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableLayoutPxClampedForRotation
+import com.dudoziworkshop.dzlog.watermark.rawRectFromBounds
 import com.dudoziworkshop.dzlog.watermark.drawWatermarkTableOnCanvas
 
 /**
@@ -31,39 +33,57 @@ fun WatermarkPreviewOverlay(
     previewContentRect: RectF?,
     overrideOffsetPx: Offset?,
     isArmed: Boolean,
-    onTableRectChange: (RectF?) -> Unit
+    onBoundsRectChange: (RectF?) -> Unit,
+    onRawRectChange: (RectF?) -> Unit
 ) {
     if (!enabled || previewContentRect == null) {
-        LaunchedEffect(enabled, previewContentRect) { onTableRectChange(null) }
+        LaunchedEffect(enabled, previewContentRect) {
+            onBoundsRectChange(null)
+            onRawRectChange(null)
+        }
         return
     }
 
-    val layout = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM && overrideOffsetPx != null) {
-        computeWatermarkTableLayoutPxClampedForRotation(
-            bounds = previewContentRect,
-            anchor = request.watermark.anchor,
-            offsetLeftPx = overrideOffsetPx.x,
-            offsetTopPx = overrideOffsetPx.y,
-            tableHeightRatio = request.watermark.tableHeightRatio,
-            tableWidthRatio = request.watermark.tableWidthRatio,
-            rotationCwDeg = request.watermark.rotationCwDeg
+    val layout = computeWatermarkTableLayout(
+        bounds = previewContentRect,
+        anchor = request.watermark.anchor,
+        offsetXRatio = request.watermark.offsetXRatio,
+        offsetYRatio = request.watermark.offsetYRatio,
+        tableHeightRatio = request.watermark.tableHeightRatio,
+        tableWidthRatio = request.watermark.tableWidthRatio
+    )
+
+    val baseRawRect = layout.rect
+    val rawW = baseRawRect.width()
+    val rawH = baseRawRect.height()
+    val (boundsW, boundsH) = computeBoundsSize(rawW, rawH, request.watermark.rotationCwDeg)
+    val boundsRect = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM && overrideOffsetPx != null) {
+        boundsRectFromOffset(
+            captureRect = previewContentRect,
+            boundsW = boundsW,
+            boundsH = boundsH,
+            boundsLeftPx = overrideOffsetPx.x,
+            boundsTopPx = overrideOffsetPx.y
         )
     } else {
-        computeWatermarkTableLayout(
-            bounds = previewContentRect,
-            anchor = request.watermark.anchor,
-            offsetXRatio = request.watermark.offsetXRatio,
-            offsetYRatio = request.watermark.offsetYRatio,
-            tableHeightRatio = request.watermark.tableHeightRatio,
-            tableWidthRatio = request.watermark.tableWidthRatio
-        )
+        computeWatermarkBoundsRect(baseRawRect, request.watermark.rotationCwDeg)
     }
+    val rawRect = rawRectFromBounds(boundsRect, rawW, rawH)
+    val overrideRawLeftPx = rawRect.left - previewContentRect.left
+    val overrideRawTopPx = rawRect.top - previewContentRect.top
 
-    val rawRect = layout.rect
-    val boundsRect = computeWatermarkBoundsRect(rawRect, request.watermark.rotationCwDeg)
-
-    LaunchedEffect(boundsRect.left, boundsRect.top, boundsRect.right, boundsRect.bottom) {
-        onTableRectChange(RectF(boundsRect))
+    LaunchedEffect(
+        rawRect.left,
+        rawRect.top,
+        rawRect.right,
+        rawRect.bottom,
+        boundsRect.left,
+        boundsRect.top,
+        boundsRect.right,
+        boundsRect.bottom
+    ) {
+        onBoundsRectChange(RectF(boundsRect))
+        onRawRectChange(RectF(rawRect))
     }
 
     val cells = request.watermarkCells
@@ -94,8 +114,8 @@ fun WatermarkPreviewOverlay(
                 drawGrid = request.watermark.gridEnabled,
                 rowWeights = request.tableTemplate.rowWeights,
                 colWeights = request.tableTemplate.colWeights,
-                overrideOffsetLeftPx = overrideOffsetPx?.x,
-                overrideOffsetTopPx = overrideOffsetPx?.y,
+                overrideOffsetLeftPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawLeftPx else null,
+                overrideOffsetTopPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawTopPx else null,
                 rotationCwDeg = request.watermark.rotationCwDeg
             )
         }

@@ -20,6 +20,8 @@ internal data class WatermarkUiArgs(
     val tableHeightRatio: Int,
     val offsetXRatio: Int,
     val offsetYRatio: Int,
+    val boundsOffsetX10000: Int,
+    val boundsOffsetY10000: Int,
     val bgAlpha: Int,
     val bgStyle: Int,
     val valueScale: Int,
@@ -69,6 +71,8 @@ internal data class CameraPreviewAreaArgs(
     val onUsableVerticalRatioChange: (Float, Float) -> Unit,
     val onWatermarkOffsetRatioPreview: (Int, Int) -> Unit,
     val onWatermarkOffsetRatioCommit: (Int, Int) -> Unit,
+    val onWatermarkBoundsOffset10000Preview: (Int, Int) -> Unit,
+    val onWatermarkBoundsOffset10000Commit: (Int, Int) -> Unit,
     val onOpenTableEditor: () -> Unit,
     val watermarkUi: WatermarkUiArgs
 )
