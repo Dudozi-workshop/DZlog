@@ -21,10 +21,9 @@ import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -60,8 +59,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
@@ -133,7 +130,7 @@ import com.dudoziworkshop.dzlog.ui.camera.preview.CameraPreviewArea
 import com.dudoziworkshop.dzlog.ui.camera.preview.CameraPreviewAreaArgs
 import com.dudoziworkshop.dzlog.ui.camera.preview.WatermarkUiArgs
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsOverlayPanel
-import com.dudoziworkshop.dzlog.ui.common.splitFileNameForDisplay
+import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -239,7 +236,6 @@ fun CameraPreview(
     var shutterButtonTopY by remember { mutableStateOf<Float?>(null) }
     var cameraRootHeightPx by remember { mutableStateOf(0f) }
     val density = LocalDensity.current
-    val textMeasurer = rememberTextMeasurer()
     val safeDrawingPadding = WindowInsets.safeDrawing.asPaddingValues()
     val safeTopInsetPx = with(density) { safeDrawingPadding.calculateTopPadding().toPx() }
     val safeBottomInsetPx = with(density) { safeDrawingPadding.calculateBottomPadding().toPx() }
@@ -605,7 +601,7 @@ fun CameraPreview(
                     .fillMaxWidth()
                     .defaultMinSize(minHeight = topBarMinHeight)
             ) {
-                BoxWithConstraints(
+                Box(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .widthIn(max = filenameMaxWidth)
@@ -617,56 +613,11 @@ fun CameraPreview(
                         .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(8.dp))
                         .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
                 ) {
-                    val fileNameParts = splitFileNameForDisplay(topDisplayName)
-                    val counter = fileNameParts.counter
-
-                    if (counter.isNullOrBlank()) {
-                        Text(
-                            text = fileNameParts.prefixText,
-                            color = DDZColor.TextStrong,
-                            style = DDZTypography.Caption,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    } else {
-                        val combined = fileNameParts.prefixText + "_" + counter
-                        val combinedWidthPx = textMeasurer.measure(
-                            text = combined,
-                            style = DDZTypography.Caption,
-                        ).size.width
-                        val maxWidthPx = with(density) { maxWidth.toPx() }
-
-                        if (combinedWidthPx <= maxWidthPx) {
-                            Text(
-                                text = combined,
-                                color = DDZColor.TextStrong,
-                                style = DDZTypography.Caption,
-                                maxLines = 1,
-                                overflow = TextOverflow.Clip,
-                            )
-                        } else {
-                            Row(
-                                modifier = Modifier,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = fileNameParts.prefixText,
-                                    modifier = Modifier.weight(1f, fill = false),
-                                    color = DDZColor.TextStrong,
-                                    style = DDZTypography.Caption,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    text = "_" + counter,
-                                    color = DDZColor.TextStrong,
-                                    style = DDZTypography.Caption,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Clip,
-                                )
-                            }
-                        }
-                    }
+                    CounterAwareFileNameText(
+                        fileName = topDisplayName,
+                        style = DDZTypography.Caption,
+                        color = DDZColor.TextStrong,
+                    )
                 }
 
                 Box(

@@ -54,7 +54,7 @@ fun buildTwoPartTitle(
 }
 
 
-fun buildThreePartTitle(
+private fun buildThreePartTitle(
     parts: List<String>,
     totalBudget: Int,
     sep: String = "/",
@@ -137,7 +137,7 @@ private fun ellipsizeByUnitsPrefix(s: String, unitLimit: Double): String {
     return sb.toString() + "…"
 }
 
-fun buildThreePartTitlePinnedLast(
+private fun buildThreePartTitlePinnedLast(
     parts: List<String>,
     totalBudget: Int,
     sep: String = "_",
@@ -202,7 +202,7 @@ fun splitFileNameForDisplay(fileName: String): FileNameDisplayParts {
     return FileNameDisplayParts(prefixText = prefixText, counter = counter)
 }
 
-fun buildFileNameTitleWithCounter(
+private fun buildFileNameTitleWithCounter(
     fileName: String,
     sep: String = "_",
 ): String {
@@ -265,7 +265,7 @@ fun buildSavePathTitle(
     return "$fixedPrefix$sep$aText$sep$bText"
 }
 
-fun buildPrefixedTwoPartPath(
+private fun buildPrefixedTwoPartPath(
     prefix: String,
     g1: String,
     g2: String?,

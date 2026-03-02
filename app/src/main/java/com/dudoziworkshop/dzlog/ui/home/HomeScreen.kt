@@ -67,8 +67,8 @@ import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZCard
 import com.dudoziworkshop.dzlog.ui.common.TablePreviewCard
 import com.dudoziworkshop.dzlog.ui.common.rememberTablePreviewSettings
-import com.dudoziworkshop.dzlog.ui.common.splitFileNameForDisplay
 import com.dudoziworkshop.dzlog.ui.common.buildSavePathTitle
+import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
 import com.dudoziworkshop.dzlog.ui.log.dzFormatDate
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
@@ -355,64 +355,15 @@ fun HomeScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                BoxWithConstraints(modifier = Modifier.weight(1f)) {
-                                    val valueStyle = DDZTypography.Body.copy(
+                                CounterAwareFileNameText(
+                                    fileName = filenamePreview,
+                                    modifier = Modifier.weight(1f),
+                                    style = DDZTypography.Body.copy(
                                         fontSize = 11.sp,
                                         lineHeight = 14.sp
-                                    )
-                                    val fileNameParts = splitFileNameForDisplay(filenamePreview)
-                                    val counter = fileNameParts.counter
-                                    if (counter.isNullOrBlank()) {
-                                        Text(
-                                            text = fileNameParts.prefixText,
-                                            modifier = Modifier.fillMaxWidth(),
-                                            style = valueStyle,
-                                            color = DDZColor.TextPrimary,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    } else {
-                                        val combined = fileNameParts.prefixText + "_" + counter
-                                        val combinedWidth = with(density) {
-                                            textMeasurer.measure(
-                                                text = combined,
-                                                style = valueStyle,
-                                            ).size.width.toDp()
-                                        }
-
-                                        if (combinedWidth <= maxWidth) {
-                                            Text(
-                                                text = combined,
-                                                modifier = Modifier.fillMaxWidth(),
-                                                style = valueStyle,
-                                                color = DDZColor.TextPrimary,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Clip
-                                            )
-                                        } else {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                            ) {
-                                                Text(
-                                                    text = fileNameParts.prefixText,
-                                                    modifier = Modifier.weight(1f),
-                                                    style = valueStyle,
-                                                    color = DDZColor.TextPrimary,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                Text(
-                                                    text = "_" + counter,
-                                                    style = valueStyle,
-                                                    color = DDZColor.TextPrimary,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Clip
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
+                                    ),
+                                    color = DDZColor.TextPrimary,
+                                )
                             }
                         }
                     }

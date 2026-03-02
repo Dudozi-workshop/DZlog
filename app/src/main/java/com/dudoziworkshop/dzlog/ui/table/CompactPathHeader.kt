@@ -3,7 +3,7 @@ package com.dudoziworkshop.dzlog.ui.table
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -18,8 +18,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
-import com.dudoziworkshop.dzlog.ui.common.splitFileNameForDisplay
 import com.dudoziworkshop.dzlog.ui.common.buildSavePathTitle
+import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -68,7 +68,7 @@ internal fun CompactPathHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            BoxWithConstraints(modifier = Modifier.weight(1f)) {
+            Box(modifier = Modifier.weight(1f)) {
                 val (g1Part, g2Part) = remember(savePath) {
                     parseG1G2FromRelativePath(savePath)
                 }
@@ -103,61 +103,12 @@ internal fun CompactPathHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            BoxWithConstraints(modifier = Modifier.weight(1f)) {
-                val valueStyle = DDZTypography.Body.copy(fontSize = 11.sp, lineHeight = 14.sp)
-                val fileNameParts = splitFileNameForDisplay(fileName)
-                val counter = fileNameParts.counter
-                if (counter.isNullOrBlank()) {
-                    Text(
-                        text = fileNameParts.prefixText,
-                        modifier = Modifier.fillMaxWidth(),
-                        style = valueStyle,
-                        color = DDZColor.TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                } else {
-                    val combined = fileNameParts.prefixText + "_" + counter
-                    val combinedWidth = with(density) {
-                        textMeasurer.measure(
-                            text = combined,
-                            style = valueStyle,
-                        ).size.width.toDp()
-                    }
-
-                    if (combinedWidth <= maxWidth) {
-                        Text(
-                            text = combined,
-                            modifier = Modifier.fillMaxWidth(),
-                            style = valueStyle,
-                            color = DDZColor.TextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Clip
-                        )
-                    } else {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = fileNameParts.prefixText,
-                                modifier = Modifier.weight(1f),
-                                style = valueStyle,
-                                color = DDZColor.TextPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "_" + counter,
-                                style = valueStyle,
-                                color = DDZColor.TextPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Clip
-                            )
-                        }
-                    }
-                }
-            }
+            CounterAwareFileNameText(
+                fileName = fileName,
+                modifier = Modifier.weight(1f),
+                style = DDZTypography.Body.copy(fontSize = 11.sp, lineHeight = 14.sp),
+                color = DDZColor.TextPrimary,
+            )
             fileNameRightLabel?.takeIf { it.isNotBlank() }?.let { label ->
                 Text(
                     text = label,
