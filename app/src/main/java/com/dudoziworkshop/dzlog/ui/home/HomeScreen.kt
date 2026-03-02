@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Folder
@@ -74,7 +77,6 @@ import com.dudoziworkshop.dzlog.ui.log.dzFormatDate
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import com.dudoziworkshop.dzlog.ui.theme.dzTopInset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.Dispatchers
@@ -204,6 +206,7 @@ fun HomeScreen(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .background(DDZColor.Background)
     ) {
         val screenWidth = maxWidth
@@ -215,7 +218,7 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(pad)
+                .padding(start = pad, end = pad, bottom = pad)
         ) {
             Column(
                 modifier = Modifier
@@ -226,7 +229,6 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 56.dp, max = 72.dp)
-                        .padding(top = dzTopInset())
                         .padding(vertical = gap * 0.35f),
                 ) {
                     Text(

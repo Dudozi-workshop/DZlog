@@ -6,6 +6,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -44,7 +48,6 @@ import com.dudoziworkshop.dzlog.ui.common.rememberTablePreviewSettings
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import com.dudoziworkshop.dzlog.ui.theme.dzTopInset
 import kotlinx.coroutines.launch
 import java.util.Date
 
@@ -86,15 +89,20 @@ fun SettingsRootScreen(
 
     Column(
         modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .verticalScroll(rememberScrollState())
-            .padding(DDZSpacing.screenPadding)
+            .padding(
+                start = DDZSpacing.screenPadding,
+                end = DDZSpacing.screenPadding,
+                bottom = DDZSpacing.screenPadding
+            )
     ) {
         // Header
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = dzTopInset())
         ) {
             Text(
                 text = "설정",

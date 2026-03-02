@@ -611,6 +611,10 @@ fun CameraPreview(
                             shape = RoundedCornerShape(8.dp)
                         )
                         .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(8.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { onOpenTableEditor() }
                         .padding(horizontal = DDZSpacing.cardPadding, vertical = DDZSpacing.itemGap)
                 ) {
                     CounterAwareFileNameText(

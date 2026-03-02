@@ -25,6 +25,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -68,7 +71,6 @@ import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
 import com.dudoziworkshop.dzlog.ui.common.buildTwoPartTitle
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import com.dudoziworkshop.dzlog.ui.theme.dzTopInset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -224,12 +226,16 @@ fun LogGridScreen(
     // 하단 액션바가 있을 때 그리드 마지막 줄이 가려지지 않도록 여백
     val bottomInset = if (isSelectionMode) 84.dp else 0.dp
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    ) {
+        Column(modifier = Modifier.fillMaxSize().padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
             // Top bar
             if (isSelectionMode) {
                 // ✅ 상단은 카운트만 (뒤로가기/타이틀 겹침 방지)
-                Box(modifier = Modifier.fillMaxWidth().padding(top = dzTopInset())) {
+                Box(modifier = Modifier.fillMaxWidth()) {
                     SelectionTopBar(
                         selectedCount = selectedIds.size
                     )
@@ -237,8 +243,7 @@ fun LogGridScreen(
             } else {
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = dzTopInset()),
+                        .fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
