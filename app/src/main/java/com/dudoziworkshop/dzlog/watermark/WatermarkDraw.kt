@@ -114,6 +114,61 @@ fun computeWatermarkTableLayoutPx(
     return WatermarkTableLayout(RectF(left, top, left + tableW, top + tableH), maxX, maxY)
 }
 
+
+fun computeWatermarkTableLayoutPxClampedForRotation(
+    bounds: RectF,
+    anchor: WatermarkTableAnchor,
+    offsetLeftPx: Float,
+    offsetTopPx: Float,
+    tableHeightRatio: Int,
+    tableWidthRatio: Int,
+    rotationCwDeg: Int
+): WatermarkTableLayout {
+    if (anchor != WatermarkTableAnchor.CUSTOM) {
+        return computeWatermarkTableLayoutPx(
+            bounds = bounds,
+            anchor = anchor,
+            offsetLeftPx = offsetLeftPx,
+            offsetTopPx = offsetTopPx,
+            tableHeightRatio = tableHeightRatio,
+            tableWidthRatio = tableWidthRatio
+        )
+    }
+
+    val baseW = bounds.width()
+    val rawW = baseW * (tableWidthRatio.coerceIn(10, 100) / 100f)
+    val rawH = baseW * (tableHeightRatio.coerceIn(10, 100) / 100f)
+
+    val cx = bounds.left + offsetLeftPx + rawW / 2f
+    val cy = bounds.top + offsetTopPx + rawH / 2f
+
+    val normalized = ((rotationCwDeg % 360) + 360) % 360
+    val halfW = if (normalized == 90) rawH / 2f else rawW / 2f
+    val halfH = if (normalized == 90) rawW / 2f else rawH / 2f
+
+    val minCx = bounds.left + halfW
+    val maxCx = bounds.right - halfW
+    val minCy = bounds.top + halfH
+    val maxCy = bounds.bottom - halfH
+
+    val cxClamped = if (minCx <= maxCx) cx.coerceIn(minCx, maxCx) else bounds.centerX()
+    val cyClamped = if (minCy <= maxCy) cy.coerceIn(minCy, maxCy) else bounds.centerY()
+
+    val left = cxClamped - rawW / 2f
+    val top = cyClamped - rawH / 2f
+
+    val effW = if (normalized == 90) rawH else rawW
+    val effH = if (normalized == 90) rawW else rawH
+    val maxX = (bounds.width() - effW).coerceAtLeast(0f)
+    val maxY = (bounds.height() - effH).coerceAtLeast(0f)
+
+    return WatermarkTableLayout(
+        rect = RectF(left, top, left + rawW, top + rawH),
+        maxX = maxX,
+        maxY = maxY
+    )
+}
+
 fun computeWatermarkBoundsRect(rawRect: RectF, rotationCwDeg: Int): RectF {
     val normalized = ((rotationCwDeg % 360) + 360) % 360
     if (normalized != 90) return RectF(rawRect)
@@ -387,13 +442,14 @@ fun drawWatermarkTableOnCanvas(
         overrideOffsetLeftPx != null &&
         overrideOffsetTopPx != null
     ) {
-        computeWatermarkTableLayoutPx(
+        computeWatermarkTableLayoutPxClampedForRotation(
             bounds = bounds,
             anchor = anchor,
             offsetLeftPx = overrideOffsetLeftPx,
             offsetTopPx = overrideOffsetTopPx,
             tableHeightRatio = tableHeightRatio,
-            tableWidthRatio = tableWidthRatio
+            tableWidthRatio = tableWidthRatio,
+            rotationCwDeg = rotationCwDeg
         )
     } else {
         computeWatermarkTableLayout(

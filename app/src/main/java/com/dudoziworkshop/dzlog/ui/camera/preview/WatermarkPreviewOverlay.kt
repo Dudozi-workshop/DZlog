@@ -17,7 +17,7 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.watermark.computeWatermarkBoundsRect
 import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableLayout
-import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableLayoutPx
+import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableLayoutPxClampedForRotation
 import com.dudoziworkshop.dzlog.watermark.drawWatermarkTableOnCanvas
 
 /**
@@ -39,13 +39,14 @@ fun WatermarkPreviewOverlay(
     }
 
     val layout = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM && overrideOffsetPx != null) {
-        computeWatermarkTableLayoutPx(
+        computeWatermarkTableLayoutPxClampedForRotation(
             bounds = previewContentRect,
             anchor = request.watermark.anchor,
             offsetLeftPx = overrideOffsetPx.x,
             offsetTopPx = overrideOffsetPx.y,
             tableHeightRatio = request.watermark.tableHeightRatio,
-            tableWidthRatio = request.watermark.tableWidthRatio
+            tableWidthRatio = request.watermark.tableWidthRatio,
+            rotationCwDeg = request.watermark.rotationCwDeg
         )
     } else {
         computeWatermarkTableLayout(
