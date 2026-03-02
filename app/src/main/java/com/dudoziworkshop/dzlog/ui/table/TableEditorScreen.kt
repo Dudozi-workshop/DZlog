@@ -8,7 +8,6 @@ package com.dudoziworkshop.dzlog.ui.table
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -33,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -696,7 +696,7 @@ fun TableEditorScreen(
     ) { padding ->
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .dzScreen()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(padding)
         ) {
