@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,17 +26,28 @@ import com.dudoziworkshop.dzlog.ui.table.CompactPathHeader
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
+private val BottomBarReserveHeight = 140.dp
+
 @Composable
 fun LayoutTabContent(
     uiState: LayoutTabUiState,
     actions: LayoutTabActions,
     modifier: Modifier = Modifier
 ) {
+    val isInlineEditing = uiState.editingCellId != null
+
     Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp, top = 12.dp)
+                .then(
+                    if (isInlineEditing) {
+                        Modifier.imePadding()
+                    } else {
+                        Modifier.padding(bottom = BottomBarReserveHeight)
+                    }
+                )
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 CompactPathHeader(
@@ -116,8 +129,14 @@ fun LayoutTabContent(
                     )
                 }
             }
+        }
 
+        if (!isInlineEditing) {
             BottomFixedActionBar(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 rows = uiState.templateState.rows,
                 cols = uiState.templateState.cols,
                 isSaving = uiState.isSavingTemplate,

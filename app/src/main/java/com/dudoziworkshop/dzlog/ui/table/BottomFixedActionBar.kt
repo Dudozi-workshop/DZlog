@@ -24,6 +24,7 @@ internal fun BottomFixedActionBar(
     rows: Int,
     cols: Int,
     isSaving: Boolean,
+    modifier: Modifier = Modifier,
     onAddRow: () -> Unit,
     onRemoveRow: () -> Unit,
     onAddCol: () -> Unit,
@@ -32,7 +33,7 @@ internal fun BottomFixedActionBar(
     onSave: () -> Unit
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(DDZColor.Surface, RoundedCornerShape(14.dp))
             .padding(10.dp),
