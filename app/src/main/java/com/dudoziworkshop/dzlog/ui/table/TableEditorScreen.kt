@@ -8,12 +8,7 @@ package com.dudoziworkshop.dzlog.ui.table
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
@@ -112,7 +107,6 @@ import com.dudoziworkshop.dzlog.ui.table.watermark.applyWidthRatioChange
 import com.dudoziworkshop.dzlog.ui.table.watermark.loadTableWatermarkUiState
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import com.dudoziworkshop.dzlog.ui.theme.dzTopInset
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -671,8 +665,7 @@ fun TableEditorScreen(
         containerColor = DDZColor.Background,
         topBar = {
             TopAppBar(
-                modifier = Modifier.padding(top = dzTopInset()),
-                windowInsets = WindowInsets(0, 0, 0, 0),
+                modifier = Modifier,
                 title = {
                     Text(
                         "표 상세설정",
@@ -695,12 +688,11 @@ fun TableEditorScreen(
                 }
             )
         }
-    ) { padding ->
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .dzScreen()
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
-                .padding(padding)
+                .padding(innerPadding)
         ) {
             TableEditorTabs(
                 selectedTabIndex = selectedTabIndex,

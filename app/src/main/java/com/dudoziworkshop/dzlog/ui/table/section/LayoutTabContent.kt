@@ -37,17 +37,21 @@ fun LayoutTabContent(
     val isInlineEditing = uiState.editingCellId != null
 
     Box(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
+        val contentColumnModifier =
+            Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, top = 12.dp)
-                .then(
+                .padding(horizontal = 16.dp)
+                .padding(top = 12.dp)
+                .let { baseModifier ->
                     if (isInlineEditing) {
-                        Modifier.imePadding()
+                        baseModifier.imePadding()
                     } else {
-                        Modifier.padding(bottom = BottomBarReserveHeight)
+                        baseModifier.padding(bottom = BottomBarReserveHeight)
                     }
-                )
+                }
+
+        Column(
+            modifier = contentColumnModifier
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 CompactPathHeader(
@@ -131,7 +135,7 @@ fun LayoutTabContent(
             }
         }
 
-        if (!isInlineEditing) {
+        if (!isInlineEditing && !uiState.showCellSettingsPanel) {
             BottomFixedActionBar(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
