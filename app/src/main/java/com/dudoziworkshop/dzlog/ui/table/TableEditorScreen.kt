@@ -7,15 +7,19 @@
 package com.dudoziworkshop.dzlog.ui.table
 
 import android.widget.Toast
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,7 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.dudoziworkshop.dzlog.ui.common.dzScreen
+import com.dudoziworkshop.dzlog.ui.common.dzScaffoldContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -664,34 +668,35 @@ fun TableEditorScreen(
     Scaffold(
         containerColor = DDZColor.Background,
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 modifier = Modifier,
                 title = {
                     Text(
                         "표 상세설정",
                         style = DDZTypography.ScreenTitle,
-                        color = DDZColor.TextPrimary
+                        color = DDZColor.Primary
                     )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "뒤로가기",
+                            tint = DDZColor.Primary
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = DDZColor.Background,
-                    navigationIconContentColor = DDZColor.TextPrimary
-                ),
-                actions = {
-                    TextButton(onClick = onBack) {
-                        Text(
-                            "뒤로",
-                            style = DDZTypography.ButtonText,
-                            color = DDZColor.TextPrimary
-                        )
-                    }
-                }
+                    navigationIconContentColor = DDZColor.Primary,
+                    titleContentColor = DDZColor.Primary
+                )
             )
         }
     ) { innerPadding ->
         Column(
             modifier = Modifier
-                .dzScreen()
+                .dzScaffoldContent()
                 .padding(innerPadding)
         ) {
             TableEditorTabs(
