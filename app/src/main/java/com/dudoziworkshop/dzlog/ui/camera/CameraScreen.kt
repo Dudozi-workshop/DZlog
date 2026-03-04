@@ -75,6 +75,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.data.counter.clampCounterDigits
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
@@ -263,12 +264,14 @@ fun CameraPreview(
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
 
-    LaunchedEffect(dateFormat, timeFormat) {
+    LaunchedEffect(dateFormat, timeFormat, lifecycleOwner) {
         val unit = decideTickUnit(dateFormat, timeFormat)
-        while (true) {
-            val delayMs = computeNextDelayMillis(unit)
-            delay(delayMs)
-            ui.capture.now = Date()
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                val delayMs = computeNextDelayMillis(unit)
+                delay(delayMs)
+                ui.capture.now = Date()
+            }
         }
     }
 

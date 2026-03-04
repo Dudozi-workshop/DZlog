@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
@@ -42,7 +44,7 @@ fun CellHeaderBadgesOverlay(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 2.dp),
+            .padding(horizontal = 3.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top
     ) {
@@ -63,12 +65,15 @@ fun CellHeaderBadgesOverlay(
 @Composable
 private fun BadgeChip(content: @Composable () -> Unit) {
     Surface(
-        color = DDZColor.Card,
+        color = DDZColor.Background.copy(alpha = 0.75f),
         shape = RoundedCornerShape(999.dp),
+        border = BorderStroke(1.dp, DDZColor.TextMuted),
         modifier = Modifier.padding(top = 2.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            modifier = Modifier
+                .padding(horizontal = 5.dp, vertical = 1.dp)
+                .graphicsLayer(scaleX = 0.85f, scaleY = 0.85f),
             verticalAlignment = Alignment.CenterVertically
         ) {
             content()

@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import com.dudoziworkshop.dzlog.ui.common.dzScaffoldContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.data.counter.clampCounterDigits
@@ -111,6 +112,8 @@ import com.dudoziworkshop.dzlog.ui.table.watermark.applyWidthRatioChange
 import com.dudoziworkshop.dzlog.ui.table.watermark.loadTableWatermarkUiState
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -127,6 +130,7 @@ fun TableEditorScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     // ✅ 탭 상태
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -192,12 +196,14 @@ fun TableEditorScreen(
 
     var previewNow by remember { mutableStateOf(Date()) }
 
-    LaunchedEffect(dateFormat, timeFormat) {
+    LaunchedEffect(dateFormat, timeFormat, lifecycleOwner) {
         val unit = decideTickUnit(dateFormat, timeFormat)
-        while (true) {
-            val delayMs = computeNextDelayMillis(unit)
-            delay(delayMs)
-            previewNow = Date()
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                val delayMs = computeNextDelayMillis(unit)
+                delay(delayMs)
+                previewNow = Date()
+            }
         }
     }
 
