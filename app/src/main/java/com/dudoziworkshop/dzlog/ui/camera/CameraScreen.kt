@@ -74,7 +74,6 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.repeatOnLifecycle
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.data.counter.clampCounterDigits
@@ -111,6 +110,7 @@ import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.policy.buildCounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.isNewCounterScope
+import com.dudoziworkshop.dzlog.domain.counter.policy.resolveScopeDateTimeUsage
 import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
@@ -153,6 +153,7 @@ import com.dudoziworkshop.dzlog.data.preferences.persistCaptureAspect
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
@@ -260,7 +261,11 @@ fun CameraPreview(
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
 
     val tableCells = tableTemplateState.cells
-
+    val usage = remember(tableTemplateState.cells, tableTemplateState.fileNameSlots) {
+        resolveScopeDateTimeUsage(tableTemplateState.cells, tableTemplateState.fileNameSlots)
+    }
+    val effectiveIncludeDate = appSettings.includeDateInCounterScope && usage.usesDateInScope
+    val effectiveIncludeTime = appSettings.includeTimeInCounterScope && usage.usesTimeInScope
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
 
@@ -283,8 +288,8 @@ fun CameraPreview(
         counterDigits = ui.prefs.counterDigits,
         nextCounter = ui.counter.scopeNextCounter,
         includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-        includeDateInCounterScope = appSettings.includeDateInCounterScope,
-        includeTimeInCounterScope = appSettings.includeTimeInCounterScope,
+        includeDateInCounterScope = effectiveIncludeDate,
+        includeTimeInCounterScope = effectiveIncludeTime,
         captureNow = ui.capture.now,
     )
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
@@ -312,15 +317,10 @@ fun CameraPreview(
         undoResyncTick += 1
     }
 
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                resumeResyncTick += 1
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            resumeResyncTick += 1
+            awaitCancellation()
         }
     }
 
@@ -397,6 +397,8 @@ fun CameraPreview(
         undoTick = undoResyncTick,
         isTemplateReady = isTemplateReady,
         appSettings = appSettings,
+        effectiveIncludeDate = effectiveIncludeDate,
+        effectiveIncludeTime = effectiveIncludeTime,
         ui = ui
     )
 
@@ -710,8 +712,8 @@ fun CameraPreview(
                                                 scopeNextCounter = ui.counter.scopeNextCounter,
                                                 includePathInCounterScope = appSettings.includePathInCounterScope,
                                                 includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-                                                includeDateInCounterScope = appSettings.includeDateInCounterScope,
-                                                includeTimeInCounterScope = appSettings.includeTimeInCounterScope,
+                                                includeDateInCounterScope = effectiveIncludeDate,
+                                                includeTimeInCounterScope = effectiveIncludeTime,
                                                 captureHapticEnabled = appSettings.captureHapticEnabled,
                                                 captureAspect = ui.prefs.captureAspect,
                                                 saveMode = appSettings.saveMode,
@@ -1083,6 +1085,8 @@ private fun SyncCounterSeedEffect(
     undoTick: Int,
     isTemplateReady: Boolean,
     appSettings: AppSettings,
+    effectiveIncludeDate: Boolean,
+    effectiveIncludeTime: Boolean,
     ui: CameraUiState
 ) {
     var lastResumeTick by remember { mutableIntStateOf(-1) }
@@ -1145,7 +1149,7 @@ private fun SyncCounterSeedEffect(
         val isExternalResync = (resumeTick != lastResumeTick) || (undoTick != lastUndoTick) || saveModeChanged
         val currentScopeSeed = ui.counter.scopeNextCounter
         val allowResetToOneOnNewStream =
-            appSettings.includeDateInCounterScope || appSettings.includeTimeInCounterScope
+            effectiveIncludeDate || effectiveIncludeTime
         ui.counter.scopeNextCounter = when {
             // 규칙 A: 외부 리싱크(undo/resume)는 seed 하향 반영이 가능해야 한다.
             isExternalResync -> nextSeedFromStream

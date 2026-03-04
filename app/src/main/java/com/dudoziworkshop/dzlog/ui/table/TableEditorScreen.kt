@@ -6,6 +6,7 @@
 
 package com.dudoziworkshop.dzlog.ui.table
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -45,6 +46,7 @@ import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
+import com.dudoziworkshop.dzlog.domain.counter.policy.resolveScopeDateTimeUsage
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
@@ -117,6 +119,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.awaitCancellation
 import java.util.Date
 import java.util.UUID
 import com.dudoziworkshop.dzlog.ui.table.editor.commitInlineEditIfNeeded as commitInlineEdit
@@ -192,7 +195,14 @@ fun TableEditorScreen(
     )
     val tableSaveMode = settings.saveMode
 
+    val usage = remember(templateState.cells, templateState.fileNameSlots) {
+        resolveScopeDateTimeUsage(templateState.cells, templateState.fileNameSlots)
+    }
+    val effectiveIncludeDate = settings.includeDateInCounterScope && usage.usesDateInScope
+    val effectiveIncludeTime = settings.includeTimeInCounterScope && usage.usesTimeInScope
+
     var counterUi by remember { mutableStateOf(TableCounterUiState()) }
+    var resumeTick by remember { mutableIntStateOf(0) }
 
     var previewNow by remember { mutableStateOf(Date()) }
 
@@ -204,6 +214,13 @@ fun TableEditorScreen(
                 delay(delayMs)
                 previewNow = Date()
             }
+        }
+    }
+
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            resumeTick += 1
+            awaitCancellation()
         }
     }
 
@@ -254,16 +271,16 @@ fun TableEditorScreen(
         planForScope.resolvedCells,
         counterUi.scopeNextCounter,
         isManualCounterModeDisplay,
-        settings.includeDateInCounterScope,
-        settings.includeTimeInCounterScope,
+        effectiveIncludeDate,
+        effectiveIncludeTime,
     ) {
         derivedStateOf {
             buildTableCounterStreamContext(
                 resolvedCells = planForScope.resolvedCells,
                 fileNameSlots = templateState.fileNameSlots,
                 includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
-                includeDateInCounterScope = settings.includeDateInCounterScope,
-                includeTimeInCounterScope = settings.includeTimeInCounterScope,
+                includeDateInCounterScope = effectiveIncludeDate,
+                includeTimeInCounterScope = effectiveIncludeTime,
                 scopeNextCounter = counterUi.scopeNextCounter,
                 isManualCounterModeDisplay = isManualCounterModeDisplay,
             )
@@ -285,9 +302,21 @@ fun TableEditorScreen(
     }
 
     // ✅ 스트림 변경 감지용 (스트림이 바뀌면 seed를 "새 스트림 next"로 강제 동기화)
+
+    LaunchedEffect(scopedCounterStream.scopeParts.scopeKey) {
+        Log.d("TableEditorScreen", "scopeKey=${scopedCounterStream.scopeParts.scopeKey}")
+    }
+
     var lastScopeSnapshot by remember { mutableStateOf<CounterScopeSnapshot?>(null) }
 
-    LaunchedEffect(scopedCounterStream.scopeParts.scopeKey, previewCounterDigits, templateState, tableSaveMode) {
+    LaunchedEffect(
+        scopedCounterStream.scopeParts.scopeKey,
+        previewCounterDigits,
+        tableSaveMode,
+        resumeTick,
+        effectiveIncludeDate,
+        effectiveIncludeTime,
+    ) {
         val syncResult = syncCounterStateForScope(
             context = context,
             templateState = templateState,
@@ -1065,3 +1094,4 @@ private fun TableCellState.withDataType(newType: TableCellDataType): TableCellSt
         )
     }
 }
+
