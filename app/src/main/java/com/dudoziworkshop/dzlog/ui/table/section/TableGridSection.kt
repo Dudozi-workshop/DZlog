@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -36,7 +37,7 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadges
+import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadgesOverlay
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
@@ -125,25 +126,18 @@ fun TableGridSection(
                                         cell.dataType == TableCellDataType.NUMBER ||
                                         cell.dataType == TableCellDataType.COUNTER)
 
-                                if (isEditingCell && canInlineEdit) {
-                                    Column(
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                                ) {
+                                    Box(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .padding(horizontal = 6.dp, vertical = 4.dp)
+                                            .padding(top = 8.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(14.dp),
-                                            contentAlignment = Alignment.CenterStart
-                                        ) { CellHeaderBadges(cell, nameIdx) }
-
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .weight(1f),
-                                            contentAlignment = Alignment.Center
-                                        ) {
+                                        if (isEditingCell && canInlineEdit) {
                                             val keyboardType = when (cell.dataType) {
                                                 TableCellDataType.NUMBER -> KeyboardType.Decimal
                                                 TableCellDataType.COUNTER -> KeyboardType.Number
@@ -179,30 +173,29 @@ fun TableGridSection(
                                                         }
                                                     }
                                             )
-                                        }
-                                    }
-                                } else {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 6.dp, vertical = 4.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(14.dp),
-                                            contentAlignment = Alignment.CenterStart
-                                        ) { CellHeaderBadges(cell, nameIdx) }
+                                        } else {
+                                            val isEmpty = display.isBlank()
 
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .weight(1f),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(display, style = DDZTypography.Caption, color = DDZColor.TextPrimary)
+                                            if (isEmpty) {
+                                                Text(
+                                                    text = dataTypeLabelKo(cell.dataType),
+                                                    style = DDZTypography.Caption,
+                                                    color = DDZColor.TextMuted
+                                                )
+                                            } else {
+                                                Text(display, style = DDZTypography.Caption, color = DDZColor.TextPrimary)
+                                            }
                                         }
                                     }
+
+                                    CellHeaderBadgesOverlay(
+                                        cell = cell,
+                                        fileNameSlotIndex = nameIdx,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .align(Alignment.TopCenter)
+                                            .offset(y = (-6).dp)
+                                    )
                                 }
                             }
                         }
@@ -212,3 +205,13 @@ fun TableGridSection(
         }
     }
 }
+
+private fun dataTypeLabelKo(dataType: TableCellDataType): String =
+    when (dataType) {
+        TableCellDataType.TEXT -> "텍스트"
+        TableCellDataType.NUMBER -> "숫자"
+        TableCellDataType.COUNTER -> "카운터"
+        TableCellDataType.DATE -> "날짜"
+        TableCellDataType.TIME -> "시간"
+        TableCellDataType.ROTATING_TEXT -> "순환텍스트"
+    }

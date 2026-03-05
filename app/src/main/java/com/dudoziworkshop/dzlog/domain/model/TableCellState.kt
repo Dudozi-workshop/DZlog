@@ -33,7 +33,13 @@ data class TableCellState(
      * Optional display pattern (currently used for DATE; TIME는 향후 timeFormatOptions로 완전 대체).
      * Example: "yyyy.MM.dd"
      */
-    val formatPattern: String = ""
+    val formatPattern: String = "",
+
+    /** DATE/TIME 셀의 카운터 스코프 포함 방식. 다른 타입에서는 null 유지. */
+    val counterScopeMode: CounterScopeMode? = null,
+
+    /** ROTATING_TEXT 셀의 카운터 모드. 다른 타입에서는 null 유지. */
+    val rotatingCounterMode: RotatingCounterMode? = null
 ) {
     /**
      * UI(TextField)에 넣을 "편집용 문자열".
@@ -98,4 +104,14 @@ enum class GroupLevel {
     NONE,
     G1,
     G2
+}
+
+enum class CounterScopeMode {
+    EXCLUDE,
+    INCLUDE
+}
+
+enum class RotatingCounterMode {
+    GLOBAL,
+    PER_PHRASE
 }

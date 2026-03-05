@@ -10,15 +10,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-fun sanitizeFolderName(input: String): String {
-    val trimmed = input.trim()
-    if (trimmed.isBlank()) return ""
-    val illegal = Regex("[\\\\/:*?\"<>|]")
-    val cleaned = trimmed.replace(illegal, "_")
-    return cleaned.trim().trim('.')
-}
-
-
 /**
  * File-name sanitizer for generic (non date/time) parts.
  *
@@ -39,6 +30,12 @@ fun sanitizeFilePart(input: String): String {
 }
 
 
+private fun sanitizeGroupPathSegment(input: String): String {
+    return sanitizeFilePart(input).trim()
+}
+
+
+
 private fun digitsOnly(input: String): String {
     val trimmed = input.trim()
     if (trimmed.isBlank()) return ""
@@ -51,7 +48,7 @@ fun resolveGroupValue(cells: List<TableCellState>, level: GroupLevel): String {
         .asSequence()
         .filter { it.groupLevel == level }
         .sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
-        .map { sanitizeFolderName(it.rawText) }
+        .map { sanitizeGroupPathSegment(it.rawText) }
         .firstOrNull { it.isNotBlank() }
         .orEmpty()
 }
@@ -61,7 +58,7 @@ fun resolveGroupValue(resolvedCells: List<ResolvedCell>, level: GroupLevel): Str
         .asSequence()
         .filter { (it.raw?.groupLevel ?: GroupLevel.NONE) == level }
         .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
-        .map { sanitizeFolderName(it.resolvedText) }
+        .map { sanitizeGroupPathSegment(it.resolvedText) }
         .firstOrNull { it.isNotBlank() }
         .orEmpty()
 }
@@ -73,8 +70,8 @@ fun buildGalleryRelativePath(cells: List<TableCellState>): String {
 }
 
 fun buildGalleryRelativePath(group1: String, group2: String): String {
-    val g1 = sanitizeFolderName(group1)
-    val g2 = sanitizeFolderName(group2)
+    val g1 = sanitizeGroupPathSegment(group1)
+    val g2 = sanitizeGroupPathSegment(group2)
     return when {
         g1.isBlank() -> "Pictures/DZlog/"
         g2.isBlank() -> "Pictures/DZlog/$g1/"

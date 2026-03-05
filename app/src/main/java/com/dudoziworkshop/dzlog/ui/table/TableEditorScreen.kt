@@ -7,19 +7,19 @@
 package com.dudoziworkshop.dzlog.ui.table
 
 import android.widget.Toast
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,9 +33,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.dudoziworkshop.dzlog.ui.common.dzScreen
+import com.dudoziworkshop.dzlog.ui.common.dzScaffoldContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.data.counter.clampCounterDigits
@@ -43,11 +44,16 @@ import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
+import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureContext
+import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
+import com.dudoziworkshop.dzlog.domain.counter.policy.normalizeTimeToMinute
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
+import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -55,10 +61,8 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
-import com.dudoziworkshop.dzlog.domain.naming.buildDisplayNameFromResolvedCells
-import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePath
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
-import com.dudoziworkshop.dzlog.domain.preview.decideTickUnit
+import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.table.policy.confirmCounterConflictDialog
 import com.dudoziworkshop.dzlog.feature.table.policy.dismissCounterConflictDialog
@@ -111,10 +115,12 @@ import com.dudoziworkshop.dzlog.ui.table.watermark.applyWidthRatioChange
 import com.dudoziworkshop.dzlog.ui.table.watermark.loadTableWatermarkUiState
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import com.dudoziworkshop.dzlog.ui.theme.dzTopInset
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.awaitCancellation
 import java.util.Date
 import java.util.UUID
 import com.dudoziworkshop.dzlog.ui.table.editor.commitInlineEditIfNeeded as commitInlineEdit
@@ -128,6 +134,7 @@ fun TableEditorScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     // ✅ 탭 상태
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -190,15 +197,26 @@ fun TableEditorScreen(
     val tableSaveMode = settings.saveMode
 
     var counterUi by remember { mutableStateOf(TableCounterUiState()) }
+    var resumeTick by remember { mutableIntStateOf(0) }
+    var scopeKeySnapshot by remember { mutableStateOf<String?>(null) }
 
     var previewNow by remember { mutableStateOf(Date()) }
 
-    LaunchedEffect(dateFormat, timeFormat) {
-        val unit = decideTickUnit(dateFormat, timeFormat)
-        while (true) {
-            val delayMs = computeNextDelayMillis(unit)
-            delay(delayMs)
-            previewNow = Date()
+    LaunchedEffect(templateState.cells, lifecycleOwner) {
+        val unit = decideTickUnitFromTemplate(templateState.cells)
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                val delayMs = computeNextDelayMillis(unit)
+                delay(delayMs)
+                previewNow = Date()
+            }
+        }
+    }
+
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            resumeTick += 1
+            awaitCancellation()
         }
     }
 
@@ -220,7 +238,7 @@ fun TableEditorScreen(
     }
 
     val tableResolver = remember { TableResolver() }
-    val planForScope = remember(templateState, previewNow, previewCounterDigits, counterUi.scopeNextCounter, dateFormat, timeFormat) {
+    val plan = remember(templateState, previewNow, previewCounterDigits, counterUi.scopeNextCounter, dateFormat, timeFormat) {
         tableResolver.plan(
             cells = templateState.cells,
             captureNow = previewNow,
@@ -233,6 +251,7 @@ fun TableEditorScreen(
             phraseSets = templateState.phraseSets
         )
     }
+
     val isManualCounterModeDisplay by remember(
         counterUi.isManualCounterMode,
         counterUi.preserveManualCounterSeed,
@@ -245,20 +264,29 @@ fun TableEditorScreen(
         }
     }
 
+    val scopeDateTimeValues = remember(templateState.cells, plan.resolvedCells) {
+        buildCounterScopeDateTimeValues(templateState.cells, plan.resolvedCells)
+    }
+    val phraseScopeValues = remember(templateState.cells, plan.resolvedCells) {
+        buildPhraseScopeValues(templateState.cells, plan.resolvedCells)
+    }
+
     val counterStreamContext by remember(
-        planForScope.resolvedCells,
+        plan.resolvedCells,
         counterUi.scopeNextCounter,
         isManualCounterModeDisplay,
-        settings.includeDateInCounterScope,
-        settings.includeTimeInCounterScope,
+        scopeDateTimeValues.dateScopeValues,
+        scopeDateTimeValues.timeScopeValues,
+        phraseScopeValues,
     ) {
         derivedStateOf {
             buildTableCounterStreamContext(
-                resolvedCells = planForScope.resolvedCells,
+                resolvedCells = plan.resolvedCells,
                 fileNameSlots = templateState.fileNameSlots,
                 includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
-                includeDateInCounterScope = settings.includeDateInCounterScope,
-                includeTimeInCounterScope = settings.includeTimeInCounterScope,
+                dateScopeValues = scopeDateTimeValues.dateScopeValues,
+                timeScopeValues = scopeDateTimeValues.timeScopeValues,
+                phraseScopeValues = phraseScopeValues,
                 scopeNextCounter = counterUi.scopeNextCounter,
                 isManualCounterModeDisplay = isManualCounterModeDisplay,
             )
@@ -279,10 +307,24 @@ fun TableEditorScreen(
         }
     }
 
-    // ✅ 스트림 변경 감지용 (스트림이 바뀌면 seed를 "새 스트림 next"로 강제 동기화)
-    var lastScopeSnapshot by remember { mutableStateOf<CounterScopeSnapshot?>(null) }
+    LaunchedEffect(resumeTick) {
+        scopeKeySnapshot = scopedCounterStream.scopeParts.scopeKey
+    }
+    val activeScopeKey = scopeKeySnapshot ?: scopedCounterStream.scopeParts.scopeKey
 
-    LaunchedEffect(scopedCounterStream.scopeParts.scopeKey, previewCounterDigits, templateState, tableSaveMode) {
+    // ✅ 스트림 변경 감지용 (스트림이 바뀌면 seed를 "새 스트림 next"로 강제 동기화)
+
+
+    var lastScopeSnapshot by remember { mutableStateOf<CounterScopeSnapshot?>(null) }
+    var lastProcessedResumeTick by remember { mutableIntStateOf(-1) }
+
+    LaunchedEffect(
+        activeScopeKey,
+        previewCounterDigits,
+        tableSaveMode,
+        resumeTick,
+    ) {
+        val isExternalResync = resumeTick != lastProcessedResumeTick
         val syncResult = syncCounterStateForScope(
             context = context,
             templateState = templateState,
@@ -293,10 +335,12 @@ fun TableEditorScreen(
             saveMode = tableSaveMode,
             isManualCounterModeDisplay = isManualCounterModeDisplay,
             lastScopeSnapshot = lastScopeSnapshot,
+            isExternalResync = isExternalResync,
             updateCell = ::updateCell
         )
         counterUi = syncResult.counterUi
         lastScopeSnapshot = syncResult.nextScopeSnapshot
+        lastProcessedResumeTick = resumeTick
         syncResult.updatedTemplateState?.let(onTemplateChange)
     }
 
@@ -374,10 +418,6 @@ fun TableEditorScreen(
     val hasGroup1 = templateState.cells.any { it.groupLevel == GroupLevel.G1 }
     val hasGroup2 = templateState.cells.any { it.groupLevel == GroupLevel.G2 }
 
-    val savePathPreview = remember(templateState.cells) {
-        buildGalleryRelativePath(templateState.cells)
-    }
-
     var watermarkUi by remember { mutableStateOf(TableWatermarkUiState()) }
 
     LaunchedEffect(Unit) {
@@ -386,33 +426,36 @@ fun TableEditorScreen(
         }
     }
 
-    val plan = remember(templateState.cells, previewNow, previewCounterDigits, counterUi.scopeNextCounter, dateFormat, timeFormat) {
-        tableResolver.plan(
-            cells = templateState.cells,
-            captureNow = previewNow,
-            config = TableResolver.Config(
+    val namingPreview = remember(
+        plan.resolvedCells,
+        templateState.fileNameSlots,
+        previewCounterDigits,
+        counterUi.includePathInCounterScope,
+        counterUi.includeFilenameInCounterScope,
+        scopeDateTimeValues.dateScopeValues,
+        scopeDateTimeValues.timeScopeValues,
+        phraseScopeValues,
+        counterStreamContext.nextCounter,
+    ) {
+        CaptureNamingPolicy.buildForCaptureWithCounter(
+            captureContext = CaptureContext(
+                resolvedCells = plan.resolvedCells,
+                fileNameSlots = templateState.fileNameSlots,
+                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
                 counterDigits = previewCounterDigits,
-                dateFormat = dateFormat,
-                timeFormat = timeFormat
+                dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+                timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT,
+                includePathInCounterScope = counterUi.includePathInCounterScope,
+                includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
+                dateScopeValues = scopeDateTimeValues.dateScopeValues,
+                timeScopeValues = scopeDateTimeValues.timeScopeValues,
+                phraseScopeValues = phraseScopeValues,
             ),
-            counterSeedOverride = counterUi.scopeNextCounter,
-            phraseSets = templateState.phraseSets
+            usedCounter = counterStreamContext.nextCounter,
         )
     }
-
-    val filenamePreview = buildDisplayNameFromResolvedCells(
-        resolvedCells = plan.resolvedCells,
-        fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-        includeDate = false,
-        includeTime = false,
-        fileNameSlots = templateState.fileNameSlots,
-        counterDigits = previewCounterDigits,
-        // ✅ 파일명 suffix counter는 항상 스트림 값(SSOT)을 사용
-        // COUNTER 셀의 표기 ON/OFF는 "표/워터마크 표현"에만 영향, 카운터 스트림/파일명에는 영향 없음.
-        // (파일명 뒤 숫자는 항상 붙는 정책)
-        counterOverride = counterStreamContext.nextCounter,
-        now = previewNow
-    )
+    val savePathPreview = namingPreview.relativePath
+    val filenamePreview = namingPreview.displayName
 
     fun handleCounterConflictDialogEffect(effect: com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogEffect) {
         applyCounterConflictDialogEffect(
@@ -669,37 +712,36 @@ fun TableEditorScreen(
     Scaffold(
         containerColor = DDZColor.Background,
         topBar = {
-            TopAppBar(
-                modifier = Modifier.padding(top = dzTopInset()),
-                windowInsets = WindowInsets(0, 0, 0, 0),
+            CenterAlignedTopAppBar(
+                modifier = Modifier,
                 title = {
                     Text(
                         "표 상세설정",
                         style = DDZTypography.ScreenTitle,
-                        color = DDZColor.TextPrimary
+                        color = DDZColor.Primary
                     )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "뒤로가기",
+                            tint = DDZColor.Primary
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = DDZColor.Background,
-                    navigationIconContentColor = DDZColor.TextPrimary
-                ),
-                actions = {
-                    TextButton(onClick = onBack) {
-                        Text(
-                            "뒤로",
-                            style = DDZTypography.ButtonText,
-                            color = DDZColor.TextPrimary
-                        )
-                    }
-                }
+                    navigationIconContentColor = DDZColor.Primary,
+                    titleContentColor = DDZColor.Primary
+                )
             )
         }
-    ) { padding ->
+    ) { innerPadding ->
         Column(
             modifier = Modifier
-                .dzScreen()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(padding)
+                .dzScaffoldContent()
+                .padding(innerPadding)
         ) {
             TableEditorTabs(
                 selectedTabIndex = selectedTabIndex,
@@ -886,6 +928,24 @@ fun TableEditorScreen(
                                     onTemplateChange(updated)
                                 }
                             },
+                            onSetCounterScopeModeForSelected = { mode ->
+                                selectedCell?.let { cell ->
+                                    if (cell.dataType != TableCellDataType.DATE && cell.dataType != TableCellDataType.TIME) return@let
+                                    val updated = updateCell(templateState, cell.cellId) { c ->
+                                        c.copy(counterScopeMode = mode)
+                                    }
+                                    onTemplateChange(updated)
+                                }
+                            },
+                            onSetRotatingCounterModeForSelected = { mode ->
+                                selectedCell?.let { cell ->
+                                    if (cell.dataType != TableCellDataType.ROTATING_TEXT) return@let
+                                    val updated = updateCell(templateState, cell.cellId) { c ->
+                                        c.copy(rotatingCounterMode = mode)
+                                    }
+                                    onTemplateChange(updated)
+                                }
+                            },
                             onResetCounterSeedForSelected = {
                                 selectedCell?.let { cell ->
                                     if (cell.dataType != TableCellDataType.COUNTER) return@let
@@ -1005,6 +1065,49 @@ fun TableEditorScreen(
 }
 
 
+
+private data class CounterScopeDateTimeValues(
+    val dateScopeValues: List<String>,
+    val timeScopeValues: List<String>
+)
+
+
+private fun buildCounterScopeDateTimeValues(
+    cells: List<TableCellState>,
+    resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>
+): CounterScopeDateTimeValues {
+    val resolvedById = resolvedCells.associateBy { it.id }
+    val ordered = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex }.thenBy { it.cellId })
+    val dateValues = ordered
+        .asSequence()
+        .filter { it.dataType == TableCellDataType.DATE && it.counterScopeMode == CounterScopeMode.INCLUDE }
+        .mapNotNull { resolvedById[it.cellId]?.resolvedText?.takeIf { text -> text.isNotBlank() } }
+        .toList()
+    val timeValues = ordered
+        .asSequence()
+        .filter { it.dataType == TableCellDataType.TIME && it.counterScopeMode == CounterScopeMode.INCLUDE }
+        .mapNotNull { resolvedById[it.cellId]?.resolvedText }
+        .map(::normalizeTimeToMinute)
+        .filter { it.isNotBlank() }
+        .toList()
+    return CounterScopeDateTimeValues(dateScopeValues = dateValues, timeScopeValues = timeValues)
+}
+
+
+private fun buildPhraseScopeValues(
+    cells: List<TableCellState>,
+    resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>
+): List<String> {
+    val resolvedById = resolvedCells.associateBy { it.id }
+    val ordered = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex }.thenBy { it.cellId })
+    return ordered
+        .asSequence()
+        .filter { it.dataType == TableCellDataType.ROTATING_TEXT && it.rotatingCounterMode == RotatingCounterMode.PER_PHRASE }
+        .mapNotNull { resolvedById[it.cellId]?.scopeToken }
+        .filter { it.isNotBlank() }
+        .toList()
+}
+
 /**
  * DataType 변경 시 공통 규칙(일관 UX)
  * - rawText는 절대 자동 변경하지 않는다 (사용자가 TEXT 편집할 때만 변경)
@@ -1018,37 +1121,49 @@ private fun TableCellState.withDataType(newType: TableCellDataType): TableCellSt
         TableCellDataType.TEXT -> this.copy(
             dataType = newType,
             typedValue = CellValue.Text(this.rawText),
-            timeFormatOptions = null
+            timeFormatOptions = null,
+            counterScopeMode = null,
+            rotatingCounterMode = null
         )
 
         TableCellDataType.NUMBER -> this.copy(
             dataType = newType,
             typedValue = CellValue.Number(this.rawText),
-            timeFormatOptions = null
+            timeFormatOptions = null,
+            counterScopeMode = null,
+            rotatingCounterMode = null
         )
 
         TableCellDataType.DATE -> this.copy(
             dataType = newType,
             typedValue = CellValue.Auto,
-            timeFormatOptions = null
+            timeFormatOptions = null,
+            counterScopeMode = CounterScopeMode.EXCLUDE,
+            rotatingCounterMode = null
         )
 
         TableCellDataType.TIME -> this.copy(
             dataType = newType,
             typedValue = CellValue.Auto,
-            timeFormatOptions = this.timeFormatOptions ?: TimeFormatOptions()
+            timeFormatOptions = this.timeFormatOptions ?: TimeFormatOptions(),
+            counterScopeMode = CounterScopeMode.EXCLUDE,
+            rotatingCounterMode = null
         )
 
         TableCellDataType.COUNTER -> this.copy(
             dataType = newType,
             typedValue = (this.typedValue as? CellValue.CounterSeed) ?: CellValue.CounterSeed(1),
-            timeFormatOptions = null
+            timeFormatOptions = null,
+            counterScopeMode = null,
+            rotatingCounterMode = null
         )
 
         TableCellDataType.ROTATING_TEXT -> this.copy(
             dataType = newType,
             typedValue = CellValue.Auto,
-            timeFormatOptions = null
+            timeFormatOptions = null,
+            counterScopeMode = null,
+            rotatingCounterMode = RotatingCounterMode.GLOBAL
         )
     }
 

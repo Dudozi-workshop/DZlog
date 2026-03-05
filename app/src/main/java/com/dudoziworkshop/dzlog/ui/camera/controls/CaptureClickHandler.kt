@@ -1,13 +1,16 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.camera.core.ImageCapture
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureContext
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
+import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
@@ -45,8 +48,9 @@ internal fun handleCaptureClick(
     scopeNextCounter: Int,
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean,
-    includeDateInCounterScope: Boolean,
-    includeTimeInCounterScope: Boolean,
+    dateScopeValues: List<String>,
+    timeScopeValues: List<String>,
+    phraseScopeValues: List<String>,
     captureHapticEnabled: Boolean,
     captureAspect: CaptureAspect,
     saveMode: com.dudoziworkshop.dzlog.domain.model.SaveMode,
@@ -132,11 +136,26 @@ internal fun handleCaptureClick(
             timeFormat = timeFormat,
             includePathInCounterScope = includePathInCounterScope,
             includeFilenameInCounterScope = includeFilenameInCounterScope,
-            includeDateInCounterScope = includeDateInCounterScope,
-            includeTimeInCounterScope = includeTimeInCounterScope,
+            dateScopeValues = dateScopeValues,
+            timeScopeValues = timeScopeValues,
+            phraseScopeValues = phraseScopeValues,
         ),
         usedCounter = scopeNextCounter
     )
+
+
+    val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    if (isDebuggable) {
+        val scopedStream = toCaptureScopedCounterStream(
+            streamContext = policyResult.streamContext,
+            includePathInScope = includePathInCounterScope,
+            includeFilenameInScope = includeFilenameInCounterScope,
+        )
+        Log.d(
+            "CounterPath",
+            "saveRel=${policyResult.relativePath} scopedRelKey=${scopedStream.scopeParts.relativePathKey} includePath=${includePathInCounterScope}"
+        )
+    }
 
     val req = com.dudoziworkshop.dzlog.domain.model.CaptureRequest(
         group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),

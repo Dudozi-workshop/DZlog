@@ -2,11 +2,13 @@ package com.dudoziworkshop.dzlog.data.template
 
 import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.CellValue
+import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.HourSystem
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -126,7 +128,11 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         dataType = dataType,
                         phraseSetId = o.optString("phraseSetId").ifBlank { null },
                         everyOverride = if (o.has("everyOverride")) o.optInt("everyOverride").coerceAtLeast(1) else null,
-                        formatPattern = o.optString("formatPattern", "")
+                        formatPattern = o.optString("formatPattern", ""),
+                        counterScopeMode = o.optString("counterScopeMode").takeIf { it.isNotBlank() }
+                            ?.let { runCatching { CounterScopeMode.valueOf(it) }.getOrNull() },
+                        rotatingCounterMode = o.optString("rotatingCounterMode").takeIf { it.isNotBlank() }
+                            ?.let { runCatching { RotatingCounterMode.valueOf(it) }.getOrNull() }
                     )
                 add(cell)
                 if (legacyFileNameInclude && dataType != TableCellDataType.COUNTER) {
@@ -286,6 +292,8 @@ fun TableTemplateState.toJsonString(): String {
         o.put("colSpan", c.colSpan)
         o.put("dataType", c.dataType.name)
         o.put("formatPattern", c.formatPattern)
+        c.counterScopeMode?.let { o.put("counterScopeMode", it.name) }
+        c.rotatingCounterMode?.let { o.put("rotatingCounterMode", it.name) }
 
         // COUNTER seed 저장
         if (c.dataType == TableCellDataType.COUNTER) {

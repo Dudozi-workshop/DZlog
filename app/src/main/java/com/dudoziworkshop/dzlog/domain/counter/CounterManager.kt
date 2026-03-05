@@ -25,7 +25,7 @@ import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
  * - counterPrefix = "파일명 포함 셀" 기반 prefix
  * - DATE/TIME 셀은 파일명/경로에 포함될 수 있으나,
  *   counterPrefix는 scopeToken(정규화 토큰)을 우선 사용하며,
- *   반영 여부는 CounterScopeOptions(includeDateInCounterScope/includeTimeInCounterScope)로 결정
+ *   반영 여부는 CounterScopeOptions(dateScopeValues/timeScopeValues)로 결정
  * - 옵션이 false이면 DATE/TIME 변화는 카운터 스트림 분리(초기화)에 영향을 주지 않음
  * - 초기화 의미 = 해당 스트림의 max + 1
  */
@@ -77,7 +77,7 @@ object CounterManager {
      *
      * 규칙:
      * - COUNTER는 항상 제외
-     * - DATE/TIME은 CounterScopeOptions 옵션이 true일 때만 포함 (scopeToken 우선)
+     * - DATE/TIME은 CounterScopeOptions의 date/time scope values가 있을 때만 포함
      * - 그 외 타입은 resolvedText를 sanitize 후 포함
      */
     fun computeCounterPrefix(
@@ -92,14 +92,14 @@ object CounterManager {
         val delim = fnDelim.ifBlank { "_" }
         val normalizedSlots = fileNameSlots.take(FILE_NAME_SLOT_COUNT) + List((FILE_NAME_SLOT_COUNT - fileNameSlots.size).coerceAtLeast(0)) { null }
 
-        val parts = normalizedSlots
+        val slotParts = normalizedSlots
             .asSequence()
             .mapNotNull { slot -> slot?.let { key -> resolvedCells.firstOrNull { rc -> rc.id == key } } }
             .mapNotNull { rc ->
                 val token: String? = when (rc.type) {
                     TableCellDataType.COUNTER -> null
-                    TableCellDataType.DATE -> if (scopeOptions.includeDateInCounterScope) rc.scopeToken else null
-                    TableCellDataType.TIME -> if (scopeOptions.includeTimeInCounterScope) rc.scopeToken else null
+                    TableCellDataType.DATE,
+                    TableCellDataType.TIME -> null
                     else -> rc.resolvedText
                 }
 
@@ -108,6 +108,26 @@ object CounterManager {
                     ?.takeIf { it.isNotBlank() }
             }
             .toList()
+
+        val dateParts = scopeOptions.dateScopeValues
+            .asSequence()
+            .mapNotNull { sanitizeFilePart(it).takeIf { part -> part.isNotBlank() } }
+            .map { "d_$it" }
+            .toList()
+
+        val timeParts = scopeOptions.timeScopeValues
+            .asSequence()
+            .mapNotNull { sanitizeFilePart(it).takeIf { part -> part.isNotBlank() } }
+            .map { "t_$it" }
+            .toList()
+
+        val phraseParts = scopeOptions.phraseScopeValues
+            .asSequence()
+            .mapNotNull { sanitizeFilePart(it).takeIf { part -> part.isNotBlank() } }
+            .map { if (it.startsWith("p_")) it else "p_$it" }
+            .toList()
+
+        val parts = slotParts + phraseParts + dateParts + timeParts
 
         return if (parts.isEmpty()) "DZlog" else parts.joinToString(delim)
     }

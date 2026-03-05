@@ -2,7 +2,9 @@ package com.dudoziworkshop.dzlog.ui.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
@@ -15,3 +17,13 @@ fun Modifier.dzScreen(): Modifier =
         .fillMaxSize()
         .background(DDZColor.Background)
         .windowInsetsPadding(WindowInsets.safeDrawing)
+
+
+@Composable
+fun Modifier.dzScaffoldContent(): Modifier =
+    this
+        .fillMaxSize()
+        .background(DDZColor.Background)
+        .windowInsetsPadding(
+            WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
+        )

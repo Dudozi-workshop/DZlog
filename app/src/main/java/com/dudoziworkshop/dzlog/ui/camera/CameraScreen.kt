@@ -74,7 +74,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.data.counter.clampCounterDigits
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
@@ -107,18 +107,22 @@ import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
+import com.dudoziworkshop.dzlog.domain.counter.policy.normalizeTimeToMinute
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.policy.buildCounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.isNewCounterScope
 import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
+import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.WatermarkConfig
 import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
@@ -127,7 +131,7 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
-import com.dudoziworkshop.dzlog.domain.preview.decideTickUnit
+import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
@@ -152,6 +156,7 @@ import com.dudoziworkshop.dzlog.data.preferences.persistCaptureAspect
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
@@ -259,16 +264,31 @@ fun CameraPreview(
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
 
     val tableCells = tableTemplateState.cells
-
+    val scopeDateTimeValues = remember(tableTemplateState.cells, tableTemplateState.fileNameSlots, ui.capture.now, ui.prefs.counterDigits) {
+        val plan = tableResolver.plan(
+            cells = tableTemplateState.cells,
+            captureNow = ui.capture.now,
+            config = TableResolver.Config(
+                counterDigits = ui.prefs.counterDigits,
+                dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+                timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT,
+            ),
+            counterSeedOverride = ui.counter.scopeNextCounter,
+            phraseSets = tableTemplateState.phraseSets,
+        )
+        buildCameraCounterScopeDateTimeValues(tableTemplateState.cells, plan.resolvedCells)
+    }
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
 
-    LaunchedEffect(dateFormat, timeFormat) {
-        val unit = decideTickUnit(dateFormat, timeFormat)
-        while (true) {
-            val delayMs = computeNextDelayMillis(unit)
-            delay(delayMs)
-            ui.capture.now = Date()
+    LaunchedEffect(tableTemplateState.cells, lifecycleOwner) {
+        val unit = decideTickUnitFromTemplate(tableTemplateState.cells)
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                val delayMs = computeNextDelayMillis(unit)
+                delay(delayMs)
+                ui.capture.now = Date()
+            }
         }
     }
 
@@ -280,8 +300,9 @@ fun CameraPreview(
         counterDigits = ui.prefs.counterDigits,
         nextCounter = ui.counter.scopeNextCounter,
         includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-        includeDateInCounterScope = appSettings.includeDateInCounterScope,
-        includeTimeInCounterScope = appSettings.includeTimeInCounterScope,
+        dateScopeValues = scopeDateTimeValues.dateScopeValues,
+        timeScopeValues = scopeDateTimeValues.timeScopeValues,
+        phraseScopeValues = scopeDateTimeValues.phraseScopeValues,
         captureNow = ui.capture.now,
     )
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
@@ -309,15 +330,10 @@ fun CameraPreview(
         undoResyncTick += 1
     }
 
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                resumeResyncTick += 1
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            resumeResyncTick += 1
+            awaitCancellation()
         }
     }
 
@@ -707,8 +723,9 @@ fun CameraPreview(
                                                 scopeNextCounter = ui.counter.scopeNextCounter,
                                                 includePathInCounterScope = appSettings.includePathInCounterScope,
                                                 includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-                                                includeDateInCounterScope = appSettings.includeDateInCounterScope,
-                                                includeTimeInCounterScope = appSettings.includeTimeInCounterScope,
+                                                dateScopeValues = scopeDateTimeValues.dateScopeValues,
+                                                timeScopeValues = scopeDateTimeValues.timeScopeValues,
+                                                phraseScopeValues = scopeDateTimeValues.phraseScopeValues,
                                                 captureHapticEnabled = appSettings.captureHapticEnabled,
                                                 captureAspect = ui.prefs.captureAspect,
                                                 saveMode = appSettings.saveMode,
@@ -1026,8 +1043,9 @@ private fun rememberCounterStreamContext(
     counterDigits: Int,
     nextCounter: Int,
     includeFilenameInCounterScope: Boolean,
-    includeDateInCounterScope: Boolean,
-    includeTimeInCounterScope: Boolean,
+    dateScopeValues: List<String>,
+    timeScopeValues: List<String>,
+    phraseScopeValues: List<String>,
     captureNow: Date,
 ): CounterStreamContext {
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
@@ -1040,8 +1058,9 @@ private fun rememberCounterStreamContext(
         counterDigits,
         nextCounter,
         includeFilenameInCounterScope,
-        includeDateInCounterScope,
-        includeTimeInCounterScope,
+        dateScopeValues,
+        timeScopeValues,
+        phraseScopeValues,
         captureNow,
     ) {
         val planForScope = tableResolver.plan(
@@ -1063,8 +1082,9 @@ private fun rememberCounterStreamContext(
             fnDelim = fnDelim,
             includeFilenameInScope = includeFilenameInCounterScope,
             scopeOptions = CounterScopeOptions(
-                includeDateInCounterScope = includeDateInCounterScope,
-                includeTimeInCounterScope = includeTimeInCounterScope,
+                dateScopeValues = dateScopeValues,
+                timeScopeValues = timeScopeValues,
+                phraseScopeValues = phraseScopeValues,
             ),
         )
     }
@@ -1099,8 +1119,15 @@ private fun SyncCounterSeedEffect(
         )
     }
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+    var scopeKeySnapshot by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(resumeTick) {
+        scopeKeySnapshot = scopedStream.scopeParts.scopeKey
+    }
+    val activeScopeKey = scopeKeySnapshot ?: scopedStream.scopeParts.scopeKey
+
     LaunchedEffect(
-        scopedStream.scopeParts.scopeKey,
+        activeScopeKey,
         counterDigits,
         resumeTick,
         undoTick,
@@ -1126,7 +1153,10 @@ private fun SyncCounterSeedEffect(
             return@LaunchedEffect
         }
 
-        val nextSeedFromStream = CaptureCounterPolicy.getNextCounter(
+        val saveModeChanged = (lastSaveMode != null && lastSaveMode != appSettings.saveMode)
+        val isExternalResync = (resumeTick != lastResumeTick) || (undoTick != lastUndoTick) || saveModeChanged
+
+        suspend fun readNextSeed(): Int = CaptureCounterPolicy.getNextCounter(
             context = context,
             scopedStream = scopedStream,
             counterDigits = counterDigits,
@@ -1134,15 +1164,22 @@ private fun SyncCounterSeedEffect(
             saveMode = appSettings.saveMode,
         ).coerceAtLeast(1)
 
+        val nextSeedFromStream = if (isExternalResync) {
+            val a = readNextSeed()
+            delay(200)
+            val b = readNextSeed()
+            if (a == b) a else b
+        } else {
+            readNextSeed()
+        }
+
         val isNewStream = isNewCounterScope(
             previous = ui.counter.lastScopeSnapshot,
             current = scopeSnapshot
         )
-        val saveModeChanged = (lastSaveMode != null && lastSaveMode != appSettings.saveMode)
-        val isExternalResync = (resumeTick != lastResumeTick) || (undoTick != lastUndoTick) || saveModeChanged
         val currentScopeSeed = ui.counter.scopeNextCounter
         val allowResetToOneOnNewStream =
-            appSettings.includeDateInCounterScope || appSettings.includeTimeInCounterScope
+            streamContext.streamPrefix.contains("d:") || streamContext.streamPrefix.contains("t:")
         ui.counter.scopeNextCounter = when {
             // 규칙 A: 외부 리싱크(undo/resume)는 seed 하향 반영이 가능해야 한다.
             isExternalResync -> nextSeedFromStream
@@ -1234,4 +1271,39 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.wmGridEnabled = true
         ui.prefs.wmRotationCwDeg = 0
     }
+}
+
+
+private data class CameraCounterScopeDateTimeValues(
+    val dateScopeValues: List<String>,
+    val timeScopeValues: List<String>,
+    val phraseScopeValues: List<String>
+)
+
+
+private fun buildCameraCounterScopeDateTimeValues(
+    cells: List<TableCellState>,
+    resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>
+): CameraCounterScopeDateTimeValues {
+    val resolvedById = resolvedCells.associateBy { it.id }
+    val ordered = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex }.thenBy { it.cellId })
+    val dateValues = ordered
+        .asSequence()
+        .filter { it.dataType == TableCellDataType.DATE && it.counterScopeMode == CounterScopeMode.INCLUDE }
+        .mapNotNull { resolvedById[it.cellId]?.resolvedText?.takeIf { text -> text.isNotBlank() } }
+        .toList()
+    val timeValues = ordered
+        .asSequence()
+        .filter { it.dataType == TableCellDataType.TIME && it.counterScopeMode == CounterScopeMode.INCLUDE }
+        .mapNotNull { resolvedById[it.cellId]?.resolvedText }
+        .map(::normalizeTimeToMinute)
+        .filter { it.isNotBlank() }
+        .toList()
+    val phraseValues = ordered
+        .asSequence()
+        .filter { it.dataType == TableCellDataType.ROTATING_TEXT && it.rotatingCounterMode == RotatingCounterMode.PER_PHRASE }
+        .mapNotNull { resolvedById[it.cellId]?.scopeToken }
+        .filter { it.isNotBlank() }
+        .toList()
+    return CameraCounterScopeDateTimeValues(dateScopeValues = dateValues, timeScopeValues = timeValues, phraseScopeValues = phraseValues)
 }
