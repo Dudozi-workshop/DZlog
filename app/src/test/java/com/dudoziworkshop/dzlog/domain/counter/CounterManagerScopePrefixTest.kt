@@ -226,6 +226,22 @@ class CounterManagerScopePrefixTest {
         assertEquals("N600_p_setA_1", prefix)
     }
 
+
+    @Test
+    fun `computeCounterPrefix keeps phrase scope separation when filename scope is off`() {
+        val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
+
+        val prefix = CounterManager.computeCounterPrefix(
+            resolvedCells = listOf(text),
+            fnDelim = "_",
+            fileNameSlots = listOf(text.id, null, null),
+            includeFilenameInScope = false,
+            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("p_setA_1")),
+        )
+
+        assertEquals("name=off_p_setA_1", prefix)
+    }
+
     @Test
     fun `computeCounterPrefix normalizes phrase scope values without marker`() {
         val text = resolvedCell(0, TableCellDataType.TEXT, "N600")

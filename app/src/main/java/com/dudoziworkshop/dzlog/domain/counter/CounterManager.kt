@@ -87,27 +87,29 @@ object CounterManager {
         includeFilenameInScope: Boolean,
         scopeOptions: CounterScopeOptions = CounterScopeOptions(),
     ): String {
-        if (!includeFilenameInScope) return "name=off"
-
         val delim = fnDelim.ifBlank { "_" }
         val normalizedSlots = fileNameSlots.take(FILE_NAME_SLOT_COUNT) + List((FILE_NAME_SLOT_COUNT - fileNameSlots.size).coerceAtLeast(0)) { null }
 
-        val slotParts = normalizedSlots
-            .asSequence()
-            .mapNotNull { slot -> slot?.let { key -> resolvedCells.firstOrNull { rc -> rc.id == key } } }
-            .mapNotNull { rc ->
-                val token: String? = when (rc.type) {
-                    TableCellDataType.COUNTER -> null
-                    TableCellDataType.DATE,
-                    TableCellDataType.TIME -> null
-                    else -> rc.resolvedText
-                }
+        val slotParts = if (includeFilenameInScope) {
+            normalizedSlots
+                .asSequence()
+                .mapNotNull { slot -> slot?.let { key -> resolvedCells.firstOrNull { rc -> rc.id == key } } }
+                .mapNotNull { rc ->
+                    val token: String? = when (rc.type) {
+                        TableCellDataType.COUNTER -> null
+                        TableCellDataType.DATE,
+                        TableCellDataType.TIME -> null
+                        else -> rc.resolvedText
+                    }
 
-                token
-                    ?.let { sanitizeFilePart(it) }
-                    ?.takeIf { it.isNotBlank() }
-            }
-            .toList()
+                    token
+                        ?.let { sanitizeFilePart(it) }
+                        ?.takeIf { it.isNotBlank() }
+                }
+                .toList()
+        } else {
+            emptyList()
+        }
 
         val dateParts = scopeOptions.dateScopeValues
             .asSequence()
@@ -127,7 +129,13 @@ object CounterManager {
             .map { if (it.startsWith("p_")) it else "p_$it" }
             .toList()
 
-        val parts = slotParts + phraseParts + dateParts + timeParts
+        val parts = buildList {
+            if (!includeFilenameInScope) add("name=off")
+            addAll(slotParts)
+            addAll(phraseParts)
+            addAll(dateParts)
+            addAll(timeParts)
+        }
 
         return if (parts.isEmpty()) "DZlog" else parts.joinToString(delim)
     }
