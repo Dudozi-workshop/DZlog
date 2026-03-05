@@ -262,6 +262,11 @@ fun CameraPreview(
 
     val tableResolver = remember { TableResolver() }
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
+    // 컴파일 복구: CameraPreview 내부 공통 기본값 선언(date/time/tableCells).
+    val tableCells = tableTemplateState.cells
+    val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
+    val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
+
     val scopeDateTimeValues = remember(
         tableTemplateState.cells,
         tableTemplateState.fileNameSlots,
@@ -1106,7 +1111,6 @@ private fun SyncCounterSeedEffect(
     counterDigits: Int,
     resumeTick: Int,
     undoTick: Int,
-    captureTick: Int,
     isTemplateReady: Boolean,
     appSettings: AppSettings,
     ui: CameraUiState
