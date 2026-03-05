@@ -1,16 +1,13 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import android.content.Context
-import android.content.pm.ApplicationInfo
 import android.net.Uri
-import android.util.Log
 import android.widget.Toast
 import androidx.camera.core.ImageCapture
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureContext
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
-import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
@@ -24,6 +21,7 @@ import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Date
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -144,19 +142,6 @@ internal fun handleCaptureClick(
     )
 
 
-    val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-    if (isDebuggable) {
-        val scopedStream = toCaptureScopedCounterStream(
-            streamContext = policyResult.streamContext,
-            includePathInScope = includePathInCounterScope,
-            includeFilenameInScope = includeFilenameInCounterScope,
-        )
-        Log.d(
-            "CounterPath",
-            "saveRel=${policyResult.relativePath} scopedRelKey=${scopedStream.scopeParts.relativePathKey} includePath=${includePathInCounterScope}"
-        )
-    }
-
     val req = com.dudoziworkshop.dzlog.domain.model.CaptureRequest(
         group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
         group2 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G2),
@@ -209,33 +194,34 @@ internal fun handleCaptureClick(
                     usedCounter = committedCounter,
                     mediaStoreId = entry.mediaStoreId
                 )
+
+                withContext(Dispatchers.Main) {
+                    onUpdateScopeNextCounter((committedCounter + 1).coerceAtLeast(1))
+
+                    if (entry.isNameAdjusted) {
+                        Toast.makeText(
+                            context,
+                            "중복 파일명으로 ${entry.displayName} 저장됨",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+
+                    val savedUris = entry.savedContentUris
+                        .asSequence()
+                        .filter { it != Uri.EMPTY }
+                        .distinct()
+                        .toList()
+                    onAddToSessionStack(savedUris)
+
+                    if (continuousPreviewMode != ContinuousPreviewMode.OFF) {
+                        onSetCapturedUri(entry.contentUri)
+                    }
+
+                    // 정책 유지: gate/capturing 해제는 commit 완료 이후에만 수행한다.
+                    gate.set(false)
+                    onSetCapturing(false)
+                }
             }
-
-            // ✅ 촬영 후 next counter는 "실제 저장된 파일명 counter" 기준으로 +1 진전
-            // (중복 이름 보정으로 displayName이 조정된 경우도 실제 저장값을 반영)
-            onUpdateScopeNextCounter((committedCounter + 1).coerceAtLeast(1))
-
-            if (entry.isNameAdjusted) {
-                Toast.makeText(
-                    context,
-                    "중복 파일명으로 ${entry.displayName} 저장됨",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-
-            val savedUris = entry.savedContentUris
-                .asSequence()
-                .filter { it != Uri.EMPTY }
-                .distinct()
-                .toList()
-            onAddToSessionStack(savedUris)
-
-            if (continuousPreviewMode != ContinuousPreviewMode.OFF) {
-                onSetCapturedUri(entry.contentUri)
-            }
-
-            gate.set(false)
-            onSetCapturing(false)
         },
         onFail = { msg ->
             onUpdateScopeNextCounter(scopeNextCounter)

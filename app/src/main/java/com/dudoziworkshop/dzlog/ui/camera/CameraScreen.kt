@@ -10,9 +10,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.RecoverableSecurityException
 import android.content.Context
-import android.content.pm.ApplicationInfo
 import android.net.Uri
-import android.util.Log
 import android.os.Build
 import android.database.ContentObserver
 import android.os.Handler
@@ -264,61 +262,31 @@ fun CameraPreview(
 
     val tableResolver = remember { TableResolver() }
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-    var phraseNextSeed by remember { mutableIntStateOf(1) }
-
-    val tableCells = tableTemplateState.cells
-    // 정책 변경(중요): ROTATING_TEXT의 phraseKey 계산은 nameCounter가 아닌 phraseCounter(전역 기준)로 수행한다.
-    // - phraseCounter: phraseScopeValues를 제외한 동일 스코프(path/filename/date/time)의 next seed
-    // - nameCounter  : 기존 scopeNextCounter(실제 저장/파일명 카운터)
     val scopeDateTimeValues = remember(
         tableTemplateState.cells,
         tableTemplateState.fileNameSlots,
         ui.capture.now,
         ui.prefs.counterDigits,
-        phraseNextSeed,
+        ui.counter.scopeNextCounter,
     ) {
         val plan = tableResolver.plan(
             cells = tableTemplateState.cells,
             captureNow = ui.capture.now,
             config = TableResolver.Config(
                 counterDigits = ui.prefs.counterDigits,
-                dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
-                timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT,
+                dateFormat = dateFormat,
+                timeFormat = timeFormat,
             ),
-            // phraseKey 산출용 plan은 phraseCounter를 사용한다.
-            counterSeedOverride = phraseNextSeed,
+            counterSeedOverride = ui.counter.scopeNextCounter,
             phraseSets = tableTemplateState.phraseSets,
         )
-        buildCameraCounterScopeDateTimeValues(tableTemplateState.cells, plan.resolvedCells)
-    }
-
-    // phraseCounter 계산용 스트림(phraseScopeValues 제외)
-    val phraseScopeStreamContext = rememberCounterStreamContext(
-        tableResolver = tableResolver,
-        tableCells = tableCells,
-        phraseSets = tableTemplateState.phraseSets,
-        fileNameSlots = tableTemplateState.fileNameSlots,
-        counterDigits = ui.prefs.counterDigits,
-        nextCounter = phraseNextSeed,
-        includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-        dateScopeValues = scopeDateTimeValues.dateScopeValues,
-        timeScopeValues = scopeDateTimeValues.timeScopeValues,
-        phraseScopeValues = emptyList(),
-        captureNow = ui.capture.now,
-    )
-    val phraseScopedCounterStream = remember(
-        phraseScopeStreamContext,
-        appSettings.includePathInCounterScope,
-        appSettings.includeFilenameInCounterScope,
-    ) {
-        toCaptureScopedCounterStream(
-            streamContext = phraseScopeStreamContext,
-            includePathInScope = appSettings.includePathInCounterScope,
-            includeFilenameInScope = appSettings.includeFilenameInCounterScope,
+        // 정책 변경: 문구별 스코프는 fileNameSlots에 포함된 PER_PHRASE ROTATING_TEXT의 resolvedText(rp_)만 반영한다.
+        buildCameraCounterScopeDateTimeValues(
+            cells = tableTemplateState.cells,
+            fileNameSlots = tableTemplateState.fileNameSlots,
+            resolvedCells = plan.resolvedCells
         )
     }
-    val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
-    val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
 
     LaunchedEffect(tableTemplateState.cells, lifecycleOwner) {
         val unit = decideTickUnitFromTemplate(tableTemplateState.cells)
@@ -376,43 +344,6 @@ fun CameraPreview(
         }
     }
 
-    var lastPhraseResumeTick by remember { mutableIntStateOf(-1) }
-    var lastPhraseUndoTick by remember { mutableIntStateOf(-1) }
-    var lastPhraseSaveMode by remember { mutableStateOf<SaveMode?>(null) }
-    LaunchedEffect(
-        phraseScopedCounterStream.captureStreamKey,
-        ui.prefs.counterDigits,
-        resumeResyncTick,
-        undoResyncTick,
-        appSettings.saveMode,
-    ) {
-        suspend fun readPhraseSeed(): Int = CaptureCounterPolicy.getNextCounter(
-            context = context,
-            scopedStream = phraseScopedCounterStream,
-            counterDigits = ui.prefs.counterDigits,
-            fnDelim = fnDelim,
-            saveMode = appSettings.saveMode,
-        ).coerceAtLeast(1)
-
-        val saveModeChanged = (lastPhraseSaveMode != null && lastPhraseSaveMode != appSettings.saveMode)
-        val isExternalResync =
-            (resumeResyncTick != lastPhraseResumeTick) ||
-                (undoResyncTick != lastPhraseUndoTick) ||
-                saveModeChanged
-
-        val next = if (isExternalResync) {
-            val a = readPhraseSeed()
-            delay(200)
-            val b = readPhraseSeed()
-            if (a == b) a else b
-        } else {
-            readPhraseSeed()
-        }
-        phraseNextSeed = next
-        lastPhraseResumeTick = resumeResyncTick
-        lastPhraseUndoTick = undoResyncTick
-        lastPhraseSaveMode = appSettings.saveMode
-    }
 
     LaunchedEffect(Unit) { reloadLatestImage() }
     LaunchedEffect(mediaStoreRefreshTick) { reloadLatestImage() }
@@ -784,13 +715,6 @@ fun CameraPreview(
                                             if (zoomPanelExpanded) {
                                                 zoomPanelExpanded = false
                                                 return@CaptureButtonSection
-                                            }
-                                            val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-                                            if (isDebuggable) {
-                                                Log.d(
-                                                    "PhraseCounter",
-                                                    "phraseNext=$phraseNextSeed nameNext=${ui.counter.scopeNextCounter} phraseScope=${scopeDateTimeValues.phraseScopeValues} prefix=${counterStreamContext.streamPrefix}"
-                                                )
                                             }
                                             handleCaptureClick(
                                                 context = context,
@@ -1182,6 +1106,7 @@ private fun SyncCounterSeedEffect(
     counterDigits: Int,
     resumeTick: Int,
     undoTick: Int,
+    captureTick: Int,
     isTemplateReady: Boolean,
     appSettings: AppSettings,
     ui: CameraUiState
@@ -1238,7 +1163,10 @@ private fun SyncCounterSeedEffect(
         }
 
         val saveModeChanged = (lastSaveMode != null && lastSaveMode != appSettings.saveMode)
-        val isExternalResync = (resumeTick != lastResumeTick) || (undoTick != lastUndoTick) || saveModeChanged
+        val isExternalResync =
+            (resumeTick != lastResumeTick) ||
+                (undoTick != lastUndoTick) ||
+                saveModeChanged
 
         suspend fun readNextSeed(): Int = CaptureCounterPolicy.getNextCounter(
             context = context,
@@ -1265,7 +1193,7 @@ private fun SyncCounterSeedEffect(
         val allowResetToOneOnNewStream =
             streamContext.streamPrefix.contains("d_") ||
                 streamContext.streamPrefix.contains("t_") ||
-                streamContext.streamPrefix.contains("p_")
+                streamContext.streamPrefix.contains("rp_")
         ui.counter.scopeNextCounter = when {
             // 규칙 A: 외부 리싱크(undo/resume)는 seed 하향 반영이 가능해야 한다.
             isExternalResync -> nextSeedFromStream
@@ -1369,6 +1297,7 @@ private data class CameraCounterScopeDateTimeValues(
 
 private fun buildCameraCounterScopeDateTimeValues(
     cells: List<TableCellState>,
+    fileNameSlots: List<CellKey?>,
     resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>
 ): CameraCounterScopeDateTimeValues {
     val resolvedById = resolvedCells.associateBy { it.id }
@@ -1385,11 +1314,17 @@ private fun buildCameraCounterScopeDateTimeValues(
         .map(::normalizeTimeToMinute)
         .filter { it.isNotBlank() }
         .toList()
+    val fileNameCellIds = fileNameSlots.mapNotNull { it }.toSet()
     val phraseValues = ordered
         .asSequence()
-        .filter { it.dataType == TableCellDataType.ROTATING_TEXT && it.rotatingCounterMode == RotatingCounterMode.PER_PHRASE }
-        .mapNotNull { resolvedById[it.cellId]?.scopeToken }
+        .filter { cell ->
+            cell.dataType == TableCellDataType.ROTATING_TEXT &&
+                cell.rotatingCounterMode == RotatingCounterMode.PER_PHRASE &&
+                cell.cellId in fileNameCellIds
+        }
+        .mapNotNull { resolvedById[it.cellId]?.resolvedText?.trim() }
         .filter { it.isNotBlank() }
+        .map { "rp_$it" }
         .toList()
     return CameraCounterScopeDateTimeValues(dateScopeValues = dateValues, timeScopeValues = timeValues, phraseScopeValues = phraseValues)
 }

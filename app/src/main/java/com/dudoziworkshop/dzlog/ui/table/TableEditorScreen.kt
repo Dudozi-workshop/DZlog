@@ -49,6 +49,7 @@ import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.normalizeTimeToMinute
 import com.dudoziworkshop.dzlog.domain.model.CellValue
+import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
@@ -239,24 +240,6 @@ fun TableEditorScreen(
     }
 
     val tableResolver = remember { TableResolver() }
-    var phraseNextSeed by remember { mutableIntStateOf(1) }
-
-    // 정책 변경(중요): ROTATING_TEXT 문구 인덱스 계산은 phraseCounter(전역 기준)로 분리한다.
-    // - phraseCounter: phraseScopeValues를 제외한 동일 스코프의 next seed
-    // - nameCounter  : 기존 scopeNextCounter (저장/파일명 카운터)
-    val phrasePlan = remember(templateState, previewNow, previewCounterDigits, phraseNextSeed, dateFormat, timeFormat) {
-        tableResolver.plan(
-            cells = templateState.cells,
-            captureNow = previewNow,
-            config = TableResolver.Config(
-                counterDigits = previewCounterDigits,
-                dateFormat = dateFormat,
-                timeFormat = timeFormat
-            ),
-            counterSeedOverride = phraseNextSeed,
-            phraseSets = templateState.phraseSets
-        )
-    }
 
     val plan = remember(templateState, previewNow, previewCounterDigits, counterUi.scopeNextCounter, dateFormat, timeFormat) {
         tableResolver.plan(
@@ -284,45 +267,12 @@ fun TableEditorScreen(
         }
     }
 
-    val scopeDateTimeValues = remember(templateState.cells, phrasePlan.resolvedCells) {
-        buildCounterScopeDateTimeValues(templateState.cells, phrasePlan.resolvedCells)
+    val scopeDateTimeValues = remember(templateState.cells, plan.resolvedCells) {
+        buildCounterScopeDateTimeValues(templateState.cells, plan.resolvedCells)
     }
-    val phraseScopeValues = remember(templateState.cells, phrasePlan.resolvedCells) {
-        buildPhraseScopeValues(templateState.cells, phrasePlan.resolvedCells)
-    }
-
-    val phraseStreamContext by remember(
-        phrasePlan.resolvedCells,
-        phraseNextSeed,
-        scopeDateTimeValues.dateScopeValues,
-        scopeDateTimeValues.timeScopeValues,
-        counterUi.includeFilenameInCounterScope,
-    ) {
-        derivedStateOf {
-            buildTableCounterStreamContext(
-                resolvedCells = phrasePlan.resolvedCells,
-                fileNameSlots = templateState.fileNameSlots,
-                includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
-                dateScopeValues = scopeDateTimeValues.dateScopeValues,
-                timeScopeValues = scopeDateTimeValues.timeScopeValues,
-                phraseScopeValues = emptyList(),
-                scopeNextCounter = phraseNextSeed,
-                isManualCounterModeDisplay = false,
-            )
-        }
-    }
-    val phraseScopedStream by remember(
-        phraseStreamContext,
-        counterUi.includePathInCounterScope,
-        counterUi.includeFilenameInCounterScope,
-    ) {
-        derivedStateOf {
-            buildTableScopedCounterStream(
-                counterStreamContext = phraseStreamContext,
-                includePathInCounterScope = counterUi.includePathInCounterScope,
-                includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
-            )
-        }
+    val phraseScopeValues = remember(templateState.cells, templateState.fileNameSlots, plan.resolvedCells) {
+        // 정책 변경: PER_PHRASE scope는 fileNameSlots에 포함된 ROTATING_TEXT의 resolvedText 기반(rp_)으로만 생성한다.
+        buildPhraseScopeValues(templateState.cells, templateState.fileNameSlots, plan.resolvedCells)
     }
 
     val counterStreamContext by remember(
@@ -371,32 +321,7 @@ fun TableEditorScreen(
 
     var lastScopeSnapshot by remember { mutableStateOf<CounterScopeSnapshot?>(null) }
     var lastProcessedResumeTick by remember { mutableIntStateOf(-1) }
-    var lastPhraseProcessedResumeTick by remember { mutableIntStateOf(-1) }
 
-    LaunchedEffect(
-        phraseScopedStream.captureStreamKey,
-        previewCounterDigits,
-        tableSaveMode,
-        resumeTick,
-    ) {
-        suspend fun readPhraseSeed(): Int = TableCounterPolicyCoordinator.getNextCounter(
-            context = context,
-            scopedStream = phraseScopedStream,
-            previewCounterDigits = previewCounterDigits,
-            saveMode = tableSaveMode,
-        ).coerceAtLeast(1)
-
-        val isExternalResync = resumeTick != lastPhraseProcessedResumeTick
-        phraseNextSeed = if (isExternalResync) {
-            val a = readPhraseSeed()
-            delay(200)
-            val b = readPhraseSeed()
-            if (a == b) a else b
-        } else {
-            readPhraseSeed()
-        }
-        lastPhraseProcessedResumeTick = resumeTick
-    }
 
     LaunchedEffect(
         activeScopeKey,
@@ -507,7 +432,7 @@ fun TableEditorScreen(
     }
 
     val namingPreview = remember(
-        phrasePlan.resolvedCells,
+        plan.resolvedCells,
         templateState.fileNameSlots,
         previewCounterDigits,
         counterUi.includePathInCounterScope,
@@ -519,7 +444,7 @@ fun TableEditorScreen(
     ) {
         CaptureNamingPolicy.buildForCaptureWithCounter(
             captureContext = CaptureContext(
-                resolvedCells = phrasePlan.resolvedCells,
+                resolvedCells = plan.resolvedCells,
                 fileNameSlots = templateState.fileNameSlots,
                 fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
                 counterDigits = previewCounterDigits,
@@ -836,7 +761,7 @@ fun TableEditorScreen(
                             filenamePreview = filenamePreview,
                             counterModeLabel = if (isManualCounterModeDisplay) "수동" else "자동",
                             templateState = templateState,
-                            plan = phrasePlan,
+                            plan = plan,
                             previewNow = previewNow,
                             previewCounterDigits = previewCounterDigits,
                             scopeNextCounter = counterUi.scopeNextCounter,
@@ -1065,7 +990,7 @@ fun TableEditorScreen(
                         scrollState = previewTabScrollState,
                         captureAspect = watermarkUi.captureAspect,
                         templateState = templateState,
-                        resolvedCells = phrasePlan.resolvedCells,
+                        resolvedCells = plan.resolvedCells,
                         wmAnchor = watermarkUi.wmAnchor,
                         wmOffsetXRatio = watermarkUi.wmOffsetXRatio,
                         wmOffsetYRatio = watermarkUi.wmOffsetYRatio,
@@ -1176,15 +1101,22 @@ private fun buildCounterScopeDateTimeValues(
 
 private fun buildPhraseScopeValues(
     cells: List<TableCellState>,
+    fileNameSlots: List<CellKey?>,
     resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>
 ): List<String> {
     val resolvedById = resolvedCells.associateBy { it.id }
+    val fileNameCellIds = fileNameSlots.mapNotNull { it }.toSet()
     val ordered = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex }.thenBy { it.cellId })
     return ordered
         .asSequence()
-        .filter { it.dataType == TableCellDataType.ROTATING_TEXT && it.rotatingCounterMode == RotatingCounterMode.PER_PHRASE }
-        .mapNotNull { resolvedById[it.cellId]?.scopeToken }
+        .filter { cell ->
+            cell.dataType == TableCellDataType.ROTATING_TEXT &&
+                cell.rotatingCounterMode == RotatingCounterMode.PER_PHRASE &&
+                cell.cellId in fileNameCellIds
+        }
+        .mapNotNull { resolvedById[it.cellId]?.resolvedText?.trim() }
         .filter { it.isNotBlank() }
+        .map { "rp_$it" }
         .toList()
 }
 

@@ -126,7 +126,6 @@ object CounterManager {
         val phraseParts = scopeOptions.phraseScopeValues
             .asSequence()
             .mapNotNull { sanitizeFilePart(it).takeIf { part -> part.isNotBlank() } }
-            .map { if (it.startsWith("p_")) it else "p_$it" }
             .toList()
 
         val parts = buildList {

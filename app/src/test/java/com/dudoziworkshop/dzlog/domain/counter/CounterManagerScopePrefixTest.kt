@@ -220,10 +220,10 @@ class CounterManagerScopePrefixTest {
             fnDelim = "_",
             fileNameSlots = listOf(text.id, null, null),
             includeFilenameInScope = true,
-            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("p_setA_1")),
+            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_왜")),
         )
 
-        assertEquals("N600_p_setA_1", prefix)
+        assertEquals("N600_rp_왜", prefix)
     }
 
 
@@ -236,14 +236,14 @@ class CounterManagerScopePrefixTest {
             fnDelim = "_",
             fileNameSlots = listOf(text.id, null, null),
             includeFilenameInScope = false,
-            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("p_setA_1")),
+            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_왜")),
         )
 
-        assertEquals("name=off_p_setA_1", prefix)
+        assertEquals("name=off_rp_왜", prefix)
     }
 
     @Test
-    fun `computeCounterPrefix normalizes phrase scope values without marker`() {
+    fun `computeCounterPrefix preserves provided phrase scope marker`() {
         val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
 
         val prefix = CounterManager.computeCounterPrefix(
@@ -251,10 +251,33 @@ class CounterManagerScopePrefixTest {
             fnDelim = "_",
             fileNameSlots = listOf(text.id, null, null),
             includeFilenameInScope = true,
-            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("set A/1")),
+            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_set A/1")),
         )
 
-        assertEquals("N600_p_set_A_1", prefix)
+        assertEquals("N600_rp_set_A_1", prefix)
+    }
+
+
+    @Test
+    fun `computeCounterPrefix with same phrase text yields same stream prefix`() {
+        val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
+
+        val a = CounterManager.computeCounterPrefix(
+            resolvedCells = listOf(text),
+            fnDelim = "_",
+            fileNameSlots = listOf(text.id, null, null),
+            includeFilenameInScope = true,
+            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_같은문구")),
+        )
+        val b = CounterManager.computeCounterPrefix(
+            resolvedCells = listOf(text),
+            fnDelim = "_",
+            fileNameSlots = listOf(text.id, null, null),
+            includeFilenameInScope = true,
+            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_같은문구")),
+        )
+
+        assertEquals(a, b)
     }
 
     @Test

@@ -149,12 +149,12 @@ class TableResolver {
             TableCellDataType.ROTATING_TEXT -> {
                 val phraseSetId = cell.phraseSetId?.takeIf { it.isNotBlank() }
                 val phraseSet = phraseSetId?.let { phraseSetMap[it] }
-                val (resolvedText, scopeToken) = when {
-                    phraseSet == null || phraseSet.items.isEmpty() -> "" to null
+                val resolvedText = when {
+                    phraseSet == null || phraseSet.items.isEmpty() -> ""
                     else -> {
                         val effectiveEvery = (cell.everyOverride ?: phraseSet.defaultEvery).coerceAtLeast(1)
                         val index = ((usedCounter - 1) / effectiveEvery) % phraseSet.items.size
-                        phraseSet.items[index] to "p_${phraseSet.id}_$index"
+                        phraseSet.items[index]
                     }
                 }
                 ResolvedCell(
@@ -163,7 +163,9 @@ class TableResolver {
                     raw = cell,
                     resolvedText = resolvedText,
                     isEmpty = resolvedText.isBlank(),
-                    scopeToken = scopeToken
+                    // 정책 변경: ROTATING_TEXT scopeToken 인덱스 분리는 제거.
+                    // 상위 조합 로직에서 resolvedText 기반 phrase scope("rp_")를 생성한다.
+                    scopeToken = null
                 )
             }
         }
