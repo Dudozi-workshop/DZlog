@@ -268,7 +268,7 @@ fun TableEditorScreen(
     }
 
     val counterStreamContext by remember(
-        planForScope.resolvedCells,
+        plan.resolvedCells,
         counterUi.scopeNextCounter,
         isManualCounterModeDisplay,
         scopeDateTimeValues.dateScopeValues,
@@ -276,7 +276,7 @@ fun TableEditorScreen(
     ) {
         derivedStateOf {
             buildTableCounterStreamContext(
-                resolvedCells = planForScope.resolvedCells,
+                resolvedCells = plan.resolvedCells,
                 fileNameSlots = templateState.fileNameSlots,
                 includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
                 dateScopeValues = scopeDateTimeValues.dateScopeValues,
@@ -435,7 +435,7 @@ fun TableEditorScreen(
     }
 
     val namingPreview = remember(
-        planForScope.resolvedCells,
+        plan.resolvedCells,
         templateState.fileNameSlots,
         previewCounterDigits,
         counterUi.includePathInCounterScope,
@@ -446,7 +446,7 @@ fun TableEditorScreen(
     ) {
         CaptureNamingPolicy.buildForCaptureWithCounter(
             captureContext = CaptureContext(
-                resolvedCells = planForScope.resolvedCells,
+                resolvedCells = plan.resolvedCells,
                 fileNameSlots = templateState.fileNameSlots,
                 fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
                 counterDigits = previewCounterDigits,
