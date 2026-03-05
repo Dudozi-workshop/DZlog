@@ -24,8 +24,8 @@ internal data class CaptureContext(
     val timeFormat: String,
     val includePathInCounterScope: Boolean,
     val includeFilenameInCounterScope: Boolean,
-    val includeDateInCounterScope: Boolean = false,
-    val includeTimeInCounterScope: Boolean = false,
+    val dateScopeValues: List<String> = emptyList(),
+    val timeScopeValues: List<String> = emptyList(),
 ) {
     init {
         require(fileNameSlots.size == FILE_NAME_SLOT_COUNT) {

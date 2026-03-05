@@ -168,6 +168,7 @@ fun LayoutTabContent(
                 onReorderFileNameSlots = actions.onReorderFileNameSlots,
                 onPathGroupAction = actions.onPathGroupActionForSelected,
                 onSetDataType = actions.onSetDataTypeForSelected,
+                onSetCounterScopeMode = actions.onSetCounterScopeModeForSelected,
                 onResetCounterSeed = actions.onResetCounterSeedForSelected,
                 autoNextCounterValue = uiState.autoNextCounterValue,
                 onOpenRotatingTemplateDialog = {

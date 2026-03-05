@@ -27,14 +27,15 @@ import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogEffect
 import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterPolicyCoordinator
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 internal fun buildTableCounterStreamContext(
     resolvedCells: List<ResolvedCell>,
     fileNameSlots: List<CellKey?>,
     includeFilenameInCounterScope: Boolean,
-    includeDateInCounterScope: Boolean,
-    includeTimeInCounterScope: Boolean,
+    dateScopeValues: List<String>,
+    timeScopeValues: List<String>,
     scopeNextCounter: Int,
     isManualCounterModeDisplay: Boolean
 ): CounterStreamContext =
@@ -46,8 +47,8 @@ internal fun buildTableCounterStreamContext(
         fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
         includeFilenameInScope = includeFilenameInCounterScope,
         scopeOptions = CounterScopeOptions(
-            includeDateInCounterScope = includeDateInCounterScope,
-            includeTimeInCounterScope = includeTimeInCounterScope,
+            dateScopeValues = dateScopeValues,
+            timeScopeValues = timeScopeValues,
         ),
     )
 
@@ -243,16 +244,26 @@ internal suspend fun syncCounterStateForScope(
     saveMode: SaveMode,
     isManualCounterModeDisplay: Boolean,
     lastScopeSnapshot: CounterScopeSnapshot?,
+    isExternalResync: Boolean,
     updateCell: (TableTemplateState, String, (TableCellState) -> TableCellState) -> TableTemplateState,
 ): TableCounterSyncResult {
     val counterCell = templateState.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
     val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start ?: 1
-    val streamNext = TableCounterPolicyCoordinator.getNextCounter(
+    suspend fun readNextSeed(): Int = TableCounterPolicyCoordinator.getNextCounter(
         context = context,
         scopedStream = scopedCounterStream,
         counterDigits = previewCounterDigits,
         saveMode = saveMode,
     ).coerceAtLeast(1)
+
+    val streamNext = if (isExternalResync) {
+        val a = readNextSeed()
+        delay(200)
+        val b = readNextSeed()
+        if (a == b) a else b
+    } else {
+        readNextSeed()
+    }
     val isManualCounterMode = TableCounterPolicyCoordinator.isManualOverrideActive(
         context = context,
         scopedStream = scopedCounterStream

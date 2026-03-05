@@ -127,8 +127,6 @@ fun HomeScreen(
         settings.counterPadding,
         settings.includePathInCounterScope,
         settings.includeFilenameInCounterScope,
-        settings.includeDateInCounterScope,
-        settings.includeTimeInCounterScope,
     ) {
         val now = Date()
         val resolver = TableResolver()
@@ -149,10 +147,7 @@ fun HomeScreen(
             isManualMode = false,
             fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
             includeFilenameInScope = settings.includeFilenameInCounterScope,
-            scopeOptions = CounterScopeOptions(
-                includeDateInCounterScope = settings.includeDateInCounterScope,
-                includeTimeInCounterScope = settings.includeTimeInCounterScope,
-            ),
+            scopeOptions = CounterScopeOptions(),
         )
         val scopedStream = toCaptureScopedCounterStream(
             streamContext = streamContext,
@@ -184,8 +179,8 @@ fun HomeScreen(
                 timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
                 includePathInCounterScope = settings.includePathInCounterScope,
                 includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
-                includeDateInCounterScope = settings.includeDateInCounterScope,
-                includeTimeInCounterScope = settings.includeTimeInCounterScope,
+                dateScopeValues = emptyList(),
+                timeScopeValues = emptyList(),
             ),
             usedCounter = streamNext
         )

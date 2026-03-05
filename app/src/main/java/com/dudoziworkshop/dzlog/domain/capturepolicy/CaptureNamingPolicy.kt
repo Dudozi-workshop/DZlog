@@ -72,8 +72,8 @@ internal object CaptureNamingPolicy {
             fnDelim = captureContext.fnDelim,
             includeFilenameInScope = captureContext.includeFilenameInCounterScope,
             scopeOptions = CounterScopeOptions(
-                includeDateInCounterScope = captureContext.includeDateInCounterScope,
-                includeTimeInCounterScope = captureContext.includeTimeInCounterScope,
+                dateScopeValues = captureContext.dateScopeValues,
+                timeScopeValues = captureContext.timeScopeValues,
             ),
         )
         val g1 = resolveGroupValue(resolvedCells, GroupLevel.G1)

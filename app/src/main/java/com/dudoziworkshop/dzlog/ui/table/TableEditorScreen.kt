@@ -6,7 +6,6 @@
 
 package com.dudoziworkshop.dzlog.ui.table
 
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -46,9 +45,9 @@ import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
-import com.dudoziworkshop.dzlog.domain.counter.policy.resolveScopeDateTimeUsage
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
+import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
@@ -195,14 +194,9 @@ fun TableEditorScreen(
     )
     val tableSaveMode = settings.saveMode
 
-    val usage = remember(templateState.cells, templateState.fileNameSlots) {
-        resolveScopeDateTimeUsage(templateState.cells, templateState.fileNameSlots)
-    }
-    val effectiveIncludeDate = settings.includeDateInCounterScope && usage.usesDateInScope
-    val effectiveIncludeTime = settings.includeTimeInCounterScope && usage.usesTimeInScope
-
     var counterUi by remember { mutableStateOf(TableCounterUiState()) }
     var resumeTick by remember { mutableIntStateOf(0) }
+    var scopeKeySnapshot by remember { mutableStateOf<String?>(null) }
 
     var previewNow by remember { mutableStateOf(Date()) }
 
@@ -255,6 +249,7 @@ fun TableEditorScreen(
             phraseSets = templateState.phraseSets
         )
     }
+
     val isManualCounterModeDisplay by remember(
         counterUi.isManualCounterMode,
         counterUi.preserveManualCounterSeed,
@@ -267,20 +262,24 @@ fun TableEditorScreen(
         }
     }
 
+    val scopeDateTimeValues = remember(templateState.cells, planForScope.resolvedCells) {
+        buildCounterScopeDateTimeValues(templateState.cells, planForScope.resolvedCells)
+    }
+
     val counterStreamContext by remember(
         planForScope.resolvedCells,
         counterUi.scopeNextCounter,
         isManualCounterModeDisplay,
-        effectiveIncludeDate,
-        effectiveIncludeTime,
+        scopeDateTimeValues.dateScopeValues,
+        scopeDateTimeValues.timeScopeValues,
     ) {
         derivedStateOf {
             buildTableCounterStreamContext(
                 resolvedCells = planForScope.resolvedCells,
                 fileNameSlots = templateState.fileNameSlots,
                 includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
-                includeDateInCounterScope = effectiveIncludeDate,
-                includeTimeInCounterScope = effectiveIncludeTime,
+                dateScopeValues = scopeDateTimeValues.dateScopeValues,
+                timeScopeValues = scopeDateTimeValues.timeScopeValues,
                 scopeNextCounter = counterUi.scopeNextCounter,
                 isManualCounterModeDisplay = isManualCounterModeDisplay,
             )
@@ -301,22 +300,24 @@ fun TableEditorScreen(
         }
     }
 
+    LaunchedEffect(resumeTick) {
+        scopeKeySnapshot = scopedCounterStream.scopeParts.scopeKey
+    }
+    val activeScopeKey = scopeKeySnapshot ?: scopedCounterStream.scopeParts.scopeKey
+
     // ✅ 스트림 변경 감지용 (스트림이 바뀌면 seed를 "새 스트림 next"로 강제 동기화)
 
-    LaunchedEffect(scopedCounterStream.scopeParts.scopeKey) {
-        Log.d("TableEditorScreen", "scopeKey=${scopedCounterStream.scopeParts.scopeKey}")
-    }
 
     var lastScopeSnapshot by remember { mutableStateOf<CounterScopeSnapshot?>(null) }
+    var lastProcessedResumeTick by remember { mutableIntStateOf(-1) }
 
     LaunchedEffect(
-        scopedCounterStream.scopeParts.scopeKey,
+        activeScopeKey,
         previewCounterDigits,
         tableSaveMode,
         resumeTick,
-        effectiveIncludeDate,
-        effectiveIncludeTime,
     ) {
+        val isExternalResync = resumeTick != lastProcessedResumeTick
         val syncResult = syncCounterStateForScope(
             context = context,
             templateState = templateState,
@@ -327,10 +328,12 @@ fun TableEditorScreen(
             saveMode = tableSaveMode,
             isManualCounterModeDisplay = isManualCounterModeDisplay,
             lastScopeSnapshot = lastScopeSnapshot,
+            isExternalResync = isExternalResync,
             updateCell = ::updateCell
         )
         counterUi = syncResult.counterUi
         lastScopeSnapshot = syncResult.nextScopeSnapshot
+        lastProcessedResumeTick = resumeTick
         syncResult.updatedTemplateState?.let(onTemplateChange)
     }
 
@@ -919,6 +922,15 @@ fun TableEditorScreen(
                                     onTemplateChange(updated)
                                 }
                             },
+                            onSetCounterScopeModeForSelected = { mode ->
+                                selectedCell?.let { cell ->
+                                    if (cell.dataType != TableCellDataType.DATE && cell.dataType != TableCellDataType.TIME) return@let
+                                    val updated = updateCell(templateState, cell.cellId) { c ->
+                                        c.copy(counterScopeMode = mode)
+                                    }
+                                    onTemplateChange(updated)
+                                }
+                            },
                             onResetCounterSeedForSelected = {
                                 selectedCell?.let { cell ->
                                     if (cell.dataType != TableCellDataType.COUNTER) return@let
@@ -1038,6 +1050,31 @@ fun TableEditorScreen(
 }
 
 
+
+private data class CounterScopeDateTimeValues(
+    val dateScopeValues: List<String>,
+    val timeScopeValues: List<String>
+)
+
+private fun buildCounterScopeDateTimeValues(
+    cells: List<TableCellState>,
+    resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>
+): CounterScopeDateTimeValues {
+    val resolvedById = resolvedCells.associateBy { it.id }
+    val ordered = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex }.thenBy { it.cellId })
+    val dateValues = ordered
+        .asSequence()
+        .filter { it.dataType == TableCellDataType.DATE && it.counterScopeMode == CounterScopeMode.INCLUDE }
+        .mapNotNull { resolvedById[it.cellId]?.resolvedText?.takeIf { text -> text.isNotBlank() } }
+        .toList()
+    val timeValues = ordered
+        .asSequence()
+        .filter { it.dataType == TableCellDataType.TIME && it.counterScopeMode == CounterScopeMode.INCLUDE }
+        .mapNotNull { resolvedById[it.cellId]?.resolvedText?.takeIf { text -> text.isNotBlank() } }
+        .toList()
+    return CounterScopeDateTimeValues(dateScopeValues = dateValues, timeScopeValues = timeValues)
+}
+
 /**
  * DataType 변경 시 공통 규칙(일관 UX)
  * - rawText는 절대 자동 변경하지 않는다 (사용자가 TEXT 편집할 때만 변경)
@@ -1051,37 +1088,43 @@ private fun TableCellState.withDataType(newType: TableCellDataType): TableCellSt
         TableCellDataType.TEXT -> this.copy(
             dataType = newType,
             typedValue = CellValue.Text(this.rawText),
-            timeFormatOptions = null
+            timeFormatOptions = null,
+            counterScopeMode = null
         )
 
         TableCellDataType.NUMBER -> this.copy(
             dataType = newType,
             typedValue = CellValue.Number(this.rawText),
-            timeFormatOptions = null
+            timeFormatOptions = null,
+            counterScopeMode = null
         )
 
         TableCellDataType.DATE -> this.copy(
             dataType = newType,
             typedValue = CellValue.Auto,
-            timeFormatOptions = null
+            timeFormatOptions = null,
+            counterScopeMode = CounterScopeMode.EXCLUDE
         )
 
         TableCellDataType.TIME -> this.copy(
             dataType = newType,
             typedValue = CellValue.Auto,
-            timeFormatOptions = this.timeFormatOptions ?: TimeFormatOptions()
+            timeFormatOptions = this.timeFormatOptions ?: TimeFormatOptions(),
+            counterScopeMode = CounterScopeMode.EXCLUDE
         )
 
         TableCellDataType.COUNTER -> this.copy(
             dataType = newType,
             typedValue = (this.typedValue as? CellValue.CounterSeed) ?: CellValue.CounterSeed(1),
-            timeFormatOptions = null
+            timeFormatOptions = null,
+            counterScopeMode = null
         )
 
         TableCellDataType.ROTATING_TEXT -> this.copy(
             dataType = newType,
             typedValue = CellValue.Auto,
-            timeFormatOptions = null
+            timeFormatOptions = null,
+            counterScopeMode = null
         )
     }
 
@@ -1094,4 +1137,3 @@ private fun TableCellState.withDataType(newType: TableCellDataType): TableCellSt
         )
     }
 }
-

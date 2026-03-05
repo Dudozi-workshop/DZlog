@@ -121,8 +121,6 @@ fun SettingsRootScreen(
             counterPadding = settings.counterPadding,
             includePathInCounterScope = settings.includePathInCounterScope,
             includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
-            includeDateInCounterScope = settings.includeDateInCounterScope,
-            includeTimeInCounterScope = settings.includeTimeInCounterScope,
             onSaveModeChange = { mode ->
                 scope.launch {
                     applySettingsAction(context, SettingsAction.SaveModeChanged(mode))
@@ -153,55 +151,10 @@ fun SettingsRootScreen(
                     applySettingsAction(context, SettingsAction.IncludeFilenameInCounterScopeChanged(enabled))
                 }
             },
-            onIncludeDateInCounterScopeChange = { enabled ->
-                scope.launch {
-                    AppSettingsStore.setIncludeDateInCounterScope(context, enabled)
-                }
-            },
-            onIncludeTimeInCounterScopeChange = { enabled ->
-                scope.launch {
-                    AppSettingsStore.setIncludeTimeInCounterScope(context, enabled)
-                }
-            }
         )
 
-        Spacer(Modifier.height(DDZSpacing.sectionGap))
+        Spacer(Modifier.height(DDZSpacing.itemGap))
 
-        // C) Template / Table
-        DDZCard(modifier = Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
-                DDZSectionHeader(title = "Template / Table")
-                Text("현재 템플릿", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-
-                // 설정 화면도 TablePreviewCard로 통합 (크롬 없이 프리뷰만)
-                TablePreviewCard(
-                    templateState = templateState,
-                    now = nowForPreview,
-                    counterDigits = settings.counterPadding,
-                    wmBgStyle = previewSettings.wmBgStyle,
-                    wmBgAlpha = previewSettings.wmBgAlpha,
-                    wmValueScale = previewSettings.wmValueScale,
-                    modifier = Modifier.fillMaxWidth(),
-                    chrome = false,
-                    // 설정 화면은 높이 제약이 없는 스크롤 컬럼이므로 프리뷰 높이를 명시
-                    // 전체설정: 표가 영역을 꽉 채우도록(불필요한 여백 제거)
-                    previewModifier = Modifier
-                        .heightIn(min = 96.dp, max = 200.dp)
-                        .fillMaxWidth()
-                )
-                DDZButton(
-                    text = "표 상세설정으로 이동",
-                    onClick = onOpenTableDetail,
-                    modifier = Modifier.fillMaxWidth(),
-                    style = DDZButtonStyle.Primary
-                )
-                // 템플릿 변경 버튼은 아직 구현이 없으므로 숨김(MVP)
-            }
-        }
-
-        Spacer(Modifier.height(DDZSpacing.sectionGap))
-
-        // E) System & App
         SystemAppCard(
             toastEnabled = settings.toastEnabled,
             hapticEnabled = settings.hapticEnabled,
@@ -209,24 +162,16 @@ fun SettingsRootScreen(
             blankWarningEnabled = settings.blankWarningEnabled,
             isStorageGranted = isStorageGranted,
             onToastEnabledChange = { enabled ->
-                scope.launch {
-                    applySettingsAction(context, SettingsAction.ToastEnabledChanged(enabled))
-                }
+                scope.launch { applySettingsAction(context, SettingsAction.ToastEnabledChanged(enabled)) }
             },
             onHapticEnabledChange = { enabled ->
-                scope.launch {
-                    applySettingsAction(context, SettingsAction.HapticEnabledChanged(enabled))
-                }
+                scope.launch { applySettingsAction(context, SettingsAction.HapticEnabledChanged(enabled)) }
             },
             onCaptureHapticEnabledChange = { enabled ->
-                scope.launch {
-                    applySettingsAction(context, SettingsAction.CaptureHapticEnabledChanged(enabled))
-                }
+                scope.launch { applySettingsAction(context, SettingsAction.CaptureHapticEnabledChanged(enabled)) }
             },
             onBlankWarningEnabledChange = { enabled ->
-                scope.launch {
-                    applySettingsAction(context, SettingsAction.BlankWarningEnabledChanged(enabled))
-                }
+                scope.launch { applySettingsAction(context, SettingsAction.BlankWarningEnabledChanged(enabled)) }
             }
         )
 
@@ -242,16 +187,12 @@ private fun QuickControlsCard(
     counterPadding: Int,
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean,
-    includeDateInCounterScope: Boolean,
-    includeTimeInCounterScope: Boolean,
     onSaveModeChange: (SaveMode) -> Unit,
     onContinuousPreviewModeChange: (ContinuousPreviewMode) -> Unit,
     onPhotoQualityModeChange: (PhotoQualityMode) -> Unit,
     onCounterPaddingChange: (Int) -> Unit,
     onIncludePathInCounterScopeChange: (Boolean) -> Unit,
-    onIncludeFilenameInCounterScopeChange: (Boolean) -> Unit,
-    onIncludeDateInCounterScopeChange: (Boolean) -> Unit,
-    onIncludeTimeInCounterScopeChange: (Boolean) -> Unit
+    onIncludeFilenameInCounterScopeChange: (Boolean) -> Unit
 ) {
     DDZCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(DDZSpacing.sectionGap)) {
@@ -365,26 +306,6 @@ private fun QuickControlsCard(
                     Text("카운터 범위에 파일명 반영", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                 }
                 Switch(checked = includeFilenameInCounterScope, onCheckedChange = onIncludeFilenameInCounterScopeChange)
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("날짜가 바뀌면 카운터 초기화", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                }
-                Switch(checked = includeDateInCounterScope, onCheckedChange = onIncludeDateInCounterScopeChange)
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("시간이 바뀌면 카운터 초기화", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                }
-                Switch(checked = includeTimeInCounterScope, onCheckedChange = onIncludeTimeInCounterScopeChange)
             }
         }
     }
