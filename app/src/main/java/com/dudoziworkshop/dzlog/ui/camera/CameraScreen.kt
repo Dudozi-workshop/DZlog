@@ -107,6 +107,7 @@ import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
+import com.dudoziworkshop.dzlog.domain.counter.policy.normalizeTimeToMinute
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.policy.buildCounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.isNewCounterScope
@@ -129,7 +130,7 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
-import com.dudoziworkshop.dzlog.domain.preview.decideTickUnit
+import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
@@ -279,8 +280,8 @@ fun CameraPreview(
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
 
-    LaunchedEffect(dateFormat, timeFormat, lifecycleOwner) {
-        val unit = decideTickUnit(dateFormat, timeFormat)
+    LaunchedEffect(tableTemplateState.cells, lifecycleOwner) {
+        val unit = decideTickUnitFromTemplate(tableTemplateState.cells)
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
                 val delayMs = computeNextDelayMillis(unit)
@@ -1272,6 +1273,7 @@ private data class CameraCounterScopeDateTimeValues(
     val timeScopeValues: List<String>
 )
 
+
 private fun buildCameraCounterScopeDateTimeValues(
     cells: List<TableCellState>,
     resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>
@@ -1286,7 +1288,9 @@ private fun buildCameraCounterScopeDateTimeValues(
     val timeValues = ordered
         .asSequence()
         .filter { it.dataType == TableCellDataType.TIME && it.counterScopeMode == CounterScopeMode.INCLUDE }
-        .mapNotNull { resolvedById[it.cellId]?.resolvedText?.takeIf { text -> text.isNotBlank() } }
+        .mapNotNull { resolvedById[it.cellId]?.resolvedText }
+        .map(::normalizeTimeToMinute)
+        .filter { it.isNotBlank() }
         .toList()
     return CameraCounterScopeDateTimeValues(dateScopeValues = dateValues, timeScopeValues = timeValues)
 }

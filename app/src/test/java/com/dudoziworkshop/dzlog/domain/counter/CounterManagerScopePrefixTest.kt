@@ -60,7 +60,7 @@ class CounterManagerScopePrefixTest {
     }
 
     @Test
-    fun `computeCounterPrefix includes date and time only when scope options are enabled`() {
+    fun `computeCounterPrefix includes date and time only when scope values are provided`() {
         val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
         val date = resolvedCell(1, TableCellDataType.DATE, "2026-03-01")
         val time = resolvedCell(2, TableCellDataType.TIME, "12:34")
@@ -77,7 +77,7 @@ class CounterManagerScopePrefixTest {
             fnDelim = "_",
             fileNameSlots = listOf(text.id, date.id, time.id),
             includeFilenameInScope = true,
-            scopeOptions = CounterScopeOptions(includeDateInCounterScope = true, includeTimeInCounterScope = false),
+            scopeOptions = CounterScopeOptions(dateScopeValues = listOf("2026-03-01")),
         )
 
         val allEnabledPrefix = CounterManager.computeCounterPrefix(
@@ -85,12 +85,12 @@ class CounterManagerScopePrefixTest {
             fnDelim = "_",
             fileNameSlots = listOf(text.id, date.id, time.id),
             includeFilenameInScope = true,
-            scopeOptions = CounterScopeOptions(includeDateInCounterScope = true, includeTimeInCounterScope = true),
+            scopeOptions = CounterScopeOptions(dateScopeValues = listOf("2026-03-01"), timeScopeValues = listOf("12:34")),
         )
 
         assertEquals("N600", defaultPrefix)
-        assertEquals("N600_2026-03-01", dateOnlyPrefix)
-        assertEquals("N600_2026-03-01_1234", allEnabledPrefix)
+        assertEquals("N600_d_2026-03-01", dateOnlyPrefix)
+        assertEquals("N600_d_2026-03-01_t_12_34", allEnabledPrefix)
     }
 
 
@@ -149,7 +149,7 @@ class CounterManagerScopePrefixTest {
     }
 
     @Test
-    fun `computeCounterPrefix excludes time when includeTimeInCounterScope is false even with scope token`() {
+    fun `computeCounterPrefix excludes time when time scope values are not provided even with scope token`() {
         val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
         val time = resolvedCell(1, TableCellDataType.TIME, "12:34", scopeToken = "1234")
 
@@ -158,7 +158,7 @@ class CounterManagerScopePrefixTest {
             fnDelim = "_",
             fileNameSlots = listOf(text.id, time.id),
             includeFilenameInScope = true,
-            scopeOptions = CounterScopeOptions(includeDateInCounterScope = true, includeTimeInCounterScope = false),
+            scopeOptions = CounterScopeOptions(dateScopeValues = listOf("2026-03-01")),
         )
 
         assertEquals("N600", prefix)
@@ -166,7 +166,7 @@ class CounterManagerScopePrefixTest {
 
 
     @Test
-    fun `computeCounterPrefix includes time scope token when includeTimeInCounterScope is true`() {
+    fun `computeCounterPrefix includes time when time scope values are provided`() {
         val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
         val time = resolvedCell(1, TableCellDataType.TIME, "12:34", scopeToken = "1234")
 
@@ -175,10 +175,10 @@ class CounterManagerScopePrefixTest {
             fnDelim = "_",
             fileNameSlots = listOf(text.id, time.id),
             includeFilenameInScope = true,
-            scopeOptions = CounterScopeOptions(includeDateInCounterScope = false, includeTimeInCounterScope = true),
+            scopeOptions = CounterScopeOptions(timeScopeValues = listOf("12:34")),
         )
 
-        assertEquals("N600_1234", prefix)
+        assertEquals("N600_t_12_34", prefix)
     }
 
     @Test
@@ -208,6 +208,36 @@ class CounterManagerScopePrefixTest {
         assertEquals("20260301", resolvedDate.scopeToken)
     }
 
+
+    @Test
+    fun `computeCounterStreamRelativePathKey separates g2 enabled but empty from g1 only`() {
+        val base = "Pictures/DZlog/A/"
+
+        val g1Only = CounterManager.computeCounterStreamRelativePathKey(
+            baseRelativePath = base,
+            hasG2Group = false,
+            group2Value = "",
+        )
+        val g2EnabledEmpty = CounterManager.computeCounterStreamRelativePathKey(
+            baseRelativePath = base,
+            hasG2Group = true,
+            group2Value = "",
+        )
+
+        assertEquals("Pictures/DZlog/A/", g1Only)
+        assertEquals("Pictures/DZlog/A/|g2=enabled_empty", g2EnabledEmpty)
+    }
+
+    @Test
+    fun `computeCounterStreamRelativePathKey keeps base path when g2 has value`() {
+        val key = CounterManager.computeCounterStreamRelativePathKey(
+            baseRelativePath = "Pictures/DZlog/A/B/",
+            hasG2Group = true,
+            group2Value = "B",
+        )
+
+        assertEquals("Pictures/DZlog/A/B/", key)
+    }
     private fun resolvedCell(
         col: Int,
         type: TableCellDataType,

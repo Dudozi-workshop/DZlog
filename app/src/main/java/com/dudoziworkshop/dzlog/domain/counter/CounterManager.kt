@@ -112,13 +112,13 @@ object CounterManager {
         val dateParts = scopeOptions.dateScopeValues
             .asSequence()
             .mapNotNull { sanitizeFilePart(it).takeIf { part -> part.isNotBlank() } }
-            .map { "d:$it" }
+            .map { "d_$it" }
             .toList()
 
         val timeParts = scopeOptions.timeScopeValues
             .asSequence()
             .mapNotNull { sanitizeFilePart(it).takeIf { part -> part.isNotBlank() } }
-            .map { "t:$it" }
+            .map { "t_$it" }
             .toList()
 
         val parts = slotParts + dateParts + timeParts

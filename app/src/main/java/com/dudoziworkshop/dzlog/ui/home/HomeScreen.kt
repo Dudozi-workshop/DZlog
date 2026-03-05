@@ -43,7 +43,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
@@ -61,6 +64,8 @@ import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
+import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
+import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
@@ -79,6 +84,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import java.util.Date
 
 private fun clampDp(value: Dp, min: Dp, max: Dp): Dp {
@@ -99,6 +105,7 @@ fun HomeScreen(
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val settings by AppSettingsStore.flow(context).collectAsState(
         initial = com.dudoziworkshop.dzlog.data.datastore.AppSettings(
             saveMode = SaveMode.BOTH,
@@ -118,6 +125,17 @@ fun HomeScreen(
 
     var savePathPreview by remember { mutableStateOf("Pictures/DZlog/") }
     var filenamePreview by remember { mutableStateOf("DZlog_1.jpg") }
+    var previewNow by remember { mutableStateOf(Date()) }
+
+    LaunchedEffect(tableTemplateState.cells, lifecycleOwner) {
+        val unit = decideTickUnitFromTemplate(tableTemplateState.cells)
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                delay(computeNextDelayMillis(unit))
+                previewNow = Date()
+            }
+        }
+    }
 
     LaunchedEffect(
         tableTemplateState.cells,
@@ -127,8 +145,9 @@ fun HomeScreen(
         settings.counterPadding,
         settings.includePathInCounterScope,
         settings.includeFilenameInCounterScope,
+        previewNow,
     ) {
-        val now = Date()
+        val now = previewNow
         val resolver = TableResolver()
         val plan = resolver.plan(
             cells = tableTemplateState.cells,
@@ -440,7 +459,7 @@ fun HomeScreen(
                             TablePreviewCard(
                                 templateState = tableTemplateState,
                                 counterDigits = 0,
-                                now = Date(),
+                                now = previewNow,
                                 wmBgStyle = previewSettings.wmBgStyle,
                                 wmBgAlpha = previewSettings.wmBgAlpha,
                                 wmValueScale = previewSettings.wmValueScale,

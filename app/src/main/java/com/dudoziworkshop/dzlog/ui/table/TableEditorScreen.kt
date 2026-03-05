@@ -44,7 +44,10 @@ import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
+import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureContext
+import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
+import com.dudoziworkshop.dzlog.domain.counter.policy.normalizeTimeToMinute
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
@@ -57,10 +60,8 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
-import com.dudoziworkshop.dzlog.domain.naming.buildDisplayNameFromResolvedCells
-import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePath
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
-import com.dudoziworkshop.dzlog.domain.preview.decideTickUnit
+import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.table.policy.confirmCounterConflictDialog
 import com.dudoziworkshop.dzlog.feature.table.policy.dismissCounterConflictDialog
@@ -200,8 +201,8 @@ fun TableEditorScreen(
 
     var previewNow by remember { mutableStateOf(Date()) }
 
-    LaunchedEffect(dateFormat, timeFormat, lifecycleOwner) {
-        val unit = decideTickUnit(dateFormat, timeFormat)
+    LaunchedEffect(templateState.cells, lifecycleOwner) {
+        val unit = decideTickUnitFromTemplate(templateState.cells)
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
                 val delayMs = computeNextDelayMillis(unit)
@@ -411,10 +412,6 @@ fun TableEditorScreen(
     val hasGroup1 = templateState.cells.any { it.groupLevel == GroupLevel.G1 }
     val hasGroup2 = templateState.cells.any { it.groupLevel == GroupLevel.G2 }
 
-    val savePathPreview = remember(templateState.cells) {
-        buildGalleryRelativePath(templateState.cells)
-    }
-
     var watermarkUi by remember { mutableStateOf(TableWatermarkUiState()) }
 
     LaunchedEffect(Unit) {
@@ -437,19 +434,34 @@ fun TableEditorScreen(
         )
     }
 
-    val filenamePreview = buildDisplayNameFromResolvedCells(
-        resolvedCells = plan.resolvedCells,
-        fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-        includeDate = false,
-        includeTime = false,
-        fileNameSlots = templateState.fileNameSlots,
-        counterDigits = previewCounterDigits,
-        // ✅ 파일명 suffix counter는 항상 스트림 값(SSOT)을 사용
-        // COUNTER 셀의 표기 ON/OFF는 "표/워터마크 표현"에만 영향, 카운터 스트림/파일명에는 영향 없음.
-        // (파일명 뒤 숫자는 항상 붙는 정책)
-        counterOverride = counterStreamContext.nextCounter,
-        now = previewNow
-    )
+    val namingPreview = remember(
+        planForScope.resolvedCells,
+        templateState.fileNameSlots,
+        previewCounterDigits,
+        counterUi.includePathInCounterScope,
+        counterUi.includeFilenameInCounterScope,
+        scopeDateTimeValues.dateScopeValues,
+        scopeDateTimeValues.timeScopeValues,
+        counterStreamContext.nextCounter,
+    ) {
+        CaptureNamingPolicy.buildForCaptureWithCounter(
+            captureContext = CaptureContext(
+                resolvedCells = planForScope.resolvedCells,
+                fileNameSlots = templateState.fileNameSlots,
+                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+                counterDigits = previewCounterDigits,
+                dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+                timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT,
+                includePathInCounterScope = counterUi.includePathInCounterScope,
+                includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
+                dateScopeValues = scopeDateTimeValues.dateScopeValues,
+                timeScopeValues = scopeDateTimeValues.timeScopeValues,
+            ),
+            usedCounter = counterStreamContext.nextCounter,
+        )
+    }
+    val savePathPreview = namingPreview.relativePath
+    val filenamePreview = namingPreview.displayName
 
     fun handleCounterConflictDialogEffect(effect: com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogEffect) {
         applyCounterConflictDialogEffect(
@@ -1056,6 +1068,7 @@ private data class CounterScopeDateTimeValues(
     val timeScopeValues: List<String>
 )
 
+
 private fun buildCounterScopeDateTimeValues(
     cells: List<TableCellState>,
     resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>
@@ -1070,7 +1083,9 @@ private fun buildCounterScopeDateTimeValues(
     val timeValues = ordered
         .asSequence()
         .filter { it.dataType == TableCellDataType.TIME && it.counterScopeMode == CounterScopeMode.INCLUDE }
-        .mapNotNull { resolvedById[it.cellId]?.resolvedText?.takeIf { text -> text.isNotBlank() } }
+        .mapNotNull { resolvedById[it.cellId]?.resolvedText }
+        .map(::normalizeTimeToMinute)
+        .filter { it.isNotBlank() }
         .toList()
     return CounterScopeDateTimeValues(dateScopeValues = dateValues, timeScopeValues = timeValues)
 }

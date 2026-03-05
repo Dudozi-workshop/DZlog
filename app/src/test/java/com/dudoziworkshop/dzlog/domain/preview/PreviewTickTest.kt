@@ -1,42 +1,55 @@
 package com.dudoziworkshop.dzlog.domain.preview
 
+import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
+import com.dudoziworkshop.dzlog.domain.model.TableCellState
+import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PreviewTickTest {
 
     @Test
-    fun seconds_in_time_format_returns_second() {
-        val result = decideTickUnit(dateFormat = "yyyy.MM.dd", timeFormat = "HH:mm:ss")
+    fun `template tick uses SECOND when any time cell includes seconds`() {
+        val cells = listOf(
+            TableCellState(rowIndex = 0, colIndex = 0, dataType = TableCellDataType.TIME, timeFormatOptions = TimeFormatOptions(includeSeconds = true))
+        )
+
+        val result = decideTickUnitFromTemplate(cells)
         assertEquals(TickUnit.SECOND, result)
     }
 
     @Test
-    fun minutes_in_time_format_returns_minute() {
-        val result = decideTickUnit(dateFormat = "yyyy.MM.dd", timeFormat = "HH:mm")
+    fun `template tick uses MINUTE when time cell exists without seconds`() {
+        val cells = listOf(
+            TableCellState(rowIndex = 0, colIndex = 0, dataType = TableCellDataType.TIME, timeFormatOptions = TimeFormatOptions(includeSeconds = false))
+        )
+
+        val result = decideTickUnitFromTemplate(cells)
         assertEquals(TickUnit.MINUTE, result)
     }
 
     @Test
-    fun no_time_tokens_returns_day() {
-        val result = decideTickUnit(dateFormat = "yyyy.MM.dd", timeFormat = "")
+    fun `template tick uses DAY when only date cell exists`() {
+        val cells = listOf(
+            TableCellState(rowIndex = 0, colIndex = 0, dataType = TableCellDataType.DATE)
+        )
+
+        val result = decideTickUnitFromTemplate(cells)
         assertEquals(TickUnit.DAY, result)
     }
 
     @Test
-    fun month_token_must_not_be_treated_as_minute() {
-        val result = decideTickUnit(dateFormat = "yyyy.MM.dd", timeFormat = "")
-        assertEquals(TickUnit.DAY, result)
+    fun `template tick defaults to MINUTE when no date or time cells`() {
+        val cells = listOf(
+            TableCellState(rowIndex = 0, colIndex = 0, dataType = TableCellDataType.TEXT)
+        )
+
+        val result = decideTickUnitFromTemplate(cells)
+        assertEquals(TickUnit.MINUTE, result)
     }
 
     @Test
-    fun date_format_with_hour_token_falls_back_to_hour() {
-        val result = decideTickUnit(dateFormat = "yyyy.MM.dd HH", timeFormat = "")
-        assertEquals(TickUnit.HOUR, result)
-    }
-
-    @Test
-    fun compute_next_delay_uses_next_boundary() {
+    fun `compute next delay uses next boundary`() {
         val result = computeNextDelayMillis(unit = TickUnit.MINUTE, nowMillis = 65_000L)
         assertEquals(55_000L, result)
     }
