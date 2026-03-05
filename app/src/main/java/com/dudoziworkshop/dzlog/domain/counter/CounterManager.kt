@@ -121,7 +121,13 @@ object CounterManager {
             .map { "t_$it" }
             .toList()
 
-        val parts = slotParts + dateParts + timeParts
+        val phraseParts = scopeOptions.phraseScopeValues
+            .asSequence()
+            .mapNotNull { sanitizeFilePart(it).takeIf { part -> part.isNotBlank() } }
+            .map { if (it.startsWith("p_")) it else "p_$it" }
+            .toList()
+
+        val parts = slotParts + phraseParts + dateParts + timeParts
 
         return if (parts.isEmpty()) "DZlog" else parts.joinToString(delim)
     }

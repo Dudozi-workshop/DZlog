@@ -120,6 +120,7 @@ import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -301,6 +302,7 @@ fun CameraPreview(
         includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
         dateScopeValues = scopeDateTimeValues.dateScopeValues,
         timeScopeValues = scopeDateTimeValues.timeScopeValues,
+        phraseScopeValues = scopeDateTimeValues.phraseScopeValues,
         captureNow = ui.capture.now,
     )
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
@@ -723,6 +725,7 @@ fun CameraPreview(
                                                 includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
                                                 dateScopeValues = scopeDateTimeValues.dateScopeValues,
                                                 timeScopeValues = scopeDateTimeValues.timeScopeValues,
+                                                phraseScopeValues = scopeDateTimeValues.phraseScopeValues,
                                                 captureHapticEnabled = appSettings.captureHapticEnabled,
                                                 captureAspect = ui.prefs.captureAspect,
                                                 saveMode = appSettings.saveMode,
@@ -1042,6 +1045,7 @@ private fun rememberCounterStreamContext(
     includeFilenameInCounterScope: Boolean,
     dateScopeValues: List<String>,
     timeScopeValues: List<String>,
+    phraseScopeValues: List<String>,
     captureNow: Date,
 ): CounterStreamContext {
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
@@ -1056,6 +1060,7 @@ private fun rememberCounterStreamContext(
         includeFilenameInCounterScope,
         dateScopeValues,
         timeScopeValues,
+        phraseScopeValues,
         captureNow,
     ) {
         val planForScope = tableResolver.plan(
@@ -1079,6 +1084,7 @@ private fun rememberCounterStreamContext(
             scopeOptions = CounterScopeOptions(
                 dateScopeValues = dateScopeValues,
                 timeScopeValues = timeScopeValues,
+                phraseScopeValues = phraseScopeValues,
             ),
         )
     }
@@ -1270,7 +1276,8 @@ private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
 
 private data class CameraCounterScopeDateTimeValues(
     val dateScopeValues: List<String>,
-    val timeScopeValues: List<String>
+    val timeScopeValues: List<String>,
+    val phraseScopeValues: List<String>
 )
 
 
@@ -1292,5 +1299,11 @@ private fun buildCameraCounterScopeDateTimeValues(
         .map(::normalizeTimeToMinute)
         .filter { it.isNotBlank() }
         .toList()
-    return CameraCounterScopeDateTimeValues(dateScopeValues = dateValues, timeScopeValues = timeValues)
+    val phraseValues = ordered
+        .asSequence()
+        .filter { it.dataType == TableCellDataType.ROTATING_TEXT && it.rotatingCounterMode == RotatingCounterMode.PER_PHRASE }
+        .mapNotNull { resolvedById[it.cellId]?.scopeToken }
+        .filter { it.isNotBlank() }
+        .toList()
+    return CameraCounterScopeDateTimeValues(dateScopeValues = dateValues, timeScopeValues = timeValues, phraseScopeValues = phraseValues)
 }

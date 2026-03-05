@@ -26,6 +26,7 @@ internal data class CaptureContext(
     val includeFilenameInCounterScope: Boolean,
     val dateScopeValues: List<String> = emptyList(),
     val timeScopeValues: List<String> = emptyList(),
+    val phraseScopeValues: List<String> = emptyList(),
 ) {
     init {
         require(fileNameSlots.size == FILE_NAME_SLOT_COUNT) {

@@ -174,6 +174,7 @@ fun LayoutTabContent(
                 onOpenRotatingTemplateDialog = {
                     uiState.selectedCell?.let { actions.onOpenRotatingTemplateDialogForSelected(it.cellId) }
                 },
+                onSetRotatingCounterMode = actions.onSetRotatingCounterModeForSelected,
                 onOpenFormatDialog = actions.onOpenFormatDialog,
                 previewNow = uiState.previewNow,
                 previewCounterDigits = uiState.previewCounterDigits,

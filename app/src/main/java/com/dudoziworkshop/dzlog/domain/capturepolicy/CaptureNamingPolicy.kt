@@ -74,6 +74,7 @@ internal object CaptureNamingPolicy {
             scopeOptions = CounterScopeOptions(
                 dateScopeValues = captureContext.dateScopeValues,
                 timeScopeValues = captureContext.timeScopeValues,
+                phraseScopeValues = captureContext.phraseScopeValues,
             ),
         )
         val g1 = resolveGroupValue(resolvedCells, GroupLevel.G1)

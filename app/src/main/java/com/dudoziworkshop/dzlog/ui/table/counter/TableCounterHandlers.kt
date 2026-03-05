@@ -36,6 +36,7 @@ internal fun buildTableCounterStreamContext(
     includeFilenameInCounterScope: Boolean,
     dateScopeValues: List<String>,
     timeScopeValues: List<String>,
+    phraseScopeValues: List<String>,
     scopeNextCounter: Int,
     isManualCounterModeDisplay: Boolean
 ): CounterStreamContext =
@@ -49,6 +50,7 @@ internal fun buildTableCounterStreamContext(
         scopeOptions = CounterScopeOptions(
             dateScopeValues = dateScopeValues,
             timeScopeValues = timeScopeValues,
+            phraseScopeValues = phraseScopeValues,
         ),
     )
 

@@ -51,6 +51,7 @@ import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -75,6 +76,7 @@ internal fun CellSettingsBottomPanel(
     onResetCounterSeed: (() -> Unit)? = null,
     autoNextCounterValue: Int = 1,
     onOpenRotatingTemplateDialog: (() -> Unit)? = null,
+    onSetRotatingCounterMode: (RotatingCounterMode) -> Unit,
     onOpenFormatDialog: (cellId: String, type: TableCellDataType) -> Unit,
     previewNow: Date,
     previewCounterDigits: Int,
@@ -88,8 +90,12 @@ internal fun CellSettingsBottomPanel(
     var isSlotEditMode by remember { mutableStateOf(false) }
     var selectedFromIndex by remember { mutableStateOf<Int?>(null) }
     var isCounterScopeDialogOpen by remember { mutableStateOf(false) }
+    var isRotatingCounterDialogOpen by remember { mutableStateOf(false) }
     var pendingCounterScopeMode by remember {
         mutableStateOf(cell.counterScopeMode ?: CounterScopeMode.EXCLUDE)
+    }
+    var pendingRotatingCounterMode by remember {
+        mutableStateOf(cell.rotatingCounterMode ?: RotatingCounterMode.GLOBAL)
     }
     val panelScrollState = rememberScrollState()
 
@@ -99,8 +105,9 @@ internal fun CellSettingsBottomPanel(
     }
 
 
-    androidx.compose.runtime.LaunchedEffect(cell.cellId, cell.counterScopeMode) {
+    androidx.compose.runtime.LaunchedEffect(cell.cellId, cell.counterScopeMode, cell.rotatingCounterMode) {
         pendingCounterScopeMode = cell.counterScopeMode ?: CounterScopeMode.EXCLUDE
+        pendingRotatingCounterMode = cell.rotatingCounterMode ?: RotatingCounterMode.GLOBAL
     }
 
     val resolver = remember { TableResolver() }
@@ -404,11 +411,67 @@ internal fun CellSettingsBottomPanel(
             }
 
             if (cell.dataType == TableCellDataType.ROTATING_TEXT && onOpenRotatingTemplateDialog != null) {
-                Button(
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    onClick = onOpenRotatingTemplateDialog
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("순환 문구 설정", style = DDZTypography.ButtonText)
+                    Button(
+                        modifier = Modifier.weight(1f),
+                        onClick = onOpenRotatingTemplateDialog
+                    ) {
+                        Text("문구 설정", style = DDZTypography.ButtonText)
+                    }
+                    Button(
+                        modifier = Modifier.weight(1f),
+                        onClick = { isRotatingCounterDialogOpen = true }
+                    ) {
+                        val label = if ((cell.rotatingCounterMode ?: RotatingCounterMode.GLOBAL) == RotatingCounterMode.PER_PHRASE) {
+                            "카운터: 문구별"
+                        } else {
+                            "카운터: 통합"
+                        }
+                        Text(label, style = DDZTypography.ButtonText)
+                    }
+                }
+
+                if (isRotatingCounterDialogOpen) {
+                    AlertDialog(
+                        onDismissRequest = { isRotatingCounterDialogOpen = false },
+                        title = { Text("카운터", style = DDZTypography.Body) },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().clickable { pendingRotatingCounterMode = RotatingCounterMode.GLOBAL },
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = pendingRotatingCounterMode == RotatingCounterMode.GLOBAL,
+                                        onClick = { pendingRotatingCounterMode = RotatingCounterMode.GLOBAL }
+                                    )
+                                    Text("통합", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().clickable { pendingRotatingCounterMode = RotatingCounterMode.PER_PHRASE },
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = pendingRotatingCounterMode == RotatingCounterMode.PER_PHRASE,
+                                        onClick = { pendingRotatingCounterMode = RotatingCounterMode.PER_PHRASE }
+                                    )
+                                    Text("문구별", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                onSetRotatingCounterMode(pendingRotatingCounterMode)
+                                isRotatingCounterDialogOpen = false
+                            }) { Text("확인") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { isRotatingCounterDialogOpen = false }) { Text("취소") }
+                        }
+                    )
                 }
             }
 

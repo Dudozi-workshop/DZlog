@@ -200,6 +200,7 @@ fun HomeScreen(
                 includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
                 dateScopeValues = emptyList(),
                 timeScopeValues = emptyList(),
+                phraseScopeValues = emptyList(),
             ),
             usedCounter = streamNext
         )

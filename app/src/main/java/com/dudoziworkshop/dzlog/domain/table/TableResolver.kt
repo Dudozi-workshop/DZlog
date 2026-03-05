@@ -149,13 +149,12 @@ class TableResolver {
             TableCellDataType.ROTATING_TEXT -> {
                 val phraseSetId = cell.phraseSetId?.takeIf { it.isNotBlank() }
                 val phraseSet = phraseSetId?.let { phraseSetMap[it] }
-                val resolvedText = when {
-                    phraseSet == null -> ""
-                    phraseSet.items.isEmpty() -> ""
+                val (resolvedText, scopeToken) = when {
+                    phraseSet == null || phraseSet.items.isEmpty() -> "" to null
                     else -> {
                         val effectiveEvery = (cell.everyOverride ?: phraseSet.defaultEvery).coerceAtLeast(1)
                         val index = ((usedCounter - 1) / effectiveEvery) % phraseSet.items.size
-                        phraseSet.items[index]
+                        phraseSet.items[index] to "p_${phraseSet.id}_$index"
                     }
                 }
                 ResolvedCell(
@@ -163,7 +162,8 @@ class TableResolver {
                     type = cell.dataType,
                     raw = cell,
                     resolvedText = resolvedText,
-                    isEmpty = resolvedText.isBlank()
+                    isEmpty = resolvedText.isBlank(),
+                    scopeToken = scopeToken
                 )
             }
         }
