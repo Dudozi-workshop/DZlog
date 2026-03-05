@@ -1,11 +1,11 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.camera.core.ImageCapture
-import com.dudoziworkshop.dzlog.BuildConfig
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureContext
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
@@ -142,7 +142,8 @@ internal fun handleCaptureClick(
     )
 
 
-    if (BuildConfig.DEBUG) {
+    val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    if (isDebuggable) {
         val scopedStream = toCaptureScopedCounterStream(
             streamContext = policyResult.streamContext,
             includePathInScope = includePathInCounterScope,
@@ -150,7 +151,7 @@ internal fun handleCaptureClick(
         )
         Log.d(
             "CounterPath",
-            "saveRel=${policyResult.relativePath} scopedRelKey=${scopedStream.relativePathKey} includePath=${includePathInCounterScope}"
+            "saveRel=${policyResult.relativePath} scopedRelKey=${scopedStream.scopeParts.relativePathKey} includePath=${includePathInCounterScope}"
         )
     }
 
