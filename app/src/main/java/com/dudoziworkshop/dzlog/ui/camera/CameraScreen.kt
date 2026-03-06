@@ -250,6 +250,8 @@ fun CameraPreview(
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     var zoomPanelExpanded by remember { mutableStateOf(false) }
     val ui = remember { CameraUiState() }
+    // 정책 변경: ROTATING_TEXT 문구 진행 커서(파일 카운터와 독립) 상태.
+    var phraseProgressCounter by remember { mutableIntStateOf(1) }
     var shutterButtonTopY by remember { mutableStateOf<Float?>(null) }
     var cameraRootHeightPx by remember { mutableStateOf(0f) }
     val density = LocalDensity.current
@@ -273,6 +275,7 @@ fun CameraPreview(
         ui.capture.now,
         ui.prefs.counterDigits,
         ui.counter.scopeNextCounter,
+        phraseProgressCounter,
     ) {
         val plan = tableResolver.plan(
             cells = tableTemplateState.cells,
@@ -283,6 +286,7 @@ fun CameraPreview(
                 timeFormat = timeFormat,
             ),
             counterSeedOverride = ui.counter.scopeNextCounter,
+            phraseProgressCounter = phraseProgressCounter,
             phraseSets = tableTemplateState.phraseSets,
         )
         // 정책 변경: 문구별 스코프는 fileNameSlots에 포함된 PER_PHRASE ROTATING_TEXT의 resolvedText(rp_)만 반영한다.
@@ -316,10 +320,12 @@ fun CameraPreview(
         timeScopeValues = scopeDateTimeValues.timeScopeValues,
         phraseScopeValues = scopeDateTimeValues.phraseScopeValues,
         captureNow = ui.capture.now,
+        phraseProgressCounter = phraseProgressCounter,
     )
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
     var resumeResyncTick by remember { mutableIntStateOf(0) }
     var undoResyncTick by remember { mutableIntStateOf(0) }
+    var captureResyncTick by remember { mutableIntStateOf(0) }
     var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
 
     suspend fun reloadLatestImage() {
@@ -421,6 +427,7 @@ fun CameraPreview(
         counterDigits = ui.prefs.counterDigits,
         resumeTick = resumeResyncTick,
         undoTick = undoResyncTick,
+        captureTick = captureResyncTick,
         isTemplateReady = isTemplateReady,
         appSettings = appSettings,
         ui = ui
@@ -444,6 +451,7 @@ fun CameraPreview(
                 timeFormat = timeFormat
             ),
             counterSeedOverride = ui.counter.scopeNextCounter,
+            phraseProgressCounter = phraseProgressCounter,
             phraseSets = tableTemplateState.phraseSets
         )
         CaptureNamingPolicy.buildDisplayNameForCounter(
@@ -721,6 +729,12 @@ fun CameraPreview(
                                                 zoomPanelExpanded = false
                                                 return@CaptureButtonSection
                                             }
+                                            val perPhraseScopedCellIds = tableTemplateState.fileNameSlots.filterNotNull().toSet()
+                                            val perPhraseModeEnabled = tableTemplateState.cells.any { cell ->
+                                                cell.dataType == TableCellDataType.ROTATING_TEXT &&
+                                                    cell.rotatingCounterMode == RotatingCounterMode.PER_PHRASE &&
+                                                    cell.cellId in perPhraseScopedCellIds
+                                            }
                                             handleCaptureClick(
                                                 context = context,
                                                 gate = ui.capture.captureGate,
@@ -734,6 +748,8 @@ fun CameraPreview(
                                                 timeFormat = timeFormat,
                                                 fnDelim = fnDelim,
                                                 scopeNextCounter = ui.counter.scopeNextCounter,
+                                                phraseProgressCounter = phraseProgressCounter,
+                                                perPhraseModeEnabled = perPhraseModeEnabled,
                                                 includePathInCounterScope = appSettings.includePathInCounterScope,
                                                 includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
                                                 dateScopeValues = scopeDateTimeValues.dateScopeValues,
@@ -764,6 +780,13 @@ fun CameraPreview(
                                                 buildWatermarkConfig = ::buildWatermarkConfig,
                                                 onApplyTemplatePatch = { onTemplateChange(it) },
                                                 onUpdateScopeNextCounter = { ui.counter.scopeNextCounter = it },
+                                                // 단일 카운터 구조 유지 + 촬영 직후 활성 stream next 재동기화.
+                                                onRequestCounterResync = {
+                                                    scope.launch {
+                                                        delay(150)
+                                                        captureResyncTick += 1
+                                                    }
+                                                },
                                                 onAddToSessionStack = { uris ->
                                                     UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
                                                     scope.launch { reloadLatestImage() }
@@ -773,6 +796,10 @@ fun CameraPreview(
                                                 },
                                                 onSetCapturedUri = {
                                                     ui.capture.capturedUri = it
+                                                },
+                                                // 촬영 성공 시 문구 진행 커서를 1스텝 전진시킨다(파일 카운터와 독립).
+                                                onAdvancePhraseProgress = {
+                                                    phraseProgressCounter += 1
                                                 },
                                                 onSetCapturing = { ui.capture.isCapturing = it }
                                             )
@@ -1060,6 +1087,7 @@ private fun rememberCounterStreamContext(
     timeScopeValues: List<String>,
     phraseScopeValues: List<String>,
     captureNow: Date,
+    phraseProgressCounter: Int,
 ): CounterStreamContext {
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
@@ -1075,6 +1103,7 @@ private fun rememberCounterStreamContext(
         timeScopeValues,
         phraseScopeValues,
         captureNow,
+        phraseProgressCounter,
     ) {
         val planForScope = tableResolver.plan(
             cells = tableCells,
@@ -1085,6 +1114,7 @@ private fun rememberCounterStreamContext(
                 timeFormat = timeFormat
             ),
             counterSeedOverride = null,
+            phraseProgressCounter = phraseProgressCounter,
             phraseSets = phraseSets,
         )
         buildCounterStreamContext(
@@ -1111,12 +1141,14 @@ private fun SyncCounterSeedEffect(
     counterDigits: Int,
     resumeTick: Int,
     undoTick: Int,
+    captureTick: Int,
     isTemplateReady: Boolean,
     appSettings: AppSettings,
     ui: CameraUiState
 ) {
     var lastResumeTick by remember { mutableIntStateOf(-1) }
     var lastUndoTick by remember { mutableIntStateOf(-1) }
+    var lastCaptureTick by remember { mutableIntStateOf(-1) }
     var lastSaveMode by remember { mutableStateOf<SaveMode?>(null) }
     val scopedStream = remember(
         streamContext.relativePathKey,
@@ -1144,6 +1176,7 @@ private fun SyncCounterSeedEffect(
         counterDigits,
         resumeTick,
         undoTick,
+        captureTick,
         isTemplateReady,
         appSettings.saveMode,
         appSettings.includePathInCounterScope,
@@ -1167,9 +1200,11 @@ private fun SyncCounterSeedEffect(
         }
 
         val saveModeChanged = (lastSaveMode != null && lastSaveMode != appSettings.saveMode)
+        // 정책: 촬영 직후 활성 stream next를 다시 읽기 위해 captureTick 변화도 외부 resync로 취급한다.
         val isExternalResync =
             (resumeTick != lastResumeTick) ||
                 (undoTick != lastUndoTick) ||
+                (captureTick != lastCaptureTick) ||
                 saveModeChanged
 
         suspend fun readNextSeed(): Int = CaptureCounterPolicy.getNextCounter(
@@ -1211,6 +1246,7 @@ private fun SyncCounterSeedEffect(
         }
         lastResumeTick = resumeTick
         lastUndoTick = undoTick
+        lastCaptureTick = captureTick
         lastSaveMode = appSettings.saveMode
         ui.counter.lastScopeSnapshot = scopeSnapshot
 

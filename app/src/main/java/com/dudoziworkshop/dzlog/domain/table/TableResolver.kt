@@ -29,6 +29,7 @@ class TableResolver {
         captureNow: Date,
         config: Config,
         counterSeedOverride: Int? = null,
+        phraseProgressCounter: Int? = null,
         phraseSets: List<RotatingPhraseSet> = emptyList()
     ): ResolvePlan {
         // 안정적 순서: row/col 기준
@@ -56,6 +57,7 @@ class TableResolver {
                 cell = cell,
                 counterResolved = counterResolved,
                 usedCounter = currentCounter,
+                phraseProgressCounter = phraseProgressCounter,
                 phraseSetMap = phraseSetMap,
                 captureNow = captureNow,
                 config = config
@@ -75,6 +77,7 @@ class TableResolver {
         cell: TableCellState,
         counterResolved: String,
         usedCounter: Int,
+        phraseProgressCounter: Int?,
         phraseSetMap: Map<String, RotatingPhraseSet>,
         captureNow: Date,
         config: Config
@@ -153,7 +156,9 @@ class TableResolver {
                     phraseSet == null || phraseSet.items.isEmpty() -> ""
                     else -> {
                         val effectiveEvery = (cell.everyOverride ?: phraseSet.defaultEvery).coerceAtLeast(1)
-                        val index = ((usedCounter - 1) / effectiveEvery) % phraseSet.items.size
+                        // 정책 변경: 문구 순환 커서는 파일 카운터(usedCounter)와 분리 가능해야 한다.
+                        val counterForPhrase = (phraseProgressCounter ?: usedCounter).coerceAtLeast(1)
+                        val index = ((counterForPhrase - 1) / effectiveEvery) % phraseSet.items.size
                         phraseSet.items[index]
                     }
                 }

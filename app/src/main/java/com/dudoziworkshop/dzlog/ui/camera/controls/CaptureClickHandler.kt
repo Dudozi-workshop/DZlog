@@ -44,6 +44,8 @@ internal fun handleCaptureClick(
     timeFormat: String,
     fnDelim: String,
     scopeNextCounter: Int,
+    phraseProgressCounter: Int,
+    perPhraseModeEnabled: Boolean,
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean,
     dateScopeValues: List<String>,
@@ -90,9 +92,11 @@ internal fun handleCaptureClick(
     ) -> com.dudoziworkshop.dzlog.domain.model.WatermarkConfig,
     onApplyTemplatePatch: (TableTemplateState) -> Unit,
     onUpdateScopeNextCounter: (Int) -> Unit,
+    onRequestCounterResync: () -> Unit,
     onAddToSessionStack: (List<Uri>) -> Unit,
     onHaptic: () -> Unit,
     onSetCapturedUri: (Uri?) -> Unit,
+    onAdvancePhraseProgress: () -> Unit,
     onSetCapturing: (Boolean) -> Unit
 ) {
     // ✅ imageCapture null 가드(토스트 + return)
@@ -121,6 +125,7 @@ internal fun handleCaptureClick(
             timeFormat = timeFormat
         ),
         counterSeedOverride = scopeNextCounter,
+        phraseProgressCounter = phraseProgressCounter,
         phraseSets = tableTemplateState.phraseSets
     )
 
@@ -196,7 +201,15 @@ internal fun handleCaptureClick(
                 )
 
                 withContext(Dispatchers.Main) {
-                    onUpdateScopeNextCounter((committedCounter + 1).coerceAtLeast(1))
+                    if (perPhraseModeEnabled) {
+                        // 정책: 문구별 모드에서는 파일 카운터를 직접 +1로 밀지 않고,
+                        // 문구 진행 → scope resync 순서로 SSOT(next seed)를 반영한다.
+                        onAdvancePhraseProgress()
+                        onRequestCounterResync()
+                    } else {
+                        onUpdateScopeNextCounter((committedCounter + 1).coerceAtLeast(1))
+                        onRequestCounterResync()
+                    }
 
                     if (entry.isNameAdjusted) {
                         Toast.makeText(

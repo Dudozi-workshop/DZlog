@@ -200,9 +200,12 @@ fun TableEditorScreen(
 
     var counterUi by remember { mutableStateOf(TableCounterUiState()) }
     var resumeTick by remember { mutableIntStateOf(0) }
+    var scopeInputTick by remember { mutableIntStateOf(0) }
     var scopeKeySnapshot by remember { mutableStateOf<String?>(null) }
 
     var previewNow by remember { mutableStateOf(Date()) }
+    // 정책 변경: 프리뷰에서도 문구 순환 커서를 파일 카운터와 분리한다.
+    var phraseProgressCounter by remember { mutableIntStateOf(1) }
 
     LaunchedEffect(templateState.cells, lifecycleOwner) {
         val unit = decideTickUnitFromTemplate(templateState.cells)
@@ -239,9 +242,18 @@ fun TableEditorScreen(
         )
     }
 
+    LaunchedEffect(
+        templateState.cells,
+        templateState.fileNameSlots,
+        templateState.phraseSets
+    ) {
+        // 정책: 스코프 입력(셀/슬롯/문구세트)이 바뀌면 즉시 next counter 재동기화를 강제한다.
+        scopeInputTick += 1
+    }
+
     val tableResolver = remember { TableResolver() }
 
-    val plan = remember(templateState, previewNow, previewCounterDigits, counterUi.scopeNextCounter, dateFormat, timeFormat) {
+    val plan = remember(templateState, previewNow, previewCounterDigits, counterUi.scopeNextCounter, phraseProgressCounter, dateFormat, timeFormat) {
         tableResolver.plan(
             cells = templateState.cells,
             captureNow = previewNow,
@@ -251,6 +263,7 @@ fun TableEditorScreen(
                 timeFormat = timeFormat
             ),
             counterSeedOverride = counterUi.scopeNextCounter,
+            phraseProgressCounter = phraseProgressCounter,
             phraseSets = templateState.phraseSets
         )
     }
@@ -321,6 +334,7 @@ fun TableEditorScreen(
 
     var lastScopeSnapshot by remember { mutableStateOf<CounterScopeSnapshot?>(null) }
     var lastProcessedResumeTick by remember { mutableIntStateOf(-1) }
+    var lastProcessedScopeInputTick by remember { mutableIntStateOf(-1) }
 
 
     LaunchedEffect(
@@ -328,8 +342,9 @@ fun TableEditorScreen(
         previewCounterDigits,
         tableSaveMode,
         resumeTick,
+        scopeInputTick,
     ) {
-        val isExternalResync = resumeTick != lastProcessedResumeTick
+        val isExternalResync = (resumeTick != lastProcessedResumeTick) || (scopeInputTick != lastProcessedScopeInputTick)
         val syncResult = syncCounterStateForScope(
             context = context,
             templateState = templateState,
@@ -346,6 +361,7 @@ fun TableEditorScreen(
         counterUi = syncResult.counterUi
         lastScopeSnapshot = syncResult.nextScopeSnapshot
         lastProcessedResumeTick = resumeTick
+        lastProcessedScopeInputTick = scopeInputTick
         syncResult.updatedTemplateState?.let(onTemplateChange)
     }
 
@@ -434,6 +450,7 @@ fun TableEditorScreen(
     val namingPreview = remember(
         plan.resolvedCells,
         templateState.fileNameSlots,
+        templateState.phraseSets,
         previewCounterDigits,
         counterUi.includePathInCounterScope,
         counterUi.includeFilenameInCounterScope,
