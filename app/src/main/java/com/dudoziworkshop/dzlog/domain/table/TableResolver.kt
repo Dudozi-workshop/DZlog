@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.domain.table
 
+import android.util.Log
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.HourSystem
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
@@ -159,7 +160,14 @@ class TableResolver {
                         // 정책 변경: 문구 순환 커서는 파일 카운터(usedCounter)와 분리 가능해야 한다.
                         val counterForPhrase = (phraseProgressCounter ?: usedCounter).coerceAtLeast(1)
                         val index = ((counterForPhrase - 1) / effectiveEvery) % phraseSet.items.size
-                        phraseSet.items[index]
+                        val resolved = phraseSet.items[index]
+                        if (Log.isLoggable("PhraseResolve", Log.DEBUG)) {
+                            Log.d(
+                                "PhraseResolve",
+                                "cellId=${cell.cellId} phraseSetId=${phraseSet.id} effectiveEvery=$effectiveEvery phraseProgressCounter=$phraseProgressCounter usedCounter=$usedCounter resolvedText='$resolved'"
+                            )
+                        }
+                        resolved
                     }
                 }
                 ResolvedCell(

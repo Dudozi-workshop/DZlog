@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.domain.counter
 
 import android.content.Context
+import android.util.Log
 import com.dudoziworkshop.dzlog.data.counter.CounterScanTarget
 import com.dudoziworkshop.dzlog.data.counter.scanUsedCountersFromMediaStore
 import com.dudoziworkshop.dzlog.data.counter.toCounterScanTarget
@@ -136,6 +137,13 @@ object CounterManager {
             addAll(timeParts)
         }
 
+        if (Log.isLoggable("CounterPrefix", Log.DEBUG)) {
+            Log.d(
+                "CounterPrefix",
+                "slotParts=$slotParts phraseParts=$phraseParts dateParts=$dateParts timeParts=$timeParts includeFilenameInScope=$includeFilenameInScope prefix=${if (parts.isEmpty()) "DZlog" else parts.joinToString(delim)}"
+            )
+        }
+
         return if (parts.isEmpty()) "DZlog" else parts.joinToString(delim)
     }
 
@@ -166,6 +174,12 @@ object CounterManager {
         )
         val g2Enabled = resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
         val tag = if (g2Enabled) "g2=1" else "g2=0"
+        if (Log.isLoggable("CounterPrefix", Log.DEBUG)) {
+            Log.d(
+                "CounterPrefix",
+                "streamPrefix=$basePrefix|$tag relative(stream-only)=n/a"
+            )
+        }
         return "$basePrefix|$tag"
     }
 

@@ -6,6 +6,7 @@
 
 package com.dudoziworkshop.dzlog.ui.table
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -1124,17 +1125,27 @@ private fun buildPhraseScopeValues(
     val resolvedById = resolvedCells.associateBy { it.id }
     val fileNameCellIds = fileNameSlots.mapNotNull { it }.toSet()
     val ordered = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex }.thenBy { it.cellId })
-    return ordered
+    val selectedPhraseCells = ordered
         .asSequence()
         .filter { cell ->
             cell.dataType == TableCellDataType.ROTATING_TEXT &&
                 cell.rotatingCounterMode == RotatingCounterMode.PER_PHRASE &&
                 cell.cellId in fileNameCellIds
         }
+        .toList()
+    val values = selectedPhraseCells
+        .asSequence()
         .mapNotNull { resolvedById[it.cellId]?.resolvedText?.trim() }
         .filter { it.isNotBlank() }
         .map { "rp_$it" }
         .toList()
+    if (Log.isLoggable("PhraseScope", Log.DEBUG)) {
+        Log.d(
+            "PhraseScope",
+            "[TableEditor] fileNameSlots=$fileNameSlots fileNameCellIds=$fileNameCellIds selectedCellIds=${selectedPhraseCells.map { it.cellId }} rotatingModes=${selectedPhraseCells.map { it.rotatingCounterMode }} resolvedTexts=${selectedPhraseCells.map { resolvedById[it.cellId]?.resolvedText }} phraseScopeValues=$values"
+        )
+    }
+    return values
 }
 
 /**

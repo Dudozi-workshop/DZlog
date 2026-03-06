@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.camera.core.ImageCapture
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
@@ -91,7 +92,6 @@ internal fun handleCaptureClick(
         rotationCwDeg: Int
     ) -> com.dudoziworkshop.dzlog.domain.model.WatermarkConfig,
     onApplyTemplatePatch: (TableTemplateState) -> Unit,
-    onUpdateScopeNextCounter: (Int) -> Unit,
     onRequestCounterResync: () -> Unit,
     onAddToSessionStack: (List<Uri>) -> Unit,
     onHaptic: () -> Unit,
@@ -112,8 +112,13 @@ internal fun handleCaptureClick(
     if (!gate.compareAndSet(false, true)) return
     onSetCapturing(true)
     if (captureHapticEnabled) onHaptic()
-    val optimisticNext = (scopeNextCounter + 1).coerceAtLeast(1)
-    onUpdateScopeNextCounter(optimisticNext)
+
+    if (Log.isLoggable("CaptureFlow", Log.DEBUG)) {
+        Log.d(
+            "CaptureFlow",
+            "clickStart phraseProgressCounter=$phraseProgressCounter scopeNextCounter=$scopeNextCounter perPhraseModeEnabled=$perPhraseModeEnabled"
+        )
+    }
 
     val captureNow = Date()
     val planForCapture = tableResolver.plan(
@@ -191,6 +196,12 @@ internal fun handleCaptureClick(
                 fnDelim = fnDelim,
                 counterDigits = counterDigits
             )?.coerceAtLeast(1) ?: policyResult.usedCounter
+            if (Log.isLoggable("CaptureFlow", Log.DEBUG)) {
+                Log.d(
+                    "CaptureFlow",
+                    "captureSuccess committedCounter=$committedCounter displayName=${entry.displayName} phraseScopeValues=$phraseScopeValues"
+                )
+            }
 
             CoroutineScope(Dispatchers.IO).launch {
                 CaptureCounterPolicy.commitCounter(
@@ -201,13 +212,19 @@ internal fun handleCaptureClick(
                 )
 
                 withContext(Dispatchers.Main) {
+                    if (Log.isLoggable("CaptureFlow", Log.DEBUG)) {
+                        Log.d(
+                            "CaptureFlow",
+                            "beforeMainBranch perPhraseModeEnabled=$perPhraseModeEnabled committedCounter=$committedCounter"
+                        )
+                    }
                     if (perPhraseModeEnabled) {
                         // 정책: 문구별 모드에서는 파일 카운터를 직접 +1로 밀지 않고,
                         // 문구 진행 → scope resync 순서로 SSOT(next seed)를 반영한다.
                         onAdvancePhraseProgress()
                         onRequestCounterResync()
                     } else {
-                        onUpdateScopeNextCounter((committedCounter + 1).coerceAtLeast(1))
+                        // 정책 변경: 통합 모드도 저장 성공 후 resync로만 next seed를 반영한다(선증가 제거).
                         onRequestCounterResync()
                     }
 
@@ -237,7 +254,6 @@ internal fun handleCaptureClick(
             }
         },
         onFail = { msg ->
-            onUpdateScopeNextCounter(scopeNextCounter)
             gate.set(false)
             onSetCapturing(false)
             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()

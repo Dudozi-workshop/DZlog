@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.domain.capturepolicy
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.preferences.core.edit
 import com.dudoziworkshop.dzlog.data.counterindex.CounterIndexRepository
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_MANUAL_NEXT_OVERRIDES_V1
@@ -73,7 +74,14 @@ internal object CaptureCounterPolicy {
         ).coerceAtLeast(1)
 
         val manualOverride = loadManualNextOverrides(context)[streamKey(key)]
-        return (manualOverride ?: autoNext).coerceAtLeast(1)
+        val next = (manualOverride ?: autoNext).coerceAtLeast(1)
+        if (Log.isLoggable("CounterRead", Log.DEBUG)) {
+            Log.d(
+                "CounterRead",
+                "captureStreamKey=${streamKey(key)} relativePathKey=${key.relativePathKey} streamPrefix=${key.prefix} saveMode=$saveMode next=$next"
+            )
+        }
+        return next
     }
 
     private suspend fun commitCounter(
@@ -85,6 +93,12 @@ internal object CaptureCounterPolicy {
         if (usedCounter < 0) return
         if (mediaStoreId <= 0L) return
 
+        if (Log.isLoggable("CounterCommit", Log.DEBUG)) {
+            Log.d(
+                "CounterCommit",
+                "captureStreamKey=${streamKey(key)} relativePathKey=${key.relativePathKey} streamPrefix=${key.prefix} usedCounter=$usedCounter mediaStoreId=$mediaStoreId"
+            )
+        }
         val repo = CounterIndexRepository.getInstance(context)
         val dateAddedSeconds = System.currentTimeMillis() / 1000L
         runCatching {
