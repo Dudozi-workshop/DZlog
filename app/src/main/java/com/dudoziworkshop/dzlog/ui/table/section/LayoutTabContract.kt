@@ -18,6 +18,7 @@ data class LayoutTabUiState(
     val counterModeLabel: String,
     val templateState: TableTemplateState,
     val plan: ResolvePlan,
+    val resolvedByCellId: Map<String, String>,
     val previewNow: Date,
     val previewCounterDigits: Int,
     val scopeNextCounter: Int,

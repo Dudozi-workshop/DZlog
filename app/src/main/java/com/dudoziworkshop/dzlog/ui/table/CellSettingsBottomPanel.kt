@@ -67,6 +67,7 @@ internal fun CellSettingsBottomPanel(
     modifier: Modifier,
     cell: TableCellState,
     templateState: TableTemplateState,
+    baseResolvedByCellId: Map<String, String>,
     hasGroup1: Boolean,
     hasGroup2: Boolean,
     onToggleFileNameForCell: (cellId: String, enabled: Boolean) -> Unit,
@@ -112,10 +113,13 @@ internal fun CellSettingsBottomPanel(
         pendingRotatingCounterMode = cell.rotatingCounterMode ?: RotatingCounterMode.GLOBAL
     }
 
+    val hasDialogPendingPreview = isCounterScopeDialogOpen || isRotatingCounterDialogOpen
+
     // 패널 미리보기는 저장(확정) 이전에도 현재 다이얼로그에서 선택 중인 값을 즉시 반영한다.
     // 단, 취소 시에는 원본 셀 상태로 되돌아가야 하므로 "다이얼로그가 열려있는 동안"에만 pending 값을 합성한다.
     val previewSelectedCell = remember(
         cell,
+        hasDialogPendingPreview,
         isCounterScopeDialogOpen,
         pendingCounterScopeMode,
         isRotatingCounterDialogOpen,
@@ -148,7 +152,7 @@ internal fun CellSettingsBottomPanel(
         )
     }
 
-    val resolvedByCellId = remember(
+    val panelResolvedByCellId = remember(
         resolver,
         previewCells,
         selectedPhraseTextByCellId,
@@ -171,6 +175,10 @@ internal fun CellSettingsBottomPanel(
             selectedPhraseTextByCellId = selectedPhraseTextByCellId,
         ).resolvedCells.associate { it.id to it.resolvedText }
     }
+
+    // 상단 프리뷰와 패널 프리뷰 기준을 최대한 맞추기 위해,
+    // pending 다이얼로그가 없을 때는 부모(TableEditorScreen)의 resolved snapshot을 그대로 사용한다.
+    val resolvedByCellId = if (hasDialogPendingPreview) panelResolvedByCellId else baseResolvedByCellId
 
     Column(
         modifier = modifier

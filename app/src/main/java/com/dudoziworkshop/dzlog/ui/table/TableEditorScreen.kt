@@ -46,7 +46,6 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureContext
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
-import com.dudoziworkshop.dzlog.domain.counter.CounterScopeResolver
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
@@ -61,8 +60,9 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
-import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
+import com.dudoziworkshop.dzlog.domain.preview.PreviewPipelineInput
+import com.dudoziworkshop.dzlog.domain.preview.buildPreviewPipeline
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.table.policy.confirmCounterConflictDialog
@@ -253,32 +253,35 @@ fun TableEditorScreen(
 
     val tableResolver = remember { TableResolver() }
 
-    // 정책 정리(4차): 문구 선택은 상위에서 먼저 수행하고, TableResolver는 선택 결과만 반영한다.
-    val selectedPhraseTextByCellId = remember(
-        templateState.cells,
-        templateState.phraseSets,
+    // 프리뷰 계산 경로를 Camera/Home과 동일하게 공용 pipeline으로 통일한다.
+    val previewPipeline = remember(
+        templateState,
+        previewNow,
+        previewCounterDigits,
+        counterUi.scopeNextCounter,
         phraseProgressCounter,
+        dateFormat,
+        timeFormat,
+        counterUi.includePathInCounterScope,
+        counterUi.includeFilenameInCounterScope,
     ) {
-        PhraseResolver.resolveSelectedTextByCellId(
-            cells = templateState.cells,
-            phraseSets = templateState.phraseSets,
-            progressCursor = phraseProgressCounter,
-        )
-    }
-
-    val plan = remember(templateState, previewNow, previewCounterDigits, counterUi.scopeNextCounter, phraseProgressCounter, selectedPhraseTextByCellId, dateFormat, timeFormat) {
-        tableResolver.plan(
-            cells = templateState.cells,
-            captureNow = previewNow,
-            config = TableResolver.Config(
+        buildPreviewPipeline(
+            input = PreviewPipelineInput(
+                templateState = templateState,
+                captureNow = previewNow,
                 counterDigits = previewCounterDigits,
                 dateFormat = dateFormat,
-                timeFormat = timeFormat
+                timeFormat = timeFormat,
+                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+                includePathInCounterScope = counterUi.includePathInCounterScope,
+                includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
+                scopeNextCounter = counterUi.scopeNextCounter,
+                phraseProgressCursor = phraseProgressCounter,
             ),
-            counterSeedOverride = counterUi.scopeNextCounter,
-            selectedPhraseTextByCellId = selectedPhraseTextByCellId,
+            tableResolver = tableResolver,
         )
     }
+    val plan = previewPipeline.plan
 
     val isManualCounterModeDisplay by remember(
         counterUi.isManualCounterMode,
@@ -292,23 +295,7 @@ fun TableEditorScreen(
         }
     }
 
-    val scopeValues = remember(templateState.cells, templateState.fileNameSlots, plan.resolvedCells) {
-        val fileNameCellIds = templateState.fileNameSlots.filterNotNull().toSet()
-        val isPerPhraseMode = templateState.cells.any { cell ->
-            cell.dataType == TableCellDataType.ROTATING_TEXT &&
-                cell.rotatingCounterMode == RotatingCounterMode.PER_PHRASE &&
-                cell.cellId in fileNameCellIds
-        }
-        // 정책 정리(3차): table 화면도 카운터 scope 조합(date/time/phrase)을 CounterScopeResolver 단일 규칙으로 계산한다.
-        CounterScopeResolver.resolve(
-            CounterScopeResolver.Inputs(
-                cells = templateState.cells,
-                fileNameSlots = templateState.fileNameSlots,
-                resolvedCells = plan.resolvedCells,
-                isPerPhraseMode = isPerPhraseMode,
-            )
-        )
-    }
+    val scopeValues = previewPipeline.scopeValues
 
     val counterStreamContext by remember(
         plan.resolvedCells,
@@ -460,6 +447,9 @@ fun TableEditorScreen(
     val selectedCell = templateState.cells.firstOrNull { it.cellId == selectedCellId }
     val hasGroup1 = templateState.cells.any { it.groupLevel == GroupLevel.G1 }
     val hasGroup2 = templateState.cells.any { it.groupLevel == GroupLevel.G2 }
+    val resolvedByCellId = remember(plan.resolvedCells) {
+        plan.resolvedCells.associate { it.id to it.resolvedText }
+    }
 
     var watermarkUi by remember { mutableStateOf(TableWatermarkUiState()) }
 
@@ -470,33 +460,32 @@ fun TableEditorScreen(
     }
 
     val namingPreview = remember(
+        previewPipeline.namingPreview,
         plan.resolvedCells,
-        templateState.fileNameSlots,
-        templateState.phraseSets,
-        previewCounterDigits,
-        counterUi.includePathInCounterScope,
-        counterUi.includeFilenameInCounterScope,
-        scopeValues.dateScopeValues,
-        scopeValues.timeScopeValues,
-        scopeValues.phraseScopeValues,
         counterStreamContext.nextCounter,
     ) {
-        CaptureNamingPolicy.buildForCaptureWithCounter(
-            captureContext = CaptureContext(
-                resolvedCells = plan.resolvedCells,
-                fileNameSlots = templateState.fileNameSlots,
-                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-                counterDigits = previewCounterDigits,
-                dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
-                timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT,
-                includePathInCounterScope = counterUi.includePathInCounterScope,
-                includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
-                dateScopeValues = scopeValues.dateScopeValues,
-                timeScopeValues = scopeValues.timeScopeValues,
-                phraseScopeValues = scopeValues.phraseScopeValues,
-            ),
-            usedCounter = counterStreamContext.nextCounter,
-        )
+        // 상단 프리뷰는 공용 pipeline 결과를 기본으로 사용하되,
+        // 수동 카운터/충돌 조정으로 nextCounter가 달라진 경우에만 카운터만 교정한다.
+        if (counterStreamContext.nextCounter == counterUi.scopeNextCounter) {
+            previewPipeline.namingPreview
+        } else {
+            CaptureNamingPolicy.buildForCaptureWithCounter(
+                captureContext = CaptureContext(
+                    resolvedCells = plan.resolvedCells,
+                    fileNameSlots = templateState.fileNameSlots,
+                    fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+                    counterDigits = previewCounterDigits,
+                    dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+                    timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT,
+                    includePathInCounterScope = counterUi.includePathInCounterScope,
+                    includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
+                    dateScopeValues = scopeValues.dateScopeValues,
+                    timeScopeValues = scopeValues.timeScopeValues,
+                    phraseScopeValues = scopeValues.phraseScopeValues,
+                ),
+                usedCounter = counterStreamContext.nextCounter,
+            )
+        }
     }
     val savePathPreview = namingPreview.relativePath
     val filenamePreview = namingPreview.displayName
@@ -801,6 +790,7 @@ fun TableEditorScreen(
                             counterModeLabel = if (isManualCounterModeDisplay) "수동" else "자동",
                             templateState = templateState,
                             plan = plan,
+                            resolvedByCellId = resolvedByCellId,
                             previewNow = previewNow,
                             previewCounterDigits = previewCounterDigits,
                             scopeNextCounter = counterUi.scopeNextCounter,

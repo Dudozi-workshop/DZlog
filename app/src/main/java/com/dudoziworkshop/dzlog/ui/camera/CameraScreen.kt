@@ -104,10 +104,7 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MANUAL
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_ALIGN
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.captureplan.CapturePlan
-import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureContext
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
-import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
-import com.dudoziworkshop.dzlog.domain.counter.CounterScopeResolver
 import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.policy.buildCounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.isNewCounterScope
@@ -118,8 +115,6 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkConfig
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
-import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
-import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
@@ -128,8 +123,10 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
+import com.dudoziworkshop.dzlog.domain.preview.PreviewPipelineInput
+import com.dudoziworkshop.dzlog.domain.preview.PreviewPipelineResult
+import com.dudoziworkshop.dzlog.domain.preview.buildPreviewPipeline
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
-import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
@@ -266,52 +263,30 @@ fun CameraPreview(
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
 
-    // 정책 정리(4차): 문구 선택은 상위에서 먼저 수행하고, TableResolver는 선택 결과만 소비한다.
-    val selectedPhraseTextByCellId = remember(
-        tableTemplateState.cells,
-        tableTemplateState.phraseSets,
-        phraseProgressCounter,
-    ) {
-        PhraseResolver.resolveSelectedTextByCellId(
-            cells = tableTemplateState.cells,
-            phraseSets = tableTemplateState.phraseSets,
-            progressCursor = phraseProgressCounter,
-        )
-    }
-
-    val scopeValues = remember(
-        tableTemplateState.cells,
-        tableTemplateState.fileNameSlots,
-        selectedPhraseTextByCellId,
+    // 프리뷰 계산 경로를 공용 pipeline으로 통일한다(정상 동작 유지 목적, 저장 흐름 불변).
+    val previewPipeline = remember(
+        tableTemplateState,
         ui.capture.now,
         ui.prefs.counterDigits,
         ui.counter.scopeNextCounter,
+        phraseProgressCounter,
+        appSettings.includePathInCounterScope,
+        appSettings.includeFilenameInCounterScope,
     ) {
-        val plan = tableResolver.plan(
-            cells = tableTemplateState.cells,
-            captureNow = ui.capture.now,
-            config = TableResolver.Config(
+        buildPreviewPipeline(
+            input = PreviewPipelineInput(
+                templateState = tableTemplateState,
+                captureNow = ui.capture.now,
                 counterDigits = ui.prefs.counterDigits,
                 dateFormat = dateFormat,
                 timeFormat = timeFormat,
+                fnDelim = fnDelim,
+                includePathInCounterScope = appSettings.includePathInCounterScope,
+                includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+                scopeNextCounter = ui.counter.scopeNextCounter,
+                phraseProgressCursor = phraseProgressCounter,
             ),
-            counterSeedOverride = ui.counter.scopeNextCounter,
-            selectedPhraseTextByCellId = selectedPhraseTextByCellId,
-        )
-        val fileNameCellIds = tableTemplateState.fileNameSlots.filterNotNull().toSet()
-        val isPerPhraseMode = tableTemplateState.cells.any { cell ->
-            cell.dataType == TableCellDataType.ROTATING_TEXT &&
-                cell.rotatingCounterMode == RotatingCounterMode.PER_PHRASE &&
-                cell.cellId in fileNameCellIds
-        }
-        // 정책 정리(3차): 카운터 scope 조합(date/time/phrase)은 CounterScopeResolver 단일 경로를 사용한다.
-        CounterScopeResolver.resolve(
-            CounterScopeResolver.Inputs(
-                cells = tableTemplateState.cells,
-                fileNameSlots = tableTemplateState.fileNameSlots,
-                resolvedCells = plan.resolvedCells,
-                isPerPhraseMode = isPerPhraseMode,
-            )
+            tableResolver = tableResolver,
         )
     }
 
@@ -328,32 +303,12 @@ fun CameraPreview(
 
     // 핵심 정책(1차 리팩터링): 프리뷰/저장은 같은 activePlan을 공유한다.
     val activePlan = remember(
-        tableTemplateState,
-        ui.capture.now,
-        ui.prefs.counterDigits,
-        ui.counter.scopeNextCounter,
+        previewPipeline,
         phraseProgressCounter,
-        selectedPhraseTextByCellId,
-        appSettings.includePathInCounterScope,
-        appSettings.includeFilenameInCounterScope,
-        scopeValues,
     ) {
         buildActiveCapturePlan(
-            tableResolver = tableResolver,
-            tableTemplateState = tableTemplateState,
-            captureNow = ui.capture.now,
-            counterDigits = ui.prefs.counterDigits,
-            dateFormat = dateFormat,
-            timeFormat = timeFormat,
-            fnDelim = fnDelim,
-            includePathInCounterScope = appSettings.includePathInCounterScope,
-            includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-            dateScopeValues = scopeValues.dateScopeValues,
-            timeScopeValues = scopeValues.timeScopeValues,
-            phraseScopeValues = scopeValues.phraseScopeValues,
-            scopeNextCounter = ui.counter.scopeNextCounter,
+            previewPipeline = previewPipeline,
             phraseProgressCounter = phraseProgressCounter,
-            selectedPhraseTextByCellId = selectedPhraseTextByCellId,
         )
     }
     val counterStreamContext = activePlan.streamContext
@@ -1063,59 +1018,18 @@ private fun rememberMediaStoreRefreshTick(context: Context): Int {
 }
 
 private fun buildActiveCapturePlan(
-    tableResolver: TableResolver,
-    tableTemplateState: TableTemplateState,
-    captureNow: Date,
-    counterDigits: Int,
-    dateFormat: String,
-    timeFormat: String,
-    fnDelim: String,
-    includePathInCounterScope: Boolean,
-    includeFilenameInCounterScope: Boolean,
-    dateScopeValues: List<String>,
-    timeScopeValues: List<String>,
-    phraseScopeValues: List<String>,
-    scopeNextCounter: Int,
+    previewPipeline: PreviewPipelineResult,
     phraseProgressCounter: Int,
-    selectedPhraseTextByCellId: Map<String, String>,
 ): CapturePlan {
-    val planForCapture = tableResolver.plan(
-        cells = tableTemplateState.cells,
-        captureNow = captureNow,
-        config = TableResolver.Config(
-            counterDigits = counterDigits,
-            dateFormat = dateFormat,
-            timeFormat = timeFormat
-        ),
-        counterSeedOverride = scopeNextCounter,
-        selectedPhraseTextByCellId = selectedPhraseTextByCellId,
-    )
-    val namingResult = CaptureNamingPolicy.buildForCaptureWithCounter(
-        captureContext = CaptureContext(
-            resolvedCells = planForCapture.resolvedCells,
-            fileNameSlots = tableTemplateState.fileNameSlots,
-            fnDelim = fnDelim,
-            counterDigits = counterDigits,
-            dateFormat = dateFormat,
-            timeFormat = timeFormat,
-            includePathInCounterScope = includePathInCounterScope,
-            includeFilenameInCounterScope = includeFilenameInCounterScope,
-            dateScopeValues = dateScopeValues,
-            timeScopeValues = timeScopeValues,
-            phraseScopeValues = phraseScopeValues,
-        ),
-        usedCounter = scopeNextCounter
-    )
-
     return CapturePlan(
-        resolvedCells = planForCapture.resolvedCells,
-        tablePatch = planForCapture.patch,
-        displayName = namingResult.displayName,
-        usedCounter = namingResult.usedCounter,
+        resolvedCells = previewPipeline.plan.resolvedCells,
+        tablePatch = previewPipeline.plan.patch,
+        displayName = previewPipeline.namingPreview.displayName,
+        usedCounter = previewPipeline.namingPreview.usedCounter,
         // 정책 정리(2차): 저장 성공 시 phrase cursor는 plan이 제공한 다음 값으로만 이동한다.
         nextPhraseProgressCursor = phraseProgressCounter.coerceAtLeast(1) + 1,
-        streamContext = namingResult.streamContext,
-        relativePathPreview = namingResult.relativePath,
+        streamContext = previewPipeline.namingPreview.streamContext,
+        relativePathPreview = previewPipeline.namingPreview.relativePath,
     )
 }
 

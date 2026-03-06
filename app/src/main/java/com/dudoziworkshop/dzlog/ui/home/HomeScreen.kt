@@ -51,9 +51,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
-import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureContext
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
-import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
 import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
@@ -64,10 +62,10 @@ import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
-import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
+import com.dudoziworkshop.dzlog.domain.preview.PreviewPipelineInput
+import com.dudoziworkshop.dzlog.domain.preview.buildPreviewPipeline
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
-import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -127,6 +125,8 @@ fun HomeScreen(
     var savePathPreview by remember { mutableStateOf("Pictures/DZlog/") }
     var filenamePreview by remember { mutableStateOf("DZlog_1.jpg") }
     var previewNow by remember { mutableStateOf(Date()) }
+    // Home은 편집 화면이 아니므로 preview용 phrase cursor는 고정값으로 유지한다.
+    val phraseProgressCursor = 1
 
     LaunchedEffect(tableTemplateState.cells, lifecycleOwner) {
         val unit = decideTickUnitFromTemplate(tableTemplateState.cells)
@@ -147,32 +147,35 @@ fun HomeScreen(
         settings.includePathInCounterScope,
         settings.includeFilenameInCounterScope,
         previewNow,
+        phraseProgressCursor,
     ) {
         val now = previewNow
-        val resolver = TableResolver()
-        val selectedPhraseTextByCellId = PhraseResolver.resolveSelectedTextByCellId(
-            cells = tableTemplateState.cells,
-            phraseSets = tableTemplateState.phraseSets,
-            progressCursor = 1,
-        )
-        val plan = resolver.plan(
-            cells = tableTemplateState.cells,
-            captureNow = now,
-            config = TableResolver.Config(
+        val previewPipeline = buildPreviewPipeline(
+            PreviewPipelineInput(
+                templateState = tableTemplateState,
+                captureNow = now,
                 counterDigits = settings.counterPadding,
                 dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
-                timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT
-            ),
-            selectedPhraseTextByCellId = selectedPhraseTextByCellId,
+                timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
+                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+                includePathInCounterScope = settings.includePathInCounterScope,
+                includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
+                scopeNextCounter = 1,
+                phraseProgressCursor = phraseProgressCursor,
+            )
         )
         val streamContext = buildCounterStreamContext(
-            resolvedCells = plan.resolvedCells,
+            resolvedCells = previewPipeline.plan.resolvedCells,
             fileNameSlots = tableTemplateState.fileNameSlots,
             nextCounter = 1,
             isManualMode = false,
             fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
             includeFilenameInScope = settings.includeFilenameInCounterScope,
-            scopeOptions = CounterScopeOptions(),
+            scopeOptions = CounterScopeOptions(
+                dateScopeValues = previewPipeline.scopeValues.dateScopeValues,
+                timeScopeValues = previewPipeline.scopeValues.timeScopeValues,
+                phraseScopeValues = previewPipeline.scopeValues.phraseScopeValues,
+            ),
         )
         val scopedStream = toCaptureScopedCounterStream(
             streamContext = streamContext,
@@ -186,6 +189,22 @@ fun HomeScreen(
             fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
             saveMode = settings.saveMode,
         ).coerceAtLeast(1)
+        // 파일명/경로 표시도 공용 pipeline 결과를 사용하되, 사용 카운터만 streamNext로 맞춘다.
+        val displayPreviewPipeline = buildPreviewPipeline(
+            PreviewPipelineInput(
+                templateState = tableTemplateState,
+                captureNow = now,
+                counterDigits = settings.counterPadding,
+                dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+                timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
+                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+                includePathInCounterScope = settings.includePathInCounterScope,
+                includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
+                scopeNextCounter = streamNext,
+                phraseProgressCursor = phraseProgressCursor,
+                selectedPhraseTextByCellIdOverride = previewPipeline.selectedPhraseTextByCellId,
+            )
+        )
         CounterDebugDump.dump(
             tag = "HomePreview",
             context = context,
@@ -194,24 +213,8 @@ fun HomeScreen(
             nextSeed = streamNext,
             note = null,
         )
-        val preview = CaptureNamingPolicy.buildForCaptureWithCounter(
-            captureContext = CaptureContext(
-                resolvedCells = plan.resolvedCells,
-                fileNameSlots = tableTemplateState.fileNameSlots,
-                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-                counterDigits = settings.counterPadding,
-                dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
-                timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
-                includePathInCounterScope = settings.includePathInCounterScope,
-                includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
-                dateScopeValues = emptyList(),
-                timeScopeValues = emptyList(),
-                phraseScopeValues = emptyList(),
-            ),
-            usedCounter = streamNext
-        )
-        savePathPreview = preview.relativePath
-        filenamePreview = preview.displayName
+        savePathPreview = displayPreviewPipeline.namingPreview.relativePath
+        filenamePreview = displayPreviewPipeline.namingPreview.displayName
     }
 
     var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
