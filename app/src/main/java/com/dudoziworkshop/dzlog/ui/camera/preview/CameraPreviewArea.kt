@@ -47,6 +47,7 @@ import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.naming.resolveGroupValue
+import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.ui.camera.buildWatermarkConfig
@@ -466,11 +467,18 @@ internal fun CameraPreviewArea(
         val plan = remember(
             args.tableTemplateState,
             args.scopeNextCounter,
+            args.phraseProgressCursor,
             args.now,
             args.counterDigits,
             args.dateFormat,
             args.timeFormat
         ) {
+            val selectedPhraseTextByCellId = PhraseResolver.resolveSelectedTextByCellId(
+                cells = args.tableTemplateState.cells,
+                phraseSets = args.tableTemplateState.phraseSets,
+                // 순환문구 선택은 phrase 커서 기준이어야 하며, 카운터 seed와 분리한다.
+                progressCursor = args.phraseProgressCursor,
+            )
             args.tableResolver.plan(
                 cells = args.tableTemplateState.cells,
                 captureNow = args.now,
@@ -480,7 +488,7 @@ internal fun CameraPreviewArea(
                     timeFormat = args.timeFormat
                 ),
                 counterSeedOverride = args.scopeNextCounter,
-                phraseSets = args.tableTemplateState.phraseSets
+                selectedPhraseTextByCellId = selectedPhraseTextByCellId,
             )
         }
 

@@ -64,6 +64,7 @@ import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
+import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
@@ -149,6 +150,11 @@ fun HomeScreen(
     ) {
         val now = previewNow
         val resolver = TableResolver()
+        val selectedPhraseTextByCellId = PhraseResolver.resolveSelectedTextByCellId(
+            cells = tableTemplateState.cells,
+            phraseSets = tableTemplateState.phraseSets,
+            progressCursor = 1,
+        )
         val plan = resolver.plan(
             cells = tableTemplateState.cells,
             captureNow = now,
@@ -157,7 +163,7 @@ fun HomeScreen(
                 dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
                 timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT
             ),
-            phraseSets = tableTemplateState.phraseSets
+            selectedPhraseTextByCellId = selectedPhraseTextByCellId,
         )
         val streamContext = buildCounterStreamContext(
             resolvedCells = plan.resolvedCells,

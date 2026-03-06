@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
+import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.watermark.drawWatermarkTableOnCanvas
@@ -47,6 +48,11 @@ fun TableRender(
 
     val resolver = remember { TableResolver() }
     val plan = remember(templateState, now, counterDigits) {
+        val selectedPhraseTextByCellId = PhraseResolver.resolveSelectedTextByCellId(
+            cells = templateState.cells,
+            phraseSets = templateState.phraseSets,
+            progressCursor = 1,
+        )
         resolver.plan(
             cells = templateState.cells,
             captureNow = now,
@@ -55,7 +61,7 @@ fun TableRender(
                 dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
                 timeFormat = NamingFormatDefaults.TIME_FORMAT_RENDER_COLON
             ),
-            phraseSets = templateState.phraseSets
+            selectedPhraseTextByCellId = selectedPhraseTextByCellId,
         )
     }
 

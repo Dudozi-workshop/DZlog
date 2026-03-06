@@ -55,6 +55,7 @@ import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.ui.table.template.addToFileNameSlots
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -81,6 +82,7 @@ internal fun CellSettingsBottomPanel(
     previewNow: Date,
     previewCounterDigits: Int,
     scopeNextCounter: Int,
+    phraseProgressCursor: Int,
     dateFormat: String,
     timeFormat: String,
     phraseSets: List<RotatingPhraseSet>
@@ -117,10 +119,17 @@ internal fun CellSettingsBottomPanel(
         previewNow,
         previewCounterDigits,
         scopeNextCounter,
+        phraseProgressCursor,
         dateFormat,
         timeFormat,
         phraseSets
     ) {
+        val selectedPhraseTextByCellId = PhraseResolver.resolveSelectedTextByCellId(
+            cells = templateState.cells,
+            phraseSets = phraseSets,
+            // 문구 선택은 문구 진행 커서 기반으로 고정한다(카운터 seed 사용 금지).
+            progressCursor = phraseProgressCursor,
+        )
         resolver.plan(
             cells = templateState.cells,
             captureNow = previewNow,
@@ -130,7 +139,7 @@ internal fun CellSettingsBottomPanel(
                 timeFormat = timeFormat
             ),
             counterSeedOverride = scopeNextCounter,
-            phraseSets = phraseSets
+            selectedPhraseTextByCellId = selectedPhraseTextByCellId,
         ).resolvedCells.associate { it.id to it.resolvedText }
     }
 

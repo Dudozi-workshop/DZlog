@@ -179,6 +179,7 @@ fun LayoutTabContent(
                 previewNow = uiState.previewNow,
                 previewCounterDigits = uiState.previewCounterDigits,
                 scopeNextCounter = uiState.scopeNextCounter,
+                phraseProgressCursor = uiState.phraseProgressCursor,
                 dateFormat = uiState.dateFormat,
                 timeFormat = uiState.timeFormat,
                 phraseSets = uiState.phraseSets

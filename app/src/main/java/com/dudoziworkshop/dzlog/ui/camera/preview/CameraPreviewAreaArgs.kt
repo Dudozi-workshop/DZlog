@@ -54,6 +54,10 @@ internal data class CameraPreviewAreaArgs(
      * 단일 소스 카운터(프리뷰 표기용). COUNTER 셀 ON/OFF에 의해 프리뷰 숫자가 흔들리지 않게 하기 위함.
      */
     val scopeNextCounter: Int,
+    /**
+     * 문구 진행 커서(순환문구 전용). 카운터 seed(scopeNextCounter)와 절대 혼용하지 않는다.
+     */
+    val phraseProgressCursor: Int,
     val tableTemplateState: TableTemplateState,
     val tableResolver: TableResolver,
     val now: Date,

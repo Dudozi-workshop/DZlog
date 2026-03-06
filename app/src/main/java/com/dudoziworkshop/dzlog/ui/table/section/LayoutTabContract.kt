@@ -21,6 +21,8 @@ data class LayoutTabUiState(
     val previewNow: Date,
     val previewCounterDigits: Int,
     val scopeNextCounter: Int,
+    // 순환문구 진행 커서(카운터 seed와 분리된 상태)
+    val phraseProgressCursor: Int,
     val dateFormat: String,
     val timeFormat: String,
     val selectedCellId: String?,
