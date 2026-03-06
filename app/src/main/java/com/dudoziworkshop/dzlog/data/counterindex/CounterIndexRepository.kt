@@ -15,6 +15,9 @@ class CounterIndexRepository private constructor(
     suspend fun getUsedCounters(relativePath: String, prefix: String): Set<Int> =
         dao.listCountersByPath(relativePath, prefix).toSet()
 
+    suspend fun getCommittedCounters(relativePath: String, prefix: String): Set<Int> =
+        dao.listCommittedCountersByPath(relativePath, prefix).toSet()
+
     /**
      * 촬영 시점 기록.
      * - 중복이면 무시(이미 사용된 카운터라는 의미)
@@ -39,6 +42,10 @@ class CounterIndexRepository private constructor(
                 dateAddedSeconds = dateAddedSeconds
             )
         )
+
+        // 동일 스트림/카운터로 commit된 실제 파일이 생기면 placeholder(-1)는 즉시 제거한다.
+        // 그렇지 않으면 UNIQUE(relativePath,prefix,counterValue)에 막혀 다음 commit 기록이 유실될 수 있다.
+        dao.deletePlaceholderByCounter(relativePath, prefix, counterValue)
     }
 
     /**
@@ -50,8 +57,13 @@ class CounterIndexRepository private constructor(
         if (relativePath.isBlank()) return
         if (prefix.isBlank()) return
 
-        dao.deleteByPath(relativePath, prefix)
-        backfillPlaceholders(relativePath, prefix, counters)
+        // 실제 commit 레코드(mediaId>0)는 보존하고 placeholder만 스캔 결과로 재동기화한다.
+        // 전체 삭제를 하면 commit 직후 누적 used counter가 축소될 수 있다.
+        val committed = getCommittedCounters(relativePath, prefix)
+        val merged = committed + counters
+
+        dao.deletePlaceholdersByPath(relativePath, prefix)
+        backfillPlaceholders(relativePath, prefix, merged)
     }
 
     suspend fun backfillPlaceholders(relativePath: String, prefix: String, counters: Set<Int>) {
