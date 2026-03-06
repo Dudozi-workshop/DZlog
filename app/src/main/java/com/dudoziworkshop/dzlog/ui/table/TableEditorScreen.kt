@@ -61,6 +61,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
+import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
@@ -252,7 +253,20 @@ fun TableEditorScreen(
 
     val tableResolver = remember { TableResolver() }
 
-    val plan = remember(templateState, previewNow, previewCounterDigits, counterUi.scopeNextCounter, phraseProgressCounter, dateFormat, timeFormat) {
+    // 정책 정리(4차): 문구 선택은 상위에서 먼저 수행하고, TableResolver는 선택 결과만 반영한다.
+    val selectedPhraseTextByCellId = remember(
+        templateState.cells,
+        templateState.phraseSets,
+        phraseProgressCounter,
+    ) {
+        PhraseResolver.resolveSelectedTextByCellId(
+            cells = templateState.cells,
+            phraseSets = templateState.phraseSets,
+            progressCursor = phraseProgressCounter,
+        )
+    }
+
+    val plan = remember(templateState, previewNow, previewCounterDigits, counterUi.scopeNextCounter, phraseProgressCounter, selectedPhraseTextByCellId, dateFormat, timeFormat) {
         tableResolver.plan(
             cells = templateState.cells,
             captureNow = previewNow,
@@ -263,7 +277,8 @@ fun TableEditorScreen(
             ),
             counterSeedOverride = counterUi.scopeNextCounter,
             phraseProgressCounter = phraseProgressCounter,
-            phraseSets = templateState.phraseSets
+            phraseSets = templateState.phraseSets,
+            selectedPhraseTextByCellId = selectedPhraseTextByCellId,
         )
     }
 

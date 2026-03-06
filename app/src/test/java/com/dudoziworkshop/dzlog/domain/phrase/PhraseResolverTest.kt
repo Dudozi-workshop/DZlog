@@ -1,6 +1,8 @@
 package com.dudoziworkshop.dzlog.domain.phrase
 
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
+import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -90,5 +92,24 @@ class PhraseResolverTest {
 
         assertNull(nullResult)
         assertNull(emptyResult)
+    }
+
+    @Test
+    fun `resolveSelectedTextByCellId returns rotating cell phrase by progress`() {
+        val cell = TableCellState(
+            rowIndex = 0,
+            colIndex = 0,
+            cellId = "r1",
+            dataType = TableCellDataType.ROTATING_TEXT,
+            phraseSetId = set.id,
+        )
+
+        val result = PhraseResolver.resolveSelectedTextByCellId(
+            cells = listOf(cell),
+            phraseSets = listOf(set),
+            progressCursor = 2,
+        )
+
+        assertEquals("헐", result["r1"])
     }
 }

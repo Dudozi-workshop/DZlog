@@ -1,6 +1,8 @@
 package com.dudoziworkshop.dzlog.domain.phrase
 
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
+import com.dudoziworkshop.dzlog.domain.model.TableCellState
 
 /**
  * 문구 선택 정책 전용 resolver.
@@ -32,5 +34,34 @@ object PhraseResolver {
             index = index,
             nextProgressCursor = safeProgress + 1,
         )
+    }
+
+    /**
+     * 템플릿의 ROTATING_TEXT 셀들에 대해 "현재 progress 기준 문구"를 cellId 맵으로 계산한다.
+     * - 문구 선택 책임은 이 resolver가 담당하고,
+     * - TableResolver는 이 맵을 소비해 resolvedCells만 생성한다.
+     */
+    fun resolveSelectedTextByCellId(
+        cells: List<TableCellState>,
+        phraseSets: List<RotatingPhraseSet>,
+        progressCursor: Int,
+    ): Map<String, String> {
+        val phraseSetMap = phraseSets.associateBy { it.id }
+        val safeProgress = progressCursor.coerceAtLeast(1)
+
+        return cells
+            .asSequence()
+            .filter { it.dataType == TableCellDataType.ROTATING_TEXT }
+            .map { cell ->
+                val phraseSetId = cell.phraseSetId?.takeIf { it.isNotBlank() }
+                val phraseSet = phraseSetId?.let { phraseSetMap[it] }
+                val effectiveEvery = (cell.everyOverride ?: phraseSet?.defaultEvery ?: 1).coerceAtLeast(1)
+                cell.cellId to (resolve(
+                    phraseSet = phraseSet,
+                    every = effectiveEvery,
+                    progressCursor = safeProgress
+                )?.text.orEmpty())
+            }
+            .toMap()
     }
 }

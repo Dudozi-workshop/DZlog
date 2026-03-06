@@ -129,6 +129,7 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
+import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
@@ -265,13 +266,26 @@ fun CameraPreview(
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
 
+    // 정책 정리(4차): 문구 선택은 상위에서 먼저 수행하고, TableResolver는 선택 결과만 소비한다.
+    val selectedPhraseTextByCellId = remember(
+        tableTemplateState.cells,
+        tableTemplateState.phraseSets,
+        phraseProgressCounter,
+    ) {
+        PhraseResolver.resolveSelectedTextByCellId(
+            cells = tableTemplateState.cells,
+            phraseSets = tableTemplateState.phraseSets,
+            progressCursor = phraseProgressCounter,
+        )
+    }
+
     val scopeValues = remember(
         tableTemplateState.cells,
         tableTemplateState.fileNameSlots,
+        selectedPhraseTextByCellId,
         ui.capture.now,
         ui.prefs.counterDigits,
         ui.counter.scopeNextCounter,
-        phraseProgressCounter,
     ) {
         val plan = tableResolver.plan(
             cells = tableTemplateState.cells,
@@ -284,6 +298,7 @@ fun CameraPreview(
             counterSeedOverride = ui.counter.scopeNextCounter,
             phraseProgressCounter = phraseProgressCounter,
             phraseSets = tableTemplateState.phraseSets,
+            selectedPhraseTextByCellId = selectedPhraseTextByCellId,
         )
         val fileNameCellIds = tableTemplateState.fileNameSlots.filterNotNull().toSet()
         val isPerPhraseMode = tableTemplateState.cells.any { cell ->
@@ -320,6 +335,7 @@ fun CameraPreview(
         ui.prefs.counterDigits,
         ui.counter.scopeNextCounter,
         phraseProgressCounter,
+        selectedPhraseTextByCellId,
         appSettings.includePathInCounterScope,
         appSettings.includeFilenameInCounterScope,
         scopeValues,
@@ -339,6 +355,7 @@ fun CameraPreview(
             phraseScopeValues = scopeValues.phraseScopeValues,
             scopeNextCounter = ui.counter.scopeNextCounter,
             phraseProgressCounter = phraseProgressCounter,
+            selectedPhraseTextByCellId = selectedPhraseTextByCellId,
         )
     }
     val counterStreamContext = activePlan.streamContext
@@ -1061,6 +1078,7 @@ private fun buildActiveCapturePlan(
     phraseScopeValues: List<String>,
     scopeNextCounter: Int,
     phraseProgressCounter: Int,
+    selectedPhraseTextByCellId: Map<String, String>,
 ): CapturePlan {
     val planForCapture = tableResolver.plan(
         cells = tableTemplateState.cells,
@@ -1073,6 +1091,7 @@ private fun buildActiveCapturePlan(
         counterSeedOverride = scopeNextCounter,
         phraseProgressCounter = phraseProgressCounter,
         phraseSets = tableTemplateState.phraseSets,
+        selectedPhraseTextByCellId = selectedPhraseTextByCellId,
     )
     val namingResult = CaptureNamingPolicy.buildForCaptureWithCounter(
         captureContext = CaptureContext(

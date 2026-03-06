@@ -5,7 +5,6 @@ import com.dudoziworkshop.dzlog.domain.model.HourSystem
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
-import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -31,7 +30,8 @@ class TableResolver {
         config: Config,
         counterSeedOverride: Int? = null,
         phraseProgressCounter: Int? = null,
-        phraseSets: List<RotatingPhraseSet> = emptyList()
+        phraseSets: List<RotatingPhraseSet> = emptyList(),
+        selectedPhraseTextByCellId: Map<String, String> = emptyMap(),
     ): ResolvePlan {
         // 안정적 순서: row/col 기준
         val ordered = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
@@ -48,8 +48,6 @@ class TableResolver {
             currentCounter.toString().padStart(digits, '0')
         }
         val nextCounter = currentCounter + 1
-        val phraseSetMap = phraseSets.associateBy { it.id }
-
         // NOTE: DATE/TIME은 셀의 원본 텍스트(rawText)를 신뢰하지 않는다.
         //       항상 captureNow 기준으로 포맷하여 표시/저장한다.
 
@@ -57,11 +55,9 @@ class TableResolver {
             resolveCell(
                 cell = cell,
                 counterResolved = counterResolved,
-                usedCounter = currentCounter,
-                phraseProgressCounter = phraseProgressCounter,
-                phraseSetMap = phraseSetMap,
                 captureNow = captureNow,
-                config = config
+                config = config,
+                selectedPhraseTextByCellId = selectedPhraseTextByCellId,
             )
         }
 
@@ -77,11 +73,9 @@ class TableResolver {
     private fun resolveCell(
         cell: TableCellState,
         counterResolved: String,
-        usedCounter: Int,
-        phraseProgressCounter: Int?,
-        phraseSetMap: Map<String, RotatingPhraseSet>,
         captureNow: Date,
-        config: Config
+        config: Config,
+        selectedPhraseTextByCellId: Map<String, String>,
     ): ResolvedCell {
         return when (cell.dataType) {
             TableCellDataType.TEXT -> {
@@ -151,17 +145,9 @@ class TableResolver {
             }
 
             TableCellDataType.ROTATING_TEXT -> {
-                val phraseSetId = cell.phraseSetId?.takeIf { it.isNotBlank() }
-                val phraseSet = phraseSetId?.let { phraseSetMap[it] }
-                val effectiveEvery = (cell.everyOverride ?: phraseSet?.defaultEvery ?: 1).coerceAtLeast(1)
-                // 정책: 문구 선택은 PhraseResolver 단일 로직으로 위임한다.
-                // progress cursor는 저장 성공 후에만 전진해야 하므로 plan 계산에서는 읽기 전용으로만 사용한다.
-                val progressCursor = (phraseProgressCounter ?: usedCounter).coerceAtLeast(1)
-                val resolvedText = PhraseResolver.resolve(
-                    phraseSet = phraseSet,
-                    every = effectiveEvery,
-                    progressCursor = progressCursor
-                )?.text.orEmpty()
+                // 정책 정리(4차): TableResolver는 문구를 "선택"하지 않는다.
+                // 상위에서 선택된 문구(selectedPhraseTextByCellId)만 소비하여 해석 결과를 만든다.
+                val resolvedText = selectedPhraseTextByCellId[cell.cellId].orEmpty()
                 ResolvedCell(
                     id = cell.cellId,
                     type = cell.dataType,
