@@ -280,12 +280,19 @@ fun TableEditorScreen(
     }
 
     val scopeValues = remember(templateState.cells, templateState.fileNameSlots, plan.resolvedCells) {
+        val fileNameCellIds = templateState.fileNameSlots.filterNotNull().toSet()
+        val isPerPhraseMode = templateState.cells.any { cell ->
+            cell.dataType == TableCellDataType.ROTATING_TEXT &&
+                cell.rotatingCounterMode == RotatingCounterMode.PER_PHRASE &&
+                cell.cellId in fileNameCellIds
+        }
         // 정책 정리(3차): table 화면도 카운터 scope 조합(date/time/phrase)을 CounterScopeResolver 단일 규칙으로 계산한다.
         CounterScopeResolver.resolve(
             CounterScopeResolver.Inputs(
                 cells = templateState.cells,
                 fileNameSlots = templateState.fileNameSlots,
                 resolvedCells = plan.resolvedCells,
+                isPerPhraseMode = isPerPhraseMode,
             )
         )
     }

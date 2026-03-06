@@ -22,6 +22,7 @@ object CounterScopeResolver {
         val cells: List<TableCellState>,
         val fileNameSlots: List<CellKey?>,
         val resolvedCells: List<ResolvedCell>,
+        val isPerPhraseMode: Boolean,
     )
 
     data class Result(
@@ -53,17 +54,21 @@ object CounterScopeResolver {
             .toList()
 
         val fileNameCellIds = inputs.fileNameSlots.mapNotNull { it }.toSet()
-        val phraseValues = ordered
-            .asSequence()
-            .filter { cell ->
-                cell.dataType == TableCellDataType.ROTATING_TEXT &&
-                    cell.cellId in fileNameCellIds &&
-                    cell.rotatingCounterMode == RotatingCounterMode.PER_PHRASE
-            }
-            .mapNotNull { cell -> resolvedById[cell.cellId]?.resolvedText?.trim() }
-            .filter(String::isNotBlank)
-            .map { text -> "rp_$text" }
-            .toList()
+        val phraseValues = if (!inputs.isPerPhraseMode) {
+            emptyList()
+        } else {
+            ordered
+                .asSequence()
+                .filter { cell ->
+                    cell.dataType == TableCellDataType.ROTATING_TEXT &&
+                        cell.cellId in fileNameCellIds &&
+                        cell.rotatingCounterMode == RotatingCounterMode.PER_PHRASE
+                }
+                .mapNotNull { cell -> resolvedById[cell.cellId]?.resolvedText?.trim() }
+                .filter(String::isNotBlank)
+                .map { text -> "rp_$text" }
+                .toList()
+        }
 
         return Result(
             dateScopeValues = dateValues,

@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.domain.counter
 
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.CellValue
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
@@ -292,6 +293,69 @@ class CounterManagerScopePrefixTest {
     }
 
     @Test
+    fun `computeCounterPrefix excludes global rotating text slot value from filename scope`() {
+        val base = resolvedCell(0, TableCellDataType.TEXT, "N600")
+        val rotatingWhy = resolvedCell(
+            col = 1,
+            type = TableCellDataType.ROTATING_TEXT,
+            text = "왜",
+            rotatingCounterMode = RotatingCounterMode.GLOBAL,
+        )
+        val rotatingWow = resolvedCell(
+            col = 1,
+            type = TableCellDataType.ROTATING_TEXT,
+            text = "헐",
+            rotatingCounterMode = RotatingCounterMode.GLOBAL,
+        )
+
+        val whyPrefix = CounterManager.computeCounterPrefix(
+            resolvedCells = listOf(base, rotatingWhy),
+            fnDelim = "_",
+            fileNameSlots = listOf(base.id, rotatingWhy.id, null),
+            includeFilenameInScope = true,
+        )
+        val wowPrefix = CounterManager.computeCounterPrefix(
+            resolvedCells = listOf(base, rotatingWow),
+            fnDelim = "_",
+            fileNameSlots = listOf(base.id, rotatingWow.id, null),
+            includeFilenameInScope = true,
+        )
+
+        assertEquals("N600", whyPrefix)
+        assertEquals("N600", wowPrefix)
+    }
+
+    @Test
+    fun `computeCounterPrefix keeps per-phrase separation through phrase scope values`() {
+        val base = resolvedCell(0, TableCellDataType.TEXT, "N600")
+        val rotatingPerPhrase = resolvedCell(
+            col = 1,
+            type = TableCellDataType.ROTATING_TEXT,
+            text = "왜",
+            rotatingCounterMode = RotatingCounterMode.PER_PHRASE,
+        )
+
+        val whyPrefix = CounterManager.computeCounterPrefix(
+            resolvedCells = listOf(base, rotatingPerPhrase),
+            fnDelim = "_",
+            fileNameSlots = listOf(base.id, rotatingPerPhrase.id, null),
+            includeFilenameInScope = true,
+            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_왜")),
+        )
+        val wowPrefix = CounterManager.computeCounterPrefix(
+            resolvedCells = listOf(base, rotatingPerPhrase.copy(resolvedText = "헐")),
+            fnDelim = "_",
+            fileNameSlots = listOf(base.id, rotatingPerPhrase.id, null),
+            includeFilenameInScope = true,
+            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_헐")),
+        )
+
+        assertEquals("N600_rp_왜", whyPrefix)
+        assertEquals("N600_rp_헐", wowPrefix)
+        org.junit.Assert.assertNotEquals(whyPrefix, wowPrefix)
+    }
+
+    @Test
     fun `computeCounterPrefix preserves provided phrase scope marker`() {
         val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
 
@@ -363,6 +427,7 @@ class CounterManagerScopePrefixTest {
         type: TableCellDataType,
         text: String,
         scopeToken: String? = null,
+        rotatingCounterMode: RotatingCounterMode? = null,
     ): ResolvedCell {
         val row = 0
         val raw = TableCellState(
@@ -370,7 +435,8 @@ class CounterManagerScopePrefixTest {
             colIndex = col,
             dataType = type,
             groupLevel = GroupLevel.NONE,
-            rawText = text
+            rawText = text,
+            rotatingCounterMode = rotatingCounterMode,
         )
 
         return ResolvedCell(

@@ -118,6 +118,7 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkConfig
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -284,12 +285,19 @@ fun CameraPreview(
             phraseProgressCounter = phraseProgressCounter,
             phraseSets = tableTemplateState.phraseSets,
         )
+        val fileNameCellIds = tableTemplateState.fileNameSlots.filterNotNull().toSet()
+        val isPerPhraseMode = tableTemplateState.cells.any { cell ->
+            cell.dataType == TableCellDataType.ROTATING_TEXT &&
+                cell.rotatingCounterMode == RotatingCounterMode.PER_PHRASE &&
+                cell.cellId in fileNameCellIds
+        }
         // 정책 정리(3차): 카운터 scope 조합(date/time/phrase)은 CounterScopeResolver 단일 경로를 사용한다.
         CounterScopeResolver.resolve(
             CounterScopeResolver.Inputs(
                 cells = tableTemplateState.cells,
                 fileNameSlots = tableTemplateState.fileNameSlots,
                 resolvedCells = plan.resolvedCells,
+                isPerPhraseMode = isPerPhraseMode,
             )
         )
     }

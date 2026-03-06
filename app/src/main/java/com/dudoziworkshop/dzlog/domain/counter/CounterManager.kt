@@ -99,6 +99,13 @@ object CounterManager {
                         TableCellDataType.COUNTER -> null
                         TableCellDataType.DATE,
                         TableCellDataType.TIME -> null
+                        TableCellDataType.ROTATING_TEXT -> {
+                            // 정책 보강(통합 모드 버그 수정):
+                            // - PER_PHRASE: phraseScopeValues(rp_...)로만 분리되도록 slot 토큰에서는 제외
+                            // - GLOBAL(통합): ROTATING_TEXT가 파일명 슬롯에 있어도 카운터 prefix 분리에 영향 주지 않게 제외
+                            // 즉 ROTATING_TEXT는 prefix slotParts에 포함하지 않는다.
+                            null
+                        }
                         else -> rc.resolvedText
                     }
 
