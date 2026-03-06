@@ -6,7 +6,7 @@ import org.junit.Test
 class TimeScopeNormalizerTest {
 
     @Test
-    fun `returns HH:mm when seconds are present`() {
+    fun `returns HH mm when seconds are present`() {
         assertEquals("11:22", normalizeTimeToMinute("11:22:33"))
     }
 

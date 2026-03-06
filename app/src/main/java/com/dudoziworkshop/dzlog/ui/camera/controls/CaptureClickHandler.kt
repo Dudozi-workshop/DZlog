@@ -2,7 +2,6 @@ package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import android.widget.Toast
 import androidx.camera.core.ImageCapture
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
@@ -113,13 +112,6 @@ internal fun handleCaptureClick(
     onSetCapturing(true)
     if (captureHapticEnabled) onHaptic()
 
-    if (Log.isLoggable("CaptureFlow", Log.DEBUG)) {
-        Log.d(
-            "CaptureFlow",
-            "clickStart phraseProgressCounter=$phraseProgressCounter scopeNextCounter=$scopeNextCounter perPhraseModeEnabled=$perPhraseModeEnabled"
-        )
-    }
-
     val captureNow = Date()
     val planForCapture = tableResolver.plan(
         cells = tableTemplateState.cells,
@@ -196,13 +188,6 @@ internal fun handleCaptureClick(
                 fnDelim = fnDelim,
                 counterDigits = counterDigits
             )?.coerceAtLeast(1) ?: policyResult.usedCounter
-            if (Log.isLoggable("CaptureFlow", Log.DEBUG)) {
-                Log.d(
-                    "CaptureFlow",
-                    "captureSuccess committedCounter=$committedCounter displayName=${entry.displayName} phraseScopeValues=$phraseScopeValues"
-                )
-            }
-
             CoroutineScope(Dispatchers.IO).launch {
                 CaptureCounterPolicy.commitCounter(
                     context = context,
@@ -212,12 +197,6 @@ internal fun handleCaptureClick(
                 )
 
                 withContext(Dispatchers.Main) {
-                    if (Log.isLoggable("CaptureFlow", Log.DEBUG)) {
-                        Log.d(
-                            "CaptureFlow",
-                            "beforeMainBranch perPhraseModeEnabled=$perPhraseModeEnabled committedCounter=$committedCounter"
-                        )
-                    }
                     if (perPhraseModeEnabled) {
                         // 정책: 문구별 모드에서는 파일 카운터를 직접 +1로 밀지 않고,
                         // 문구 진행 → scope resync 순서로 SSOT(next seed)를 반영한다.

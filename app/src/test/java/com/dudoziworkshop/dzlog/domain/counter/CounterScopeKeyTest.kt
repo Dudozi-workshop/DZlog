@@ -13,10 +13,12 @@ class CounterScopeKeyTest {
         val previous = CounterScopeSnapshot(
             relativePathKey = "Pictures/DZlog/A/B/",
             prefix = "C|g2=0",
+            scopeKey = "Pictures/DZlog/A/B/|C|g2=0",
             includePathInScope = true,
             includeFilenameInScope = true,
         )
         val current = previous.copy(
+            scopeKey = "Pictures/DZlog/A/B/|C|g2=0",
             includePathInScope = true,
             includeFilenameInScope = false,
         )
@@ -29,14 +31,26 @@ class CounterScopeKeyTest {
         val previous = CounterScopeSnapshot(
             relativePathKey = "Pictures/DZlog/A/B/",
             prefix = "C|g2=0",
+            scopeKey = "Pictures/DZlog/A/B/|*",
             includePathInScope = true,
             includeFilenameInScope = false,
         )
 
-        val current = previous.copy(prefix = "D|g2=0")
+        val current = previous.copy(
+            prefix = "D|g2=0",
+            scopeKey = "Pictures/DZlog/A/B/|*",
+        )
 
         assertFalse(isNewCounterScope(previous, current))
-        assertTrue(isNewCounterScope(previous, current.copy(includeFilenameInScope = true)))
+        assertTrue(
+            isNewCounterScope(
+                previous,
+                current.copy(
+                    includeFilenameInScope = true,
+                    scopeKey = "Pictures/DZlog/A/B/|D|g2=0",
+                )
+            )
+        )
     }
 
     @Test
@@ -44,14 +58,26 @@ class CounterScopeKeyTest {
         val previous = CounterScopeSnapshot(
             relativePathKey = "Pictures/DZlog/A/B/",
             prefix = "C|g2=0",
+            scopeKey = "*|C|g2=0",
             includePathInScope = false,
             includeFilenameInScope = true,
         )
 
-        val current = previous.copy(relativePathKey = "Pictures/DZlog/A/C/")
+        val current = previous.copy(
+            relativePathKey = "Pictures/DZlog/A/C/",
+            scopeKey = "*|C|g2=0",
+        )
 
         assertFalse(isNewCounterScope(previous, current))
-        assertTrue(isNewCounterScope(previous, current.copy(includePathInScope = true)))
+        assertTrue(
+            isNewCounterScope(
+                previous,
+                current.copy(
+                    includePathInScope = true,
+                    scopeKey = "Pictures/DZlog/A/C/|C|g2=0",
+                )
+            )
+        )
     }
 
     @Test
@@ -59,13 +85,15 @@ class CounterScopeKeyTest {
         val previous = CounterScopeSnapshot(
             relativePathKey = "Pictures/DZlog/A/B/",
             prefix = "C|g2=0",
+            scopeKey = "*|*",
             includePathInScope = false,
             includeFilenameInScope = false,
         )
 
         val current = previous.copy(
             relativePathKey = "Pictures/DZlog/X/Y/",
-            prefix = "Z|g2=1"
+            prefix = "Z|g2=1",
+            scopeKey = "*|*",
         )
 
         assertFalse(isNewCounterScope(previous, current))

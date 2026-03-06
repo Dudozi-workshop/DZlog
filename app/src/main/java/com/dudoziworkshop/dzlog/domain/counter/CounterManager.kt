@@ -1,7 +1,6 @@
 package com.dudoziworkshop.dzlog.domain.counter
 
 import android.content.Context
-import android.util.Log
 import com.dudoziworkshop.dzlog.data.counter.CounterScanTarget
 import com.dudoziworkshop.dzlog.data.counter.scanUsedCountersFromMediaStore
 import com.dudoziworkshop.dzlog.data.counter.toCounterScanTarget
@@ -129,19 +128,26 @@ object CounterManager {
             .mapNotNull { sanitizeFilePart(it).takeIf { part -> part.isNotBlank() } }
             .toList()
 
-        val parts = buildList {
-            if (!includeFilenameInScope) add("name=off")
-            addAll(slotParts)
+        // 핵심 정책:
+        // - filename scope ON  -> slot + phrase/date/time
+        // - filename scope OFF -> phrase/date/time만으로도 반드시 스트림 분리
+        //   (즉, rp_왜 / rp_헐 이 서로 다른 prefix가 되어야 함)
+        val scopedParts = buildList {
             addAll(phraseParts)
             addAll(dateParts)
             addAll(timeParts)
         }
 
-        if (Log.isLoggable("CounterPrefix", Log.DEBUG)) {
-            Log.d(
-                "CounterPrefix",
-                "slotParts=$slotParts phraseParts=$phraseParts dateParts=$dateParts timeParts=$timeParts includeFilenameInScope=$includeFilenameInScope prefix=${if (parts.isEmpty()) "DZlog" else parts.joinToString(delim)}"
-            )
+        val parts = buildList {
+            if (includeFilenameInScope) {
+                addAll(slotParts)
+                addAll(scopedParts)
+            } else {
+                // filename scope OFF에서는 slotParts를 배제하되,
+                // phrase/date/time scope 값은 그대로 유지해 prefix 분리를 보장한다.
+                if (scopedParts.isEmpty()) add("name=off")
+                addAll(scopedParts)
+            }
         }
 
         return if (parts.isEmpty()) "DZlog" else parts.joinToString(delim)
@@ -174,12 +180,6 @@ object CounterManager {
         )
         val g2Enabled = resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
         val tag = if (g2Enabled) "g2=1" else "g2=0"
-        if (Log.isLoggable("CounterPrefix", Log.DEBUG)) {
-            Log.d(
-                "CounterPrefix",
-                "streamPrefix=$basePrefix|$tag relative(stream-only)=n/a"
-            )
-        }
         return "$basePrefix|$tag"
     }
 
@@ -249,11 +249,21 @@ object CounterManager {
                 )
             }.getOrDefault(fromDb)
 
-            // 파일 삭제 등으로 DB 인덱스가 실제 보유 파일과 달라진 경우 현재 파일 기준으로 재동기화
-            if (scannedFromMediaStore != fromDb) {
-                runCatching { repo.replaceCounters(relativePath, streamPrefix, scannedFromMediaStore) }
+            // commit 직후(또는 테스트/인덱싱 지연 환경)에는 MediaStore 스캔이 일시적으로 비어 있을 수 있다.
+            // 이 경우 DB에 기록된 같은 스트림의 used counter를 우선 신뢰해 next가 1로 되돌아가지 않게 한다.
+            if (scannedFromMediaStore.isEmpty()) {
+                return fromDb
             }
-            return scannedFromMediaStore
+
+            // MediaStore 스캔은 지연/누락으로 DB 누적분의 부분집합이 될 수 있다.
+            // 같은 스트림에서 commit된 누적 used counter를 잃지 않도록 DB와 스캔 결과를 합집합으로 유지한다.
+            val mergedCounters = fromDb + scannedFromMediaStore
+
+            // 파일 삭제 등으로 DB 인덱스가 실제 보유 파일과 달라진 경우 현재 파일 기준으로 재동기화
+            if (mergedCounters != fromDb) {
+                runCatching { repo.replaceCounters(relativePath, streamPrefix, mergedCounters) }
+            }
+            return mergedCounters
         }
 
         // 2) MediaStore 스캔 fallback

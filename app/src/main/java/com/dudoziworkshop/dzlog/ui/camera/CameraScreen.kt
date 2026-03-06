@@ -16,7 +16,6 @@ import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -737,12 +736,6 @@ fun CameraPreview(
                                                     cell.rotatingCounterMode == RotatingCounterMode.PER_PHRASE &&
                                                     cell.cellId in perPhraseScopedCellIds
                                             }
-                                            if (Log.isLoggable("CaptureFlow", Log.DEBUG)) {
-                                                Log.d(
-                                                    "CaptureFlow",
-                                                    "beforeCapture phraseProgressCounter=$phraseProgressCounter scopeNextCounter=${ui.counter.scopeNextCounter} phraseScopeValues=${scopeDateTimeValues.phraseScopeValues}"
-                                                )
-                                            }
                                             handleCaptureClick(
                                                 context = context,
                                                 gate = ui.capture.captureGate,
@@ -790,12 +783,6 @@ fun CameraPreview(
                                                 // 단일 카운터 구조 유지 + 촬영 직후 활성 stream next 재동기화.
                                                 onRequestCounterResync = {
                                                     scope.launch {
-                                                        if (Log.isLoggable("CaptureFlow", Log.DEBUG)) {
-                                                            Log.d(
-                                                                "CaptureFlow",
-                                                                "requestResync phraseProgressCounter=$phraseProgressCounter scopeNextCounter=${ui.counter.scopeNextCounter} captureResyncTickBefore=$captureResyncTick"
-                                                            )
-                                                        }
                                                         delay(150)
                                                         captureResyncTick += 1
                                                     }
@@ -813,9 +800,6 @@ fun CameraPreview(
                                                 // 촬영 성공 시 문구 진행 커서를 1스텝 전진시킨다(파일 카운터와 독립).
                                                 onAdvancePhraseProgress = {
                                                     phraseProgressCounter += 1
-                                                    if (Log.isLoggable("CaptureFlow", Log.DEBUG)) {
-                                                        Log.d("CaptureFlow", "advancePhraseProgress phraseProgressCounter=$phraseProgressCounter")
-                                                    }
                                                 },
                                                 onSetCapturing = { ui.capture.isCapturing = it }
                                             )
@@ -1265,13 +1249,6 @@ private fun SyncCounterSeedEffect(
         lastCaptureTick = captureTick
         lastSaveMode = appSettings.saveMode
         ui.counter.lastScopeSnapshot = scopeSnapshot
-        if (Log.isLoggable("CaptureFlow", Log.DEBUG)) {
-            Log.d(
-                "CaptureFlow",
-                "afterResync scopeNextCounter=${ui.counter.scopeNextCounter} phraseProgressCounter=n/a captureTick=$captureTick"
-            )
-        }
-
     }
 }
 private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
@@ -1391,11 +1368,5 @@ private fun buildCameraCounterScopeDateTimeValues(
         .filter { it.isNotBlank() }
         .map { "rp_$it" }
         .toList()
-    if (Log.isLoggable("PhraseScope", Log.DEBUG)) {
-        Log.d(
-            "PhraseScope",
-            "fileNameSlots=$fileNameSlots fileNameCellIds=$fileNameCellIds selectedCellIds=${selectedPhraseCells.map { it.cellId }} rotatingModes=${selectedPhraseCells.map { it.rotatingCounterMode }} resolvedTexts=${selectedPhraseCells.map { resolvedById[it.cellId]?.resolvedText }} phraseScopeValues=$phraseValues"
-        )
-    }
     return CameraCounterScopeDateTimeValues(dateScopeValues = dateValues, timeScopeValues = timeValues, phraseScopeValues = phraseValues)
 }

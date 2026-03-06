@@ -6,7 +6,6 @@
 
 package com.dudoziworkshop.dzlog.ui.table
 
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -1139,12 +1138,6 @@ private fun buildPhraseScopeValues(
         .filter { it.isNotBlank() }
         .map { "rp_$it" }
         .toList()
-    if (Log.isLoggable("PhraseScope", Log.DEBUG)) {
-        Log.d(
-            "PhraseScope",
-            "[TableEditor] fileNameSlots=$fileNameSlots fileNameCellIds=$fileNameCellIds selectedCellIds=${selectedPhraseCells.map { it.cellId }} rotatingModes=${selectedPhraseCells.map { it.rotatingCounterMode }} resolvedTexts=${selectedPhraseCells.map { resolvedById[it.cellId]?.resolvedText }} phraseScopeValues=$values"
-        )
-    }
     return values
 }
 

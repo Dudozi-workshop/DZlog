@@ -8,13 +8,11 @@ import org.junit.Test
 class PinchGesturePolicyTest {
 
     @Test
-    fun allows_pinch_when_centroid_in_preview_and_not_over_watermark() {
+    fun allows_pinch_when_centroid_in_capture_rect() {
         val allowed = shouldHandlePinch(
             centroidX = 100f,
             centroidY = 200f,
-            previewWidth = 1080f,
-            previewHeight = 1920f,
-            watermarkRect = RectF(20f, 20f, 80f, 80f),
+            captureRect = RectF(0f, 0f, 1080f, 1920f),
             watermarkDragActive = false
         )
 
@@ -26,9 +24,7 @@ class PinchGesturePolicyTest {
         val allowed = shouldHandlePinch(
             centroidX = 300f,
             centroidY = 300f,
-            previewWidth = 1080f,
-            previewHeight = 1920f,
-            watermarkRect = null,
+            captureRect = RectF(0f, 0f, 1080f, 1920f),
             watermarkDragActive = true
         )
 
@@ -40,9 +36,7 @@ class PinchGesturePolicyTest {
         val allowed = shouldHandlePinch(
             centroidX = -1f,
             centroidY = 300f,
-            previewWidth = 1080f,
-            previewHeight = 1920f,
-            watermarkRect = null,
+            captureRect = RectF(0f, 0f, 1080f, 1920f),
             watermarkDragActive = false
         )
 

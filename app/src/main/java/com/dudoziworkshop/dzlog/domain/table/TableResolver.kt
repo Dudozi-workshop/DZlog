@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.domain.table
 
-import android.util.Log
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.HourSystem
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
@@ -161,12 +160,6 @@ class TableResolver {
                         val counterForPhrase = (phraseProgressCounter ?: usedCounter).coerceAtLeast(1)
                         val index = ((counterForPhrase - 1) / effectiveEvery) % phraseSet.items.size
                         val resolved = phraseSet.items[index]
-                        if (Log.isLoggable("PhraseResolve", Log.DEBUG)) {
-                            Log.d(
-                                "PhraseResolve",
-                                "cellId=${cell.cellId} phraseSetId=${phraseSet.id} effectiveEvery=$effectiveEvery phraseProgressCounter=$phraseProgressCounter usedCounter=$usedCounter resolvedText='$resolved'"
-                            )
-                        }
                         resolved
                     }
                 }

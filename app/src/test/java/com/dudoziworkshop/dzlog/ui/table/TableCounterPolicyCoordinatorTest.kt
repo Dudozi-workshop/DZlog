@@ -15,6 +15,7 @@ class TableCounterPolicyCoordinatorTest {
                 currentScopeSnapshot = CounterScopeSnapshot(
                     relativePathKey = "A",
                     prefix = "B",
+                    scopeKey = "A|B",
                     includePathInScope = true,
                     includeFilenameInScope = true,
                 ),
@@ -25,6 +26,7 @@ class TableCounterPolicyCoordinatorTest {
                 previousScopeSnapshot = CounterScopeSnapshot(
                     relativePathKey = "A",
                     prefix = "B",
+                    scopeKey = "A|B",
                     includePathInScope = true,
                     includeFilenameInScope = true,
                 ),
@@ -43,6 +45,7 @@ class TableCounterPolicyCoordinatorTest {
                 currentScopeSnapshot = CounterScopeSnapshot(
                     relativePathKey = "C",
                     prefix = "D",
+                    scopeKey = "C|D",
                     includePathInScope = true,
                     includeFilenameInScope = true,
                 ),
@@ -53,6 +56,7 @@ class TableCounterPolicyCoordinatorTest {
                 previousScopeSnapshot = CounterScopeSnapshot(
                     relativePathKey = "A",
                     prefix = "B",
+                    scopeKey = "A|B",
                     includePathInScope = true,
                     includeFilenameInScope = true,
                 ),

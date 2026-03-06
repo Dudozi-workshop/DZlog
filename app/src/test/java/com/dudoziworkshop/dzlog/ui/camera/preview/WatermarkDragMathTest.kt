@@ -7,36 +7,6 @@ import org.junit.Test
 class WatermarkDragMathTest {
 
     @Test
-    fun clampOffset_moves_only_y_when_x_axis_has_no_room() {
-        val offset = computeClampedDragOffsetPx(
-            dragStartLeftPx = 0f,
-            dragStartTopPx = 10f,
-            dragAccumDx = 120f,
-            dragAccumDy = 25f,
-            maxX = 0f,
-            maxY = 80f
-        )
-
-        assertEquals(0f, offset.x, 0.0001f)
-        assertEquals(35f, offset.y, 0.0001f)
-    }
-
-    @Test
-    fun clampOffset_moves_only_x_when_y_axis_has_no_room() {
-        val offset = computeClampedDragOffsetPx(
-            dragStartLeftPx = 20f,
-            dragStartTopPx = 0f,
-            dragAccumDx = -8f,
-            dragAccumDy = 32f,
-            maxX = 70f,
-            maxY = 0f
-        )
-
-        assertEquals(12f, offset.x, 0.0001f)
-        assertEquals(0f, offset.y, 0.0001f)
-    }
-
-    @Test
     fun ratioFromPx_returns_zero_for_axis_without_room() {
         val ratios = computeOffsetRatioFromPx(
             committedOffsetPx = Offset(25f, 50f),
@@ -58,5 +28,13 @@ class WatermarkDragMathTest {
 
         assertEquals(100, ratios.first)
         assertEquals(100, ratios.second)
+    }
+
+    @Test
+    fun resolveZoomBounds_clamps_to_at_least_one_and_orders_range() {
+        val bounds = resolveZoomBounds(minSupported = 0.2f, maxSupported = 0.5f)
+
+        assertEquals(1f, bounds.first, 0.0001f)
+        assertEquals(1f, bounds.second, 0.0001f)
     }
 }

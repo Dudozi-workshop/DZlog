@@ -239,7 +239,56 @@ class CounterManagerScopePrefixTest {
             scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_왜")),
         )
 
-        assertEquals("name=off_rp_왜", prefix)
+        assertEquals("rp_왜", prefix)
+    }
+
+    @Test
+    fun `computeCounterPrefix uses different prefixes for different phrase scope values when filename scope is off`() {
+        val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
+
+        val whyPrefix = CounterManager.computeCounterPrefix(
+            resolvedCells = listOf(text),
+            fnDelim = "_",
+            fileNameSlots = listOf(text.id, null, null),
+            includeFilenameInScope = false,
+            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_왜")),
+        )
+
+        val wowPrefix = CounterManager.computeCounterPrefix(
+            resolvedCells = listOf(text),
+            fnDelim = "_",
+            fileNameSlots = listOf(text.id, null, null),
+            includeFilenameInScope = false,
+            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_헐")),
+        )
+
+        assertEquals("rp_왜", whyPrefix)
+        assertEquals("rp_헐", wowPrefix)
+        org.junit.Assert.assertNotEquals(whyPrefix, wowPrefix)
+    }
+
+    @Test
+    fun `computeCounterPrefix keeps same prefix for same phrase scope value when filename scope is off`() {
+        val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
+
+        val first = CounterManager.computeCounterPrefix(
+            resolvedCells = listOf(text),
+            fnDelim = "_",
+            fileNameSlots = listOf(text.id, null, null),
+            includeFilenameInScope = false,
+            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_왜")),
+        )
+
+        val second = CounterManager.computeCounterPrefix(
+            resolvedCells = listOf(text),
+            fnDelim = "_",
+            fileNameSlots = listOf(text.id, null, null),
+            includeFilenameInScope = false,
+            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_왜")),
+        )
+
+        assertEquals("rp_왜", first)
+        assertEquals(first, second)
     }
 
     @Test
