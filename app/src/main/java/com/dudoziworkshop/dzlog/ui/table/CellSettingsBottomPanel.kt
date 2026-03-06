@@ -112,26 +112,55 @@ internal fun CellSettingsBottomPanel(
         pendingRotatingCounterMode = cell.rotatingCounterMode ?: RotatingCounterMode.GLOBAL
     }
 
-    val resolver = remember { TableResolver() }
-    val resolvedByCellId = remember(
-        resolver,
-        templateState.cells,
-        previewNow,
-        previewCounterDigits,
-        scopeNextCounter,
-        phraseProgressCursor,
-        dateFormat,
-        timeFormat,
-        phraseSets
+    // 패널 미리보기는 저장(확정) 이전에도 현재 다이얼로그에서 선택 중인 값을 즉시 반영한다.
+    // 단, 취소 시에는 원본 셀 상태로 되돌아가야 하므로 "다이얼로그가 열려있는 동안"에만 pending 값을 합성한다.
+    val previewSelectedCell = remember(
+        cell,
+        isCounterScopeDialogOpen,
+        pendingCounterScopeMode,
+        isRotatingCounterDialogOpen,
+        pendingRotatingCounterMode
     ) {
-        val selectedPhraseTextByCellId = PhraseResolver.resolveSelectedTextByCellId(
-            cells = templateState.cells,
+        var previewCell = cell
+        if (isCounterScopeDialogOpen && (previewCell.dataType == TableCellDataType.DATE || previewCell.dataType == TableCellDataType.TIME)) {
+            previewCell = previewCell.copy(counterScopeMode = pendingCounterScopeMode)
+        }
+        if (isRotatingCounterDialogOpen && previewCell.dataType == TableCellDataType.ROTATING_TEXT) {
+            previewCell = previewCell.copy(rotatingCounterMode = pendingRotatingCounterMode)
+        }
+        previewCell
+    }
+
+    // resolver 입력도 선택 셀의 최신 편집 스냅샷으로 맞춰 stale preview를 방지한다.
+    val previewCells = remember(templateState.cells, previewSelectedCell) {
+        templateState.cells.map { originalCell ->
+            if (originalCell.cellId == previewSelectedCell.cellId) previewSelectedCell else originalCell
+        }
+    }
+
+    val resolver = remember { TableResolver() }
+    val selectedPhraseTextByCellId = remember(previewCells, phraseSets, phraseProgressCursor) {
+        PhraseResolver.resolveSelectedTextByCellId(
+            cells = previewCells,
             phraseSets = phraseSets,
             // 문구 선택은 문구 진행 커서 기반으로 고정한다(카운터 seed 사용 금지).
             progressCursor = phraseProgressCursor,
         )
+    }
+
+    val resolvedByCellId = remember(
+        resolver,
+        previewCells,
+        selectedPhraseTextByCellId,
+        previewNow,
+        previewCounterDigits,
+        scopeNextCounter,
+        dateFormat,
+        timeFormat,
+        phraseSets
+    ) {
         resolver.plan(
-            cells = templateState.cells,
+            cells = previewCells,
             captureNow = previewNow,
             config = TableResolver.Config(
                 counterDigits = previewCounterDigits,
@@ -336,7 +365,12 @@ internal fun CellSettingsBottomPanel(
 
             if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
                 val formatLabel = if (cell.dataType == TableCellDataType.DATE) "날짜 형식" else "시간 형식"
-                val scopeLabel = when (cell.counterScopeMode ?: CounterScopeMode.EXCLUDE) {
+                val effectiveCounterScopeMode = if (isCounterScopeDialogOpen) {
+                    pendingCounterScopeMode
+                } else {
+                    cell.counterScopeMode ?: CounterScopeMode.EXCLUDE
+                }
+                val scopeLabel = when (effectiveCounterScopeMode) {
                     CounterScopeMode.EXCLUDE -> "스코프: 제외"
                     CounterScopeMode.INCLUDE -> "스코프: 포함"
                 }
@@ -434,7 +468,12 @@ internal fun CellSettingsBottomPanel(
                         modifier = Modifier.weight(1f),
                         onClick = { isRotatingCounterDialogOpen = true }
                     ) {
-                        val label = if ((cell.rotatingCounterMode ?: RotatingCounterMode.GLOBAL) == RotatingCounterMode.PER_PHRASE) {
+                        val effectiveRotatingCounterMode = if (isRotatingCounterDialogOpen) {
+                            pendingRotatingCounterMode
+                        } else {
+                            cell.rotatingCounterMode ?: RotatingCounterMode.GLOBAL
+                        }
+                        val label = if (effectiveRotatingCounterMode == RotatingCounterMode.PER_PHRASE) {
                             "카운터: 문구별"
                         } else {
                             "카운터: 통합"
