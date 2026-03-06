@@ -5,31 +5,28 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.camera.core.ImageCapture
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
-import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureContext
+import com.dudoziworkshop.dzlog.domain.captureplan.CapturePlan
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
-import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
+import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.naming.resolveGroupValue
-import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.domain.table.applyPatch
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Date
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * [handleCaptureClick]
- * - 목적: 촬영 버튼 클릭 처리 로직을 CameraScreen에서 분리함(동작 불변)
- * - 포함: 게이트(중복 촬영 방지) + CaptureRequest 구성 + captureAndSave 호출 + 후처리 콜백 호출
- * - 제외: UI 렌더링(Compose UI), CameraX 바인딩
+ * - 목적: 촬영 버튼 클릭 시 저장 실행/commit 후처리만 담당한다.
+ * - 핵심 정책: 계산은 CameraScreen의 activePlan에서 단일화하고, 클릭 시 재계산하지 않는다.
  */
 internal fun handleCaptureClick(
     context: Context,
@@ -37,20 +34,10 @@ internal fun handleCaptureClick(
     imageCapture: ImageCapture?,
     capturedUriPresent: Boolean,
     continuousPreviewMode: ContinuousPreviewMode,
-    tableResolver: TableResolver,
+    activePlan: CapturePlan,
     tableTemplateState: TableTemplateState,
     counterDigits: Int,
-    dateFormat: String,
-    timeFormat: String,
     fnDelim: String,
-    scopeNextCounter: Int,
-    phraseProgressCounter: Int,
-    perPhraseModeEnabled: Boolean,
-    includePathInCounterScope: Boolean,
-    includeFilenameInCounterScope: Boolean,
-    dateScopeValues: List<String>,
-    timeScopeValues: List<String>,
-    phraseScopeValues: List<String>,
     captureHapticEnabled: Boolean,
     captureAspect: CaptureAspect,
     saveMode: com.dudoziworkshop.dzlog.domain.model.SaveMode,
@@ -95,68 +82,31 @@ internal fun handleCaptureClick(
     onAddToSessionStack: (List<Uri>) -> Unit,
     onHaptic: () -> Unit,
     onSetCapturedUri: (Uri?) -> Unit,
-    onAdvancePhraseProgress: () -> Unit,
+    onAdvancePhraseProgress: (Int) -> Unit,
     onSetCapturing: (Boolean) -> Unit
 ) {
-    // ✅ imageCapture null 가드(토스트 + return)
-    // (부분 패치 적용으로 imageCaptureNonNull 참조만 남는 케이스 방지)
     val imageCaptureNonNull = imageCapture ?: run {
         Toast.makeText(context, "카메라 준비 중", Toast.LENGTH_SHORT).show()
         return
     }
 
     if (capturedUriPresent) return
-
-    // ✅ 중복 촬영 방지: 첫 클릭만 통과
     if (!gate.compareAndSet(false, true)) return
     onSetCapturing(true)
     if (captureHapticEnabled) onHaptic()
 
-    val captureNow = Date()
-    val planForCapture = tableResolver.plan(
-        cells = tableTemplateState.cells,
-        captureNow = captureNow,
-        config = TableResolver.Config(
-            counterDigits = counterDigits,
-            dateFormat = dateFormat,
-            timeFormat = timeFormat
-        ),
-        counterSeedOverride = scopeNextCounter,
-        phraseProgressCounter = phraseProgressCounter,
-        phraseSets = tableTemplateState.phraseSets
-    )
-
-    val policyResult = CaptureNamingPolicy.buildForCaptureWithCounter(
-        captureContext = CaptureContext(
-            resolvedCells = planForCapture.resolvedCells,
-            fileNameSlots = tableTemplateState.fileNameSlots,
-            fnDelim = fnDelim,
-            counterDigits = counterDigits,
-            dateFormat = dateFormat,
-            timeFormat = timeFormat,
-            includePathInCounterScope = includePathInCounterScope,
-            includeFilenameInCounterScope = includeFilenameInCounterScope,
-            dateScopeValues = dateScopeValues,
-            timeScopeValues = timeScopeValues,
-            phraseScopeValues = phraseScopeValues,
-        ),
-        usedCounter = scopeNextCounter
-    )
-
-
     val req = com.dudoziworkshop.dzlog.domain.model.CaptureRequest(
-        group1 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G1),
-        group2 = resolveGroupValue(planForCapture.resolvedCells, GroupLevel.G2),
-        displayName = policyResult.displayName,
-        resolvedCells = planForCapture.resolvedCells,
-        watermarkCells = WatermarkBuilder.buildTableCells(planForCapture.resolvedCells),
+        group1 = resolveGroupValue(activePlan.resolvedCells, GroupLevel.G1),
+        group2 = resolveGroupValue(activePlan.resolvedCells, GroupLevel.G2),
+        displayName = activePlan.displayName,
+        resolvedCells = activePlan.resolvedCells,
+        watermarkCells = WatermarkBuilder.buildTableCells(activePlan.resolvedCells),
         saveMode = saveMode,
         captureAspect = captureAspect,
         photoQualityMode = photoQualityMode,
         tableTemplate = tableTemplateState,
         usableTopRatio = usableTopRatio.coerceIn(0f, 1f),
         usableBottomRatio = usableBottomRatio.coerceIn(0f, 1f),
-        // 함수 타입 호출에서는 named argument 금지 → positional로 호출해야 함
         watermark = buildWatermarkConfig(
             wmTableAnchor,
             wmOffsetXRatio,
@@ -181,31 +131,26 @@ internal fun handleCaptureClick(
         imageCapture = imageCaptureNonNull,
         request = req,
         onDone = { entry ->
-            onApplyTemplatePatch(tableTemplateState.applyPatch(planForCapture.patch))
-
             val committedCounter = CaptureNamingPolicy.parseUsedCounterFromDisplayName(
                 displayName = entry.displayName,
                 fnDelim = fnDelim,
                 counterDigits = counterDigits
-            )?.coerceAtLeast(1) ?: policyResult.usedCounter
+            )?.coerceAtLeast(1) ?: activePlan.usedCounter
+
             CoroutineScope(Dispatchers.IO).launch {
                 CaptureCounterPolicy.commitCounter(
                     context = context,
-                    streamContext = policyResult.streamContext,
+                    streamContext = activePlan.streamContext,
                     usedCounter = committedCounter,
                     mediaStoreId = entry.mediaStoreId
                 )
 
                 withContext(Dispatchers.Main) {
-                    if (perPhraseModeEnabled) {
-                        // 정책: 문구별 모드에서는 파일 카운터를 직접 +1로 밀지 않고,
-                        // 문구 진행 → scope resync 순서로 SSOT(next seed)를 반영한다.
-                        onAdvancePhraseProgress()
-                        onRequestCounterResync()
-                    } else {
-                        // 정책 변경: 통합 모드도 저장 성공 후 resync로만 next seed를 반영한다(선증가 제거).
-                        onRequestCounterResync()
-                    }
+                    // 정책 유지: 저장 성공 후에만 템플릿 patch/문구 진행/카운터 재동기화를 반영한다.
+                    onApplyTemplatePatch(tableTemplateState.applyPatch(activePlan.tablePatch))
+                    // 정책 정리(2차): 문구 진행은 모드와 무관하게 저장 성공 후 plan 기준으로만 전진한다.
+                    onAdvancePhraseProgress(activePlan.nextPhraseProgressCursor)
+                    onRequestCounterResync()
 
                     if (entry.isNameAdjusted) {
                         Toast.makeText(
@@ -226,7 +171,6 @@ internal fun handleCaptureClick(
                         onSetCapturedUri(entry.contentUri)
                     }
 
-                    // 정책 유지: gate/capturing 해제는 commit 완료 이후에만 수행한다.
                     gate.set(false)
                     onSetCapturing(false)
                 }

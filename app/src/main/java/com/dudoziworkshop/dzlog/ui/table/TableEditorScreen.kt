@@ -46,15 +46,13 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureContext
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
+import com.dudoziworkshop.dzlog.domain.counter.CounterScopeResolver
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
-import com.dudoziworkshop.dzlog.domain.counter.policy.normalizeTimeToMinute
 import com.dudoziworkshop.dzlog.domain.model.CellValue
-import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
-import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -280,30 +278,33 @@ fun TableEditorScreen(
         }
     }
 
-    val scopeDateTimeValues = remember(templateState.cells, plan.resolvedCells) {
-        buildCounterScopeDateTimeValues(templateState.cells, plan.resolvedCells)
-    }
-    val phraseScopeValues = remember(templateState.cells, templateState.fileNameSlots, plan.resolvedCells) {
-        // 정책 변경: PER_PHRASE scope는 fileNameSlots에 포함된 ROTATING_TEXT의 resolvedText 기반(rp_)으로만 생성한다.
-        buildPhraseScopeValues(templateState.cells, templateState.fileNameSlots, plan.resolvedCells)
+    val scopeValues = remember(templateState.cells, templateState.fileNameSlots, plan.resolvedCells) {
+        // 정책 정리(3차): table 화면도 카운터 scope 조합(date/time/phrase)을 CounterScopeResolver 단일 규칙으로 계산한다.
+        CounterScopeResolver.resolve(
+            CounterScopeResolver.Inputs(
+                cells = templateState.cells,
+                fileNameSlots = templateState.fileNameSlots,
+                resolvedCells = plan.resolvedCells,
+            )
+        )
     }
 
     val counterStreamContext by remember(
         plan.resolvedCells,
         counterUi.scopeNextCounter,
         isManualCounterModeDisplay,
-        scopeDateTimeValues.dateScopeValues,
-        scopeDateTimeValues.timeScopeValues,
-        phraseScopeValues,
+        scopeValues.dateScopeValues,
+        scopeValues.timeScopeValues,
+        scopeValues.phraseScopeValues,
     ) {
         derivedStateOf {
             buildTableCounterStreamContext(
                 resolvedCells = plan.resolvedCells,
                 fileNameSlots = templateState.fileNameSlots,
                 includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
-                dateScopeValues = scopeDateTimeValues.dateScopeValues,
-                timeScopeValues = scopeDateTimeValues.timeScopeValues,
-                phraseScopeValues = phraseScopeValues,
+                dateScopeValues = scopeValues.dateScopeValues,
+                timeScopeValues = scopeValues.timeScopeValues,
+                phraseScopeValues = scopeValues.phraseScopeValues,
                 scopeNextCounter = counterUi.scopeNextCounter,
                 isManualCounterModeDisplay = isManualCounterModeDisplay,
             )
@@ -454,9 +455,9 @@ fun TableEditorScreen(
         previewCounterDigits,
         counterUi.includePathInCounterScope,
         counterUi.includeFilenameInCounterScope,
-        scopeDateTimeValues.dateScopeValues,
-        scopeDateTimeValues.timeScopeValues,
-        phraseScopeValues,
+        scopeValues.dateScopeValues,
+        scopeValues.timeScopeValues,
+        scopeValues.phraseScopeValues,
         counterStreamContext.nextCounter,
     ) {
         CaptureNamingPolicy.buildForCaptureWithCounter(
@@ -469,9 +470,9 @@ fun TableEditorScreen(
                 timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT,
                 includePathInCounterScope = counterUi.includePathInCounterScope,
                 includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
-                dateScopeValues = scopeDateTimeValues.dateScopeValues,
-                timeScopeValues = scopeDateTimeValues.timeScopeValues,
-                phraseScopeValues = phraseScopeValues,
+                dateScopeValues = scopeValues.dateScopeValues,
+                timeScopeValues = scopeValues.timeScopeValues,
+                phraseScopeValues = scopeValues.phraseScopeValues,
             ),
             usedCounter = counterStreamContext.nextCounter,
         )
@@ -1084,61 +1085,6 @@ fun TableEditorScreen(
             }
         }
     }
-}
-
-
-
-private data class CounterScopeDateTimeValues(
-    val dateScopeValues: List<String>,
-    val timeScopeValues: List<String>
-)
-
-
-private fun buildCounterScopeDateTimeValues(
-    cells: List<TableCellState>,
-    resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>
-): CounterScopeDateTimeValues {
-    val resolvedById = resolvedCells.associateBy { it.id }
-    val ordered = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex }.thenBy { it.cellId })
-    val dateValues = ordered
-        .asSequence()
-        .filter { it.dataType == TableCellDataType.DATE && it.counterScopeMode == CounterScopeMode.INCLUDE }
-        .mapNotNull { resolvedById[it.cellId]?.resolvedText?.takeIf { text -> text.isNotBlank() } }
-        .toList()
-    val timeValues = ordered
-        .asSequence()
-        .filter { it.dataType == TableCellDataType.TIME && it.counterScopeMode == CounterScopeMode.INCLUDE }
-        .mapNotNull { resolvedById[it.cellId]?.resolvedText }
-        .map(::normalizeTimeToMinute)
-        .filter { it.isNotBlank() }
-        .toList()
-    return CounterScopeDateTimeValues(dateScopeValues = dateValues, timeScopeValues = timeValues)
-}
-
-
-private fun buildPhraseScopeValues(
-    cells: List<TableCellState>,
-    fileNameSlots: List<CellKey?>,
-    resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>
-): List<String> {
-    val resolvedById = resolvedCells.associateBy { it.id }
-    val fileNameCellIds = fileNameSlots.mapNotNull { it }.toSet()
-    val ordered = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex }.thenBy { it.cellId })
-    val selectedPhraseCells = ordered
-        .asSequence()
-        .filter { cell ->
-            cell.dataType == TableCellDataType.ROTATING_TEXT &&
-                cell.rotatingCounterMode == RotatingCounterMode.PER_PHRASE &&
-                cell.cellId in fileNameCellIds
-        }
-        .toList()
-    val values = selectedPhraseCells
-        .asSequence()
-        .mapNotNull { resolvedById[it.cellId]?.resolvedText?.trim() }
-        .filter { it.isNotBlank() }
-        .map { "rp_$it" }
-        .toList()
-    return values
 }
 
 /**
