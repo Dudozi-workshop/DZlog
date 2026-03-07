@@ -429,9 +429,7 @@ fun AppRoot() {
         }
 
         AppScreen.SETTINGS -> SettingsScreen(
-            tableTemplateStateProvider = { tableTemplateState },
-            onBack = { screen = AppScreen.HOME },
-            onOpenTableDetail = { navigateTo(AppScreen.TABLE_EDITOR) }
+            onBack = { screen = AppScreen.HOME }
         )
         AppScreen.ALBUM_G1 -> {
             fun openGridByCounts(
