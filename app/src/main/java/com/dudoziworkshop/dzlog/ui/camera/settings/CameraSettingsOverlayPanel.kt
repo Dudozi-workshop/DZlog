@@ -42,8 +42,9 @@ private const val PANEL_WIDTH_FRACTION = 0.6f
 private const val PANEL_DIM_ALPHA = 0.2f
 private val PANEL_MAX_WIDTH = 420.dp
 private val PANEL_CORNER_RADIUS = 14.dp
-private val SEGMENT_HEIGHT = 34.dp
+private val SEGMENT_HEIGHT = 30.dp
 private val SEGMENT_CORNER_RADIUS = 10.dp
+private const val SEGMENT_WIDTH_FRACTION = 0.95f
 private val PANEL_HEADER_ICON_TOUCH = 30.dp
 private val PANEL_HEADER_ICON_SIZE = 12.dp
 
@@ -94,7 +95,7 @@ internal fun CameraSettingsOverlayPanel(
         ) {
             Column(
                 // UX 2차 보정 유지: 내부 상단 여백을 최소화해 패널이 더 위에 붙어 보이게 한다.
-                modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 6.dp),
+                modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 2.dp, bottom = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Row(
@@ -187,31 +188,36 @@ private fun SettingSectionTitle(title: String) {
 @Composable
 private fun ConnectedSegments(options: List<SegmentOption>) {
     val shape = androidx.compose.foundation.shape.RoundedCornerShape(SEGMENT_CORNER_RADIUS)
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(shape),
-        shape = shape,
-        color = DDZColor.Surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, DDZColor.Border)
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
     ) {
-        Row(
+        Surface(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(SEGMENT_HEIGHT)
+                .fillMaxWidth(SEGMENT_WIDTH_FRACTION)
+                .clip(shape),
+            shape = shape,
+            color = DDZColor.Surface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, DDZColor.Border)
         ) {
-            options.forEachIndexed { index, option ->
-                SegmentItem(
-                    option = option,
-                    modifier = Modifier.weight(1f)
-                )
-                if (index != options.lastIndex) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(1.dp)
-                            .background(DDZColor.Border)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(SEGMENT_HEIGHT)
+            ) {
+                options.forEachIndexed { index, option ->
+                    SegmentItem(
+                        option = option,
+                        modifier = Modifier.weight(1f)
                     )
+                    if (index != options.lastIndex) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(1.dp)
+                                .background(DDZColor.Border)
+                        )
+                    }
                 }
             }
         }

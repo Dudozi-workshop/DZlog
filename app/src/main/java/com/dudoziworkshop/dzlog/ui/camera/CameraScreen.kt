@@ -757,69 +757,94 @@ fun CameraPreview(
                                         shutterButtonTopY = coordinates.positionInRoot().y
                                     }
                             ) {
-                                RecentCaptureThumbButton(
-                                    latestImage = latestImage,
-                                    onClick = {
-                                        zoomPanelExpanded = false
-                                        val it = latestImage
-                                        if (it == null) {
-                                            onOpenAlbum()
-                                        } else {
-                                            val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
-                                            onOpenRecentCaptureGrid(g1, g2, it.relativePath, 0)
-                                        }
-                                    },
-                                    modifier = Modifier
-                                        .align(Alignment.CenterStart)
-                                        .padding(start = 16.dp)
-                                )
-
-                                Box(modifier = Modifier.align(Alignment.Center)) {
-                                    CaptureButtonSection(
-                                        ready = enabledNow,
-                                        onClick = {
-                                            // UX 정책: 패널이 열려 있어도 촬영 버튼은 즉시 촬영하고, 패널만 최소화한다.
-                                            zoomPanelExpanded = false
-                                            triggerCapture()
-                                        }
-                                    )
-                                }
-
                                 Row(
                                     modifier = Modifier
-                                        .align(Alignment.CenterEnd)
-                                        .padding(end = 12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    WatermarkRotateButton(
-                                        onClick = {
-                                            val nextRotation = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
-                                            ui.prefs.wmRotationCwDeg = nextRotation
-                                            // 회전은 0°/90°만 토글한다. 위치/크기는 사용자가 직접 이동/조절한다.
-                                            scope.launch {
-                                                context.dataStore.edit {
-                                                    it[KEY_WM_ROTATION_CW_90] = nextRotation
+                                    // 하단 조작부 정책: 10/30/20/30/10 비율로 중심축(anchor-3)과 2·4 midpoint 균형을 비율 기반으로 유지한다.
+                                    // slot1: 최근(anchor-1)
+                                    Box(
+                                        modifier = Modifier.weight(10f),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        RecentCaptureThumbButton(
+                                            latestImage = latestImage,
+                                            onClick = {
+                                                zoomPanelExpanded = false
+                                                val it = latestImage
+                                                if (it == null) {
+                                                    onOpenAlbum()
+                                                } else {
+                                                    val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
+                                                    onOpenRecentCaptureGrid(g1, g2, it.relativePath, 0)
                                                 }
                                             }
-                                        }
-                                    )
+                                        )
+                                    }
 
-                                    UndoCaptureButton(
-                                        enabled = sessionCaptureStack.isNotEmpty() && pendingUndoDeleteUris == null,
-                                        onClick = {
-                                            if (pendingUndoDeleteUris != null) return@UndoCaptureButton
-                                            val targetUris = UndoCapturePolicy.consumeLatestCapture(
-                                                stack = sessionCaptureStack
-                                            )
-                                            if (targetUris.isEmpty()) return@UndoCaptureButton
+                                    // slot2: midpoint(1-3), 추후 확장용 빈 슬롯
+                                    Box(
+                                        modifier = Modifier.weight(30f),
+                                        contentAlignment = Alignment.Center
+                                    ) {}
 
-                                            if (launchScopedDeleteRequest(targetUris)) {
-                                                return@UndoCaptureButton
+                                    // slot3: 촬영(anchor-center)
+                                    Box(
+                                        modifier = Modifier.weight(20f),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CaptureButtonSection(
+                                            ready = enabledNow,
+                                            onClick = {
+                                                // UX 정책: 패널이 열려 있어도 촬영 버튼은 즉시 촬영하고, 패널만 최소화한다.
+                                                zoomPanelExpanded = false
+                                                triggerCapture()
                                             }
-                                            performUndoDelete(targetUris)
-                                        }
-                                    )
+                                        )
+                                    }
+
+                                    // slot4: midpoint(3-5)
+                                    Box(
+                                        modifier = Modifier.weight(30f),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        WatermarkRotateButton(
+                                            onClick = {
+                                                val nextRotation = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
+                                                ui.prefs.wmRotationCwDeg = nextRotation
+                                                // 회전은 0°/90°만 토글한다. 위치/크기는 사용자가 직접 이동/조절한다.
+                                                scope.launch {
+                                                    context.dataStore.edit {
+                                                        it[KEY_WM_ROTATION_CW_90] = nextRotation
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+
+                                    // slot5: undo(anchor-5)
+                                    Box(
+                                        modifier = Modifier.weight(10f),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        UndoCaptureButton(
+                                            enabled = sessionCaptureStack.isNotEmpty() && pendingUndoDeleteUris == null,
+                                            onClick = {
+                                                if (pendingUndoDeleteUris != null) return@UndoCaptureButton
+                                                val targetUris = UndoCapturePolicy.consumeLatestCapture(
+                                                    stack = sessionCaptureStack
+                                                )
+                                                if (targetUris.isEmpty()) return@UndoCaptureButton
+
+                                                if (launchScopedDeleteRequest(targetUris)) {
+                                                    return@UndoCaptureButton
+                                                }
+                                                performUndoDelete(targetUris)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -911,7 +936,7 @@ private fun CameraTopBar(
                         indication = null,
                     ) { onOpenTableEditor() }
                     .padding(horizontal = DDZSpacing.cardPadding, vertical = 5.dp),
-                contentAlignment = Alignment.CenterStart
+                contentAlignment = Alignment.Center
             ) {
                 // 시각적 중앙 보정: 파일명 텍스트가 위로 떠 보이지 않도록 lineHeight/padding을 균형화한다.
                 CounterAwareFileNameText(

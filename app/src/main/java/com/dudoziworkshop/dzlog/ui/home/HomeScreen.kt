@@ -399,7 +399,9 @@ fun HomeScreen(
                     .align(Alignment.Center),
                 verticalArrangement = Arrangement.spacedBy(gap + 4.dp)
             ) {
-                val mainButtonShape = RoundedCornerShape(30.dp)
+                // 홈 액션 버튼 정책: 두 버튼의 높이/라운딩을 통일해 라운드 사각형 톤을 유지한다.
+                val unifiedActionButtonHeight = 54.dp
+                val unifiedActionButtonShape = RoundedCornerShape(18.dp)
 
                 DDZButton(
                     text = "촬영 시작",
@@ -409,14 +411,14 @@ fun HomeScreen(
                         .padding(horizontal = 16.dp)
                         .shadow(
                             elevation = 7.dp,
-                            shape = mainButtonShape,
+                            shape = unifiedActionButtonShape,
                             clip = false,
                             ambientColor = Color.Black.copy(alpha = 0.20f),
                             spotColor = Color.Black.copy(alpha = 0.20f)
                         ),
                     style = DDZButtonStyle.Primary,
-                    minHeight = 58.dp,
-                    shape = mainButtonShape,
+                    minHeight = unifiedActionButtonHeight,
+                    shape = unifiedActionButtonShape,
                     containerColorOverride = DDZColor.PrimaryElevated
                 )
                 DDZButton(
@@ -427,7 +429,8 @@ fun HomeScreen(
                         .padding(horizontal = 32.dp),
                     style = DDZButtonStyle.Secondary,
                     enabled = false,
-                    shape = RoundedCornerShape(24.dp)
+                    minHeight = unifiedActionButtonHeight,
+                    shape = unifiedActionButtonShape
                 )
             }
 
