@@ -27,6 +27,9 @@ internal object TableCounterPolicyCoordinator {
         val currentSeed: Int,
         val streamNext: Int,
         val previousScopeSnapshot: CounterScopeSnapshot?,
+        // preserveManualCounterSeed:
+        // UI에 manual 후보 seed를 계속 보여줄지 여부만 뜻한다.
+        // 저장소 auto-next 기준값(streamNext)을 변경하는 플래그가 아니다.
         val preserveManualCounterSeed: Boolean,
         val manualSeedOverride: Int?
     ) {
@@ -103,6 +106,8 @@ internal object TableCounterPolicyCoordinator {
     fun resolveSeedForScope(input: CounterSeedSyncInput): CounterSeedSyncResult {
         val normalizedManualOverride = input.manualSeedOverride?.coerceAtLeast(1)
 
+        // 새 scope에서는 manual 표시 상태를 초기화하고,
+        // 같은 scope에서는 UI 표시 유지 여부만 이어간다.
         val preserveManual = if (input.isNewStream) {
             false
         } else {

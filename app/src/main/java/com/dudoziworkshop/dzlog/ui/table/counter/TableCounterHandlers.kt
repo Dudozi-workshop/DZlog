@@ -83,6 +83,9 @@ internal fun applyCounterSeed(
 ): TableCounterUiState {
     val normalizedSeed = seed.coerceAtLeast(1)
     return counterUi.copy(
+        // preserveManual:
+        // UI 표시용 manual counter seed 유지 여부만 의미한다.
+        // 저장소(auto-next 기준값) 갱신과는 분리된다.
         preserveManualCounterSeed = preserveManual,
         manualSeedOverride = if (preserveManual) normalizedSeed else null,
         scopeNextCounter = normalizedSeed
@@ -105,6 +108,17 @@ internal fun updateCounterCellAndPolicy(
     updateCell: (TableTemplateState, String, (TableCellState) -> TableCellState) -> TableTemplateState,
     scope: CoroutineScope
 ) {
+    // Counter edit policy:
+    //
+    // manual seed 입력은
+    // - UI 표시값만 변경
+    // - 저장 기준값(auto-next)은 변경하지 않는다.
+    //
+    // 실제 저장 기준값은
+    // - 사진 저장
+    // - auto reset
+    // - 명시적 정책 업데이트
+    // 에서만 변경된다.
     val normalizedSeed = seed.coerceAtLeast(1)
     val updated = updateCell(templateState, cellId) { c ->
         c.copy(typedValue = CellValue.CounterSeed(normalizedSeed))
@@ -112,7 +126,10 @@ internal fun updateCounterCellAndPolicy(
     onTemplateChange(updated)
     setCounterUi(applyCounterSeed(counterUi, normalizedSeed, preserveManual))
 
-    if (preserveManual || forcePolicyUpdate) {
+    // 정책 정리:
+    // - manual 입력은 "현재 표시/저장 후보값"만 바꾸고 실제 auto-next(readback 기준값)는 오염시키지 않는다.
+    // - 따라서 저장소 next counter는 강제 정책 업데이트가 명시된 경우에만 갱신한다.
+    if (forcePolicyUpdate) {
         scope.launch {
             TableCounterPolicyCoordinator.setNextCounter(
                 context = context,
@@ -198,7 +215,8 @@ internal fun applyCounterConflictDialogEffect(
                 cellId = effect.cellId,
                 seed = effect.seed,
                 preserveManual = true,
-                forcePolicyUpdate = true,
+                // 수동 확정도 auto-next 저장 기준값을 오염시키지 않도록 UI 후보값으로만 반영한다.
+                forcePolicyUpdate = false,
                 scopedCounterStream = scopedCounterStream,
                 previewCounterDigits = previewCounterDigits,
                 saveMode = saveMode,
