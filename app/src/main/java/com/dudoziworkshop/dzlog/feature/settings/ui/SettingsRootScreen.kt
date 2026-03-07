@@ -53,6 +53,27 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.launch
 
+private val SETTINGS_QUALITY_ITEMS = listOf(
+    QualityUiItem(
+        mode = PhotoQualityMode.SPEED,
+        icon = Icons.Default.Bolt,
+        title = "속도 우선",
+        description = "저장 속도가 빠르고 용량이 작아요"
+    ),
+    QualityUiItem(
+        mode = PhotoQualityMode.BALANCED,
+        icon = Icons.Default.Tune,
+        title = "균형",
+        description = "속도와 화질의 균형을 맞춰요"
+    ),
+    QualityUiItem(
+        mode = PhotoQualityMode.QUALITY,
+        icon = Icons.Default.Hd,
+        title = "화질 우선",
+        description = "더 선명하지만 저장이 느릴 수 있어요"
+    )
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsRootScreen(
@@ -77,7 +98,7 @@ fun SettingsRootScreen(
         )
     )
 
-    val appVersion = rememberAppVersionLabel()
+    val appVersion = buildAppVersionLabel()
 
     Scaffold(
         containerColor = DDZColor.Background,
@@ -183,28 +204,7 @@ fun SettingsRootScreen(
             }
 
             SectionCard(title = "사진 품질") {
-                val qualityItems = listOf(
-                    QualityUiItem(
-                        mode = PhotoQualityMode.SPEED,
-                        icon = Icons.Default.Bolt,
-                        title = "속도 우선",
-                        description = "저장 속도가 빠르고 용량이 작아요"
-                    ),
-                    QualityUiItem(
-                        mode = PhotoQualityMode.BALANCED,
-                        icon = Icons.Default.Tune,
-                        title = "균형",
-                        description = "속도와 화질의 균형을 맞춰요"
-                    ),
-                    QualityUiItem(
-                        mode = PhotoQualityMode.QUALITY,
-                        icon = Icons.Default.Hd,
-                        title = "화질 우선",
-                        description = "더 선명하지만 저장이 느릴 수 있어요"
-                    )
-                )
-
-                qualityItems.forEach { item ->
+                SETTINGS_QUALITY_ITEMS.forEach { item ->
                     QualityOptionRow(
                         item = item,
                         selected = settings.photoQualityMode == item.mode,
@@ -398,7 +398,7 @@ private fun ToggleOptionRow(
 }
 
 @Composable
-private fun rememberAppVersionLabel(): String {
+private fun buildAppVersionLabel(): String {
     val context = androidx.compose.ui.platform.LocalContext.current
     val pkg = context.packageManager
     val verName = runCatching { pkg.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "-"
