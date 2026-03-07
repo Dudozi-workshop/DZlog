@@ -31,10 +31,13 @@ internal object TableCounterPolicyCoordinator {
         // UI에 manual 후보 seed를 계속 보여줄지 여부만 뜻한다.
         // 저장소 auto-next 기준값(streamNext)을 변경하는 플래그가 아니다.
         val preserveManualCounterSeed: Boolean,
-        val manualSeedOverride: Int?
+        val manualSeedOverride: Int?,
+        // CounterManager scopeKey 계산이 커버하지 못하는 UI scope 변경(예: filename slot 재배치)을
+        // 상위에서 명시적으로 새 scope로 승격할 때 사용한다.
+        val forceTreatAsNewScope: Boolean = false,
     ) {
         val isNewStream: Boolean
-            get() = isNewCounterScope(previous = previousScopeSnapshot, current = currentScopeSnapshot)
+            get() = forceTreatAsNewScope || isNewCounterScope(previous = previousScopeSnapshot, current = currentScopeSnapshot)
     }
 
     data class CounterSeedSyncResult(

@@ -67,4 +67,30 @@ class TableCounterPolicyCoordinatorTest {
 
         assertTrue(result.shouldClearManualOverride)
     }
+
+    @Test
+    fun forced_new_scope_clears_manual_override_even_when_scope_key_is_same() {
+        val sameSnapshot = CounterScopeSnapshot(
+            relativePathKey = "A",
+            prefix = "B",
+            scopeKey = "A|B",
+            includePathInScope = true,
+            includeFilenameInScope = true,
+        )
+        val result = TableCounterPolicyCoordinator.resolveSeedForScope(
+            input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
+                currentScopeSnapshot = sameSnapshot,
+                isManualMode = true,
+                hasCounterCell = true,
+                currentSeed = 7,
+                streamNext = 20,
+                previousScopeSnapshot = sameSnapshot,
+                preserveManualCounterSeed = true,
+                manualSeedOverride = 11,
+                forceTreatAsNewScope = true,
+            )
+        )
+
+        assertTrue(result.shouldClearManualOverride)
+    }
 }

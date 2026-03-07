@@ -251,7 +251,8 @@ internal fun applyCounterConflictDialogEffect(
 internal data class TableCounterSyncResult(
     val counterUi: TableCounterUiState,
     val nextScopeSnapshot: CounterScopeSnapshot,
-    val updatedTemplateState: TableTemplateState?
+    val updatedTemplateState: TableTemplateState?,
+    val nextFilenameScopeSignature: String,
 )
 
 internal suspend fun syncCounterStateForScope(
@@ -264,6 +265,8 @@ internal suspend fun syncCounterStateForScope(
     saveMode: SaveMode,
     isManualCounterModeDisplay: Boolean,
     lastScopeSnapshot: CounterScopeSnapshot?,
+    filenameScopeSignature: String,
+    isFilenameScopeSignatureChanged: Boolean,
     isExternalResync: Boolean,
     updateCell: (TableTemplateState, String, (TableCellState) -> TableCellState) -> TableTemplateState,
 ): TableCounterSyncResult {
@@ -304,7 +307,9 @@ internal suspend fun syncCounterStateForScope(
             streamNext = streamNext,
             previousScopeSnapshot = lastScopeSnapshot,
             preserveManualCounterSeed = counterUi.preserveManualCounterSeed,
-            manualSeedOverride = counterUi.manualSeedOverride
+            manualSeedOverride = counterUi.manualSeedOverride,
+            // filename scope 사용 시 slot 시그니처가 바뀌면 새 scope로 강제 판정한다.
+            forceTreatAsNewScope = isFilenameScopeSignatureChanged,
         )
     )
 
@@ -333,7 +338,8 @@ internal suspend fun syncCounterStateForScope(
     return TableCounterSyncResult(
         counterUi = nextCounterUi,
         nextScopeSnapshot = nextScopeSnapshot,
-        updatedTemplateState = updatedTemplateState
+        updatedTemplateState = updatedTemplateState,
+        nextFilenameScopeSignature = filenameScopeSignature,
     )
 }
 

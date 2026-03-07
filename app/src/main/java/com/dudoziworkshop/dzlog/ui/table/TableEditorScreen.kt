@@ -68,7 +68,6 @@ import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.table.policy.confirmCounterConflictDialog
 import com.dudoziworkshop.dzlog.feature.table.policy.dismissCounterConflictDialog
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
-import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterPolicyCoordinator
 import com.dudoziworkshop.dzlog.ui.table.counter.TableCounterUiState
 import com.dudoziworkshop.dzlog.ui.table.counter.applyCounterConflictDialogEffect
 import com.dudoziworkshop.dzlog.ui.table.counter.buildTableCounterStreamContext
@@ -202,6 +201,17 @@ fun TableEditorScreen(
     var resumeTick by remember { mutableIntStateOf(0) }
     var scopeInputTick by remember { mutableIntStateOf(0) }
     var scopeKeySnapshot by remember { mutableStateOf<String?>(null) }
+    var lastFilenameScopeSignature by remember { mutableStateOf<String?>(null) }
+    val hasTemplateCells = templateState.cells.isNotEmpty()
+
+    // 파일명 slot 구성(추가/제거/순서)은 includeFilenameInCounterScope=true 일 때만 scope 입력으로 취급한다.
+    val filenameScopeSignature = remember(templateState.fileNameSlots, settings.includeFilenameInCounterScope) {
+        if (!settings.includeFilenameInCounterScope) {
+            "filename-scope-disabled"
+        } else {
+            templateState.fileNameSlots.joinToString(separator = "|") { slot -> slot ?: "_" }
+        }
+    }
 
     var previewNow by remember { mutableStateOf(Date()) }
     // 정책 변경: 프리뷰에서도 문구 순환 커서를 파일 카운터와 분리한다.
@@ -244,8 +254,8 @@ fun TableEditorScreen(
 
     LaunchedEffect(
         templateState.cells,
-        templateState.fileNameSlots,
-        templateState.phraseSets
+        templateState.phraseSets,
+        filenameScopeSignature,
     ) {
         // 정책: 스코프 입력(셀/슬롯/문구세트)이 바뀌면 즉시 next counter 재동기화를 강제한다.
         scopeInputTick += 1
@@ -353,6 +363,14 @@ fun TableEditorScreen(
         resumeTick,
         scopeInputTick,
     ) {
+        // 빈 템플릿은 카운터 재동기화 입력이 없으므로 SSOT 경로에서 조기 종료한다.
+        if (!hasTemplateCells) return@LaunchedEffect
+
+        val isFilenameScopeSignatureChanged =
+            settings.includeFilenameInCounterScope &&
+                (lastFilenameScopeSignature != null) &&
+                (lastFilenameScopeSignature != filenameScopeSignature)
+
         val isExternalResync = (resumeTick != lastProcessedResumeTick) || (scopeInputTick != lastProcessedScopeInputTick)
         val syncResult = syncCounterStateForScope(
             context = context,
@@ -364,11 +382,14 @@ fun TableEditorScreen(
             saveMode = tableSaveMode,
             isManualCounterModeDisplay = isManualCounterModeDisplay,
             lastScopeSnapshot = lastScopeSnapshot,
+            filenameScopeSignature = filenameScopeSignature,
+            isFilenameScopeSignatureChanged = isFilenameScopeSignatureChanged,
             isExternalResync = isExternalResync,
             updateCell = ::updateCell
         )
         counterUi = syncResult.counterUi
         lastScopeSnapshot = syncResult.nextScopeSnapshot
+        lastFilenameScopeSignature = syncResult.nextFilenameScopeSignature
         lastProcessedResumeTick = resumeTick
         lastProcessedScopeInputTick = scopeInputTick
         syncResult.updatedTemplateState?.let(onTemplateChange)
