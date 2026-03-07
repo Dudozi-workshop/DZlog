@@ -45,6 +45,7 @@ import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
+import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControl
 import com.dudoziworkshop.dzlog.feature.settings.policy.SettingsAction
 import com.dudoziworkshop.dzlog.feature.settings.policy.applySettingsAction
@@ -52,6 +53,27 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.launch
+
+private val SETTINGS_QUALITY_ITEMS = listOf(
+    QualityUiItem(
+        mode = PhotoQualityMode.SPEED,
+        icon = Icons.Default.Bolt,
+        title = "속도 우선",
+        description = "저장 속도가 빠르고 용량이 작아요"
+    ),
+    QualityUiItem(
+        mode = PhotoQualityMode.BALANCED,
+        icon = Icons.Default.Tune,
+        title = "균형",
+        description = "속도와 화질의 균형을 맞춰요"
+    ),
+    QualityUiItem(
+        mode = PhotoQualityMode.QUALITY,
+        icon = Icons.Default.Hd,
+        title = "화질 우선",
+        description = "더 선명하지만 저장이 느릴 수 있어요"
+    )
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,11 +95,13 @@ fun SettingsRootScreen(
             toastEnabled = true,
             hapticEnabled = true,
             captureHapticEnabled = true,
+            captureSoundEnabled = true,
+            volumeKeyAction = VolumeKeyAction.NONE,
             blankWarningEnabled = true,
         )
     )
 
-    val appVersion = rememberAppVersionLabel()
+    val appVersion = buildAppVersionLabel()
 
     Scaffold(
         containerColor = DDZColor.Background,
@@ -141,6 +165,27 @@ fun SettingsRootScreen(
                     )
                 }
 
+                OptionRow(title = "음량키 동작") {
+                    SegmentedControl(
+                        options = listOf("없음", "촬영", "배율"),
+                        selectedIndex = when (settings.volumeKeyAction) {
+                            VolumeKeyAction.NONE -> 0
+                            VolumeKeyAction.CAPTURE -> 1
+                            VolumeKeyAction.ZOOM -> 2
+                        },
+                        onSelect = { idx ->
+                            val action = when (idx) {
+                                1 -> VolumeKeyAction.CAPTURE
+                                2 -> VolumeKeyAction.ZOOM
+                                else -> VolumeKeyAction.NONE
+                            }
+                            scope.launch {
+                                applySettingsAction(context, SettingsAction.VolumeKeyActionChanged(action))
+                            }
+                        }
+                    )
+                }
+
                 OptionRow(title = "연속촬영 미리보기") {
                     SegmentedControl(
                         options = listOf("없음", "짧게", "고정"),
@@ -183,28 +228,7 @@ fun SettingsRootScreen(
             }
 
             SectionCard(title = "사진 품질") {
-                val qualityItems = listOf(
-                    QualityUiItem(
-                        mode = PhotoQualityMode.SPEED,
-                        icon = Icons.Default.Bolt,
-                        title = "속도 우선",
-                        description = "저장 속도가 빠르고 용량이 작아요"
-                    ),
-                    QualityUiItem(
-                        mode = PhotoQualityMode.BALANCED,
-                        icon = Icons.Default.Tune,
-                        title = "균형",
-                        description = "속도와 화질의 균형을 맞춰요"
-                    ),
-                    QualityUiItem(
-                        mode = PhotoQualityMode.QUALITY,
-                        icon = Icons.Default.Hd,
-                        title = "화질 우선",
-                        description = "더 선명하지만 저장이 느릴 수 있어요"
-                    )
-                )
-
-                qualityItems.forEach { item ->
+                SETTINGS_QUALITY_ITEMS.forEach { item ->
                     QualityOptionRow(
                         item = item,
                         selected = settings.photoQualityMode == item.mode,
@@ -213,6 +237,30 @@ fun SettingsRootScreen(
                         }
                     )
                 }
+            }
+
+            SectionCard(title = "촬영 피드백") {
+                ToggleOptionRow(
+                    title = "촬영 진동",
+                    description = "촬영 버튼 입력 시 진동 피드백을 제공해요",
+                    checked = settings.captureHapticEnabled,
+                    onCheckedChange = { enabled ->
+                        scope.launch {
+                            applySettingsAction(context, SettingsAction.CaptureHapticEnabledChanged(enabled))
+                        }
+                    }
+                )
+
+                ToggleOptionRow(
+                    title = "촬영 소리",
+                    description = "촬영 성공 시 셔터 사운드를 재생해요",
+                    checked = settings.captureSoundEnabled,
+                    onCheckedChange = { enabled ->
+                        scope.launch {
+                            applySettingsAction(context, SettingsAction.CaptureSoundEnabledChanged(enabled))
+                        }
+                    }
+                )
             }
 
             SectionCard(title = "작업 흐름") {
@@ -398,7 +446,7 @@ private fun ToggleOptionRow(
 }
 
 @Composable
-private fun rememberAppVersionLabel(): String {
+private fun buildAppVersionLabel(): String {
     val context = androidx.compose.ui.platform.LocalContext.current
     val pkg = context.packageManager
     val verName = runCatching { pkg.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "-"

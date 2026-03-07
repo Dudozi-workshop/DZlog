@@ -57,6 +57,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -66,9 +67,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -84,6 +83,7 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_GRID_ON
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
+import com.dudoziworkshop.dzlog.data.preferences.KEY_VOLUME_KEY_ACTION
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SAVE_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_PHOTO_QUALITY_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
@@ -111,6 +111,7 @@ import com.dudoziworkshop.dzlog.domain.counter.policy.isNewCounterScope
 import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
+import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.domain.model.WatermarkConfig
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
@@ -236,10 +237,12 @@ fun CameraPreview(
             toastEnabled = true,
             hapticEnabled = true,
             captureHapticEnabled = true,
+            captureSoundEnabled = true,
+            volumeKeyAction = VolumeKeyAction.NONE,
             blankWarningEnabled = true,
         )
     )
-    val haptic = LocalHapticFeedback.current
+    val captureFeedback = remember(context) { CaptureFeedback(context) }
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
@@ -430,6 +433,82 @@ fun CameraPreview(
         scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = 10 } }
     }
 
+    fun commitZoomTenths(next: Int) {
+        val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
+        ui.prefs.zoomRatioTenths = normalized
+        scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
+    }
+
+    // 정책 정리: 셔터 버튼/음량키 모두 같은 촬영 실행 경로를 사용한다.
+    val triggerCapture: () -> Unit = trigger@{
+        // 오작동 방지: 캡처 불가 상태에서는 입력 피드백/촬영 로직을 모두 실행하지 않는다.
+        if (boundImageCapture == null || ui.capture.capturedUri != null || ui.capture.isCapturing) return@trigger
+
+        // 정책 변경: 촬영 피드백은 저장 완료가 아니라 촬영 트리거(버튼/음량키) 시점에 즉시 제공한다.
+        captureFeedback.play(
+            successVibrationEnabled = appSettings.captureHapticEnabled,
+            soundEnabled = appSettings.captureSoundEnabled
+        )
+
+        handleCaptureClick(
+            context = context,
+            gate = ui.capture.captureGate,
+            imageCapture = boundImageCapture,
+            capturedUriPresent = (ui.capture.capturedUri != null),
+            continuousPreviewMode = ui.prefs.continuousPreviewMode,
+            activePlan = activePlan,
+            tableTemplateState = tableTemplateState,
+            counterDigits = ui.prefs.counterDigits,
+            fnDelim = fnDelim,
+            captureAspect = ui.prefs.captureAspect,
+            saveMode = appSettings.saveMode,
+            photoQualityMode = appSettings.photoQualityMode,
+            wmTableAnchor = ui.prefs.wmTableAnchor,
+            wmOffsetXRatio = ui.prefs.wmOffsetXRatio,
+            wmOffsetYRatio = ui.prefs.wmOffsetYRatio,
+            wmBoundsOffsetX10000 = ui.prefs.wmBoundsOffsetX10000,
+            wmBoundsOffsetY10000 = ui.prefs.wmBoundsOffsetY10000,
+            wmTableWidthRatio = ui.prefs.wmTableWidthRatio,
+            wmTableHeightRatio = ui.prefs.wmTableHeightRatio,
+            wmBgAlpha = ui.prefs.wmBgAlpha,
+            wmBgStyle = ui.prefs.wmBgStyle,
+            wmValueScale = ui.prefs.wmValueScale,
+            wmTextColorMode = ui.prefs.wmTextColorMode,
+            wmManualTextColor = ui.prefs.wmManualTextColor,
+            wmTextAlign = ui.prefs.wmTextAlign,
+            wmGridEnabled = ui.prefs.wmGridEnabled,
+            wmRotationCwDeg = ui.prefs.wmRotationCwDeg,
+            usableTopRatio = ui.capture.usableTopRatio,
+            usableBottomRatio = ui.capture.usableBottomRatio,
+            repository = repository,
+            buildWatermarkConfig = ::buildWatermarkConfig,
+            onApplyTemplatePatch = { onTemplateChange(it) },
+            // 정책 변경: 촬영 성공 직후에는 optimistic UI를 우선하고 즉시 강한 readback resync는 생략한다.
+            // 최종 정합성 보정은 resume/undo/saveMode 변경 경로의 SyncCounterSeedEffect가 담당한다.
+            onRequestCounterResync = {
+                Unit
+            },
+            // 저장 성공 직후 프리뷰 숫자를 즉시 다음 값으로 올려 한박자 늦은 반응을 제거한다.
+            onAdvancePreviewCounter = { nextCounter ->
+                ui.counter.scopeNextCounter = nextCounter.coerceAtLeast(1)
+            },
+            onAddToSessionStack = { uris ->
+                UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
+                scope.launch { reloadLatestImage() }
+            },
+            onSetCapturedUri = {
+                ui.capture.capturedUri = it
+            },
+            // 정책 정리(2차): 통합/문구별과 무관하게 저장 성공 후 plan의 다음 cursor를 반영한다.
+            onAdvancePhraseProgress = { nextCursor ->
+                phraseProgressCounter = nextCursor.coerceAtLeast(1)
+            },
+            onSetCapturing = { ui.capture.isCapturing = it }
+        )
+    }
+    val latestVolumeKeyAction by rememberUpdatedState(appSettings.volumeKeyAction)
+    val latestTriggerCapture by rememberUpdatedState(triggerCapture)
+
     LaunchedEffect(ui.capture.capturedUri, ui.prefs.continuousPreviewMode) {
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode == ContinuousPreviewMode.SHORT) {
             delay(1500)
@@ -444,6 +523,31 @@ fun CameraPreview(
     DisposableEffect(Unit) {
         onDispose {
             resetZoomToDefault()
+        }
+    }
+
+    DisposableEffect(appSettings.volumeKeyAction) {
+        VolumeKeyInputBus.setVolumeKeyAction(appSettings.volumeKeyAction)
+        onDispose { VolumeKeyInputBus.setVolumeKeyAction(VolumeKeyAction.NONE) }
+    }
+
+    LaunchedEffect(Unit) {
+        VolumeKeyInputBus.events.collect { press ->
+            when (latestVolumeKeyAction) {
+                VolumeKeyAction.CAPTURE -> {
+                    if (zoomPanelExpanded) {
+                        zoomPanelExpanded = false
+                    }
+                    latestTriggerCapture()
+                }
+
+                VolumeKeyAction.ZOOM -> {
+                    val delta = if (press == VolumeKeyPress.UP) 1 else -1
+                    commitZoomTenths(ui.prefs.zoomRatioTenths + delta)
+                }
+
+                VolumeKeyAction.NONE -> Unit
+            }
         }
     }
 
@@ -647,11 +751,7 @@ fun CameraPreview(
                                 maxZoomTenths = ui.capture.maxZoomTenths,
                                 expanded = zoomPanelExpanded,
                                 onToggleExpanded = { zoomPanelExpanded = !zoomPanelExpanded },
-                                onZoomTenthsChange = { next ->
-                                    val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
-                                    ui.prefs.zoomRatioTenths = normalized
-                                    scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
-                                }
+                                onZoomTenthsChange = ::commitZoomTenths
                             )
 
                             Box(modifier = Modifier.height(2.dp))
@@ -687,65 +787,7 @@ fun CameraPreview(
                                                 zoomPanelExpanded = false
                                                 return@CaptureButtonSection
                                             }
-                                            handleCaptureClick(
-                                                context = context,
-                                                gate = ui.capture.captureGate,
-                                                imageCapture = boundImageCapture,
-                                                capturedUriPresent = (ui.capture.capturedUri != null),
-                                                continuousPreviewMode = ui.prefs.continuousPreviewMode,
-                                                activePlan = activePlan,
-                                                tableTemplateState = tableTemplateState,
-                                                counterDigits = ui.prefs.counterDigits,
-                                                fnDelim = fnDelim,
-                                                captureHapticEnabled = appSettings.captureHapticEnabled,
-                                                captureAspect = ui.prefs.captureAspect,
-                                                saveMode = appSettings.saveMode,
-                                                photoQualityMode = appSettings.photoQualityMode,
-                                                wmTableAnchor = ui.prefs.wmTableAnchor,
-                                                wmOffsetXRatio = ui.prefs.wmOffsetXRatio,
-                                                wmOffsetYRatio = ui.prefs.wmOffsetYRatio,
-                                                wmBoundsOffsetX10000 = ui.prefs.wmBoundsOffsetX10000,
-                                                wmBoundsOffsetY10000 = ui.prefs.wmBoundsOffsetY10000,
-                                                wmTableWidthRatio = ui.prefs.wmTableWidthRatio,
-                                                wmTableHeightRatio = ui.prefs.wmTableHeightRatio,
-                                                wmBgAlpha = ui.prefs.wmBgAlpha,
-                                                wmBgStyle = ui.prefs.wmBgStyle,
-                                                wmValueScale = ui.prefs.wmValueScale,
-                                                wmTextColorMode = ui.prefs.wmTextColorMode,
-                                                wmManualTextColor = ui.prefs.wmManualTextColor,
-                                                wmTextAlign = ui.prefs.wmTextAlign,
-                                                wmGridEnabled = ui.prefs.wmGridEnabled,
-                                                wmRotationCwDeg = ui.prefs.wmRotationCwDeg,
-                                                usableTopRatio = ui.capture.usableTopRatio,
-                                                usableBottomRatio = ui.capture.usableBottomRatio,
-                                                repository = repository,
-                                                buildWatermarkConfig = ::buildWatermarkConfig,
-                                                onApplyTemplatePatch = { onTemplateChange(it) },
-                                                // 정책 변경: 촬영 성공 직후에는 optimistic UI를 우선하고 즉시 강한 readback resync는 생략한다.
-                                                // 최종 정합성 보정은 resume/undo/saveMode 변경 경로의 SyncCounterSeedEffect가 담당한다.
-                                                onRequestCounterResync = {
-                                                    Unit
-                                                },
-                                                // 저장 성공 직후 프리뷰 숫자를 즉시 다음 값으로 올려 한박자 늦은 반응을 제거한다.
-                                                onAdvancePreviewCounter = { nextCounter ->
-                                                    ui.counter.scopeNextCounter = nextCounter.coerceAtLeast(1)
-                                                },
-                                                onAddToSessionStack = { uris ->
-                                                    UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
-                                                    scope.launch { reloadLatestImage() }
-                                                },
-                                                onHaptic = {
-                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                },
-                                                onSetCapturedUri = {
-                                                    ui.capture.capturedUri = it
-                                                },
-                                                // 정책 정리(2차): 통합/문구별과 무관하게 저장 성공 후 plan의 다음 cursor를 반영한다.
-                                                onAdvancePhraseProgress = { nextCursor ->
-                                                    phraseProgressCounter = nextCursor.coerceAtLeast(1)
-                                                },
-                                                onSetCapturing = { ui.capture.isCapturing = it }
-                                            )
+                                            triggerCapture()
                                         }
                                     )
                                 }
@@ -792,6 +834,18 @@ fun CameraPreview(
             }
         }
 
+        if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode != ContinuousPreviewMode.OFF) {
+            // UX 보정: 결과 미리보기 노출 시에는 화면 어디를 눌러도 닫히도록 전체 영역 dismiss를 제공한다.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { ui.capture.capturedUri = null }
+            )
+        }
+
         if (ui.showWizard) {
             CameraSettingsOverlayPanel(
                 captureAspect = ui.prefs.captureAspect,
@@ -818,6 +872,10 @@ fun CameraPreview(
                 onContinuousPreviewModeChange = { mode ->
                     ui.prefs.continuousPreviewMode = mode
                     scope.launch { context.dataStore.edit { it[KEY_CONTINUOUS_PREVIEW_MODE] = mode.v } }
+                },
+                volumeKeyAction = appSettings.volumeKeyAction,
+                onVolumeKeyActionChange = { action ->
+                    scope.launch { context.dataStore.edit { it[KEY_VOLUME_KEY_ACTION] = action.v } }
                 },
                 onDismiss = { ui.showWizard = false }
             )

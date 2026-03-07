@@ -4,6 +4,7 @@ import android.content.Context
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
+import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 
 sealed interface SettingsAction {
     data class SaveModeChanged(val mode: SaveMode) : SettingsAction
@@ -15,6 +16,8 @@ sealed interface SettingsAction {
     data class ToastEnabledChanged(val enabled: Boolean) : SettingsAction
     data class HapticEnabledChanged(val enabled: Boolean) : SettingsAction
     data class CaptureHapticEnabledChanged(val enabled: Boolean) : SettingsAction
+    data class CaptureSoundEnabledChanged(val enabled: Boolean) : SettingsAction
+    data class VolumeKeyActionChanged(val action: VolumeKeyAction) : SettingsAction
     data class BlankWarningEnabledChanged(val enabled: Boolean) : SettingsAction
 }
 
@@ -29,6 +32,8 @@ suspend fun applySettingsAction(context: Context, action: SettingsAction): Strin
         is SettingsAction.ToastEnabledChanged -> updateToastEnabled(context, action.enabled)
         is SettingsAction.HapticEnabledChanged -> updateHapticEnabled(context, action.enabled)
         is SettingsAction.CaptureHapticEnabledChanged -> updateCaptureHapticEnabled(context, action.enabled)
+        is SettingsAction.CaptureSoundEnabledChanged -> updateCaptureSoundEnabled(context, action.enabled)
+        is SettingsAction.VolumeKeyActionChanged -> updateVolumeKeyAction(context, action.action)
         is SettingsAction.BlankWarningEnabledChanged -> updateBlankWarningEnabled(context, action.enabled)
     }
 }

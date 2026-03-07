@@ -42,6 +42,8 @@ val KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE = booleanPreferencesKey("include_filen
 val KEY_TOAST_ENABLED = booleanPreferencesKey("toast_enabled")
 val KEY_HAPTIC_ENABLED = booleanPreferencesKey("haptic_enabled")
 val KEY_CAPTURE_HAPTIC_ENABLED = booleanPreferencesKey("capture_haptic_enabled")
+val KEY_CAPTURE_SOUND_ENABLED = booleanPreferencesKey("capture_sound_enabled")
+val KEY_VOLUME_KEY_ACTION = intPreferencesKey("volume_key_action")
 val KEY_BLANK_WARNING_ENABLED = booleanPreferencesKey("blank_warning_enabled")
 val KEY_CAPTURE_QUALITY_MODE = stringPreferencesKey("capture_quality_mode")
 

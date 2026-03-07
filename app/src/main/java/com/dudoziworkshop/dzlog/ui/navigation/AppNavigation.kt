@@ -121,6 +121,9 @@ fun AppRoot() {
             includeFilenameInCounterScope = true,
             toastEnabled = true,
             hapticEnabled = true,
+            captureHapticEnabled = true,
+            captureSoundEnabled = true,
+            volumeKeyAction = com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction.NONE,
             blankWarningEnabled = true,
         )
     )

@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
+import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -55,6 +56,8 @@ internal fun CameraSettingsOverlayPanel(
     onShowTableChange: (Boolean) -> Unit,
     continuousPreviewMode: ContinuousPreviewMode,
     onContinuousPreviewModeChange: (ContinuousPreviewMode) -> Unit,
+    volumeKeyAction: VolumeKeyAction,
+    onVolumeKeyActionChange: (VolumeKeyAction) -> Unit,
     onDismiss: () -> Unit
 ) {
     val dismissInteraction = remember { MutableInteractionSource() }
@@ -140,6 +143,21 @@ internal fun CameraSettingsOverlayPanel(
                         },
                         SegmentOption("고정", continuousPreviewMode == ContinuousPreviewMode.HOLD) {
                             onContinuousPreviewModeChange(ContinuousPreviewMode.HOLD)
+                        }
+                    )
+                )
+
+                SettingSectionTitle("음량키 동작")
+                ConnectedSegments(
+                    options = listOf(
+                        SegmentOption("없음", volumeKeyAction == VolumeKeyAction.NONE) {
+                            onVolumeKeyActionChange(VolumeKeyAction.NONE)
+                        },
+                        SegmentOption("촬영", volumeKeyAction == VolumeKeyAction.CAPTURE) {
+                            onVolumeKeyActionChange(VolumeKeyAction.CAPTURE)
+                        },
+                        SegmentOption("배율", volumeKeyAction == VolumeKeyAction.ZOOM) {
+                            onVolumeKeyActionChange(VolumeKeyAction.ZOOM)
                         }
                     )
                 )

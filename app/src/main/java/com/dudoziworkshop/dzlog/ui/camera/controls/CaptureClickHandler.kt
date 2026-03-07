@@ -38,7 +38,6 @@ internal fun handleCaptureClick(
     tableTemplateState: TableTemplateState,
     counterDigits: Int,
     fnDelim: String,
-    captureHapticEnabled: Boolean,
     captureAspect: CaptureAspect,
     saveMode: com.dudoziworkshop.dzlog.domain.model.SaveMode,
     photoQualityMode: PhotoQualityMode,
@@ -81,7 +80,6 @@ internal fun handleCaptureClick(
     onRequestCounterResync: () -> Unit,
     onAdvancePreviewCounter: (Int) -> Unit,
     onAddToSessionStack: (List<Uri>) -> Unit,
-    onHaptic: () -> Unit,
     onSetCapturedUri: (Uri?) -> Unit,
     onAdvancePhraseProgress: (Int) -> Unit,
     onSetCapturing: (Boolean) -> Unit
@@ -94,7 +92,6 @@ internal fun handleCaptureClick(
     if (capturedUriPresent) return
     if (!gate.compareAndSet(false, true)) return
     onSetCapturing(true)
-    if (captureHapticEnabled) onHaptic()
 
     val req = com.dudoziworkshop.dzlog.domain.model.CaptureRequest(
         group1 = resolveGroupValue(activePlan.resolvedCells, GroupLevel.G1),

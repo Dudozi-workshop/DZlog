@@ -5,6 +5,7 @@ import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
+import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 
 suspend fun updateSaveMode(context: Context, mode: SaveMode): String {
     AppSettingsStore.setSaveMode(context, mode)
@@ -54,4 +55,15 @@ suspend fun updateBlankWarningEnabled(context: Context, enabled: Boolean): Strin
 suspend fun updateToastEnabled(context: Context, enabled: Boolean): String? {
     AppSettingsStore.setToastEnabled(context, enabled)
     return if (enabled) "토스트 피드백 ON" else null
+}
+
+
+suspend fun updateCaptureSoundEnabled(context: Context, enabled: Boolean): String {
+    AppSettingsStore.setCaptureSoundEnabled(context, enabled)
+    return "촬영 소리: ${if (enabled) "ON" else "OFF"}"
+}
+
+suspend fun updateVolumeKeyAction(context: Context, action: VolumeKeyAction): String {
+    AppSettingsStore.setVolumeKeyAction(context, action)
+    return "음량키 동작: ${action.label}"
 }

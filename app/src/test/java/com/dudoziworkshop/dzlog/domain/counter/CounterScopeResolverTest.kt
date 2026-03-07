@@ -17,6 +17,7 @@ class CounterScopeResolverTest {
                 cells = listOf(rotating),
                 fileNameSlots = listOf("r1", null, null),
                 resolvedCells = listOf(resolved(rotating, "왜")),
+                isPerPhraseMode = true,
             )
         )
 
@@ -31,6 +32,7 @@ class CounterScopeResolverTest {
                 cells = listOf(rotating),
                 fileNameSlots = listOf("r1", null, null),
                 resolvedCells = listOf(resolved(rotating, "헐")),
+                isPerPhraseMode = true,
             )
         )
 
@@ -45,6 +47,7 @@ class CounterScopeResolverTest {
                 cells = listOf(rotating),
                 fileNameSlots = listOf("r1", null, null),
                 resolvedCells = listOf(resolved(rotating, "왜")),
+                isPerPhraseMode = true,
             )
         )
 
@@ -59,6 +62,7 @@ class CounterScopeResolverTest {
                 cells = listOf(rotating),
                 fileNameSlots = listOf(null, null, null),
                 resolvedCells = listOf(resolved(rotating, "왜")),
+                isPerPhraseMode = true,
             )
         )
 
@@ -73,6 +77,7 @@ class CounterScopeResolverTest {
                 cells = listOf(rotating),
                 fileNameSlots = listOf("r1", null, null),
                 resolvedCells = listOf(resolved(rotating, "   ")),
+                isPerPhraseMode = true,
             )
         )
 
