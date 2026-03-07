@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -39,9 +40,9 @@ internal fun ZoomControlSection(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
-            // UX 마감: expanded 상태에서는 바깥 박스 강조를 줄이고 내부 컨트롤 중심으로 보이게 한다.
+            // UX 마감: collapsed/expanded 모두 바깥 카드 강조를 제거하고 컨트롤 자체 가시성에 집중한다.
             .background(
-                color = DDZColor.Card.copy(alpha = if (expanded) 0f else 0.35f),
+                color = DDZColor.Card.copy(alpha = 0f),
                 shape = RoundedCornerShape(16.dp)
             )
             .padding(horizontal = 10.dp, vertical = 8.dp)
@@ -67,7 +68,12 @@ internal fun ZoomControlSection(
                     onZoomTenthsChange(stepped)
                 },
                 valueRange = 1f..(normalizedMaxTenths / 10f),
-                steps = (normalizedMaxTenths - 10).coerceAtLeast(1) - 1
+                steps = (normalizedMaxTenths - 10).coerceAtLeast(1) - 1,
+                colors = SliderDefaults.colors(
+                    thumbColor = DDZColor.SageDarkStrong,
+                    activeTrackColor = DDZColor.SagePrimary,
+                    inactiveTrackColor = DDZColor.Card.copy(alpha = 0.92f)
+                )
             )
 
             // 정책: 프리셋은 빠른 이동용이며, 지원 최대 줌을 넘는 경우 가능한 범위로 자동 보정한다.
@@ -82,7 +88,11 @@ internal fun ZoomControlSection(
                     Box(
                         modifier = Modifier
                             .background(
-                                color = if (selected) DDZColor.SageLight.copy(alpha = 0.65f) else DDZColor.Surface.copy(alpha = 0.96f),
+                                color = if (selected) {
+                                    DDZColor.SageLight.copy(alpha = 0.72f)
+                                } else {
+                                    DDZColor.Card.copy(alpha = 0.96f)
+                                },
                                 shape = RoundedCornerShape(999.dp)
                             )
                             .border(1.dp, if (selected) DDZColor.SageDark else DDZColor.Border, RoundedCornerShape(999.dp))
@@ -92,7 +102,7 @@ internal fun ZoomControlSection(
                         Text(
                             text = if (presetTenths == 10) "1x" else if (presetTenths == 20) "2x" else if (presetTenths == 40) "4x" else "10x",
                             style = DDZTypography.Caption,
-                            color = if (selected) DDZColor.SageDark else DDZColor.TextPrimary
+                            color = if (selected) DDZColor.SageDark else DDZColor.Primary
                         )
                     }
                 }

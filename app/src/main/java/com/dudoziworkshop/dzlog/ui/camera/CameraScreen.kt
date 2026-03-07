@@ -69,6 +69,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.LifecycleOwner
@@ -908,7 +909,7 @@ private fun CameraTopBar(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .widthIn(max = filenameMaxWidth)
-                    .defaultMinSize(minHeight = 28.dp)
+                    .defaultMinSize(minHeight = 30.dp)
                     .background(
                         color = DDZColor.Card.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(8.dp)
@@ -918,11 +919,13 @@ private fun CameraTopBar(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                     ) { onOpenTableEditor() }
-                    .padding(horizontal = DDZSpacing.cardPadding, vertical = 4.dp)
+                    .padding(horizontal = DDZSpacing.cardPadding, vertical = 5.dp),
+                contentAlignment = Alignment.CenterStart
             ) {
+                // 시각적 중앙 보정: 파일명 텍스트가 위로 떠 보이지 않도록 lineHeight/padding을 균형화한다.
                 CounterAwareFileNameText(
                     fileName = topDisplayName,
-                    style = DDZTypography.Caption,
+                    style = DDZTypography.Caption.copy(lineHeight = 14.sp),
                     color = DDZColor.TextStrong,
                 )
             }

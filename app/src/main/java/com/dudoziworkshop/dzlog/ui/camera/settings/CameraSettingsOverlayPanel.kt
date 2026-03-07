@@ -29,8 +29,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
@@ -42,7 +45,9 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 private const val PANEL_WIDTH_FRACTION = 0.6f
 private val PANEL_MAX_WIDTH = 420.dp
 private const val PANEL_DIM_ALPHA = 0.2f
-private val SEGMENT_HEIGHT = 38.dp
+private val SEGMENT_HEIGHT = 36.dp
+private val PANEL_HEADER_ICON_TOUCH = 34.dp
+private val PANEL_HEADER_ICON_SIZE = 14.dp
 
 @Composable
 @Suppress("UNUSED_PARAMETER")
@@ -81,19 +86,21 @@ internal fun CameraSettingsOverlayPanel(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(
-                    top = statusBarPadding.calculateTopPadding() + DDZSpacing.sectionGap,
-                    end = DDZSpacing.screenPadding
+                    // 정책 유지: 오버레이 패널은 status bar inset 바로 아래에서 시작한다.
+                    top = statusBarPadding.calculateTopPadding(),
+                    end = 0.dp
                 )
                 .fillMaxWidth(PANEL_WIDTH_FRACTION)
-                .widthIn(max = PANEL_MAX_WIDTH),
+                .widthIn(max = PANEL_MAX_WIDTH)
+                .zIndex(30f),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
             tonalElevation = 0.dp,
             shadowElevation = 6.dp,
             color = DDZColor.Card.copy(alpha = 0.97f)
         ) {
             Column(
-                modifier = Modifier.padding(DDZSpacing.cardPadding),
-                verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -102,19 +109,28 @@ internal fun CameraSettingsOverlayPanel(
                 ) {
                     Text(
                         text = "촬영 설정",
-                        style = DDZTypography.SectionTitle,
+                        style = DDZTypography.Body.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
                         color = DDZColor.Primary
                     )
-                    IconButton(onClick = onDismiss) {
+                    IconButton(
+                        modifier = Modifier
+                            .width(PANEL_HEADER_ICON_TOUCH)
+                            .height(PANEL_HEADER_ICON_TOUCH),
+                        onClick = onDismiss
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "닫기",
-                            tint = DDZColor.Primary
+                            tint = DDZColor.Primary,
+                            modifier = Modifier.width(PANEL_HEADER_ICON_SIZE)
                         )
                     }
                 }
 
-                HorizontalDivider(color = DDZColor.Border)
+                HorizontalDivider(
+                    color = DDZColor.Border,
+                    modifier = Modifier.padding(top = 0.dp, bottom = 1.dp)
+                )
 
                 SettingSectionTitle("촬영 비율")
                 ConnectedSegments(
@@ -172,7 +188,7 @@ private data class SegmentOption(
 private fun SettingSectionTitle(title: String) {
     Text(
         text = title,
-        style = DDZTypography.Body,
+        style = DDZTypography.Caption.copy(fontSize = 10.sp),
         color = DDZColor.Primary
     )
 }
@@ -233,7 +249,7 @@ private fun SegmentItem(
     ) {
         Text(
             text = option.label,
-            style = DDZTypography.SegmentSmall,
+            style = DDZTypography.SegmentSmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
             color = textColor,
             maxLines = 1,
             softWrap = false,
