@@ -253,7 +253,7 @@ fun SettingsRootScreen(
 
                 ToggleOptionRow(
                     title = "촬영 소리",
-                    description = "촬영 성공 시 셔터 사운드를 재생해요",
+                    description = "촬영 버튼 입력 시 셔터 사운드를 재생해요",
                     checked = settings.captureSoundEnabled,
                     onCheckedChange = { enabled ->
                         scope.launch {

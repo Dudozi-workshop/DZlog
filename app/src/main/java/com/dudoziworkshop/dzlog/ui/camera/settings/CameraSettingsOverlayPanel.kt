@@ -45,6 +45,7 @@ private const val PANEL_DIM_ALPHA = 0.2f
 private val SEGMENT_HEIGHT = 38.dp
 
 @Composable
+@Suppress("UNUSED_PARAMETER")
 internal fun CameraSettingsOverlayPanel(
     captureAspect: CaptureAspect,
     onCaptureAspectChange: (CaptureAspect) -> Unit,
@@ -56,8 +57,9 @@ internal fun CameraSettingsOverlayPanel(
     onShowTableChange: (Boolean) -> Unit,
     continuousPreviewMode: ContinuousPreviewMode,
     onContinuousPreviewModeChange: (ContinuousPreviewMode) -> Unit,
-    volumeKeyAction: VolumeKeyAction,
-    onVolumeKeyActionChange: (VolumeKeyAction) -> Unit,
+    // 정책 유지: 음량키 동작은 전체설정 전용이다. 기존 호출 호환을 위해 파라미터만 유지한다.
+    volumeKeyAction: VolumeKeyAction = VolumeKeyAction.NONE,
+    onVolumeKeyActionChange: (VolumeKeyAction) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val dismissInteraction = remember { MutableInteractionSource() }
@@ -132,7 +134,7 @@ internal fun CameraSettingsOverlayPanel(
                     )
                 )
 
-                SettingSectionTitle("촬영 모드")
+                SettingSectionTitle("미리보기")
                 ConnectedSegments(
                     options = listOf(
                         SegmentOption("없음", continuousPreviewMode == ContinuousPreviewMode.OFF) {
@@ -143,21 +145,6 @@ internal fun CameraSettingsOverlayPanel(
                         },
                         SegmentOption("고정", continuousPreviewMode == ContinuousPreviewMode.HOLD) {
                             onContinuousPreviewModeChange(ContinuousPreviewMode.HOLD)
-                        }
-                    )
-                )
-
-                SettingSectionTitle("음량키 동작")
-                ConnectedSegments(
-                    options = listOf(
-                        SegmentOption("없음", volumeKeyAction == VolumeKeyAction.NONE) {
-                            onVolumeKeyActionChange(VolumeKeyAction.NONE)
-                        },
-                        SegmentOption("촬영", volumeKeyAction == VolumeKeyAction.CAPTURE) {
-                            onVolumeKeyActionChange(VolumeKeyAction.CAPTURE)
-                        },
-                        SegmentOption("배율", volumeKeyAction == VolumeKeyAction.ZOOM) {
-                            onVolumeKeyActionChange(VolumeKeyAction.ZOOM)
                         }
                     )
                 )

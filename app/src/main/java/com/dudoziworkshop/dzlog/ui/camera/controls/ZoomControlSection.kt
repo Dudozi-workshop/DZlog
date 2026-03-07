@@ -39,16 +39,17 @@ internal fun ZoomControlSection(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
+            // UX 마감: expanded 상태에서는 바깥 박스 강조를 줄이고 내부 컨트롤 중심으로 보이게 한다.
             .background(
-                color = DDZColor.Card.copy(alpha = if (expanded) 0.9f else 0.35f),
+                color = DDZColor.Card.copy(alpha = if (expanded) 0f else 0.35f),
                 shape = RoundedCornerShape(16.dp)
             )
-            
             .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
         Box(
             modifier = Modifier
                 .defaultMinSize(minWidth = 34.dp, minHeight = 34.dp)
+                .background(DDZColor.Surface.copy(alpha = 0.95f), RoundedCornerShape(999.dp))
                 .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(999.dp))
                 .clickable(onClick = onToggleExpanded)
                 .padding(horizontal = 8.dp, vertical = 5.dp),
@@ -81,7 +82,7 @@ internal fun ZoomControlSection(
                     Box(
                         modifier = Modifier
                             .background(
-                                color = if (selected) DDZColor.SageLight.copy(alpha = 0.6f) else DDZColor.Surface,
+                                color = if (selected) DDZColor.SageLight.copy(alpha = 0.65f) else DDZColor.Surface.copy(alpha = 0.96f),
                                 shape = RoundedCornerShape(999.dp)
                             )
                             .border(1.dp, if (selected) DDZColor.SageDark else DDZColor.Border, RoundedCornerShape(999.dp))

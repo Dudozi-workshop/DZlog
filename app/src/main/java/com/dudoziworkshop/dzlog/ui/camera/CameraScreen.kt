@@ -83,7 +83,6 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_GRID_ON
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
-import com.dudoziworkshop.dzlog.data.preferences.KEY_VOLUME_KEY_ACTION
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SAVE_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_PHOTO_QUALITY_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
@@ -116,7 +115,6 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkConfig
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
-import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
@@ -485,9 +483,7 @@ fun CameraPreview(
             onApplyTemplatePatch = { onTemplateChange(it) },
             // 정책 변경: 촬영 성공 직후에는 optimistic UI를 우선하고 즉시 강한 readback resync는 생략한다.
             // 최종 정합성 보정은 resume/undo/saveMode 변경 경로의 SyncCounterSeedEffect가 담당한다.
-            onRequestCounterResync = {
-                Unit
-            },
+            onRequestCounterResync = { },
             // 저장 성공 직후 프리뷰 숫자를 즉시 다음 값으로 올려 한박자 늦은 반응을 제거한다.
             onAdvancePreviewCounter = { nextCounter ->
                 ui.counter.scopeNextCounter = nextCounter.coerceAtLeast(1)
@@ -562,8 +558,14 @@ fun CameraPreview(
         ) {
             CameraTopBar(
                 topDisplayName = topDisplayName,
-                onOpenTableEditor = onOpenTableEditor,
-                onOpenSettings = { ui.showWizard = true },
+                onOpenTableEditor = {
+                    zoomPanelExpanded = false
+                    onOpenTableEditor()
+                },
+                onOpenSettings = {
+                    zoomPanelExpanded = false
+                    ui.showWizard = true
+                },
             )
 
             Box(
@@ -743,7 +745,7 @@ fun CameraPreview(
                         contentAlignment = Alignment.Center
                     ) {
                         val enabledNow =
-                            (boundImageCapture != null && ui.capture.capturedUri == null && !ui.capture.isCapturing && !zoomPanelExpanded)
+                            (boundImageCapture != null && ui.capture.capturedUri == null && !ui.capture.isCapturing)
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             ZoomControlSection(
@@ -766,6 +768,7 @@ fun CameraPreview(
                                 RecentCaptureThumbButton(
                                     latestImage = latestImage,
                                     onClick = {
+                                        zoomPanelExpanded = false
                                         val it = latestImage
                                         if (it == null) {
                                             onOpenAlbum()
@@ -783,10 +786,8 @@ fun CameraPreview(
                                     CaptureButtonSection(
                                         ready = enabledNow,
                                         onClick = {
-                                            if (zoomPanelExpanded) {
-                                                zoomPanelExpanded = false
-                                                return@CaptureButtonSection
-                                            }
+                                            // UX 정책: 패널이 열려 있어도 촬영 버튼은 즉시 촬영하고, 패널만 최소화한다.
+                                            zoomPanelExpanded = false
                                             triggerCapture()
                                         }
                                     )
@@ -872,10 +873,6 @@ fun CameraPreview(
                 onContinuousPreviewModeChange = { mode ->
                     ui.prefs.continuousPreviewMode = mode
                     scope.launch { context.dataStore.edit { it[KEY_CONTINUOUS_PREVIEW_MODE] = mode.v } }
-                },
-                volumeKeyAction = appSettings.volumeKeyAction,
-                onVolumeKeyActionChange = { action ->
-                    scope.launch { context.dataStore.edit { it[KEY_VOLUME_KEY_ACTION] = action.v } }
                 },
                 onDismiss = { ui.showWizard = false }
             )
