@@ -29,28 +29,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.zIndex
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
-import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 private const val PANEL_WIDTH_FRACTION = 0.6f
-private val PANEL_MAX_WIDTH = 420.dp
 private const val PANEL_DIM_ALPHA = 0.2f
-private val SEGMENT_HEIGHT = 36.dp
-private val PANEL_HEADER_ICON_TOUCH = 34.dp
-private val PANEL_HEADER_ICON_SIZE = 14.dp
+private val PANEL_MAX_WIDTH = 420.dp
+private val PANEL_CORNER_RADIUS = 14.dp
+private val SEGMENT_HEIGHT = 34.dp
+private val SEGMENT_CORNER_RADIUS = 10.dp
+private val PANEL_HEADER_ICON_TOUCH = 30.dp
+private val PANEL_HEADER_ICON_SIZE = 12.dp
 
 @Composable
-@Suppress("UNUSED_PARAMETER")
 internal fun CameraSettingsOverlayPanel(
     captureAspect: CaptureAspect,
     onCaptureAspectChange: (CaptureAspect) -> Unit,
@@ -62,9 +59,6 @@ internal fun CameraSettingsOverlayPanel(
     onShowTableChange: (Boolean) -> Unit,
     continuousPreviewMode: ContinuousPreviewMode,
     onContinuousPreviewModeChange: (ContinuousPreviewMode) -> Unit,
-    // 정책 유지: 음량키 동작은 전체설정 전용이다. 기존 호출 호환을 위해 파라미터만 유지한다.
-    volumeKeyAction: VolumeKeyAction = VolumeKeyAction.NONE,
-    onVolumeKeyActionChange: (VolumeKeyAction) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val dismissInteraction = remember { MutableInteractionSource() }
@@ -93,14 +87,15 @@ internal fun CameraSettingsOverlayPanel(
                 .fillMaxWidth(PANEL_WIDTH_FRACTION)
                 .widthIn(max = PANEL_MAX_WIDTH)
                 .zIndex(30f),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(PANEL_CORNER_RADIUS),
             tonalElevation = 0.dp,
             shadowElevation = 6.dp,
             color = DDZColor.Card.copy(alpha = 0.97f)
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                verticalArrangement = Arrangement.spacedBy(5.dp)
+                // UX 2차 보정 유지: 내부 상단 여백을 최소화해 패널이 더 위에 붙어 보이게 한다.
+                modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -109,7 +104,7 @@ internal fun CameraSettingsOverlayPanel(
                 ) {
                     Text(
                         text = "촬영 설정",
-                        style = DDZTypography.Body.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
+                        style = DDZTypography.OverlayTitleCompact,
                         color = DDZColor.Primary
                     )
                     IconButton(
@@ -127,10 +122,7 @@ internal fun CameraSettingsOverlayPanel(
                     }
                 }
 
-                HorizontalDivider(
-                    color = DDZColor.Border,
-                    modifier = Modifier.padding(top = 0.dp, bottom = 1.dp)
-                )
+                HorizontalDivider(color = DDZColor.Border)
 
                 SettingSectionTitle("촬영 비율")
                 ConnectedSegments(
@@ -172,7 +164,6 @@ internal fun CameraSettingsOverlayPanel(
                         SegmentOption("표", showTable) { onShowTableChange(!showTable) }
                     )
                 )
-
             }
         }
     }
@@ -188,14 +179,14 @@ private data class SegmentOption(
 private fun SettingSectionTitle(title: String) {
     Text(
         text = title,
-        style = DDZTypography.Caption.copy(fontSize = 10.sp),
+        style = DDZTypography.SectionLabelCompact,
         color = DDZColor.Primary
     )
 }
 
 @Composable
 private fun ConnectedSegments(options: List<SegmentOption>) {
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(SEGMENT_CORNER_RADIUS)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -232,12 +223,7 @@ private fun SegmentItem(
     option: SegmentOption,
     modifier: Modifier = Modifier
 ) {
-    val background = if (option.selected) {
-        DDZColor.SageLight.copy(alpha = 0.45f)
-    } else {
-        DDZColor.Surface
-    }
-
+    val background = if (option.selected) DDZColor.SageLight.copy(alpha = 0.45f) else DDZColor.Surface
     val textColor = if (option.selected) DDZColor.SageDark else DDZColor.Primary
 
     Box(
@@ -249,7 +235,7 @@ private fun SegmentItem(
     ) {
         Text(
             text = option.label,
-            style = DDZTypography.SegmentSmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
+            style = DDZTypography.SegmentCompact,
             color = textColor,
             maxLines = 1,
             softWrap = false,

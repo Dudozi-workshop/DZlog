@@ -261,7 +261,6 @@ fun CameraPreview(
 
     val tableResolver = remember { TableResolver() }
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-    // 컴파일 복구: CameraPreview 내부 공통 기본값 선언(date/time).
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
 
@@ -485,21 +484,15 @@ fun CameraPreview(
             // 정책 변경: 촬영 성공 직후에는 optimistic UI를 우선하고 즉시 강한 readback resync는 생략한다.
             // 최종 정합성 보정은 resume/undo/saveMode 변경 경로의 SyncCounterSeedEffect가 담당한다.
             onRequestCounterResync = { },
-            // 저장 성공 직후 프리뷰 숫자를 즉시 다음 값으로 올려 한박자 늦은 반응을 제거한다.
-            onAdvancePreviewCounter = { nextCounter ->
-                ui.counter.scopeNextCounter = nextCounter.coerceAtLeast(1)
-            },
+            // 정책 유지: 저장 성공 직후 프리뷰 숫자를 즉시 다음 값으로 반영한다.
+            onAdvancePreviewCounter = { nextCounter -> ui.counter.scopeNextCounter = nextCounter.coerceAtLeast(1) },
             onAddToSessionStack = { uris ->
                 UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
                 scope.launch { reloadLatestImage() }
             },
-            onSetCapturedUri = {
-                ui.capture.capturedUri = it
-            },
-            // 정책 정리(2차): 통합/문구별과 무관하게 저장 성공 후 plan의 다음 cursor를 반영한다.
-            onAdvancePhraseProgress = { nextCursor ->
-                phraseProgressCounter = nextCursor.coerceAtLeast(1)
-            },
+            onSetCapturedUri = { capturedUri -> ui.capture.capturedUri = capturedUri },
+            // 정책 유지: 통합/문구별과 무관하게 저장 성공 후 다음 cursor를 반영한다.
+            onAdvancePhraseProgress = { nextCursor -> phraseProgressCounter = nextCursor.coerceAtLeast(1) },
             onSetCapturing = { ui.capture.isCapturing = it }
         )
     }
@@ -532,9 +525,7 @@ fun CameraPreview(
         VolumeKeyInputBus.events.collect { press ->
             when (latestVolumeKeyAction) {
                 VolumeKeyAction.CAPTURE -> {
-                    if (zoomPanelExpanded) {
-                        zoomPanelExpanded = false
-                    }
+                    zoomPanelExpanded = false
                     latestTriggerCapture()
                 }
 

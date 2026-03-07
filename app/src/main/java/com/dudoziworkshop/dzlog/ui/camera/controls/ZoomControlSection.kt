@@ -18,11 +18,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import java.util.Locale
 import kotlin.math.roundToInt
+
+private val CHIP_SHAPE = RoundedCornerShape(999.dp)
+private val PRESET_VALUES_TENTHS = listOf(10, 20, 40, 100)
 
 @Composable
 internal fun ZoomControlSection(
@@ -40,18 +44,15 @@ internal fun ZoomControlSection(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
-            // UX 마감: collapsed/expanded 모두 바깥 카드 강조를 제거하고 컨트롤 자체 가시성에 집중한다.
-            .background(
-                color = DDZColor.Card.copy(alpha = 0f),
-                shape = RoundedCornerShape(16.dp)
-            )
+            // UX 정책 유지: collapsed/expanded 모두 바깥 카드 강조를 제거하고 컨트롤 자체 가시성에 집중한다.
+            .background(DDZColor.Card.copy(alpha = 0f), RoundedCornerShape(16.dp))
             .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
         Box(
             modifier = Modifier
                 .defaultMinSize(minWidth = 34.dp, minHeight = 34.dp)
-                .background(DDZColor.Surface.copy(alpha = 0.95f), RoundedCornerShape(999.dp))
-                .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(999.dp))
+                .background(DDZColor.Surface.copy(alpha = 0.95f), CHIP_SHAPE)
+                .border(1.dp, DDZColor.SageBorder, CHIP_SHAPE)
                 .clickable(onClick = onToggleExpanded)
                 .padding(horizontal = 8.dp, vertical = 5.dp),
             contentAlignment = Alignment.Center
@@ -72,41 +73,55 @@ internal fun ZoomControlSection(
                 colors = SliderDefaults.colors(
                     thumbColor = DDZColor.SageDarkStrong,
                     activeTrackColor = DDZColor.SagePrimary,
-                    inactiveTrackColor = DDZColor.Card.copy(alpha = 0.92f)
+                    inactiveTrackColor = DDZColor.Card.copy(alpha = 0.95f)
                 )
             )
 
-            // 정책: 프리셋은 빠른 이동용이며, 지원 최대 줌을 넘는 경우 가능한 범위로 자동 보정한다.
+            // 정책 유지: 프리셋은 빠른 이동용이며, 지원 최대 줌을 넘는 경우 가능한 범위로 자동 보정한다.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                listOf(10, 20, 40, 100).forEach { presetTenths ->
+                PRESET_VALUES_TENTHS.forEach { presetTenths ->
                     val actualPreset = presetTenths.coerceIn(10, normalizedMaxTenths)
                     val selected = normalizedTenths == actualPreset
+                    val presetBackground: Color
+                    val presetBorder: Color
+                    val presetText: Color
+                    if (selected) {
+                        presetBackground = DDZColor.SageLight.copy(alpha = 0.82f)
+                        presetBorder = DDZColor.SageDarkStrong
+                        presetText = DDZColor.SageDarkStrong
+                    } else {
+                        // UX 2차 보정 유지: 밝은 프리뷰에서도 프리셋이 묻히지 않도록 웜 베이지 대비를 강화한다.
+                        presetBackground = DDZColor.Primary.copy(alpha = 0.14f)
+                        presetBorder = DDZColor.Primary.copy(alpha = 0.30f)
+                        presetText = DDZColor.PrimaryElevated
+                    }
+
                     Box(
                         modifier = Modifier
-                            .background(
-                                color = if (selected) {
-                                    DDZColor.SageLight.copy(alpha = 0.72f)
-                                } else {
-                                    DDZColor.Card.copy(alpha = 0.96f)
-                                },
-                                shape = RoundedCornerShape(999.dp)
-                            )
-                            .border(1.dp, if (selected) DDZColor.SageDark else DDZColor.Border, RoundedCornerShape(999.dp))
+                            .background(color = presetBackground, shape = CHIP_SHAPE)
+                            .border(1.dp, presetBorder, CHIP_SHAPE)
                             .clickable { onZoomTenthsChange(actualPreset) }
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = if (presetTenths == 10) "1x" else if (presetTenths == 20) "2x" else if (presetTenths == 40) "4x" else "10x",
+                            text = presetLabel(presetTenths),
                             style = DDZTypography.Caption,
-                            color = if (selected) DDZColor.SageDark else DDZColor.Primary
+                            color = presetText
                         )
                     }
                 }
             }
         }
     }
+}
+
+private fun presetLabel(presetTenths: Int): String = when (presetTenths) {
+    10 -> "1x"
+    20 -> "2x"
+    40 -> "4x"
+    else -> "10x"
 }
