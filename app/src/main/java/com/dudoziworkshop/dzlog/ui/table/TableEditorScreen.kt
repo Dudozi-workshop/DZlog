@@ -204,9 +204,10 @@ fun TableEditorScreen(
     var lastFilenameScopeSignature by remember { mutableStateOf<String?>(null) }
     val hasTemplateCells = templateState.cells.isNotEmpty()
 
-    // 파일명 slot 구성(추가/제거/순서)은 includeFilenameInCounterScope=true 일 때만 scope 입력으로 취급한다.
-    val filenameScopeSignature = remember(templateState.fileNameSlots, settings.includeFilenameInCounterScope) {
-        if (!settings.includeFilenameInCounterScope) {
+    // 파일명 scope 사용 여부는 counterUi 기준으로 판정해,
+    // 실제 counter scope 계산 기준과 signature 기준이 어긋나지 않게 맞춘다.
+    val filenameScopeSignature = remember(templateState.fileNameSlots, counterUi.includeFilenameInCounterScope) {
+        if (!counterUi.includeFilenameInCounterScope) {
             "filename-scope-disabled"
         } else {
             templateState.fileNameSlots.joinToString(separator = "|") { slot -> slot ?: "_" }
@@ -367,7 +368,7 @@ fun TableEditorScreen(
         if (!hasTemplateCells) return@LaunchedEffect
 
         val isFilenameScopeSignatureChanged =
-            settings.includeFilenameInCounterScope &&
+            counterUi.includeFilenameInCounterScope &&
                 (lastFilenameScopeSignature != null) &&
                 (lastFilenameScopeSignature != filenameScopeSignature)
 
