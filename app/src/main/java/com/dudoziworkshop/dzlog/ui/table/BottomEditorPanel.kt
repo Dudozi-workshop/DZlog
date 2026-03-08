@@ -13,8 +13,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -73,6 +77,7 @@ internal fun BottomEditorPanel(
     onStartPathManualInputEditor: () -> Unit,
     onPathManualInputDraftChange: (String) -> Unit,
     onApplyPathManualInput: () -> Unit,
+    onClosePanel: () -> Unit,
     onAddRow: () -> Unit,
     onRemoveRow: () -> Unit,
     onAddCol: () -> Unit,
@@ -80,6 +85,25 @@ internal fun BottomEditorPanel(
     onReset: () -> Unit,
     onSave: () -> Unit
 ) {
+    @Composable
+    fun PanelHeader(title: String) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(title, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+            IconButton(onClick = onClosePanel, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "패널 닫기",
+                    tint = DDZColor.TextMuted,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -108,7 +132,7 @@ internal fun BottomEditorPanel(
                 }
             }
             BottomEditorPanelMode.CELL_EDIT -> {
-                Text("셀 편집", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                PanelHeader("셀 편집")
                 Text(selectedCellLabel?.let { "선택 셀: $it" } ?: "선택된 셀이 없습니다.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 Text("다음 단계에서 셀 타입/값 편집 UI가 들어올 자리입니다.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
             }
@@ -120,7 +144,7 @@ internal fun BottomEditorPanel(
                 val canMoveRight = selectedFileNameSlot?.let { selectedSlotIsFilled && normalizedSlots.getOrNull(it + 1) != null } == true
                 val canDelete = selectedSlotIsFilled
 
-                Text("파일명 구성 편집", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                PanelHeader("파일명 구성 편집")
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     normalizedSlots.forEachIndexed { index, slot ->
                         val isSelected = selectedFileNameSlot == index
@@ -188,7 +212,7 @@ internal fun BottomEditorPanel(
                 val canDelete = selectedPathFilled
                 val hasSelectedSlot = selectedPathSlot != null
 
-                Text("저장경로 구성 편집", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                PanelHeader("저장경로 구성 편집")
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     normalizedSlots.forEachIndexed { index, slot ->
                         val isSelected = selectedPathSlot == index

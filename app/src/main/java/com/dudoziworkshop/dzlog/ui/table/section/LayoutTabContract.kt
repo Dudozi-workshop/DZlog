@@ -104,6 +104,7 @@ data class LayoutTabUiState(
 data class LayoutTabActions(
     val onSelectCellId: (String?) -> Unit,
     val onChangeBottomPanelMode: (BottomEditorPanelMode) -> Unit,
+    val onCloseBottomPanel: () -> Unit,
     val onShowCellSettingsPanel: (Boolean) -> Unit,
     val onSelectFileNameSlot: (Int) -> Unit,
     val onFillEmptyFileNameSlot: (Int) -> Unit,

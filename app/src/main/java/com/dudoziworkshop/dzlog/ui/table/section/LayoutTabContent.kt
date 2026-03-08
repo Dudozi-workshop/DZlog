@@ -57,8 +57,20 @@ fun LayoutTabContent(
                     savePath = uiState.savePathPreview,
                     fileName = uiState.filenamePreview,
                     fileNameRightLabel = uiState.counterModeLabel,
-                    onClickFileNamePreview = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.FILENAME_EDIT) },
-                    onClickSavePathPreview = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.PATH_EDIT) }
+                    onClickFileNamePreview = {
+                        if (uiState.bottomPanelMode == BottomEditorPanelMode.FILENAME_EDIT) {
+                            actions.onCloseBottomPanel()
+                        } else {
+                            actions.onChangeBottomPanelMode(BottomEditorPanelMode.FILENAME_EDIT)
+                        }
+                    },
+                    onClickSavePathPreview = {
+                        if (uiState.bottomPanelMode == BottomEditorPanelMode.PATH_EDIT) {
+                            actions.onCloseBottomPanel()
+                        } else {
+                            actions.onChangeBottomPanelMode(BottomEditorPanelMode.PATH_EDIT)
+                        }
+                    }
                 )
 
                 Spacer(Modifier.height(10.dp))
@@ -217,6 +229,7 @@ fun LayoutTabContent(
             onStartPathManualInputEditor = actions.onStartPathManualInputEditor,
             onPathManualInputDraftChange = actions.onPathManualInputDraftChange,
             onApplyPathManualInput = actions.onApplyPathManualInput,
+            onClosePanel = actions.onCloseBottomPanel,
             onAddRow = actions.onAddRow,
             onRemoveRow = actions.onRemoveRow,
             onAddCol = actions.onAddCol,

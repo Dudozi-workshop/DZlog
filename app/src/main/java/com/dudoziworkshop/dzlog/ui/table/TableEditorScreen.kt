@@ -1000,6 +1000,22 @@ fun TableEditorScreen(
         selectedTabIndex = targetIndex
     }
 
+    fun requestCloseBottomPanelToNone() {
+        // 정책 보강: X 닫기에서도 탭 전환과 동일하게 inline commit을 우선 시도해 값 유실을 막는다.
+        if (inlineEdit.isEditing()) {
+            commitInlineEditIfNeeded()
+            if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
+        }
+
+        bottomPanelMode = BottomEditorPanelMode.NONE
+        showCellSettingsPanel = false
+
+        currentlySelectedFileNameSlot = null
+        currentlySelectedPathSlot = null
+        clearFileNameEditorTransientState(clearDraft = true)
+        clearPathEditorTransientState(clearDraft = true)
+    }
+
     Scaffold(
         containerColor = DDZColor.Background,
         topBar = {
@@ -1095,6 +1111,7 @@ fun TableEditorScreen(
                                     bottomPanelMode = nextMode
                                 }
                             },
+                            onCloseBottomPanel = ::requestCloseBottomPanelToNone,
                             onShowCellSettingsPanel = { showCellSettingsPanel = it },
                             onSelectFileNameSlot = { slotIndex ->
                                 currentlySelectedFileNameSlot = slotIndex
