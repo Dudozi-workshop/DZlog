@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -25,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.ui.table.section.BottomEditorPanelMode
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameFormatType
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
@@ -40,6 +42,10 @@ internal fun BottomEditorPanel(
     cols: Int,
     isSaving: Boolean,
     selectedCellLabel: String?,
+    selectedCellDataType: TableCellDataType?,
+    selectedCellResolvedText: String,
+    autoNextCounterValue: Int,
+    isInlineEditingSelectedCell: Boolean,
     fileNameSlotItems: List<FileNameSlotUiItem?>,
     selectedFileNameSlot: Int?,
     isFileNameCellPickMode: Boolean,
@@ -53,6 +59,11 @@ internal fun BottomEditorPanel(
     showPathManualInputEditor: Boolean,
     pathManualInputDraft: String,
     modifier: Modifier = Modifier,
+    onSetDataTypeForSelected: (TableCellDataType) -> Unit,
+    onResetCounterSeedForSelected: () -> Unit,
+    onOpenSelectedDateFormat: () -> Unit,
+    onOpenSelectedTimeFormat: () -> Unit,
+    onOpenSelectedRotatingTemplate: () -> Unit,
     onSelectFileNameSlot: (Int) -> Unit,
     onFillEmptyFileNameSlot: (Int) -> Unit,
     onMoveSelectedFileNameSlotLeft: () -> Unit,
@@ -102,6 +113,37 @@ internal fun BottomEditorPanel(
         }
     }
 
+    @Composable
+    fun DataTypeButton(
+        label: String,
+        selected: Boolean,
+        enabled: Boolean,
+        onClick: () -> Unit,
+        modifier: Modifier = Modifier
+    ) {
+        Box(
+            modifier = modifier
+                .background(
+                    if (selected) DDZColor.PrimaryDark.copy(alpha = 0.16f) else DDZColor.Background,
+                    RoundedCornerShape(10.dp)
+                )
+                .border(
+                    1.dp,
+                    if (selected) DDZColor.Primary else DDZColor.Card,
+                    RoundedCornerShape(10.dp)
+                )
+                .clickable(enabled = enabled, onClick = onClick)
+                .padding(vertical = 10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                style = DDZTypography.Caption,
+                color = if (enabled) DDZColor.TextPrimary else DDZColor.TextMuted
+            )
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -109,6 +151,10 @@ internal fun BottomEditorPanel(
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        // 정책 추가: 패널 내부 최상단 구분선을 고정 배치해 본문과 경계를 명확히 한다.
+        HorizontalDivider(color = DDZColor.Border.copy(alpha = 0.75f), thickness = 1.dp)
+        Spacer(Modifier.size(2.dp))
+
         when (panelMode) {
             BottomEditorPanelMode.NONE -> {
                 Text("셀을 눌러 편집을 시작하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
@@ -125,15 +171,130 @@ internal fun BottomEditorPanel(
                             CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
                             Text("저장 중...", style = DDZTypography.ButtonText)
-                        } else Text("저장", style = DDZTypography.ButtonText)
+                        } else {
+                            Text("저장", style = DDZTypography.ButtonText)
+                        }
                     }
                 }
             }
+
             BottomEditorPanelMode.CELL_EDIT -> {
+                val hasSelectedCell = selectedCellLabel != null
+                val currentType = selectedCellDataType
+                val statusText = selectedCellResolvedText.ifBlank {
+                    currentType?.let { dataTypeLabelKo(it) } ?: "선택된 셀이 없습니다."
+                }
+
                 PanelHeader("셀 편집")
-                Text(selectedCellLabel?.let { "선택 셀: $it" } ?: "선택된 셀이 없습니다.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                Text("다음 단계에서 셀 타입/값 편집 UI가 들어올 자리입니다.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                Text(
+                    selectedCellLabel?.let { "선택 셀: $it" } ?: "선택된 셀이 없습니다.",
+                    style = DDZTypography.Caption,
+                    color = DDZColor.TextMuted
+                )
+                Text(
+                    text = "현재 타입: ${currentType?.let { dataTypeLabelKo(it) } ?: "-"}",
+                    style = DDZTypography.Caption,
+                    color = DDZColor.TextMuted
+                )
+                Text(text = statusText, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+
+                Text("데이터 타입", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DataTypeButton(
+                        label = "텍스트",
+                        selected = currentType == TableCellDataType.TEXT,
+                        enabled = hasSelectedCell,
+                        onClick = { onSetDataTypeForSelected(TableCellDataType.TEXT) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    DataTypeButton(
+                        label = "숫자",
+                        selected = currentType == TableCellDataType.NUMBER,
+                        enabled = hasSelectedCell,
+                        onClick = { onSetDataTypeForSelected(TableCellDataType.NUMBER) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    DataTypeButton(
+                        label = "카운터",
+                        selected = currentType == TableCellDataType.COUNTER,
+                        enabled = hasSelectedCell,
+                        onClick = { onSetDataTypeForSelected(TableCellDataType.COUNTER) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DataTypeButton(
+                        label = "날짜",
+                        selected = currentType == TableCellDataType.DATE,
+                        enabled = hasSelectedCell,
+                        onClick = { onSetDataTypeForSelected(TableCellDataType.DATE) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    DataTypeButton(
+                        label = "시간",
+                        selected = currentType == TableCellDataType.TIME,
+                        enabled = hasSelectedCell,
+                        onClick = { onSetDataTypeForSelected(TableCellDataType.TIME) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    DataTypeButton(
+                        label = "순환문구",
+                        selected = currentType == TableCellDataType.ROTATING_TEXT,
+                        enabled = hasSelectedCell,
+                        onClick = { onSetDataTypeForSelected(TableCellDataType.ROTATING_TEXT) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                when (currentType) {
+                    TableCellDataType.TEXT,
+                    TableCellDataType.NUMBER,
+                    TableCellDataType.COUNTER -> {
+                        Text(
+                            text = if (isInlineEditingSelectedCell) {
+                                "인라인 편집 중입니다."
+                            } else {
+                                "셀을 더블탭해 값을 편집하세요."
+                            },
+                            style = DDZTypography.Caption,
+                            color = DDZColor.TextMuted
+                        )
+                        if (currentType == TableCellDataType.COUNTER) {
+                            Text(
+                                text = "다음 카운터: $autoNextCounterValue",
+                                style = DDZTypography.Caption,
+                                color = DDZColor.TextMuted
+                            )
+                            Button(onClick = onResetCounterSeedForSelected, enabled = hasSelectedCell) {
+                                Text("카운터 초기화", style = DDZTypography.ButtonText)
+                            }
+                        }
+                    }
+
+                    TableCellDataType.DATE -> {
+                        Button(onClick = onOpenSelectedDateFormat, enabled = hasSelectedCell) {
+                            Text("날짜 형식 설정", style = DDZTypography.ButtonText)
+                        }
+                    }
+
+                    TableCellDataType.TIME -> {
+                        Button(onClick = onOpenSelectedTimeFormat, enabled = hasSelectedCell) {
+                            Text("시간 형식 설정", style = DDZTypography.ButtonText)
+                        }
+                    }
+
+                    TableCellDataType.ROTATING_TEXT -> {
+                        Button(onClick = onOpenSelectedRotatingTemplate, enabled = hasSelectedCell) {
+                            Text("순환문구 템플릿 설정", style = DDZTypography.ButtonText)
+                        }
+                    }
+
+                    null -> {
+                        Text("편집할 셀을 먼저 선택하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    }
+                }
             }
+
             BottomEditorPanelMode.FILENAME_EDIT -> {
                 val normalizedSlots = List(3) { index -> fileNameSlotItems.getOrNull(index) }
                 val selectedSlotIsFilled = selectedFileNameSlot?.let { normalizedSlots.getOrNull(it) != null } == true
@@ -199,6 +360,7 @@ internal fun BottomEditorPanel(
                 // 정책 변경: 파일명 최종 프리뷰는 상단 CompactPathHeader를 단일 소스로 사용한다.
                 // 하단 패널은 편집 도구(슬롯/서식/직접입력)만 담당한다.
             }
+
             BottomEditorPanelMode.PATH_EDIT -> {
                 val normalizedSlots = List(2) { index -> pathSlotItems.getOrNull(index) }
                 val selectedPathFilled = selectedPathSlot?.let { normalizedSlots.getOrNull(it) != null } == true
@@ -264,3 +426,13 @@ internal fun BottomEditorPanel(
         }
     }
 }
+
+private fun dataTypeLabelKo(dataType: TableCellDataType): String =
+    when (dataType) {
+        TableCellDataType.TEXT -> "텍스트"
+        TableCellDataType.NUMBER -> "숫자"
+        TableCellDataType.COUNTER -> "카운터"
+        TableCellDataType.DATE -> "날짜"
+        TableCellDataType.TIME -> "시간"
+        TableCellDataType.ROTATING_TEXT -> "순환문구"
+    }

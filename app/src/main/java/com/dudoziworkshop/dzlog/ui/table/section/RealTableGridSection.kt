@@ -119,24 +119,32 @@ fun RealTableGridSection(
         val safeHeightRatio = wmHeightRatio.coerceIn(10, 100)
         val tableAspect = safeWidthRatio / safeHeightRatio.toFloat()
 
-        val tableWidthPx: Float
-        val tableHeightPx: Float
-        if (areaWidthPx <= 0f || areaHeightPx <= 0f) {
-            tableWidthPx = 0f
-            tableHeightPx = 0f
-        } else if (areaWidthPx / areaHeightPx > tableAspect) {
-            tableHeightPx = areaHeightPx
-            tableWidthPx = tableHeightPx * tableAspect
-        } else {
-            tableWidthPx = areaWidthPx
-            tableHeightPx = tableWidthPx / tableAspect
-        }
-
-        val tableLeftPx = ((areaWidthPx - tableWidthPx) / 2f).coerceAtLeast(0f)
-        val tableTopPx = ((areaHeightPx - tableHeightPx) / 2f).coerceAtLeast(0f)
-
         val rows = templateState.rows.coerceAtLeast(1)
         val cols = templateState.cols.coerceAtLeast(1)
+        val cellCount = rows * cols
+
+        // 1) contain-fit 기준 크기 계산
+        val fitTableWidthPx: Float
+        val fitTableHeightPx: Float
+        if (areaWidthPx <= 0f || areaHeightPx <= 0f) {
+            fitTableWidthPx = 0f
+            fitTableHeightPx = 0f
+        } else if (areaWidthPx / areaHeightPx > tableAspect) {
+            fitTableHeightPx = areaHeightPx
+            fitTableWidthPx = fitTableHeightPx * tableAspect
+        } else {
+            fitTableWidthPx = areaWidthPx
+            fitTableHeightPx = fitTableWidthPx / tableAspect
+        }
+
+        // 2) 셀 수 기반 adaptive scale cap 적용 (작은 표 과확대 방지)
+        val adaptiveScale = resolveAdaptiveTableScale(cellCount)
+
+        // 3) 최종 표 크기(전체 스케일) 계산 + 4) 최종 기준 center 정렬
+        val tableWidthPx = fitTableWidthPx * adaptiveScale
+        val tableHeightPx = fitTableHeightPx * adaptiveScale
+        val tableLeftPx = ((areaWidthPx - tableWidthPx) / 2f).coerceAtLeast(0f)
+        val tableTopPx = ((areaHeightPx - tableHeightPx) / 2f).coerceAtLeast(0f)
         val rowSizes = remember(templateState.rowWeights, rows, tableHeightPx) {
             computeSizes(total = tableHeightPx, weights = resolveWeightsOrOnes(templateState.rowWeights, rows))
         }
@@ -312,6 +320,15 @@ fun RealTableGridSection(
         }
     }
 }
+
+
+private fun resolveAdaptiveTableScale(cellCount: Int): Float =
+    when {
+        cellCount <= 4 -> 0.72f
+        cellCount <= 6 -> 0.82f
+        cellCount <= 8 -> 0.90f
+        else -> 1.00f
+    }
 
 private fun resolveWeightsOrOnes(weights: List<Float>?, count: Int): List<Float> {
     if (count <= 0) return emptyList()

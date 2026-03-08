@@ -196,8 +196,29 @@ fun LayoutTabContent(
             cols = uiState.templateState.cols,
             isSaving = uiState.isSavingTemplate,
             selectedCellLabel = uiState.selectedCellId,
+            selectedCellDataType = uiState.selectedCell?.dataType,
+            selectedCellResolvedText = uiState.selectedCellId?.let { uiState.resolvedByCellId[it].orEmpty() }.orEmpty(),
+            autoNextCounterValue = uiState.autoNextCounterValue,
+            isInlineEditingSelectedCell = uiState.editingCellId != null && uiState.editingCellId == uiState.selectedCellId,
             fileNameSlotItems = uiState.fileNameSlotItems,
             selectedFileNameSlot = uiState.currentlySelectedFileNameSlot,
+            onSetDataTypeForSelected = actions.onSetDataTypeForSelected,
+            onResetCounterSeedForSelected = actions.onResetCounterSeedForSelected,
+            onOpenSelectedDateFormat = {
+                uiState.selectedCellId?.let { selectedId ->
+                    actions.onOpenFormatDialog(selectedId, TableCellDataType.DATE)
+                }
+            },
+            onOpenSelectedTimeFormat = {
+                uiState.selectedCellId?.let { selectedId ->
+                    actions.onOpenFormatDialog(selectedId, TableCellDataType.TIME)
+                }
+            },
+            onOpenSelectedRotatingTemplate = {
+                uiState.selectedCellId?.let { selectedId ->
+                    actions.onOpenRotatingTemplateDialogForSelected(selectedId)
+                }
+            },
             onSelectFileNameSlot = actions.onSelectFileNameSlot,
             onFillEmptyFileNameSlot = actions.onFillEmptyFileNameSlot,
             onMoveSelectedFileNameSlotLeft = actions.onMoveSelectedFileNameSlotLeft,
