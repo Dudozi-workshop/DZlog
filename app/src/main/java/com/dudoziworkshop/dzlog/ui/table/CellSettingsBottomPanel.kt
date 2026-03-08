@@ -555,6 +555,10 @@ internal fun CellSettingsBottomPanel(
     }
 }
 
+// NOTE: 셀 설정 패널 본문을 명시적으로 닫아, 하단 데이터 타입 그리드 컴포저블이
+// 로컬 함수가 아닌 파일 스코프(top-level)로 컴파일되도록 고정한다.
+}
+
 @Composable
 private fun DataTypeCardGrid3(
     selected: TableCellDataType,
