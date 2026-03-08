@@ -1092,7 +1092,10 @@ fun TableEditorScreen(
                             isSavingTemplate = isSavingTemplate,
                             autoNextCounterValue = counterUi.autoNextCounterValue,
                             phraseSets = currentTemplate.phraseSets,
-                            captureAspect = watermarkUi.captureAspect
+                            captureAspect = watermarkUi.captureAspect,
+                            wmWidthRatio = watermarkUi.wmWidthRatio,
+                            wmHeightRatio = watermarkUi.wmHeightRatio,
+                            wmBgStyle = watermarkUi.wmBgStyle
                         ),
                         actions = LayoutTabActions(
                             onSelectCellId = { selectedCellId = it },

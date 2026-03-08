@@ -39,8 +39,6 @@ internal fun BottomEditorPanel(
     rows: Int,
     cols: Int,
     isSaving: Boolean,
-    filenamePreview: String,
-    savePathPreview: String,
     selectedCellLabel: String?,
     fileNameSlotItems: List<FileNameSlotUiItem?>,
     selectedFileNameSlot: Int?,
@@ -138,7 +136,6 @@ internal fun BottomEditorPanel(
             }
             BottomEditorPanelMode.FILENAME_EDIT -> {
                 val normalizedSlots = List(3) { index -> fileNameSlotItems.getOrNull(index) }
-                val previewLabel = normalizedSlots.mapNotNull { it?.label }.joinToString("_")
                 val selectedSlotIsFilled = selectedFileNameSlot?.let { normalizedSlots.getOrNull(it) != null } == true
                 val canMoveLeft = selectedFileNameSlot?.let { selectedSlotIsFilled && normalizedSlots.getOrNull(it - 1) != null } == true
                 val canMoveRight = selectedFileNameSlot?.let { selectedSlotIsFilled && normalizedSlots.getOrNull(it + 1) != null } == true
@@ -199,13 +196,11 @@ internal fun BottomEditorPanel(
                     Text("셀 선택 대기 중: 위 표에서 셀을 탭하면 현재 슬롯에 연결됩니다.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 }
 
-                Text("프리뷰", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                Text(if (previewLabel.isBlank()) "기본 파일명 사용" else previewLabel, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                // 정책 변경: 파일명 최종 프리뷰는 상단 CompactPathHeader를 단일 소스로 사용한다.
+                // 하단 패널은 편집 도구(슬롯/서식/직접입력)만 담당한다.
             }
             BottomEditorPanelMode.PATH_EDIT -> {
                 val normalizedSlots = List(2) { index -> pathSlotItems.getOrNull(index) }
-                val previewPathSuffix = normalizedSlots.mapNotNull { it?.label }.joinToString("/")
-                val pathPreviewLabel = if (previewPathSuffix.isBlank()) "Pictures/DZlog" else "Pictures/DZlog/$previewPathSuffix"
                 val selectedPathFilled = selectedPathSlot?.let { normalizedSlots.getOrNull(it) != null } == true
                 val canMoveLeft = selectedPathSlot?.let { selectedPathFilled && normalizedSlots.getOrNull(it - 1) != null } == true
                 val canMoveRight = selectedPathSlot?.let { selectedPathFilled && normalizedSlots.getOrNull(it + 1) != null } == true
@@ -264,8 +259,7 @@ internal fun BottomEditorPanel(
                     Text("셀 선택 대기 중: 위 표에서 셀을 탭하면 현재 경로 슬롯에 연결됩니다.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 }
 
-                Text("프리뷰", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                Text(pathPreviewLabel, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                // 정책 변경: 저장경로 최종 프리뷰도 상단 CompactPathHeader를 단일 소스로 사용한다.
             }
         }
     }

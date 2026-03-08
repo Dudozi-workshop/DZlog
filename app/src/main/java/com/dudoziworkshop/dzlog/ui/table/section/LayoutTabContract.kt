@@ -98,7 +98,10 @@ data class LayoutTabUiState(
     val isSavingTemplate: Boolean,
     val autoNextCounterValue: Int,
     val phraseSets: List<RotatingPhraseSet>,
-    val captureAspect: CaptureAspect
+    val captureAspect: CaptureAspect,
+    val wmWidthRatio: Int,
+    val wmHeightRatio: Int,
+    val wmBgStyle: Int
 )
 
 data class LayoutTabActions(

@@ -80,17 +80,20 @@ fun LayoutTabContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 320.dp)
+                        .heightIn(max = 200.dp)
                         .background(DDZColor.Card, RoundedCornerShape(14.dp))
-                        .padding(10.dp)
+                        .padding(6.dp)
                 ) {
-                    TableGridSection(
+                    RealTableGridSection(
                         templateState = uiState.templateState,
                         displayTextProvider = { cellId ->
                             uiState.plan.resolvedCells.firstOrNull { it.id == cellId }?.resolvedText.orEmpty()
                         },
                         selectedCellId = uiState.selectedCellId,
                         editingCellId = uiState.editingCellId,
+                        wmWidthRatio = uiState.wmWidthRatio,
+                        wmHeightRatio = uiState.wmHeightRatio,
+                        wmBgStyle = uiState.wmBgStyle,
                         onSelectCell = { id ->
                             // 정책 변경: FILENAME_EDIT + 셀 선택 대기 상태에서는 표 셀 탭을
                             // CELL_EDIT 진입이 아니라 "파일명 슬롯 셀 연결"로 우선 처리한다.
@@ -100,7 +103,7 @@ fun LayoutTabContent(
                             ) {
                                 actions.onSelectCellId(id)
                                 actions.onBindSelectedSlotToCell(id)
-                                return@TableGridSection
+                                return@RealTableGridSection
                             }
                             if (uiState.bottomPanelMode == BottomEditorPanelMode.PATH_EDIT &&
                                 uiState.isPathCellPickMode &&
@@ -108,11 +111,11 @@ fun LayoutTabContent(
                             ) {
                                 actions.onSelectCellId(id)
                                 actions.onBindSelectedPathSlotToCell(id)
-                                return@TableGridSection
+                                return@RealTableGridSection
                             }
 
                             if (uiState.editingCellId != null && uiState.editingCellId != id) {
-                                if (!actions.onTryCommitInlineAndContinue()) return@TableGridSection
+                                if (!actions.onTryCommitInlineAndContinue()) return@RealTableGridSection
                             }
                             actions.onSelectCellId(id)
                             // 정책 변경: 1차 구조 전환 단계에서는 CELL_EDIT 모드가 기본 편집 영역이므로
@@ -124,20 +127,20 @@ fun LayoutTabContent(
                             if (uiState.bottomPanelMode == BottomEditorPanelMode.FILENAME_EDIT && uiState.isFileNameCellPickMode) {
                                 actions.onSelectCellId(cell.cellId)
                                 actions.onBindSelectedSlotToCell(cell.cellId)
-                                return@TableGridSection
+                                return@RealTableGridSection
                             }
                             if (uiState.bottomPanelMode == BottomEditorPanelMode.PATH_EDIT && uiState.isPathCellPickMode) {
                                 actions.onSelectCellId(cell.cellId)
                                 actions.onBindSelectedPathSlotToCell(cell.cellId)
-                                return@TableGridSection
+                                return@RealTableGridSection
                             }
 
                             if (uiState.editingCellId != null && uiState.editingCellId != cell.cellId) {
-                                if (!actions.onTryCommitInlineAndContinue()) return@TableGridSection
+                                if (!actions.onTryCommitInlineAndContinue()) return@RealTableGridSection
                                 actions.onSelectCellId(cell.cellId)
                                 actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT)
                                 actions.onShowCellSettingsPanel(false)
-                                return@TableGridSection
+                                return@RealTableGridSection
                             }
 
                             actions.onSelectCellId(cell.cellId)
@@ -192,8 +195,6 @@ fun LayoutTabContent(
             rows = uiState.templateState.rows,
             cols = uiState.templateState.cols,
             isSaving = uiState.isSavingTemplate,
-            filenamePreview = uiState.filenamePreview,
-            savePathPreview = uiState.savePathPreview,
             selectedCellLabel = uiState.selectedCellId,
             fileNameSlotItems = uiState.fileNameSlotItems,
             selectedFileNameSlot = uiState.currentlySelectedFileNameSlot,
