@@ -166,9 +166,7 @@ fun LogViewerScreen(
             ) { page ->
                 val item = items[page]
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable { uiVisible = !uiVisible },
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     DzFullImage(
@@ -195,6 +193,7 @@ fun LogViewerScreen(
                                 isCurrentImageZoomed = zoomed
                             }
                         },
+                        onSingleTap = { uiVisible = !uiVisible },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }

@@ -57,6 +57,16 @@ enum class AppScreen {
     ALBUM_VIEWER
 }
 
+enum class GridEntrySource {
+    NORMAL,
+    HOME_RECENT,
+}
+
+enum class ViewerEntrySource {
+    GRID,
+    CAMERA_RECENT,
+}
+
 enum class OriginalParent {
     WATER,
     LIST
@@ -90,7 +100,8 @@ fun AppRoot() {
     var screen by remember { mutableStateOf(AppScreen.HOME) }
     var previousScreen by remember { mutableStateOf(AppScreen.HOME) }
     var albumEntryScreen by remember { mutableStateOf(AppScreen.HOME) }
-    var directReturnToCameraFromAlbumGrid by remember { mutableStateOf(false) }
+    var gridEntrySource by remember { mutableStateOf(GridEntrySource.NORMAL) }
+    var viewerEntrySource by remember { mutableStateOf(ViewerEntrySource.GRID) }
 
 // 앨범(G1/G2/그리드/뷰어) 상태
     var albumLocation by remember { mutableStateOf<AlbumLocation?>(null) }
@@ -224,7 +235,11 @@ fun AppRoot() {
     }
 
     fun resolveAlbumFallbackScreen(): AppScreen {
-        return if (directReturnToCameraFromAlbumGrid) AppScreen.CAMERA else albumGridEntryScreen
+        return when {
+            viewerEntrySource == ViewerEntrySource.CAMERA_RECENT -> AppScreen.CAMERA
+            gridEntrySource == GridEntrySource.HOME_RECENT -> AppScreen.HOME
+            else -> albumGridEntryScreen
+        }
     }
 
     fun requireValidAlbumLocationOrFallback(): AlbumLocation? {
@@ -280,7 +295,8 @@ fun AppRoot() {
         albumGridEntryScreen = AppScreen.ALBUM_G1
         resetGridUiState()
         albumEntryScreen = screen
-        directReturnToCameraFromAlbumGrid = false
+        gridEntrySource = GridEntrySource.NORMAL
+        viewerEntrySource = ViewerEntrySource.GRID
         navigateTo(AppScreen.ALBUM_G1)
     }
 
@@ -291,6 +307,23 @@ fun AppRoot() {
             relativePath = relativePath.trim(),
             originalLinkPath = null
         )
+
+        if (screen == AppScreen.CAMERA) {
+            // 정책: Camera recent는 Grid를 거치지 않고 Viewer로 직행한다.
+            openWaterGrid(location)
+            viewerEntrySource = ViewerEntrySource.CAMERA_RECENT
+            gridEntrySource = GridEntrySource.NORMAL
+            albumEntryScreen = AppScreen.CAMERA
+            val reloaded = runCatching {
+                DzlogMediaStoreReader(context.contentResolver).loadImages(location.relativePath)
+            }.getOrDefault(emptyList())
+            gridItems = reloaded
+            val safeStart = startIndex.coerceIn(0, (reloaded.size - 1).coerceAtLeast(0))
+            viewerStartIndex = safeStart
+            navigateTo(AppScreen.ALBUM_VIEWER)
+            return
+        }
+
         openWaterGrid(location)
         if (isOriginalRelativePath(location.relativePath)) {
             // 원본만 존재 → 부모는 리스트 → back은 상위 리스트로.
@@ -303,7 +336,9 @@ fun AppRoot() {
         viewerStartIndex = startIndex
         albumGridEntryScreen = AppScreen.ALBUM_G2
         albumEntryScreen = screen
-        directReturnToCameraFromAlbumGrid = (screen == AppScreen.CAMERA)
+        // 정책: Home recent에서 진입한 Grid만 별도 출처로 기록해 back target을 Home으로 고정한다.
+        gridEntrySource = if (screen == AppScreen.HOME) GridEntrySource.HOME_RECENT else GridEntrySource.NORMAL
+        viewerEntrySource = ViewerEntrySource.GRID
         navigateTo(AppScreen.ALBUM_GRID)
     }
 
@@ -351,8 +386,8 @@ fun AppRoot() {
             return
         }
 
-        if (directReturnToCameraFromAlbumGrid) {
-            screen = AppScreen.CAMERA
+        if (gridEntrySource == GridEntrySource.HOME_RECENT) {
+            screen = AppScreen.HOME
         } else {
             screen = albumGridEntryScreen
         }
@@ -382,7 +417,7 @@ fun AppRoot() {
             AppScreen.ALBUM_GRID -> {
                 handleAlbumGridBack()
             }
-            AppScreen.ALBUM_VIEWER -> screen = if (directReturnToCameraFromAlbumGrid) AppScreen.CAMERA else AppScreen.ALBUM_GRID
+            AppScreen.ALBUM_VIEWER -> screen = if (viewerEntrySource == ViewerEntrySource.CAMERA_RECENT) AppScreen.CAMERA else AppScreen.ALBUM_GRID
             AppScreen.ALBUM_G1 -> screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
             AppScreen.ALBUM_G2 -> screen = AppScreen.ALBUM_G1
         }
@@ -452,6 +487,8 @@ fun AppRoot() {
                         )
                         openWaterGrid(location)
                         albumGridEntryScreen = AppScreen.ALBUM_G1
+                        gridEntrySource = GridEntrySource.NORMAL
+                        viewerEntrySource = ViewerEntrySource.GRID
                         screen = AppScreen.ALBUM_GRID
                     }
 
@@ -470,6 +507,8 @@ fun AppRoot() {
                             returnLocationIfWater = null
                         )
                         albumGridEntryScreen = AppScreen.ALBUM_G1
+                        gridEntrySource = GridEntrySource.NORMAL
+                        viewerEntrySource = ViewerEntrySource.GRID
                         screen = AppScreen.ALBUM_GRID
                     }
 
@@ -534,6 +573,8 @@ fun AppRoot() {
                             )
                         }
                         albumGridEntryScreen = AppScreen.ALBUM_G2
+                        gridEntrySource = GridEntrySource.NORMAL
+                        viewerEntrySource = ViewerEntrySource.GRID
                         screen = AppScreen.ALBUM_GRID
                     }
                 )
@@ -553,6 +594,7 @@ fun AppRoot() {
                     onItemsLoaded = { gridItems = it },
                     onOpenViewer = { idx ->
                         viewerStartIndex = idx
+                        viewerEntrySource = ViewerEntrySource.GRID
                         screen = AppScreen.ALBUM_VIEWER
                     },
                     originalRelativePath = location.originalLinkPath,
@@ -598,12 +640,22 @@ fun AppRoot() {
                     relativePath = location.relativePath,
                     items = gridItems,
                     startIndex = viewerStartIndex,
-                    onBack = { screen = if (directReturnToCameraFromAlbumGrid) AppScreen.CAMERA else AppScreen.ALBUM_GRID },
+                    onBack = {
+                        screen = if (viewerEntrySource == ViewerEntrySource.CAMERA_RECENT) {
+                            AppScreen.CAMERA
+                        } else {
+                            AppScreen.ALBUM_GRID
+                        }
+                    },
                     onItemsReloaded = { gridItems = it },
                     onRequestCloseViewer = {
                         isSelectionMode = false
                         selectedIds = emptySet()
-                        screen = AppScreen.ALBUM_GRID
+                        screen = if (viewerEntrySource == ViewerEntrySource.CAMERA_RECENT) {
+                            AppScreen.CAMERA
+                        } else {
+                            AppScreen.ALBUM_GRID
+                        }
                     }
                 )
             }

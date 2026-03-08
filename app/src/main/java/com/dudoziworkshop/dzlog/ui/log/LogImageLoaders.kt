@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.ui.log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Box
@@ -70,6 +71,7 @@ fun DzFullImage(
     onGoPrevious: () -> Unit,
     onGoNext: () -> Unit,
     onZoomedStateChange: (Boolean) -> Unit,
+    onSingleTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -166,12 +168,45 @@ fun DzFullImage(
         }
     }
 
+    val doubleTapModifier = Modifier.pointerInput(uriString, scale, offset, containerSize) {
+        detectTapGestures(
+            // 정책: 단일 탭/더블탭을 같은 계층에서 처리해 overlay 토글과 zoom 제스처 충돌을 방지한다.
+            onTap = { onSingleTap() },
+            onDoubleTap = { tapOffset ->
+                val targetScale = when {
+                    scale < 2f -> 2f
+                    scale < 4f -> 4f
+                    else -> MinScale
+                }
+
+                if (targetScale <= MinScale) {
+                    // 정책: 4x -> 1x는 기존과 동일하게 중앙 복귀.
+                    scale = MinScale
+                    offset = Offset.Zero
+                    updateHorizontalEdgeState()
+                    return@detectTapGestures
+                }
+
+                val center = Offset(containerSize.width / 2f, containerSize.height / 2f)
+                val scaleRatio = targetScale / scale
+                val centeredTap = tapOffset - center
+
+                // 정책: 2x/4x는 탭 좌표 기준 확대가 되도록 offset을 재계산한다.
+                val nextOffset = centeredTap - ((centeredTap - offset) * scaleRatio)
+
+                scale = targetScale
+                offset = clampOffset(nextOffset, targetScale)
+                updateHorizontalEdgeState()
+            }
+        )
+    }
+
     val dragModifier = if (scale > MinScale) {
         Modifier.pointerInput(uriString, scale) {
             detectDragGestures(
                 onDrag = { change, dragAmount ->
                     if (scale <= MinScale) return@detectDragGestures
-                    // 정책: 확대 상태 one-finger drag는 이미지 pan이 우선이며, pan gain(1.5x)으로 체감 이동량을 보정한다.
+                    // 정책: 확대 상태 one-finger drag는 이미지 pan이 우선이며, pan gain으로 체감 이동량을 보정한다.
                     offset = clampOffset(offset + (Offset(dragAmount.x, dragAmount.y) * PanGain), scale)
                     updateHorizontalEdgeState()
                     change.consume()
@@ -204,6 +239,7 @@ fun DzFullImage(
                     translationX = offset.x
                     translationY = offset.y
                 }
+                .then(doubleTapModifier)
                 .then(dragModifier)
                 .transformable(
                     state = transformState,
