@@ -90,6 +90,14 @@ fun LayoutTabContent(
                                 actions.onBindSelectedSlotToCell(id)
                                 return@TableGridSection
                             }
+                            if (uiState.bottomPanelMode == BottomEditorPanelMode.PATH_EDIT &&
+                                uiState.isPathCellPickMode &&
+                                id != null
+                            ) {
+                                actions.onSelectCellId(id)
+                                actions.onBindSelectedPathSlotToCell(id)
+                                return@TableGridSection
+                            }
 
                             if (uiState.editingCellId != null && uiState.editingCellId != id) {
                                 if (!actions.onTryCommitInlineAndContinue()) return@TableGridSection
@@ -104,6 +112,11 @@ fun LayoutTabContent(
                             if (uiState.bottomPanelMode == BottomEditorPanelMode.FILENAME_EDIT && uiState.isFileNameCellPickMode) {
                                 actions.onSelectCellId(cell.cellId)
                                 actions.onBindSelectedSlotToCell(cell.cellId)
+                                return@TableGridSection
+                            }
+                            if (uiState.bottomPanelMode == BottomEditorPanelMode.PATH_EDIT && uiState.isPathCellPickMode) {
+                                actions.onSelectCellId(cell.cellId)
+                                actions.onBindSelectedPathSlotToCell(cell.cellId)
                                 return@TableGridSection
                             }
 
@@ -187,6 +200,23 @@ fun LayoutTabContent(
             onStartManualInputEditor = actions.onStartManualInputEditor,
             onManualInputDraftChange = actions.onManualInputDraftChange,
             onApplyManualInput = actions.onApplyManualInput,
+            pathSlotItems = uiState.pathSlotItems,
+            selectedPathSlot = uiState.currentlySelectedPathSlot,
+            isPathCellPickMode = uiState.isPathCellPickMode,
+            showPathFormatOptions = uiState.showPathFormatOptions,
+            showPathManualInputEditor = uiState.showPathManualInputEditor,
+            pathManualInputDraft = uiState.pathManualInputDraft,
+            onSelectPathSlot = actions.onSelectPathSlot,
+            onFillEmptyPathSlot = actions.onFillEmptyPathSlot,
+            onMoveSelectedPathSlotLeft = actions.onMoveSelectedPathSlotLeft,
+            onMoveSelectedPathSlotRight = actions.onMoveSelectedPathSlotRight,
+            onDeleteSelectedPathSlot = actions.onDeleteSelectedPathSlot,
+            onStartPathCellPick = actions.onStartPathCellPick,
+            onTogglePathFormatOptions = actions.onTogglePathFormatOptions,
+            onApplyPathFormatType = actions.onApplyPathFormatType,
+            onStartPathManualInputEditor = actions.onStartPathManualInputEditor,
+            onPathManualInputDraftChange = actions.onPathManualInputDraftChange,
+            onApplyPathManualInput = actions.onApplyPathManualInput,
             onAddRow = actions.onAddRow,
             onRemoveRow = actions.onRemoveRow,
             onAddCol = actions.onAddCol,

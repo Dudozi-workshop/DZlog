@@ -40,6 +40,26 @@ data class FileNameSlotUiItem(
     val formatType: FileNameFormatType? = null
 )
 
+enum class PathSlotKind {
+    CELL,
+    FORMAT,
+    MANUAL
+}
+
+enum class PathFormatType {
+    DATE,
+    TIME,
+    ROTATING_TEXT
+}
+
+data class PathSlotUiItem(
+    val kind: PathSlotKind,
+    val label: String,
+    val cellId: String? = null,
+    val manualText: String? = null,
+    val formatType: PathFormatType? = null
+)
+
 data class LayoutTabUiState(
     val savePathPreview: String,
     val filenamePreview: String,
@@ -66,6 +86,11 @@ data class LayoutTabUiState(
     val showFileNameFormatOptions: Boolean,
     val manualInputDraft: String,
     val showManualInputEditor: Boolean,
+    val pathSlotItems: List<PathSlotUiItem?>,
+    val isPathCellPickMode: Boolean,
+    val showPathFormatOptions: Boolean,
+    val showPathManualInputEditor: Boolean,
+    val pathManualInputDraft: String,
     val showCellSettingsPanel: Boolean,
     val selectedCell: TableCellState?,
     val hasGroup1: Boolean,
@@ -92,6 +117,18 @@ data class LayoutTabActions(
     val onManualInputDraftChange: (String) -> Unit,
     val onApplyManualInput: () -> Unit,
     val onBindSelectedSlotToCell: (String) -> Unit,
+    val onSelectPathSlot: (Int) -> Unit,
+    val onFillEmptyPathSlot: (Int) -> Unit,
+    val onMoveSelectedPathSlotLeft: () -> Unit,
+    val onMoveSelectedPathSlotRight: () -> Unit,
+    val onDeleteSelectedPathSlot: () -> Unit,
+    val onStartPathCellPick: () -> Unit,
+    val onTogglePathFormatOptions: () -> Unit,
+    val onApplyPathFormatType: (PathFormatType) -> Unit,
+    val onStartPathManualInputEditor: () -> Unit,
+    val onPathManualInputDraftChange: (String) -> Unit,
+    val onApplyPathManualInput: () -> Unit,
+    val onBindSelectedPathSlotToCell: (String) -> Unit,
     val onStartInlineEditing: (cellId: String, initialText: String) -> Unit,
     val onOpenFormatDialog: (cellId: String, type: TableCellDataType) -> Unit,
     val onEditingValueChange: (String) -> Unit,

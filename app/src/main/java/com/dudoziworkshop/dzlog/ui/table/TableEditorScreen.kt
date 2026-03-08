@@ -93,6 +93,9 @@ import com.dudoziworkshop.dzlog.ui.table.section.BottomEditorPanelMode
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameFormatType
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotKind
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
+import com.dudoziworkshop.dzlog.ui.table.section.PathFormatType
+import com.dudoziworkshop.dzlog.ui.table.section.PathSlotKind
+import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabActions
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabContent
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabUiState
@@ -176,6 +179,51 @@ fun TableEditorScreen(
         mutable[from] = mutable[to]
         mutable[to] = temp
         return normalizeFileNameSlotItems(mutable)
+    }
+
+    fun clearFileNameEditorTransientState(clearDraft: Boolean) {
+        // 정책 보강: 파일명 편집의 보조 UI 상태는 슬롯/모드 전환 시 잔존하지 않게 정리한다.
+        isFileNameCellPickMode = false
+        showFileNameFormatOptions = false
+        showManualInputEditor = false
+        if (clearDraft) {
+            manualInputDraft = ""
+        }
+    }
+
+    var pathSlotItems by remember {
+        mutableStateOf<List<PathSlotUiItem?>>(List(2) { null })
+    }
+    var isPathCellPickMode by remember { mutableStateOf(false) }
+    var showPathFormatOptions by remember { mutableStateOf(false) }
+    var showPathManualInputEditor by remember { mutableStateOf(false) }
+    var pathManualInputDraft by remember { mutableStateOf("") }
+
+    fun normalizePathSlotItems(slots: List<PathSlotUiItem?>): List<PathSlotUiItem?> {
+        return List(2) { index -> slots.getOrNull(index) }
+    }
+
+    fun removePathSlotAt(slots: List<PathSlotUiItem?>, index: Int): List<PathSlotUiItem?> {
+        val compacted = slots.filterIndexed { i, item -> i != index && item != null }
+        return normalizePathSlotItems(compacted)
+    }
+
+    fun movePathSlot(slots: List<PathSlotUiItem?>, from: Int, to: Int): List<PathSlotUiItem?> {
+        val mutable = slots.toMutableList()
+        val temp = mutable[from]
+        mutable[from] = mutable[to]
+        mutable[to] = temp
+        return normalizePathSlotItems(mutable)
+    }
+
+    fun clearPathEditorTransientState(clearDraft: Boolean) {
+        // 정책 보강: 저장경로 편집의 보조 UI 상태(셀대기/서식/직접입력)는 모드/슬롯 전환에서 분리 정리한다.
+        isPathCellPickMode = false
+        showPathFormatOptions = false
+        showPathManualInputEditor = false
+        if (clearDraft) {
+            pathManualInputDraft = ""
+        }
     }
 
     // 탭1 스크롤 (분리)
@@ -865,6 +913,11 @@ fun TableEditorScreen(
                             showFileNameFormatOptions = showFileNameFormatOptions,
                             manualInputDraft = manualInputDraft,
                             showManualInputEditor = showManualInputEditor,
+                            pathSlotItems = pathSlotItems,
+                            isPathCellPickMode = isPathCellPickMode,
+                            showPathFormatOptions = showPathFormatOptions,
+                            showPathManualInputEditor = showPathManualInputEditor,
+                            pathManualInputDraft = pathManualInputDraft,
                             showCellSettingsPanel = showCellSettingsPanel,
                             selectedCell = selectedCell,
                             hasGroup1 = hasGroup1,
@@ -876,11 +929,23 @@ fun TableEditorScreen(
                         ),
                         actions = LayoutTabActions(
                             onSelectCellId = { selectedCellId = it },
-                            onChangeBottomPanelMode = { bottomPanelMode = it },
+                            onChangeBottomPanelMode = { nextMode ->
+                                if (bottomPanelMode != nextMode) {
+                                    // 정책 보강: 각 편집 모드를 벗어날 때 해당 임시 상태를 분리 정리한다.
+                                    if (nextMode != BottomEditorPanelMode.FILENAME_EDIT) {
+                                        clearFileNameEditorTransientState(clearDraft = true)
+                                    }
+                                    if (nextMode != BottomEditorPanelMode.PATH_EDIT) {
+                                        clearPathEditorTransientState(clearDraft = true)
+                                    }
+                                    bottomPanelMode = nextMode
+                                }
+                            },
                             onShowCellSettingsPanel = { showCellSettingsPanel = it },
                             onSelectFileNameSlot = { slotIndex ->
                                 currentlySelectedFileNameSlot = slotIndex
-                                isFileNameCellPickMode = false
+                                // 정책 보강: 슬롯 전환 시 이전 슬롯 보조 UI 상태를 모두 정리한다.
+                                clearFileNameEditorTransientState(clearDraft = true)
                             },
                             onFillEmptyFileNameSlot = { slotIndex ->
                                 val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
@@ -1029,9 +1094,146 @@ fun TableEditorScreen(
                                         )
                                     }
                                     fileNameSlotItems = normalizeFileNameSlotItems(next)
-                                    isFileNameCellPickMode = false
-                                    showFileNameFormatOptions = false
-                                    showManualInputEditor = false
+                                    clearFileNameEditorTransientState(clearDraft = true)
+                                }
+                            },
+                            onSelectPathSlot = { slotIndex ->
+                                currentlySelectedPathSlot = slotIndex
+                                clearPathEditorTransientState(clearDraft = true)
+                            },
+                            onFillEmptyPathSlot = { slotIndex ->
+                                val normalized = normalizePathSlotItems(pathSlotItems)
+                                val firstEmptyIndex = normalized.indexOfFirst { it == null }
+                                if (firstEmptyIndex < 0) {
+                                    currentlySelectedPathSlot = slotIndex
+                                } else {
+                                    val next = normalized.toMutableList().apply {
+                                        this[firstEmptyIndex] = PathSlotUiItem(
+                                            kind = PathSlotKind.CELL,
+                                            label = "셀"
+                                        )
+                                    }
+                                    pathSlotItems = normalizePathSlotItems(next)
+                                    currentlySelectedPathSlot = firstEmptyIndex
+                                    clearPathEditorTransientState(clearDraft = true)
+                                }
+                            },
+                            onMoveSelectedPathSlotLeft = {
+                                clearPathEditorTransientState(clearDraft = false)
+                                val selected = currentlySelectedPathSlot
+                                if (selected != null) {
+                                    val normalized = normalizePathSlotItems(pathSlotItems)
+                                    val target = selected - 1
+                                    if (target >= 0 && normalized[selected] != null && normalized[target] != null) {
+                                        pathSlotItems = movePathSlot(normalized, selected, target)
+                                        currentlySelectedPathSlot = target
+                                    }
+                                }
+                            },
+                            onMoveSelectedPathSlotRight = {
+                                clearPathEditorTransientState(clearDraft = false)
+                                val selected = currentlySelectedPathSlot
+                                if (selected != null) {
+                                    val normalized = normalizePathSlotItems(pathSlotItems)
+                                    val target = selected + 1
+                                    if (target < normalized.size && normalized[selected] != null && normalized[target] != null) {
+                                        pathSlotItems = movePathSlot(normalized, selected, target)
+                                        currentlySelectedPathSlot = target
+                                    }
+                                }
+                            },
+                            onDeleteSelectedPathSlot = {
+                                clearPathEditorTransientState(clearDraft = true)
+                                val selected = currentlySelectedPathSlot
+                                if (selected != null) {
+                                    val normalized = normalizePathSlotItems(pathSlotItems)
+                                    if (normalized.getOrNull(selected) != null) {
+                                        val next = removePathSlotAt(normalized, selected)
+                                        pathSlotItems = next
+                                        val nextFilledIndex = next.indexOfFirst { it != null }.takeIf { it >= 0 }
+                                        currentlySelectedPathSlot = nextFilledIndex
+                                    }
+                                }
+                            },
+                            onStartPathCellPick = {
+                                if (currentlySelectedPathSlot != null) {
+                                    isPathCellPickMode = true
+                                    showPathFormatOptions = false
+                                    showPathManualInputEditor = false
+                                }
+                            },
+                            onTogglePathFormatOptions = {
+                                if (currentlySelectedPathSlot != null) {
+                                    isPathCellPickMode = false
+                                    showPathManualInputEditor = false
+                                    showPathFormatOptions = !showPathFormatOptions
+                                }
+                            },
+                            onApplyPathFormatType = { formatType ->
+                                val selected = currentlySelectedPathSlot
+                                if (selected != null) {
+                                    val normalized = normalizePathSlotItems(pathSlotItems)
+                                    val next = normalized.toMutableList().apply {
+                                        this[selected] = PathSlotUiItem(
+                                            kind = PathSlotKind.FORMAT,
+                                            label = when (formatType) {
+                                                PathFormatType.DATE -> "날짜"
+                                                PathFormatType.TIME -> "시간"
+                                                PathFormatType.ROTATING_TEXT -> "순환문구"
+                                            },
+                                            formatType = formatType
+                                        )
+                                    }
+                                    pathSlotItems = normalizePathSlotItems(next)
+                                    clearPathEditorTransientState(clearDraft = true)
+                                }
+                            },
+                            onStartPathManualInputEditor = {
+                                val selected = currentlySelectedPathSlot
+                                if (selected != null) {
+                                    val current = normalizePathSlotItems(pathSlotItems).getOrNull(selected)
+                                    pathManualInputDraft = current?.manualText ?: current?.label.orEmpty()
+                                    isPathCellPickMode = false
+                                    showPathFormatOptions = false
+                                    showPathManualInputEditor = true
+                                }
+                            },
+                            onPathManualInputDraftChange = {
+                                pathManualInputDraft = it
+                            },
+                            onApplyPathManualInput = {
+                                val selected = currentlySelectedPathSlot
+                                val trimmed = pathManualInputDraft.trim()
+                                if (selected != null && trimmed.isNotEmpty()) {
+                                    val normalized = normalizePathSlotItems(pathSlotItems)
+                                    val next = normalized.toMutableList().apply {
+                                        this[selected] = PathSlotUiItem(
+                                            kind = PathSlotKind.MANUAL,
+                                            label = trimmed,
+                                            manualText = trimmed
+                                        )
+                                    }
+                                    pathSlotItems = normalizePathSlotItems(next)
+                                    clearPathEditorTransientState(clearDraft = true)
+                                }
+                            },
+                            onBindSelectedPathSlotToCell = { cellId ->
+                                val selected = currentlySelectedPathSlot
+                                if (selected != null) {
+                                    val cellLabel = templateState.cells.firstOrNull { it.cellId == cellId }?.let { cell ->
+                                        resolvedByCellId[cell.cellId]?.takeIf { it.isNotBlank() }
+                                            ?: "셀(${cell.rowIndex + 1},${cell.colIndex + 1})"
+                                    } ?: "셀"
+                                    val normalized = normalizePathSlotItems(pathSlotItems)
+                                    val next = normalized.toMutableList().apply {
+                                        this[selected] = PathSlotUiItem(
+                                            kind = PathSlotKind.CELL,
+                                            label = cellLabel,
+                                            cellId = cellId
+                                        )
+                                    }
+                                    pathSlotItems = normalizePathSlotItems(next)
+                                    clearPathEditorTransientState(clearDraft = true)
                                 }
                             },
                             onStartInlineEditing = { cellId, value ->
