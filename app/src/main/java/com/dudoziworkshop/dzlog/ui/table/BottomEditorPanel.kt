@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -170,13 +169,16 @@ internal fun BottomEditorPanel(
             BottomEditorPanelMode.CELL_EDIT -> {
                 // 정책 변경: 축약판 CELL_EDIT를 유지하지 않고 기존 CellSettingsBottomPanel 핵심 기능을
                 // BottomEditorPanelMode.CELL_EDIT 경로로 이관해 기능 손실을 방지한다.
+                // 주요 정책: CELL_EDIT 메타 정보(선택 셀/현재값)는 compact 간격으로 유지해 과도한 높이를 줄인다.
                 PanelHeader("셀 편집")
                 if (selectedCell == null) {
                     Text("편집할 셀을 먼저 선택하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 } else {
                     val currentValue = resolvedByCellId[selectedCell.cellId].orEmpty().ifBlank { dataTypeLabelKo(selectedCell.dataType) }
                     Text(selectedCellLabel?.let { "선택 셀: $it" } ?: selectedCell.cellId, style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    Spacer(Modifier.size(2.dp))
                     Text(currentValue, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                    Spacer(Modifier.size(4.dp))
                     CellSettingsBottomPanel(
                         modifier = Modifier.fillMaxWidth(),
                         cell = selectedCell,

@@ -109,9 +109,10 @@ internal fun CellSettingsBottomPanel(
     val maxPanelHeight = with(density) {
         LocalWindowInfo.current.containerSize.height.toDp() * 0.5f
     }
-    val panelVerticalPadding = if (compactForBottomPanel) 8.dp else 14.dp
-    val sectionSpacing = if (compactForBottomPanel) 8.dp else 12.dp
-    val buttonHeight = if (compactForBottomPanel) 38.dp else 44.dp
+    val panelVerticalPadding = if (compactForBottomPanel) 6.dp else 14.dp
+    val sectionSpacing = if (compactForBottomPanel) 6.dp else 12.dp
+    val buttonHeight = if (compactForBottomPanel) 36.dp else 44.dp
+    // 주요 정책: CELL_EDIT compact에서는 터치 가능 크기를 유지한 범위에서 밀도를 한 단계 높인다.
 
 
     androidx.compose.runtime.LaunchedEffect(cell.cellId, cell.counterScopeMode, cell.rotatingCounterMode) {
@@ -369,6 +370,9 @@ internal fun CellSettingsBottomPanel(
                 }
             }
 
+            // 주요 정책: 데이터 타입/타입별 설정 UI는 파일명/경로 섹션 노출 여부와 무관하게 항상 렌더한다.
+            }
+
             Spacer(Modifier.height(if (compactForBottomPanel) 0.dp else 2.dp))
             Text("데이터 타입", style = DDZTypography.Caption, color = DDZColor.TextMuted)
             DataTypeCardGrid3(
@@ -550,13 +554,9 @@ internal fun CellSettingsBottomPanel(
                 }
             }
 
-            Spacer(Modifier.height(if (compactForBottomPanel) 4.dp else 10.dp))
+            Spacer(Modifier.height(if (compactForBottomPanel) 2.dp else 10.dp))
         }
     }
-}
-
-// NOTE: 셀 설정 패널 본문을 명시적으로 닫아, 하단 데이터 타입 그리드 컴포저블이
-// 로컬 함수가 아닌 파일 스코프(top-level)로 컴파일되도록 고정한다.
 }
 
 @Composable
@@ -575,15 +575,15 @@ private fun DataTypeCardGrid3(
     )
 
     val rows = items.chunked(3)
-    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp)) {
         rows.forEach { row ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp)) {
                 row.forEach { (type, icon, koLabel) ->
                     val isSelected = selected == type
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(if (compact) 62.dp else 74.dp)
+                            .height(if (compact) 56.dp else 74.dp)
                             .background(
                                 color = if (isSelected) DDZColor.SageLight.copy(alpha = 0.45f) else DDZColor.Surface,
                                 shape = RoundedCornerShape(12.dp)
@@ -594,7 +594,7 @@ private fun DataTypeCardGrid3(
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .clickable { onSelect(type) }
-                            .padding(if (compact) 8.dp else 10.dp)
+                            .padding(if (compact) 6.dp else 10.dp)
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
@@ -606,7 +606,7 @@ private fun DataTypeCardGrid3(
                                 imageVector = icon,
                                 contentDescription = koLabel,
                                 tint = DDZColor.TextPrimary,
-                                modifier = Modifier.height(if (compact) 24.dp else 30.dp)
+                                modifier = Modifier.height(if (compact) 20.dp else 30.dp)
                             )
                             Text(
                                 text = koLabel,

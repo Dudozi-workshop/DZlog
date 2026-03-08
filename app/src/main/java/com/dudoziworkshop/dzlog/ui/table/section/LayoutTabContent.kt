@@ -34,6 +34,10 @@ fun LayoutTabContent(
     modifier: Modifier = Modifier
 ) {
     val isInlineEditing = uiState.editingCellId != null
+    // 정책 보강: CELL_EDIT 헤더에는 UUID 대신 행/열 라벨을 기본 노출한다.
+    val selectedCellDisplayLabel = uiState.selectedCell?.let { cell ->
+        "R${cell.rowIndex + 1}C${cell.colIndex + 1}"
+    } ?: uiState.selectedCellId
 
     Box(modifier = modifier.fillMaxSize()) {
         val contentColumnModifier =
@@ -171,18 +175,12 @@ fun LayoutTabContent(
                     )
                 }
 
-                Box(
+                // 정책 보강: 안내 문구 제거 후에도 하단 패널 가림을 피하기 위해 여유 공간만 유지한다.
+                Spacer(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "모드형 편집 패널 1차 구조 적용 중입니다.",
-                        style = DDZTypography.Caption,
-                        color = DDZColor.TextMuted
-                    )
-                }
+                        .weight(1f)
+                )
             }
         }
 
@@ -195,7 +193,7 @@ fun LayoutTabContent(
             rows = uiState.templateState.rows,
             cols = uiState.templateState.cols,
             isSaving = uiState.isSavingTemplate,
-            selectedCellLabel = uiState.selectedCellId,
+            selectedCellLabel = selectedCellDisplayLabel,
             selectedCell = uiState.selectedCell,
             templateState = uiState.templateState,
             resolvedByCellId = uiState.resolvedByCellId,

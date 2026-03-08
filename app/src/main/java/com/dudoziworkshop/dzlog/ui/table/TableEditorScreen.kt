@@ -997,6 +997,34 @@ fun TableEditorScreen(
         selectedTabIndex = targetIndex
     }
 
+    // 주요 정책: 셀 선택 전에는 inline 값을 항상 먼저 commit 시도해 유실을 막는다.
+    fun requestSelectCell(cellId: String?) {
+        if (selectedCellId == cellId) return
+        if (inlineEdit.isEditing()) {
+            commitInlineEditIfNeeded()
+            if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
+        }
+        selectedCellId = cellId
+    }
+
+    // 주요 정책: 패널 모드 변경 전에도 inline commit을 우선 보장한다.
+    fun requestBottomPanelModeChange(nextMode: BottomEditorPanelMode) {
+        if (bottomPanelMode == nextMode) return
+        if (inlineEdit.isEditing()) {
+            commitInlineEditIfNeeded()
+            if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
+        }
+
+        // 정책 보강: 각 편집 모드를 벗어날 때 해당 임시 상태를 분리 정리한다.
+        if (nextMode != BottomEditorPanelMode.FILENAME_EDIT) {
+            clearFileNameEditorTransientState(clearDraft = true)
+        }
+        if (nextMode != BottomEditorPanelMode.PATH_EDIT) {
+            clearPathEditorTransientState(clearDraft = true)
+        }
+        bottomPanelMode = nextMode
+    }
+
     fun requestCloseBottomPanelToNone() {
         // 정책 보강: X 닫기에서도 탭 전환과 동일하게 inline commit을 우선 시도해 값 유실을 막는다.
         if (inlineEdit.isEditing()) {
@@ -1026,7 +1054,14 @@ fun TableEditorScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        // 정책 보강: 화면 이탈 직전 inline 편집값을 우선 commit 시도한다.
+                        if (inlineEdit.isEditing()) {
+                            commitInlineEditIfNeeded()
+                            if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return@IconButton
+                        }
+                        onBack()
+                    }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "뒤로가기",
@@ -1098,19 +1133,8 @@ fun TableEditorScreen(
                             wmBgStyle = watermarkUi.wmBgStyle
                         ),
                         actions = LayoutTabActions(
-                            onSelectCellId = { selectedCellId = it },
-                            onChangeBottomPanelMode = { nextMode ->
-                                if (bottomPanelMode != nextMode) {
-                                    // 정책 보강: 각 편집 모드를 벗어날 때 해당 임시 상태를 분리 정리한다.
-                                    if (nextMode != BottomEditorPanelMode.FILENAME_EDIT) {
-                                        clearFileNameEditorTransientState(clearDraft = true)
-                                    }
-                                    if (nextMode != BottomEditorPanelMode.PATH_EDIT) {
-                                        clearPathEditorTransientState(clearDraft = true)
-                                    }
-                                    bottomPanelMode = nextMode
-                                }
-                            },
+                            onSelectCellId = ::requestSelectCell,
+                            onChangeBottomPanelMode = ::requestBottomPanelModeChange,
                             onCloseBottomPanel = ::requestCloseBottomPanelToNone,
                             onShowCellSettingsPanel = { showCellSettingsPanel = it },
                             onSelectFileNameSlot = { slotIndex ->
