@@ -26,12 +26,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
+import com.dudoziworkshop.dzlog.domain.model.TableCellState
+import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.ui.table.section.BottomEditorPanelMode
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameFormatType
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
 import com.dudoziworkshop.dzlog.ui.table.section.PathFormatType
 import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
+import java.util.Date
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
@@ -42,10 +48,19 @@ internal fun BottomEditorPanel(
     cols: Int,
     isSaving: Boolean,
     selectedCellLabel: String?,
-    selectedCellDataType: TableCellDataType?,
-    selectedCellResolvedText: String,
+    selectedCell: TableCellState?,
+    templateState: TableTemplateState,
+    resolvedByCellId: Map<String, String>,
+    hasGroup1: Boolean,
+    hasGroup2: Boolean,
+    previewNow: Date,
+    previewCounterDigits: Int,
+    scopeNextCounter: Int,
+    phraseProgressCursor: Int,
+    dateFormat: String,
+    timeFormat: String,
+    phraseSets: List<RotatingPhraseSet>,
     autoNextCounterValue: Int,
-    isInlineEditingSelectedCell: Boolean,
     fileNameSlotItems: List<FileNameSlotUiItem?>,
     selectedFileNameSlot: Int?,
     isFileNameCellPickMode: Boolean,
@@ -59,11 +74,15 @@ internal fun BottomEditorPanel(
     showPathManualInputEditor: Boolean,
     pathManualInputDraft: String,
     modifier: Modifier = Modifier,
+    onToggleFileNameForSelected: (cellId: String, enabled: Boolean) -> Unit,
+    onReorderFileNameSlots: (fromIndex: Int, toIndex: Int) -> Unit,
+    onPathGroupActionForSelected: (PathGroupAction) -> Unit,
     onSetDataTypeForSelected: (TableCellDataType) -> Unit,
+    onSetCounterScopeModeForSelected: (CounterScopeMode) -> Unit,
     onResetCounterSeedForSelected: () -> Unit,
-    onOpenSelectedDateFormat: () -> Unit,
-    onOpenSelectedTimeFormat: () -> Unit,
-    onOpenSelectedRotatingTemplate: () -> Unit,
+    onSetRotatingCounterModeForSelected: (RotatingCounterMode) -> Unit,
+    onOpenFormatDialog: (cellId: String, type: TableCellDataType) -> Unit,
+    onOpenRotatingTemplateDialogForSelected: (String) -> Unit,
     onSelectFileNameSlot: (Int) -> Unit,
     onFillEmptyFileNameSlot: (Int) -> Unit,
     onMoveSelectedFileNameSlotLeft: () -> Unit,
@@ -113,37 +132,6 @@ internal fun BottomEditorPanel(
         }
     }
 
-    @Composable
-    fun DataTypeButton(
-        label: String,
-        selected: Boolean,
-        enabled: Boolean,
-        onClick: () -> Unit,
-        modifier: Modifier = Modifier
-    ) {
-        Box(
-            modifier = modifier
-                .background(
-                    if (selected) DDZColor.PrimaryDark.copy(alpha = 0.16f) else DDZColor.Background,
-                    RoundedCornerShape(10.dp)
-                )
-                .border(
-                    1.dp,
-                    if (selected) DDZColor.Primary else DDZColor.Card,
-                    RoundedCornerShape(10.dp)
-                )
-                .clickable(enabled = enabled, onClick = onClick)
-                .padding(vertical = 10.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = label,
-                style = DDZTypography.Caption,
-                color = if (enabled) DDZColor.TextPrimary else DDZColor.TextMuted
-            )
-        }
-    }
-
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -179,119 +167,43 @@ internal fun BottomEditorPanel(
             }
 
             BottomEditorPanelMode.CELL_EDIT -> {
-                val hasSelectedCell = selectedCellLabel != null
-                val currentType = selectedCellDataType
-                val statusText = selectedCellResolvedText.ifBlank {
-                    currentType?.let { dataTypeLabelKo(it) } ?: "선택된 셀이 없습니다."
-                }
-
+                // 정책 변경: 축약판 CELL_EDIT를 유지하지 않고 기존 CellSettingsBottomPanel 핵심 기능을
+                // BottomEditorPanelMode.CELL_EDIT 경로로 이관해 기능 손실을 방지한다.
                 PanelHeader("셀 편집")
-                Text(
-                    selectedCellLabel?.let { "선택 셀: $it" } ?: "선택된 셀이 없습니다.",
-                    style = DDZTypography.Caption,
-                    color = DDZColor.TextMuted
-                )
-                Text(
-                    text = "현재 타입: ${currentType?.let { dataTypeLabelKo(it) } ?: "-"}",
-                    style = DDZTypography.Caption,
-                    color = DDZColor.TextMuted
-                )
-                Text(text = statusText, style = DDZTypography.Body, color = DDZColor.TextPrimary)
-
-                Text("데이터 타입", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DataTypeButton(
-                        label = "텍스트",
-                        selected = currentType == TableCellDataType.TEXT,
-                        enabled = hasSelectedCell,
-                        onClick = { onSetDataTypeForSelected(TableCellDataType.TEXT) },
-                        modifier = Modifier.weight(1f)
+                if (selectedCell == null) {
+                    Text("편집할 셀을 먼저 선택하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                } else {
+                    val currentValue = resolvedByCellId[selectedCell.cellId].orEmpty().ifBlank { dataTypeLabelKo(selectedCell.dataType) }
+                    Text(selectedCellLabel?.let { "선택 셀: $it" } ?: selectedCell.cellId, style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    Text(currentValue, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                    CellSettingsBottomPanel(
+                        modifier = Modifier.fillMaxWidth(),
+                        cell = selectedCell,
+                        templateState = templateState,
+                        baseResolvedByCellId = resolvedByCellId,
+                        hasGroup1 = hasGroup1,
+                        hasGroup2 = hasGroup2,
+                        onToggleFileNameForCell = onToggleFileNameForSelected,
+                        onReorderFileNameSlots = onReorderFileNameSlots,
+                        onPathGroupAction = onPathGroupActionForSelected,
+                        onSetDataType = onSetDataTypeForSelected,
+                        onSetCounterScopeMode = onSetCounterScopeModeForSelected,
+                        onResetCounterSeed = onResetCounterSeedForSelected,
+                        autoNextCounterValue = autoNextCounterValue,
+                        onOpenRotatingTemplateDialog = { onOpenRotatingTemplateDialogForSelected(selectedCell.cellId) },
+                        onSetRotatingCounterMode = onSetRotatingCounterModeForSelected,
+                        onOpenFormatDialog = onOpenFormatDialog,
+                        previewNow = previewNow,
+                        previewCounterDigits = previewCounterDigits,
+                        scopeNextCounter = scopeNextCounter,
+                        phraseProgressCursor = phraseProgressCursor,
+                        dateFormat = dateFormat,
+                        timeFormat = timeFormat,
+                        phraseSets = phraseSets,
+                        showFileNameSection = false,
+                        showPathGroupSection = false,
+                        compactForBottomPanel = true
                     )
-                    DataTypeButton(
-                        label = "숫자",
-                        selected = currentType == TableCellDataType.NUMBER,
-                        enabled = hasSelectedCell,
-                        onClick = { onSetDataTypeForSelected(TableCellDataType.NUMBER) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    DataTypeButton(
-                        label = "카운터",
-                        selected = currentType == TableCellDataType.COUNTER,
-                        enabled = hasSelectedCell,
-                        onClick = { onSetDataTypeForSelected(TableCellDataType.COUNTER) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DataTypeButton(
-                        label = "날짜",
-                        selected = currentType == TableCellDataType.DATE,
-                        enabled = hasSelectedCell,
-                        onClick = { onSetDataTypeForSelected(TableCellDataType.DATE) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    DataTypeButton(
-                        label = "시간",
-                        selected = currentType == TableCellDataType.TIME,
-                        enabled = hasSelectedCell,
-                        onClick = { onSetDataTypeForSelected(TableCellDataType.TIME) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    DataTypeButton(
-                        label = "순환문구",
-                        selected = currentType == TableCellDataType.ROTATING_TEXT,
-                        enabled = hasSelectedCell,
-                        onClick = { onSetDataTypeForSelected(TableCellDataType.ROTATING_TEXT) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                when (currentType) {
-                    TableCellDataType.TEXT,
-                    TableCellDataType.NUMBER,
-                    TableCellDataType.COUNTER -> {
-                        Text(
-                            text = if (isInlineEditingSelectedCell) {
-                                "인라인 편집 중입니다."
-                            } else {
-                                "셀을 더블탭해 값을 편집하세요."
-                            },
-                            style = DDZTypography.Caption,
-                            color = DDZColor.TextMuted
-                        )
-                        if (currentType == TableCellDataType.COUNTER) {
-                            Text(
-                                text = "다음 카운터: $autoNextCounterValue",
-                                style = DDZTypography.Caption,
-                                color = DDZColor.TextMuted
-                            )
-                            Button(onClick = onResetCounterSeedForSelected, enabled = hasSelectedCell) {
-                                Text("카운터 초기화", style = DDZTypography.ButtonText)
-                            }
-                        }
-                    }
-
-                    TableCellDataType.DATE -> {
-                        Button(onClick = onOpenSelectedDateFormat, enabled = hasSelectedCell) {
-                            Text("날짜 형식 설정", style = DDZTypography.ButtonText)
-                        }
-                    }
-
-                    TableCellDataType.TIME -> {
-                        Button(onClick = onOpenSelectedTimeFormat, enabled = hasSelectedCell) {
-                            Text("시간 형식 설정", style = DDZTypography.ButtonText)
-                        }
-                    }
-
-                    TableCellDataType.ROTATING_TEXT -> {
-                        Button(onClick = onOpenSelectedRotatingTemplate, enabled = hasSelectedCell) {
-                            Text("순환문구 템플릿 설정", style = DDZTypography.ButtonText)
-                        }
-                    }
-
-                    null -> {
-                        Text("편집할 셀을 먼저 선택하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                    }
                 }
             }
 
@@ -426,6 +338,8 @@ internal fun BottomEditorPanel(
         }
     }
 }
+
+
 
 private fun dataTypeLabelKo(dataType: TableCellDataType): String =
     when (dataType) {

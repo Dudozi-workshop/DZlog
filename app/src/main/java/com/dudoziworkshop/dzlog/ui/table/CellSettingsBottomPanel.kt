@@ -86,7 +86,10 @@ internal fun CellSettingsBottomPanel(
     phraseProgressCursor: Int,
     dateFormat: String,
     timeFormat: String,
-    phraseSets: List<RotatingPhraseSet>
+    phraseSets: List<RotatingPhraseSet>,
+    showFileNameSection: Boolean = true,
+    showPathGroupSection: Boolean = true,
+    compactForBottomPanel: Boolean = false
 ) {
     val context = LocalContext.current
     val isIncluded = templateState.fileNameSlots.contains(cell.cellId)
@@ -106,6 +109,9 @@ internal fun CellSettingsBottomPanel(
     val maxPanelHeight = with(density) {
         LocalWindowInfo.current.containerSize.height.toDp() * 0.5f
     }
+    val panelVerticalPadding = if (compactForBottomPanel) 8.dp else 14.dp
+    val sectionSpacing = if (compactForBottomPanel) 8.dp else 12.dp
+    val buttonHeight = if (compactForBottomPanel) 38.dp else 44.dp
 
 
     androidx.compose.runtime.LaunchedEffect(cell.cellId, cell.counterScopeMode, cell.rotatingCounterMode) {
@@ -184,37 +190,43 @@ internal fun CellSettingsBottomPanel(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(max = maxPanelHeight)
-            .background(DDZColor.Surface, RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .let { base ->
+                // 정책 보강: CELL_EDIT 하단 패널 내부에서는 외곽 카드 중복을 제거해 밀도를 높인다.
+                if (compactForBottomPanel) base else base.background(DDZColor.Surface, RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+            }
+            .padding(horizontal = panelVerticalPadding, vertical = panelVerticalPadding),
+        verticalArrangement = Arrangement.spacedBy(if (compactForBottomPanel) 4.dp else 10.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 2.dp, bottom = 2.dp),
-            contentAlignment = Alignment.Center
-        ) {
+        if (!compactForBottomPanel) {
             Box(
                 modifier = Modifier
-                    .width(42.dp)
-                    .height(4.dp)
-                    .background(DDZColor.Border, RoundedCornerShape(4.dp))
-            )
+                    .fillMaxWidth()
+                    .padding(top = 2.dp, bottom = 2.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(42.dp)
+                        .height(4.dp)
+                        .background(DDZColor.Border, RoundedCornerShape(4.dp))
+                )
+            }
         }
 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(panelScrollState),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(sectionSpacing)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("저장경로", style = DDZTypography.Body, color = DDZColor.TextMuted)
+            if (showPathGroupSection) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("저장경로", style = DDZTypography.Body, color = DDZColor.TextMuted)
                     val canSelectG2 = hasGroup1 && (
                         cell.groupLevel != GroupLevel.G1 || hasGroup2
                     )
@@ -249,10 +261,12 @@ internal fun CellSettingsBottomPanel(
                     if (!canSelectG2) {
                         Text("※ G2는 G1 설정 후 사용 가능 (현재 G1 셀에는 G2 설정 불가)", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                     }
+                    }
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (showFileNameSection) {
+                Column(verticalArrangement = Arrangement.spacedBy(if (compactForBottomPanel) 6.dp else 8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -260,7 +274,7 @@ internal fun CellSettingsBottomPanel(
                 ) {
                     Text("파일명", style = DDZTypography.Body, color = DDZColor.TextMuted)
                     Button(
-                        modifier = Modifier.height(30.dp),
+                        modifier = Modifier.height(if (compactForBottomPanel) 36.dp else 30.dp),
                         onClick = {
                             val enable = !isIncluded
                             if (enable) {
@@ -306,7 +320,7 @@ internal fun CellSettingsBottomPanel(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(44.dp)
+                                    .height(if (compactForBottomPanel) 36.dp else 44.dp)
                                     .background(
                                         color = if (isSelected) DDZColor.Primary else DDZColor.Surface,
                                         shape = RoundedCornerShape(14.dp)
@@ -355,20 +369,23 @@ internal fun CellSettingsBottomPanel(
                 }
             }
 
-            Spacer(Modifier.height(2.dp))
-            Text("데이터 형식", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+            Spacer(Modifier.height(if (compactForBottomPanel) 0.dp else 2.dp))
+            Text("데이터 타입", style = DDZTypography.Caption, color = DDZColor.TextMuted)
             DataTypeCardGrid3(
                 selected = cell.dataType,
-                onSelect = onSetDataType
+                onSelect = onSetDataType,
+                compact = compactForBottomPanel
             )
 
             if (cell.dataType == TableCellDataType.COUNTER && onResetCounterSeed != null) {
+                Text("카운터", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 Button(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(buttonHeight),
                     onClick = onResetCounterSeed
                 ) {
-                    Text("카운터 초기화 ($autoNextCounterValue)", style = DDZTypography.ButtonText)
+                    Text("카운터 초기화", style = DDZTypography.ButtonText)
                 }
+                Text("다음 카운터: $autoNextCounterValue", style = DDZTypography.Caption, color = DDZColor.TextMuted)
             }
 
             if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
@@ -383,18 +400,19 @@ internal fun CellSettingsBottomPanel(
                     CounterScopeMode.INCLUDE -> "스코프: 포함"
                 }
 
+                Text("형식 설정", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).height(buttonHeight),
                         onClick = { onOpenFormatDialog(cell.cellId, cell.dataType) }
                     ) {
                         Text(formatLabel, style = DDZTypography.ButtonText)
                     }
                     Button(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).height(buttonHeight),
                         onClick = {
                             pendingCounterScopeMode = cell.counterScopeMode ?: CounterScopeMode.EXCLUDE
                             isCounterScopeDialogOpen = true
@@ -411,7 +429,7 @@ internal fun CellSettingsBottomPanel(
                     onDismissRequest = { isCounterScopeDialogOpen = false },
                     title = { Text("카운터 스코프", style = DDZTypography.Body, color = DDZColor.TextPrimary) },
                     text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(if (compactForBottomPanel) 6.dp else 8.dp)) {
                             Text(
                                 text = "이 날짜/시간 값이 바뀌면 카운터도 분리됩니다.",
                                 style = DDZTypography.Caption,
@@ -462,18 +480,19 @@ internal fun CellSettingsBottomPanel(
             }
 
             if (cell.dataType == TableCellDataType.ROTATING_TEXT && onOpenRotatingTemplateDialog != null) {
+                Text("순환문구", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).height(buttonHeight),
                         onClick = onOpenRotatingTemplateDialog
                     ) {
-                        Text("문구 설정", style = DDZTypography.ButtonText)
+                        Text("템플릿 설정", style = DDZTypography.ButtonText)
                     }
                     Button(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).height(buttonHeight),
                         onClick = { isRotatingCounterDialogOpen = true }
                     ) {
                         val effectiveRotatingCounterMode = if (isRotatingCounterDialogOpen) {
@@ -495,7 +514,7 @@ internal fun CellSettingsBottomPanel(
                         onDismissRequest = { isRotatingCounterDialogOpen = false },
                         title = { Text("카운터", style = DDZTypography.Body) },
                         text = {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(if (compactForBottomPanel) 6.dp else 8.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().clickable { pendingRotatingCounterMode = RotatingCounterMode.GLOBAL },
                                     verticalAlignment = Alignment.CenterVertically
@@ -531,7 +550,7 @@ internal fun CellSettingsBottomPanel(
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(if (compactForBottomPanel) 4.dp else 10.dp))
         }
     }
 }
@@ -539,7 +558,8 @@ internal fun CellSettingsBottomPanel(
 @Composable
 private fun DataTypeCardGrid3(
     selected: TableCellDataType,
-    onSelect: (TableCellDataType) -> Unit
+    onSelect: (TableCellDataType) -> Unit,
+    compact: Boolean = false
 ) {
     val items = listOf(
         Triple(TableCellDataType.TEXT, Icons.Default.TextFields, "텍스트"),
@@ -551,7 +571,7 @@ private fun DataTypeCardGrid3(
     )
 
     val rows = items.chunked(3)
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp)) {
         rows.forEach { row ->
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { (type, icon, koLabel) ->
@@ -559,7 +579,7 @@ private fun DataTypeCardGrid3(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(74.dp)
+                            .height(if (compact) 62.dp else 74.dp)
                             .background(
                                 color = if (isSelected) DDZColor.SageLight.copy(alpha = 0.45f) else DDZColor.Surface,
                                 shape = RoundedCornerShape(12.dp)
@@ -570,7 +590,7 @@ private fun DataTypeCardGrid3(
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .clickable { onSelect(type) }
-                            .padding(10.dp)
+                            .padding(if (compact) 8.dp else 10.dp)
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
@@ -582,7 +602,7 @@ private fun DataTypeCardGrid3(
                                 imageVector = icon,
                                 contentDescription = koLabel,
                                 tint = DDZColor.TextPrimary,
-                                modifier = Modifier.height(30.dp)
+                                modifier = Modifier.height(if (compact) 24.dp else 30.dp)
                             )
                             Text(
                                 text = koLabel,
