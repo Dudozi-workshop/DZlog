@@ -80,6 +80,17 @@ fun LayoutTabContent(
                         selectedCellId = uiState.selectedCellId,
                         editingCellId = uiState.editingCellId,
                         onSelectCell = { id ->
+                            // 정책 변경: FILENAME_EDIT + 셀 선택 대기 상태에서는 표 셀 탭을
+                            // CELL_EDIT 진입이 아니라 "파일명 슬롯 셀 연결"로 우선 처리한다.
+                            if (uiState.bottomPanelMode == BottomEditorPanelMode.FILENAME_EDIT &&
+                                uiState.isFileNameCellPickMode &&
+                                id != null
+                            ) {
+                                actions.onSelectCellId(id)
+                                actions.onBindSelectedSlotToCell(id)
+                                return@TableGridSection
+                            }
+
                             if (uiState.editingCellId != null && uiState.editingCellId != id) {
                                 if (!actions.onTryCommitInlineAndContinue()) return@TableGridSection
                             }
@@ -90,6 +101,12 @@ fun LayoutTabContent(
                             actions.onShowCellSettingsPanel(false)
                         },
                         onDoubleClickCell = { cell ->
+                            if (uiState.bottomPanelMode == BottomEditorPanelMode.FILENAME_EDIT && uiState.isFileNameCellPickMode) {
+                                actions.onSelectCellId(cell.cellId)
+                                actions.onBindSelectedSlotToCell(cell.cellId)
+                                return@TableGridSection
+                            }
+
                             if (uiState.editingCellId != null && uiState.editingCellId != cell.cellId) {
                                 if (!actions.onTryCommitInlineAndContinue()) return@TableGridSection
                                 actions.onSelectCellId(cell.cellId)
@@ -160,6 +177,16 @@ fun LayoutTabContent(
             onMoveSelectedFileNameSlotLeft = actions.onMoveSelectedFileNameSlotLeft,
             onMoveSelectedFileNameSlotRight = actions.onMoveSelectedFileNameSlotRight,
             onDeleteSelectedFileNameSlot = actions.onDeleteSelectedFileNameSlot,
+            isFileNameCellPickMode = uiState.isFileNameCellPickMode,
+            showFileNameFormatOptions = uiState.showFileNameFormatOptions,
+            manualInputDraft = uiState.manualInputDraft,
+            showManualInputEditor = uiState.showManualInputEditor,
+            onStartFileNameCellPick = actions.onStartFileNameCellPick,
+            onToggleFileNameFormatOptions = actions.onToggleFileNameFormatOptions,
+            onApplyFileNameFormatType = actions.onApplyFileNameFormatType,
+            onStartManualInputEditor = actions.onStartManualInputEditor,
+            onManualInputDraftChange = actions.onManualInputDraftChange,
+            onApplyManualInput = actions.onApplyManualInput,
             onAddRow = actions.onAddRow,
             onRemoveRow = actions.onRemoveRow,
             onAddCol = actions.onAddCol,

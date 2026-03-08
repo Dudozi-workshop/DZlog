@@ -21,13 +21,23 @@ enum class BottomEditorPanelMode {
 
 enum class FileNameSlotKind {
     CELL,
-    COUNTER,
+    FORMAT,
     MANUAL
+}
+
+enum class FileNameFormatType {
+    DATE,
+    TIME,
+    COUNTER,
+    ROTATING_TEXT
 }
 
 data class FileNameSlotUiItem(
     val kind: FileNameSlotKind,
-    val label: String
+    val label: String,
+    val cellId: String? = null,
+    val manualText: String? = null,
+    val formatType: FileNameFormatType? = null
 )
 
 data class LayoutTabUiState(
@@ -52,6 +62,10 @@ data class LayoutTabUiState(
     val currentlySelectedFileNameSlot: Int?,
     val currentlySelectedPathSlot: Int?,
     val fileNameSlotItems: List<FileNameSlotUiItem?>,
+    val isFileNameCellPickMode: Boolean,
+    val showFileNameFormatOptions: Boolean,
+    val manualInputDraft: String,
+    val showManualInputEditor: Boolean,
     val showCellSettingsPanel: Boolean,
     val selectedCell: TableCellState?,
     val hasGroup1: Boolean,
@@ -71,6 +85,13 @@ data class LayoutTabActions(
     val onMoveSelectedFileNameSlotLeft: () -> Unit,
     val onMoveSelectedFileNameSlotRight: () -> Unit,
     val onDeleteSelectedFileNameSlot: () -> Unit,
+    val onStartFileNameCellPick: () -> Unit,
+    val onToggleFileNameFormatOptions: () -> Unit,
+    val onApplyFileNameFormatType: (FileNameFormatType) -> Unit,
+    val onStartManualInputEditor: () -> Unit,
+    val onManualInputDraftChange: (String) -> Unit,
+    val onApplyManualInput: () -> Unit,
+    val onBindSelectedSlotToCell: (String) -> Unit,
     val onStartInlineEditing: (cellId: String, initialText: String) -> Unit,
     val onOpenFormatDialog: (cellId: String, type: TableCellDataType) -> Unit,
     val onEditingValueChange: (String) -> Unit,

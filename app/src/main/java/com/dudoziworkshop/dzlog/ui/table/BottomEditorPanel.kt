@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,14 +15,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.table.section.BottomEditorPanelMode
+import com.dudoziworkshop.dzlog.ui.table.section.FileNameFormatType
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -37,12 +39,22 @@ internal fun BottomEditorPanel(
     selectedCellLabel: String?,
     fileNameSlotItems: List<FileNameSlotUiItem?>,
     selectedFileNameSlot: Int?,
+    isFileNameCellPickMode: Boolean,
+    showFileNameFormatOptions: Boolean,
+    manualInputDraft: String,
+    showManualInputEditor: Boolean,
     modifier: Modifier = Modifier,
     onSelectFileNameSlot: (Int) -> Unit,
     onFillEmptyFileNameSlot: (Int) -> Unit,
     onMoveSelectedFileNameSlotLeft: () -> Unit,
     onMoveSelectedFileNameSlotRight: () -> Unit,
     onDeleteSelectedFileNameSlot: () -> Unit,
+    onStartFileNameCellPick: () -> Unit,
+    onToggleFileNameFormatOptions: () -> Unit,
+    onApplyFileNameFormatType: (FileNameFormatType) -> Unit,
+    onStartManualInputEditor: () -> Unit,
+    onManualInputDraftChange: (String) -> Unit,
+    onApplyManualInput: () -> Unit,
     onAddRow: () -> Unit,
     onRemoveRow: () -> Unit,
     onAddCol: () -> Unit,
@@ -160,6 +172,65 @@ internal fun BottomEditorPanel(
                     Button(modifier = Modifier.weight(1f), onClick = onDeleteSelectedFileNameSlot, enabled = canDelete) {
                         Text("삭제", style = DDZTypography.ButtonText)
                     }
+                }
+
+                Text("요소 선택", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                val hasSelectedSlot = selectedFileNameSlot != null
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(modifier = Modifier.weight(1f), onClick = onStartFileNameCellPick, enabled = hasSelectedSlot) {
+                        Text("셀", style = DDZTypography.ButtonText)
+                    }
+                    Button(
+                        modifier = Modifier.weight(1f),
+                        onClick = onToggleFileNameFormatOptions,
+                        enabled = hasSelectedSlot
+                    ) {
+                        Text("서식", style = DDZTypography.ButtonText)
+                    }
+                    Button(modifier = Modifier.weight(1f), onClick = onStartManualInputEditor, enabled = hasSelectedSlot) {
+                        Text("직접입력", style = DDZTypography.ButtonText)
+                    }
+                }
+
+                if (showFileNameFormatOptions && hasSelectedSlot) {
+                    Text("서식 선택", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(modifier = Modifier.weight(1f), onClick = { onApplyFileNameFormatType(FileNameFormatType.DATE) }) {
+                            Text("날짜", style = DDZTypography.ButtonText)
+                        }
+                        Button(modifier = Modifier.weight(1f), onClick = { onApplyFileNameFormatType(FileNameFormatType.TIME) }) {
+                            Text("시간", style = DDZTypography.ButtonText)
+                        }
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(modifier = Modifier.weight(1f), onClick = { onApplyFileNameFormatType(FileNameFormatType.COUNTER) }) {
+                            Text("카운터", style = DDZTypography.ButtonText)
+                        }
+                        Button(modifier = Modifier.weight(1f), onClick = { onApplyFileNameFormatType(FileNameFormatType.ROTATING_TEXT) }) {
+                            Text("순환문구", style = DDZTypography.ButtonText)
+                        }
+                    }
+                }
+
+                if (showManualInputEditor && hasSelectedSlot) {
+                    Text("직접입력", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    OutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = manualInputDraft,
+                        onValueChange = onManualInputDraftChange,
+                        singleLine = true,
+                        placeholder = { Text("텍스트를 입력하세요") }
+                    )
+                    Button(
+                        onClick = onApplyManualInput,
+                        enabled = manualInputDraft.trim().isNotBlank()
+                    ) {
+                        Text("적용", style = DDZTypography.ButtonText)
+                    }
+                }
+
+                if (isFileNameCellPickMode && hasSelectedSlot) {
+                    Text("셀 선택 대기 중: 위 표에서 셀을 탭하면 현재 슬롯에 연결됩니다.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 }
 
                 Text("프리뷰", style = DDZTypography.Caption, color = DDZColor.TextMuted)

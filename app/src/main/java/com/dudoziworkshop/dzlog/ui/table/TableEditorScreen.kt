@@ -90,6 +90,7 @@ import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseTemplateDialog
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseUiState
 import com.dudoziworkshop.dzlog.ui.table.section.BottomEditorPanelMode
+import com.dudoziworkshop.dzlog.ui.table.section.FileNameFormatType
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotKind
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabActions
@@ -155,6 +156,10 @@ fun TableEditorScreen(
     var fileNameSlotItems by remember {
         mutableStateOf<List<FileNameSlotUiItem?>>(List(3) { null })
     }
+    var isFileNameCellPickMode by remember { mutableStateOf(false) }
+    var showFileNameFormatOptions by remember { mutableStateOf(false) }
+    var manualInputDraft by remember { mutableStateOf("") }
+    var showManualInputEditor by remember { mutableStateOf(false) }
 
     fun normalizeFileNameSlotItems(slots: List<FileNameSlotUiItem?>): List<FileNameSlotUiItem?> {
         return List(3) { index -> slots.getOrNull(index) }
@@ -856,6 +861,10 @@ fun TableEditorScreen(
                             currentlySelectedFileNameSlot = currentlySelectedFileNameSlot,
                             currentlySelectedPathSlot = currentlySelectedPathSlot,
                             fileNameSlotItems = fileNameSlotItems,
+                            isFileNameCellPickMode = isFileNameCellPickMode,
+                            showFileNameFormatOptions = showFileNameFormatOptions,
+                            manualInputDraft = manualInputDraft,
+                            showManualInputEditor = showManualInputEditor,
                             showCellSettingsPanel = showCellSettingsPanel,
                             selectedCell = selectedCell,
                             hasGroup1 = hasGroup1,
@@ -871,6 +880,7 @@ fun TableEditorScreen(
                             onShowCellSettingsPanel = { showCellSettingsPanel = it },
                             onSelectFileNameSlot = { slotIndex ->
                                 currentlySelectedFileNameSlot = slotIndex
+                                isFileNameCellPickMode = false
                             },
                             onFillEmptyFileNameSlot = { slotIndex ->
                                 val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
@@ -888,9 +898,15 @@ fun TableEditorScreen(
                                     }
                                     fileNameSlotItems = normalizeFileNameSlotItems(next)
                                     currentlySelectedFileNameSlot = firstEmptyIndex
+                                    isFileNameCellPickMode = false
+                                    showFileNameFormatOptions = false
+                                    showManualInputEditor = false
                                 }
                             },
                             onMoveSelectedFileNameSlotLeft = {
+                                isFileNameCellPickMode = false
+                                showFileNameFormatOptions = false
+                                showManualInputEditor = false
                                 val selected = currentlySelectedFileNameSlot
                                 if (selected != null) {
                                     val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
@@ -902,6 +918,9 @@ fun TableEditorScreen(
                                 }
                             },
                             onMoveSelectedFileNameSlotRight = {
+                                isFileNameCellPickMode = false
+                                showFileNameFormatOptions = false
+                                showManualInputEditor = false
                                 val selected = currentlySelectedFileNameSlot
                                 if (selected != null) {
                                     val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
@@ -913,6 +932,9 @@ fun TableEditorScreen(
                                 }
                             },
                             onDeleteSelectedFileNameSlot = {
+                                isFileNameCellPickMode = false
+                                showFileNameFormatOptions = false
+                                showManualInputEditor = false
                                 val selected = currentlySelectedFileNameSlot
                                 if (selected != null) {
                                     val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
@@ -922,6 +944,94 @@ fun TableEditorScreen(
                                         val nextFilledIndex = next.indexOfFirst { it != null }.takeIf { it >= 0 }
                                         currentlySelectedFileNameSlot = nextFilledIndex
                                     }
+                                }
+                            },
+                            onStartFileNameCellPick = {
+                                if (currentlySelectedFileNameSlot != null) {
+                                    isFileNameCellPickMode = true
+                                    showFileNameFormatOptions = false
+                                    showManualInputEditor = false
+                                }
+                            },
+                            onToggleFileNameFormatOptions = {
+                                if (currentlySelectedFileNameSlot != null) {
+                                    isFileNameCellPickMode = false
+                                    showManualInputEditor = false
+                                    showFileNameFormatOptions = !showFileNameFormatOptions
+                                }
+                            },
+                            onApplyFileNameFormatType = { formatType ->
+                                val selected = currentlySelectedFileNameSlot
+                                if (selected != null) {
+                                    val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
+                                    val next = normalized.toMutableList().apply {
+                                        this[selected] = FileNameSlotUiItem(
+                                            kind = FileNameSlotKind.FORMAT,
+                                            label = when (formatType) {
+                                                FileNameFormatType.DATE -> "날짜"
+                                                FileNameFormatType.TIME -> "시간"
+                                                FileNameFormatType.COUNTER -> "카운터"
+                                                FileNameFormatType.ROTATING_TEXT -> "순환문구"
+                                            },
+                                            formatType = formatType
+                                        )
+                                    }
+                                    fileNameSlotItems = normalizeFileNameSlotItems(next)
+                                    isFileNameCellPickMode = false
+                                    showFileNameFormatOptions = false
+                                    showManualInputEditor = false
+                                }
+                            },
+                            onStartManualInputEditor = {
+                                val selected = currentlySelectedFileNameSlot
+                                if (selected != null) {
+                                    val current = normalizeFileNameSlotItems(fileNameSlotItems).getOrNull(selected)
+                                    manualInputDraft = current?.manualText ?: current?.label.orEmpty()
+                                    isFileNameCellPickMode = false
+                                    showFileNameFormatOptions = false
+                                    showManualInputEditor = true
+                                }
+                            },
+                            onManualInputDraftChange = {
+                                manualInputDraft = it
+                            },
+                            onApplyManualInput = {
+                                val selected = currentlySelectedFileNameSlot
+                                val trimmed = manualInputDraft.trim()
+                                if (selected != null && trimmed.isNotEmpty()) {
+                                    val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
+                                    val next = normalized.toMutableList().apply {
+                                        this[selected] = FileNameSlotUiItem(
+                                            kind = FileNameSlotKind.MANUAL,
+                                            label = trimmed,
+                                            manualText = trimmed
+                                        )
+                                    }
+                                    fileNameSlotItems = normalizeFileNameSlotItems(next)
+                                    showManualInputEditor = false
+                                    showFileNameFormatOptions = false
+                                    isFileNameCellPickMode = false
+                                }
+                            },
+                            onBindSelectedSlotToCell = { cellId ->
+                                val selected = currentlySelectedFileNameSlot
+                                if (selected != null) {
+                                    val cellLabel = templateState.cells.firstOrNull { it.cellId == cellId }?.let { cell ->
+                                        resolvedByCellId[cell.cellId]?.takeIf { it.isNotBlank() }
+                                            ?: "셀(${cell.rowIndex + 1},${cell.colIndex + 1})"
+                                    } ?: "셀"
+                                    val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
+                                    val next = normalized.toMutableList().apply {
+                                        this[selected] = FileNameSlotUiItem(
+                                            kind = FileNameSlotKind.CELL,
+                                            label = cellLabel,
+                                            cellId = cellId
+                                        )
+                                    }
+                                    fileNameSlotItems = normalizeFileNameSlotItems(next)
+                                    isFileNameCellPickMode = false
+                                    showFileNameFormatOptions = false
+                                    showManualInputEditor = false
                                 }
                             },
                             onStartInlineEditing = { cellId, value ->
