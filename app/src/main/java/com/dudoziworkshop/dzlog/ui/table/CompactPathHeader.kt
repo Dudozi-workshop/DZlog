@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.table
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -13,13 +14,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalDensity
-import com.dudoziworkshop.dzlog.ui.common.buildSavePathTitle
 import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
+import com.dudoziworkshop.dzlog.ui.common.buildSavePathTitle
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -28,7 +29,9 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 internal fun CompactPathHeader(
     savePath: String,
     fileName: String,
-    fileNameRightLabel: String? = null
+    fileNameRightLabel: String? = null,
+    onClickFileNamePreview: () -> Unit = {},
+    onClickSavePathPreview: () -> Unit = {}
 ) {
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -68,7 +71,14 @@ internal fun CompactPathHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Box(modifier = Modifier.weight(1f)) {
+            // 다음 단계 PATH 슬롯 편집으로 이어질 수 있게 프리뷰 텍스트 자체를 클릭 타겟으로 사용.
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(DDZColor.Surface.copy(alpha = 0.55f), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                    .clickable(onClick = onClickSavePathPreview)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
                 val (g1Part, g2Part) = remember(savePath) {
                     parseG1G2FromRelativePath(savePath)
                 }
@@ -103,20 +113,31 @@ internal fun CompactPathHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            CounterAwareFileNameText(
-                fileName = fileName,
-                modifier = Modifier.weight(1f),
-                style = DDZTypography.Body.copy(fontSize = 11.sp, lineHeight = 14.sp),
-                color = DDZColor.TextPrimary,
-            )
-            fileNameRightLabel?.takeIf { it.isNotBlank() }?.let { label ->
-                Text(
-                    text = label,
-                    style = DDZTypography.Caption,
-                    color = DDZColor.TextMuted,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+            // 다음 단계 파일명 슬롯 편집으로 이어질 수 있게 프리뷰 텍스트 자체를 클릭 타겟으로 사용.
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(DDZColor.Surface.copy(alpha = 0.55f), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                    .clickable(onClick = onClickFileNamePreview)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                CounterAwareFileNameText(
+                    fileName = fileName,
+                    modifier = Modifier.weight(1f),
+                    style = DDZTypography.Body.copy(fontSize = 11.sp, lineHeight = 14.sp),
+                    color = DDZColor.TextPrimary,
                 )
+                fileNameRightLabel?.takeIf { it.isNotBlank() }?.let { label ->
+                    Text(
+                        text = label,
+                        style = DDZTypography.Caption,
+                        color = DDZColor.TextMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
