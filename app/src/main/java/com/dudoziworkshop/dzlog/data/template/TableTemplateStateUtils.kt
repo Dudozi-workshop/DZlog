@@ -5,12 +5,14 @@ import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.HourSystem
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
+import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.model.TimeSeparator
@@ -32,6 +34,23 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
             val w = root.getJSONArray("colWeights")
             List(w.length()) { idx -> w.optDouble(idx, 1.0).toFloat() }
         } else null
+
+        fun parseEditorSlotDrafts(key: String, slotCount: Int): List<TableEditorSlotDraft?> {
+            val arr = root.optJSONArray(key) ?: JSONArray()
+            return List(slotCount) { idx ->
+                val obj = arr.optJSONObject(idx) ?: return@List null
+                val kind = obj.optString("kind", "").trim()
+                val label = obj.optString("label", "").trim()
+                if (kind.isBlank() || label.isBlank()) return@List null
+                TableEditorSlotDraft(
+                    kind = kind,
+                    label = label,
+                    cellId = obj.optString("cellId").takeUnless { it.isBlank() || it == "null" },
+                    manualText = obj.optString("manualText").takeUnless { it.isBlank() || it == "null" },
+                    formatType = obj.optString("formatType").takeUnless { it.isBlank() || it == "null" }
+                )
+            }
+        }
 
         val hasFileNameSlots = root.has("fileNameSlots")
         val loadedFileNameSlots: List<CellKey?> = if (hasFileNameSlots) {
@@ -150,6 +169,8 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                 .take(FILE_NAME_SLOT_COUNT)
             migrated + List(FILE_NAME_SLOT_COUNT - migrated.size) { null }
         }
+        val fileNameSlotDrafts = parseEditorSlotDrafts("fileNameSlotDrafts", FILE_NAME_SLOT_COUNT)
+        val pathSlotDrafts = parseEditorSlotDrafts("pathSlotDrafts", PATH_SLOT_COUNT)
 
         TableTemplateState(
             rows = rows,
@@ -158,7 +179,9 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
             rowWeights = rowWeights,
             colWeights = colWeights,
             phraseSets = phraseSets,
-            fileNameSlots = fileNameSlots
+            fileNameSlots = fileNameSlots,
+            fileNameSlotDrafts = fileNameSlotDrafts,
+            pathSlotDrafts = pathSlotDrafts
         )
     }.getOrNull()
 }
@@ -261,6 +284,27 @@ fun TableTemplateState.toJsonString(): String {
         fileNameSlotsJson.put(slot ?: JSONObject.NULL)
     }
     root.put("fileNameSlots", fileNameSlotsJson)
+
+    fun slotDraftsToJson(drafts: List<TableEditorSlotDraft?>, slotCount: Int): JSONArray {
+        val arr = JSONArray()
+        drafts.take(slotCount).forEach { slot ->
+            if (slot == null) {
+                arr.put(JSONObject.NULL)
+            } else {
+                val o = JSONObject()
+                o.put("kind", slot.kind)
+                o.put("label", slot.label)
+                o.put("cellId", slot.cellId ?: JSONObject.NULL)
+                o.put("manualText", slot.manualText ?: JSONObject.NULL)
+                o.put("formatType", slot.formatType ?: JSONObject.NULL)
+                arr.put(o)
+            }
+        }
+        return arr
+    }
+
+    root.put("fileNameSlotDrafts", slotDraftsToJson(fileNameSlotDrafts, FILE_NAME_SLOT_COUNT))
+    root.put("pathSlotDrafts", slotDraftsToJson(pathSlotDrafts, PATH_SLOT_COUNT))
 
     if (phraseSets.isNotEmpty()) {
         val phraseSetsJson = JSONArray()

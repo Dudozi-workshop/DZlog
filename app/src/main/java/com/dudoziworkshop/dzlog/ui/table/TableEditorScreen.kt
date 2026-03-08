@@ -133,6 +133,108 @@ import java.util.Date
 import java.util.UUID
 import com.dudoziworkshop.dzlog.ui.table.editor.commitInlineEditIfNeeded as commitInlineEdit
 
+private data class TableEditorDraftState(
+    val template: TableTemplateState,
+    val fileNameSlots: List<FileNameSlotUiItem?>,
+    val pathSlots: List<PathSlotUiItem?>
+)
+
+private data class DeletedStructureSnapshot(
+    val cells: List<TableCellState>,
+    val fileNameSlotsSnapshot: List<FileNameSlotUiItem?>,
+    val pathSlotsSnapshot: List<PathSlotUiItem?>
+)
+
+private fun normalizeFileNameDraftSlots(slots: List<FileNameSlotUiItem?>): List<FileNameSlotUiItem?> {
+    return List(3) { index -> slots.getOrNull(index) }
+}
+
+private fun normalizePathDraftSlots(slots: List<PathSlotUiItem?>): List<PathSlotUiItem?> {
+    return List(2) { index -> slots.getOrNull(index) }
+}
+
+private fun toFileNameUiSlotDraft(slot: com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft?): FileNameSlotUiItem? {
+    if (slot == null) return null
+    val kind = runCatching { FileNameSlotKind.valueOf(slot.kind) }.getOrNull() ?: return null
+    val formatType = slot.formatType?.let { runCatching { FileNameFormatType.valueOf(it) }.getOrNull() }
+    return FileNameSlotUiItem(
+        kind = kind,
+        label = slot.label,
+        cellId = slot.cellId,
+        manualText = slot.manualText,
+        formatType = formatType
+    )
+}
+
+private fun toPathUiSlotDraft(slot: com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft?): PathSlotUiItem? {
+    if (slot == null) return null
+    val kind = runCatching { PathSlotKind.valueOf(slot.kind) }.getOrNull() ?: return null
+    val formatType = slot.formatType?.let { runCatching { PathFormatType.valueOf(it) }.getOrNull() }
+    return PathSlotUiItem(
+        kind = kind,
+        label = slot.label,
+        cellId = slot.cellId,
+        manualText = slot.manualText,
+        formatType = formatType
+    )
+}
+
+private fun toFileNameDomainSlotDraft(slot: FileNameSlotUiItem?): com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft? {
+    if (slot == null) return null
+    return com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft(
+        kind = slot.kind.name,
+        label = slot.label,
+        cellId = slot.cellId,
+        manualText = slot.manualText,
+        formatType = slot.formatType?.name
+    )
+}
+
+private fun toPathDomainSlotDraft(slot: PathSlotUiItem?): com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft? {
+    if (slot == null) return null
+    return com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft(
+        kind = slot.kind.name,
+        label = slot.label,
+        cellId = slot.cellId,
+        manualText = slot.manualText,
+        formatType = slot.formatType?.name
+    )
+}
+
+private fun buildFileNameDraftSlots(template: TableTemplateState): List<FileNameSlotUiItem?> {
+    // 정책 보강: 저장된 draft 슬롯 payload가 있으면 우선 복원하고,
+    // 레거시 템플릿(셀 id만 저장된 경우)은 기존 fallback으로 UI 슬롯을 재구성한다.
+    val fromDraftPayload = normalizeFileNameDraftSlots(template.fileNameSlotDrafts.map(::toFileNameUiSlotDraft))
+    if (fromDraftPayload.any { it != null }) return fromDraftPayload
+
+    return normalizeFileNameDraftSlots(
+        template.fileNameSlots.map { cellId ->
+            cellId?.let { key ->
+                val cell = template.cells.firstOrNull { it.cellId == key }
+                val fallbackLabel = "셀"
+                val label = cell?.let { "셀(${it.rowIndex + 1},${it.colIndex + 1})" } ?: fallbackLabel
+                FileNameSlotUiItem(
+                    kind = FileNameSlotKind.CELL,
+                    label = label,
+                    cellId = key
+                )
+            }
+        }
+    )
+}
+
+private fun buildPathDraftSlots(template: TableTemplateState): List<PathSlotUiItem?> {
+    return normalizePathDraftSlots(template.pathSlotDrafts.map(::toPathUiSlotDraft))
+}
+
+private fun buildInitialTableEditorDraft(template: TableTemplateState): TableEditorDraftState {
+    return TableEditorDraftState(
+        template = template,
+        fileNameSlots = buildFileNameDraftSlots(template),
+        pathSlots = buildPathDraftSlots(template)
+    )
+}
+
 
 @Composable
 fun TableEditorScreen(
@@ -147,7 +249,51 @@ fun TableEditorScreen(
     // ✅ 탭 상태
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
-    var selectedCellId by remember { mutableStateOf(templateState.cells.firstOrNull()?.cellId) }
+    val initialDraft = remember { buildInitialTableEditorDraft(templateState) }
+    var currentDraft by remember { mutableStateOf(initialDraft) }
+    val currentTemplate = currentDraft.template
+
+    fun updateTemplateDraft(updated: TableTemplateState) {
+        // 핵심 정책: 구조설정 표의 실제 편집 대상은 currentDraft.template 단일 상태다.
+        currentDraft = currentDraft.copy(template = updated)
+        onTemplateChange(updated)
+    }
+
+    var fileNameSlotsDirtySinceStructureChange by remember { mutableStateOf(false) }
+    var pathSlotsDirtySinceStructureChange by remember { mutableStateOf(false) }
+
+    fun updateFileNameSlotDraft(updated: List<FileNameSlotUiItem?>, markDirty: Boolean = true) {
+        val normalized = normalizeFileNameDraftSlots(updated)
+        val cellSlots = normalized.map { it?.cellId }
+        // 정책 보강: 저장 payload는 currentDraft 전체를 기준으로 유지한다.
+        // 파일명 슬롯 UI draft와 템플릿 내 저장용 draft payload를 항상 동기화한다.
+        currentDraft = currentDraft.copy(
+            fileNameSlots = normalized,
+            template = currentDraft.template.copy(
+                fileNameSlots = cellSlots,
+                fileNameSlotDrafts = normalized.map(::toFileNameDomainSlotDraft)
+            )
+        )
+        if (markDirty) {
+            fileNameSlotsDirtySinceStructureChange = true
+        }
+    }
+
+    fun updatePathSlotDraft(updated: List<PathSlotUiItem?>, markDirty: Boolean = true) {
+        val normalized = normalizePathDraftSlots(updated)
+        // 정책 보강: path 슬롯도 template 저장 payload로 동기화해 재진입 시 유실을 방지한다.
+        currentDraft = currentDraft.copy(
+            pathSlots = normalized,
+            template = currentDraft.template.copy(
+                pathSlotDrafts = normalized.map(::toPathDomainSlotDraft)
+            )
+        )
+        if (markDirty) {
+            pathSlotsDirtySinceStructureChange = true
+        }
+    }
+
+    var selectedCellId by remember { mutableStateOf(currentTemplate.cells.firstOrNull()?.cellId) }
     // ✅ 탭0: 셀 설정 패널 표시 여부
     var showCellSettingsPanel by remember { mutableStateOf(false) }
     // 모드형 하단 편집 패널 1차 구조 상태 (다음 단계 슬롯/직접 편집 확장 대비)
@@ -156,21 +302,15 @@ fun TableEditorScreen(
     var currentlySelectedPathSlot by remember { mutableStateOf<Int?>(null) }
     // 정책 변경: FILENAME_EDIT 2단계에서는 템플릿의 실제 셀 연결과 분리된 "슬롯 UI 상태"를 별도로 유지한다.
     // 다음 단계에서 셀/카운터/직접입력 상세 선택 UI를 붙일 수 있게 구조화된 타입을 사용한다.
-    var fileNameSlotItems by remember {
-        mutableStateOf<List<FileNameSlotUiItem?>>(List(3) { null })
-    }
+    val fileNameSlotItems = currentDraft.fileNameSlots
     var isFileNameCellPickMode by remember { mutableStateOf(false) }
     var showFileNameFormatOptions by remember { mutableStateOf(false) }
     var manualInputDraft by remember { mutableStateOf("") }
     var showManualInputEditor by remember { mutableStateOf(false) }
 
-    fun normalizeFileNameSlotItems(slots: List<FileNameSlotUiItem?>): List<FileNameSlotUiItem?> {
-        return List(3) { index -> slots.getOrNull(index) }
-    }
-
     fun removeFileNameSlotAt(slots: List<FileNameSlotUiItem?>, index: Int): List<FileNameSlotUiItem?> {
         val compacted = slots.filterIndexed { i, item -> i != index && item != null }
-        return normalizeFileNameSlotItems(compacted)
+        return normalizeFileNameDraftSlots(compacted)
     }
 
     fun moveFileNameSlot(slots: List<FileNameSlotUiItem?>, from: Int, to: Int): List<FileNameSlotUiItem?> {
@@ -178,7 +318,7 @@ fun TableEditorScreen(
         val temp = mutable[from]
         mutable[from] = mutable[to]
         mutable[to] = temp
-        return normalizeFileNameSlotItems(mutable)
+        return normalizeFileNameDraftSlots(mutable)
     }
 
     fun clearFileNameEditorTransientState(clearDraft: Boolean) {
@@ -191,21 +331,15 @@ fun TableEditorScreen(
         }
     }
 
-    var pathSlotItems by remember {
-        mutableStateOf<List<PathSlotUiItem?>>(List(2) { null })
-    }
+    val pathSlotItems = currentDraft.pathSlots
     var isPathCellPickMode by remember { mutableStateOf(false) }
     var showPathFormatOptions by remember { mutableStateOf(false) }
     var showPathManualInputEditor by remember { mutableStateOf(false) }
     var pathManualInputDraft by remember { mutableStateOf("") }
 
-    fun normalizePathSlotItems(slots: List<PathSlotUiItem?>): List<PathSlotUiItem?> {
-        return List(2) { index -> slots.getOrNull(index) }
-    }
-
     fun removePathSlotAt(slots: List<PathSlotUiItem?>, index: Int): List<PathSlotUiItem?> {
         val compacted = slots.filterIndexed { i, item -> i != index && item != null }
-        return normalizePathSlotItems(compacted)
+        return normalizePathDraftSlots(compacted)
     }
 
     fun movePathSlot(slots: List<PathSlotUiItem?>, from: Int, to: Int): List<PathSlotUiItem?> {
@@ -213,7 +347,27 @@ fun TableEditorScreen(
         val temp = mutable[from]
         mutable[from] = mutable[to]
         mutable[to] = temp
-        return normalizePathSlotItems(mutable)
+        return normalizePathDraftSlots(mutable)
+    }
+
+    fun removeCellRefsFromFileNameSlots(
+        slots: List<FileNameSlotUiItem?>,
+        deletedCellIds: Set<String>
+    ): List<FileNameSlotUiItem?> {
+        val filtered = slots.filter { slot ->
+            slot != null && (slot.cellId == null || slot.cellId !in deletedCellIds)
+        }
+        return normalizeFileNameDraftSlots(filtered)
+    }
+
+    fun removeCellRefsFromPathSlots(
+        slots: List<PathSlotUiItem?>,
+        deletedCellIds: Set<String>
+    ): List<PathSlotUiItem?> {
+        val filtered = slots.filter { slot ->
+            slot != null && (slot.cellId == null || slot.cellId !in deletedCellIds)
+        }
+        return normalizePathDraftSlots(filtered)
     }
 
     fun clearPathEditorTransientState(clearDraft: Boolean) {
@@ -240,7 +394,7 @@ fun TableEditorScreen(
         rotatingUi = rotatingUi.copy(
             isTemplateDialogOpen = true,
             templateDialogCellId = targetCellId,
-            templateDialogRestore = templateState,
+            templateDialogRestore = currentTemplate,
             isCreateSetDialogOpen = false,
             createSetName = "",
             pendingDeleteSetId = null,
@@ -284,15 +438,15 @@ fun TableEditorScreen(
     var scopeInputTick by remember { mutableIntStateOf(0) }
     var scopeKeySnapshot by remember { mutableStateOf<String?>(null) }
     var lastFilenameScopeSignature by remember { mutableStateOf<String?>(null) }
-    val hasTemplateCells = templateState.cells.isNotEmpty()
+    val hasTemplateCells = currentTemplate.cells.isNotEmpty()
 
     // 파일명 scope 사용 여부는 counterUi 기준으로 판정해,
     // 실제 counter scope 계산 기준과 signature 기준이 어긋나지 않게 맞춘다.
-    val filenameScopeSignature = remember(templateState.fileNameSlots, counterUi.includeFilenameInCounterScope) {
+    val filenameScopeSignature = remember(currentTemplate.fileNameSlots, counterUi.includeFilenameInCounterScope) {
         if (!counterUi.includeFilenameInCounterScope) {
             "filename-scope-disabled"
         } else {
-            templateState.fileNameSlots.joinToString(separator = "|") { slot -> slot ?: "_" }
+            currentTemplate.fileNameSlots.joinToString(separator = "|") { slot -> slot ?: "_" }
         }
     }
 
@@ -300,8 +454,8 @@ fun TableEditorScreen(
     // 정책 변경: 프리뷰에서도 문구 순환 커서를 파일 카운터와 분리한다.
     var phraseProgressCounter by remember { mutableIntStateOf(1) }
 
-    LaunchedEffect(templateState.cells, lifecycleOwner) {
-        val unit = decideTickUnitFromTemplate(templateState.cells)
+    LaunchedEffect(currentTemplate.cells, lifecycleOwner) {
+        val unit = decideTickUnitFromTemplate(currentTemplate.cells)
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
                 val delayMs = computeNextDelayMillis(unit)
@@ -336,8 +490,8 @@ fun TableEditorScreen(
     }
 
     LaunchedEffect(
-        templateState.cells,
-        templateState.phraseSets,
+        currentTemplate.cells,
+        currentTemplate.phraseSets,
         filenameScopeSignature,
     ) {
         // 정책: 스코프 입력(셀/슬롯/문구세트)이 바뀌면 즉시 next counter 재동기화를 강제한다.
@@ -348,7 +502,7 @@ fun TableEditorScreen(
 
     // 프리뷰 계산 경로를 Camera/Home과 동일하게 공용 pipeline으로 통일한다.
     val previewPipeline = remember(
-        templateState,
+        currentTemplate,
         previewNow,
         previewCounterDigits,
         counterUi.scopeNextCounter,
@@ -360,7 +514,7 @@ fun TableEditorScreen(
     ) {
         buildPreviewPipeline(
             input = PreviewPipelineInput(
-                templateState = templateState,
+                templateState = currentTemplate,
                 captureNow = previewNow,
                 counterDigits = previewCounterDigits,
                 dateFormat = dateFormat,
@@ -401,7 +555,7 @@ fun TableEditorScreen(
         derivedStateOf {
             buildTableCounterStreamContext(
                 resolvedCells = plan.resolvedCells,
-                fileNameSlots = templateState.fileNameSlots,
+                fileNameSlots = currentTemplate.fileNameSlots,
                 includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
                 dateScopeValues = scopeValues.dateScopeValues,
                 timeScopeValues = scopeValues.timeScopeValues,
@@ -457,7 +611,7 @@ fun TableEditorScreen(
         val isExternalResync = (resumeTick != lastProcessedResumeTick) || (scopeInputTick != lastProcessedScopeInputTick)
         val syncResult = syncCounterStateForScope(
             context = context,
-            templateState = templateState,
+            templateState = currentTemplate,
             counterUi = counterUi,
             counterStreamContext = counterStreamContext,
             scopedCounterStream = scopedCounterStream,
@@ -475,12 +629,12 @@ fun TableEditorScreen(
         lastFilenameScopeSignature = syncResult.nextFilenameScopeSignature
         lastProcessedResumeTick = resumeTick
         lastProcessedScopeInputTick = scopeInputTick
-        syncResult.updatedTemplateState?.let(onTemplateChange)
+        syncResult.updatedTemplateState?.let(::updateTemplateDraft)
     }
 
     var inlineEdit by remember { mutableStateOf(InlineEditState()) }
-    val deletedRowsStack = remember { mutableStateListOf<List<TableCellState>>() }
-    val deletedColsStack = remember { mutableStateListOf<List<TableCellState>>() }
+    val deletedRowsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
+    val deletedColsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val inlineFocusRequester = remember { FocusRequester() }
@@ -514,7 +668,7 @@ fun TableEditorScreen(
     fun commitInlineEditIfNeeded() {
         val result = commitInlineEdit(
             inlineState = inlineEdit,
-            templateState = templateState,
+            templateState = currentTemplate,
             autoNextCounterValue = counterUi.autoNextCounterValue,
             updateCell = ::updateCell
         )
@@ -527,7 +681,7 @@ fun TableEditorScreen(
             val cellId = committedCellId ?: return@let
             updateCounterCellAndPolicy(
                 context = context,
-                templateState = templateState,
+                templateState = currentTemplate,
                 cellId = cellId,
                 seed = seed,
                 preserveManual = true,
@@ -536,21 +690,21 @@ fun TableEditorScreen(
                 previewCounterDigits = previewCounterDigits,
                 saveMode = tableSaveMode,
                 counterUi = counterUi,
-                onTemplateChange = onTemplateChange,
+                onTemplateChange = ::updateTemplateDraft,
                 setCounterUi = { counterUi = it },
                 updateCell = ::updateCell,
                 scope = scope
             )
-        } ?: result.updatedTemplateState?.let(onTemplateChange)
+        } ?: result.updatedTemplateState?.let(::updateTemplateDraft)
     }
 
-    if (selectedCellId == null && templateState.cells.isNotEmpty()) {
-        selectedCellId = templateState.cells.first().cellId
+    if (selectedCellId == null && currentTemplate.cells.isNotEmpty()) {
+        selectedCellId = currentTemplate.cells.first().cellId
     }
 
-    val selectedCell = templateState.cells.firstOrNull { it.cellId == selectedCellId }
-    val hasGroup1 = templateState.cells.any { it.groupLevel == GroupLevel.G1 }
-    val hasGroup2 = templateState.cells.any { it.groupLevel == GroupLevel.G2 }
+    val selectedCell = currentTemplate.cells.firstOrNull { it.cellId == selectedCellId }
+    val hasGroup1 = currentTemplate.cells.any { it.groupLevel == GroupLevel.G1 }
+    val hasGroup2 = currentTemplate.cells.any { it.groupLevel == GroupLevel.G2 }
     val resolvedByCellId = remember(plan.resolvedCells) {
         plan.resolvedCells.associate { it.id to it.resolvedText }
     }
@@ -576,7 +730,7 @@ fun TableEditorScreen(
             CaptureNamingPolicy.buildForCaptureWithCounter(
                 captureContext = CaptureContext(
                     resolvedCells = plan.resolvedCells,
-                    fileNameSlots = templateState.fileNameSlots,
+                    fileNameSlots = currentTemplate.fileNameSlots,
                     fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
                     counterDigits = previewCounterDigits,
                     dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
@@ -598,12 +752,12 @@ fun TableEditorScreen(
         applyCounterConflictDialogEffect(
             effect = effect,
             context = context,
-            templateState = templateState,
+            templateState = currentTemplate,
             scopedCounterStream = scopedCounterStream,
             previewCounterDigits = previewCounterDigits,
             saveMode = tableSaveMode,
             counterUi = counterUi,
-            onTemplateChange = onTemplateChange,
+            onTemplateChange = ::updateTemplateDraft,
             setCounterUi = { counterUi = it },
             updateCell = ::updateCell,
             scope = scope
@@ -649,58 +803,58 @@ fun TableEditorScreen(
 
     TableFormatDialog(
         state = formatDialog,
-        templateState = templateState,
-        onTemplateChange = onTemplateChange,
+        templateState = currentTemplate,
+        onTemplateChange = ::updateTemplateDraft,
         onClose = { formatDialog = formatDialog.close() },
         dateFormatOptions = dateFormatOptions
     )
 
     if (rotatingUi.isTemplateDialogOpen) {
-        val dialogCell = templateState.cells.firstOrNull { it.cellId == rotatingUi.templateDialogCellId }
+        val dialogCell = currentTemplate.cells.firstOrNull { it.cellId == rotatingUi.templateDialogCellId }
         if (dialogCell == null || dialogCell.dataType != TableCellDataType.ROTATING_TEXT) {
             closeRotatingPhraseTemplateDialog()
         } else {
             RotatingPhraseTemplateDialog(
                 cell = dialogCell,
-                phraseSets = templateState.phraseSets,
+                phraseSets = currentTemplate.phraseSets,
                 onDismiss = { closeRotatingPhraseTemplateDialog() },
                 onRestore = {
-                    rotatingUi.templateDialogRestore?.let { onTemplateChange(it) }
+                    rotatingUi.templateDialogRestore?.let { updateTemplateDraft(it) }
                     closeRotatingPhraseTemplateDialog()
                 },
                 onSelectSet = { phraseSetId ->
-                    val updated = updateCell(templateState, dialogCell.cellId) { current ->
+                    val updated = updateCell(currentTemplate, dialogCell.cellId) { current ->
                         if (phraseSetId == null) {
                             current.copy(phraseSetId = null, everyOverride = null)
                         } else {
                             current.copy(phraseSetId = phraseSetId)
                         }
                     }
-                    onTemplateChange(updated)
+                    updateTemplateDraft(updated)
                 },
                 onEveryChange = { every ->
-                    val updated = updateCell(templateState, dialogCell.cellId) { current ->
+                    val updated = updateCell(currentTemplate, dialogCell.cellId) { current ->
                         current.copy(everyOverride = every.coerceAtLeast(1))
                     }
-                    onTemplateChange(updated)
+                    updateTemplateDraft(updated)
                 },
                 onIncreaseEvery = {
-                    val selectedSet = templateState.phraseSets.firstOrNull { it.id == dialogCell.phraseSetId }
+                    val selectedSet = currentTemplate.phraseSets.firstOrNull { it.id == dialogCell.phraseSetId }
                     val currentEvery = dialogCell.everyOverride ?: selectedSet?.defaultEvery ?: 1
                     val nextEvery = (currentEvery + 1).coerceAtLeast(1)
-                    val updated = updateCell(templateState, dialogCell.cellId) { current ->
+                    val updated = updateCell(currentTemplate, dialogCell.cellId) { current ->
                         current.copy(everyOverride = nextEvery)
                     }
-                    onTemplateChange(updated)
+                    updateTemplateDraft(updated)
                 },
                 onDecreaseEvery = {
-                    val selectedSet = templateState.phraseSets.firstOrNull { it.id == dialogCell.phraseSetId }
+                    val selectedSet = currentTemplate.phraseSets.firstOrNull { it.id == dialogCell.phraseSetId }
                     val currentEvery = dialogCell.everyOverride ?: selectedSet?.defaultEvery ?: 1
                     val nextEvery = (currentEvery - 1).coerceAtLeast(1)
-                    val updated = updateCell(templateState, dialogCell.cellId) { current ->
+                    val updated = updateCell(currentTemplate, dialogCell.cellId) { current ->
                         current.copy(everyOverride = nextEvery)
                     }
-                    onTemplateChange(updated)
+                    updateTemplateDraft(updated)
                 },
                 onRequestCreateSet = {
                     rotatingUi = rotatingUi.copy(isCreateSetDialogOpen = true, createSetName = "")
@@ -716,7 +870,7 @@ fun TableEditorScreen(
     }
 
     if (rotatingUi.isSetEditDialogOpen) {
-        val editingSet = templateState.phraseSets.firstOrNull { it.id == rotatingUi.editingSetId }
+        val editingSet = currentTemplate.phraseSets.firstOrNull { it.id == rotatingUi.editingSetId }
         if (editingSet == null) {
             rotatingUi = rotatingUi.copy(isSetEditDialogOpen = false, editingSetId = null)
         } else {
@@ -726,17 +880,17 @@ fun TableEditorScreen(
                     rotatingUi = rotatingUi.copy(isSetEditDialogOpen = false, editingSetId = null)
                 },
                 onUpdateSet = { transform ->
-                    val updated = templateState.copy(
-                        phraseSets = templateState.phraseSets.map { set ->
+                    val updated = currentTemplate.copy(
+                        phraseSets = currentTemplate.phraseSets.map { set ->
                             if (set.id == editingSet.id) transform(set) else set
                         }
                     )
-                    onTemplateChange(updated)
+                    updateTemplateDraft(updated)
                 },
                 onDeleteSet = { deleteId ->
-                    val updated = templateState.copy(
-                        phraseSets = templateState.phraseSets.filterNot { it.id == deleteId },
-                        cells = templateState.cells.map { cell ->
+                    val updated = currentTemplate.copy(
+                        phraseSets = currentTemplate.phraseSets.filterNot { it.id == deleteId },
+                        cells = currentTemplate.cells.map { cell ->
                             if (cell.phraseSetId == deleteId) {
                                 cell.copy(phraseSetId = null, everyOverride = null)
                             } else {
@@ -744,7 +898,7 @@ fun TableEditorScreen(
                             }
                         }
                     )
-                    onTemplateChange(updated)
+                    updateTemplateDraft(updated)
                     rotatingUi = rotatingUi.copy(isSetEditDialogOpen = false, editingSetId = null)
                 }
             )
@@ -773,9 +927,9 @@ fun TableEditorScreen(
                             items = emptyList(),
                             defaultEvery = 1
                         )
-                        val updatedTemplate = templateState.copy(
-                            phraseSets = templateState.phraseSets + created,
-                            cells = templateState.cells.map { cell ->
+                        val updatedTemplate = currentTemplate.copy(
+                            phraseSets = currentTemplate.phraseSets + created,
+                            cells = currentTemplate.cells.map { cell ->
                                 if (cell.cellId == rotatingUi.templateDialogCellId) {
                                     cell.copy(phraseSetId = created.id, everyOverride = null)
                                 } else {
@@ -783,7 +937,7 @@ fun TableEditorScreen(
                                 }
                             }
                         )
-                        onTemplateChange(updatedTemplate)
+                        updateTemplateDraft(updatedTemplate)
                     }
                     rotatingUi = rotatingUi.copy(isCreateSetDialogOpen = false, createSetName = "")
                 }) {
@@ -799,7 +953,7 @@ fun TableEditorScreen(
     }
 
     rotatingUi.pendingDeleteSetId?.let { deleteId ->
-        val deleteTarget = templateState.phraseSets.firstOrNull { it.id == deleteId }
+        val deleteTarget = currentTemplate.phraseSets.firstOrNull { it.id == deleteId }
         if (deleteTarget != null) {
             AlertDialog(
                 onDismissRequest = { rotatingUi = rotatingUi.copy(pendingDeleteSetId = null) },
@@ -807,9 +961,9 @@ fun TableEditorScreen(
                 text = { Text("${deleteTarget.name} 세트를 삭제하시겠습니까?") },
                 confirmButton = {
                     TextButton(onClick = {
-                        val updated = templateState.copy(
-                            phraseSets = templateState.phraseSets.filterNot { it.id == deleteId },
-                            cells = templateState.cells.map { cell ->
+                        val updated = currentTemplate.copy(
+                            phraseSets = currentTemplate.phraseSets.filterNot { it.id == deleteId },
+                            cells = currentTemplate.cells.map { cell ->
                                 if (cell.phraseSetId == deleteId) {
                                     cell.copy(phraseSetId = null, everyOverride = null)
                                 } else {
@@ -817,7 +971,7 @@ fun TableEditorScreen(
                                 }
                             }
                         )
-                        onTemplateChange(updated)
+                        updateTemplateDraft(updated)
                         rotatingUi = rotatingUi.copy(pendingDeleteSetId = null)
                     }) {
                         Text("삭제", style = DDZTypography.ButtonText)
@@ -892,7 +1046,7 @@ fun TableEditorScreen(
                             savePathPreview = savePathPreview,
                             filenamePreview = filenamePreview,
                             counterModeLabel = if (isManualCounterModeDisplay) "수동" else "자동",
-                            templateState = templateState,
+                            templateState = currentTemplate,
                             plan = plan,
                             resolvedByCellId = resolvedByCellId,
                             previewNow = previewNow,
@@ -924,7 +1078,7 @@ fun TableEditorScreen(
                             hasGroup2 = hasGroup2,
                             isSavingTemplate = isSavingTemplate,
                             autoNextCounterValue = counterUi.autoNextCounterValue,
-                            phraseSets = templateState.phraseSets,
+                            phraseSets = currentTemplate.phraseSets,
                             captureAspect = watermarkUi.captureAspect
                         ),
                         actions = LayoutTabActions(
@@ -948,7 +1102,7 @@ fun TableEditorScreen(
                                 clearFileNameEditorTransientState(clearDraft = true)
                             },
                             onFillEmptyFileNameSlot = { slotIndex ->
-                                val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
+                                val normalized = normalizeFileNameDraftSlots(fileNameSlotItems)
                                 val firstEmptyIndex = normalized.indexOfFirst { it == null }
                                 if (firstEmptyIndex < 0) {
                                     currentlySelectedFileNameSlot = slotIndex
@@ -961,7 +1115,7 @@ fun TableEditorScreen(
                                             label = "셀"
                                         )
                                     }
-                                    fileNameSlotItems = normalizeFileNameSlotItems(next)
+                                    updateFileNameSlotDraft(next)
                                     currentlySelectedFileNameSlot = firstEmptyIndex
                                     isFileNameCellPickMode = false
                                     showFileNameFormatOptions = false
@@ -974,10 +1128,10 @@ fun TableEditorScreen(
                                 showManualInputEditor = false
                                 val selected = currentlySelectedFileNameSlot
                                 if (selected != null) {
-                                    val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
+                                    val normalized = normalizeFileNameDraftSlots(fileNameSlotItems)
                                     val target = selected - 1
                                     if (target >= 0 && normalized[selected] != null && normalized[target] != null) {
-                                        fileNameSlotItems = moveFileNameSlot(normalized, selected, target)
+                                        updateFileNameSlotDraft(moveFileNameSlot(normalized, selected, target))
                                         currentlySelectedFileNameSlot = target
                                     }
                                 }
@@ -988,10 +1142,10 @@ fun TableEditorScreen(
                                 showManualInputEditor = false
                                 val selected = currentlySelectedFileNameSlot
                                 if (selected != null) {
-                                    val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
+                                    val normalized = normalizeFileNameDraftSlots(fileNameSlotItems)
                                     val target = selected + 1
                                     if (target < normalized.size && normalized[selected] != null && normalized[target] != null) {
-                                        fileNameSlotItems = moveFileNameSlot(normalized, selected, target)
+                                        updateFileNameSlotDraft(moveFileNameSlot(normalized, selected, target))
                                         currentlySelectedFileNameSlot = target
                                     }
                                 }
@@ -1002,10 +1156,10 @@ fun TableEditorScreen(
                                 showManualInputEditor = false
                                 val selected = currentlySelectedFileNameSlot
                                 if (selected != null) {
-                                    val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
+                                    val normalized = normalizeFileNameDraftSlots(fileNameSlotItems)
                                     if (normalized.getOrNull(selected) != null) {
                                         val next = removeFileNameSlotAt(normalized, selected)
-                                        fileNameSlotItems = next
+                                        updateFileNameSlotDraft(next)
                                         val nextFilledIndex = next.indexOfFirst { it != null }.takeIf { it >= 0 }
                                         currentlySelectedFileNameSlot = nextFilledIndex
                                     }
@@ -1028,7 +1182,7 @@ fun TableEditorScreen(
                             onApplyFileNameFormatType = { formatType ->
                                 val selected = currentlySelectedFileNameSlot
                                 if (selected != null) {
-                                    val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
+                                    val normalized = normalizeFileNameDraftSlots(fileNameSlotItems)
                                     val next = normalized.toMutableList().apply {
                                         this[selected] = FileNameSlotUiItem(
                                             kind = FileNameSlotKind.FORMAT,
@@ -1041,7 +1195,7 @@ fun TableEditorScreen(
                                             formatType = formatType
                                         )
                                     }
-                                    fileNameSlotItems = normalizeFileNameSlotItems(next)
+                                    updateFileNameSlotDraft(next)
                                     isFileNameCellPickMode = false
                                     showFileNameFormatOptions = false
                                     showManualInputEditor = false
@@ -1050,7 +1204,7 @@ fun TableEditorScreen(
                             onStartManualInputEditor = {
                                 val selected = currentlySelectedFileNameSlot
                                 if (selected != null) {
-                                    val current = normalizeFileNameSlotItems(fileNameSlotItems).getOrNull(selected)
+                                    val current = normalizeFileNameDraftSlots(fileNameSlotItems).getOrNull(selected)
                                     manualInputDraft = current?.manualText ?: current?.label.orEmpty()
                                     isFileNameCellPickMode = false
                                     showFileNameFormatOptions = false
@@ -1064,7 +1218,7 @@ fun TableEditorScreen(
                                 val selected = currentlySelectedFileNameSlot
                                 val trimmed = manualInputDraft.trim()
                                 if (selected != null && trimmed.isNotEmpty()) {
-                                    val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
+                                    val normalized = normalizeFileNameDraftSlots(fileNameSlotItems)
                                     val next = normalized.toMutableList().apply {
                                         this[selected] = FileNameSlotUiItem(
                                             kind = FileNameSlotKind.MANUAL,
@@ -1072,7 +1226,7 @@ fun TableEditorScreen(
                                             manualText = trimmed
                                         )
                                     }
-                                    fileNameSlotItems = normalizeFileNameSlotItems(next)
+                                    updateFileNameSlotDraft(next)
                                     showManualInputEditor = false
                                     showFileNameFormatOptions = false
                                     isFileNameCellPickMode = false
@@ -1081,11 +1235,11 @@ fun TableEditorScreen(
                             onBindSelectedSlotToCell = { cellId ->
                                 val selected = currentlySelectedFileNameSlot
                                 if (selected != null) {
-                                    val cellLabel = templateState.cells.firstOrNull { it.cellId == cellId }?.let { cell ->
+                                    val cellLabel = currentTemplate.cells.firstOrNull { it.cellId == cellId }?.let { cell ->
                                         resolvedByCellId[cell.cellId]?.takeIf { it.isNotBlank() }
                                             ?: "셀(${cell.rowIndex + 1},${cell.colIndex + 1})"
                                     } ?: "셀"
-                                    val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
+                                    val normalized = normalizeFileNameDraftSlots(fileNameSlotItems)
                                     val next = normalized.toMutableList().apply {
                                         this[selected] = FileNameSlotUiItem(
                                             kind = FileNameSlotKind.CELL,
@@ -1093,7 +1247,7 @@ fun TableEditorScreen(
                                             cellId = cellId
                                         )
                                     }
-                                    fileNameSlotItems = normalizeFileNameSlotItems(next)
+                                    updateFileNameSlotDraft(next)
                                     clearFileNameEditorTransientState(clearDraft = true)
                                 }
                             },
@@ -1102,7 +1256,7 @@ fun TableEditorScreen(
                                 clearPathEditorTransientState(clearDraft = true)
                             },
                             onFillEmptyPathSlot = { slotIndex ->
-                                val normalized = normalizePathSlotItems(pathSlotItems)
+                                val normalized = normalizePathDraftSlots(pathSlotItems)
                                 val firstEmptyIndex = normalized.indexOfFirst { it == null }
                                 if (firstEmptyIndex < 0) {
                                     currentlySelectedPathSlot = slotIndex
@@ -1113,7 +1267,7 @@ fun TableEditorScreen(
                                             label = "셀"
                                         )
                                     }
-                                    pathSlotItems = normalizePathSlotItems(next)
+                                    updatePathSlotDraft(next)
                                     currentlySelectedPathSlot = firstEmptyIndex
                                     clearPathEditorTransientState(clearDraft = true)
                                 }
@@ -1122,10 +1276,10 @@ fun TableEditorScreen(
                                 clearPathEditorTransientState(clearDraft = false)
                                 val selected = currentlySelectedPathSlot
                                 if (selected != null) {
-                                    val normalized = normalizePathSlotItems(pathSlotItems)
+                                    val normalized = normalizePathDraftSlots(pathSlotItems)
                                     val target = selected - 1
                                     if (target >= 0 && normalized[selected] != null && normalized[target] != null) {
-                                        pathSlotItems = movePathSlot(normalized, selected, target)
+                                        updatePathSlotDraft(movePathSlot(normalized, selected, target))
                                         currentlySelectedPathSlot = target
                                     }
                                 }
@@ -1134,10 +1288,10 @@ fun TableEditorScreen(
                                 clearPathEditorTransientState(clearDraft = false)
                                 val selected = currentlySelectedPathSlot
                                 if (selected != null) {
-                                    val normalized = normalizePathSlotItems(pathSlotItems)
+                                    val normalized = normalizePathDraftSlots(pathSlotItems)
                                     val target = selected + 1
                                     if (target < normalized.size && normalized[selected] != null && normalized[target] != null) {
-                                        pathSlotItems = movePathSlot(normalized, selected, target)
+                                        updatePathSlotDraft(movePathSlot(normalized, selected, target))
                                         currentlySelectedPathSlot = target
                                     }
                                 }
@@ -1146,10 +1300,10 @@ fun TableEditorScreen(
                                 clearPathEditorTransientState(clearDraft = true)
                                 val selected = currentlySelectedPathSlot
                                 if (selected != null) {
-                                    val normalized = normalizePathSlotItems(pathSlotItems)
+                                    val normalized = normalizePathDraftSlots(pathSlotItems)
                                     if (normalized.getOrNull(selected) != null) {
                                         val next = removePathSlotAt(normalized, selected)
-                                        pathSlotItems = next
+                                        updatePathSlotDraft(next)
                                         val nextFilledIndex = next.indexOfFirst { it != null }.takeIf { it >= 0 }
                                         currentlySelectedPathSlot = nextFilledIndex
                                     }
@@ -1172,7 +1326,7 @@ fun TableEditorScreen(
                             onApplyPathFormatType = { formatType ->
                                 val selected = currentlySelectedPathSlot
                                 if (selected != null) {
-                                    val normalized = normalizePathSlotItems(pathSlotItems)
+                                    val normalized = normalizePathDraftSlots(pathSlotItems)
                                     val next = normalized.toMutableList().apply {
                                         this[selected] = PathSlotUiItem(
                                             kind = PathSlotKind.FORMAT,
@@ -1184,14 +1338,14 @@ fun TableEditorScreen(
                                             formatType = formatType
                                         )
                                     }
-                                    pathSlotItems = normalizePathSlotItems(next)
+                                    updatePathSlotDraft(next)
                                     clearPathEditorTransientState(clearDraft = true)
                                 }
                             },
                             onStartPathManualInputEditor = {
                                 val selected = currentlySelectedPathSlot
                                 if (selected != null) {
-                                    val current = normalizePathSlotItems(pathSlotItems).getOrNull(selected)
+                                    val current = normalizePathDraftSlots(pathSlotItems).getOrNull(selected)
                                     pathManualInputDraft = current?.manualText ?: current?.label.orEmpty()
                                     isPathCellPickMode = false
                                     showPathFormatOptions = false
@@ -1205,7 +1359,7 @@ fun TableEditorScreen(
                                 val selected = currentlySelectedPathSlot
                                 val trimmed = pathManualInputDraft.trim()
                                 if (selected != null && trimmed.isNotEmpty()) {
-                                    val normalized = normalizePathSlotItems(pathSlotItems)
+                                    val normalized = normalizePathDraftSlots(pathSlotItems)
                                     val next = normalized.toMutableList().apply {
                                         this[selected] = PathSlotUiItem(
                                             kind = PathSlotKind.MANUAL,
@@ -1213,18 +1367,18 @@ fun TableEditorScreen(
                                             manualText = trimmed
                                         )
                                     }
-                                    pathSlotItems = normalizePathSlotItems(next)
+                                    updatePathSlotDraft(next)
                                     clearPathEditorTransientState(clearDraft = true)
                                 }
                             },
                             onBindSelectedPathSlotToCell = { cellId ->
                                 val selected = currentlySelectedPathSlot
                                 if (selected != null) {
-                                    val cellLabel = templateState.cells.firstOrNull { it.cellId == cellId }?.let { cell ->
+                                    val cellLabel = currentTemplate.cells.firstOrNull { it.cellId == cellId }?.let { cell ->
                                         resolvedByCellId[cell.cellId]?.takeIf { it.isNotBlank() }
                                             ?: "셀(${cell.rowIndex + 1},${cell.colIndex + 1})"
                                     } ?: "셀"
-                                    val normalized = normalizePathSlotItems(pathSlotItems)
+                                    val normalized = normalizePathDraftSlots(pathSlotItems)
                                     val next = normalized.toMutableList().apply {
                                         this[selected] = PathSlotUiItem(
                                             kind = PathSlotKind.CELL,
@@ -1232,7 +1386,7 @@ fun TableEditorScreen(
                                             cellId = cellId
                                         )
                                     }
-                                    pathSlotItems = normalizePathSlotItems(next)
+                                    updatePathSlotDraft(next)
                                     clearPathEditorTransientState(clearDraft = true)
                                 }
                             },
@@ -1256,32 +1410,63 @@ fun TableEditorScreen(
                                 val restored = deletedRowsStack.lastOrNull()
                                 if (restored != null) {
                                     deletedRowsStack.removeAt(deletedRowsStack.lastIndex)
-                                    val newRowIndex = templateState.rows
-                                    val restoredReindexed = restored.map { it.copy(rowIndex = newRowIndex) }
-                                    val baseRowWeights = templateState.rowWeights
-                                        ?: List(templateState.rows.coerceAtLeast(1)) { 1f }
-                                    val updated = templateState.copy(
-                                        rows = templateState.rows + 1,
-                                        cells = templateState.cells + restoredReindexed,
+                                    val newRowIndex = currentTemplate.rows
+                                    val restoredReindexed = restored.cells.map { it.copy(rowIndex = newRowIndex) }
+                                    val baseRowWeights = currentTemplate.rowWeights
+                                        ?: List(currentTemplate.rows.coerceAtLeast(1)) { 1f }
+                                    val updated = currentTemplate.copy(
+                                        rows = currentTemplate.rows + 1,
+                                        cells = currentTemplate.cells + restoredReindexed,
                                         rowWeights = baseRowWeights + 1f
                                     )
-                                    onTemplateChange(sanitizePathGroupAfterStructureChange(updated))
+                                    updateTemplateDraft(sanitizePathGroupAfterStructureChange(updated))
+
+                                    // 정책: 삭제 이후 슬롯 수정이 없으면 삭제 직전 슬롯 snapshot까지 함께 복원한다.
+                                    if (!fileNameSlotsDirtySinceStructureChange) {
+                                        updateFileNameSlotDraft(restored.fileNameSlotsSnapshot, markDirty = false)
+                                    }
+                                    if (!pathSlotsDirtySinceStructureChange) {
+                                        updatePathSlotDraft(restored.pathSlotsSnapshot, markDirty = false)
+                                    }
                                 } else {
-                                    onTemplateChange(sanitizePathGroupAfterStructureChange(addRow(templateState)))
+                                    updateTemplateDraft(sanitizePathGroupAfterStructureChange(addRow(currentTemplate)))
                                 }
+                                fileNameSlotsDirtySinceStructureChange = false
+                                pathSlotsDirtySinceStructureChange = false
                             },
                             onRemoveRow = {
-                                val lastRowIndex = templateState.rows - 1
-                                val lastRowCells = templateState.cells
+                                val lastRowIndex = currentTemplate.rows - 1
+                                val lastRowCells = currentTemplate.cells
                                     .filter { it.rowIndex == lastRowIndex }
                                     .sortedBy { it.colIndex }
+
+                                val deletedCellIds = lastRowCells.map { it.cellId }.toSet()
                                 if (lastRowCells.isNotEmpty()) {
-                                    deletedRowsStack.add(lastRowCells)
+                                    deletedRowsStack.add(
+                                        DeletedStructureSnapshot(
+                                            cells = lastRowCells,
+                                            fileNameSlotsSnapshot = fileNameSlotItems,
+                                            pathSlotsSnapshot = pathSlotItems
+                                        )
+                                    )
                                 }
 
-                                val updated = removeRow(templateState)
+                                val updated = removeRow(currentTemplate)
                                 val sanitized = sanitizePathGroupAfterStructureChange(updated)
-                                onTemplateChange(sanitized)
+                                updateTemplateDraft(sanitized)
+
+                                // 정책: 삭제된 셀을 참조하는 슬롯은 현재 상태에서 즉시 제거(고아 슬롯 미유지)
+                                updateFileNameSlotDraft(
+                                    removeCellRefsFromFileNameSlots(fileNameSlotItems, deletedCellIds),
+                                    markDirty = false
+                                )
+                                updatePathSlotDraft(
+                                    removeCellRefsFromPathSlots(pathSlotItems, deletedCellIds),
+                                    markDirty = false
+                                )
+                                fileNameSlotsDirtySinceStructureChange = false
+                                pathSlotsDirtySinceStructureChange = false
+
                                 if (sanitized.cells.none { it.cellId == selectedCellId }) {
                                     selectedCellId = sanitized.cells.firstOrNull()?.cellId
                                 }
@@ -1290,42 +1475,91 @@ fun TableEditorScreen(
                                 val restored = deletedColsStack.lastOrNull()
                                 if (restored != null) {
                                     deletedColsStack.removeAt(deletedColsStack.lastIndex)
-                                    val newColIndex = templateState.cols
-                                    val restoredReindexed = restored.map { it.copy(colIndex = newColIndex) }
-                                    val baseColWeights = templateState.colWeights
-                                        ?: List(templateState.cols.coerceAtLeast(1)) { 1f }
-                                    val updated = templateState.copy(
-                                        cols = templateState.cols + 1,
-                                        cells = templateState.cells + restoredReindexed,
+                                    val newColIndex = currentTemplate.cols
+                                    val restoredReindexed = restored.cells.map { it.copy(colIndex = newColIndex) }
+                                    val baseColWeights = currentTemplate.colWeights
+                                        ?: List(currentTemplate.cols.coerceAtLeast(1)) { 1f }
+                                    val updated = currentTemplate.copy(
+                                        cols = currentTemplate.cols + 1,
+                                        cells = currentTemplate.cells + restoredReindexed,
                                         colWeights = baseColWeights + 1f
                                     )
-                                    onTemplateChange(sanitizePathGroupAfterStructureChange(updated))
+                                    updateTemplateDraft(sanitizePathGroupAfterStructureChange(updated))
+
+                                    // 정책: 삭제 이후 슬롯 수정이 없으면 삭제 직전 슬롯 snapshot까지 함께 복원한다.
+                                    if (!fileNameSlotsDirtySinceStructureChange) {
+                                        updateFileNameSlotDraft(restored.fileNameSlotsSnapshot, markDirty = false)
+                                    }
+                                    if (!pathSlotsDirtySinceStructureChange) {
+                                        updatePathSlotDraft(restored.pathSlotsSnapshot, markDirty = false)
+                                    }
                                 } else {
-                                    onTemplateChange(sanitizePathGroupAfterStructureChange(addColumn(templateState)))
+                                    updateTemplateDraft(sanitizePathGroupAfterStructureChange(addColumn(currentTemplate)))
                                 }
+                                fileNameSlotsDirtySinceStructureChange = false
+                                pathSlotsDirtySinceStructureChange = false
                             },
                             onRemoveCol = {
-                                val lastColIndex = templateState.cols - 1
-                                val lastColCells = templateState.cells
+                                val lastColIndex = currentTemplate.cols - 1
+                                val lastColCells = currentTemplate.cells
                                     .filter { it.colIndex == lastColIndex }
                                     .sortedBy { it.rowIndex }
+
+                                val deletedCellIds = lastColCells.map { it.cellId }.toSet()
                                 if (lastColCells.isNotEmpty()) {
-                                    deletedColsStack.add(lastColCells)
+                                    deletedColsStack.add(
+                                        DeletedStructureSnapshot(
+                                            cells = lastColCells,
+                                            fileNameSlotsSnapshot = fileNameSlotItems,
+                                            pathSlotsSnapshot = pathSlotItems
+                                        )
+                                    )
                                 }
 
-                                val updated = removeColumn(templateState)
+                                val updated = removeColumn(currentTemplate)
                                 val sanitized = sanitizePathGroupAfterStructureChange(updated)
-                                onTemplateChange(sanitized)
+                                updateTemplateDraft(sanitized)
+
+                                // 정책: 삭제된 셀을 참조하는 슬롯은 현재 상태에서 즉시 제거(고아 슬롯 미유지)
+                                updateFileNameSlotDraft(
+                                    removeCellRefsFromFileNameSlots(fileNameSlotItems, deletedCellIds),
+                                    markDirty = false
+                                )
+                                updatePathSlotDraft(
+                                    removeCellRefsFromPathSlots(pathSlotItems, deletedCellIds),
+                                    markDirty = false
+                                )
+                                fileNameSlotsDirtySinceStructureChange = false
+                                pathSlotsDirtySinceStructureChange = false
+
                                 if (sanitized.cells.none { it.cellId == selectedCellId }) {
                                     selectedCellId = sanitized.cells.firstOrNull()?.cellId
                                 }
                             },
-                            onReset = onReset,
+                            onReset = {
+                                // 정책 변경: 초기화는 기본 템플릿이 아니라 "화면 진입 시점(initialDraft)" 복원이다.
+                                currentDraft = initialDraft
+                                selectedCellId = initialDraft.template.cells.firstOrNull()?.cellId
+                                showCellSettingsPanel = false
+                                bottomPanelMode = BottomEditorPanelMode.NONE
+                                currentlySelectedFileNameSlot = null
+                                currentlySelectedPathSlot = null
+                                clearFileNameEditorTransientState(clearDraft = true)
+                                clearPathEditorTransientState(clearDraft = true)
+                                clearInlineEditingState()
+                                deletedRowsStack.clear()
+                                deletedColsStack.clear()
+                                fileNameSlotsDirtySinceStructureChange = false
+                                pathSlotsDirtySinceStructureChange = false
+                            },
                             onSave = {
                                 commitInlineEditIfNeeded()
                                 isSavingTemplate = true
+                                // 정책 보강: 저장 기준은 template 단건이 아니라 currentDraft 전체이며,
+                                // 슬롯 draft payload가 동기화된 template를 저장 payload로 사용한다.
+                                val savePayload = currentDraft.template
                                 scope.launch {
-                                    saveTableTemplate(context, templateState)
+                                    saveTableTemplate(context, savePayload)
                                         .onFailure {
                                             Toast.makeText(
                                                 context,
@@ -1346,62 +1580,66 @@ fun TableEditorScreen(
                             },
                             onToggleFileNameForSelected = { cellId, enabled ->
                                 val nextSlots = if (enabled) {
-                                    addToFileNameSlots(templateState.fileNameSlots, cellId)
+                                    addToFileNameSlots(currentTemplate.fileNameSlots, cellId)
                                 } else {
-                                    removeFromFileNameSlots(templateState.fileNameSlots, cellId)
+                                    removeFromFileNameSlots(currentTemplate.fileNameSlots, cellId)
                                 }
-                                if (nextSlots != templateState.fileNameSlots) {
-                                    onTemplateChange(templateState.copy(fileNameSlots = nextSlots))
+                                if (nextSlots != currentTemplate.fileNameSlots) {
+                                    val updatedTemplate = currentTemplate.copy(fileNameSlots = nextSlots)
+                                    updateTemplateDraft(updatedTemplate)
+                                    updateFileNameSlotDraft(buildFileNameDraftSlots(updatedTemplate))
                                 }
                             },
                             onReorderFileNameSlots = { fromIndex, toIndex ->
                                 if (fromIndex != toIndex && fromIndex in 0..2 && toIndex in 0..2) {
-                                    val slots = templateState.fileNameSlots.take(3).toMutableList()
+                                    val slots = currentTemplate.fileNameSlots.take(3).toMutableList()
                                     while (slots.size < 3) slots.add(null)
 
                                     val temp = slots[fromIndex]
                                     slots[fromIndex] = slots[toIndex]
                                     slots[toIndex] = temp
 
-                                    if (slots != templateState.fileNameSlots) {
-                                        onTemplateChange(templateState.copy(fileNameSlots = slots))
+                                    if (slots != currentTemplate.fileNameSlots) {
+                                        val updatedTemplate = currentTemplate.copy(fileNameSlots = slots)
+                                        updateTemplateDraft(updatedTemplate)
+                                        updateFileNameSlotDraft(buildFileNameDraftSlots(updatedTemplate))
                                     }
                                 }
                             },
                             onPathGroupActionForSelected = { action ->
                                 selectedCell?.let { cell ->
                                     val updated = applyPathGroupAction(
-                                        state = templateState,
+                                        state = currentTemplate,
                                         targetCellId = cell.cellId,
                                         action = action
                                     )
-                                    onTemplateChange(updated)
+                                    updateTemplateDraft(updated)
                                 }
                             },
                             onSetDataTypeForSelected = { type ->
                                 selectedCell?.let { cell ->
-                                    val updated = updateCell(templateState, cell.cellId) { c ->
+                                    val updated = updateCell(currentTemplate, cell.cellId) { c ->
                                         c.withDataType(type)
                                     }
-                                    onTemplateChange(updated)
+                                    updateTemplateDraft(updated)
                                 }
                             },
                             onSetCounterScopeModeForSelected = { mode ->
                                 selectedCell?.let { cell ->
                                     if (cell.dataType != TableCellDataType.DATE && cell.dataType != TableCellDataType.TIME) return@let
-                                    val updated = updateCell(templateState, cell.cellId) { c ->
+                                    val updated = updateCell(currentTemplate, cell.cellId) { c ->
                                         c.copy(counterScopeMode = mode)
                                     }
-                                    onTemplateChange(updated)
+                                    updateTemplateDraft(updated)
                                 }
                             },
                             onSetRotatingCounterModeForSelected = { mode ->
                                 selectedCell?.let { cell ->
                                     if (cell.dataType != TableCellDataType.ROTATING_TEXT) return@let
-                                    val updated = updateCell(templateState, cell.cellId) { c ->
+                                    val updated = updateCell(currentTemplate, cell.cellId) { c ->
                                         c.copy(rotatingCounterMode = mode)
                                     }
-                                    onTemplateChange(updated)
+                                    updateTemplateDraft(updated)
                                 }
                             },
                             onResetCounterSeedForSelected = {
@@ -1409,13 +1647,13 @@ fun TableEditorScreen(
                                     if (cell.dataType != TableCellDataType.COUNTER) return@let
                                     restoreCounterCellToAutoNext(
                                         context = context,
-                                        templateState = templateState,
+                                        templateState = currentTemplate,
                                         cellId = cell.cellId,
                                         scopedCounterStream = scopedCounterStream,
                                         previewCounterDigits = previewCounterDigits,
                                         saveMode = tableSaveMode,
                                         counterUi = counterUi,
-                                        onTemplateChange = onTemplateChange,
+                                        onTemplateChange = ::updateTemplateDraft,
                                         setCounterUi = { counterUi = it },
                                         updateCell = ::updateCell,
                                         scope = scope
@@ -1424,7 +1662,7 @@ fun TableEditorScreen(
                                 }
                             },
                             onOpenRotatingTemplateDialogForSelected = { cellId ->
-                                val cell = templateState.cells.firstOrNull { it.cellId == cellId }
+                                val cell = currentTemplate.cells.firstOrNull { it.cellId == cellId }
                                 if (cell != null && cell.dataType == TableCellDataType.ROTATING_TEXT) {
                                     openRotatingPhraseTemplateDialog(cell.cellId)
                                 } else {
@@ -1442,7 +1680,7 @@ fun TableEditorScreen(
                     PreviewTabContent(
                         scrollState = previewTabScrollState,
                         captureAspect = watermarkUi.captureAspect,
-                        templateState = templateState,
+                        templateState = currentTemplate,
                         resolvedCells = plan.resolvedCells,
                         wmAnchor = watermarkUi.wmAnchor,
                         wmOffsetXRatio = watermarkUi.wmOffsetXRatio,
@@ -1469,7 +1707,7 @@ fun TableEditorScreen(
                                 watermarkUi = applyAnchorOffsetDragChange(context, offsetX, offsetY, watermarkUi)
                             }
                         },
-                        onRowColWeightsChange = { updated -> onTemplateChange(updated) },
+                        onRowColWeightsChange = { updated -> updateTemplateDraft(updated) },
                         onWidthRatioChange = { width ->
                             scope.launch {
                                 watermarkUi = applyWidthRatioChange(context, width, watermarkUi)

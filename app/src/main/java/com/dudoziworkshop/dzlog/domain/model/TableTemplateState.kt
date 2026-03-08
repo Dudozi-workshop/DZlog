@@ -2,6 +2,14 @@ package com.dudoziworkshop.dzlog.domain.model
 
 typealias CellKey = String
 
+data class TableEditorSlotDraft(
+    val kind: String,
+    val label: String,
+    val cellId: String? = null,
+    val manualText: String? = null,
+    val formatType: String? = null,
+)
+
 data class TableTemplateState(
     val rows: Int,
     val cols: Int,
@@ -19,7 +27,12 @@ data class TableTemplateState(
      */
     val colWeights: List<Float>? = null,
     val phraseSets: List<RotatingPhraseSet> = emptyList(),
-    val fileNameSlots: List<CellKey?> = List(FILE_NAME_SLOT_COUNT) { null }
+    val fileNameSlots: List<CellKey?> = List(FILE_NAME_SLOT_COUNT) { null },
+    // 정책 보강: TableEditor draft(파일명/저장경로 슬롯 편집 내용) 저장 복원을 위한 payload.
+    // - 기존 템플릿과의 하위 호환을 위해 optional로 유지한다.
+    val fileNameSlotDrafts: List<TableEditorSlotDraft?> = List(FILE_NAME_SLOT_COUNT) { null },
+    val pathSlotDrafts: List<TableEditorSlotDraft?> = List(PATH_SLOT_COUNT) { null },
 )
 
 const val FILE_NAME_SLOT_COUNT: Int = 3
+const val PATH_SLOT_COUNT: Int = 2
