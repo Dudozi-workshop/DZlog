@@ -3,14 +3,32 @@ package com.dudoziworkshop.dzlog.ui.table.section
 import androidx.compose.ui.focus.FocusRequester
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
-import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.table.ResolvePlan
 import com.dudoziworkshop.dzlog.ui.table.PathGroupAction
 import java.util.Date
+
+enum class BottomEditorPanelMode {
+    NONE,
+    CELL_EDIT,
+    FILENAME_EDIT,
+    PATH_EDIT
+}
+
+enum class FileNameSlotKind {
+    CELL,
+    COUNTER,
+    MANUAL
+}
+
+data class FileNameSlotUiItem(
+    val kind: FileNameSlotKind,
+    val label: String
+)
 
 data class LayoutTabUiState(
     val savePathPreview: String,
@@ -30,6 +48,10 @@ data class LayoutTabUiState(
     val editingCellId: String?,
     val editingValue: String,
     val inlineFocusRequester: FocusRequester,
+    val bottomPanelMode: BottomEditorPanelMode,
+    val currentlySelectedFileNameSlot: Int?,
+    val currentlySelectedPathSlot: Int?,
+    val fileNameSlotItems: List<FileNameSlotUiItem?>,
     val showCellSettingsPanel: Boolean,
     val selectedCell: TableCellState?,
     val hasGroup1: Boolean,
@@ -42,7 +64,13 @@ data class LayoutTabUiState(
 
 data class LayoutTabActions(
     val onSelectCellId: (String?) -> Unit,
+    val onChangeBottomPanelMode: (BottomEditorPanelMode) -> Unit,
     val onShowCellSettingsPanel: (Boolean) -> Unit,
+    val onSelectFileNameSlot: (Int) -> Unit,
+    val onFillEmptyFileNameSlot: (Int) -> Unit,
+    val onMoveSelectedFileNameSlotLeft: () -> Unit,
+    val onMoveSelectedFileNameSlotRight: () -> Unit,
+    val onDeleteSelectedFileNameSlot: () -> Unit,
     val onStartInlineEditing: (cellId: String, initialText: String) -> Unit,
     val onOpenFormatDialog: (cellId: String, type: TableCellDataType) -> Unit,
     val onEditingValueChange: (String) -> Unit,

@@ -19,13 +19,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.ui.common.DDZSectionHeader
-import com.dudoziworkshop.dzlog.ui.table.BottomFixedActionBar
+import com.dudoziworkshop.dzlog.ui.table.BottomEditorPanel
 import com.dudoziworkshop.dzlog.ui.table.CellSettingsBottomPanel
 import com.dudoziworkshop.dzlog.ui.table.CompactPathHeader
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
-private val BottomBarReserveHeight = 140.dp
+private val BottomBarReserveHeight = 160.dp
 
 @Composable
 fun LayoutTabContent(
@@ -56,7 +56,9 @@ fun LayoutTabContent(
                 CompactPathHeader(
                     savePath = uiState.savePathPreview,
                     fileName = uiState.filenamePreview,
-                    fileNameRightLabel = uiState.counterModeLabel
+                    fileNameRightLabel = uiState.counterModeLabel,
+                    onClickFileNamePreview = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.FILENAME_EDIT) },
+                    onClickSavePathPreview = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.PATH_EDIT) }
                 )
 
                 Spacer(Modifier.height(10.dp))
@@ -82,17 +84,22 @@ fun LayoutTabContent(
                                 if (!actions.onTryCommitInlineAndContinue()) return@TableGridSection
                             }
                             actions.onSelectCellId(id)
-                            actions.onShowCellSettingsPanel(true)
+                            // 정책 변경: 1차 구조 전환 단계에서는 CELL_EDIT 모드가 기본 편집 영역이므로
+                            // 기존 CellSettingsBottomPanel 오버레이는 함께 띄우지 않는다.
+                            actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT)
+                            actions.onShowCellSettingsPanel(false)
                         },
                         onDoubleClickCell = { cell ->
                             if (uiState.editingCellId != null && uiState.editingCellId != cell.cellId) {
                                 if (!actions.onTryCommitInlineAndContinue()) return@TableGridSection
                                 actions.onSelectCellId(cell.cellId)
-                                actions.onShowCellSettingsPanel(true)
+                                actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT)
+                                actions.onShowCellSettingsPanel(false)
                                 return@TableGridSection
                             }
 
                             actions.onSelectCellId(cell.cellId)
+                            actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT)
                             val canInline =
                                 (cell.dataType == TableCellDataType.TEXT ||
                                     cell.dataType == TableCellDataType.NUMBER ||
@@ -107,7 +114,7 @@ fun LayoutTabContent(
                                 } else if (cell.dataType == TableCellDataType.ROTATING_TEXT) {
                                     actions.onOpenRotatingTemplateDialogForSelected(cell.cellId)
                                 } else {
-                                    actions.onShowCellSettingsPanel(true)
+                                    actions.onShowCellSettingsPanel(false)
                                 }
                             }
                         },
@@ -126,7 +133,7 @@ fun LayoutTabContent(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "셀을 눌러 편집을 시작하세요.",
+                        text = "모드형 편집 패널 1차 구조 적용 중입니다.",
                         style = DDZTypography.Caption,
                         color = DDZColor.TextMuted
                     )
@@ -134,14 +141,25 @@ fun LayoutTabContent(
             }
         }
 
-        BottomFixedActionBar(
+        BottomEditorPanel(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(horizontal = 16.dp)
                 .padding(top = 12.dp),
+            panelMode = uiState.bottomPanelMode,
             rows = uiState.templateState.rows,
             cols = uiState.templateState.cols,
             isSaving = uiState.isSavingTemplate,
+            filenamePreview = uiState.filenamePreview,
+            savePathPreview = uiState.savePathPreview,
+            selectedCellLabel = uiState.selectedCellId,
+            fileNameSlotItems = uiState.fileNameSlotItems,
+            selectedFileNameSlot = uiState.currentlySelectedFileNameSlot,
+            onSelectFileNameSlot = actions.onSelectFileNameSlot,
+            onFillEmptyFileNameSlot = actions.onFillEmptyFileNameSlot,
+            onMoveSelectedFileNameSlotLeft = actions.onMoveSelectedFileNameSlotLeft,
+            onMoveSelectedFileNameSlotRight = actions.onMoveSelectedFileNameSlotRight,
+            onDeleteSelectedFileNameSlot = actions.onDeleteSelectedFileNameSlot,
             onAddRow = actions.onAddRow,
             onRemoveRow = actions.onRemoveRow,
             onAddCol = actions.onAddCol,
@@ -150,7 +168,7 @@ fun LayoutTabContent(
             onSave = actions.onSave
         )
 
-        if (uiState.showCellSettingsPanel && uiState.selectedCell != null && uiState.editingCellId == null) {
+        if (uiState.showCellSettingsPanel && uiState.selectedCell != null && uiState.editingCellId == null && uiState.bottomPanelMode != BottomEditorPanelMode.CELL_EDIT) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()

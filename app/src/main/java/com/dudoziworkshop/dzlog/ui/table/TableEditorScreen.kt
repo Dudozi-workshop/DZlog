@@ -89,6 +89,9 @@ import com.dudoziworkshop.dzlog.ui.table.format.open
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseTemplateDialog
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseUiState
+import com.dudoziworkshop.dzlog.ui.table.section.BottomEditorPanelMode
+import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotKind
+import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabActions
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabContent
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabUiState
@@ -143,6 +146,32 @@ fun TableEditorScreen(
     var selectedCellId by remember { mutableStateOf(templateState.cells.firstOrNull()?.cellId) }
     // ✅ 탭0: 셀 설정 패널 표시 여부
     var showCellSettingsPanel by remember { mutableStateOf(false) }
+    // 모드형 하단 편집 패널 1차 구조 상태 (다음 단계 슬롯/직접 편집 확장 대비)
+    var bottomPanelMode by remember { mutableStateOf(BottomEditorPanelMode.NONE) }
+    var currentlySelectedFileNameSlot by remember { mutableStateOf<Int?>(null) }
+    var currentlySelectedPathSlot by remember { mutableStateOf<Int?>(null) }
+    // 정책 변경: FILENAME_EDIT 2단계에서는 템플릿의 실제 셀 연결과 분리된 "슬롯 UI 상태"를 별도로 유지한다.
+    // 다음 단계에서 셀/카운터/직접입력 상세 선택 UI를 붙일 수 있게 구조화된 타입을 사용한다.
+    var fileNameSlotItems by remember {
+        mutableStateOf<List<FileNameSlotUiItem?>>(List(3) { null })
+    }
+
+    fun normalizeFileNameSlotItems(slots: List<FileNameSlotUiItem?>): List<FileNameSlotUiItem?> {
+        return List(3) { index -> slots.getOrNull(index) }
+    }
+
+    fun removeFileNameSlotAt(slots: List<FileNameSlotUiItem?>, index: Int): List<FileNameSlotUiItem?> {
+        val compacted = slots.filterIndexed { i, item -> i != index && item != null }
+        return normalizeFileNameSlotItems(compacted)
+    }
+
+    fun moveFileNameSlot(slots: List<FileNameSlotUiItem?>, from: Int, to: Int): List<FileNameSlotUiItem?> {
+        val mutable = slots.toMutableList()
+        val temp = mutable[from]
+        mutable[from] = mutable[to]
+        mutable[to] = temp
+        return normalizeFileNameSlotItems(mutable)
+    }
 
     // 탭1 스크롤 (분리)
     val previewTabScrollState = rememberScrollState()
@@ -823,6 +852,10 @@ fun TableEditorScreen(
                             editingCellId = inlineEdit.editingCellId,
                             editingValue = inlineEdit.editingValue,
                             inlineFocusRequester = inlineFocusRequester,
+                            bottomPanelMode = bottomPanelMode,
+                            currentlySelectedFileNameSlot = currentlySelectedFileNameSlot,
+                            currentlySelectedPathSlot = currentlySelectedPathSlot,
+                            fileNameSlotItems = fileNameSlotItems,
                             showCellSettingsPanel = showCellSettingsPanel,
                             selectedCell = selectedCell,
                             hasGroup1 = hasGroup1,
@@ -834,7 +867,63 @@ fun TableEditorScreen(
                         ),
                         actions = LayoutTabActions(
                             onSelectCellId = { selectedCellId = it },
+                            onChangeBottomPanelMode = { bottomPanelMode = it },
                             onShowCellSettingsPanel = { showCellSettingsPanel = it },
+                            onSelectFileNameSlot = { slotIndex ->
+                                currentlySelectedFileNameSlot = slotIndex
+                            },
+                            onFillEmptyFileNameSlot = { slotIndex ->
+                                val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
+                                val firstEmptyIndex = normalized.indexOfFirst { it == null }
+                                if (firstEmptyIndex < 0) {
+                                    currentlySelectedFileNameSlot = slotIndex
+                                } else {
+                                    // 정책 변경: 어떤 '+'를 눌러도 항상 가장 앞의 빈 슬롯부터 채워
+                                    // 파일명 슬롯 상태를 [A, B, C, null...] 형태로 연속 유지한다.
+                                    val next = normalized.toMutableList().apply {
+                                        this[firstEmptyIndex] = FileNameSlotUiItem(
+                                            kind = FileNameSlotKind.CELL,
+                                            label = "셀"
+                                        )
+                                    }
+                                    fileNameSlotItems = normalizeFileNameSlotItems(next)
+                                    currentlySelectedFileNameSlot = firstEmptyIndex
+                                }
+                            },
+                            onMoveSelectedFileNameSlotLeft = {
+                                val selected = currentlySelectedFileNameSlot
+                                if (selected != null) {
+                                    val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
+                                    val target = selected - 1
+                                    if (target >= 0 && normalized[selected] != null && normalized[target] != null) {
+                                        fileNameSlotItems = moveFileNameSlot(normalized, selected, target)
+                                        currentlySelectedFileNameSlot = target
+                                    }
+                                }
+                            },
+                            onMoveSelectedFileNameSlotRight = {
+                                val selected = currentlySelectedFileNameSlot
+                                if (selected != null) {
+                                    val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
+                                    val target = selected + 1
+                                    if (target < normalized.size && normalized[selected] != null && normalized[target] != null) {
+                                        fileNameSlotItems = moveFileNameSlot(normalized, selected, target)
+                                        currentlySelectedFileNameSlot = target
+                                    }
+                                }
+                            },
+                            onDeleteSelectedFileNameSlot = {
+                                val selected = currentlySelectedFileNameSlot
+                                if (selected != null) {
+                                    val normalized = normalizeFileNameSlotItems(fileNameSlotItems)
+                                    if (normalized.getOrNull(selected) != null) {
+                                        val next = removeFileNameSlotAt(normalized, selected)
+                                        fileNameSlotItems = next
+                                        val nextFilledIndex = next.indexOfFirst { it != null }.takeIf { it >= 0 }
+                                        currentlySelectedFileNameSlot = nextFilledIndex
+                                    }
+                                }
+                            },
                             onStartInlineEditing = { cellId, value ->
                                 inlineEdit = startInlineEditing(inlineEdit, cellId, value)
                             },
