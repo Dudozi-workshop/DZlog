@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,24 +27,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
+import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControl
+import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControlOption
+import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControlStyles
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 private const val PANEL_WIDTH_FRACTION = 0.6f
 private const val PANEL_DIM_ALPHA = 0.2f
 private val PANEL_MAX_WIDTH = 420.dp
-private val PANEL_CORNER_RADIUS = 14.dp
-private val SEGMENT_HEIGHT = 30.dp
-private val SEGMENT_CORNER_RADIUS = 10.dp
-private const val SEGMENT_WIDTH_FRACTION = 0.95f
-private val PANEL_HEADER_ICON_TOUCH = 30.dp
+// 1단계 라운딩 토큰: 패널 외곽은 Medium 기준선을 사용한다.
+private val PANEL_CORNER_RADIUS = DDZLayout.Radius.Medium
+// 토큰 정책: 패널 헤더 터치 영역은 compact control 규격을 사용한다.
+private val PANEL_HEADER_ICON_TOUCH = DDZLayout.Control.Compact
 private val PANEL_HEADER_ICON_SIZE = 12.dp
 
 @Composable
@@ -64,6 +64,7 @@ internal fun CameraSettingsOverlayPanel(
 ) {
     val dismissInteraction = remember { MutableInteractionSource() }
     val statusBarPadding = WindowInsets.statusBars.asPaddingValues()
+    val panelTopPadding = (statusBarPadding.calculateTopPadding() - 1.dp).coerceAtLeast(0.dp)
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -81,8 +82,8 @@ internal fun CameraSettingsOverlayPanel(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(
-                    // 정책 유지: 오버레이 패널은 status bar inset 바로 아래에서 시작한다.
-                    top = statusBarPadding.calculateTopPadding(),
+                    // 정책 보정: safe inset은 유지하되 시각적 떠보임을 줄이기 위해 상단 간격을 1dp만 당긴다.
+                    top = panelTopPadding,
                     end = 0.dp
                 )
                 .fillMaxWidth(PANEL_WIDTH_FRACTION)
@@ -94,8 +95,8 @@ internal fun CameraSettingsOverlayPanel(
             color = DDZColor.Card.copy(alpha = 0.97f)
         ) {
             Column(
-                // UX 2차 보정 유지: 내부 상단 여백을 최소화해 패널이 더 위에 붙어 보이게 한다.
-                modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 2.dp, bottom = 6.dp),
+                // UX 3차 보정: 내부 상단 여백을 제거해 패널 시작점을 safe 영역 바로 아래로 더 밀착시킨다.
+                modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 0.dp, bottom = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Row(
@@ -126,55 +127,49 @@ internal fun CameraSettingsOverlayPanel(
                 HorizontalDivider(color = DDZColor.Border)
 
                 SettingSectionTitle("촬영 비율")
-                ConnectedSegments(
+                CompactSegments(
                     options = listOf(
-                        SegmentOption("1:1", captureAspect == CaptureAspect.R1_1) { onCaptureAspectChange(CaptureAspect.R1_1) },
-                        SegmentOption("3:4", captureAspect == CaptureAspect.R3_4) { onCaptureAspectChange(CaptureAspect.R3_4) },
-                        SegmentOption("9:16", captureAspect == CaptureAspect.R9_16) { onCaptureAspectChange(CaptureAspect.R9_16) }
+                        SegmentedControlOption("1:1", captureAspect == CaptureAspect.R1_1) { onCaptureAspectChange(CaptureAspect.R1_1) },
+                        SegmentedControlOption("3:4", captureAspect == CaptureAspect.R3_4) { onCaptureAspectChange(CaptureAspect.R3_4) },
+                        SegmentedControlOption("9:16", captureAspect == CaptureAspect.R9_16) { onCaptureAspectChange(CaptureAspect.R9_16) }
                     )
                 )
 
                 SettingSectionTitle("저장 방식")
-                ConnectedSegments(
+                CompactSegments(
                     options = listOf(
-                        SegmentOption("원본", saveMode == SaveMode.ORIGINAL_ONLY) { onSaveModeChange(SaveMode.ORIGINAL_ONLY) },
-                        SegmentOption("워터마크", saveMode == SaveMode.WATERMARK_ONLY) { onSaveModeChange(SaveMode.WATERMARK_ONLY) },
-                        SegmentOption("둘 다", saveMode == SaveMode.BOTH) { onSaveModeChange(SaveMode.BOTH) }
+                        SegmentedControlOption("원본", saveMode == SaveMode.ORIGINAL_ONLY) { onSaveModeChange(SaveMode.ORIGINAL_ONLY) },
+                        SegmentedControlOption("워터마크", saveMode == SaveMode.WATERMARK_ONLY) { onSaveModeChange(SaveMode.WATERMARK_ONLY) },
+                        SegmentedControlOption("둘 다", saveMode == SaveMode.BOTH) { onSaveModeChange(SaveMode.BOTH) }
                     )
                 )
 
                 SettingSectionTitle("미리보기")
-                ConnectedSegments(
+                CompactSegments(
                     options = listOf(
-                        SegmentOption("없음", continuousPreviewMode == ContinuousPreviewMode.OFF) {
+                        SegmentedControlOption("없음", continuousPreviewMode == ContinuousPreviewMode.OFF) {
                             onContinuousPreviewModeChange(ContinuousPreviewMode.OFF)
                         },
-                        SegmentOption("짧게", continuousPreviewMode == ContinuousPreviewMode.SHORT) {
+                        SegmentedControlOption("짧게", continuousPreviewMode == ContinuousPreviewMode.SHORT) {
                             onContinuousPreviewModeChange(ContinuousPreviewMode.SHORT)
                         },
-                        SegmentOption("고정", continuousPreviewMode == ContinuousPreviewMode.HOLD) {
+                        SegmentedControlOption("고정", continuousPreviewMode == ContinuousPreviewMode.HOLD) {
                             onContinuousPreviewModeChange(ContinuousPreviewMode.HOLD)
                         }
                     )
                 )
 
                 SettingSectionTitle("화면 표기")
-                ConnectedSegments(
+                CompactSegments(
                     options = listOf(
-                        SegmentOption("그리드", showGrid) { onShowGridChange(!showGrid) },
-                        SegmentOption("표", showTable) { onShowTableChange(!showTable) }
+                        SegmentedControlOption("그리드", showGrid) { onShowGridChange(!showGrid) },
+                        SegmentedControlOption("표", showTable) { onShowTableChange(!showTable) }
                     )
                 )
             }
         }
     }
 }
-
-private data class SegmentOption(
-    val label: String,
-    val selected: Boolean,
-    val onClick: () -> Unit
-)
 
 @Composable
 private fun SettingSectionTitle(title: String) {
@@ -186,66 +181,10 @@ private fun SettingSectionTitle(title: String) {
 }
 
 @Composable
-private fun ConnectedSegments(options: List<SegmentOption>) {
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(SEGMENT_CORNER_RADIUS)
-    Box(
-        modifier = Modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(SEGMENT_WIDTH_FRACTION)
-                .clip(shape),
-            shape = shape,
-            color = DDZColor.Surface,
-            border = androidx.compose.foundation.BorderStroke(1.dp, DDZColor.Border)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(SEGMENT_HEIGHT)
-            ) {
-                options.forEachIndexed { index, option ->
-                    SegmentItem(
-                        option = option,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (index != options.lastIndex) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .width(1.dp)
-                                .background(DDZColor.Border)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SegmentItem(
-    option: SegmentOption,
-    modifier: Modifier = Modifier
-) {
-    val background = if (option.selected) DDZColor.SageLight.copy(alpha = 0.45f) else DDZColor.Surface
-    val textColor = if (option.selected) DDZColor.SageDark else DDZColor.Primary
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(background)
-            .clickable(onClick = option.onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = option.label,
-            style = DDZTypography.SegmentCompact,
-            color = textColor,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
+private fun CompactSegments(options: List<SegmentedControlOption>) {
+    // 3단계 정책: 촬영설정 패널도 공통 SegmentedControl 렌더러를 사용해 중복 UI를 제거한다.
+    SegmentedControl(
+        options = options,
+        style = SegmentedControlStyles.Compact
+    )
 }

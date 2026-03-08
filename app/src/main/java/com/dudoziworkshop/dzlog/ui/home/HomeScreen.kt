@@ -2,7 +2,6 @@
 
 package com.dudoziworkshop.dzlog.ui.home
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -79,6 +78,7 @@ import com.dudoziworkshop.dzlog.ui.log.dzFormatDate
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.Dispatchers
@@ -400,8 +400,10 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(gap + 4.dp)
             ) {
                 // 홈 액션 버튼 정책: 두 버튼의 높이/라운딩을 통일해 라운드 사각형 톤을 유지한다.
-                val unifiedActionButtonHeight = 54.dp
-                val unifiedActionButtonShape = RoundedCornerShape(18.dp)
+                // 토큰 정책: 홈의 대표 액션 버튼 높이는 공통 Button 기준선을 사용한다.
+                val unifiedActionButtonHeight = DDZLayout.Control.Button
+                // 1단계 라운딩 토큰: 홈 액션 버튼은 Medium 기준선을 사용한다.
+                val unifiedActionButtonShape = RoundedCornerShape(DDZLayout.Radius.Medium)
 
                 DDZButton(
                     text = "촬영 시작",
@@ -440,9 +442,9 @@ fun HomeScreen(
                     .padding(bottom = 15.dp)
                     .fillMaxWidth()
                     .height(190.dp)
-                    .clip(RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(DDZLayout.Radius.Large))
                     .background(DDZColor.Card)
-                    .padding(horizontal = 18.dp, vertical = 12.dp)
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
             ) {
                 Row(modifier = Modifier.fillMaxSize()) {
                     Column(
@@ -456,18 +458,12 @@ fun HomeScreen(
                             color = DDZColor.TextPrimary
                         )
                         Spacer(Modifier.height(8.dp))
+                        // 홈 카드 정책: 내부 프레임(이중 배경/보더)을 제거하고 표 미리보기가 카드 영역을 더 넓게 쓰도록 유지한다.
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(DDZColor.Surface)
-                                .border(
-                                    width = 1.dp,
-                                    color = DDZColor.Primary.copy(alpha = 0.15f),
-                                    shape = RoundedCornerShape(18.dp)
-                                )
                                 .clickable(onClick = onOpenTableEditor)
-                                .padding(14.dp)
+                                .padding(2.dp)
                         ) {
                             TablePreviewCard(
                                 templateState = tableTemplateState,
@@ -551,7 +547,7 @@ fun HomeScreen(
                             modifier = Modifier
                                 .weight(0.26f)
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(18.dp))
+                                .clip(RoundedCornerShape(DDZLayout.Radius.Medium))
                                 .background(DDZColor.SageLight.copy(alpha = 0.45f))
                                 .clickable(onClick = onOpenAlbum),
                             contentAlignment = Alignment.Center

@@ -25,6 +25,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -64,6 +65,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -134,6 +136,7 @@ import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.ui.camera.controls.CaptureButtonSection
+import com.dudoziworkshop.dzlog.ui.camera.controls.CaptureClickCallbacks
 import com.dudoziworkshop.dzlog.ui.camera.controls.ZoomControlSection
 import com.dudoziworkshop.dzlog.ui.camera.controls.handleCaptureClick
 import com.dudoziworkshop.dzlog.ui.camera.preview.CameraPreviewArea
@@ -145,6 +148,7 @@ import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.data.preferences.persistCaptureAspect
@@ -448,6 +452,20 @@ fun CameraPreview(
             soundEnabled = appSettings.captureSoundEnabled
         )
 
+        // 구조 정리: capture 후처리 콜백을 하나의 묶음으로 전달해 호출부 가독성을 유지한다.
+        val callbacks = CaptureClickCallbacks(
+            // 정책 유지: 저장 성공 직후 프리뷰 숫자를 즉시 다음 값으로 반영한다.
+            onAdvancePreviewCounter = { nextCounter -> ui.counter.scopeNextCounter = nextCounter.coerceAtLeast(1) },
+            onAddToSessionStack = { uris ->
+                UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
+                scope.launch { reloadLatestImage() }
+            },
+            onSetCapturedUri = { capturedUri -> ui.capture.capturedUri = capturedUri },
+            // 정책 유지: 통합/문구별과 무관하게 저장 성공 후 다음 cursor를 반영한다.
+            onAdvancePhraseProgress = { nextCursor -> phraseProgressCounter = nextCursor.coerceAtLeast(1) },
+            onSetCapturing = { ui.capture.isCapturing = it }
+        )
+
         handleCaptureClick(
             context = context,
             gate = ui.capture.captureGate,
@@ -484,16 +502,7 @@ fun CameraPreview(
             // 정책 변경: 촬영 성공 직후에는 optimistic UI를 우선하고 즉시 강한 readback resync는 생략한다.
             // 최종 정합성 보정은 resume/undo/saveMode 변경 경로의 SyncCounterSeedEffect가 담당한다.
             onRequestCounterResync = { },
-            // 정책 유지: 저장 성공 직후 프리뷰 숫자를 즉시 다음 값으로 반영한다.
-            onAdvancePreviewCounter = { nextCounter -> ui.counter.scopeNextCounter = nextCounter.coerceAtLeast(1) },
-            onAddToSessionStack = { uris ->
-                UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
-                scope.launch { reloadLatestImage() }
-            },
-            onSetCapturedUri = { capturedUri -> ui.capture.capturedUri = capturedUri },
-            // 정책 유지: 통합/문구별과 무관하게 저장 성공 후 다음 cursor를 반영한다.
-            onAdvancePhraseProgress = { nextCursor -> phraseProgressCounter = nextCursor.coerceAtLeast(1) },
-            onSetCapturing = { ui.capture.isCapturing = it }
+            callbacks = callbacks
         )
     }
     val latestVolumeKeyAction by rememberUpdatedState(appSettings.volumeKeyAction)
@@ -763,10 +772,10 @@ fun CameraPreview(
                                         .padding(horizontal = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // 하단 조작부 정책: 10/30/20/30/10 비율로 중심축(anchor-3)과 2·4 midpoint 균형을 비율 기반으로 유지한다.
+                                    // 하단 조작부 정책: 15/23/24/23/15 비율로 중심축(anchor-3)과 2·4 midpoint 균형을 비율 기반으로 유지한다.
                                     // slot1: 최근(anchor-1)
                                     Box(
-                                        modifier = Modifier.weight(10f),
+                                        modifier = Modifier.weight(15f),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         RecentCaptureThumbButton(
@@ -786,13 +795,13 @@ fun CameraPreview(
 
                                     // slot2: midpoint(1-3), 추후 확장용 빈 슬롯
                                     Box(
-                                        modifier = Modifier.weight(30f),
+                                        modifier = Modifier.weight(23f),
                                         contentAlignment = Alignment.Center
                                     ) {}
 
                                     // slot3: 촬영(anchor-center)
                                     Box(
-                                        modifier = Modifier.weight(20f),
+                                        modifier = Modifier.weight(24f),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         CaptureButtonSection(
@@ -807,7 +816,7 @@ fun CameraPreview(
 
                                     // slot4: midpoint(3-5)
                                     Box(
-                                        modifier = Modifier.weight(30f),
+                                        modifier = Modifier.weight(23f),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         WatermarkRotateButton(
@@ -826,7 +835,7 @@ fun CameraPreview(
 
                                     // slot5: undo(anchor-5)
                                     Box(
-                                        modifier = Modifier.weight(10f),
+                                        modifier = Modifier.weight(15f),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         UndoCaptureButton(
@@ -897,6 +906,9 @@ fun CameraPreview(
     }
 }
 
+// 2단계 라운딩 토큰: 카메라 상/하단의 자주 노출되는 소형 컨트롤은 Small로 통일한다.
+private val CameraCompactControlShape = RoundedCornerShape(DDZLayout.Radius.Small)
+
 @Composable
 private fun CameraTopBar(
     topDisplayName: String,
@@ -912,7 +924,8 @@ private fun CameraTopBar(
             .fillMaxWidth()
     ) {
         val topBarMinHeight = 28.dp + DDZSpacing.itemGap
-        val settingsButtonReservedWidth = 32.dp + (DDZSpacing.cardPadding * 2)
+        // 토큰 정책: 반복되는 32dp 터치 영역은 DDZLayout.Icon.Touch로 고정한다.
+        val settingsButtonReservedWidth = DDZLayout.Icon.Touch + (DDZSpacing.cardPadding * 2)
         val filenameMaxWidth = (maxWidth - settingsButtonReservedWidth - DDZSpacing.itemGap)
             .coerceAtLeast(0.dp)
 
@@ -928,9 +941,9 @@ private fun CameraTopBar(
                     .defaultMinSize(minHeight = 30.dp)
                     .background(
                         color = DDZColor.Card.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = CameraCompactControlShape
                     )
-                    .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(8.dp))
+                    .border(1.dp, DDZColor.SageBorder, CameraCompactControlShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -950,7 +963,7 @@ private fun CameraTopBar(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .background(DDZColor.PrimaryDark.copy(alpha = 0f))
-                    .defaultMinSize(minWidth = 32.dp, minHeight = 32.dp)
+                    .defaultMinSize(minWidth = DDZLayout.Icon.Touch, minHeight = DDZLayout.Icon.Touch)
                     .clickable { onOpenSettings() }
                     .padding(horizontal = DDZSpacing.cardPadding, vertical = 4.dp)
             ) {
@@ -965,18 +978,35 @@ private fun CameraTopBar(
 }
 
 @Composable
+private fun CameraControlButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    backgroundColor: Color = Color.Transparent,
+    borderColor: Color = DDZColor.SageBorder,
+    content: @Composable BoxScope.() -> Unit
+) {
+    // 4단계 정책: 하단 보조 버튼 3종의 공통 외곽(size/clip/border/background/clickable)만 통합한다.
+    Box(
+        modifier = modifier
+            .size(DDZLayout.Control.CameraSmall)
+            .clip(CameraCompactControlShape)
+            .border(1.dp, borderColor, CameraCompactControlShape)
+            .background(backgroundColor)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+        content = content
+    )
+}
+
+@Composable
 private fun WatermarkRotateButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    CameraControlButton(
+        onClick = onClick,
         modifier = modifier
-            .size(40.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(12.dp))
-            .background(androidx.compose.ui.graphics.Color.Transparent)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.RotateRight,
@@ -992,19 +1022,16 @@ private fun UndoCaptureButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = modifier
-            .size(40.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(12.dp))
-            .background(if (enabled) DDZColor.SagePrimary else androidx.compose.ui.graphics.Color.Transparent)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center
+    CameraControlButton(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        backgroundColor = if (enabled) DDZColor.SagePrimary else Color.Transparent
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.Undo,
             contentDescription = "Undo",
-            tint = if (enabled) androidx.compose.ui.graphics.Color.White else DDZColor.SageDark
+            tint = if (enabled) Color.White else DDZColor.SageDark
         )
     }
 }
@@ -1015,13 +1042,9 @@ private fun RecentCaptureThumbButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    CameraControlButton(
+        onClick = onClick,
         modifier = modifier
-            .size(40.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(12.dp))
-            .background(androidx.compose.ui.graphics.Color.Transparent)
-            .clickable(onClick = onClick)
     ) {
         latestImage?.let {
             DzThumbnail(it.uri.toString())

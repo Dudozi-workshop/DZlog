@@ -23,6 +23,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 
+data class CaptureClickCallbacks(
+    val onAdvancePreviewCounter: (Int) -> Unit,
+    val onAddToSessionStack: (List<Uri>) -> Unit,
+    val onSetCapturedUri: (Uri?) -> Unit,
+    val onAdvancePhraseProgress: (Int) -> Unit,
+    val onSetCapturing: (Boolean) -> Unit
+)
+
 /**
  * [handleCaptureClick]
  * - 목적: 촬영 버튼 클릭 시 저장 실행/commit 후처리만 담당한다.
@@ -78,11 +86,7 @@ internal fun handleCaptureClick(
     ) -> com.dudoziworkshop.dzlog.domain.model.WatermarkConfig,
     onApplyTemplatePatch: (TableTemplateState) -> Unit,
     onRequestCounterResync: () -> Unit,
-    onAdvancePreviewCounter: (Int) -> Unit,
-    onAddToSessionStack: (List<Uri>) -> Unit,
-    onSetCapturedUri: (Uri?) -> Unit,
-    onAdvancePhraseProgress: (Int) -> Unit,
-    onSetCapturing: (Boolean) -> Unit
+    callbacks: CaptureClickCallbacks
 ) {
     val imageCaptureNonNull = imageCapture ?: run {
         Toast.makeText(context, "카메라 준비 중", Toast.LENGTH_SHORT).show()
@@ -91,7 +95,7 @@ internal fun handleCaptureClick(
 
     if (capturedUriPresent) return
     if (!gate.compareAndSet(false, true)) return
-    onSetCapturing(true)
+    callbacks.onSetCapturing(true)
 
     val req = com.dudoziworkshop.dzlog.domain.model.CaptureRequest(
         group1 = resolveGroupValue(activePlan.resolvedCells, GroupLevel.G1),
@@ -148,9 +152,9 @@ internal fun handleCaptureClick(
                     onApplyTemplatePatch(tableTemplateState.applyPatch(activePlan.tablePatch))
                     // UX 개선: 저장 성공 직후 프리뷰 카운터를 committedCounter + 1로 즉시 반영한다.
                     // 정합성은 기존 onRequestCounterResync() 경로가 최종 보정한다.
-                    onAdvancePreviewCounter(committedCounter + 1)
+                    callbacks.onAdvancePreviewCounter(committedCounter + 1)
                     // 정책 정리(2차): 문구 진행은 모드와 무관하게 저장 성공 후 plan 기준으로만 전진한다.
-                    onAdvancePhraseProgress(activePlan.nextPhraseProgressCursor)
+                    callbacks.onAdvancePhraseProgress(activePlan.nextPhraseProgressCursor)
                     onRequestCounterResync()
 
                     if (entry.isNameAdjusted) {
@@ -166,20 +170,20 @@ internal fun handleCaptureClick(
                         .filter { it != Uri.EMPTY }
                         .distinct()
                         .toList()
-                    onAddToSessionStack(savedUris)
+                    callbacks.onAddToSessionStack(savedUris)
 
                     if (continuousPreviewMode != ContinuousPreviewMode.OFF) {
-                        onSetCapturedUri(entry.contentUri)
+                        callbacks.onSetCapturedUri(entry.contentUri)
                     }
 
                     gate.set(false)
-                    onSetCapturing(false)
+                    callbacks.onSetCapturing(false)
                 }
             }
         },
         onFail = { msg ->
             gate.set(false)
-            onSetCapturing(false)
+            callbacks.onSetCapturing(false)
             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
         }
     )

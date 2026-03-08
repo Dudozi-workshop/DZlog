@@ -21,11 +21,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import java.util.Locale
 import kotlin.math.roundToInt
 
-private val CHIP_SHAPE = RoundedCornerShape(999.dp)
+// 2단계 라운딩 토큰: 줌 칩/프리셋은 pill 계열로 Full 고정한다.
+private val CHIP_SHAPE = RoundedCornerShape(DDZLayout.Radius.Full)
 private val PRESET_VALUES_TENTHS = listOf(10, 20, 40, 100)
 
 @Composable
@@ -45,12 +47,13 @@ internal fun ZoomControlSection(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             // UX 정책 유지: collapsed/expanded 모두 바깥 카드 강조를 제거하고 컨트롤 자체 가시성에 집중한다.
-            .background(DDZColor.Card.copy(alpha = 0f), RoundedCornerShape(16.dp))
+            // 2단계 라운딩 토큰: 줌 영역 outer 컨테이너는 Medium을 사용한다.
+            .background(DDZColor.Card.copy(alpha = 0f), RoundedCornerShape(DDZLayout.Radius.Medium))
             .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
         Box(
             modifier = Modifier
-                .defaultMinSize(minWidth = 34.dp, minHeight = 34.dp)
+                .defaultMinSize(minWidth = DDZLayout.Control.Standard, minHeight = DDZLayout.Control.Standard)
                 .background(DDZColor.Surface.copy(alpha = 0.95f), CHIP_SHAPE)
                 .border(1.dp, DDZColor.SageBorder, CHIP_SHAPE)
                 .clickable(onClick = onToggleExpanded)

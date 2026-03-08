@@ -6,9 +6,12 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -17,79 +20,192 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
-private val SegmentGroupShape = RoundedCornerShape(18.dp)
-private val SegmentItemShape = RoundedCornerShape(15.dp)
-private val SegmentOuterHorizontalPadding = 7.dp
-private val SegmentInnerPadding = 4.dp
-private val SegmentItemMinHeight = 36.dp
-private val SegmentItemHorizontalPadding = 12.dp
-private val SegmentItemVerticalPadding = 8.dp
-private val SegmentItemSpacing = 4.dp
+/**
+ * 공통 세그먼트 옵션 모델.
+ * - 설정 화면(selectedIndex)과 촬영 설정 패널(개별 selected)을 같은 렌더러로 연결하기 위한 브릿지다.
+ */
+data class SegmentedControlOption(
+    val label: String,
+    val selected: Boolean,
+    val onClick: () -> Unit
+)
+
+data class SegmentedControlStyle(
+    val groupShape: RoundedCornerShape,
+    val itemShape: RoundedCornerShape,
+    val widthFraction: Float,
+    val outerHorizontalPadding: Dp,
+    val innerHorizontalPadding: Dp,
+    val innerVerticalPadding: Dp,
+    val itemSpacing: Dp,
+    val fixedHeight: Dp?,
+    val minItemHeight: Dp,
+    val itemHorizontalPadding: Dp,
+    val itemVerticalPadding: Dp,
+    val textStyle: TextStyle,
+    val selectedTextColor: androidx.compose.ui.graphics.Color,
+    val unselectedTextColor: androidx.compose.ui.graphics.Color,
+    val selectedContainerColor: androidx.compose.ui.graphics.Color,
+    val unselectedContainerColor: androidx.compose.ui.graphics.Color,
+    val borderColor: androidx.compose.ui.graphics.Color,
+    val showDivider: Boolean,
+    val dividerColor: androidx.compose.ui.graphics.Color
+)
 
 private const val SegmentGroupBorderAlpha = 0.45f
 private const val SegmentSelectedContainerAlpha = 0.46f
 
-private val segmentGroupBorderColor = DDZColor.Border.copy(alpha = SegmentGroupBorderAlpha)
-private val selectedContainerColor = DDZColor.SageLight.copy(alpha = SegmentSelectedContainerAlpha)
-private val unselectedContainerColor = DDZColor.Surface.copy(alpha = 0f)
-private val selectedTextColor = DDZColor.SageDark
-private val unselectedTextColor = DDZColor.TextMuted
+// 기존 전체설정 톤 유지용 기본 스타일
+private val DefaultSegmentedControlStyle = SegmentedControlStyle(
+    groupShape = RoundedCornerShape(DDZLayout.Radius.Medium),
+    itemShape = RoundedCornerShape(DDZLayout.Radius.Medium),
+    widthFraction = 1f,
+    outerHorizontalPadding = 7.dp,
+    innerHorizontalPadding = 4.dp,
+    innerVerticalPadding = 4.dp,
+    itemSpacing = 4.dp,
+    fixedHeight = null,
+    minItemHeight = 36.dp,
+    itemHorizontalPadding = 12.dp,
+    itemVerticalPadding = 8.dp,
+    textStyle = DDZTypography.Body,
+    selectedTextColor = DDZColor.SageDark,
+    unselectedTextColor = DDZColor.TextMuted,
+    selectedContainerColor = DDZColor.SageLight.copy(alpha = SegmentSelectedContainerAlpha),
+    unselectedContainerColor = DDZColor.Surface.copy(alpha = 0f),
+    borderColor = DDZColor.Border.copy(alpha = SegmentGroupBorderAlpha),
+    showDivider = false,
+    dividerColor = DDZColor.Border
+)
+
+// 촬영 설정 패널 compact 톤 유지용 스타일
+private val CompactSegmentedControlStyle = SegmentedControlStyle(
+    groupShape = RoundedCornerShape(DDZLayout.Radius.Small),
+    itemShape = RoundedCornerShape(DDZLayout.Radius.Small),
+    widthFraction = 0.95f,
+    outerHorizontalPadding = 0.dp,
+    innerHorizontalPadding = 0.dp,
+    innerVerticalPadding = 0.dp,
+    itemSpacing = 0.dp,
+    // 촬영설정 패널 compact 높이 기준을 DDZLayout.Control.Compact로 통일한다.
+    fixedHeight = DDZLayout.Control.Compact,
+    minItemHeight = DDZLayout.Control.Compact,
+    itemHorizontalPadding = 6.dp,
+    itemVerticalPadding = 0.dp,
+    textStyle = DDZTypography.SegmentCompact,
+    selectedTextColor = DDZColor.SageDark,
+    unselectedTextColor = DDZColor.Primary,
+    selectedContainerColor = DDZColor.SageLight.copy(alpha = 0.45f),
+    unselectedContainerColor = DDZColor.Surface,
+    borderColor = DDZColor.Border,
+    showDivider = true,
+    dividerColor = DDZColor.Border
+)
+
+object SegmentedControlStyles {
+    val Default: SegmentedControlStyle = DefaultSegmentedControlStyle
+    val Compact: SegmentedControlStyle = CompactSegmentedControlStyle
+}
 
 @Composable
 fun SegmentedControl(
     options: List<String>,
     selectedIndex: Int,
-    onSelect: (Int) -> Unit
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    style: SegmentedControlStyle = SegmentedControlStyles.Default
 ) {
-    // 주요 정책: 설정값 선택/저장(onSelect) 로직은 유지하고, UI 스타일만 soft segmented 톤으로 개선한다.
+    val mappedOptions = options.mapIndexed { index, label ->
+        SegmentedControlOption(
+            label = label,
+            selected = index == selectedIndex,
+            onClick = { onSelect(index) }
+        )
+    }
+    SegmentedControl(
+        options = mappedOptions,
+        modifier = modifier,
+        style = style
+    )
+}
+
+@Composable
+fun SegmentedControl(
+    options: List<SegmentedControlOption>,
+    modifier: Modifier = Modifier,
+    style: SegmentedControlStyle = SegmentedControlStyles.Default
+) {
+    // 주요 정책: 선택/저장 로직은 외부에 두고, 세그먼트 렌더링만 공통화한다.
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = SegmentOuterHorizontalPadding),
-        shape = SegmentGroupShape,
+        modifier = modifier
+            .fillMaxWidth(style.widthFraction)
+            .padding(horizontal = style.outerHorizontalPadding),
+        shape = style.groupShape,
         color = DDZColor.Surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, segmentGroupBorderColor)
+        border = androidx.compose.foundation.BorderStroke(1.dp, style.borderColor)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = SegmentInnerPadding, vertical = SegmentInnerPadding),
-            horizontalArrangement = Arrangement.spacedBy(SegmentItemSpacing)
+                .then(if (style.fixedHeight != null) Modifier.height(style.fixedHeight) else Modifier)
+                .padding(
+                    horizontal = style.innerHorizontalPadding,
+                    vertical = style.innerVerticalPadding
+                ),
+            horizontalArrangement = Arrangement.spacedBy(style.itemSpacing)
         ) {
-            options.forEachIndexed { idx, label ->
-                val selected = idx == selectedIndex
+            options.forEachIndexed { index, option ->
                 val interactionSource = remember { MutableInteractionSource() }
 
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .heightIn(min = SegmentItemMinHeight)
-                        .clip(SegmentItemShape)
+                        .then(
+                            if (style.fixedHeight != null) {
+                                Modifier.fillMaxHeight()
+                            } else {
+                                Modifier.heightIn(min = style.minItemHeight)
+                            }
+                        )
+                        .clip(style.itemShape)
                         .background(
-                            if (selected) selectedContainerColor else unselectedContainerColor
+                            if (option.selected) style.selectedContainerColor else style.unselectedContainerColor
                         )
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null,
-                            onClick = { onSelect(idx) }
+                            onClick = option.onClick
                         )
                         .padding(
-                            horizontal = SegmentItemHorizontalPadding,
-                            vertical = SegmentItemVerticalPadding
+                            horizontal = style.itemHorizontalPadding,
+                            vertical = style.itemVerticalPadding
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = label,
-                        style = DDZTypography.Body,
-                        color = if (selected) selectedTextColor else unselectedTextColor,
+                        text = option.label,
+                        style = style.textStyle,
+                        color = if (option.selected) style.selectedTextColor else style.unselectedTextColor,
                         maxLines = 1,
+                        softWrap = false,
                         overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                if (style.showDivider && index != options.lastIndex) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(1.dp)
+                            .background(style.dividerColor)
                     )
                 }
             }
