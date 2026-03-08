@@ -125,6 +125,7 @@ fun LogViewerScreen(
 
     var uiVisible by remember { mutableStateOf(false) }
     var showInfoSheet by remember { mutableStateOf(false) }
+    var isCurrentImageZoomed by remember { mutableStateOf(false) }
 
     LaunchedEffect(safeStart) {
         if (items.isNotEmpty()) {
@@ -146,6 +147,8 @@ fun LogViewerScreen(
     LaunchedEffect(pagerState.currentPage, items.size) {
         if (items.isEmpty()) return@LaunchedEffect
         if (pagerState.currentPage !in items.indices) return@LaunchedEffect
+        // 정책: 현재 페이지가 바뀌면 새 이미지는 1x 초기 상태이므로 pager 잠금 상태를 해제한다.
+        isCurrentImageZoomed = false
         filmstripListState.animateScrollToItem(pagerState.currentPage)
     }
 
@@ -157,7 +160,9 @@ fun LogViewerScreen(
         if (items.isNotEmpty()) {
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                // 정책: 확대 상태에서는 부모 pager 스크롤을 명시적으로 잠근다.
+                userScrollEnabled = !isCurrentImageZoomed
             ) { page ->
                 val item = items[page]
                 Box(
@@ -168,6 +173,28 @@ fun LogViewerScreen(
                 ) {
                     DzFullImage(
                         uriString = item.uri.toString(),
+                        canGoPrevious = page > 0,
+                        canGoNext = page < items.lastIndex,
+                        onGoPrevious = {
+                            if (page > 0) {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(page - 1)
+                                }
+                            }
+                        },
+                        onGoNext = {
+                            if (page < items.lastIndex) {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(page + 1)
+                                }
+                            }
+                        },
+                        onZoomedStateChange = { zoomed ->
+                            // 현재 페이지의 확대 상태만 pager 잠금 조건으로 사용한다.
+                            if (page == pagerState.currentPage) {
+                                isCurrentImageZoomed = zoomed
+                            }
+                        },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
