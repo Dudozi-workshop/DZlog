@@ -23,8 +23,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyListState
@@ -70,6 +72,7 @@ import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -225,25 +228,11 @@ fun LogViewerScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.Black)
-                    .navigationBarsPadding()
-                    .padding(bottom = 18.dp),
+                    .padding(bottom = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                ThumbnailFilmstrip(
-                    items = items,
-                    currentPage = pagerState.currentPage,
-                    favoriteIds = favoriteIds,
-                    listState = filmstripListState,
-                    onThumbnailClick = { index ->
-                        scope.launch {
-                            pagerState.animateScrollToPage(index)
-                            filmstripListState.animateScrollToItem(index)
-                        }
-                    }
-                )
-
+                // 정책 변경: 액션바를 필름스트립 위에 배치해 시각적 계층을 명확히 유지한다.
                 ViewerBottomPill(
                     onFavorite = {
                         val item = currentItem ?: return@ViewerBottomPill
@@ -259,6 +248,27 @@ fun LogViewerScreen(
                         val item = currentItem ?: return@ViewerBottomPill
                         startDeleteRequest(listOf(item.uri))
                     }
+                )
+
+                ThumbnailFilmstrip(
+                    items = items,
+                    currentPage = pagerState.currentPage,
+                    favoriteIds = favoriteIds,
+                    listState = filmstripListState,
+                    onThumbnailClick = { index ->
+                        scope.launch {
+                            pagerState.animateScrollToPage(index)
+                            filmstripListState.animateScrollToItem(index)
+                        }
+                    }
+                )
+
+                // 정책 변경: 네비게이션 바 inset은 하단 마지막 spacer에만 적용해
+                // 전체 그룹이 위로 뜨는 현상을 방지한다.
+                Spacer(
+                    modifier = Modifier
+                        .height(2.dp)
+                        .navigationBarsPadding()
                 )
             }
         }
@@ -281,16 +291,17 @@ private fun ViewerTopOverlay(
     onBack: () -> Unit,
     onShare: () -> Unit,
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .statusBarsPadding()
             .background(Color(0x66000000))
-            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                // 정책 변경: 배경은 status bar까지 덮고 실제 컨텐츠만 status bar inset을 적용한다.
+                .statusBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
             IconButton(
@@ -327,9 +338,10 @@ private fun ViewerBottomPill(
 ) {
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(28.dp))
-            .background(Color(0x88000000))
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            // 정책 변경: 전체 하단 바 대신 버튼 그룹만 pill 배경으로 강조한다.
+            .clip(RoundedCornerShape(999.dp))
+            .background(Color.Black.copy(alpha = 0.5f))
+            .padding(horizontal = 18.dp, vertical = DDZLayout.Spacing.XS),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
