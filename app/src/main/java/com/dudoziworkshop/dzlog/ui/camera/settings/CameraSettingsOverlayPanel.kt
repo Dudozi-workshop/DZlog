@@ -64,6 +64,7 @@ internal fun CameraSettingsOverlayPanel(
 ) {
     val dismissInteraction = remember { MutableInteractionSource() }
     val statusBarPadding = WindowInsets.statusBars.asPaddingValues()
+    val panelTopPadding = (statusBarPadding.calculateTopPadding() - 1.dp).coerceAtLeast(0.dp)
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -81,8 +82,8 @@ internal fun CameraSettingsOverlayPanel(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(
-                    // 정책 유지: 오버레이 패널은 status bar inset 바로 아래에서 시작한다.
-                    top = statusBarPadding.calculateTopPadding(),
+                    // 정책 보정: safe inset은 유지하되 시각적 떠보임을 줄이기 위해 상단 간격을 1dp만 당긴다.
+                    top = panelTopPadding,
                     end = 0.dp
                 )
                 .fillMaxWidth(PANEL_WIDTH_FRACTION)
@@ -94,8 +95,8 @@ internal fun CameraSettingsOverlayPanel(
             color = DDZColor.Card.copy(alpha = 0.97f)
         ) {
             Column(
-                // UX 2차 보정 유지: 내부 상단 여백을 최소화해 패널이 더 위에 붙어 보이게 한다.
-                modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 2.dp, bottom = 6.dp),
+                // UX 3차 보정: 내부 상단 여백을 제거해 패널 시작점을 safe 영역 바로 아래로 더 밀착시킨다.
+                modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 0.dp, bottom = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Row(

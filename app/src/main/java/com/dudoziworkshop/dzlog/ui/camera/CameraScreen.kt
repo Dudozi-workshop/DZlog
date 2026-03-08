@@ -763,10 +763,10 @@ fun CameraPreview(
                                         .padding(horizontal = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // 하단 조작부 정책: 10/30/20/30/10 비율로 중심축(anchor-3)과 2·4 midpoint 균형을 비율 기반으로 유지한다.
+                                    // 하단 조작부 정책: 15/25/20/25/15 비율로 중심축(anchor-3)과 2·4 midpoint 균형을 비율 기반으로 유지한다.
                                     // slot1: 최근(anchor-1)
                                     Box(
-                                        modifier = Modifier.weight(10f),
+                                        modifier = Modifier.weight(15f),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         RecentCaptureThumbButton(
@@ -786,7 +786,7 @@ fun CameraPreview(
 
                                     // slot2: midpoint(1-3), 추후 확장용 빈 슬롯
                                     Box(
-                                        modifier = Modifier.weight(30f),
+                                        modifier = Modifier.weight(25f),
                                         contentAlignment = Alignment.Center
                                     ) {}
 
@@ -807,7 +807,7 @@ fun CameraPreview(
 
                                     // slot4: midpoint(3-5)
                                     Box(
-                                        modifier = Modifier.weight(30f),
+                                        modifier = Modifier.weight(25f),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         WatermarkRotateButton(
@@ -826,7 +826,7 @@ fun CameraPreview(
 
                                     // slot5: undo(anchor-5)
                                     Box(
-                                        modifier = Modifier.weight(10f),
+                                        modifier = Modifier.weight(15f),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         UndoCaptureButton(

@@ -2,7 +2,6 @@
 
 package com.dudoziworkshop.dzlog.ui.home
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -442,7 +441,7 @@ fun HomeScreen(
                     .height(190.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .background(DDZColor.Card)
-                    .padding(horizontal = 18.dp, vertical = 12.dp)
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
             ) {
                 Row(modifier = Modifier.fillMaxSize()) {
                     Column(
@@ -456,18 +455,12 @@ fun HomeScreen(
                             color = DDZColor.TextPrimary
                         )
                         Spacer(Modifier.height(8.dp))
+                        // 홈 카드 정책: 내부 프레임(이중 배경/보더)을 제거하고 표 미리보기가 카드 영역을 더 넓게 쓰도록 유지한다.
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(DDZColor.Surface)
-                                .border(
-                                    width = 1.dp,
-                                    color = DDZColor.Primary.copy(alpha = 0.15f),
-                                    shape = RoundedCornerShape(18.dp)
-                                )
                                 .clickable(onClick = onOpenTableEditor)
-                                .padding(14.dp)
+                                .padding(2.dp)
                         ) {
                             TablePreviewCard(
                                 templateState = tableTemplateState,
