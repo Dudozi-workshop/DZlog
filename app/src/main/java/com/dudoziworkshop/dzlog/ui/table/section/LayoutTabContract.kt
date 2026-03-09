@@ -153,5 +153,7 @@ data class LayoutTabActions(
     val onSetCounterScopeModeForSelected: (CounterScopeMode) -> Unit,
     val onSetRotatingCounterModeForSelected: (RotatingCounterMode) -> Unit,
     val onResetCounterSeedForSelected: () -> Unit,
-    val onOpenRotatingTemplateDialogForSelected: (String) -> Unit
+    val onOpenRotatingTemplateDialogForSelected: (String) -> Unit,
+    val onSaveSelectedCell: () -> Unit,
+    val onRevertSelectedCell: () -> Unit
 )

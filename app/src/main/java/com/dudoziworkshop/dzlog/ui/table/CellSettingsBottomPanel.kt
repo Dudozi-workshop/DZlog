@@ -374,12 +374,6 @@ internal fun CellSettingsBottomPanel(
             }
 
             Spacer(Modifier.height(if (compactForBottomPanel) 0.dp else 2.dp))
-            Text("데이터 타입", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-            DataTypeCardGrid3(
-                selected = cell.dataType,
-                onSelect = onSetDataType,
-                compact = compactForBottomPanel
-            )
 
             if (cell.dataType == TableCellDataType.COUNTER && onResetCounterSeed != null) {
                 Text("카운터", style = DDZTypography.Caption, color = DDZColor.TextMuted)
@@ -426,7 +420,6 @@ internal fun CellSettingsBottomPanel(
                     }
                 }
             }
-
 
             if (isCounterScopeDialogOpen && (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME)) {
                 AlertDialog(
@@ -553,6 +546,14 @@ internal fun CellSettingsBottomPanel(
                     )
                 }
             }
+
+            // 주요 정책: CELL_EDIT 본문 순서는 타입별 버튼 다음에 데이터 타입 카드를 배치한다.
+            Text("데이터 타입", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+            DataTypeCardGrid3(
+                selected = cell.dataType,
+                onSelect = onSetDataType,
+                compact = compactForBottomPanel
+            )
 
             Spacer(Modifier.height(if (compactForBottomPanel) 2.dp else 10.dp))
         }

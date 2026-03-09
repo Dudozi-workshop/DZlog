@@ -22,9 +22,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
@@ -47,8 +51,9 @@ internal fun BottomEditorPanel(
     rows: Int,
     cols: Int,
     isSaving: Boolean,
-    selectedCellLabel: String?,
     selectedCell: TableCellState?,
+    editingCellId: String?,
+    editingValue: String,
     templateState: TableTemplateState,
     resolvedByCellId: Map<String, String>,
     hasGroup1: Boolean,
@@ -83,6 +88,11 @@ internal fun BottomEditorPanel(
     onSetRotatingCounterModeForSelected: (RotatingCounterMode) -> Unit,
     onOpenFormatDialog: (cellId: String, type: TableCellDataType) -> Unit,
     onOpenRotatingTemplateDialogForSelected: (String) -> Unit,
+    onStartInlineEditing: (cellId: String, initialText: String) -> Unit,
+    onEditingValueChange: (String) -> Unit,
+    onCommitInline: () -> Unit,
+    onSaveSelectedCell: () -> Unit,
+    onRevertSelectedCell: () -> Unit,
     onSelectFileNameSlot: (Int) -> Unit,
     onFillEmptyFileNameSlot: (Int) -> Unit,
     onMoveSelectedFileNameSlotLeft: () -> Unit,
@@ -169,15 +179,44 @@ internal fun BottomEditorPanel(
             BottomEditorPanelMode.CELL_EDIT -> {
                 // 정책 변경: 축약판 CELL_EDIT를 유지하지 않고 기존 CellSettingsBottomPanel 핵심 기능을
                 // BottomEditorPanelMode.CELL_EDIT 경로로 이관해 기능 손실을 방지한다.
-                // 주요 정책: CELL_EDIT 메타 정보(선택 셀/현재값)는 compact 간격으로 유지해 과도한 높이를 줄인다.
+                // 주요 정책: CELL_EDIT 상단은 단일 값 입력/표시 영역을 사용하고, 하단에 fail-safe 저장/되돌리기 버튼을 둔다.
                 PanelHeader("셀 편집")
                 if (selectedCell == null) {
                     Text("편집할 셀을 먼저 선택하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 } else {
                     val currentValue = resolvedByCellId[selectedCell.cellId].orEmpty().ifBlank { dataTypeLabelKo(selectedCell.dataType) }
-                    Text(selectedCellLabel?.let { "선택 셀: $it" } ?: selectedCell.cellId, style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                    Spacer(Modifier.size(2.dp))
-                    Text(currentValue, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                    val isTopEditable = selectedCell.dataType == TableCellDataType.TEXT ||
+                        selectedCell.dataType == TableCellDataType.NUMBER ||
+                        selectedCell.dataType == TableCellDataType.COUNTER
+                    val topValue = if (editingCellId == selectedCell.cellId) editingValue else currentValue
+
+                    Text("현재값", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    OutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = topValue,
+                        onValueChange = { next ->
+                            if (isTopEditable) {
+                                if (editingCellId != selectedCell.cellId) {
+                                    onStartInlineEditing(selectedCell.cellId, currentValue)
+                                }
+                                onEditingValueChange(next)
+                            }
+                        },
+                        readOnly = !isTopEditable,
+                        enabled = isTopEditable,
+                        singleLine = true,
+                        textStyle = DDZTypography.Body,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = when (selectedCell.dataType) {
+                                TableCellDataType.NUMBER -> KeyboardType.Decimal
+                                TableCellDataType.COUNTER -> KeyboardType.Number
+                                else -> KeyboardType.Text
+                            },
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(onDone = { onCommitInline() })
+                    )
+
                     Spacer(Modifier.size(4.dp))
                     CellSettingsBottomPanel(
                         modifier = Modifier.fillMaxWidth(),
@@ -207,6 +246,17 @@ internal fun BottomEditorPanel(
                         showPathGroupSection = false,
                         compactForBottomPanel = true
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(modifier = Modifier.weight(1f), onClick = onRevertSelectedCell) {
+                            Text("되돌리기", style = DDZTypography.ButtonText)
+                        }
+                        Button(modifier = Modifier.weight(1f), onClick = onSaveSelectedCell) {
+                            Text("저장", style = DDZTypography.ButtonText)
+                        }
+                    }
                 }
             }
 

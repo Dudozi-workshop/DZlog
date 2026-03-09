@@ -34,10 +34,6 @@ fun LayoutTabContent(
     modifier: Modifier = Modifier
 ) {
     val isInlineEditing = uiState.editingCellId != null
-    // 정책 보강: CELL_EDIT 헤더에는 UUID 대신 행/열 라벨을 기본 노출한다.
-    val selectedCellDisplayLabel = uiState.selectedCell?.let { cell ->
-        "R${cell.rowIndex + 1}C${cell.colIndex + 1}"
-    } ?: uiState.selectedCellId
 
     Box(modifier = modifier.fillMaxSize()) {
         val contentColumnModifier =
@@ -193,8 +189,9 @@ fun LayoutTabContent(
             rows = uiState.templateState.rows,
             cols = uiState.templateState.cols,
             isSaving = uiState.isSavingTemplate,
-            selectedCellLabel = selectedCellDisplayLabel,
             selectedCell = uiState.selectedCell,
+            editingCellId = uiState.editingCellId,
+            editingValue = uiState.editingValue,
             templateState = uiState.templateState,
             resolvedByCellId = uiState.resolvedByCellId,
             hasGroup1 = uiState.hasGroup1,
@@ -218,6 +215,11 @@ fun LayoutTabContent(
             onSetRotatingCounterModeForSelected = actions.onSetRotatingCounterModeForSelected,
             onOpenFormatDialog = actions.onOpenFormatDialog,
             onOpenRotatingTemplateDialogForSelected = actions.onOpenRotatingTemplateDialogForSelected,
+            onStartInlineEditing = actions.onStartInlineEditing,
+            onEditingValueChange = actions.onEditingValueChange,
+            onCommitInline = actions.onCommitInline,
+            onSaveSelectedCell = actions.onSaveSelectedCell,
+            onRevertSelectedCell = actions.onRevertSelectedCell,
             onSelectFileNameSlot = actions.onSelectFileNameSlot,
             onFillEmptyFileNameSlot = actions.onFillEmptyFileNameSlot,
             onMoveSelectedFileNameSlotLeft = actions.onMoveSelectedFileNameSlotLeft,

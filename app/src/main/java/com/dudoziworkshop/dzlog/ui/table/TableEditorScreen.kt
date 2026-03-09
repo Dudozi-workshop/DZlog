@@ -630,6 +630,8 @@ fun TableEditorScreen(
     }
 
     var inlineEdit by remember { mutableStateOf(InlineEditState()) }
+    // 주요 정책: 되돌리기 기준은 "셀 선택 시점"의 TableCellState 전체 snapshot이다.
+    var editSessionOriginalCellState by remember { mutableStateOf<TableCellState?>(null) }
     val deletedRowsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
     val deletedColsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
 
@@ -695,11 +697,26 @@ fun TableEditorScreen(
         } ?: result.updatedTemplateState?.let(::updateTemplateDraft)
     }
 
+
+    fun snapshotCellForEditSession(cellId: String?) {
+        editSessionOriginalCellState = cellId?.let { targetId ->
+            currentTemplate.cells.firstOrNull { it.cellId == targetId }?.copy()
+        }
+    }
+
     if (selectedCellId == null && currentTemplate.cells.isNotEmpty()) {
         selectedCellId = currentTemplate.cells.first().cellId
     }
 
     val selectedCell = currentTemplate.cells.firstOrNull { it.cellId == selectedCellId }
+
+    LaunchedEffect(selectedCellId, currentTemplate.cells) {
+        // 정책 보강: 초기 진입/구조 변경 후에도 현재 선택 셀에 대한 snapshot을 보정한다.
+        val selected = selectedCellId
+        if (selected != null && editSessionOriginalCellState?.cellId != selected) {
+            snapshotCellForEditSession(selected)
+        }
+    }
     val hasGroup1 = currentTemplate.cells.any { it.groupLevel == GroupLevel.G1 }
     val hasGroup2 = currentTemplate.cells.any { it.groupLevel == GroupLevel.G2 }
     val resolvedByCellId = remember(plan.resolvedCells) {
@@ -1004,6 +1021,7 @@ fun TableEditorScreen(
             commitInlineEditIfNeeded()
             if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
         }
+        snapshotCellForEditSession(cellId)
         selectedCellId = cellId
     }
 
@@ -1023,6 +1041,18 @@ fun TableEditorScreen(
             clearPathEditorTransientState(clearDraft = true)
         }
         bottomPanelMode = nextMode
+    }
+
+    fun requestSaveSelectedCell() {
+        commitInlineEditIfNeeded()
+        if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
+    }
+
+    fun requestRevertSelectedCell() {
+        val snapshot = editSessionOriginalCellState ?: return
+        val updated = updateCell(currentTemplate, snapshot.cellId) { snapshot }
+        updateTemplateDraft(updated)
+        clearInlineEditingState()
     }
 
     fun requestCloseBottomPanelToNone() {
@@ -1590,6 +1620,7 @@ fun TableEditorScreen(
                                 clearFileNameEditorTransientState(clearDraft = true)
                                 clearPathEditorTransientState(clearDraft = true)
                                 clearInlineEditingState()
+                                editSessionOriginalCellState = null
                                 deletedRowsStack.clear()
                                 deletedColsStack.clear()
                                 fileNameSlotsDirtySinceStructureChange = false
@@ -1732,7 +1763,9 @@ fun TableEditorScreen(
                                 } else {
                                     showCellSettingsPanel = true
                                 }
-                            }
+                            },
+                            onSaveSelectedCell = ::requestSaveSelectedCell,
+                            onRevertSelectedCell = ::requestRevertSelectedCell
                         )
                     )
                 }
