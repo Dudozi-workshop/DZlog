@@ -11,28 +11,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -50,7 +38,7 @@ import com.dudoziworkshop.dzlog.watermark.drawWatermarkTableOnCanvas
  * 정책 메모:
  * - 임시 grid 높이 분배가 아니라, 워터마크 실표 렌더 코어(drawWatermarkTableOnCanvas) 기반으로 표를 그린다.
  * - 현재 표 영역 박스는 유지하고, 박스 안에서 실제 표 비율을 contain-fit으로 최대 표시한다.
- * - 편집 UX(탭/더블탭/인라인 편집/선택강조)는 기존 흐름을 그대로 유지한다.
+ * - 편집 UX는 "셀 탭/더블탭 -> CELL_EDIT 패널 편집"으로 단일화하고, 표 내부 인라인 입력창은 사용하지 않는다.
  */
 @Composable
 fun RealTableGridSection(
@@ -62,12 +50,7 @@ fun RealTableGridSection(
     wmHeightRatio: Int,
     wmBgStyle: Int,
     onSelectCell: (String) -> Unit,
-    onDoubleClickCell: (TableCellState) -> Unit,
-    editingValue: String,
-    onEditingValueChange: (String) -> Unit,
-    onCommitInline: () -> Unit,
-    inlineFocusRequester: FocusRequester,
-    onInlineFocusLostCommit: () -> Unit
+    onDoubleClickCell: (TableCellState) -> Unit
 ) {
     val resolvedCells = remember(templateState.cells, displayTextProvider) {
         // 정책 보정:
@@ -92,17 +75,6 @@ fun RealTableGridSection(
         Color.White.copy(alpha = 0.72f)
     } else {
         Color.Black.copy(alpha = 0.56f)
-    }
-    val inlineTextColor = if (isDarkTableTheme) Color.White else DDZColor.TextPrimary
-    val inlineEditorBackgroundColor = if (isDarkTableTheme) {
-        Color.Black.copy(alpha = 0.38f)
-    } else {
-        Color.White.copy(alpha = 0.82f)
-    }
-    val inlinePlaceholderColor = if (isDarkTableTheme) {
-        Color.White.copy(alpha = 0.52f)
-    } else {
-        Color.Black.copy(alpha = 0.42f)
     }
     val selectedFillColor = if (isDarkTableTheme) {
         DDZColor.Primary.copy(alpha = 0.09f)
@@ -222,10 +194,6 @@ fun RealTableGridSection(
             val cellW = colSizes[cell.colIndex]
             val cellH = rowSizes[cell.rowIndex]
             val isEditingCell = cell.cellId == editingCellId
-            val canInlineEdit =
-                (cell.dataType == TableCellDataType.TEXT ||
-                    cell.dataType == TableCellDataType.NUMBER ||
-                    cell.dataType == TableCellDataType.COUNTER)
             val display = displayTextProvider(cell.cellId)
             val nameIdx = templateState.fileNameSlots.indexOf(cell.cellId).takeIf { it >= 0 }
 
@@ -243,7 +211,6 @@ fun RealTableGridSection(
                         Modifier
                     )
                     .combinedClickable(
-                        enabled = !isEditingCell,
                         onClick = { onSelectCell(cell.cellId) },
                         onDoubleClick = { onDoubleClickCell(cell) }
                     )
@@ -255,48 +222,7 @@ fun RealTableGridSection(
                         .padding(top = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isEditingCell && canInlineEdit) {
-                        val keyboardType = when (cell.dataType) {
-                            TableCellDataType.NUMBER -> KeyboardType.Decimal
-                            TableCellDataType.COUNTER -> KeyboardType.Number
-                            else -> KeyboardType.Text
-                        }
-                        var hasEverFocused by remember(cell.cellId) { mutableStateOf(false) }
-
-                        BasicTextField(
-                            value = editingValue,
-                            onValueChange = onEditingValueChange,
-                            singleLine = true,
-                            textStyle = DDZTypography.Caption.copy(color = inlineTextColor),
-                            cursorBrush = SolidColor(selectedBorderColor),
-                            keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = { onCommitInline() }),
-                            decorationBox = { innerTextField ->
-                                Box(modifier = Modifier.fillMaxWidth()) {
-                                    if (editingValue.isBlank()) {
-                                        Text(
-                                            text = dataTypeLabelKo(cell.dataType),
-                                            style = DDZTypography.Caption,
-                                            color = inlinePlaceholderColor
-                                        )
-                                    }
-                                    innerTextField()
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(inlineEditorBackgroundColor)
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                                .focusRequester(inlineFocusRequester)
-                                .onFocusChanged { state ->
-                                    if (state.isFocused) {
-                                        if (!hasEverFocused) hasEverFocused = true
-                                    } else if (hasEverFocused) {
-                                        onInlineFocusLostCommit()
-                                    }
-                                }
-                        )
-                    } else if (display.isBlank()) {
+                    if (display.isBlank()) {
                         // 정책 변경:
                         // - 일반 상태의 값 텍스트는 Canvas(실표 렌더 코어)만 사용하고 Overlay 텍스트는 제거한다.
                         // - Overlay는 "값 없음 placeholder"일 때만 노출해 중복 렌더/잔상처럼 보이는 문제를 방지한다.

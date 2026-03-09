@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.ui.table.section
 
-import androidx.compose.ui.focus.FocusRequester
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
@@ -77,7 +76,6 @@ data class LayoutTabUiState(
     val selectedCellId: String?,
     val editingCellId: String?,
     val editingValue: String,
-    val inlineFocusRequester: FocusRequester,
     val bottomPanelMode: BottomEditorPanelMode,
     val currentlySelectedFileNameSlot: Int?,
     val currentlySelectedPathSlot: Int?,
@@ -138,7 +136,6 @@ data class LayoutTabActions(
     val onEditingValueChange: (String) -> Unit,
     val onCommitInline: () -> Unit,
     val onTryCommitInlineAndContinue: () -> Boolean,
-    val onInlineFocusLostCommit: () -> Unit,
     val onAddRow: () -> Unit,
     val onRemoveRow: () -> Unit,
     val onAddCol: () -> Unit,

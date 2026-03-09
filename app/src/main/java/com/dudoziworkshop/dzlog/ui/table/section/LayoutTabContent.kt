@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.ui.table.section
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,10 +15,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
-import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
+import androidx.compose.ui.platform.LocalDensity
 import com.dudoziworkshop.dzlog.ui.common.DDZSectionHeader
 import com.dudoziworkshop.dzlog.ui.table.BottomEditorPanel
 import com.dudoziworkshop.dzlog.ui.table.CellSettingsBottomPanel
@@ -35,7 +42,15 @@ fun LayoutTabContent(
 ) {
     val isInlineEditing = uiState.editingCellId != null
 
-    Box(modifier = modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val density = LocalDensity.current
+        var previewBottomPx by remember { mutableFloatStateOf(0f) }
+        val screenHeightPx = with(density) { maxHeight.toPx() }
+        val panelTopSpacingPx = with(density) { 8.dp.toPx() }
+        val panelAvailableHeightDp = with(density) {
+            // 정책 변경: 고정 380dp 제한을 제거하고, 표 프리뷰 하단 기준 남은 높이를 패널 최대 높이로 사용한다.
+            (screenHeightPx - previewBottomPx - panelTopSpacingPx).coerceAtLeast(0f).toDp()
+        }
         val contentColumnModifier =
             Modifier
                 .fillMaxSize()
@@ -81,13 +96,29 @@ fun LayoutTabContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 200.dp)
+                        .onGloballyPositioned { coordinates ->
+                            previewBottomPx = coordinates.boundsInParent().bottom
+                        }
                         .background(DDZColor.Card, RoundedCornerShape(14.dp))
                         .padding(6.dp)
                 ) {
                     RealTableGridSection(
                         templateState = uiState.templateState,
                         displayTextProvider = { cellId ->
-                            uiState.plan.resolvedCells.firstOrNull { it.id == cellId }?.resolvedText.orEmpty()
+                            val selected = uiState.selectedCell
+                            val isPanelEditingTextCell =
+                                selected != null &&
+                                    selected.cellId == cellId &&
+                                    uiState.editingCellId == cellId &&
+                                    (selected.dataType == com.dudoziworkshop.dzlog.domain.model.TableCellDataType.TEXT ||
+                                        selected.dataType == com.dudoziworkshop.dzlog.domain.model.TableCellDataType.NUMBER ||
+                                        selected.dataType == com.dudoziworkshop.dzlog.domain.model.TableCellDataType.COUNTER)
+                            if (isPanelEditingTextCell) {
+                                // 주요 정책: 표 내부 인라인 에디터를 제거했으므로, 패널 draft(editingValue)를 표 렌더 텍스트에 즉시 반영한다.
+                                uiState.editingValue
+                            } else {
+                                uiState.plan.resolvedCells.firstOrNull { it.id == cellId }?.resolvedText.orEmpty()
+                            }
                         },
                         selectedCellId = uiState.selectedCellId,
                         editingCellId = uiState.editingCellId,
@@ -118,12 +149,12 @@ fun LayoutTabContent(
                                 if (!actions.onTryCommitInlineAndContinue()) return@RealTableGridSection
                             }
                             actions.onSelectCellId(id)
-                            // 정책 변경: 1차 구조 전환 단계에서는 CELL_EDIT 모드가 기본 편집 영역이므로
-                            // 기존 CellSettingsBottomPanel 오버레이는 함께 띄우지 않는다.
+                            // 정책 변경: 셀 편집 진입점은 단일하게 CELL_EDIT 패널로 고정한다(더블탭 인라인 편집 제거).
                             actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT)
                             actions.onShowCellSettingsPanel(false)
                         },
                         onDoubleClickCell = { cell ->
+                            // 정책 변경: 더블탭도 단일탭과 동일하게 "셀 선택 + CELL_EDIT 패널" 흐름만 사용한다.
                             if (uiState.bottomPanelMode == BottomEditorPanelMode.FILENAME_EDIT && uiState.isFileNameCellPickMode) {
                                 actions.onSelectCellId(cell.cellId)
                                 actions.onBindSelectedSlotToCell(cell.cellId)
@@ -134,40 +165,13 @@ fun LayoutTabContent(
                                 actions.onBindSelectedPathSlotToCell(cell.cellId)
                                 return@RealTableGridSection
                             }
-
                             if (uiState.editingCellId != null && uiState.editingCellId != cell.cellId) {
                                 if (!actions.onTryCommitInlineAndContinue()) return@RealTableGridSection
-                                actions.onSelectCellId(cell.cellId)
-                                actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT)
-                                actions.onShowCellSettingsPanel(false)
-                                return@RealTableGridSection
                             }
-
                             actions.onSelectCellId(cell.cellId)
                             actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT)
-                            val canInline =
-                                (cell.dataType == TableCellDataType.TEXT ||
-                                    cell.dataType == TableCellDataType.NUMBER ||
-                                    cell.dataType == TableCellDataType.COUNTER)
-
-                            if (canInline) {
-                                actions.onShowCellSettingsPanel(false)
-                                actions.onStartInlineEditing(cell.cellId, cell.toEditableText())
-                            } else {
-                                if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
-                                    actions.onOpenFormatDialog(cell.cellId, cell.dataType)
-                                } else if (cell.dataType == TableCellDataType.ROTATING_TEXT) {
-                                    actions.onOpenRotatingTemplateDialogForSelected(cell.cellId)
-                                } else {
-                                    actions.onShowCellSettingsPanel(false)
-                                }
-                            }
-                        },
-                        editingValue = uiState.editingValue,
-                        onEditingValueChange = actions.onEditingValueChange,
-                        onCommitInline = actions.onCommitInline,
-                        inlineFocusRequester = uiState.inlineFocusRequester,
-                        onInlineFocusLostCommit = actions.onInlineFocusLostCommit
+                            actions.onShowCellSettingsPanel(false)
+                        }
                     )
                 }
 
@@ -183,10 +187,7 @@ fun LayoutTabContent(
         BottomEditorPanel(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                // 주요 정책: 키보드 노출 시 CELL_EDIT 상단 입력창이 가려지지 않도록 패널에도 imePadding을 적용한다.
-                .imePadding()
-                .heightIn(max = 320.dp)
-                // 주요 정책: 상단 표 영역 가림을 줄이기 위해 패널 상단 여백을 축소한다(최대 높이 320dp는 유지).
+                .heightIn(max = panelAvailableHeightDp)
                 .padding(horizontal = 16.dp)
                 .padding(top = 8.dp),
             panelMode = uiState.bottomPanelMode,

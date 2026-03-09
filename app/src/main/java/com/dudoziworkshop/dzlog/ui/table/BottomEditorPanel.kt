@@ -148,7 +148,7 @@ internal fun BottomEditorPanel(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(DDZColor.Surface, RoundedCornerShape(14.dp))
+            .background(DDZColor.Card, RoundedCornerShape(14.dp))
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -179,66 +179,66 @@ internal fun BottomEditorPanel(
                 }
             }
             BottomEditorPanelMode.CELL_EDIT -> {
-                // 주요 정책: 헤더/현재값은 고정하고, 타입별 설정+데이터 타입 카드+저장영역만 본문 스크롤로 분리한다.
-                val isTopEditable = selectedCell?.dataType == TableCellDataType.TEXT ||
-                    selectedCell?.dataType == TableCellDataType.NUMBER ||
-                    selectedCell?.dataType == TableCellDataType.COUNTER
+                // 주요 정책: CELL_EDIT에서는 헤더만 고정하고, 현재값 포함 본문 전체를 스크롤해 키보드 환경에서도 입력창 가시성을 확보한다.
                 val cellEditBodyScrollState = rememberScrollState()
 
                 PanelHeader("셀 편집")
-                if (selectedCell == null) {
-                    Text("편집할 셀을 먼저 선택하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                } else {
-                    val currentValue = resolvedByCellId[selectedCell.cellId].orEmpty().ifBlank { dataTypeLabelKo(selectedCell.dataType) }
-                    val editableSourceValue = selectedCell.toEditableText()
-                    val topValue = if (editingCellId == selectedCell.cellId) editingValue else editableSourceValue
-
-                    Text("현재값", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                    Spacer(Modifier.size(2.dp))
-                    if (isTopEditable) {
-                        OutlinedTextField(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(46.dp),
-                            value = topValue,
-                            onValueChange = { next ->
-                                if (editingCellId != selectedCell.cellId) {
-                                    onStartInlineEditing(selectedCell.cellId, editableSourceValue)
-                                }
-                                onEditingValueChange(next)
-                            },
-                            readOnly = false,
-                            enabled = true,
-                            singleLine = true,
-                            textStyle = DDZTypography.Body.copy(color = DDZColor.TextPrimary),
-                            placeholder = {
-                                Text("값 입력", color = DDZColor.TextMuted)
-                            },
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = when (selectedCell.dataType) {
-                                    TableCellDataType.NUMBER -> KeyboardType.Decimal
-                                    TableCellDataType.COUNTER -> KeyboardType.Number
-                                    else -> KeyboardType.Text
-                                },
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(onDone = { onCommitInline() })
-                        )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(cellEditBodyScrollState),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (selectedCell == null) {
+                        Text("편집할 셀을 먼저 선택하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                     } else {
-                        Text(
-                            text = currentValue,
-                            style = DDZTypography.Body,
-                            color = DDZColor.TextPrimary
-                        )
-                    }
+                        val isTopEditable = selectedCell.dataType == TableCellDataType.TEXT ||
+                            selectedCell.dataType == TableCellDataType.NUMBER ||
+                            selectedCell.dataType == TableCellDataType.COUNTER
+                        val currentValue = resolvedByCellId[selectedCell.cellId].orEmpty().ifBlank { dataTypeLabelKo(selectedCell.dataType) }
+                        val editableSourceValue = selectedCell.toEditableText()
+                        val topValue = if (editingCellId == selectedCell.cellId) editingValue else editableSourceValue
 
-                    Spacer(Modifier.size(2.dp))
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(cellEditBodyScrollState),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
+                        Text("현재값", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                        Spacer(Modifier.size(2.dp))
+                        if (isTopEditable) {
+                            OutlinedTextField(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(46.dp),
+                                value = topValue,
+                                onValueChange = { next ->
+                                    if (editingCellId != selectedCell.cellId) {
+                                        onStartInlineEditing(selectedCell.cellId, editableSourceValue)
+                                    }
+                                    onEditingValueChange(next)
+                                },
+                                readOnly = false,
+                                enabled = true,
+                                singleLine = true,
+                                textStyle = DDZTypography.Body.copy(color = DDZColor.TextPrimary),
+                                placeholder = {
+                                    Text("값 입력", color = DDZColor.TextMuted)
+                                },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = when (selectedCell.dataType) {
+                                        TableCellDataType.NUMBER -> KeyboardType.Decimal
+                                        TableCellDataType.COUNTER -> KeyboardType.Number
+                                        else -> KeyboardType.Text
+                                    },
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(onDone = { onCommitInline() })
+                            )
+                        } else {
+                            Text(
+                                text = currentValue,
+                                style = DDZTypography.Body,
+                                color = DDZColor.TextPrimary
+                            )
+                        }
+
+                        Spacer(Modifier.size(2.dp))
                         CellSettingsBottomPanel(
                             modifier = Modifier.fillMaxWidth(),
                             cell = selectedCell,

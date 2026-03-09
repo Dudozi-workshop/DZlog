@@ -34,10 +34,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.dudoziworkshop.dzlog.ui.common.dzScaffoldContent
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.data.counter.clampCounterDigits
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
@@ -629,22 +627,12 @@ fun TableEditorScreen(
         syncResult.updatedTemplateState?.let(::updateTemplateDraft)
     }
 
+    // 주요 정책 변경: inlineEdit 상태는 더 이상 "표 내부 입력창"이 아니라 CELL_EDIT 패널 draft/commit 상태로만 사용한다.
     var inlineEdit by remember { mutableStateOf(InlineEditState()) }
     // 주요 정책: 되돌리기 기준은 "셀 선택 시점"의 TableCellState 전체 snapshot이다.
     var editSessionOriginalCellState by remember { mutableStateOf<TableCellState?>(null) }
     val deletedRowsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
     val deletedColsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
-
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val inlineFocusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(inlineEdit.editingCellId) {
-        if (inlineEdit.editingCellId != null) {
-            delay(30)
-            inlineFocusRequester.requestFocus()
-            keyboardController?.show()
-        }
-    }
 
     fun clearInlineEditingState() {
         inlineEdit = clearInlineEditing(inlineEdit)
@@ -1136,7 +1124,6 @@ fun TableEditorScreen(
                             selectedCellId = selectedCellId,
                             editingCellId = inlineEdit.editingCellId,
                             editingValue = inlineEdit.editingValue,
-                            inlineFocusRequester = inlineFocusRequester,
                             bottomPanelMode = bottomPanelMode,
                             currentlySelectedFileNameSlot = currentlySelectedFileNameSlot,
                             currentlySelectedPathSlot = currentlySelectedPathSlot,
@@ -1472,10 +1459,6 @@ fun TableEditorScreen(
                             onTryCommitInlineAndContinue = {
                                 commitInlineEditIfNeeded()
                                 !inlineEdit.isEditing()
-                            },
-                            onInlineFocusLostCommit = {
-                                commitInlineEditIfNeeded()
-                                showCellSettingsPanel = true
                             },
                             onAddRow = {
                                 val restored = deletedRowsStack.lastOrNull()
