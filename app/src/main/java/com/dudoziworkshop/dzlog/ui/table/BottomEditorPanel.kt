@@ -178,41 +178,36 @@ internal fun BottomEditorPanel(
                     }
                 }
             }
-
             BottomEditorPanelMode.CELL_EDIT -> {
-                // 정책 변경: 축약판 CELL_EDIT를 유지하지 않고 기존 CellSettingsBottomPanel 핵심 기능을
-                // BottomEditorPanelMode.CELL_EDIT 경로로 이관해 기능 손실을 방지한다.
-                // 주요 정책: CELL_EDIT 상단은 단일 값 입력/표시 영역을 사용하고, 하단에 fail-safe 저장/되돌리기 버튼을 둔다.
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    PanelHeader("셀 편집")
-                    if (selectedCell == null) {
-                        Text("편집할 셀을 먼저 선택하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                    } else {
-                        val currentValue = resolvedByCellId[selectedCell.cellId].orEmpty().ifBlank { dataTypeLabelKo(selectedCell.dataType) }
-                        val isTopEditable = selectedCell.dataType == TableCellDataType.TEXT ||
-                            selectedCell.dataType == TableCellDataType.NUMBER ||
-                            selectedCell.dataType == TableCellDataType.COUNTER
-                        val topValue = if (editingCellId == selectedCell.cellId) editingValue else currentValue
+                // 주요 정책: 헤더/현재값은 고정하고, 타입별 설정+데이터 타입 카드+저장영역만 본문 스크롤로 분리한다.
+                val isTopEditable = selectedCell?.dataType == TableCellDataType.TEXT ||
+                    selectedCell?.dataType == TableCellDataType.NUMBER ||
+                    selectedCell?.dataType == TableCellDataType.COUNTER
+                val cellEditBodyScrollState = rememberScrollState()
 
-                        Text("현재값", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                PanelHeader("셀 편집")
+                if (selectedCell == null) {
+                    Text("편집할 셀을 먼저 선택하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                } else {
+                    val currentValue = resolvedByCellId[selectedCell.cellId].orEmpty().ifBlank { dataTypeLabelKo(selectedCell.dataType) }
+                    val editableSourceValue = selectedCell.toEditableText()
+                    val topValue = if (editingCellId == selectedCell.cellId) editingValue else editableSourceValue
+
+                    Text("현재값", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    Spacer(Modifier.size(2.dp))
+                    if (isTopEditable) {
                         OutlinedTextField(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(44.dp),
+                                .height(46.dp),
                             value = topValue,
                             onValueChange = { next ->
-                                if (isTopEditable) {
-                                    if (editingCellId != selectedCell.cellId) {
-                                        onStartInlineEditing(selectedCell.cellId, currentValue)
-                                    }
-                                    onEditingValueChange(next)
+                                if (editingCellId != selectedCell.cellId) {
+                                    onStartInlineEditing(selectedCell.cellId, editableSourceValue)
                                 }
+                                onEditingValueChange(next)
                             },
-                            readOnly = !isTopEditable,
+                            readOnly = false,
                             enabled = true,
                             singleLine = true,
                             textStyle = DDZTypography.Body.copy(color = DDZColor.TextPrimary),
@@ -229,49 +224,62 @@ internal fun BottomEditorPanel(
                             ),
                             keyboardActions = KeyboardActions(onDone = { onCommitInline() })
                         )
+                    } else {
+                        Text(
+                            text = currentValue,
+                            style = DDZTypography.Body,
+                            color = DDZColor.TextPrimary
+                        )
+                    }
 
-                        Spacer(Modifier.size(2.dp))
-                        CellSettingsBottomPanel(
-                        modifier = Modifier.fillMaxWidth(),
-                        cell = selectedCell,
-                        templateState = templateState,
-                        baseResolvedByCellId = resolvedByCellId,
-                        hasGroup1 = hasGroup1,
-                        hasGroup2 = hasGroup2,
-                        onToggleFileNameForCell = onToggleFileNameForSelected,
-                        onReorderFileNameSlots = onReorderFileNameSlots,
-                        onPathGroupAction = onPathGroupActionForSelected,
-                        onSetDataType = onSetDataTypeForSelected,
-                        onSetCounterScopeMode = onSetCounterScopeModeForSelected,
-                        onResetCounterSeed = onResetCounterSeedForSelected,
-                        autoNextCounterValue = autoNextCounterValue,
-                        onOpenRotatingTemplateDialog = { onOpenRotatingTemplateDialogForSelected(selectedCell.cellId) },
-                        onSetRotatingCounterMode = onSetRotatingCounterModeForSelected,
-                        onOpenFormatDialog = onOpenFormatDialog,
-                        previewNow = previewNow,
-                        previewCounterDigits = previewCounterDigits,
-                        scopeNextCounter = scopeNextCounter,
-                        phraseProgressCursor = phraseProgressCursor,
-                        dateFormat = dateFormat,
-                        timeFormat = timeFormat,
-                        phraseSets = phraseSets,
-                        showFileNameSection = false,
-                        showPathGroupSection = false,
-                        compactForBottomPanel = true
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Spacer(Modifier.size(2.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(cellEditBodyScrollState),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Button(modifier = Modifier.weight(1f).height(42.dp), onClick = onRevertSelectedCell) {
-                            Text("되돌리기", style = DDZTypography.ButtonText)
-                        }
-                        Button(modifier = Modifier.weight(1f).height(42.dp), onClick = onSaveSelectedCell) {
-                            Text("저장", style = DDZTypography.ButtonText)
+                        CellSettingsBottomPanel(
+                            modifier = Modifier.fillMaxWidth(),
+                            cell = selectedCell,
+                            templateState = templateState,
+                            baseResolvedByCellId = resolvedByCellId,
+                            hasGroup1 = hasGroup1,
+                            hasGroup2 = hasGroup2,
+                            onToggleFileNameForCell = onToggleFileNameForSelected,
+                            onReorderFileNameSlots = onReorderFileNameSlots,
+                            onPathGroupAction = onPathGroupActionForSelected,
+                            onSetDataType = onSetDataTypeForSelected,
+                            onSetCounterScopeMode = onSetCounterScopeModeForSelected,
+                            onResetCounterSeed = onResetCounterSeedForSelected,
+                            autoNextCounterValue = autoNextCounterValue,
+                            onOpenRotatingTemplateDialog = { onOpenRotatingTemplateDialogForSelected(selectedCell.cellId) },
+                            onSetRotatingCounterMode = onSetRotatingCounterModeForSelected,
+                            onOpenFormatDialog = onOpenFormatDialog,
+                            previewNow = previewNow,
+                            previewCounterDigits = previewCounterDigits,
+                            scopeNextCounter = scopeNextCounter,
+                            phraseProgressCursor = phraseProgressCursor,
+                            dateFormat = dateFormat,
+                            timeFormat = timeFormat,
+                            phraseSets = phraseSets,
+                            showFileNameSection = false,
+                            showPathGroupSection = false,
+                            compactForBottomPanel = true
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(modifier = Modifier.weight(1f).height(42.dp), onClick = onRevertSelectedCell) {
+                                Text("되돌리기", style = DDZTypography.ButtonText)
+                            }
+                            Button(modifier = Modifier.weight(1f).height(42.dp), onClick = onSaveSelectedCell) {
+                                Text("저장", style = DDZTypography.ButtonText)
+                            }
                         }
                     }
                 }
-            }
             }
 
             BottomEditorPanelMode.FILENAME_EDIT -> {
@@ -405,8 +413,6 @@ internal fun BottomEditorPanel(
         }
     }
 }
-
-
 
 private fun dataTypeLabelKo(dataType: TableCellDataType): String =
     when (dataType) {

@@ -183,9 +183,12 @@ fun LayoutTabContent(
         BottomEditorPanel(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                // 주요 정책: 키보드 노출 시 CELL_EDIT 상단 입력창이 가려지지 않도록 패널에도 imePadding을 적용한다.
+                .imePadding()
                 .heightIn(max = 320.dp)
+                // 주요 정책: 상단 표 영역 가림을 줄이기 위해 패널 상단 여백을 축소한다(최대 높이 320dp는 유지).
                 .padding(horizontal = 16.dp)
-                .padding(top = 12.dp),
+                .padding(top = 8.dp),
             panelMode = uiState.bottomPanelMode,
             rows = uiState.templateState.rows,
             cols = uiState.templateState.cols,
