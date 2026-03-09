@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -146,7 +149,7 @@ internal fun BottomEditorPanel(
         modifier = modifier
             .fillMaxWidth()
             .background(DDZColor.Surface, RoundedCornerShape(14.dp))
-            .padding(10.dp),
+            .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // 정책 추가: 패널 내부 최상단 구분선을 고정 배치해 본문과 경계를 명확히 한다.
@@ -180,45 +183,55 @@ internal fun BottomEditorPanel(
                 // 정책 변경: 축약판 CELL_EDIT를 유지하지 않고 기존 CellSettingsBottomPanel 핵심 기능을
                 // BottomEditorPanelMode.CELL_EDIT 경로로 이관해 기능 손실을 방지한다.
                 // 주요 정책: CELL_EDIT 상단은 단일 값 입력/표시 영역을 사용하고, 하단에 fail-safe 저장/되돌리기 버튼을 둔다.
-                PanelHeader("셀 편집")
-                if (selectedCell == null) {
-                    Text("편집할 셀을 먼저 선택하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                } else {
-                    val currentValue = resolvedByCellId[selectedCell.cellId].orEmpty().ifBlank { dataTypeLabelKo(selectedCell.dataType) }
-                    val isTopEditable = selectedCell.dataType == TableCellDataType.TEXT ||
-                        selectedCell.dataType == TableCellDataType.NUMBER ||
-                        selectedCell.dataType == TableCellDataType.COUNTER
-                    val topValue = if (editingCellId == selectedCell.cellId) editingValue else currentValue
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    PanelHeader("셀 편집")
+                    if (selectedCell == null) {
+                        Text("편집할 셀을 먼저 선택하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    } else {
+                        val currentValue = resolvedByCellId[selectedCell.cellId].orEmpty().ifBlank { dataTypeLabelKo(selectedCell.dataType) }
+                        val isTopEditable = selectedCell.dataType == TableCellDataType.TEXT ||
+                            selectedCell.dataType == TableCellDataType.NUMBER ||
+                            selectedCell.dataType == TableCellDataType.COUNTER
+                        val topValue = if (editingCellId == selectedCell.cellId) editingValue else currentValue
 
-                    Text("현재값", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                    OutlinedTextField(
-                        modifier = Modifier.fillMaxWidth(),
-                        value = topValue,
-                        onValueChange = { next ->
-                            if (isTopEditable) {
-                                if (editingCellId != selectedCell.cellId) {
-                                    onStartInlineEditing(selectedCell.cellId, currentValue)
+                        Text("현재값", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                        OutlinedTextField(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp),
+                            value = topValue,
+                            onValueChange = { next ->
+                                if (isTopEditable) {
+                                    if (editingCellId != selectedCell.cellId) {
+                                        onStartInlineEditing(selectedCell.cellId, currentValue)
+                                    }
+                                    onEditingValueChange(next)
                                 }
-                                onEditingValueChange(next)
-                            }
-                        },
-                        readOnly = !isTopEditable,
-                        enabled = isTopEditable,
-                        singleLine = true,
-                        textStyle = DDZTypography.Body,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = when (selectedCell.dataType) {
-                                TableCellDataType.NUMBER -> KeyboardType.Decimal
-                                TableCellDataType.COUNTER -> KeyboardType.Number
-                                else -> KeyboardType.Text
                             },
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(onDone = { onCommitInline() })
-                    )
+                            readOnly = !isTopEditable,
+                            enabled = true,
+                            singleLine = true,
+                            textStyle = DDZTypography.Body.copy(color = DDZColor.TextPrimary),
+                            placeholder = {
+                                Text("값 입력", color = DDZColor.TextMuted)
+                            },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = when (selectedCell.dataType) {
+                                    TableCellDataType.NUMBER -> KeyboardType.Decimal
+                                    TableCellDataType.COUNTER -> KeyboardType.Number
+                                    else -> KeyboardType.Text
+                                },
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(onDone = { onCommitInline() })
+                        )
 
-                    Spacer(Modifier.size(4.dp))
-                    CellSettingsBottomPanel(
+                        Spacer(Modifier.size(2.dp))
+                        CellSettingsBottomPanel(
                         modifier = Modifier.fillMaxWidth(),
                         cell = selectedCell,
                         templateState = templateState,
@@ -250,14 +263,15 @@ internal fun BottomEditorPanel(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Button(modifier = Modifier.weight(1f), onClick = onRevertSelectedCell) {
+                        Button(modifier = Modifier.weight(1f).height(42.dp), onClick = onRevertSelectedCell) {
                             Text("되돌리기", style = DDZTypography.ButtonText)
                         }
-                        Button(modifier = Modifier.weight(1f), onClick = onSaveSelectedCell) {
+                        Button(modifier = Modifier.weight(1f).height(42.dp), onClick = onSaveSelectedCell) {
                             Text("저장", style = DDZTypography.ButtonText)
                         }
                     }
                 }
+            }
             }
 
             BottomEditorPanelMode.FILENAME_EDIT -> {

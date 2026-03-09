@@ -183,6 +183,7 @@ fun LayoutTabContent(
         BottomEditorPanel(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .heightIn(max = 320.dp)
                 .padding(horizontal = 16.dp)
                 .padding(top = 12.dp),
             panelMode = uiState.bottomPanelMode,
