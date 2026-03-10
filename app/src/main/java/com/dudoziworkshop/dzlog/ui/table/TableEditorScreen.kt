@@ -97,8 +97,6 @@ import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
 import com.dudoziworkshop.dzlog.ui.table.section.PathFormatType
 import com.dudoziworkshop.dzlog.ui.table.section.PathSlotKind
 import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
-import com.dudoziworkshop.dzlog.ui.table.naming.buildTableEditorNamingUiModel
-import com.dudoziworkshop.dzlog.ui.table.naming.deriveLegacyFileNameSlotsFromUiSlots
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabActions
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabContent
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabUiState
@@ -221,6 +219,14 @@ private fun buildFileNameDraftSlots(template: TableTemplateState): List<FileName
 private fun buildPathDraftSlots(template: TableTemplateState): List<PathSlotUiItem?> {
     return normalizePathDraftSlots(template.pathSlotDrafts.map(::toPathUiSlotDraft))
 }
+
+private fun deriveFileNameSlotsForCounterScope(template: TableTemplateState): List<String?> {
+    val hasDraftPayload = template.fileNameSlotDrafts.any { it != null }
+    // 주요 정책: draft payload가 존재하면 legacy fallback으로 되돌아가지 않는다.
+    return if (hasDraftPayload) deriveLegacyFileNameSlotsFromDrafts(template.fileNameSlotDrafts) else template.fileNameSlots
+}
+
+
 
 
 @Composable
@@ -443,8 +449,8 @@ fun TableEditorScreen(
     // 파일명 scope 사용 여부는 counterUi 기준으로 판정해,
     // 실제 counter scope 계산 기준과 signature 기준이 어긋나지 않게 맞춘다.
     // 주요 정책: counter scope도 slot-draft 해석 helper와 같은 경로에서 파생한 값만 사용한다.
-    val fileNameSlotsForCounterScope = remember(fileNameSlotItems) {
-        deriveLegacyFileNameSlotsFromUiSlots(fileNameSlotItems)
+    val fileNameSlotsForCounterScope = remember(currentTemplate.fileNameSlotDrafts, currentTemplate.fileNameSlots) {
+        deriveFileNameSlotsForCounterScope(currentTemplate)
     }
     val filenameScopeSignature = remember(fileNameSlotsForCounterScope, counterUi.includeFilenameInCounterScope) {
         if (!counterUi.includeFilenameInCounterScope) {
@@ -737,31 +743,9 @@ fun TableEditorScreen(
         }
     }
 
-    val namingUiModel = remember(
-        currentTemplate,
-        fileNameSlotItems,
-        pathSlotItems,
-        resolvedByCellId,
-        previewNow,
-        dateFormat,
-        timeFormat,
-        previewCounterDigits,
-        counterStreamContext.nextCounter,
-    ) {
-        buildTableEditorNamingUiModel(
-            templateState = currentTemplate,
-            fileNameSlots = fileNameSlotItems,
-            pathSlots = pathSlotItems,
-            resolvedByCellId = resolvedByCellId,
-            previewNow = previewNow,
-            dateFormat = dateFormat,
-            timeFormat = timeFormat,
-            previewCounterDigits = previewCounterDigits,
-            counterValue = counterStreamContext.nextCounter
-        )
-    }
-    val filenamePreview = namingUiModel.filenamePreview
-    val savePathPreview = namingUiModel.savePathPreview
+    // 주요 정책: 표 상세설정 상단 프리뷰는 실제 촬영/저장과 동일한 previewPipeline 결과를 그대로 사용한다.
+    val filenamePreview = previewPipeline.namingPreview.displayName
+    val savePathPreview = previewPipeline.namingPreview.relativePath
 
     fun handleCounterConflictDialogEffect(effect: com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogEffect) {
         applyCounterConflictDialogEffect(
@@ -1229,13 +1213,11 @@ fun TableEditorScreen(
                             currentlySelectedFileNameSlot = currentlySelectedFileNameSlot,
                             currentlySelectedPathSlot = currentlySelectedPathSlot,
                             fileNameSlotItems = fileNameSlotItems,
-                            fileNameSlotDisplayItems = namingUiModel.fileNameSlotDisplays,
                             isFileNameCellPickMode = isFileNameCellPickMode,
                             showFileNameFormatOptions = showFileNameFormatOptions,
                             manualInputDraft = manualInputDraft,
                             showManualInputEditor = showManualInputEditor,
                             pathSlotItems = pathSlotItems,
-                            pathSlotDisplayItems = namingUiModel.pathSlotDisplays,
                             isPathCellPickMode = isPathCellPickMode,
                             showPathFormatOptions = showPathFormatOptions,
                             showPathManualInputEditor = showPathManualInputEditor,
@@ -1350,7 +1332,7 @@ fun TableEditorScreen(
                                             label = when (formatType) {
                                                 FileNameFormatType.DATE -> "날짜"
                                                 FileNameFormatType.TIME -> "시간"
-                                                // 레거시 COUNTER draft는 읽기만 지원하고, 신규 UI 선택지는 제공하지 않는다.
+                                                // 레거시 COUNTER draft 읽기 호환용 분기(신규 UI에서는 COUNTER를 노출하지 않음).
                                                 FileNameFormatType.COUNTER -> "시스템 카운터(자동)"
                                                 FileNameFormatType.ROTATING_TEXT -> "순환문구"
                                             },

@@ -43,7 +43,6 @@ import com.dudoziworkshop.dzlog.ui.table.section.FileNameFormatType
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
 import com.dudoziworkshop.dzlog.ui.table.section.PathFormatType
 import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
-import com.dudoziworkshop.dzlog.ui.table.naming.NamingSlotDisplayItem
 import java.util.Date
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -70,14 +69,12 @@ internal fun BottomEditorPanel(
     phraseSets: List<RotatingPhraseSet>,
     autoNextCounterValue: Int,
     fileNameSlotItems: List<FileNameSlotUiItem?>,
-    fileNameSlotDisplayItems: List<NamingSlotDisplayItem>,
     selectedFileNameSlot: Int?,
     isFileNameCellPickMode: Boolean,
     showFileNameFormatOptions: Boolean,
     manualInputDraft: String,
     showManualInputEditor: Boolean,
     pathSlotItems: List<PathSlotUiItem?>,
-    pathSlotDisplayItems: List<NamingSlotDisplayItem>,
     selectedPathSlot: Int?,
     isPathCellPickMode: Boolean,
     showPathFormatOptions: Boolean,
@@ -371,9 +368,8 @@ internal fun BottomEditorPanel(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     normalizedSlots.forEachIndexed { index, slot ->
                         val isSelected = selectedFileNameSlot == index
-                        val slotDisplay = fileNameSlotDisplayItems.getOrNull(index)
-                        val structureLabel = slotDisplay?.structureLabel ?: "빈 슬롯"
-                        val resolvedValue = slotDisplay?.resolvedValue.orEmpty()
+                        val structureLabel = fileNameStructureLabel(slot, templateState)
+                        val resolvedValue = fileNameSimpleValue(slot, resolvedByCellId)
                         Box(
                             modifier = Modifier.weight(1f)
                                 .background(if (isSelected) DDZColor.PrimaryDark.copy(alpha = 0.14f) else DDZColor.Background, RoundedCornerShape(12.dp))
@@ -469,9 +465,8 @@ internal fun BottomEditorPanel(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     normalizedSlots.forEachIndexed { index, slot ->
                         val isSelected = selectedPathSlot == index
-                        val slotDisplay = pathSlotDisplayItems.getOrNull(index)
-                        val structureLabel = slotDisplay?.structureLabel ?: "빈 슬롯"
-                        val resolvedValue = slotDisplay?.resolvedValue.orEmpty()
+                        val structureLabel = pathStructureLabel(slot, templateState)
+                        val resolvedValue = pathSimpleValue(slot, resolvedByCellId)
                         Box(
                             modifier = Modifier.weight(1f)
                                 .background(if (isSelected) DDZColor.PrimaryDark.copy(alpha = 0.14f) else DDZColor.Background, RoundedCornerShape(12.dp))
@@ -547,6 +542,59 @@ internal fun BottomEditorPanel(
     }
 }
 
+
+
+private fun fileNameStructureLabel(slot: FileNameSlotUiItem?, templateState: TableTemplateState): String {
+    if (slot == null) return "빈 슬롯"
+    return when (slot.kind) {
+        com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotKind.CELL -> {
+            val cell = templateState.cells.firstOrNull { it.cellId == slot.cellId }
+            if (cell == null) "셀" else "셀(${cell.rowIndex + 1},${cell.colIndex + 1})"
+        }
+        com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotKind.MANUAL -> "직접입력"
+        com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotKind.FORMAT -> when (slot.formatType) {
+            FileNameFormatType.DATE -> "날짜"
+            FileNameFormatType.TIME -> "시간"
+            // 주요 정책: 카운터는 시스템이 파일명 마지막에 자동 부여한다(신규 선택 비노출, 레거시 읽기만).
+            FileNameFormatType.COUNTER -> "시스템 카운터(자동)"
+            FileNameFormatType.ROTATING_TEXT -> "순환문구"
+            null -> "서식"
+        }
+    }
+}
+
+private fun pathStructureLabel(slot: PathSlotUiItem?, templateState: TableTemplateState): String {
+    if (slot == null) return "빈 슬롯"
+    return when (slot.kind) {
+        com.dudoziworkshop.dzlog.ui.table.section.PathSlotKind.CELL -> {
+            val cell = templateState.cells.firstOrNull { it.cellId == slot.cellId }
+            if (cell == null) "셀" else "셀(${cell.rowIndex + 1},${cell.colIndex + 1})"
+        }
+        com.dudoziworkshop.dzlog.ui.table.section.PathSlotKind.MANUAL -> "직접입력"
+        com.dudoziworkshop.dzlog.ui.table.section.PathSlotKind.FORMAT -> when (slot.formatType) {
+            PathFormatType.DATE -> "날짜"
+            PathFormatType.TIME -> "시간"
+            PathFormatType.ROTATING_TEXT -> "순환문구"
+            null -> "서식"
+        }
+    }
+}
+
+private fun fileNameSimpleValue(slot: FileNameSlotUiItem?, resolvedByCellId: Map<String, String>): String {
+    return when (slot?.kind) {
+        com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotKind.CELL -> resolvedByCellId[slot.cellId].orEmpty()
+        com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotKind.MANUAL -> slot.manualText.orEmpty()
+        else -> ""
+    }
+}
+
+private fun pathSimpleValue(slot: PathSlotUiItem?, resolvedByCellId: Map<String, String>): String {
+    return when (slot?.kind) {
+        com.dudoziworkshop.dzlog.ui.table.section.PathSlotKind.CELL -> resolvedByCellId[slot.cellId].orEmpty()
+        com.dudoziworkshop.dzlog.ui.table.section.PathSlotKind.MANUAL -> slot.manualText.orEmpty()
+        else -> ""
+    }
+}
 
 private fun dataTypeLabelKo(dataType: TableCellDataType): String =
     when (dataType) {
