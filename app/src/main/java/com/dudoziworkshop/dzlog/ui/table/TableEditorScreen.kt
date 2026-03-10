@@ -7,9 +7,12 @@
 package com.dudoziworkshop.dzlog.ui.table
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
@@ -36,6 +39,7 @@ import androidx.compose.ui.Modifier
 import com.dudoziworkshop.dzlog.ui.common.dzScaffoldContent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.data.counter.clampCounterDigits
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
@@ -631,6 +635,8 @@ fun TableEditorScreen(
     var inlineEdit by remember { mutableStateOf(InlineEditState()) }
     // 주요 정책: 되돌리기 기준은 "셀 선택 시점"의 TableCellState 전체 snapshot이다.
     var editSessionOriginalCellState by remember { mutableStateOf<TableCellState?>(null) }
+    var editSessionSnapshotCellId by remember { mutableStateOf<String?>(null) }
+    var showUnsavedChangesDialog by remember { mutableStateOf(false) }
     val deletedRowsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
     val deletedColsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
 
@@ -687,9 +693,14 @@ fun TableEditorScreen(
 
 
     fun snapshotCellForEditSession(cellId: String?) {
-        editSessionOriginalCellState = cellId?.let { targetId ->
-            currentTemplate.cells.firstOrNull { it.cellId == targetId }?.copy()
+        if (cellId == null) {
+            editSessionOriginalCellState = null
+            editSessionSnapshotCellId = null
+            return
         }
+        if (editSessionSnapshotCellId == cellId) return
+        editSessionOriginalCellState = currentTemplate.cells.firstOrNull { it.cellId == cellId }?.copy()
+        editSessionSnapshotCellId = cellId
     }
 
     if (selectedCellId == null && currentTemplate.cells.isNotEmpty()) {
@@ -698,11 +709,13 @@ fun TableEditorScreen(
 
     val selectedCell = currentTemplate.cells.firstOrNull { it.cellId == selectedCellId }
 
-    LaunchedEffect(selectedCellId, currentTemplate.cells) {
-        // 정책 보강: 초기 진입/구조 변경 후에도 현재 선택 셀에 대한 snapshot을 보정한다.
-        val selected = selectedCellId
-        if (selected != null && editSessionOriginalCellState?.cellId != selected) {
-            snapshotCellForEditSession(selected)
+    LaunchedEffect(bottomPanelMode, selectedCellId, currentTemplate.cells) {
+        // 주요 정책: 되돌리기 snapshot은 CELL_EDIT 진입 상태에서만 selectedCell 기준으로 1회 저장한다.
+        if (bottomPanelMode == BottomEditorPanelMode.CELL_EDIT) {
+            snapshotCellForEditSession(selectedCellId)
+        } else {
+            editSessionOriginalCellState = null
+            editSessionSnapshotCellId = null
         }
     }
     val hasGroup1 = currentTemplate.cells.any { it.groupLevel == GroupLevel.G1 }
@@ -768,18 +781,21 @@ fun TableEditorScreen(
 
     if (counterUi.counterConflictDialogState.isVisible) {
         AlertDialog(
+            containerColor = DDZColor.Surface,
             onDismissRequest = {
                 val (nextState, effect) = dismissCounterConflictDialog(counterUi.counterConflictDialogState)
                 counterUi = updateCounterUiConflictDialogState(counterUi, nextState)
                 handleCounterConflictDialogEffect(effect)
                 clearInlineEditingState()
             },
-            title = { Text("카운터 충돌 경고") },
+            title = { Text("카운터 충돌 경고", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary) },
             text = {
                 Text(
-                    "중복된 카운터가 발생할 수 있습니다. 계속 진행하시겠습니까?\n\n" +
+                    text = "중복된 카운터가 발생할 수 있습니다. 계속 진행하시겠습니까?\n\n" +
                         "입력값: ${counterUi.counterConflictDialogState.pendingCounterCommitValue}\n" +
-                        "현재 스트림 next: ${counterUi.counterConflictDialogState.pendingCounterStreamNextValue}"
+                        "현재 스트림 next: ${counterUi.counterConflictDialogState.pendingCounterStreamNextValue}",
+                    style = DDZTypography.Body,
+                    color = DDZColor.TextPrimary
                 )
             },
             confirmButton = {
@@ -788,7 +804,7 @@ fun TableEditorScreen(
                     counterUi = updateCounterUiConflictDialogState(counterUi, nextState)
                     handleCounterConflictDialogEffect(effect)
                     clearInlineEditingState()
-                }) { Text("진행", style = DDZTypography.ButtonText) }
+                }) { Text("진행", style = DDZTypography.ButtonText, color = DDZColor.Primary) }
             },
             dismissButton = {
                 TextButton(onClick = {
@@ -797,7 +813,7 @@ fun TableEditorScreen(
                     handleCounterConflictDialogEffect(effect)
                     clearInlineEditingState()
                 }) {
-                    Text("취소", style = DDZTypography.ButtonText)
+                    Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary)
                 }
             }
         )
@@ -909,8 +925,9 @@ fun TableEditorScreen(
 
     if (rotatingUi.isCreateSetDialogOpen) {
         AlertDialog(
+            containerColor = DDZColor.Surface,
             onDismissRequest = { rotatingUi = rotatingUi.copy(isCreateSetDialogOpen = false, createSetName = "") },
-            title = { Text("새 템플릿 추가") },
+            title = { Text("새 템플릿 추가", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary) },
             text = {
                 OutlinedTextField(
                     value = rotatingUi.createSetName,
@@ -943,12 +960,12 @@ fun TableEditorScreen(
                     }
                     rotatingUi = rotatingUi.copy(isCreateSetDialogOpen = false, createSetName = "")
                 }) {
-                    Text("추가", style = DDZTypography.ButtonText)
+                    Text("추가", style = DDZTypography.ButtonText, color = DDZColor.Primary)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { rotatingUi = rotatingUi.copy(isCreateSetDialogOpen = false, createSetName = "") }) {
-                    Text("취소", style = DDZTypography.ButtonText)
+                    Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary)
                 }
             }
         )
@@ -958,9 +975,16 @@ fun TableEditorScreen(
         val deleteTarget = currentTemplate.phraseSets.firstOrNull { it.id == deleteId }
         if (deleteTarget != null) {
             AlertDialog(
+                containerColor = DDZColor.Surface,
                 onDismissRequest = { rotatingUi = rotatingUi.copy(pendingDeleteSetId = null) },
-                title = { Text("세트 삭제") },
-                text = { Text("${deleteTarget.name} 세트를 삭제하시겠습니까?") },
+                title = { Text("세트 삭제", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary) },
+                text = {
+                    Text(
+                        "${deleteTarget.name} 세트를 삭제하시겠습니까?",
+                        style = DDZTypography.Body,
+                        color = DDZColor.TextPrimary
+                    )
+                },
                 confirmButton = {
                     TextButton(onClick = {
                         val updated = currentTemplate.copy(
@@ -976,12 +1000,12 @@ fun TableEditorScreen(
                         updateTemplateDraft(updated)
                         rotatingUi = rotatingUi.copy(pendingDeleteSetId = null)
                     }) {
-                        Text("삭제", style = DDZTypography.ButtonText)
+                        Text("삭제", style = DDZTypography.ButtonText, color = DDZColor.Primary)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { rotatingUi = rotatingUi.copy(pendingDeleteSetId = null) }) {
-                        Text("취소", style = DDZTypography.ButtonText)
+                        Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary)
                     }
                 }
             )
@@ -1038,9 +1062,57 @@ fun TableEditorScreen(
 
     fun requestRevertSelectedCell() {
         val snapshot = editSessionOriginalCellState ?: return
+        val selectedId = selectedCellId ?: return
+        if (snapshot.cellId != selectedId) return
         val updated = updateCell(currentTemplate, snapshot.cellId) { snapshot }
         updateTemplateDraft(updated)
         clearInlineEditingState()
+    }
+
+    val hasUnsavedChanges by remember(
+        currentTemplate,
+        initialTemplateSnapshot,
+        inlineEdit,
+        manualInputDraft,
+        pathManualInputDraft
+    ) {
+        derivedStateOf {
+            currentTemplate != initialTemplateSnapshot ||
+                inlineEdit.isEditing() ||
+                manualInputDraft.isNotBlank() ||
+                pathManualInputDraft.isNotBlank()
+        }
+    }
+
+    fun saveTemplateAndExit() {
+        commitInlineEditIfNeeded()
+        if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
+        isSavingTemplate = true
+        val savePayload = editableTemplateState
+        scope.launch {
+            saveTableTemplate(context, savePayload)
+                .onFailure {
+                    Toast.makeText(
+                        context,
+                        "저장 실패: ${it.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    isSavingTemplate = false
+                }
+                .onSuccess {
+                    Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
+                    onTemplateChange(savePayload)
+                    onBack()
+                }
+        }
+    }
+
+    fun requestNavigateBack() {
+        if (hasUnsavedChanges) {
+            showUnsavedChangesDialog = true
+        } else {
+            onBack()
+        }
     }
 
     fun requestCloseBottomPanelToNone() {
@@ -1059,6 +1131,42 @@ fun TableEditorScreen(
         clearPathEditorTransientState(clearDraft = true)
     }
 
+    BackHandler { requestNavigateBack() }
+
+    if (showUnsavedChangesDialog) {
+        AlertDialog(
+            containerColor = DDZColor.Surface,
+            onDismissRequest = { showUnsavedChangesDialog = false },
+            title = {
+                Text("저장되지 않은 변경사항", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+            },
+            text = {
+                Text("변경사항을 저장하시겠습니까?", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+            },
+            confirmButton = {
+                // 주요 정책 변경: 채워진 버튼 3등분 UI를 제거하고 일반 팝업 액션처럼 텍스트 버튼 3개를 통일 적용한다.
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = {
+                        showUnsavedChangesDialog = false
+                        saveTemplateAndExit()
+                    }) {
+                        Text("저장", style = DDZTypography.ButtonText, color = DDZColor.Primary)
+                    }
+                    TextButton(onClick = {
+                        showUnsavedChangesDialog = false
+                        onBack()
+                    }) {
+                        Text("저장안함", style = DDZTypography.ButtonText, color = DDZColor.Primary)
+                    }
+                    TextButton(onClick = { showUnsavedChangesDialog = false }) {
+                        Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary)
+                    }
+                }
+            },
+            dismissButton = {}
+        )
+    }
+
     Scaffold(
         containerColor = DDZColor.Background,
         topBar = {
@@ -1072,14 +1180,7 @@ fun TableEditorScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        // 정책 보강: 화면 이탈 직전 inline 편집값을 우선 commit 시도한다.
-                        if (inlineEdit.isEditing()) {
-                            commitInlineEditIfNeeded()
-                            if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return@IconButton
-                        }
-                        onBack()
-                    }) {
+                    IconButton(onClick = { requestNavigateBack() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "뒤로가기",
@@ -1609,29 +1710,7 @@ fun TableEditorScreen(
                                 fileNameSlotsDirtySinceStructureChange = false
                                 pathSlotsDirtySinceStructureChange = false
                             },
-                            onSave = {
-                                commitInlineEditIfNeeded()
-                                isSavingTemplate = true
-                                // 정책 보강: 저장 기준은 editableTemplateState 단일 SSOT이며,
-                                // 슬롯 draft payload가 동기화된 template를 저장 payload로 사용한다.
-                                val savePayload = editableTemplateState
-                                scope.launch {
-                                    saveTableTemplate(context, savePayload)
-                                        .onFailure {
-                                            Toast.makeText(
-                                                context,
-                                                "저장 실패: ${it.message}",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                            isSavingTemplate = false
-                                        }
-                                        .onSuccess {
-                                            Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
-                                            onTemplateChange(savePayload)
-                                            onBack()
-                                        }
-                                }
-                            },
+                            onSave = { saveTemplateAndExit() },
                             onDismissSettingsPanel = {
                                 commitInlineEditIfNeeded()
                                 showCellSettingsPanel = false
@@ -1723,6 +1802,7 @@ fun TableEditorScreen(
                             onResetCounterSeedForSelected = {
                                 selectedCell?.let { cell ->
                                     if (cell.dataType != TableCellDataType.COUNTER) return@let
+                                    val syncedCounterText = counterUi.autoNextCounterValue.toString()
                                     restoreCounterCellToAutoNext(
                                         context = context,
                                         templateState = currentTemplate,
@@ -1736,6 +1816,10 @@ fun TableEditorScreen(
                                         updateCell = ::updateCell,
                                         scope = scope
                                     )
+                                    // 주요 정책: COUNTER 동기화 직후 편집 draft가 남아 UI를 덮지 않도록 즉시 동기화한다.
+                                    if (inlineEdit.editingCellId == cell.cellId) {
+                                        inlineEdit = inlineEdit.copy(editingValue = syncedCounterText)
+                                    }
                                     Toast.makeText(context, "카운터를 자동 기준으로 초기화했습니다.", Toast.LENGTH_SHORT).show()
                                 }
                             },

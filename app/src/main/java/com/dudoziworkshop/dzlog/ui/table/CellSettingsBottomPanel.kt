@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Numbers
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.Button
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -381,9 +382,8 @@ internal fun CellSettingsBottomPanel(
                     modifier = Modifier.fillMaxWidth().height(buttonHeight),
                     onClick = onResetCounterSeed
                 ) {
-                    Text("카운터 초기화", style = DDZTypography.ButtonText)
+                    Text("동기화 ($autoNextCounterValue)", style = DDZTypography.ButtonText)
                 }
-                Text("다음 카운터: $autoNextCounterValue", style = DDZTypography.Caption, color = DDZColor.TextMuted)
             }
 
             if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
@@ -423,14 +423,15 @@ internal fun CellSettingsBottomPanel(
 
             if (isCounterScopeDialogOpen && (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME)) {
                 AlertDialog(
+                    containerColor = DDZColor.Surface,
                     onDismissRequest = { isCounterScopeDialogOpen = false },
-                    title = { Text("카운터 스코프", style = DDZTypography.Body, color = DDZColor.TextPrimary) },
+                    title = { Text("카운터 스코프", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary) },
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(if (compactForBottomPanel) 6.dp else 8.dp)) {
                             Text(
                                 text = "이 날짜/시간 값이 바뀌면 카운터도 분리됩니다.",
-                                style = DDZTypography.Caption,
-                                color = DDZColor.TextMuted
+                                style = DDZTypography.Body,
+                                color = DDZColor.TextPrimary
                             )
                             Row(
                                 modifier = Modifier
@@ -440,7 +441,11 @@ internal fun CellSettingsBottomPanel(
                             ) {
                                 RadioButton(
                                     selected = pendingCounterScopeMode == CounterScopeMode.EXCLUDE,
-                                    onClick = { pendingCounterScopeMode = CounterScopeMode.EXCLUDE }
+                                    onClick = { pendingCounterScopeMode = CounterScopeMode.EXCLUDE },
+                                    colors = RadioButtonDefaults.colors(
+                                        selectedColor = DDZColor.Primary,
+                                        unselectedColor = DDZColor.TextMuted
+                                    )
                                 )
                                 Text("포함 안 함", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                             }
@@ -452,7 +457,11 @@ internal fun CellSettingsBottomPanel(
                             ) {
                                 RadioButton(
                                     selected = pendingCounterScopeMode == CounterScopeMode.INCLUDE,
-                                    onClick = { pendingCounterScopeMode = CounterScopeMode.INCLUDE }
+                                    onClick = { pendingCounterScopeMode = CounterScopeMode.INCLUDE },
+                                    colors = RadioButtonDefaults.colors(
+                                        selectedColor = DDZColor.Primary,
+                                        unselectedColor = DDZColor.TextMuted
+                                    )
                                 )
                                 Text("포함", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                             }
@@ -465,12 +474,12 @@ internal fun CellSettingsBottomPanel(
                                 isCounterScopeDialogOpen = false
                             }
                         ) {
-                            Text("확인")
+                            Text("확인", style = DDZTypography.ButtonText, color = DDZColor.Primary)
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { isCounterScopeDialogOpen = false }) {
-                            Text("취소")
+                            Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary)
                         }
                     }
                 )
@@ -508,8 +517,9 @@ internal fun CellSettingsBottomPanel(
 
                 if (isRotatingCounterDialogOpen) {
                     AlertDialog(
+                        containerColor = DDZColor.Surface,
                         onDismissRequest = { isRotatingCounterDialogOpen = false },
-                        title = { Text("카운터", style = DDZTypography.Body) },
+                        title = { Text("카운터", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary) },
                         text = {
                             Column(verticalArrangement = Arrangement.spacedBy(if (compactForBottomPanel) 6.dp else 8.dp)) {
                                 Row(
@@ -518,7 +528,11 @@ internal fun CellSettingsBottomPanel(
                                 ) {
                                     RadioButton(
                                         selected = pendingRotatingCounterMode == RotatingCounterMode.GLOBAL,
-                                        onClick = { pendingRotatingCounterMode = RotatingCounterMode.GLOBAL }
+                                        onClick = { pendingRotatingCounterMode = RotatingCounterMode.GLOBAL },
+                                        colors = RadioButtonDefaults.colors(
+                                            selectedColor = DDZColor.Primary,
+                                            unselectedColor = DDZColor.TextMuted
+                                        )
                                     )
                                     Text("통합", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                                 }
@@ -528,7 +542,11 @@ internal fun CellSettingsBottomPanel(
                                 ) {
                                     RadioButton(
                                         selected = pendingRotatingCounterMode == RotatingCounterMode.PER_PHRASE,
-                                        onClick = { pendingRotatingCounterMode = RotatingCounterMode.PER_PHRASE }
+                                        onClick = { pendingRotatingCounterMode = RotatingCounterMode.PER_PHRASE },
+                                        colors = RadioButtonDefaults.colors(
+                                            selectedColor = DDZColor.Primary,
+                                            unselectedColor = DDZColor.TextMuted
+                                        )
                                     )
                                     Text("문구별", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                                 }
@@ -538,10 +556,10 @@ internal fun CellSettingsBottomPanel(
                             TextButton(onClick = {
                                 onSetRotatingCounterMode(pendingRotatingCounterMode)
                                 isRotatingCounterDialogOpen = false
-                            }) { Text("확인") }
+                            }) { Text("확인", style = DDZTypography.ButtonText, color = DDZColor.Primary) }
                         },
                         dismissButton = {
-                            TextButton(onClick = { isRotatingCounterDialogOpen = false }) { Text("취소") }
+                            TextButton(onClick = { isRotatingCounterDialogOpen = false }) { Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary) }
                         }
                     )
                 }

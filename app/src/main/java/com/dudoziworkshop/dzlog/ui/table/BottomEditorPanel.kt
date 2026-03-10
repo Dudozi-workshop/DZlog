@@ -24,13 +24,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
@@ -179,63 +178,128 @@ internal fun BottomEditorPanel(
                 }
             }
             BottomEditorPanelMode.CELL_EDIT -> {
-                // 주요 정책: CELL_EDIT에서는 헤더만 고정하고, 현재값 포함 본문 전체를 스크롤해 키보드 환경에서도 입력창 가시성을 확보한다.
+                // 주요 정책: CELL_EDIT는 "현재값+설정" 본문만 스크롤되고 저장/되돌리기는 하단 고정으로 유지한다.
                 val cellEditBodyScrollState = rememberScrollState()
 
                 PanelHeader("셀 편집")
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .weight(1f, fill = false)
                         .verticalScroll(cellEditBodyScrollState),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     if (selectedCell == null) {
                         Text("편집할 셀을 먼저 선택하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                     } else {
-                        val isTopEditable = selectedCell.dataType == TableCellDataType.TEXT ||
-                            selectedCell.dataType == TableCellDataType.NUMBER ||
-                            selectedCell.dataType == TableCellDataType.COUNTER
                         val currentValue = resolvedByCellId[selectedCell.cellId].orEmpty().ifBlank { dataTypeLabelKo(selectedCell.dataType) }
                         val editableSourceValue = selectedCell.toEditableText()
                         val topValue = if (editingCellId == selectedCell.cellId) editingValue else editableSourceValue
 
                         Text("현재값", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                         Spacer(Modifier.size(2.dp))
-                        if (isTopEditable) {
-                            OutlinedTextField(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(46.dp),
-                                value = topValue,
-                                onValueChange = { next ->
-                                    if (editingCellId != selectedCell.cellId) {
-                                        onStartInlineEditing(selectedCell.cellId, editableSourceValue)
-                                    }
-                                    onEditingValueChange(next)
-                                },
-                                readOnly = false,
-                                enabled = true,
-                                singleLine = true,
-                                textStyle = DDZTypography.Body.copy(color = DDZColor.TextPrimary),
-                                placeholder = {
-                                    Text("값 입력", color = DDZColor.TextMuted)
-                                },
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = when (selectedCell.dataType) {
-                                        TableCellDataType.NUMBER -> KeyboardType.Decimal
-                                        TableCellDataType.COUNTER -> KeyboardType.Number
-                                        else -> KeyboardType.Text
+                        when (selectedCell.dataType) {
+                            TableCellDataType.TEXT,
+                            TableCellDataType.NUMBER -> {
+                                OutlinedTextField(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(46.dp),
+                                    value = topValue,
+                                    onValueChange = { next ->
+                                        if (editingCellId != selectedCell.cellId) {
+                                            onStartInlineEditing(selectedCell.cellId, editableSourceValue)
+                                        }
+                                        onEditingValueChange(next)
                                     },
-                                    imeAction = ImeAction.Done
-                                ),
-                                keyboardActions = KeyboardActions(onDone = { onCommitInline() })
-                            )
-                        } else {
-                            Text(
-                                text = currentValue,
-                                style = DDZTypography.Body,
-                                color = DDZColor.TextPrimary
-                            )
+                                    singleLine = true,
+                                    textStyle = DDZTypography.Body.copy(color = DDZColor.TextPrimary),
+                                    placeholder = {
+                                        Text("값 입력", color = DDZColor.TextMuted)
+                                    },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = DDZColor.TextPrimary,
+                                        unfocusedTextColor = DDZColor.TextPrimary,
+                                        cursorColor = DDZColor.Primary,
+                                        focusedBorderColor = DDZColor.Primary,
+                                        unfocusedBorderColor = DDZColor.Border
+                                    ),
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = if (selectedCell.dataType == TableCellDataType.NUMBER) KeyboardType.Decimal else KeyboardType.Text
+                                    )
+                                )
+                            }
+
+                            TableCellDataType.COUNTER -> {
+                                val counterDisplay = when {
+                                    editingCellId == selectedCell.cellId -> editingValue
+                                    selectedCell.toEditableText().isNotBlank() -> selectedCell.toEditableText()
+                                    else -> autoNextCounterValue.toString()
+                                }
+                                val parsedCounter = counterDisplay.toIntOrNull()?.coerceAtLeast(1) ?: 1
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Button(
+                                        modifier = Modifier.width(56.dp).height(42.dp),
+                                        onClick = {
+                                            if (editingCellId != selectedCell.cellId) {
+                                                onStartInlineEditing(selectedCell.cellId, parsedCounter.toString())
+                                            }
+                                            onEditingValueChange((parsedCounter - 1).coerceAtLeast(1).toString())
+                                        }
+                                    ) { Text("-") }
+
+                                    OutlinedTextField(
+                                        modifier = Modifier.weight(1f).height(46.dp),
+                                        value = parsedCounter.toString(),
+                                        onValueChange = { raw ->
+                                            if (editingCellId != selectedCell.cellId) {
+                                                onStartInlineEditing(selectedCell.cellId, parsedCounter.toString())
+                                            }
+                                            val next = raw.filter { it.isDigit() }
+                                            val normalized = if (next.isBlank()) "1" else (next.toIntOrNull() ?: 1).coerceAtLeast(1).toString()
+                                            onEditingValueChange(normalized)
+                                        },
+                                        singleLine = true,
+                                        textStyle = DDZTypography.Body.copy(color = DDZColor.TextPrimary),
+                                        placeholder = {
+                                            Text("값 입력", color = DDZColor.TextMuted)
+                                        },
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedTextColor = DDZColor.TextPrimary,
+                                            unfocusedTextColor = DDZColor.TextPrimary,
+                                            cursorColor = DDZColor.Primary,
+                                            focusedBorderColor = DDZColor.Primary,
+                                            unfocusedBorderColor = DDZColor.Border
+                                        ),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                    )
+
+                                    Button(
+                                        modifier = Modifier.width(56.dp).height(42.dp),
+                                        onClick = {
+                                            if (editingCellId != selectedCell.cellId) {
+                                                onStartInlineEditing(selectedCell.cellId, parsedCounter.toString())
+                                            }
+                                            onEditingValueChange((parsedCounter + 1).toString())
+                                        }
+                                    ) { Text("+") }
+                                }
+                            }
+
+                            TableCellDataType.DATE,
+                            TableCellDataType.TIME,
+                            TableCellDataType.ROTATING_TEXT -> {
+                                Text(
+                                    text = currentValue,
+                                    style = DDZTypography.Body,
+                                    color = DDZColor.TextPrimary
+                                )
+                            }
                         }
 
                         Spacer(Modifier.size(2.dp))
@@ -267,16 +331,19 @@ internal fun BottomEditorPanel(
                             showPathGroupSection = false,
                             compactForBottomPanel = true
                         )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(modifier = Modifier.weight(1f).height(42.dp), onClick = onRevertSelectedCell) {
-                                Text("되돌리기", style = DDZTypography.ButtonText)
-                            }
-                            Button(modifier = Modifier.weight(1f).height(42.dp), onClick = onSaveSelectedCell) {
-                                Text("저장", style = DDZTypography.ButtonText)
-                            }
+                    }
+                }
+
+                if (selectedCell != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(modifier = Modifier.weight(1f).height(42.dp), onClick = onRevertSelectedCell) {
+                            Text("되돌리기", style = DDZTypography.ButtonText)
+                        }
+                        Button(modifier = Modifier.weight(1f).height(42.dp), onClick = onSaveSelectedCell) {
+                            Text("저장", style = DDZTypography.ButtonText)
                         }
                     }
                 }
