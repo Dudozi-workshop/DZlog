@@ -27,12 +27,24 @@ data class TableTemplateState(
      */
     val colWeights: List<Float>? = null,
     val phraseSets: List<RotatingPhraseSet> = emptyList(),
+    // legacy 호환 필드: fileNameSlotDrafts(CELL 타입)에서 파생된 결과만 저장한다.
     val fileNameSlots: List<CellKey?> = List(FILE_NAME_SLOT_COUNT) { null },
     // 정책 보강: TableEditor draft(파일명/저장경로 슬롯 편집 내용) 저장 복원을 위한 payload.
     // - 기존 템플릿과의 하위 호환을 위해 optional로 유지한다.
     val fileNameSlotDrafts: List<TableEditorSlotDraft?> = List(FILE_NAME_SLOT_COUNT) { null },
     val pathSlotDrafts: List<TableEditorSlotDraft?> = List(PATH_SLOT_COUNT) { null },
 )
+
+private const val FILE_NAME_SLOT_KIND_CELL = "CELL"
+
+fun deriveLegacyFileNameSlotsFromDrafts(drafts: List<TableEditorSlotDraft?>): List<CellKey?> {
+    val normalizedDrafts = drafts.take(FILE_NAME_SLOT_COUNT) +
+        List((FILE_NAME_SLOT_COUNT - drafts.size).coerceAtLeast(0)) { null }
+    return normalizedDrafts.map { draft ->
+        val isCellSlot = draft?.kind.equals(FILE_NAME_SLOT_KIND_CELL, ignoreCase = true)
+        if (isCellSlot) draft?.cellId else null
+    }
+}
 
 const val FILE_NAME_SLOT_COUNT: Int = 3
 const val PATH_SLOT_COUNT: Int = 2

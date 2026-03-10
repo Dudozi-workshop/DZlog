@@ -2,11 +2,14 @@ package com.dudoziworkshop.dzlog.ui.table.template
 
 import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
+import com.dudoziworkshop.dzlog.domain.model.deriveLegacyFileNameSlotsFromDrafts
 
 fun updateCell(
     templateState: TableTemplateState,
@@ -48,8 +51,12 @@ fun addRow(templateState: TableTemplateState): TableTemplateState {
 fun removeRow(templateState: TableTemplateState): TableTemplateState {
     val lastRowIndex = templateState.rows - 1
     val remainingCells = templateState.cells.filterNot { it.rowIndex == lastRowIndex }
-    val sanitizedFileNameSlots = sanitizeFileNameSlots(
-        slots = templateState.fileNameSlots,
+    val sanitizedFileNameSlotDrafts = sanitizeFileNameSlotDrafts(
+        drafts = templateState.fileNameSlotDrafts,
+        remainingCells = remainingCells
+    )
+    val sanitizedPathSlotDrafts = sanitizePathSlotDrafts(
+        drafts = templateState.pathSlotDrafts,
         remainingCells = remainingCells
     )
 
@@ -60,7 +67,9 @@ fun removeRow(templateState: TableTemplateState): TableTemplateState {
         rows = templateState.rows - 1,
         cells = remainingCells,
         rowWeights = nextRowWeights,
-        fileNameSlots = sanitizedFileNameSlots
+        fileNameSlotDrafts = sanitizedFileNameSlotDrafts,
+        fileNameSlots = deriveLegacyFileNameSlotsFromDrafts(sanitizedFileNameSlotDrafts),
+        pathSlotDrafts = sanitizedPathSlotDrafts
     )
 }
 
@@ -92,8 +101,12 @@ fun addColumn(templateState: TableTemplateState): TableTemplateState {
 fun removeColumn(templateState: TableTemplateState): TableTemplateState {
     val lastColIndex = templateState.cols - 1
     val remainingCells = templateState.cells.filterNot { it.colIndex == lastColIndex }
-    val sanitizedFileNameSlots = sanitizeFileNameSlots(
-        slots = templateState.fileNameSlots,
+    val sanitizedFileNameSlotDrafts = sanitizeFileNameSlotDrafts(
+        drafts = templateState.fileNameSlotDrafts,
+        remainingCells = remainingCells
+    )
+    val sanitizedPathSlotDrafts = sanitizePathSlotDrafts(
+        drafts = templateState.pathSlotDrafts,
         remainingCells = remainingCells
     )
 
@@ -104,27 +117,10 @@ fun removeColumn(templateState: TableTemplateState): TableTemplateState {
         cols = templateState.cols - 1,
         cells = remainingCells,
         colWeights = nextColWeights,
-        fileNameSlots = sanitizedFileNameSlots
+        fileNameSlotDrafts = sanitizedFileNameSlotDrafts,
+        fileNameSlots = deriveLegacyFileNameSlotsFromDrafts(sanitizedFileNameSlotDrafts),
+        pathSlotDrafts = sanitizedPathSlotDrafts
     )
-}
-
-fun addToFileNameSlots(slots: List<CellKey?>, cellKey: CellKey): List<CellKey?> {
-    val normalized = slots.normalizeFileNameSlots()
-    if (normalized.contains(cellKey)) return normalized
-
-    val firstEmptyIndex = normalized.indexOfFirst { it == null }
-    if (firstEmptyIndex == -1) return normalized
-
-    return normalized.toMutableList().apply {
-        this[firstEmptyIndex] = cellKey
-    }
-}
-
-fun removeFromFileNameSlots(slots: List<CellKey?>, cellKey: CellKey): List<CellKey?> {
-    val removed = slots.normalizeFileNameSlots().map { key ->
-        if (key == cellKey) null else key
-    }
-    return compressFileNameSlots(removed)
 }
 
 fun reorderFileNameSlots(slots: List<CellKey?>, fromIndex: Int, toIndex: Int): List<CellKey?> {
@@ -148,13 +144,42 @@ private fun List<CellKey?>.normalizeFileNameSlots(): List<CellKey?> {
     return take(FILE_NAME_SLOT_COUNT) + List((FILE_NAME_SLOT_COUNT - size).coerceAtLeast(0)) { null }
 }
 
-private fun sanitizeFileNameSlots(
-    slots: List<CellKey?>,
+private fun sanitizeFileNameSlotDrafts(
+    drafts: List<TableEditorSlotDraft?>,
     remainingCells: List<TableCellState>
-): List<CellKey?> {
+): List<TableEditorSlotDraft?> {
+    return sanitizeAndCompressSlotDrafts(
+        drafts = drafts,
+        slotCount = FILE_NAME_SLOT_COUNT,
+        remainingCells = remainingCells
+    )
+}
+
+private fun sanitizePathSlotDrafts(
+    drafts: List<TableEditorSlotDraft?>,
+    remainingCells: List<TableCellState>
+): List<TableEditorSlotDraft?> {
+    return sanitizeAndCompressSlotDrafts(
+        drafts = drafts,
+        slotCount = PATH_SLOT_COUNT,
+        remainingCells = remainingCells
+    )
+}
+
+private fun sanitizeAndCompressSlotDrafts(
+    drafts: List<TableEditorSlotDraft?>,
+    slotCount: Int,
+    remainingCells: List<TableCellState>
+): List<TableEditorSlotDraft?> {
     val remainingCellIds = remainingCells.map { it.cellId }.toSet()
-    val keptOrNull = slots.normalizeFileNameSlots().map { slot ->
-        if (slot != null && slot !in remainingCellIds) null else slot
+    val filtered = drafts.take(slotCount).mapNotNull { draft ->
+        val isCellSlot = draft?.kind.equals("CELL", ignoreCase = true)
+        if (isCellSlot && draft?.cellId != null && draft.cellId !in remainingCellIds) {
+            null
+        } else {
+            draft
+        }
     }
-    return compressFileNameSlots(keptOrNull)
+    // 주요 정책: 삭제 후 슬롯은 앞쪽으로 압축해 중간 null hole을 제거한다.
+    return filtered + List((slotCount - filtered.size).coerceAtLeast(0)) { null }
 }

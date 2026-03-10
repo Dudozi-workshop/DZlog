@@ -9,6 +9,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.table.ResolvePlan
 import com.dudoziworkshop.dzlog.ui.table.PathGroupAction
+import com.dudoziworkshop.dzlog.ui.table.naming.NamingSlotDisplayItem
 import java.util.Date
 
 enum class BottomEditorPanelMode {
@@ -80,11 +81,13 @@ data class LayoutTabUiState(
     val currentlySelectedFileNameSlot: Int?,
     val currentlySelectedPathSlot: Int?,
     val fileNameSlotItems: List<FileNameSlotUiItem?>,
+    val fileNameSlotDisplayItems: List<NamingSlotDisplayItem>,
     val isFileNameCellPickMode: Boolean,
     val showFileNameFormatOptions: Boolean,
     val manualInputDraft: String,
     val showManualInputEditor: Boolean,
     val pathSlotItems: List<PathSlotUiItem?>,
+    val pathSlotDisplayItems: List<NamingSlotDisplayItem>,
     val isPathCellPickMode: Boolean,
     val showPathFormatOptions: Boolean,
     val showPathManualInputEditor: Boolean,

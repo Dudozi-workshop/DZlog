@@ -56,9 +56,9 @@ import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.deriveLegacyFileNameSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
-import com.dudoziworkshop.dzlog.ui.table.template.addToFileNameSlots
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import java.util.Date
@@ -93,7 +93,8 @@ internal fun CellSettingsBottomPanel(
     compactForBottomPanel: Boolean = false
 ) {
     val context = LocalContext.current
-    val isIncluded = templateState.fileNameSlots.contains(cell.cellId)
+    val derivedFileNameSlots = deriveLegacyFileNameSlotsFromDrafts(templateState.fileNameSlotDrafts)
+    val isIncluded = derivedFileNameSlots.contains(cell.cellId)
     var isSlotEditMode by remember { mutableStateOf(false) }
     var selectedFromIndex by remember { mutableStateOf<Int?>(null) }
     var isCounterScopeDialogOpen by remember { mutableStateOf(false) }
@@ -280,8 +281,8 @@ internal fun CellSettingsBottomPanel(
                         onClick = {
                             val enable = !isIncluded
                             if (enable) {
-                                val nextSlots = addToFileNameSlots(templateState.fileNameSlots, cell.cellId)
-                                if (nextSlots == templateState.fileNameSlots) {
+                                val currentSlotCount = derivedFileNameSlots.count { it != null }
+                                if (currentSlotCount >= FILE_NAME_SLOT_COUNT) {
                                     Toast.makeText(context, "파일명은 최대 3개까지 설정할 수 있습니다.", Toast.LENGTH_SHORT).show()
                                 } else {
                                     onToggleFileNameForCell(cell.cellId, true)
@@ -312,7 +313,7 @@ internal fun CellSettingsBottomPanel(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         repeat(FILE_NAME_SLOT_COUNT) { index ->
-                            val slotCellId = templateState.fileNameSlots.getOrNull(index)
+                            val slotCellId = derivedFileNameSlots.getOrNull(index)
                             val slotText = when {
                                 slotCellId == null -> "비어있음"
                                 else -> resolvedByCellId[slotCellId].orEmpty().ifBlank { "(값 없음)" }

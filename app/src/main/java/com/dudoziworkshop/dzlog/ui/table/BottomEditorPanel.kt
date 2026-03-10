@@ -43,6 +43,7 @@ import com.dudoziworkshop.dzlog.ui.table.section.FileNameFormatType
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
 import com.dudoziworkshop.dzlog.ui.table.section.PathFormatType
 import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
+import com.dudoziworkshop.dzlog.ui.table.naming.NamingSlotDisplayItem
 import java.util.Date
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -69,12 +70,14 @@ internal fun BottomEditorPanel(
     phraseSets: List<RotatingPhraseSet>,
     autoNextCounterValue: Int,
     fileNameSlotItems: List<FileNameSlotUiItem?>,
+    fileNameSlotDisplayItems: List<NamingSlotDisplayItem>,
     selectedFileNameSlot: Int?,
     isFileNameCellPickMode: Boolean,
     showFileNameFormatOptions: Boolean,
     manualInputDraft: String,
     showManualInputEditor: Boolean,
     pathSlotItems: List<PathSlotUiItem?>,
+    pathSlotDisplayItems: List<NamingSlotDisplayItem>,
     selectedPathSlot: Int?,
     isPathCellPickMode: Boolean,
     showPathFormatOptions: Boolean,
@@ -356,21 +359,41 @@ internal fun BottomEditorPanel(
                 val canMoveRight = selectedFileNameSlot?.let { selectedSlotIsFilled && normalizedSlots.getOrNull(it + 1) != null } == true
                 val canDelete = selectedSlotIsFilled
 
+                val fileNamePanelScrollState = rememberScrollState()
                 PanelHeader("파일명 구성 편집")
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .verticalScroll(fileNamePanelScrollState),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     normalizedSlots.forEachIndexed { index, slot ->
                         val isSelected = selectedFileNameSlot == index
+                        val slotDisplay = fileNameSlotDisplayItems.getOrNull(index)
+                        val structureLabel = slotDisplay?.structureLabel ?: "빈 슬롯"
+                        val resolvedValue = slotDisplay?.resolvedValue.orEmpty()
                         Box(
                             modifier = Modifier.weight(1f)
-                                .background(if (isSelected) DDZColor.PrimaryDark.copy(alpha = 0.14f) else DDZColor.Background, RoundedCornerShape(10.dp))
-                                .border(1.dp, if (isSelected) DDZColor.Primary else DDZColor.Card, RoundedCornerShape(10.dp))
+                                .background(if (isSelected) DDZColor.PrimaryDark.copy(alpha = 0.14f) else DDZColor.Background, RoundedCornerShape(12.dp))
+                                .border(1.dp, if (isSelected) DDZColor.Primary else DDZColor.Card, RoundedCornerShape(12.dp))
                                 .clickable {
                                     onSelectFileNameSlot(index)
                                     if (slot == null) onFillEmptyFileNameSlot(index)
                                 }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) { Text(slot?.label ?: "+", style = DDZTypography.Caption, color = if (slot == null) DDZColor.TextMuted else DDZColor.TextPrimary) }
+                                .padding(horizontal = 8.dp, vertical = 10.dp)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(structureLabel, style = DDZTypography.Caption, color = DDZColor.TextMuted, maxLines = 1)
+                                Text(
+                                    text = resolvedValue.ifBlank { "값 없음" },
+                                    style = DDZTypography.Body,
+                                    color = if (slot == null) DDZColor.TextMuted else DDZColor.TextPrimary,
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -396,23 +419,34 @@ internal fun BottomEditorPanel(
                         Button(modifier = Modifier.weight(1f), onClick = { onApplyFileNameFormatType(FileNameFormatType.TIME) }) { Text("시간", style = DDZTypography.ButtonText) }
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(modifier = Modifier.weight(1f), onClick = { onApplyFileNameFormatType(FileNameFormatType.COUNTER) }) { Text("카운터", style = DDZTypography.ButtonText) }
                         Button(modifier = Modifier.weight(1f), onClick = { onApplyFileNameFormatType(FileNameFormatType.ROTATING_TEXT) }) { Text("순환문구", style = DDZTypography.ButtonText) }
                     }
                 }
 
                 if (showManualInputEditor && hasSelectedSlot) {
                     Text("직접입력", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                    OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = manualInputDraft, onValueChange = onManualInputDraftChange, singleLine = true, placeholder = { Text("텍스트를 입력하세요") })
-                    Button(onClick = onApplyManualInput, enabled = manualInputDraft.trim().isNotBlank()) { Text("적용", style = DDZTypography.ButtonText) }
+                    OutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = manualInputDraft,
+                        onValueChange = onManualInputDraftChange,
+                        singleLine = true,
+                        textStyle = DDZTypography.Body.copy(color = DDZColor.TextPrimary),
+                        placeholder = { Text("텍스트를 입력하세요", color = DDZColor.TextMuted) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = DDZColor.TextPrimary,
+                            unfocusedTextColor = DDZColor.TextPrimary,
+                            cursorColor = DDZColor.Primary,
+                            focusedBorderColor = DDZColor.Primary,
+                            unfocusedBorderColor = DDZColor.Border
+                        )
+                    )
+                    Button(modifier = Modifier.fillMaxWidth(), onClick = onApplyManualInput, enabled = manualInputDraft.trim().isNotBlank()) { Text("적용", style = DDZTypography.ButtonText) }
                 }
 
                 if (isFileNameCellPickMode && hasSelectedSlot) {
                     Text("셀 선택 대기 중: 위 표에서 셀을 탭하면 현재 슬롯에 연결됩니다.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 }
-
-                // 정책 변경: 파일명 최종 프리뷰는 상단 CompactPathHeader를 단일 소스로 사용한다.
-                // 하단 패널은 편집 도구(슬롯/서식/직접입력)만 담당한다.
+                }
             }
 
             BottomEditorPanelMode.PATH_EDIT -> {
@@ -423,21 +457,41 @@ internal fun BottomEditorPanel(
                 val canDelete = selectedPathFilled
                 val hasSelectedSlot = selectedPathSlot != null
 
+                val pathPanelScrollState = rememberScrollState()
                 PanelHeader("저장경로 구성 편집")
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .verticalScroll(pathPanelScrollState),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     normalizedSlots.forEachIndexed { index, slot ->
                         val isSelected = selectedPathSlot == index
+                        val slotDisplay = pathSlotDisplayItems.getOrNull(index)
+                        val structureLabel = slotDisplay?.structureLabel ?: "빈 슬롯"
+                        val resolvedValue = slotDisplay?.resolvedValue.orEmpty()
                         Box(
                             modifier = Modifier.weight(1f)
-                                .background(if (isSelected) DDZColor.PrimaryDark.copy(alpha = 0.14f) else DDZColor.Background, RoundedCornerShape(10.dp))
-                                .border(1.dp, if (isSelected) DDZColor.Primary else DDZColor.Card, RoundedCornerShape(10.dp))
+                                .background(if (isSelected) DDZColor.PrimaryDark.copy(alpha = 0.14f) else DDZColor.Background, RoundedCornerShape(12.dp))
+                                .border(1.dp, if (isSelected) DDZColor.Primary else DDZColor.Card, RoundedCornerShape(12.dp))
                                 .clickable {
                                     onSelectPathSlot(index)
                                     if (slot == null) onFillEmptyPathSlot(index)
                                 }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) { Text(slot?.label ?: "+", style = DDZTypography.Caption, color = if (slot == null) DDZColor.TextMuted else DDZColor.TextPrimary) }
+                                .padding(horizontal = 8.dp, vertical = 10.dp)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(structureLabel, style = DDZTypography.Caption, color = DDZColor.TextMuted, maxLines = 1)
+                                Text(
+                                    text = resolvedValue.ifBlank { "값 없음" },
+                                    style = DDZTypography.Body,
+                                    color = if (slot == null) DDZColor.TextMuted else DDZColor.TextPrimary,
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -456,7 +510,6 @@ internal fun BottomEditorPanel(
                 }
 
                 if (showPathFormatOptions && hasSelectedSlot) {
-                    // 정책 변경: PATH 서식은 날짜/시간/순환문구만 허용하고 카운터는 제외한다.
                     Text("서식 선택", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(modifier = Modifier.weight(1f), onClick = { onApplyPathFormatType(PathFormatType.DATE) }) { Text("날짜", style = DDZTypography.ButtonText) }
@@ -467,19 +520,33 @@ internal fun BottomEditorPanel(
 
                 if (showPathManualInputEditor && hasSelectedSlot) {
                     Text("직접입력", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                    OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = pathManualInputDraft, onValueChange = onPathManualInputDraftChange, singleLine = true, placeholder = { Text("경로 텍스트를 입력하세요") })
-                    Button(onClick = onApplyPathManualInput, enabled = pathManualInputDraft.trim().isNotBlank()) { Text("적용", style = DDZTypography.ButtonText) }
+                    OutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = pathManualInputDraft,
+                        onValueChange = onPathManualInputDraftChange,
+                        singleLine = true,
+                        textStyle = DDZTypography.Body.copy(color = DDZColor.TextPrimary),
+                        placeholder = { Text("경로 텍스트를 입력하세요", color = DDZColor.TextMuted) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = DDZColor.TextPrimary,
+                            unfocusedTextColor = DDZColor.TextPrimary,
+                            cursorColor = DDZColor.Primary,
+                            focusedBorderColor = DDZColor.Primary,
+                            unfocusedBorderColor = DDZColor.Border
+                        )
+                    )
+                    Button(modifier = Modifier.fillMaxWidth(), onClick = onApplyPathManualInput, enabled = pathManualInputDraft.trim().isNotBlank()) { Text("적용", style = DDZTypography.ButtonText) }
                 }
 
                 if (isPathCellPickMode && hasSelectedSlot) {
                     Text("셀 선택 대기 중: 위 표에서 셀을 탭하면 현재 경로 슬롯에 연결됩니다.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 }
-
-                // 정책 변경: 저장경로 최종 프리뷰도 상단 CompactPathHeader를 단일 소스로 사용한다.
+                }
             }
         }
     }
 }
+
 
 private fun dataTypeLabelKo(dataType: TableCellDataType): String =
     when (dataType) {

@@ -16,6 +16,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.model.TimeSeparator
+import com.dudoziworkshop.dzlog.domain.model.deriveLegacyFileNameSlotsFromDrafts
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -159,7 +160,7 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                 }
             }
         }
-        val fileNameSlots = if (hasFileNameSlots) {
+        val legacyFileNameSlots = if (hasFileNameSlots) {
             loadedFileNameSlots
         } else {
             val migrated = legacyIncludeCandidates
@@ -169,8 +170,24 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                 .take(FILE_NAME_SLOT_COUNT)
             migrated + List(FILE_NAME_SLOT_COUNT - migrated.size) { null }
         }
-        val fileNameSlotDrafts = parseEditorSlotDrafts("fileNameSlotDrafts", FILE_NAME_SLOT_COUNT)
+        val parsedFileNameSlotDrafts = parseEditorSlotDrafts("fileNameSlotDrafts", FILE_NAME_SLOT_COUNT)
         val pathSlotDrafts = parseEditorSlotDrafts("pathSlotDrafts", PATH_SLOT_COUNT)
+        // 정책 변경: 파일명 슬롯 SSOT는 fileNameSlotDrafts로 유지하고,
+        // legacy fileNameSlots는 draft에서 CELL 타입만 추출한 derived 호환 필드로 계산한다.
+        val fileNameSlotDrafts = if (parsedFileNameSlotDrafts.any { it != null }) {
+            parsedFileNameSlotDrafts
+        } else {
+            legacyFileNameSlots.map { cellId ->
+                cellId?.let {
+                    TableEditorSlotDraft(
+                        kind = "CELL",
+                        label = "셀",
+                        cellId = it
+                    )
+                }
+            }
+        }
+        val fileNameSlots = deriveLegacyFileNameSlotsFromDrafts(fileNameSlotDrafts)
 
         TableTemplateState(
             rows = rows,
@@ -254,12 +271,22 @@ fun defaultTableTemplateState(): TableTemplateState {
         .sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
         .take(FILE_NAME_SLOT_COUNT)
         .map { it.cellId }
+    val fileNameSlotDrafts = fileNameSlots.map { cellId ->
+        cellId?.let {
+            TableEditorSlotDraft(
+                kind = "CELL",
+                label = "셀",
+                cellId = it
+            )
+        }
+    }
 
     return TableTemplateState(
         rows = rows,
         cols = cols,
         cells = cells,
-        fileNameSlots = fileNameSlots
+        fileNameSlots = deriveLegacyFileNameSlotsFromDrafts(fileNameSlotDrafts),
+        fileNameSlotDrafts = fileNameSlotDrafts
     )
 }
 
@@ -280,7 +307,8 @@ fun TableTemplateState.toJsonString(): String {
     }
 
     val fileNameSlotsJson = JSONArray()
-    fileNameSlots.take(FILE_NAME_SLOT_COUNT).forEach { slot ->
+    val derivedLegacyFileNameSlots = deriveLegacyFileNameSlotsFromDrafts(fileNameSlotDrafts)
+    derivedLegacyFileNameSlots.forEach { slot ->
         fileNameSlotsJson.put(slot ?: JSONObject.NULL)
     }
     root.put("fileNameSlots", fileNameSlotsJson)
