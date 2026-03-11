@@ -70,7 +70,6 @@ import com.dudoziworkshop.dzlog.feature.table.policy.dismissCounterConflictDialo
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.ui.table.counter.TableCounterUiState
 import com.dudoziworkshop.dzlog.ui.table.counter.applyCounterConflictDialogEffect
-import com.dudoziworkshop.dzlog.ui.table.counter.buildTableCounterStreamContext
 import com.dudoziworkshop.dzlog.ui.table.counter.buildTableScopedCounterStream
 import com.dudoziworkshop.dzlog.ui.table.counter.restoreCounterCellToAutoNext
 import com.dudoziworkshop.dzlog.ui.table.counter.syncCounterStateForScope
@@ -200,13 +199,6 @@ private fun buildFileNameDraftSlots(template: TableTemplateState): List<FileName
 private fun buildPathDraftSlots(template: TableTemplateState): List<PathSlotUiItem?> {
     return normalizePathDraftSlots(template.pathSlotDrafts.map(::toPathUiSlotDraft))
 }
-
-private fun deriveFileNameSlotsForCounterScope(template: TableTemplateState): List<String?> {
-    return com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts(template.fileNameSlotDrafts)
-}
-
-
-
 
 @Composable
 fun TableEditorScreen(
@@ -421,14 +413,9 @@ fun TableEditorScreen(
     var scopeInputTick by remember { mutableIntStateOf(0) }
     var scopeKeySnapshot by remember { mutableStateOf<String?>(null) }
     var lastFilenameScopeSignature by remember { mutableStateOf<String?>(null) }
+    var lastPathScopeSignature by remember { mutableStateOf<String?>(null) }
     val hasTemplateCells = currentTemplate.cells.isNotEmpty()
 
-    // 파일명 scope 사용 여부는 counterUi 기준으로 판정해,
-    // 실제 counter scope 계산 기준과 signature 기준이 어긋나지 않게 맞춘다.
-    // 주요 정책: counter scope도 slot-draft 해석 helper와 같은 경로에서 파생한 값만 사용한다.
-    val fileNameSlotsForCounterScope = remember(currentTemplate.fileNameSlotDrafts) {
-        deriveFileNameSlotsForCounterScope(currentTemplate)
-    }
     // 주요 정책:
     // 파일명 draft 구조가 변경되면 counter scope도 변경된 것으로 간주한다.
     // CELL 기반 파생값이 아니라 fileNameSlotDrafts 전체를 signature로 사용한다.
@@ -450,6 +437,27 @@ fun TableEditorScreen(
                         draft.formatType ?: ""
                     ).joinToString(":")
                 }
+            }
+        }
+    }
+
+
+    // 주요 정책:
+    // 저장경로 draft 구조가 변경되면 path scope 변경으로 간주해 즉시 재동기화한다.
+    val pathScopeSignature = remember(
+        currentTemplate.pathSlotDrafts,
+        counterUi.includePathInCounterScope
+    ) {
+        if (!counterUi.includePathInCounterScope) {
+            "path-scope-disabled"
+        } else {
+            currentTemplate.pathSlotDrafts.joinToString("|") { draft ->
+                if (draft == null) "_" else listOf(
+                    draft.kind,
+                    draft.cellId ?: "",
+                    draft.manualText ?: "",
+                    draft.formatType ?: ""
+                ).joinToString(":")
             }
         }
     }
@@ -501,9 +509,16 @@ fun TableEditorScreen(
         scopeInputTick += 1
     }
 
-    LaunchedEffect(filenameScopeSignature) {
-        if (filenameScopeSignature != lastFilenameScopeSignature) {
+    LaunchedEffect(filenameScopeSignature, pathScopeSignature) {
+        val filenameChanged = filenameScopeSignature != lastFilenameScopeSignature
+        val pathChanged = pathScopeSignature != lastPathScopeSignature
+        if (filenameChanged) {
             lastFilenameScopeSignature = filenameScopeSignature
+        }
+        if (pathChanged) {
+            lastPathScopeSignature = pathScopeSignature
+        }
+        if (filenameChanged || pathChanged) {
             scopeInputTick += 1
         }
     }
@@ -552,28 +567,9 @@ fun TableEditorScreen(
         }
     }
 
-    val scopeValues = previewPipeline.scopeValues
 
-    val counterStreamContext by remember(
-        plan.resolvedCells,
-        counterUi.scopeNextCounter,
-        isManualCounterModeDisplay,
-        scopeValues.dateScopeValues,
-        scopeValues.timeScopeValues,
-        scopeValues.phraseScopeValues,
-    ) {
-        derivedStateOf {
-            buildTableCounterStreamContext(
-                resolvedCells = plan.resolvedCells,
-                fileNameSlots = fileNameSlotsForCounterScope,
-                includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
-                dateScopeValues = scopeValues.dateScopeValues,
-                timeScopeValues = scopeValues.timeScopeValues,
-                phraseScopeValues = scopeValues.phraseScopeValues,
-                scopeNextCounter = counterUi.scopeNextCounter,
-                isManualCounterModeDisplay = isManualCounterModeDisplay,
-            )
-        }
+    val counterStreamContext by remember(previewPipeline.namingPreview.streamContext) {
+        derivedStateOf { previewPipeline.namingPreview.streamContext }
     }
 
     val scopedCounterStream by remember(

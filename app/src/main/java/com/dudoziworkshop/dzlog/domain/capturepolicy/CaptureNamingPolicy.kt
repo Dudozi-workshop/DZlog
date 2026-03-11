@@ -5,6 +5,7 @@ import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterStreamContext
 import com.dudoziworkshop.dzlog.domain.naming.buildDisplayNameFromSlotDrafts
 import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePathFromSlotDrafts
+import com.dudoziworkshop.dzlog.domain.naming.resolveFileNameScopeTokensFromDrafts
 import java.util.Date
 
 /**
@@ -61,6 +62,13 @@ internal object CaptureNamingPolicy {
         usedCounter: Int
     ): Result {
         val resolvedCells = captureContext.resolvedCells
+        val baseRelativePath = buildGalleryRelativePathFromSlotDrafts(
+            resolvedCells = resolvedCells,
+            pathSlotDrafts = captureContext.pathSlotDrafts,
+            now = captureContext.captureNow,
+            dateFormat = captureContext.dateFormat,
+            timeFormat = captureContext.timeFormat,
+        )
         val streamContext = buildCounterStreamContext(
             resolvedCells = resolvedCells,
             fileNameSlots = captureContext.fileNameCellSlots,
@@ -72,16 +80,16 @@ internal object CaptureNamingPolicy {
                 dateScopeValues = captureContext.dateScopeValues,
                 timeScopeValues = captureContext.timeScopeValues,
                 phraseScopeValues = captureContext.phraseScopeValues,
+                filenameDraftScopeValues = resolveFileNameScopeTokensFromDrafts(
+                    fileNameSlotDrafts = captureContext.fileNameSlotDrafts,
+                    resolvedCells = resolvedCells,
+                    now = captureContext.captureNow,
+                    dateFormat = captureContext.dateFormat,
+                    timeFormat = captureContext.timeFormat,
+                ),
             ),
+            relativePathOverride = baseRelativePath,
         )
-        val baseRelativePath = buildGalleryRelativePathFromSlotDrafts(
-            resolvedCells = resolvedCells,
-            pathSlotDrafts = captureContext.pathSlotDrafts,
-            now = captureContext.captureNow,
-            dateFormat = captureContext.dateFormat,
-            timeFormat = captureContext.timeFormat,
-        )
-
         val displayName = buildDisplayNameForCounter(
             resolvedCells = resolvedCells,
             fileNameSlotDrafts = captureContext.fileNameSlotDrafts,

@@ -5,6 +5,8 @@ import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
+import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import java.text.SimpleDateFormat
@@ -100,12 +102,16 @@ private fun resolveFileNameSlotToken(
     val value = when (draft?.kind?.uppercase(Locale.ROOT)) {
         "CELL" -> {
             val rc = draft.cellId?.let { resolvedById[it] }
-            if (rc?.type == TableCellDataType.COUNTER) "" else rc?.resolvedText.orEmpty()
+            when (rc?.type) {
+                TableCellDataType.COUNTER -> ""
+                TableCellDataType.TIME -> normalizeTimeWithoutSeconds(rc.resolvedText)
+                else -> rc?.resolvedText.orEmpty()
+            }
         }
         "MANUAL" -> draft.manualText.orEmpty()
         "FORMAT" -> when (draft.formatType?.uppercase(Locale.ROOT)) {
             "DATE" -> formatNow(dateFormat, now)
-            "TIME" -> formatNow(timeFormat, now)
+            "TIME" -> normalizeTimeWithoutSeconds(formatNow(timeFormat, now))
             "ROTATING_TEXT" -> resolveRotatingTextToken(resolvedCells)
             // 정책: COUNTER는 파일명 suffix 자동 정책만 사용. slot token으로 추가하지 않는다.
             "COUNTER" -> ""
@@ -125,11 +131,14 @@ private fun resolvePathSlotToken(
     timeFormat: String,
 ): String {
     val value = when (draft?.kind?.uppercase(Locale.ROOT)) {
-        "CELL" -> draft.cellId?.let { resolvedById[it]?.resolvedText }.orEmpty()
+        "CELL" -> {
+            val rc = draft.cellId?.let { resolvedById[it] }
+            if (rc?.type == TableCellDataType.TIME) normalizeTimeWithoutSeconds(rc.resolvedText) else rc?.resolvedText.orEmpty()
+        }
         "MANUAL" -> draft.manualText.orEmpty()
         "FORMAT" -> when (draft.formatType?.uppercase(Locale.ROOT)) {
             "DATE" -> formatNow(dateFormat, now)
-            "TIME" -> formatNow(timeFormat, now)
+            "TIME" -> normalizeTimeWithoutSeconds(formatNow(timeFormat, now))
             "ROTATING_TEXT" -> resolveRotatingTextToken(resolvedCells)
             else -> ""
         }
@@ -138,6 +147,50 @@ private fun resolvePathSlotToken(
     return sanitizeGroupPathSegment(value)
 }
 
+
+
+private fun normalizeTimeWithoutSeconds(text: String): String {
+    val t = text.trim()
+    if (t.isBlank()) return ""
+    val m = Regex("""^(\d{1,2}):(\d{2})""").find(t) ?: return t
+    return "${m.groupValues[1]}:${m.groupValues[2]}"
+}
+
+fun resolveFileNameScopeTokensFromDrafts(
+    fileNameSlotDrafts: List<TableEditorSlotDraft?>,
+    resolvedCells: List<ResolvedCell>,
+    now: Date,
+    dateFormat: String,
+    timeFormat: String,
+): List<String> {
+    val resolvedById = resolvedCells.associateBy { it.id }
+    val normalized = normalizeSlotDrafts(fileNameSlotDrafts, FILE_NAME_SLOT_COUNT)
+    return normalized.mapNotNull { draft ->
+        when (draft?.kind?.uppercase(Locale.ROOT)) {
+            "CELL" -> {
+                val rc = draft.cellId?.let { resolvedById[it] } ?: return@mapNotNull null
+                when (rc.type) {
+                    TableCellDataType.COUNTER -> null
+                    TableCellDataType.DATE -> rc.raw?.counterScopeMode?.takeIf { it == CounterScopeMode.INCLUDE }?.let { sanitizeFilePart(rc.resolvedText) }
+                    TableCellDataType.TIME -> rc.raw?.counterScopeMode?.takeIf { it == CounterScopeMode.INCLUDE }?.let { sanitizeFilePart(normalizeTimeWithoutSeconds(rc.resolvedText)) }
+                    TableCellDataType.ROTATING_TEXT -> if (rc.raw?.rotatingCounterMode == RotatingCounterMode.PER_PHRASE) sanitizeFilePart(rc.resolvedText) else null
+                    else -> sanitizeFilePart(rc.resolvedText)
+                }
+            }
+            "MANUAL" -> sanitizeFilePart(draft.manualText.orEmpty())
+            "FORMAT" -> when (draft.formatType?.uppercase(Locale.ROOT)) {
+                "DATE" -> sanitizeFilePart(formatNow(dateFormat, now))
+                "TIME" -> sanitizeFilePart(normalizeTimeWithoutSeconds(formatNow(timeFormat, now)))
+                "ROTATING_TEXT" -> {
+                    val rotating = resolvedCells.firstOrNull { it.type == TableCellDataType.ROTATING_TEXT }
+                    if (rotating?.raw?.rotatingCounterMode == RotatingCounterMode.PER_PHRASE) sanitizeFilePart(rotating.resolvedText) else null
+                }
+                else -> null
+            }
+            else -> null
+        }?.takeIf { it.isNotBlank() }
+    }
+}
 
 fun resolveFileNameDraftToken(
     draft: TableEditorSlotDraft?,

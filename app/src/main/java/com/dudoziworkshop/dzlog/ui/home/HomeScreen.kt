@@ -51,8 +51,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
-import com.dudoziworkshop.dzlog.domain.counter.buildCounterStreamContext
-import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
 import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.debug.CounterDebugDump
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
@@ -60,7 +58,6 @@ import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.PreviewPipelineInput
@@ -141,7 +138,8 @@ fun HomeScreen(
 
     LaunchedEffect(
         tableTemplateState.cells,
-        deriveFileNameCellSlotsFromDrafts(tableTemplateState.fileNameSlotDrafts),
+        tableTemplateState.fileNameSlotDrafts,
+        tableTemplateState.pathSlotDrafts,
         tableTemplateState.phraseSets,
         settings.saveMode,
         settings.counterPadding,
@@ -165,19 +163,8 @@ fun HomeScreen(
                 phraseProgressCursor = phraseProgressCursor,
             )
         )
-        val streamContext = buildCounterStreamContext(
-            resolvedCells = previewPipeline.plan.resolvedCells,
-            fileNameSlots = deriveFileNameCellSlotsFromDrafts(tableTemplateState.fileNameSlotDrafts),
-            nextCounter = 1,
-            isManualMode = false,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-            includeFilenameInScope = settings.includeFilenameInCounterScope,
-            scopeOptions = CounterScopeOptions(
-                dateScopeValues = previewPipeline.scopeValues.dateScopeValues,
-                timeScopeValues = previewPipeline.scopeValues.timeScopeValues,
-                phraseScopeValues = previewPipeline.scopeValues.phraseScopeValues,
-            ),
-        )
+        // 주요 정책: 홈 preview의 counter stream도 공용 preview pipeline 결과를 그대로 사용한다.
+        val streamContext = previewPipeline.namingPreview.streamContext
         val scopedStream = toCaptureScopedCounterStream(
             streamContext = streamContext,
             includePathInScope = settings.includePathInCounterScope,

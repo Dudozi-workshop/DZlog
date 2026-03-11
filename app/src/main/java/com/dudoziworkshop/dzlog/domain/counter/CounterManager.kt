@@ -135,11 +135,17 @@ object CounterManager {
             .mapNotNull { sanitizeFilePart(it).takeIf { part -> part.isNotBlank() } }
             .toList()
 
+        val filenameDraftParts = scopeOptions.filenameDraftScopeValues
+            .asSequence()
+            .mapNotNull { sanitizeFilePart(it).takeIf { part -> part.isNotBlank() } }
+            .map { "fd_$it" }
+            .toList()
+
         // 핵심 정책:
         // - filename scope ON  -> slot + phrase/date/time
-        // - filename scope OFF -> phrase/date/time만으로도 반드시 스트림 분리
-        //   (즉, rp_왜 / rp_헐 이 서로 다른 prefix가 되어야 함)
+        // - filename scope OFF -> 파일명 기반 스코프 토큰은 전부 무시
         val scopedParts = buildList {
+            addAll(filenameDraftParts)
             addAll(phraseParts)
             addAll(dateParts)
             addAll(timeParts)
@@ -150,10 +156,7 @@ object CounterManager {
                 addAll(slotParts)
                 addAll(scopedParts)
             } else {
-                // filename scope OFF에서는 slotParts를 배제하되,
-                // phrase/date/time scope 값은 그대로 유지해 prefix 분리를 보장한다.
-                if (scopedParts.isEmpty()) add("name=off")
-                addAll(scopedParts)
+                add("name=off")
             }
         }
 

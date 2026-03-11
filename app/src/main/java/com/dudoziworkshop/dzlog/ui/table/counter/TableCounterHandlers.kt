@@ -10,49 +10,20 @@ package com.dudoziworkshop.dzlog.ui.table.counter
 
 import android.content.Context
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
-import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
 import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
-import com.dudoziworkshop.dzlog.domain.counter.buildCounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.buildCounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
-import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
-import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogEffect
 import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterPolicyCoordinator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-internal fun buildTableCounterStreamContext(
-    resolvedCells: List<ResolvedCell>,
-    fileNameSlots: List<CellKey?>,
-    includeFilenameInCounterScope: Boolean,
-    dateScopeValues: List<String>,
-    timeScopeValues: List<String>,
-    phraseScopeValues: List<String>,
-    scopeNextCounter: Int,
-    isManualCounterModeDisplay: Boolean
-): CounterStreamContext =
-    buildCounterStreamContext(
-        resolvedCells = resolvedCells,
-        fileNameSlots = fileNameSlots,
-        nextCounter = scopeNextCounter,
-        isManualMode = isManualCounterModeDisplay,
-        fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-        includeFilenameInScope = includeFilenameInCounterScope,
-        scopeOptions = CounterScopeOptions(
-            dateScopeValues = dateScopeValues,
-            timeScopeValues = timeScopeValues,
-            phraseScopeValues = phraseScopeValues,
-        ),
-    )
 
 internal fun buildTableScopedCounterStream(
     counterStreamContext: CounterStreamContext,

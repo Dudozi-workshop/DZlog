@@ -24,10 +24,11 @@ fun buildCounterStreamContext(
     fnDelim: String = "_",
     includeFilenameInScope: Boolean = true,
     scopeOptions: CounterScopeOptions = CounterScopeOptions(),
+    relativePathOverride: String? = null,
 ): CounterStreamContext {
     val g1 = resolveGroupValue(resolvedCells, GroupLevel.G1)
     val g2 = resolveGroupValue(resolvedCells, GroupLevel.G2)
-    val baseRelativePath = buildGalleryRelativePath(g1, g2)
+    val baseRelativePath = relativePathOverride ?: buildGalleryRelativePath(g1, g2)
     val hasG2Group = resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
 
     val relativePathKey = CounterManager.computeCounterStreamRelativePathKey(
