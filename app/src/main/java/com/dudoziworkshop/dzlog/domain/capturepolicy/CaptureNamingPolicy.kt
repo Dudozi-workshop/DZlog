@@ -1,10 +1,10 @@
 package com.dudoziworkshop.dzlog.domain.capturepolicy
 
-import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
+import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
-import com.dudoziworkshop.dzlog.domain.counter.buildCounterStreamContext
-import com.dudoziworkshop.dzlog.domain.naming.buildDisplayNameFromSlotDrafts
-import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePathFromSlotDrafts
+import com.dudoziworkshop.dzlog.domain.counter.buildCounterScope
+import com.dudoziworkshop.dzlog.domain.naming.buildFileName
+import com.dudoziworkshop.dzlog.domain.naming.buildSavePath
 import com.dudoziworkshop.dzlog.domain.naming.resolveFileNameScopeTokensFromDrafts
 import java.util.Date
 
@@ -18,18 +18,21 @@ import java.util.Date
 internal object CaptureNamingPolicy {
 
     internal data class Result(
-        val streamContext: CounterStreamContext,
+        val counterScope: CounterScope,
         val relativePath: String,
         val displayName: String,
         val usedCounter: Int
-    )
+    ) {
+        // legacy 호환: 단계적 호출부 이전을 위해 유지(핵심 이름은 counterScope)
+        val streamContext: CounterScope get() = counterScope
+    }
 
     /**
      * displayName 생성 정책(순수 함수)
      *
      * - 프리뷰/촬영/표 프리뷰 등 "파일명 문자열"이 필요한 호출부가
      *   NamePathBuilders를 직접 호출하지 않고 정책 파일만 참조하도록 만든다.
-     * - draft 기반 공용 builder(buildDisplayNameFromSlotDrafts)를 호출해 모든 화면과 동일 규칙을 사용한다.
+     * - draft 기반 공용 builder(buildFileName)를 호출해 모든 화면과 동일 규칙을 사용한다.
      */
     internal fun buildDisplayNameForCounter(
         resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>,
@@ -41,7 +44,7 @@ internal object CaptureNamingPolicy {
         dateFormat: String,
         timeFormat: String,
     ): String {
-        return buildDisplayNameFromSlotDrafts(
+        return buildFileName(
             resolvedCells = resolvedCells,
             fileNameSlotDrafts = fileNameSlotDrafts,
             fnDelim = fnDelim,
@@ -62,14 +65,14 @@ internal object CaptureNamingPolicy {
         usedCounter: Int
     ): Result {
         val resolvedCells = captureContext.resolvedCells
-        val baseRelativePath = buildGalleryRelativePathFromSlotDrafts(
+        val baseRelativePath = buildSavePath(
             resolvedCells = resolvedCells,
             pathSlotDrafts = captureContext.pathSlotDrafts,
             now = captureContext.captureNow,
             dateFormat = captureContext.dateFormat,
             timeFormat = captureContext.timeFormat,
         )
-        val streamContext = buildCounterStreamContext(
+        val counterScope = buildCounterScope(
             resolvedCells = resolvedCells,
             fileNameSlots = captureContext.fileNameCellSlots,
             nextCounter = usedCounter,
@@ -102,7 +105,7 @@ internal object CaptureNamingPolicy {
         )
 
         return Result(
-            streamContext = streamContext,
+            counterScope = counterScope,
             relativePath = baseRelativePath,
             displayName = displayName,
             usedCounter = usedCounter

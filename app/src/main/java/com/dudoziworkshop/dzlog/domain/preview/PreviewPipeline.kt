@@ -13,7 +13,7 @@ import com.dudoziworkshop.dzlog.domain.table.ResolvePlan
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import java.util.Date
 
-internal data class PreviewPipelineInput(
+internal data class PreviewInput(
     val templateState: TableTemplateState,
     val captureNow: Date,
     val counterDigits: Int,
@@ -28,15 +28,21 @@ internal data class PreviewPipelineInput(
     val selectedPhraseTextByCellIdOverride: Map<String, String>? = null,
 )
 
-internal data class PreviewPipelineResult(
+internal data class PreviewState(
     val selectedPhraseTextByCellId: Map<String, String>,
     val plan: ResolvePlan,
     val scopeValues: CounterScopeResolver.Result,
-    val namingPreview: CaptureNamingPolicy.Result,
-)
+    val previewNaming: CaptureNamingPolicy.Result,
+) {
+    // 이전 이름 호환: 점진 이전 단계 동안 기존 호출부를 유지한다.
+    val namingPreview: CaptureNamingPolicy.Result get() = previewNaming
+}
 
 /**
- * 화면별 Preview 계산 경로를 단일화하기 위한 공용 pipeline helper.
+ * 화면별 Preview 계산 경로를 단일화하기 위한 공용 state builder.
+ *
+ * 핵심 진입점: buildPreviewState(PreviewInput)
+ * (아래 buildPreviewPipeline은 legacy 호환 래퍼다.)
  *
  * 순서(고정):
  * 1) selectedPhraseTextByCellId
@@ -44,10 +50,10 @@ internal data class PreviewPipelineResult(
  * 3) CounterScopeResolver.resolve
  * 4) CaptureNamingPolicy.buildForCaptureWithCounter
  */
-internal fun buildPreviewPipeline(
-    input: PreviewPipelineInput,
+internal fun buildPreviewState(
+    input: PreviewInput,
     tableResolver: TableResolver = TableResolver(),
-): PreviewPipelineResult {
+): PreviewState {
     val effectiveCells = input.overrideCells ?: input.templateState.cells
     val selectedPhraseTextByCellId = input.selectedPhraseTextByCellIdOverride ?: PhraseResolver.resolveSelectedTextByCellId(
         cells = effectiveCells,
@@ -83,7 +89,7 @@ internal fun buildPreviewPipeline(
         )
     )
 
-    val namingPreview = CaptureNamingPolicy.buildForCaptureWithCounter(
+    val previewNaming = CaptureNamingPolicy.buildForCaptureWithCounter(
         captureContext = CaptureContext(
             resolvedCells = plan.resolvedCells,
             captureNow = input.captureNow,
@@ -102,10 +108,20 @@ internal fun buildPreviewPipeline(
         usedCounter = input.scopeNextCounter,
     )
 
-    return PreviewPipelineResult(
+    return PreviewState(
         selectedPhraseTextByCellId = selectedPhraseTextByCellId,
         plan = plan,
         scopeValues = scopeValues,
-        namingPreview = namingPreview,
+        previewNaming = previewNaming,
     )
 }
+
+// legacy 호환 별칭: 외부 호출부 점진 이전용
+internal typealias PreviewPipelineInput = PreviewInput
+internal typealias PreviewPipelineResult = PreviewState
+
+// legacy 호환 래퍼: 신규 코드는 buildPreviewState 사용
+internal fun buildPreviewPipeline(
+    input: PreviewPipelineInput,
+    tableResolver: TableResolver = TableResolver(),
+): PreviewPipelineResult = buildPreviewState(input, tableResolver)

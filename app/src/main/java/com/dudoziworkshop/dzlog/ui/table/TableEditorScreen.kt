@@ -60,9 +60,10 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
+import com.dudoziworkshop.dzlog.domain.naming.resolveFileNameScopeTokensFromDrafts
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
-import com.dudoziworkshop.dzlog.domain.preview.PreviewPipelineInput
-import com.dudoziworkshop.dzlog.domain.preview.buildPreviewPipeline
+import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
+import com.dudoziworkshop.dzlog.domain.preview.buildPreviewState
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.table.policy.confirmCounterConflictDialog
@@ -70,6 +71,7 @@ import com.dudoziworkshop.dzlog.feature.table.policy.dismissCounterConflictDialo
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.ui.table.counter.TableCounterUiState
 import com.dudoziworkshop.dzlog.ui.table.counter.applyCounterConflictDialogEffect
+import com.dudoziworkshop.dzlog.ui.table.counter.buildFilenameScopeSignature
 import com.dudoziworkshop.dzlog.ui.table.counter.buildTableScopedCounterStream
 import com.dudoziworkshop.dzlog.ui.table.counter.restoreCounterCellToAutoNext
 import com.dudoziworkshop.dzlog.ui.table.counter.syncCounterStateForScope
@@ -412,31 +414,6 @@ fun TableEditorScreen(
     var lastPathScopeSignature by remember { mutableStateOf<String?>(null) }
     val hasTemplateCells = currentTemplate.cells.isNotEmpty()
 
-    // 주요 정책:
-    // 파일명 draft 구조가 변경되면 counter scope도 변경된 것으로 간주한다.
-    // CELL 기반 파생값이 아니라 fileNameSlotDrafts 전체를 signature로 사용한다.
-    val filenameScopeSignature = remember(
-        currentTemplate.fileNameSlotDrafts,
-        counterUi.includeFilenameInCounterScope
-    ) {
-        if (!counterUi.includeFilenameInCounterScope) {
-            "filename-scope-disabled"
-        } else {
-            currentTemplate.fileNameSlotDrafts.joinToString("|") { draft ->
-                if (draft == null) {
-                    "_"
-                } else {
-                    listOf(
-                        draft.kind,
-                        draft.cellId ?: "",
-                        draft.manualText ?: "",
-                        draft.formatType ?: ""
-                    ).joinToString(":")
-                }
-            }
-        }
-    }
-
     var previewNow by remember { mutableStateOf(Date()) }
     // 정책 변경: 프리뷰에서도 문구 순환 커서를 파일 카운터와 분리한다.
     var phraseProgressCounter by remember { mutableIntStateOf(1) }
@@ -498,8 +475,8 @@ fun TableEditorScreen(
         counterUi.includePathInCounterScope,
         counterUi.includeFilenameInCounterScope,
     ) {
-        buildPreviewPipeline(
-            input = PreviewPipelineInput(
+        buildPreviewState(
+            input = PreviewInput(
                 templateState = currentTemplate,
                 captureNow = previewNow,
                 counterDigits = previewCounterDigits,
@@ -516,16 +493,48 @@ fun TableEditorScreen(
     }
     val plan = previewPipeline.plan
 
+    // 주요 정책(파일명 축): 카운터 분리 기준은 fileNameSlotDrafts의 "최종 해석 token 목록"이다.
+    // draft 원문 비교가 아니라, 실제 scope에 반영되는 결과값(순서 포함)으로 signature를 만든다.
+    val filenameScopeTokens = remember(
+        plan.resolvedCells,
+        currentTemplate.fileNameSlotDrafts,
+        previewNow,
+        dateFormat,
+        timeFormat,
+        counterUi.includeFilenameInCounterScope,
+    ) {
+        if (!counterUi.includeFilenameInCounterScope) {
+            emptyList()
+        } else {
+            resolveFileNameScopeTokensFromDrafts(
+                fileNameSlotDrafts = currentTemplate.fileNameSlotDrafts,
+                resolvedCells = plan.resolvedCells,
+                now = previewNow,
+                dateFormat = dateFormat,
+                timeFormat = timeFormat,
+            )
+        }
+    }
+    val filenameScopeSignature = remember(
+        counterUi.includeFilenameInCounterScope,
+        filenameScopeTokens,
+    ) {
+        buildFilenameScopeSignature(
+            includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
+            filenameScopeTokens = filenameScopeTokens,
+        )
+    }
+
     // 주요 정책(path 축): 카운터 재동기화 기준은 draft 원문이 아니라 "최종 해석된 relativePath"다.
     // includePathInCounterScope=false 이면 path 변경이 스트림에 영향을 주지 않는다.
     val pathScopeSignature = remember(
-        previewPipeline.namingPreview.relativePath,
+        previewPipeline.previewNaming.relativePath,
         counterUi.includePathInCounterScope
     ) {
         if (!counterUi.includePathInCounterScope) {
             "path-scope-disabled"
         } else {
-            previewPipeline.namingPreview.relativePath
+            previewPipeline.previewNaming.relativePath
         }
     }
 
@@ -556,18 +565,18 @@ fun TableEditorScreen(
     }
 
 
-    val counterStreamContext by remember(previewPipeline.namingPreview.streamContext) {
-        derivedStateOf { previewPipeline.namingPreview.streamContext }
+    val counterScope by remember(previewPipeline.previewNaming.counterScope) {
+        derivedStateOf { previewPipeline.previewNaming.counterScope }
     }
 
     val scopedCounterStream by remember(
-        counterStreamContext,
+        counterScope,
         counterUi.includePathInCounterScope,
         counterUi.includeFilenameInCounterScope
     ) {
         derivedStateOf {
             buildTableScopedCounterStream(
-                counterStreamContext = counterStreamContext,
+                counterScope = counterScope,
                 includePathInCounterScope = counterUi.includePathInCounterScope,
                 includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
             )
@@ -607,7 +616,7 @@ fun TableEditorScreen(
             context = context,
             templateState = currentTemplate,
             counterUi = counterUi,
-            counterStreamContext = counterStreamContext,
+            counterScope = counterScope,
             scopedCounterStream = scopedCounterStream,
             previewCounterDigits = previewCounterDigits,
             saveMode = tableSaveMode,
@@ -728,8 +737,8 @@ fun TableEditorScreen(
     }
 
     // 주요 정책: 표 상세설정 상단 프리뷰는 실제 촬영/저장과 동일한 previewPipeline 결과를 그대로 사용한다.
-    val filenamePreview = previewPipeline.namingPreview.displayName
-    val savePathPreview = previewPipeline.namingPreview.relativePath
+    val filenamePreview = previewPipeline.previewNaming.displayName
+    val savePathPreview = previewPipeline.previewNaming.relativePath
 
     fun handleCounterConflictDialogEffect(effect: com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogEffect) {
         applyCounterConflictDialogEffect(

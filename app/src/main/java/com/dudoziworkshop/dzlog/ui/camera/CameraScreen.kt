@@ -106,11 +106,11 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MANUAL
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_ALIGN
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.captureplan.CapturePlan
-import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
-import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
+import com.dudoziworkshop.dzlog.domain.counter.CounterScope
+import com.dudoziworkshop.dzlog.domain.counter.CounterStore
 import com.dudoziworkshop.dzlog.domain.counter.policy.buildCounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.isNewCounterScope
-import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
+import com.dudoziworkshop.dzlog.domain.counter.toScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
@@ -126,13 +126,14 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
-import com.dudoziworkshop.dzlog.domain.preview.PreviewPipelineInput
-import com.dudoziworkshop.dzlog.domain.preview.PreviewPipelineResult
-import com.dudoziworkshop.dzlog.domain.preview.buildPreviewPipeline
+import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
+import com.dudoziworkshop.dzlog.domain.preview.PreviewState
+import com.dudoziworkshop.dzlog.domain.preview.buildPreviewState
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
+import com.dudoziworkshop.dzlog.feature.capture.policy.resolveSyncedScopeNext
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
@@ -279,8 +280,8 @@ fun CameraPreview(
         appSettings.includePathInCounterScope,
         appSettings.includeFilenameInCounterScope,
     ) {
-        buildPreviewPipeline(
-            input = PreviewPipelineInput(
+        buildPreviewState(
+            input = PreviewInput(
                 templateState = tableTemplateState,
                 captureNow = ui.capture.now,
                 counterDigits = ui.prefs.counterDigits,
@@ -313,11 +314,11 @@ fun CameraPreview(
         phraseProgressCounter,
     ) {
         buildActiveCapturePlan(
-            previewPipeline = previewPipeline,
+            previewState = previewPipeline,
             phraseProgressCounter = phraseProgressCounter,
         )
     }
-    val counterStreamContext = activePlan.streamContext
+    val counterScope = activePlan.streamContext
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
     var resumeResyncTick by remember { mutableIntStateOf(0) }
     var undoResyncTick by remember { mutableIntStateOf(0) }
@@ -326,8 +327,8 @@ fun CameraPreview(
     suspend fun reloadLatestImage() {
         latestImage = withContext(Dispatchers.IO) {
             val reader = DzlogMediaStoreReader(context.contentResolver)
-            val baseRelativePath = counterStreamContext.relativePathKey
-                .substringBefore("|g2=", counterStreamContext.relativePathKey)
+            val baseRelativePath = counterScope.relativePathKey
+                .substringBefore("|g2=", counterScope.relativePathKey)
                 .let { if (it.endsWith('/')) it else "$it/" }
             val targetRelativePath = if (appSettings.saveMode == SaveMode.ORIGINAL_ONLY) {
                 "${baseRelativePath}original/"
@@ -353,7 +354,7 @@ fun CameraPreview(
 
     LaunchedEffect(Unit) { reloadLatestImage() }
     LaunchedEffect(mediaStoreRefreshTick) { reloadLatestImage() }
-    LaunchedEffect(appSettings.saveMode, counterStreamContext.relativePathKey) { reloadLatestImage() }
+    LaunchedEffect(appSettings.saveMode, counterScope.relativePathKey) { reloadLatestImage() }
 
     var pendingUndoDeleteUris by remember { mutableStateOf<List<Uri>?>(null) }
 
@@ -418,7 +419,7 @@ fun CameraPreview(
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
     SyncCounterSeedEffect(
         context = context,
-        streamContext = counterStreamContext,
+        counterScope = counterScope,
         counterDigits = ui.prefs.counterDigits,
         resumeTick = resumeResyncTick,
         undoTick = undoResyncTick,
@@ -1116,25 +1117,25 @@ private fun rememberMediaStoreRefreshTick(context: Context): Int {
 }
 
 private fun buildActiveCapturePlan(
-    previewPipeline: PreviewPipelineResult,
+    previewState: PreviewState,
     phraseProgressCounter: Int,
 ): CapturePlan {
     return CapturePlan(
-        resolvedCells = previewPipeline.plan.resolvedCells,
-        tablePatch = previewPipeline.plan.patch,
-        displayName = previewPipeline.namingPreview.displayName,
-        usedCounter = previewPipeline.namingPreview.usedCounter,
+        resolvedCells = previewState.plan.resolvedCells,
+        tablePatch = previewState.plan.patch,
+        displayName = previewState.previewNaming.displayName,
+        usedCounter = previewState.previewNaming.usedCounter,
         // 정책 정리(2차): 저장 성공 시 phrase cursor는 plan이 제공한 다음 값으로만 이동한다.
         nextPhraseProgressCursor = phraseProgressCounter.coerceAtLeast(1) + 1,
-        streamContext = previewPipeline.namingPreview.streamContext,
-        relativePathPreview = previewPipeline.namingPreview.relativePath,
+        streamContext = previewState.previewNaming.counterScope,
+        relativePathPreview = previewState.previewNaming.relativePath,
     )
 }
 
 @Composable
 private fun SyncCounterSeedEffect(
     context: Context,
-    streamContext: CounterStreamContext,
+    counterScope: CounterScope,
     counterDigits: Int,
     resumeTick: Int,
     undoTick: Int,
@@ -1145,15 +1146,15 @@ private fun SyncCounterSeedEffect(
     var lastResumeTick by remember { mutableIntStateOf(-1) }
     var lastUndoTick by remember { mutableIntStateOf(-1) }
     var lastSaveMode by remember { mutableStateOf<SaveMode?>(null) }
-    val scopedStream = remember(
-        streamContext.relativePathKey,
-        streamContext.streamPrefix,
+    val scopedCounter = remember(
+        counterScope.relativePathKey,
+        counterScope.streamPrefix,
         appSettings.includePathInCounterScope,
         appSettings.includeFilenameInCounterScope,
         isTemplateReady,
     ) {
-        toCaptureScopedCounterStream(
-            streamContext = streamContext,
+        toScopedCounter(
+            counterScope = counterScope,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
         )
@@ -1162,9 +1163,9 @@ private fun SyncCounterSeedEffect(
     var scopeKeySnapshot by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(resumeTick) {
-        scopeKeySnapshot = scopedStream.scopeParts.scopeKey
+        scopeKeySnapshot = scopedCounter.scopeParts.scopeKey
     }
-    val activeScopeKey = scopeKeySnapshot ?: scopedStream.scopeParts.scopeKey
+    val activeScopeKey = scopeKeySnapshot ?: scopedCounter.scopeParts.scopeKey
 
     LaunchedEffect(
         activeScopeKey,
@@ -1183,7 +1184,7 @@ private fun SyncCounterSeedEffect(
         }
 
         val scopeSnapshot = buildCounterScopeSnapshot(
-            streamContext = streamContext,
+            streamContext = counterScope,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
         )
@@ -1194,15 +1195,16 @@ private fun SyncCounterSeedEffect(
         }
 
         val saveModeChanged = (lastSaveMode != null && lastSaveMode != appSettings.saveMode)
+        val isUndoResync = (undoTick != lastUndoTick)
         // 정책 변경: 촬영 직후 readback은 줄이고, resume/undo/saveMode 변경 시 외부 resync로 취급한다.
         val isExternalResync =
             (resumeTick != lastResumeTick) ||
-                (undoTick != lastUndoTick) ||
+                isUndoResync ||
                 saveModeChanged
 
-        suspend fun readNextSeed(): Int = CaptureCounterPolicy.getNextCounter(
+        suspend fun readNextSeed(): Int = CounterStore.next(
             context = context,
-            scopedStream = scopedStream,
+            scopedStream = scopedCounter,
             counterDigits = counterDigits,
             fnDelim = fnDelim,
             saveMode = appSettings.saveMode,
@@ -1223,19 +1225,22 @@ private fun SyncCounterSeedEffect(
         )
         val currentScopeSeed = ui.counter.scopeNextCounter
         val allowResetToOneOnNewStream =
-            streamContext.streamPrefix.contains("d_") ||
-                streamContext.streamPrefix.contains("t_") ||
-                streamContext.streamPrefix.contains("rp_")
+            counterScope.streamPrefix.contains("d_") ||
+                counterScope.streamPrefix.contains("t_") ||
+                counterScope.streamPrefix.contains("rp_")
+        val syncAllowsDownward = isUndoResync
         ui.counter.scopeNextCounter = when {
-            // 규칙 A: 외부 리싱크(undo/resume)는 seed 하향 반영이 가능해야 한다.
-            isExternalResync -> nextSeedFromStream
-
-            // 규칙 B: 새 스트림 판정 시, 임시 상태에서 next=1로 내려오는 경우의 덮어쓰기를 방지한다.
+            // 규칙 A: 새 스트림 판정 시, 임시 상태에서 next=1로 내려오는 경우의 덮어쓰기를 방지한다.
             isNewStream && !allowResetToOneOnNewStream && nextSeedFromStream == 1 && currentScopeSeed > 1 -> currentScopeSeed
-            isNewStream -> nextSeedFromStream
 
-            // 규칙 C: 일반 케이스는 기존처럼 상향 동기화(max) 유지.
-            else -> maxOf(currentScopeSeed, nextSeedFromStream)
+            // 규칙 B: 같은 scope에서는 화면 이동/빠른 재진입(resume)으로 낮은 값이 내려오더라도 rollback을 막는다.
+            // 단, undo 기반 외부 재동기화는 실제 삭제 반영을 위해 하향 동기화를 허용한다.
+            else -> resolveSyncedScopeNext(
+                streamNextFromPolicy = nextSeedFromStream,
+                currentScopeNext = currentScopeSeed,
+                isNewScope = isNewStream,
+                allowDownwardSync = syncAllowsDownward,
+            )
         }
         lastResumeTick = resumeTick
         lastUndoTick = undoTick

@@ -10,15 +10,16 @@ package com.dudoziworkshop.dzlog.ui.table.counter
 
 import android.content.Context
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
-import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
+import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.buildCounterScopeSnapshot
-import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
+import com.dudoziworkshop.dzlog.domain.counter.toScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.capture.policy.stabilizeStreamNextCounter
 import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogEffect
 import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterPolicyCoordinator
 import kotlinx.coroutines.CoroutineScope
@@ -26,26 +27,40 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 internal fun buildTableScopedCounterStream(
-    counterStreamContext: CounterStreamContext,
+    counterScope: CounterScope,
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean
 ): CaptureScopedCounterStream =
-    toCaptureScopedCounterStream(
-        streamContext = counterStreamContext,
+    toScopedCounter(
+        counterScope = counterScope,
         includePathInScope = includePathInCounterScope,
         includeFilenameInScope = includeFilenameInCounterScope
     )
 
 internal fun buildTableCounterScopeSnapshot(
-    counterStreamContext: CounterStreamContext,
+    counterScope: CounterScope,
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean
 ): CounterScopeSnapshot =
     buildCounterScopeSnapshot(
-        streamContext = counterStreamContext,
+        streamContext = counterScope,
         includePathInScope = includePathInCounterScope,
         includeFilenameInScope = includeFilenameInCounterScope
     )
+
+
+internal fun buildFilenameScopeSignature(
+    includeFilenameInCounterScope: Boolean,
+    filenameScopeTokens: List<String>,
+): String {
+    if (!includeFilenameInCounterScope) return "filename-scope-disabled"
+
+    // 주요 정책(파일명 축): 재동기화 시그니처는 draft 원문이 아니라
+    // "최종 해석된 scope token 목록"(순서 포함)으로 계산한다.
+    return filenameScopeTokens
+        .mapIndexed { index, token -> "$index=$token" }
+        .joinToString("|")
+}
 
 internal fun applyCounterSeed(
     counterUi: TableCounterUiState,
@@ -230,7 +245,7 @@ internal suspend fun syncCounterStateForScope(
     context: Context,
     templateState: TableTemplateState,
     counterUi: TableCounterUiState,
-    counterStreamContext: CounterStreamContext,
+    counterScope: CounterScope,
     scopedCounterStream: CaptureScopedCounterStream,
     previewCounterDigits: Int,
     saveMode: SaveMode,
@@ -258,29 +273,38 @@ internal suspend fun syncCounterStateForScope(
     } else {
         readNextSeed()
     }
+    val currentScopeSnapshot = buildTableCounterScopeSnapshot(
+        counterScope = counterScope,
+        includePathInCounterScope = counterUi.includePathInCounterScope,
+        includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
+    )
+    val isNewScope = isFilenameScopeSignatureChanged ||
+        com.dudoziworkshop.dzlog.domain.counter.policy.isNewCounterScope(previous = lastScopeSnapshot, current = currentScopeSnapshot)
+    // 주요 정책(롤백 방지): 같은 scope에서는 화면 이동/빠른 재진입으로 streamNext가 내려와도 낮은 값으로 덮어쓰지 않는다.
+    val stableStreamNext = stabilizeTableStreamNext(
+        streamNext = streamNext,
+        currentScopeNext = counterUi.scopeNextCounter,
+        isNewScope = isNewScope,
+    )
     val isManualCounterMode = TableCounterPolicyCoordinator.isManualOverrideActive(
         context = context,
         scopedStream = scopedCounterStream
     )
     // `streamNext`와 같은 SSOT 값을 UI 표시에 재사용한다.
-    val autoNextCounterValue = streamNext
+    val autoNextCounterValue = stableStreamNext
 
     val syncResult = TableCounterPolicyCoordinator.resolveSeedForScope(
         input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
-            currentScopeSnapshot = buildTableCounterScopeSnapshot(
-                counterStreamContext = counterStreamContext,
-                includePathInCounterScope = counterUi.includePathInCounterScope,
-                includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
-            ),
+            currentScopeSnapshot = currentScopeSnapshot,
             isManualMode = isManualCounterModeDisplay,
             hasCounterCell = (counterCell != null),
             currentSeed = currentSeed,
-            streamNext = streamNext,
+            streamNext = stableStreamNext,
             previousScopeSnapshot = lastScopeSnapshot,
             preserveManualCounterSeed = counterUi.preserveManualCounterSeed,
             manualSeedOverride = counterUi.manualSeedOverride,
             // filename scope 사용 시 slot 시그니처가 바뀌면 새 scope로 강제 판정한다.
-            forceTreatAsNewScope = isFilenameScopeSignatureChanged,
+            forceTreatAsNewScope = isNewScope,
         )
     )
 
@@ -293,7 +317,7 @@ internal suspend fun syncCounterStateForScope(
     )
 
     val nextScopeSnapshot = buildTableCounterScopeSnapshot(
-        counterStreamContext = counterStreamContext,
+        counterScope = counterScope,
         includePathInCounterScope = counterUi.includePathInCounterScope,
         includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
     )
@@ -313,6 +337,17 @@ internal suspend fun syncCounterStateForScope(
         nextFilenameScopeSignature = filenameScopeSignature,
     )
 }
+
+
+internal fun stabilizeTableStreamNext(
+    streamNext: Int,
+    currentScopeNext: Int,
+    isNewScope: Boolean,
+): Int = stabilizeStreamNextCounter(
+    streamNextFromPolicy = streamNext,
+    currentScopeNext = currentScopeNext,
+    isNewStream = isNewScope,
+)
 
 internal fun updateCounterUiScopeFlags(
     counterUi: TableCounterUiState,

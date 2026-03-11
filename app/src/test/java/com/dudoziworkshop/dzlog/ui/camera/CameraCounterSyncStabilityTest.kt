@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.camera
 
+import com.dudoziworkshop.dzlog.feature.capture.policy.resolveSyncedScopeNext
 import com.dudoziworkshop.dzlog.feature.capture.policy.stabilizeStreamNextCounter
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -38,4 +39,28 @@ class CameraCounterSyncStabilityTest {
 
         assertEquals(3, stable)
     }
+    @Test
+    fun undo_resync_can_apply_lower_policy_value() {
+        val synced = resolveSyncedScopeNext(
+            streamNextFromPolicy = 2,
+            currentScopeNext = 3,
+            isNewScope = false,
+            allowDownwardSync = true,
+        )
+
+        assertEquals(2, synced)
+    }
+
+    @Test
+    fun resume_resync_does_not_regress_when_downward_not_allowed() {
+        val synced = resolveSyncedScopeNext(
+            streamNextFromPolicy = 2,
+            currentScopeNext = 3,
+            isNewScope = false,
+            allowDownwardSync = false,
+        )
+
+        assertEquals(3, synced)
+    }
+
 }

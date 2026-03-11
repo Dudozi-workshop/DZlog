@@ -243,7 +243,7 @@ fun resolvePathDraftToken(
     )
 }
 
-fun buildDisplayNameFromSlotDrafts(
+fun buildFileName(
     resolvedCells: List<ResolvedCell>,
     fileNameSlotDrafts: List<TableEditorSlotDraft?>,
     fnDelim: String,
@@ -276,7 +276,7 @@ fun buildDisplayNameFromSlotDrafts(
     return sanitizeFilePart(withExt)
 }
 
-fun buildGalleryRelativePathFromSlotDrafts(
+fun buildSavePath(
     resolvedCells: List<ResolvedCell>,
     pathSlotDrafts: List<TableEditorSlotDraft?>,
     now: Date,
@@ -294,3 +294,40 @@ fun buildGalleryRelativePathFromSlotDrafts(
         "Pictures/DZlog/${segments.joinToString("/")}/"
     }
 }
+
+
+// legacy 호환 래퍼: 신규 코드는 buildFileName 사용
+fun buildDisplayNameFromSlotDrafts(
+    resolvedCells: List<ResolvedCell>,
+    fileNameSlotDrafts: List<TableEditorSlotDraft?>,
+    fnDelim: String,
+    counterDigits: Int,
+    usedCounter: Int,
+    now: Date,
+    dateFormat: String,
+    timeFormat: String,
+): String = buildFileName(
+    resolvedCells = resolvedCells,
+    fileNameSlotDrafts = fileNameSlotDrafts,
+    fnDelim = fnDelim,
+    counterDigits = counterDigits,
+    usedCounter = usedCounter,
+    now = now,
+    dateFormat = dateFormat,
+    timeFormat = timeFormat,
+)
+
+// legacy 호환 래퍼: 신규 코드는 buildSavePath 사용
+fun buildGalleryRelativePathFromSlotDrafts(
+    resolvedCells: List<ResolvedCell>,
+    pathSlotDrafts: List<TableEditorSlotDraft?>,
+    now: Date,
+    dateFormat: String,
+    timeFormat: String,
+): String = buildSavePath(
+    resolvedCells = resolvedCells,
+    pathSlotDrafts = pathSlotDrafts,
+    now = now,
+    dateFormat = dateFormat,
+    timeFormat = timeFormat,
+)

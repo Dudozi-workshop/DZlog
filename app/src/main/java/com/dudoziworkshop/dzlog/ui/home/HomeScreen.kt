@@ -50,8 +50,8 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
-import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
-import com.dudoziworkshop.dzlog.domain.counter.toCaptureScopedCounterStream
+import com.dudoziworkshop.dzlog.domain.counter.CounterStore
+import com.dudoziworkshop.dzlog.domain.counter.toScopedCounter
 import com.dudoziworkshop.dzlog.debug.CounterDebugDump
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
@@ -60,8 +60,8 @@ import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
-import com.dudoziworkshop.dzlog.domain.preview.PreviewPipelineInput
-import com.dudoziworkshop.dzlog.domain.preview.buildPreviewPipeline
+import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
+import com.dudoziworkshop.dzlog.domain.preview.buildPreviewState
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
@@ -148,8 +148,8 @@ fun HomeScreen(
         phraseProgressCursor,
     ) {
         val now = previewNow
-        val previewPipeline = buildPreviewPipeline(
-            PreviewPipelineInput(
+        val previewPipeline = buildPreviewState(
+            PreviewInput(
                 templateState = tableTemplateState,
                 captureNow = now,
                 counterDigits = settings.counterPadding,
@@ -163,22 +163,22 @@ fun HomeScreen(
             )
         )
         // 주요 정책: 홈 preview의 counter stream도 공용 preview pipeline 결과를 그대로 사용한다.
-        val streamContext = previewPipeline.namingPreview.streamContext
-        val scopedStream = toCaptureScopedCounterStream(
-            streamContext = streamContext,
+        val counterScope = previewPipeline.previewNaming.counterScope
+        val scopedCounter = toScopedCounter(
+            counterScope = counterScope,
             includePathInScope = settings.includePathInCounterScope,
             includeFilenameInScope = settings.includeFilenameInCounterScope,
         )
-        val streamNext = CaptureCounterPolicy.getNextCounter(
+        val streamNext = CounterStore.next(
             context = context,
-            scopedStream = scopedStream,
+            scopedStream = scopedCounter,
             counterDigits = settings.counterPadding,
             fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
             saveMode = settings.saveMode,
         ).coerceAtLeast(1)
         // 파일명/경로 표시도 공용 pipeline 결과를 사용하되, 사용 카운터만 streamNext로 맞춘다.
-        val displayPreviewPipeline = buildPreviewPipeline(
-            PreviewPipelineInput(
+        val displayPreviewPipeline = buildPreviewState(
+            PreviewInput(
                 templateState = tableTemplateState,
                 captureNow = now,
                 counterDigits = settings.counterPadding,
@@ -195,13 +195,13 @@ fun HomeScreen(
         CounterDebugDump.dump(
             tag = "HomePreview",
             context = context,
-            scopedStream = scopedStream,
+            scopedStream = scopedCounter,
             appSettings = settings,
             nextSeed = streamNext,
             note = null,
         )
-        savePathPreview = displayPreviewPipeline.namingPreview.relativePath
-        filenamePreview = displayPreviewPipeline.namingPreview.displayName
+        savePathPreview = displayPreviewPipeline.previewNaming.relativePath
+        filenamePreview = displayPreviewPipeline.previewNaming.displayName
     }
 
     var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }

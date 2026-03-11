@@ -10,3 +10,19 @@ fun stabilizeStreamNextCounter(
     if (isNewStream) return normalizedStreamNext
     return maxOf(normalizedStreamNext, normalizedCurrentScopeNext)
 }
+
+
+fun resolveSyncedScopeNext(
+    streamNextFromPolicy: Int,
+    currentScopeNext: Int,
+    isNewScope: Boolean,
+    allowDownwardSync: Boolean,
+): Int {
+    val normalizedStreamNext = streamNextFromPolicy.coerceAtLeast(1)
+    if (allowDownwardSync) return normalizedStreamNext
+    return stabilizeStreamNextCounter(
+        streamNextFromPolicy = normalizedStreamNext,
+        currentScopeNext = currentScopeNext,
+        isNewStream = isNewScope,
+    )
+}
