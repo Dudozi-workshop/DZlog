@@ -76,13 +76,11 @@ internal fun BottomEditorPanel(
     fileNameSlotItems: List<FileNameSlotUiItem?>,
     selectedFileNameSlot: Int?,
     isFileNameCellPickMode: Boolean,
-    showFileNameFormatOptions: Boolean,
     manualInputDraft: String,
     showManualInputEditor: Boolean,
     pathSlotItems: List<PathSlotUiItem?>,
     selectedPathSlot: Int?,
     isPathCellPickMode: Boolean,
-    showPathFormatOptions: Boolean,
     showPathManualInputEditor: Boolean,
     pathManualInputDraft: String,
     modifier: Modifier = Modifier,
@@ -106,8 +104,6 @@ internal fun BottomEditorPanel(
     onMoveSelectedFileNameSlotRight: () -> Unit,
     onDeleteSelectedFileNameSlot: () -> Unit,
     onStartFileNameCellPick: () -> Unit,
-    onToggleFileNameFormatOptions: () -> Unit,
-    onApplyFileNameFormatType: (FileNameFormatType) -> Unit,
     onStartManualInputEditor: () -> Unit,
     onManualInputDraftChange: (String) -> Unit,
     onApplyManualInput: () -> Unit,
@@ -117,8 +113,6 @@ internal fun BottomEditorPanel(
     onMoveSelectedPathSlotRight: () -> Unit,
     onDeleteSelectedPathSlot: () -> Unit,
     onStartPathCellPick: () -> Unit,
-    onTogglePathFormatOptions: () -> Unit,
-    onApplyPathFormatType: (PathFormatType) -> Unit,
     onStartPathManualInputEditor: () -> Unit,
     onPathManualInputDraftChange: (String) -> Unit,
     onApplyPathManualInput: () -> Unit,
@@ -409,19 +403,7 @@ internal fun BottomEditorPanel(
                 Text("요소 선택", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(modifier = Modifier.weight(1f), onClick = onStartFileNameCellPick, enabled = hasSelectedSlot) { Text("셀", style = DDZTypography.ButtonText) }
-                    Button(modifier = Modifier.weight(1f), onClick = onToggleFileNameFormatOptions, enabled = hasSelectedSlot) { Text("서식", style = DDZTypography.ButtonText) }
                     Button(modifier = Modifier.weight(1f), onClick = onStartManualInputEditor, enabled = hasSelectedSlot) { Text("직접입력", style = DDZTypography.ButtonText) }
-                }
-
-                if (showFileNameFormatOptions && hasSelectedSlot) {
-                    Text("서식 선택", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(modifier = Modifier.weight(1f), onClick = { onApplyFileNameFormatType(FileNameFormatType.DATE) }) { Text("날짜", style = DDZTypography.ButtonText) }
-                        Button(modifier = Modifier.weight(1f), onClick = { onApplyFileNameFormatType(FileNameFormatType.TIME) }) { Text("시간", style = DDZTypography.ButtonText) }
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(modifier = Modifier.weight(1f), onClick = { onApplyFileNameFormatType(FileNameFormatType.ROTATING_TEXT) }) { Text("순환문구", style = DDZTypography.ButtonText) }
-                    }
                 }
 
                 if (showManualInputEditor && hasSelectedSlot) {
@@ -505,17 +487,7 @@ internal fun BottomEditorPanel(
                 Text("요소 선택", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(modifier = Modifier.weight(1f), onClick = onStartPathCellPick, enabled = hasSelectedSlot) { Text("셀", style = DDZTypography.ButtonText) }
-                    Button(modifier = Modifier.weight(1f), onClick = onTogglePathFormatOptions, enabled = hasSelectedSlot) { Text("서식", style = DDZTypography.ButtonText) }
                     Button(modifier = Modifier.weight(1f), onClick = onStartPathManualInputEditor, enabled = hasSelectedSlot) { Text("직접입력", style = DDZTypography.ButtonText) }
-                }
-
-                if (showPathFormatOptions && hasSelectedSlot) {
-                    Text("서식 선택", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(modifier = Modifier.weight(1f), onClick = { onApplyPathFormatType(PathFormatType.DATE) }) { Text("날짜", style = DDZTypography.ButtonText) }
-                        Button(modifier = Modifier.weight(1f), onClick = { onApplyPathFormatType(PathFormatType.TIME) }) { Text("시간", style = DDZTypography.ButtonText) }
-                        Button(modifier = Modifier.weight(1f), onClick = { onApplyPathFormatType(PathFormatType.ROTATING_TEXT) }) { Text("순환문구", style = DDZTypography.ButtonText) }
-                    }
                 }
 
                 if (showPathManualInputEditor && hasSelectedSlot) {

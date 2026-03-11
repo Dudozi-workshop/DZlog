@@ -1,9 +1,6 @@
 package com.dudoziworkshop.dzlog.domain.counter
 
 import com.dudoziworkshop.dzlog.domain.model.CellKey
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
-import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePath
-import com.dudoziworkshop.dzlog.domain.naming.resolveGroupValue
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 
 /**
@@ -26,16 +23,12 @@ fun buildCounterStreamContext(
     scopeOptions: CounterScopeOptions = CounterScopeOptions(),
     relativePathOverride: String? = null,
 ): CounterStreamContext {
-    val g1 = resolveGroupValue(resolvedCells, GroupLevel.G1)
-    val g2 = resolveGroupValue(resolvedCells, GroupLevel.G2)
-    val baseRelativePath = relativePathOverride ?: buildGalleryRelativePath(g1, g2)
-    val hasG2Group = resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
-
-    val relativePathKey = CounterManager.computeCounterStreamRelativePathKey(
-        baseRelativePath = baseRelativePath,
-        hasG2Group = hasG2Group,
-        group2Value = g2
-    )
+    // 주요 정책(path 축): 카운터 path 키는 pathSlotDrafts에서 계산된 최종 relativePath를 기준으로 한다.
+    // relativePathOverride가 있으면 groupLevel(G1/G2) 상태와 무관하게 그대로 사용한다.
+    val relativePathKey = (relativePathOverride ?: "Pictures/DZlog/").let { path ->
+        val trimmed = path.trim()
+        if (trimmed.isBlank()) "Pictures/DZlog/" else if (trimmed.endsWith('/')) trimmed else "$trimmed/"
+    }
     val streamPrefix = CounterManager.computeCounterStreamPrefix(
         resolvedCells = resolvedCells,
         fnDelim = fnDelim,

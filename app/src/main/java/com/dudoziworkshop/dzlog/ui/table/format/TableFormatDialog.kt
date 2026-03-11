@@ -2,28 +2,16 @@ package com.dudoziworkshop.dzlog.ui.table.format
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.HourSystem
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.model.TimeSeparator
-import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.ui.table.template.updateCell
 
@@ -81,75 +69,25 @@ fun TableFormatDialog(
                     }
 
                     isTime -> {
-                        val initial = targetCell.timeFormatOptions ?: TimeFormatOptions()
-                        var hourSystem by remember(targetId) { mutableStateOf(initial.hourSystem) }
-                        var includeSeconds by remember(targetId) { mutableStateOf(initial.includeSeconds) }
-                        var separator by remember(targetId) { mutableStateOf(initial.separator) }
-
-                        fun apply() {
-                            val updated = updateCell(templateState, targetId) { c ->
-                                c.copy(
-                                    timeFormatOptions = TimeFormatOptions(
-                                        hourSystem = hourSystem,
-                                        includeSeconds = includeSeconds,
-                                        separator = separator
-                                    ),
-                                    formatPattern = ""
-                                )
-                            }
-                            onTemplateChange(updated)
-                        }
-
-                        Text("시간 표시 설정", style = DDZTypography.SectionTitle)
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("시간제", modifier = Modifier.width(72.dp))
-                            RadioButton(
-                                selected = hourSystem == HourSystem.H24,
-                                onClick = { hourSystem = HourSystem.H24; apply() }
-                            )
-                            Text("24h")
-                            Spacer(Modifier.width(12.dp))
-                            RadioButton(
-                                selected = hourSystem == HourSystem.H12,
-                                onClick = { hourSystem = HourSystem.H12; apply() }
-                            )
-                            Text("12h")
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("초 포함", modifier = Modifier.width(72.dp))
-                            Switch(
-                                checked = includeSeconds,
-                                onCheckedChange = { includeSeconds = it; apply() }
-                            )
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("구분자", modifier = Modifier.width(72.dp))
-                            listOf(TimeSeparator.COLON, TimeSeparator.NONE).forEach { s ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(
-                                        selected = separator == s,
-                                        onClick = { separator = s; apply() }
+                        Text("시간 형식은 파일명/저장경로/카운터스코프 공용 정책으로 HHmm(분 단위)만 사용합니다.", style = DDZTypography.Caption)
+                        TextButton(
+                            onClick = {
+                                val updated = updateCell(templateState, targetId) { c ->
+                                    c.copy(
+                                        timeFormatOptions = TimeFormatOptions(
+                                            hourSystem = HourSystem.H24,
+                                            includeSeconds = false,
+                                            separator = TimeSeparator.NONE
+                                        ),
+                                        formatPattern = "HHmm"
                                     )
-                                    Text(if (s == TimeSeparator.NONE) "붙이기" else s.token)
                                 }
-                                Spacer(Modifier.width(8.dp))
+                                onTemplateChange(updated)
+                                onClose()
                             }
+                        ) {
+                            Text("HHmm 적용", style = DDZTypography.ButtonText)
                         }
-
-                        val preview = buildString {
-                            append(if (hourSystem == HourSystem.H24) "HH" else "hh")
-                            append(separator.token)
-                            append("mm")
-                            if (includeSeconds) {
-                                append(separator.token)
-                                append("ss")
-                            }
-                            if (hourSystem == HourSystem.H12) append(" a")
-                        }
-                        Text("미리보기: $preview", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                     }
 
                     else -> Text("지원되지 않는 타입")

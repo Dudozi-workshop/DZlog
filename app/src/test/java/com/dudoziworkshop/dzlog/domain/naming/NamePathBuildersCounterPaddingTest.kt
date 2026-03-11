@@ -34,7 +34,7 @@ class NamePathBuildersCounterPaddingTest {
             usedCounter = 7,
             now = Date(0),
             dateFormat = "yyyyMMdd",
-            timeFormat = "HHmmss",
+            timeFormat = "HHmm",
         )
 
         assertTrue(name.startsWith("SITE_007"))
@@ -62,7 +62,7 @@ class NamePathBuildersCounterPaddingTest {
             usedCounter = 4,
             now = Date(0),
             dateFormat = "yyyyMMdd",
-            timeFormat = "HHmmss",
+            timeFormat = "HHmm",
         )
 
         assertEquals("M_04.jpg", name)
@@ -78,7 +78,7 @@ class NamePathBuildersCounterPaddingTest {
             ),
             now = Date(0),
             dateFormat = "yyyyMMdd",
-            timeFormat = "HHmmss",
+            timeFormat = "HHmm",
         )
 
         assertEquals("Pictures/DZlog/A_B/19700101/", path)
@@ -106,10 +106,27 @@ class NamePathBuildersCounterPaddingTest {
             usedCounter = 3,
             now = Date(0),
             dateFormat = "yyyyMMdd",
-            timeFormat = "HHmmss",
+            timeFormat = "HHmm",
         )
 
         assertEquals("PHRASE_3.jpg", name)
+    }
+
+
+    @Test
+    fun `path drafts normalize time token to HHmm`() {
+        val path = buildGalleryRelativePathFromSlotDrafts(
+            resolvedCells = emptyList(),
+            pathSlotDrafts = listOf(
+                TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "line"),
+                TableEditorSlotDraft(kind = "FORMAT", label = "시간", formatType = "TIME"),
+            ),
+            now = Date(0),
+            dateFormat = "yyyyMMdd",
+            timeFormat = "HHmm",
+        )
+
+        assertEquals("Pictures/DZlog/line/0000/", path)
     }
 
     private fun resolvedCell(

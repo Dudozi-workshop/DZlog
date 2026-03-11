@@ -279,7 +279,6 @@ fun TableEditorScreen(
     // 다음 단계에서 셀/카운터/직접입력 상세 선택 UI를 붙일 수 있게 구조화된 타입을 사용한다.
     val fileNameSlotItems = buildFileNameDraftSlots(currentTemplate)
     var isFileNameCellPickMode by remember { mutableStateOf(false) }
-    var showFileNameFormatOptions by remember { mutableStateOf(false) }
     var manualInputDraft by remember { mutableStateOf("") }
     var showManualInputEditor by remember { mutableStateOf(false) }
 
@@ -299,7 +298,6 @@ fun TableEditorScreen(
     fun clearFileNameEditorTransientState(clearDraft: Boolean) {
         // 정책 보강: 파일명 편집의 보조 UI 상태는 슬롯/모드 전환 시 잔존하지 않게 정리한다.
         isFileNameCellPickMode = false
-        showFileNameFormatOptions = false
         showManualInputEditor = false
         if (clearDraft) {
             manualInputDraft = ""
@@ -308,7 +306,6 @@ fun TableEditorScreen(
 
     val pathSlotItems = buildPathDraftSlots(currentTemplate)
     var isPathCellPickMode by remember { mutableStateOf(false) }
-    var showPathFormatOptions by remember { mutableStateOf(false) }
     var showPathManualInputEditor by remember { mutableStateOf(false) }
     var pathManualInputDraft by remember { mutableStateOf("") }
 
@@ -348,7 +345,6 @@ fun TableEditorScreen(
     fun clearPathEditorTransientState(clearDraft: Boolean) {
         // 정책 보강: 저장경로 편집의 보조 UI 상태(셀대기/서식/직접입력)는 모드/슬롯 전환에서 분리 정리한다.
         isPathCellPickMode = false
-        showPathFormatOptions = false
         showPathManualInputEditor = false
         if (clearDraft) {
             pathManualInputDraft = ""
@@ -383,10 +379,10 @@ fun TableEditorScreen(
         rotatingUi = RotatingPhraseUiState()
     }
 
-    val dateFormatOptions = listOf(NamingFormatDefaults.DATE_FORMAT_DEFAULT, "yyyy_MM_dd", "yyyyMMdd")
-    // TIME 형식은 Step3부터 토글 UI(12/24, 초, 구분자)로 설정한다.
+    val dateFormatOptions = listOf("yyyyMMdd", "yyMMdd", "MMdd")
+    // 주요 정책: TIME 형식은 naming 경로에서 HHmm만 사용한다.
 
-    // NOTE: formatPattern 기반이 아니라 현재는 고정값. (기존 코드 유지)
+    // 주요 정책: 테이블/홈/카메라/실저장이 같은 naming 기본값을 공유한다.
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
 
@@ -441,27 +437,6 @@ fun TableEditorScreen(
         }
     }
 
-
-    // 주요 정책:
-    // 저장경로 draft 구조가 변경되면 path scope 변경으로 간주해 즉시 재동기화한다.
-    val pathScopeSignature = remember(
-        currentTemplate.pathSlotDrafts,
-        counterUi.includePathInCounterScope
-    ) {
-        if (!counterUi.includePathInCounterScope) {
-            "path-scope-disabled"
-        } else {
-            currentTemplate.pathSlotDrafts.joinToString("|") { draft ->
-                if (draft == null) "_" else listOf(
-                    draft.kind,
-                    draft.cellId ?: "",
-                    draft.manualText ?: "",
-                    draft.formatType ?: ""
-                ).joinToString(":")
-            }
-        }
-    }
-
     var previewNow by remember { mutableStateOf(Date()) }
     // 정책 변경: 프리뷰에서도 문구 순환 커서를 파일 카운터와 분리한다.
     var phraseProgressCounter by remember { mutableIntStateOf(1) }
@@ -509,20 +484,6 @@ fun TableEditorScreen(
         scopeInputTick += 1
     }
 
-    LaunchedEffect(filenameScopeSignature, pathScopeSignature) {
-        val filenameChanged = filenameScopeSignature != lastFilenameScopeSignature
-        val pathChanged = pathScopeSignature != lastPathScopeSignature
-        if (filenameChanged) {
-            lastFilenameScopeSignature = filenameScopeSignature
-        }
-        if (pathChanged) {
-            lastPathScopeSignature = pathScopeSignature
-        }
-        if (filenameChanged || pathChanged) {
-            scopeInputTick += 1
-        }
-    }
-
     val tableResolver = remember { TableResolver() }
 
     // 프리뷰 계산 경로를 Camera/Home과 동일하게 공용 pipeline으로 통일한다.
@@ -554,6 +515,33 @@ fun TableEditorScreen(
         )
     }
     val plan = previewPipeline.plan
+
+    // 주요 정책(path 축): 카운터 재동기화 기준은 draft 원문이 아니라 "최종 해석된 relativePath"다.
+    // includePathInCounterScope=false 이면 path 변경이 스트림에 영향을 주지 않는다.
+    val pathScopeSignature = remember(
+        previewPipeline.namingPreview.relativePath,
+        counterUi.includePathInCounterScope
+    ) {
+        if (!counterUi.includePathInCounterScope) {
+            "path-scope-disabled"
+        } else {
+            previewPipeline.namingPreview.relativePath
+        }
+    }
+
+    LaunchedEffect(filenameScopeSignature, pathScopeSignature) {
+        val filenameChanged = filenameScopeSignature != lastFilenameScopeSignature
+        val pathChanged = pathScopeSignature != lastPathScopeSignature
+        if (filenameChanged) {
+            lastFilenameScopeSignature = filenameScopeSignature
+        }
+        if (pathChanged) {
+            lastPathScopeSignature = pathScopeSignature
+        }
+        if (filenameChanged || pathChanged) {
+            scopeInputTick += 1
+        }
+    }
 
     val isManualCounterModeDisplay by remember(
         counterUi.isManualCounterMode,
@@ -1210,12 +1198,10 @@ fun TableEditorScreen(
                             currentlySelectedPathSlot = currentlySelectedPathSlot,
                             fileNameSlotItems = fileNameSlotItems,
                             isFileNameCellPickMode = isFileNameCellPickMode,
-                            showFileNameFormatOptions = showFileNameFormatOptions,
                             manualInputDraft = manualInputDraft,
                             showManualInputEditor = showManualInputEditor,
                             pathSlotItems = pathSlotItems,
                             isPathCellPickMode = isPathCellPickMode,
-                            showPathFormatOptions = showPathFormatOptions,
                             showPathManualInputEditor = showPathManualInputEditor,
                             pathManualInputDraft = pathManualInputDraft,
                             showCellSettingsPanel = showCellSettingsPanel,
@@ -1257,13 +1243,11 @@ fun TableEditorScreen(
                                     updateFileNameSlotDraft(currentTemplate, next)
                                     currentlySelectedFileNameSlot = firstEmptyIndex
                                     isFileNameCellPickMode = false
-                                    showFileNameFormatOptions = false
                                     showManualInputEditor = false
                                 }
                             },
                             onMoveSelectedFileNameSlotLeft = {
                                 isFileNameCellPickMode = false
-                                showFileNameFormatOptions = false
                                 showManualInputEditor = false
                                 val selected = currentlySelectedFileNameSlot
                                 if (selected != null) {
@@ -1277,7 +1261,6 @@ fun TableEditorScreen(
                             },
                             onMoveSelectedFileNameSlotRight = {
                                 isFileNameCellPickMode = false
-                                showFileNameFormatOptions = false
                                 showManualInputEditor = false
                                 val selected = currentlySelectedFileNameSlot
                                 if (selected != null) {
@@ -1291,7 +1274,6 @@ fun TableEditorScreen(
                             },
                             onDeleteSelectedFileNameSlot = {
                                 isFileNameCellPickMode = false
-                                showFileNameFormatOptions = false
                                 showManualInputEditor = false
                                 val selected = currentlySelectedFileNameSlot
                                 if (selected != null) {
@@ -1307,37 +1289,6 @@ fun TableEditorScreen(
                             onStartFileNameCellPick = {
                                 if (currentlySelectedFileNameSlot != null) {
                                     isFileNameCellPickMode = true
-                                    showFileNameFormatOptions = false
-                                    showManualInputEditor = false
-                                }
-                            },
-                            onToggleFileNameFormatOptions = {
-                                if (currentlySelectedFileNameSlot != null) {
-                                    isFileNameCellPickMode = false
-                                    showManualInputEditor = false
-                                    showFileNameFormatOptions = !showFileNameFormatOptions
-                                }
-                            },
-                            onApplyFileNameFormatType = { formatType ->
-                                val selected = currentlySelectedFileNameSlot
-                                if (selected != null) {
-                                    val normalized = normalizeFileNameDraftSlots(fileNameSlotItems)
-                                    val next = normalized.toMutableList().apply {
-                                        this[selected] = FileNameSlotUiItem(
-                                            kind = FileNameSlotKind.FORMAT,
-                                            label = when (formatType) {
-                                                FileNameFormatType.DATE -> "날짜"
-                                                FileNameFormatType.TIME -> "시간"
-                                                // 레거시 COUNTER draft 읽기 호환용 분기(신규 UI에서는 COUNTER를 노출하지 않음).
-                                                FileNameFormatType.COUNTER -> "시스템 카운터(자동)"
-                                                FileNameFormatType.ROTATING_TEXT -> "순환문구"
-                                            },
-                                            formatType = formatType
-                                        )
-                                    }
-                                    updateFileNameSlotDraft(currentTemplate, next)
-                                    isFileNameCellPickMode = false
-                                    showFileNameFormatOptions = false
                                     showManualInputEditor = false
                                 }
                             },
@@ -1347,7 +1298,6 @@ fun TableEditorScreen(
                                     val current = normalizeFileNameDraftSlots(fileNameSlotItems).getOrNull(selected)
                                     manualInputDraft = current?.manualText ?: current?.label.orEmpty()
                                     isFileNameCellPickMode = false
-                                    showFileNameFormatOptions = false
                                     showManualInputEditor = true
                                 }
                             },
@@ -1368,7 +1318,6 @@ fun TableEditorScreen(
                                     }
                                     updateFileNameSlotDraft(currentTemplate, next)
                                     showManualInputEditor = false
-                                    showFileNameFormatOptions = false
                                     isFileNameCellPickMode = false
                                 }
                             },
@@ -1452,34 +1401,7 @@ fun TableEditorScreen(
                             onStartPathCellPick = {
                                 if (currentlySelectedPathSlot != null) {
                                     isPathCellPickMode = true
-                                    showPathFormatOptions = false
                                     showPathManualInputEditor = false
-                                }
-                            },
-                            onTogglePathFormatOptions = {
-                                if (currentlySelectedPathSlot != null) {
-                                    isPathCellPickMode = false
-                                    showPathManualInputEditor = false
-                                    showPathFormatOptions = !showPathFormatOptions
-                                }
-                            },
-                            onApplyPathFormatType = { formatType ->
-                                val selected = currentlySelectedPathSlot
-                                if (selected != null) {
-                                    val normalized = normalizePathDraftSlots(pathSlotItems)
-                                    val next = normalized.toMutableList().apply {
-                                        this[selected] = PathSlotUiItem(
-                                            kind = PathSlotKind.FORMAT,
-                                            label = when (formatType) {
-                                                PathFormatType.DATE -> "날짜"
-                                                PathFormatType.TIME -> "시간"
-                                                PathFormatType.ROTATING_TEXT -> "순환문구"
-                                            },
-                                            formatType = formatType
-                                        )
-                                    }
-                                    updatePathSlotDraft(currentTemplate, next)
-                                    clearPathEditorTransientState(clearDraft = true)
                                 }
                             },
                             onStartPathManualInputEditor = {
@@ -1488,7 +1410,6 @@ fun TableEditorScreen(
                                     val current = normalizePathDraftSlots(pathSlotItems).getOrNull(selected)
                                     pathManualInputDraft = current?.manualText ?: current?.label.orEmpty()
                                     isPathCellPickMode = false
-                                    showPathFormatOptions = false
                                     showPathManualInputEditor = true
                                 }
                             },

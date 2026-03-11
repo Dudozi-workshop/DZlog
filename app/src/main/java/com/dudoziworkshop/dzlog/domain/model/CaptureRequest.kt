@@ -4,8 +4,10 @@ import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 
 data class CaptureRequest(
-    // 프로젝트 = 저장 경로(Pictures/DZlog/...)
-    // group1/group2 값으로 buildGalleryRelativePath()를 통해 최종 경로를 결정함.
+    // 저장경로 SSOT: pathSlotDrafts에서 계산된 최종 relativePath 문자열을 그대로 사용한다.
+    val relativePath: String,
+
+    // 레거시 호환 메타데이터(로그/탐색용). 저장경로 계산에는 사용하지 않는다.
     val group1: String,
     val group2: String,
 

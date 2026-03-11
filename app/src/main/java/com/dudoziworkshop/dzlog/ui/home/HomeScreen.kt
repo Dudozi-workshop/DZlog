@@ -69,7 +69,6 @@ import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZCard
 import com.dudoziworkshop.dzlog.ui.common.TablePreviewCard
 import com.dudoziworkshop.dzlog.ui.common.rememberTablePreviewSettings
-import com.dudoziworkshop.dzlog.ui.common.buildSavePathTitle
 import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
 import com.dudoziworkshop.dzlog.ui.log.dzFormatDate
@@ -328,19 +327,13 @@ fun HomeScreen(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Box(modifier = Modifier.weight(1f)) {
-                                    val (g1Part, g2Part) = remember(savePathPreview) {
-                                        parseG1G2FromRelativePath(savePathPreview)
-                                    }
                                     val valueStyle = DDZTypography.Body.copy(
                                         fontSize = 11.sp,
                                         lineHeight = 14.sp
                                     )
-                                    val displayPath = buildSavePathTitle(
-                                        prefix = "Pictures/DZlog",
-                                        g1 = g1Part,
-                                        g2 = g2Part.ifBlank { null },
-                                        sep = "/",
-                                    )
+                                    val displayPath = remember(savePathPreview) {
+                                        savePathPreview.ifBlank { "Pictures/DZlog/" }.trimEnd('/')
+                                    }
                                     Text(
                                         text = displayPath,
                                         modifier = Modifier.fillMaxWidth(),

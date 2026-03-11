@@ -86,12 +86,12 @@ class CounterManagerScopePrefixTest {
             fnDelim = "_",
             fileNameSlots = listOf(text.id, date.id, time.id),
             includeFilenameInScope = true,
-            scopeOptions = CounterScopeOptions(dateScopeValues = listOf("2026-03-01"), timeScopeValues = listOf("12:34")),
+            scopeOptions = CounterScopeOptions(dateScopeValues = listOf("2026-03-01"), timeScopeValues = listOf("1234")),
         )
 
         assertEquals("N600", defaultPrefix)
         assertEquals("N600_d_2026-03-01", dateOnlyPrefix)
-        assertEquals("N600_d_2026-03-01_t_12_34", allEnabledPrefix)
+        assertEquals("N600_d_2026-03-01_t_1234", allEnabledPrefix)
     }
 
 
@@ -123,7 +123,7 @@ class CounterManagerScopePrefixTest {
     }
 
     @Test
-    fun `time scope token is HHmmss when seconds option is enabled`() {
+    fun `time scope token remains HHmm even when seconds option is enabled`() {
         val now = fixedDate("2026-03-01 12:34:56")
         val resolver = TableResolver()
         val timeCell = TableCellState(
@@ -140,13 +140,13 @@ class CounterManagerScopePrefixTest {
             config = TableResolver.Config(
                 counterDigits = 0,
                 dateFormat = "yyyy-MM-dd",
-                timeFormat = "HH:mm:ss",
+                timeFormat = "HH:mm",
                 locale = Locale.US,
             )
         )
 
         val resolvedTime = plan.resolvedCells.single()
-        assertEquals("123456", resolvedTime.scopeToken)
+        assertEquals("1234", resolvedTime.scopeToken)
     }
 
     @Test
@@ -176,10 +176,10 @@ class CounterManagerScopePrefixTest {
             fnDelim = "_",
             fileNameSlots = listOf(text.id, time.id),
             includeFilenameInScope = true,
-            scopeOptions = CounterScopeOptions(timeScopeValues = listOf("12:34")),
+            scopeOptions = CounterScopeOptions(timeScopeValues = listOf("1234")),
         )
 
-        assertEquals("N600_t_12_34", prefix)
+        assertEquals("N600_t_1234", prefix)
     }
 
     @Test
@@ -422,6 +422,32 @@ class CounterManagerScopePrefixTest {
 
         assertEquals("Pictures/DZlog/A/B/", key)
     }
+
+    @Test
+    fun `date cell format falls back to yyyyMMdd when unsupported format is set`() {
+        val now = fixedDate("2026-03-01 12:34:56")
+        val resolver = TableResolver()
+        val dateCell = TableCellState(
+            rowIndex = 0,
+            colIndex = 0,
+            dataType = TableCellDataType.DATE,
+            formatPattern = "yyyy.MM.dd",
+        )
+
+        val plan = resolver.plan(
+            cells = listOf(dateCell),
+            captureNow = now,
+            config = TableResolver.Config(
+                counterDigits = 0,
+                dateFormat = "yyyy.MM.dd",
+                timeFormat = "HHmm",
+                locale = Locale.US,
+            )
+        )
+
+        assertEquals("20260301", plan.resolvedCells.single().resolvedText)
+    }
+
     private fun resolvedCell(
         col: Int,
         type: TableCellDataType,

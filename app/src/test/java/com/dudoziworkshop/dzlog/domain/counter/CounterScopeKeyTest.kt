@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.domain.counter
 
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.isNewCounterScope
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -98,4 +99,41 @@ class CounterScopeKeyTest {
 
         assertFalse(isNewCounterScope(previous, current))
     }
+
+    @Test
+    fun path_scope_on_splits_stream_when_path_changes() {
+        val a = buildCounterScopeParts(
+            relativePath = "Pictures/DZlog/A/B/",
+            prefix = "P",
+            includePathInScope = true,
+            includeFilenameInScope = false,
+        )
+        val b = buildCounterScopeParts(
+            relativePath = "Pictures/DZlog/C/D/",
+            prefix = "P",
+            includePathInScope = true,
+            includeFilenameInScope = false,
+        )
+
+        assertTrue(a.scopeKey != b.scopeKey)
+    }
+
+    @Test
+    fun path_scope_off_keeps_stream_when_path_changes() {
+        val a = buildCounterScopeParts(
+            relativePath = "Pictures/DZlog/A/B/",
+            prefix = "P",
+            includePathInScope = false,
+            includeFilenameInScope = false,
+        )
+        val b = buildCounterScopeParts(
+            relativePath = "Pictures/DZlog/C/D/",
+            prefix = "P",
+            includePathInScope = false,
+            includeFilenameInScope = false,
+        )
+
+        assertEquals(a.scopeKey, b.scopeKey)
+    }
+
 }

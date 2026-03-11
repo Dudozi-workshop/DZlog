@@ -1,7 +1,6 @@
 package com.dudoziworkshop.dzlog.domain.table
 
 import com.dudoziworkshop.dzlog.domain.model.CellValue
-import com.dudoziworkshop.dzlog.domain.model.HourSystem
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import java.text.SimpleDateFormat
@@ -31,7 +30,8 @@ class TableResolver {
         selectedPhraseTextByCellId: Map<String, String> = emptyMap(),
     ): ResolvePlan {
         // 안정적 순서: row/col 기준
-        val ordered = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
+        val ordered =
+            cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
 
         val counterCell = ordered.firstOrNull { it.dataType == TableCellDataType.COUNTER }
         // COUNTER 표기 토글은 표현 레벨이며,
@@ -109,7 +109,7 @@ class TableResolver {
 
             TableCellDataType.DATE -> {
                 // DATE는 항상 현재(captureNow) 기준으로 표시한다.
-                val pattern = cell.formatPattern.ifBlank { config.dateFormat }
+                val pattern = normalizeDatePattern(cell.formatPattern.ifBlank { config.dateFormat })
                 val resolved = SimpleDateFormat(pattern, config.locale).format(captureNow)
                 val scopeToken = SimpleDateFormat("yyyyMMdd", Locale.US).format(captureNow)
                 ResolvedCell(
@@ -123,14 +123,10 @@ class TableResolver {
             }
 
             TableCellDataType.TIME -> {
-                // TIME은 항상 현재(captureNow) 기준으로 표시한다.
-                // NOTE: Step3에서 UI 토글(timeFormatOptions)로 완전 전환한다.
-                val pattern = cell.timeFormatOptions?.toTimePattern()
-                    ?: cell.formatPattern.ifBlank { config.timeFormat }
-
+                // TIME 정책: 파일명/저장경로/카운터 스코프 모두 분 단위 HHmm만 사용한다.
+                val pattern = "HHmm"
                 val resolved = SimpleDateFormat(pattern, config.locale).format(captureNow)
-                val scopeTokenPattern = if (cell.timeFormatOptions?.includeSeconds == true) "HHmmss" else "HHmm"
-                val scopeToken = SimpleDateFormat(scopeTokenPattern, Locale.US).format(captureNow)
+                val scopeToken = SimpleDateFormat("HHmm", Locale.US).format(captureNow)
                 ResolvedCell(
                     id = cell.cellId,
                     type = cell.dataType,
@@ -159,19 +155,17 @@ class TableResolver {
         }
     }
 
+
+    private fun normalizeDatePattern(pattern: String): String {
+        return when (pattern) {
+            "yyyyMMdd", "yyMMdd", "MMdd" -> pattern
+            else -> "yyyyMMdd"
+        }
+    }
+
     private fun parseCounterSeed(cell: TableCellState?): Int? {
         if (cell == null) return null
         val seed = (cell.typedValue as? CellValue.CounterSeed)?.start
         return seed?.takeIf { it >= 0 }
-    }
-
-    private fun com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions.toTimePattern(): String {
-        val sep = this.separator.token
-        val base = when (this.hourSystem) {
-            HourSystem.H24 -> "HH${sep}mm"
-            HourSystem.H12 -> "hh${sep}mm"
-        }
-        val withSec = if (this.includeSeconds) "$base${sep}ss" else base
-        return if (this.hourSystem == HourSystem.H12) "$withSec a" else withSec
     }
 }

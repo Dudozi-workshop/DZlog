@@ -33,6 +33,7 @@ data class TableTemplateState(
 )
 
 private const val FILE_NAME_SLOT_KIND_CELL = "CELL"
+private const val PATH_SLOT_KIND_CELL = "CELL"
 
 fun deriveFileNameCellSlotsFromDrafts(drafts: List<TableEditorSlotDraft?>): List<CellKey?> {
     val normalizedDrafts = drafts.take(FILE_NAME_SLOT_COUNT) +
@@ -45,3 +46,17 @@ fun deriveFileNameCellSlotsFromDrafts(drafts: List<TableEditorSlotDraft?>): List
 
 const val FILE_NAME_SLOT_COUNT: Int = 3
 const val PATH_SLOT_COUNT: Int = 2
+
+
+fun derivePathCellSlotsFromDrafts(drafts: List<TableEditorSlotDraft?>): List<CellKey?> {
+    val normalizedDrafts = drafts.take(PATH_SLOT_COUNT) +
+        List((PATH_SLOT_COUNT - drafts.size).coerceAtLeast(0)) { null }
+    return normalizedDrafts.map { draft ->
+        val isCellSlot = draft?.kind.equals(PATH_SLOT_KIND_CELL, ignoreCase = true)
+        if (isCellSlot) draft?.cellId else null
+    }
+}
+
+fun derivePathSlotIndexByCellId(drafts: List<TableEditorSlotDraft?>, cellId: CellKey): Int? {
+    return derivePathCellSlotsFromDrafts(drafts).indexOf(cellId).takeIf { it >= 0 }
+}

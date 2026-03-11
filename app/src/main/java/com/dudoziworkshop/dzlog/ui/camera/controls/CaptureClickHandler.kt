@@ -98,6 +98,8 @@ internal fun handleCaptureClick(
     callbacks.onSetCapturing(true)
 
     val req = com.dudoziworkshop.dzlog.domain.model.CaptureRequest(
+        // 주요 정책: 실제 저장경로는 preview pipeline이 계산한 relativePath를 그대로 사용한다.
+        relativePath = activePlan.relativePathPreview,
         group1 = resolveGroupValue(activePlan.resolvedCells, GroupLevel.G1),
         group2 = resolveGroupValue(activePlan.resolvedCells, GroupLevel.G2),
         displayName = activePlan.displayName,

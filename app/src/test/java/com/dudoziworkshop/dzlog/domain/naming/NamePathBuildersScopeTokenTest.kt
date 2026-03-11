@@ -24,7 +24,7 @@ class NamePathBuildersScopeTokenTest {
             resolvedCells = emptyList(),
             now = Date(0),
             dateFormat = "yyyyMMdd",
-            timeFormat = "HH:mm:ss",
+            timeFormat = "HHmm",
         )
 
         assertEquals(listOf("A"), tokens)
@@ -41,10 +41,10 @@ class NamePathBuildersScopeTokenTest {
             resolvedCells = emptyList(),
             now = Date(0),
             dateFormat = "yyyyMMdd",
-            timeFormat = "HH:mm:ss",
+            timeFormat = "HHmm",
         )
 
-        assertEquals(listOf("00_00"), tokens)
+        assertEquals(listOf("0000"), tokens)
     }
 
     @Test
@@ -57,14 +57,14 @@ class NamePathBuildersScopeTokenTest {
             resolvedCells = listOf(perPhrase),
             now = Date(0),
             dateFormat = "yyyyMMdd",
-            timeFormat = "HH:mm:ss",
+            timeFormat = "HHmm",
         )
         val globalTokens = resolveFileNameScopeTokensFromDrafts(
             fileNameSlotDrafts = listOf(TableEditorSlotDraft(kind = "FORMAT", label = "순환문구", formatType = "ROTATING_TEXT"), null, null),
             resolvedCells = listOf(global),
             now = Date(0),
             dateFormat = "yyyyMMdd",
-            timeFormat = "HH:mm:ss",
+            timeFormat = "HHmm",
         )
 
         assertEquals(listOf("WHY"), perPhraseTokens)
@@ -95,10 +95,52 @@ class NamePathBuildersScopeTokenTest {
             resolvedCells = listOf(dateCell, timeCell),
             now = Date(0),
             dateFormat = "yyyyMMdd",
-            timeFormat = "HH:mm:ss",
+            timeFormat = "HHmm",
         )
 
         assertEquals(listOf("20260101"), tokens)
+    }
+
+
+
+    @Test
+    fun `time cell scope token uses HHmm when include is enabled`() {
+        val timeCell = resolvedCell(
+            id = "t2",
+            type = TableCellDataType.TIME,
+            text = "13:14:59",
+            counterScopeMode = CounterScopeMode.INCLUDE,
+        )
+
+        val tokens = resolveFileNameScopeTokensFromDrafts(
+            fileNameSlotDrafts = listOf(TableEditorSlotDraft(kind = "CELL", label = "셀", cellId = "t2"), null, null),
+            resolvedCells = listOf(timeCell),
+            now = Date(0),
+            dateFormat = "yyyyMMdd",
+            timeFormat = "HHmm",
+        )
+
+        assertEquals(listOf("1314"), tokens)
+    }
+
+    @Test
+    fun `counter cell is excluded from filename scope tokens`() {
+        val counterCell = resolvedCell(
+            id = "c1",
+            type = TableCellDataType.COUNTER,
+            text = "12",
+            counterScopeMode = CounterScopeMode.INCLUDE,
+        )
+
+        val tokens = resolveFileNameScopeTokensFromDrafts(
+            fileNameSlotDrafts = listOf(TableEditorSlotDraft(kind = "CELL", label = "셀", cellId = "c1"), null, null),
+            resolvedCells = listOf(counterCell),
+            now = Date(0),
+            dateFormat = "yyyyMMdd",
+            timeFormat = "HHmm",
+        )
+
+        assertEquals(emptyList<String>(), tokens)
     }
 
     private fun resolvedRotatingCell(id: String, text: String, mode: RotatingCounterMode): ResolvedCell {

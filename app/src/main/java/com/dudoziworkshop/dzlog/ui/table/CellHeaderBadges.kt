@@ -14,27 +14,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.ui.common.DzIcon
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
 /**
  * Cell top badges (표시 전용)
- * - 📁n : 경로 단계 (GroupLevel -> index)
+ * - 📁n : 경로 단계 (path slot CELL index)
  * - 🏷n : 파일명 구성 요소 (fileName slot draft index)
  */
 @Composable
 fun CellHeaderBadgesOverlay(
     cell: TableCellState,
     fileNameSlotIndex: Int?,
+    pathSlotIndex: Int?,
     modifier: Modifier = Modifier
 ) {
-    val dirIndex: Int? = when (cell.groupLevel) {
-        GroupLevel.G1 -> 1
-        GroupLevel.G2 -> 2
-        else -> null
-    }
+    val dirIndex = pathSlotIndex?.plus(1)
 
     val hasDir = (dirIndex != null)
     val hasName = (fileNameSlotIndex != null)
@@ -49,7 +45,7 @@ fun CellHeaderBadgesOverlay(
         verticalAlignment = Alignment.Top
     ) {
         if (hasDir) {
-            BadgeChip { DzIcon.Directory(dirIndex!!).Render() }
+            BadgeChip { DzIcon.Directory(dirIndex).Render() }
         } else {
             Spacer(Modifier.width(1.dp))
         }

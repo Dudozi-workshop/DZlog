@@ -38,6 +38,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
+import com.dudoziworkshop.dzlog.domain.model.derivePathSlotIndexByCellId
 import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadgesOverlay
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -121,6 +122,7 @@ fun TableGridSection(
                             if (cell != null) {
                                 val display = displayTextProvider(cell.cellId)
                                 val nameIdx = deriveFileNameCellSlotsFromDrafts(templateState.fileNameSlotDrafts).indexOf(cell.cellId).takeIf { it >= 0 }
+                                val pathIdx = derivePathSlotIndexByCellId(templateState.pathSlotDrafts, cell.cellId)
 
                                 val canInlineEdit =
                                     (cell.dataType == TableCellDataType.TEXT ||
@@ -192,6 +194,7 @@ fun TableGridSection(
                                     CellHeaderBadgesOverlay(
                                         cell = cell,
                                         fileNameSlotIndex = nameIdx,
+                                        pathSlotIndex = pathIdx,
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .align(Alignment.TopCenter)

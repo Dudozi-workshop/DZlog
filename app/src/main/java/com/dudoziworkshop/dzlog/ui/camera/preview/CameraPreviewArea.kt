@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.lifecycle.Observer
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
+import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePathFromSlotDrafts
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
@@ -497,6 +498,13 @@ internal fun CameraPreviewArea(
         }
 
         val previewRequest = CaptureRequest(
+            relativePath = buildGalleryRelativePathFromSlotDrafts(
+                resolvedCells = plan.resolvedCells,
+                pathSlotDrafts = args.tableTemplateState.pathSlotDrafts,
+                now = args.now,
+                dateFormat = args.dateFormat,
+                timeFormat = args.timeFormat,
+            ),
             group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
             group2 = resolveGroupValue(plan.resolvedCells, GroupLevel.G2),
             displayName = CaptureNamingPolicy.buildDisplayNameForCounter(

@@ -19,7 +19,6 @@ import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
 import com.dudoziworkshop.dzlog.domain.model.LogEntry
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
-import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePath
 import com.dudoziworkshop.dzlog.watermark.WatermarkRenderer
 import com.dudoziworkshop.dzlog.watermark.renderWatermarkForRequest
 import kotlinx.coroutines.CoroutineScope
@@ -36,18 +35,6 @@ class DzlogRepositoryImpl(
 ) : DzlogRepository {
 
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    override fun buildRelativePath(group1: String, group2: String): String {
-        return buildGalleryRelativePath(group1, group2)
-    }
-
-    override fun buildOriginalRelativePath(
-        group1: String,
-        group2: String
-    ): String {
-        return "${buildGalleryRelativePath(group1, group2)}original/"
-    }
-
     override fun captureAndSave(
         context: Context,
         imageCapture: ImageCapture,
@@ -87,8 +74,8 @@ class DzlogRepositoryImpl(
                             val orientedBmp = applyExifOrientation(decodedBmp, exif)
                             val originalBmp = cropToAspect(orientedBmp, request)
 
-                            val baseRel = buildRelativePath(request.group1, request.group2)
-                            val origRel = buildOriginalRelativePath(request.group1, request.group2)
+                            val baseRel = normalizeCaptureBaseRelativePath(request.relativePath)
+                            val origRel = appendOriginalCaptureDirectory(baseRel)
 
                             val displayName = request.displayName
                             val qualityMode = request.photoQualityMode
@@ -211,6 +198,7 @@ class DzlogRepositoryImpl(
         )
     }
 
+
     private suspend fun insertLogEntry(
         context: Context,
         entry: LogEntry,
@@ -299,4 +287,16 @@ class DzlogRepositoryImpl(
 
         return Bitmap.createBitmap(source, left, top, width, height)
     }
+}
+
+
+internal fun normalizeCaptureBaseRelativePath(relativePath: String): String {
+    val trimmed = relativePath.trim()
+    if (trimmed.isBlank()) return "Pictures/DZlog/"
+    return if (trimmed.endsWith('/')) trimmed else "$trimmed/"
+}
+
+internal fun appendOriginalCaptureDirectory(baseRelativePath: String): String {
+    val normalized = normalizeCaptureBaseRelativePath(baseRelativePath)
+    return if (normalized.endsWith("original/")) normalized else "${normalized}original/"
 }

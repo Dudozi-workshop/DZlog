@@ -26,6 +26,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
+import com.dudoziworkshop.dzlog.domain.model.derivePathSlotIndexByCellId
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadgesOverlay
@@ -197,6 +198,7 @@ fun RealTableGridSection(
             val isEditingCell = cell.cellId == editingCellId
             val display = displayTextProvider(cell.cellId)
             val nameIdx = deriveFileNameCellSlotsFromDrafts(templateState.fileNameSlotDrafts).indexOf(cell.cellId).takeIf { it >= 0 }
+            val pathIdx = derivePathSlotIndexByCellId(templateState.pathSlotDrafts, cell.cellId)
 
             Box(
                 modifier = Modifier
@@ -239,6 +241,7 @@ fun RealTableGridSection(
                 CellHeaderBadgesOverlay(
                     cell = cell,
                     fileNameSlotIndex = nameIdx,
+                    pathSlotIndex = pathIdx,
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.TopCenter)

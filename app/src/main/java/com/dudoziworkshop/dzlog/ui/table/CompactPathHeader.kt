@@ -20,8 +20,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
-import com.dudoziworkshop.dzlog.ui.common.buildSavePathTitle
-import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
@@ -79,16 +77,9 @@ internal fun CompactPathHeader(
                     .clickable(onClick = onClickSavePathPreview)
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
-                val (g1Part, g2Part) = remember(savePath) {
-                    parseG1G2FromRelativePath(savePath)
-                }
                 val valueStyle = DDZTypography.Body.copy(fontSize = 11.sp, lineHeight = 14.sp)
-                val displayPath = buildSavePathTitle(
-                    prefix = "Pictures/DZlog",
-                    g1 = g1Part,
-                    g2 = g2Part.ifBlank { null },
-                    sep = "/",
-                )
+                // 경로 배지/프리뷰 불일치 방지: path slot 결과 문자열을 그대로 표시한다.
+                val displayPath = remember(savePath) { savePath.ifBlank { "Pictures/DZlog/" }.trimEnd('/') }
                 Text(
                     text = displayPath,
                     modifier = Modifier.fillMaxWidth(),
