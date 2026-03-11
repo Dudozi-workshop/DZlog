@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.ui.table.template
 
-import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
@@ -9,7 +8,6 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellKind
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
-import com.dudoziworkshop.dzlog.domain.model.deriveLegacyFileNameSlotsFromDrafts
 
 fun updateCell(
     templateState: TableTemplateState,
@@ -68,7 +66,6 @@ fun removeRow(templateState: TableTemplateState): TableTemplateState {
         cells = remainingCells,
         rowWeights = nextRowWeights,
         fileNameSlotDrafts = sanitizedFileNameSlotDrafts,
-        fileNameSlots = deriveLegacyFileNameSlotsFromDrafts(sanitizedFileNameSlotDrafts),
         pathSlotDrafts = sanitizedPathSlotDrafts
     )
 }
@@ -118,30 +115,8 @@ fun removeColumn(templateState: TableTemplateState): TableTemplateState {
         cells = remainingCells,
         colWeights = nextColWeights,
         fileNameSlotDrafts = sanitizedFileNameSlotDrafts,
-        fileNameSlots = deriveLegacyFileNameSlotsFromDrafts(sanitizedFileNameSlotDrafts),
         pathSlotDrafts = sanitizedPathSlotDrafts
     )
-}
-
-fun reorderFileNameSlots(slots: List<CellKey?>, fromIndex: Int, toIndex: Int): List<CellKey?> {
-    val normalized = slots.normalizeFileNameSlots()
-    if (fromIndex !in normalized.indices || toIndex !in normalized.indices) {
-        return normalized
-    }
-
-    val mutable = normalized.toMutableList()
-    val moving = mutable.removeAt(fromIndex)
-    mutable.add(toIndex, moving)
-    return compressFileNameSlots(mutable)
-}
-
-fun compressFileNameSlots(slots: List<CellKey?>): List<CellKey?> {
-    val nonNulls = slots.filterNotNull().distinct().take(FILE_NAME_SLOT_COUNT)
-    return nonNulls + List(FILE_NAME_SLOT_COUNT - nonNulls.size) { null }
-}
-
-private fun List<CellKey?>.normalizeFileNameSlots(): List<CellKey?> {
-    return take(FILE_NAME_SLOT_COUNT) + List((FILE_NAME_SLOT_COUNT - size).coerceAtLeast(0)) { null }
 }
 
 private fun sanitizeFileNameSlotDrafts(

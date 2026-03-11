@@ -38,6 +38,10 @@ import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
+import com.dudoziworkshop.dzlog.domain.naming.resolveFileNameDraftToken
+import com.dudoziworkshop.dzlog.domain.naming.resolvePathDraftToken
+import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import com.dudoziworkshop.dzlog.ui.table.section.BottomEditorPanelMode
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameFormatType
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
@@ -58,6 +62,7 @@ internal fun BottomEditorPanel(
     editingValue: String,
     templateState: TableTemplateState,
     resolvedByCellId: Map<String, String>,
+    resolvedCells: List<ResolvedCell>,
     hasGroup1: Boolean,
     hasGroup2: Boolean,
     previewNow: Date,
@@ -369,11 +374,11 @@ internal fun BottomEditorPanel(
                     normalizedSlots.forEachIndexed { index, slot ->
                         val isSelected = selectedFileNameSlot == index
                         val structureLabel = fileNameStructureLabel(slot, templateState)
-                        val resolvedValue = fileNameSimpleValue(slot, resolvedByCellId)
+                        val resolvedValue = fileNameSimpleValue(slot, resolvedByCellId, resolvedCells, previewNow, dateFormat, timeFormat)
                         Box(
                             modifier = Modifier.weight(1f)
-                                .background(if (isSelected) DDZColor.PrimaryDark.copy(alpha = 0.14f) else DDZColor.Background, RoundedCornerShape(12.dp))
-                                .border(1.dp, if (isSelected) DDZColor.Primary else DDZColor.Card, RoundedCornerShape(12.dp))
+                                .background(if (isSelected) DDZColor.PrimaryDark.copy(alpha = 0.20f) else DDZColor.Card.copy(alpha = 0.75f), RoundedCornerShape(12.dp))
+                                .border(1.dp, if (isSelected) DDZColor.Primary else DDZColor.Border, RoundedCornerShape(12.dp))
                                 .clickable {
                                     onSelectFileNameSlot(index)
                                     if (slot == null) onFillEmptyFileNameSlot(index)
@@ -383,7 +388,7 @@ internal fun BottomEditorPanel(
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(structureLabel, style = DDZTypography.Caption, color = DDZColor.TextMuted, maxLines = 1)
                                 Text(
-                                    text = resolvedValue.ifBlank { "값 없음" },
+                                    text = if (slot == null) "+" else resolvedValue.ifBlank { "값 없음" },
                                     style = DDZTypography.Body,
                                     color = if (slot == null) DDZColor.TextMuted else DDZColor.TextPrimary,
                                     maxLines = 1
@@ -466,11 +471,11 @@ internal fun BottomEditorPanel(
                     normalizedSlots.forEachIndexed { index, slot ->
                         val isSelected = selectedPathSlot == index
                         val structureLabel = pathStructureLabel(slot, templateState)
-                        val resolvedValue = pathSimpleValue(slot, resolvedByCellId)
+                        val resolvedValue = pathSimpleValue(slot, resolvedByCellId, resolvedCells, previewNow, dateFormat, timeFormat)
                         Box(
                             modifier = Modifier.weight(1f)
-                                .background(if (isSelected) DDZColor.PrimaryDark.copy(alpha = 0.14f) else DDZColor.Background, RoundedCornerShape(12.dp))
-                                .border(1.dp, if (isSelected) DDZColor.Primary else DDZColor.Card, RoundedCornerShape(12.dp))
+                                .background(if (isSelected) DDZColor.PrimaryDark.copy(alpha = 0.20f) else DDZColor.Card.copy(alpha = 0.75f), RoundedCornerShape(12.dp))
+                                .border(1.dp, if (isSelected) DDZColor.Primary else DDZColor.Border, RoundedCornerShape(12.dp))
                                 .clickable {
                                     onSelectPathSlot(index)
                                     if (slot == null) onFillEmptyPathSlot(index)
@@ -480,7 +485,7 @@ internal fun BottomEditorPanel(
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(structureLabel, style = DDZTypography.Caption, color = DDZColor.TextMuted, maxLines = 1)
                                 Text(
-                                    text = resolvedValue.ifBlank { "값 없음" },
+                                    text = if (slot == null) "+" else resolvedValue.ifBlank { "값 없음" },
                                     style = DDZTypography.Body,
                                     color = if (slot == null) DDZColor.TextMuted else DDZColor.TextPrimary,
                                     maxLines = 1
@@ -580,19 +585,59 @@ private fun pathStructureLabel(slot: PathSlotUiItem?, templateState: TableTempla
     }
 }
 
-private fun fileNameSimpleValue(slot: FileNameSlotUiItem?, resolvedByCellId: Map<String, String>): String {
-    return when (slot?.kind) {
-        com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotKind.CELL -> resolvedByCellId[slot.cellId].orEmpty()
-        com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotKind.MANUAL -> slot.manualText.orEmpty()
-        else -> ""
+private fun fileNameSimpleValue(
+    slot: FileNameSlotUiItem?,
+    resolvedByCellId: Map<String, String>,
+    resolvedCells: List<ResolvedCell>,
+    previewNow: Date,
+    dateFormat: String,
+    timeFormat: String,
+): String {
+    if (slot == null) return ""
+    return if (slot.kind == com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotKind.CELL) {
+        resolvedByCellId[slot.cellId].orEmpty()
+    } else {
+        resolveFileNameDraftToken(
+            draft = TableEditorSlotDraft(
+                kind = slot.kind.name,
+                label = slot.label,
+                cellId = slot.cellId,
+                manualText = slot.manualText,
+                formatType = slot.formatType?.name,
+            ),
+            resolvedCells = resolvedCells,
+            now = previewNow,
+            dateFormat = dateFormat,
+            timeFormat = timeFormat,
+        )
     }
 }
 
-private fun pathSimpleValue(slot: PathSlotUiItem?, resolvedByCellId: Map<String, String>): String {
-    return when (slot?.kind) {
-        com.dudoziworkshop.dzlog.ui.table.section.PathSlotKind.CELL -> resolvedByCellId[slot.cellId].orEmpty()
-        com.dudoziworkshop.dzlog.ui.table.section.PathSlotKind.MANUAL -> slot.manualText.orEmpty()
-        else -> ""
+private fun pathSimpleValue(
+    slot: PathSlotUiItem?,
+    resolvedByCellId: Map<String, String>,
+    resolvedCells: List<ResolvedCell>,
+    previewNow: Date,
+    dateFormat: String,
+    timeFormat: String,
+): String {
+    if (slot == null) return ""
+    return if (slot.kind == com.dudoziworkshop.dzlog.ui.table.section.PathSlotKind.CELL) {
+        resolvedByCellId[slot.cellId].orEmpty()
+    } else {
+        resolvePathDraftToken(
+            draft = TableEditorSlotDraft(
+                kind = slot.kind.name,
+                label = slot.label,
+                cellId = slot.cellId,
+                manualText = slot.manualText,
+                formatType = slot.formatType?.name,
+            ),
+            resolvedCells = resolvedCells,
+            now = previewNow,
+            dateFormat = dateFormat,
+            timeFormat = timeFormat,
+        )
     }
 }
 

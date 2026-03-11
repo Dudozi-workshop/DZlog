@@ -56,7 +56,7 @@ import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.domain.model.deriveLegacyFileNameSlotsFromDrafts
+import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -93,7 +93,7 @@ internal fun CellSettingsBottomPanel(
     compactForBottomPanel: Boolean = false
 ) {
     val context = LocalContext.current
-    val derivedFileNameSlots = deriveLegacyFileNameSlotsFromDrafts(templateState.fileNameSlotDrafts)
+    val derivedFileNameSlots = deriveFileNameCellSlotsFromDrafts(templateState.fileNameSlotDrafts)
     val isIncluded = derivedFileNameSlots.contains(cell.cellId)
     var isSlotEditMode by remember { mutableStateOf(false) }
     var selectedFromIndex by remember { mutableStateOf<Int?>(null) }

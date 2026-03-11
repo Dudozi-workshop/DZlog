@@ -1,8 +1,11 @@
 package com.dudoziworkshop.dzlog.domain.capturepolicy
 
-import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
+import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
+import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
+import java.util.Date
 
 /**
  * Capture-time context snapshot.
@@ -17,7 +20,9 @@ import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
  */
 internal data class CaptureContext(
     val resolvedCells: List<ResolvedCell>,
-    val fileNameSlots: List<CellKey?>,
+    val captureNow: Date,
+    val fileNameSlotDrafts: List<TableEditorSlotDraft?>,
+    val pathSlotDrafts: List<TableEditorSlotDraft?>,
     val fnDelim: String,
     val counterDigits: Int,
     val dateFormat: String,
@@ -28,9 +33,16 @@ internal data class CaptureContext(
     val timeScopeValues: List<String> = emptyList(),
     val phraseScopeValues: List<String> = emptyList(),
 ) {
+    val fileNameCellSlots by lazy(LazyThreadSafetyMode.NONE) {
+        deriveFileNameCellSlotsFromDrafts(fileNameSlotDrafts)
+    }
+
     init {
-        require(fileNameSlots.size == FILE_NAME_SLOT_COUNT) {
-            "fileNameSlots must have exactly $FILE_NAME_SLOT_COUNT entries."
+        require(fileNameSlotDrafts.size == FILE_NAME_SLOT_COUNT) {
+            "fileNameSlotDrafts must have exactly $FILE_NAME_SLOT_COUNT entries."
+        }
+        require(pathSlotDrafts.size == PATH_SLOT_COUNT) {
+            "pathSlotDrafts must have exactly $PATH_SLOT_COUNT entries."
         }
     }
 }

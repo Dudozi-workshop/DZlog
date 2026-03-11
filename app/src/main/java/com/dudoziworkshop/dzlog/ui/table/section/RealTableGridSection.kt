@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadgesOverlay
@@ -195,7 +196,7 @@ fun RealTableGridSection(
             val cellH = rowSizes[cell.rowIndex]
             val isEditingCell = cell.cellId == editingCellId
             val display = displayTextProvider(cell.cellId)
-            val nameIdx = templateState.fileNameSlots.indexOf(cell.cellId).takeIf { it >= 0 }
+            val nameIdx = deriveFileNameCellSlotsFromDrafts(templateState.fileNameSlotDrafts).indexOf(cell.cellId).takeIf { it >= 0 }
 
             Box(
                 modifier = Modifier

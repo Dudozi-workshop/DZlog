@@ -22,7 +22,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 /**
  * Cell top badges (표시 전용)
  * - 📁n : 경로 단계 (GroupLevel -> index)
- * - 🏷n : 파일명 구성 요소 (fileNameSlots index)
+ * - 🏷n : 파일명 구성 요소 (fileName slot draft index)
  */
 @Composable
 fun CellHeaderBadgesOverlay(

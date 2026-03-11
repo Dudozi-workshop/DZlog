@@ -7,6 +7,7 @@ import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.ResolvePlan
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
@@ -66,7 +67,8 @@ internal fun buildPreviewPipeline(
         selectedPhraseTextByCellId = selectedPhraseTextByCellId,
     )
 
-    val fileNameCellIds = input.templateState.fileNameSlots.filterNotNull().toSet()
+    val fileNameCellSlots = deriveFileNameCellSlotsFromDrafts(input.templateState.fileNameSlotDrafts)
+    val fileNameCellIds = fileNameCellSlots.filterNotNull().toSet()
     val isPerPhraseMode = effectiveCells.any { cell ->
         cell.dataType == TableCellDataType.ROTATING_TEXT &&
             cell.rotatingCounterMode == RotatingCounterMode.PER_PHRASE &&
@@ -75,7 +77,7 @@ internal fun buildPreviewPipeline(
     val scopeValues = CounterScopeResolver.resolve(
         CounterScopeResolver.Inputs(
             cells = effectiveCells,
-            fileNameSlots = input.templateState.fileNameSlots,
+            fileNameSlots = fileNameCellSlots,
             resolvedCells = plan.resolvedCells,
             isPerPhraseMode = isPerPhraseMode,
         )
@@ -84,7 +86,9 @@ internal fun buildPreviewPipeline(
     val namingPreview = CaptureNamingPolicy.buildForCaptureWithCounter(
         captureContext = CaptureContext(
             resolvedCells = plan.resolvedCells,
-            fileNameSlots = input.templateState.fileNameSlots,
+            captureNow = input.captureNow,
+            fileNameSlotDrafts = input.templateState.fileNameSlotDrafts,
+            pathSlotDrafts = input.templateState.pathSlotDrafts,
             fnDelim = input.fnDelim,
             counterDigits = input.counterDigits,
             dateFormat = input.dateFormat,

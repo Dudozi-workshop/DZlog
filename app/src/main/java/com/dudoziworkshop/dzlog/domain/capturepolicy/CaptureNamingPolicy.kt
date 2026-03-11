@@ -3,11 +3,8 @@ package com.dudoziworkshop.dzlog.domain.capturepolicy
 import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
 import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterStreamContext
-import com.dudoziworkshop.dzlog.domain.model.CellKey
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
-import com.dudoziworkshop.dzlog.domain.naming.buildDisplayNameFromResolvedCells
-import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePath
-import com.dudoziworkshop.dzlog.domain.naming.resolveGroupValue
+import com.dudoziworkshop.dzlog.domain.naming.buildDisplayNameFromSlotDrafts
+import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePathFromSlotDrafts
 import java.util.Date
 
 /**
@@ -31,27 +28,27 @@ internal object CaptureNamingPolicy {
      *
      * - 프리뷰/촬영/표 프리뷰 등 "파일명 문자열"이 필요한 호출부가
      *   NamePathBuilders를 직접 호출하지 않고 정책 파일만 참조하도록 만든다.
-     * - 현재는 기존 buildDisplayNameFromResolvedCells를 그대로 래핑(동작 불변).
+     * - draft 기반 공용 builder(buildDisplayNameFromSlotDrafts)를 호출해 모든 화면과 동일 규칙을 사용한다.
      */
     internal fun buildDisplayNameForCounter(
         resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>,
+        fileNameSlotDrafts: List<com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft?>,
         fnDelim: String,
         counterDigits: Int,
         usedCounter: Int,
         now: Date,
-        fileNameSlots: List<CellKey?>? = null,
-        includeDate: Boolean = false,
-        includeTime: Boolean = false
+        dateFormat: String,
+        timeFormat: String,
     ): String {
-        return buildDisplayNameFromResolvedCells(
+        return buildDisplayNameFromSlotDrafts(
             resolvedCells = resolvedCells,
+            fileNameSlotDrafts = fileNameSlotDrafts,
             fnDelim = fnDelim,
-            includeDate = includeDate,
-            includeTime = includeTime,
-            fileNameSlots = fileNameSlots,
             counterDigits = counterDigits,
-            counterOverride = usedCounter,
-            now = now
+            usedCounter = usedCounter,
+            now = now,
+            dateFormat = dateFormat,
+            timeFormat = timeFormat,
         )
     }
 
@@ -66,7 +63,7 @@ internal object CaptureNamingPolicy {
         val resolvedCells = captureContext.resolvedCells
         val streamContext = buildCounterStreamContext(
             resolvedCells = resolvedCells,
-            fileNameSlots = captureContext.fileNameSlots,
+            fileNameSlots = captureContext.fileNameCellSlots,
             nextCounter = usedCounter,
             isManualMode = false,
             fnDelim = captureContext.fnDelim,
@@ -77,17 +74,23 @@ internal object CaptureNamingPolicy {
                 phraseScopeValues = captureContext.phraseScopeValues,
             ),
         )
-        val g1 = resolveGroupValue(resolvedCells, GroupLevel.G1)
-        val g2 = resolveGroupValue(resolvedCells, GroupLevel.G2)
-        val baseRelativePath = buildGalleryRelativePath(g1, g2)
+        val baseRelativePath = buildGalleryRelativePathFromSlotDrafts(
+            resolvedCells = resolvedCells,
+            pathSlotDrafts = captureContext.pathSlotDrafts,
+            now = captureContext.captureNow,
+            dateFormat = captureContext.dateFormat,
+            timeFormat = captureContext.timeFormat,
+        )
 
         val displayName = buildDisplayNameForCounter(
             resolvedCells = resolvedCells,
+            fileNameSlotDrafts = captureContext.fileNameSlotDrafts,
             fnDelim = captureContext.fnDelim,
             counterDigits = captureContext.counterDigits,
             usedCounter = usedCounter,
-            fileNameSlots = captureContext.fileNameSlots,
-            now = Date()
+            now = captureContext.captureNow,
+            dateFormat = captureContext.dateFormat,
+            timeFormat = captureContext.timeFormat,
         )
 
         return Result(

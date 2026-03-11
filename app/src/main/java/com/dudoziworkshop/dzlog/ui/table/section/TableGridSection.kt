@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadgesOverlay
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -119,7 +120,7 @@ fun TableGridSection(
                         ) {
                             if (cell != null) {
                                 val display = displayTextProvider(cell.cellId)
-                                val nameIdx = templateState.fileNameSlots.indexOf(cell.cellId).takeIf { it >= 0 }
+                                val nameIdx = deriveFileNameCellSlotsFromDrafts(templateState.fileNameSlotDrafts).indexOf(cell.cellId).takeIf { it >= 0 }
 
                                 val canInlineEdit =
                                     (cell.dataType == TableCellDataType.TEXT ||

@@ -119,6 +119,7 @@ import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
 import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
@@ -406,8 +407,8 @@ fun CameraPreview(
     }
 
     val hasTemplateCells = tableTemplateState.cells.isNotEmpty()
-    val hasAnyFilenameSlot = tableTemplateState.fileNameSlots.any { it != null }
-    val allFilenameSlotsOff = tableTemplateState.fileNameSlots.all { it == null }
+    val hasAnyFilenameSlot = deriveFileNameCellSlotsFromDrafts(tableTemplateState.fileNameSlotDrafts).any { it != null }
+    val allFilenameSlotsOff = deriveFileNameCellSlotsFromDrafts(tableTemplateState.fileNameSlotDrafts).all { it == null }
     val isTemplateReady = hasTemplateCells && (
         !appSettings.includeFilenameInCounterScope ||
             allFilenameSlotsOff ||

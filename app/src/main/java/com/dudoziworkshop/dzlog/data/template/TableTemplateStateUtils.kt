@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.data.template
 
-import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
@@ -16,7 +15,6 @@ import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.model.TimeSeparator
-import com.dudoziworkshop.dzlog.domain.model.deriveLegacyFileNameSlotsFromDrafts
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -53,19 +51,6 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
             }
         }
 
-        val hasFileNameSlots = root.has("fileNameSlots")
-        val loadedFileNameSlots: List<CellKey?> = if (hasFileNameSlots) {
-            val slotArray = root.optJSONArray("fileNameSlots") ?: JSONArray()
-            List(FILE_NAME_SLOT_COUNT) { idx ->
-                when {
-                    slotArray.isNull(idx) -> null
-                    else -> slotArray.optString(idx)
-                        .takeUnless { it.isBlank() || it == "null" }
-                }
-            }
-        } else {
-            List(FILE_NAME_SLOT_COUNT) { null }
-        }
 
         val phraseSets = if (root.has("phraseSets")) {
             val sets = root.optJSONArray("phraseSets") ?: JSONArray()
@@ -101,7 +86,6 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                 error("Legacy template with label field is no longer supported")
             }
         }
-        val legacyIncludeCandidates = mutableListOf<TableCellState>()
         val cells = buildList {
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
@@ -123,7 +107,6 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                     else -> CellValue.Auto
                 }
 
-                val legacyFileNameInclude = o.optBoolean("fileNameInclude", false)
 
                 val timeOpts = if (o.has("timeFormatOptions")) {
                     val t = o.getJSONObject("timeFormatOptions")
@@ -155,39 +138,10 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                             ?.let { runCatching { RotatingCounterMode.valueOf(it) }.getOrNull() }
                     )
                 add(cell)
-                if (legacyFileNameInclude && dataType != TableCellDataType.COUNTER) {
-                    legacyIncludeCandidates.add(cell)
-                }
             }
         }
-        val legacyFileNameSlots = if (hasFileNameSlots) {
-            loadedFileNameSlots
-        } else {
-            val migrated = legacyIncludeCandidates
-                .sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
-                .map { it.cellId }
-                .distinct()
-                .take(FILE_NAME_SLOT_COUNT)
-            migrated + List(FILE_NAME_SLOT_COUNT - migrated.size) { null }
-        }
-        val parsedFileNameSlotDrafts = parseEditorSlotDrafts("fileNameSlotDrafts", FILE_NAME_SLOT_COUNT)
+        val fileNameSlotDrafts = parseEditorSlotDrafts("fileNameSlotDrafts", FILE_NAME_SLOT_COUNT)
         val pathSlotDrafts = parseEditorSlotDrafts("pathSlotDrafts", PATH_SLOT_COUNT)
-        // 정책 변경: 파일명 슬롯 SSOT는 fileNameSlotDrafts로 유지하고,
-        // legacy fileNameSlots는 draft에서 CELL 타입만 추출한 derived 호환 필드로 계산한다.
-        val fileNameSlotDrafts = if (parsedFileNameSlotDrafts.any { it != null }) {
-            parsedFileNameSlotDrafts
-        } else {
-            legacyFileNameSlots.map { cellId ->
-                cellId?.let {
-                    TableEditorSlotDraft(
-                        kind = "CELL",
-                        label = "셀",
-                        cellId = it
-                    )
-                }
-            }
-        }
-        val fileNameSlots = deriveLegacyFileNameSlotsFromDrafts(fileNameSlotDrafts)
 
         TableTemplateState(
             rows = rows,
@@ -196,7 +150,6 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
             rowWeights = rowWeights,
             colWeights = colWeights,
             phraseSets = phraseSets,
-            fileNameSlots = fileNameSlots,
             fileNameSlotDrafts = fileNameSlotDrafts,
             pathSlotDrafts = pathSlotDrafts
         )
@@ -267,11 +220,11 @@ fun defaultTableTemplateState(): TableTemplateState {
         )
     )
 
-    val fileNameSlots = cells
+    val fileNameSlotDrafts = cells
         .sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
         .take(FILE_NAME_SLOT_COUNT)
         .map { it.cellId }
-    val fileNameSlotDrafts = fileNameSlots.map { cellId ->
+        .map { cellId ->
         cellId?.let {
             TableEditorSlotDraft(
                 kind = "CELL",
@@ -285,7 +238,6 @@ fun defaultTableTemplateState(): TableTemplateState {
         rows = rows,
         cols = cols,
         cells = cells,
-        fileNameSlots = deriveLegacyFileNameSlotsFromDrafts(fileNameSlotDrafts),
         fileNameSlotDrafts = fileNameSlotDrafts
     )
 }
@@ -306,12 +258,6 @@ fun TableTemplateState.toJsonString(): String {
         root.put("colWeights", jw)
     }
 
-    val fileNameSlotsJson = JSONArray()
-    val derivedLegacyFileNameSlots = deriveLegacyFileNameSlotsFromDrafts(fileNameSlotDrafts)
-    derivedLegacyFileNameSlots.forEach { slot ->
-        fileNameSlotsJson.put(slot ?: JSONObject.NULL)
-    }
-    root.put("fileNameSlots", fileNameSlotsJson)
 
     fun slotDraftsToJson(drafts: List<TableEditorSlotDraft?>, slotCount: Int): JSONArray {
         val arr = JSONArray()

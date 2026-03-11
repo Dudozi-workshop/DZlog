@@ -60,6 +60,7 @@ import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.PreviewPipelineInput
@@ -140,7 +141,7 @@ fun HomeScreen(
 
     LaunchedEffect(
         tableTemplateState.cells,
-        tableTemplateState.fileNameSlots,
+        deriveFileNameCellSlotsFromDrafts(tableTemplateState.fileNameSlotDrafts),
         tableTemplateState.phraseSets,
         settings.saveMode,
         settings.counterPadding,
@@ -166,7 +167,7 @@ fun HomeScreen(
         )
         val streamContext = buildCounterStreamContext(
             resolvedCells = previewPipeline.plan.resolvedCells,
-            fileNameSlots = tableTemplateState.fileNameSlots,
+            fileNameSlots = deriveFileNameCellSlotsFromDrafts(tableTemplateState.fileNameSlotDrafts),
             nextCounter = 1,
             isManualMode = false,
             fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,

@@ -59,7 +59,6 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
-import com.dudoziworkshop.dzlog.domain.model.deriveLegacyFileNameSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.PreviewPipelineInput
@@ -195,25 +194,7 @@ private fun toPathDomainSlotDraft(slot: PathSlotUiItem?): com.dudoziworkshop.dzl
 }
 
 private fun buildFileNameDraftSlots(template: TableTemplateState): List<FileNameSlotUiItem?> {
-    // 정책 변경: draft payload가 하나라도 있으면 legacy fileNameSlots fallback을 금지하고 draft를 SSOT로 사용한다.
-    val hasDraftPayload = template.fileNameSlotDrafts.any { it != null }
-    val fromDraftPayload = normalizeFileNameDraftSlots(template.fileNameSlotDrafts.map(::toFileNameUiSlotDraft))
-    if (hasDraftPayload) return fromDraftPayload
-
-    return normalizeFileNameDraftSlots(
-        template.fileNameSlots.map { cellId ->
-            cellId?.let { key ->
-                val cell = template.cells.firstOrNull { it.cellId == key }
-                val fallbackLabel = "셀"
-                val label = cell?.let { "셀(${it.rowIndex + 1},${it.colIndex + 1})" } ?: fallbackLabel
-                FileNameSlotUiItem(
-                    kind = FileNameSlotKind.CELL,
-                    label = label,
-                    cellId = key
-                )
-            }
-        }
-    )
+    return normalizeFileNameDraftSlots(template.fileNameSlotDrafts.map(::toFileNameUiSlotDraft))
 }
 
 private fun buildPathDraftSlots(template: TableTemplateState): List<PathSlotUiItem?> {
@@ -221,9 +202,7 @@ private fun buildPathDraftSlots(template: TableTemplateState): List<PathSlotUiIt
 }
 
 private fun deriveFileNameSlotsForCounterScope(template: TableTemplateState): List<String?> {
-    val hasDraftPayload = template.fileNameSlotDrafts.any { it != null }
-    // 주요 정책: draft payload가 존재하면 legacy fallback으로 되돌아가지 않는다.
-    return if (hasDraftPayload) deriveLegacyFileNameSlotsFromDrafts(template.fileNameSlotDrafts) else template.fileNameSlots
+    return com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts(template.fileNameSlotDrafts)
 }
 
 
@@ -260,9 +239,7 @@ fun TableEditorScreen(
     ): TableTemplateState {
         val normalized = normalizeFileNameDraftSlots(updatedSlots)
         val domainDrafts = normalized.map(::toFileNameDomainSlotDraft)
-        val cellSlots = deriveLegacyFileNameSlotsFromDrafts(domainDrafts)
         return base.copy(
-            fileNameSlots = cellSlots,
             fileNameSlotDrafts = domainDrafts
         )
     }
@@ -449,14 +426,31 @@ fun TableEditorScreen(
     // 파일명 scope 사용 여부는 counterUi 기준으로 판정해,
     // 실제 counter scope 계산 기준과 signature 기준이 어긋나지 않게 맞춘다.
     // 주요 정책: counter scope도 slot-draft 해석 helper와 같은 경로에서 파생한 값만 사용한다.
-    val fileNameSlotsForCounterScope = remember(currentTemplate.fileNameSlotDrafts, currentTemplate.fileNameSlots) {
+    val fileNameSlotsForCounterScope = remember(currentTemplate.fileNameSlotDrafts) {
         deriveFileNameSlotsForCounterScope(currentTemplate)
     }
-    val filenameScopeSignature = remember(fileNameSlotsForCounterScope, counterUi.includeFilenameInCounterScope) {
+    // 주요 정책:
+    // 파일명 draft 구조가 변경되면 counter scope도 변경된 것으로 간주한다.
+    // CELL 기반 파생값이 아니라 fileNameSlotDrafts 전체를 signature로 사용한다.
+    val filenameScopeSignature = remember(
+        currentTemplate.fileNameSlotDrafts,
+        counterUi.includeFilenameInCounterScope
+    ) {
         if (!counterUi.includeFilenameInCounterScope) {
             "filename-scope-disabled"
         } else {
-            fileNameSlotsForCounterScope.joinToString(separator = "|") { slot -> slot ?: "_" }
+            currentTemplate.fileNameSlotDrafts.joinToString("|") { draft ->
+                if (draft == null) {
+                    "_"
+                } else {
+                    listOf(
+                        draft.kind,
+                        draft.cellId ?: "",
+                        draft.manualText ?: "",
+                        draft.formatType ?: ""
+                    ).joinToString(":")
+                }
+            }
         }
     }
 
@@ -502,10 +496,16 @@ fun TableEditorScreen(
     LaunchedEffect(
         currentTemplate.cells,
         currentTemplate.phraseSets,
-        filenameScopeSignature,
     ) {
-        // 정책: 스코프 입력(셀/슬롯/문구세트)이 바뀌면 즉시 next counter 재동기화를 강제한다.
+        // 정책: 스코프 입력(셀/문구세트)이 바뀌면 즉시 next counter 재동기화를 강제한다.
         scopeInputTick += 1
+    }
+
+    LaunchedEffect(filenameScopeSignature) {
+        if (filenameScopeSignature != lastFilenameScopeSignature) {
+            lastFilenameScopeSignature = filenameScopeSignature
+            scopeInputTick += 1
+        }
     }
 
     val tableResolver = remember { TableResolver() }
@@ -1733,7 +1733,7 @@ fun TableEditorScreen(
                             },
                             onReorderFileNameSlots = { fromIndex, toIndex ->
                                 if (fromIndex != toIndex && fromIndex in 0..2 && toIndex in 0..2) {
-                                    // 정책 보정: legacy fileNameSlots가 아니라 현재 UI 슬롯 순서를 기준으로 재정렬한다.
+                                    // 정책 보정: fileName draft가 아니라 현재 UI 슬롯 순서를 기준으로 재정렬한다.
                                     val currentUiSlots = normalizeFileNameDraftSlots(fileNameSlotItems)
                                     val reordered = currentUiSlots.toMutableList().apply {
                                         val temp = this[fromIndex]

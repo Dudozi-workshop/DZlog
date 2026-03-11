@@ -199,6 +199,7 @@ fun LayoutTabContent(
             editingValue = uiState.editingValue,
             templateState = uiState.templateState,
             resolvedByCellId = uiState.resolvedByCellId,
+            resolvedCells = uiState.plan.resolvedCells,
             hasGroup1 = uiState.hasGroup1,
             hasGroup2 = uiState.hasGroup2,
             previewNow = uiState.previewNow,

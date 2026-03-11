@@ -501,13 +501,13 @@ internal fun CameraPreviewArea(
             group2 = resolveGroupValue(plan.resolvedCells, GroupLevel.G2),
             displayName = CaptureNamingPolicy.buildDisplayNameForCounter(
                 resolvedCells = plan.resolvedCells,
+                fileNameSlotDrafts = args.tableTemplateState.fileNameSlotDrafts,
                 fnDelim = args.fnDelim,
                 counterDigits = args.counterDigits,
                 usedCounter = args.scopeNextCounter,
                 now = args.now,
-                fileNameSlots = args.tableTemplateState.fileNameSlots,
-                includeDate = false,
-                includeTime = false
+                dateFormat = args.dateFormat,
+                timeFormat = args.timeFormat,
             ),
             resolvedCells = plan.resolvedCells,
             watermarkCells = WatermarkBuilder.buildTableCells(plan.resolvedCells),

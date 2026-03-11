@@ -1,10 +1,11 @@
 package com.dudoziworkshop.dzlog.domain.naming
 
-import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
+import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -17,30 +18,17 @@ import java.util.Locale
  * - Replace illegal characters with '_'.
  * - Trim leading/trailing dots.
  */
-
 fun sanitizeFilePart(input: String): String {
     val trimmed = input.trim()
     if (trimmed.isBlank()) return ""
 
-    // Replace illegal characters for file names across major platforms.
     val illegal = Regex("[\\\\/:*?\"<>|]")
     val cleaned = trimmed.replace(illegal, "_")
-
     return cleaned.trim().trim('.')
 }
 
-
-private fun sanitizeGroupPathSegment(input: String): String {
-    return sanitizeFilePart(input).trim()
-}
-
-
-
-private fun digitsOnly(input: String): String {
-    val trimmed = input.trim()
-    if (trimmed.isBlank()) return ""
-    return trimmed.filter { it.isDigit() }
-}
+private fun sanitizeGroupPathSegment(input: String): String =
+    sanitizeFilePart(input).replace('/', '_').replace('\\', '_').trim()
 
 @JvmName("resolveGroupValueFromStates")
 fun resolveGroupValue(cells: List<TableCellState>, level: GroupLevel): String {
@@ -79,83 +67,162 @@ fun buildGalleryRelativePath(group1: String, group2: String): String {
     }
 }
 
-fun buildDisplayNameFromResolvedCells(
-    resolvedCells: List<ResolvedCell>,
-    fnDelim: String,
-    includeDate: Boolean,
-    includeTime: Boolean,
-    fileNameSlots: List<CellKey?>? = null,
-    counterDigits: Int = 0,
-    counterOverride: Int? = null,
-    now: Date = Date()
-): String {
-    val ordered = resolvedCells
+private fun formatNow(pattern: String, now: Date): String {
+    return runCatching { SimpleDateFormat(pattern, Locale.getDefault()).format(now) }
+        .getOrElse { "" }
+}
+
+private fun resolveRotatingTextToken(resolvedCells: List<ResolvedCell>): String {
+    return resolvedCells
+        .asSequence()
+        .filter { it.type == TableCellDataType.ROTATING_TEXT }
         .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
+        .map { it.resolvedText.trim() }
+        .firstOrNull { it.isNotBlank() }
+        .orEmpty()
+}
 
-    val prefix = buildFileNamePrefixFromSlots(
+private fun normalizeSlotDrafts(
+    drafts: List<TableEditorSlotDraft?>,
+    slotCount: Int,
+): List<TableEditorSlotDraft?> {
+    return drafts.take(slotCount) + List((slotCount - drafts.size).coerceAtLeast(0)) { null }
+}
+
+private fun resolveFileNameSlotToken(
+    draft: TableEditorSlotDraft?,
+    resolvedById: Map<String, ResolvedCell>,
+    resolvedCells: List<ResolvedCell>,
+    now: Date,
+    dateFormat: String,
+    timeFormat: String,
+): String {
+    val value = when (draft?.kind?.uppercase(Locale.ROOT)) {
+        "CELL" -> {
+            val rc = draft.cellId?.let { resolvedById[it] }
+            if (rc?.type == TableCellDataType.COUNTER) "" else rc?.resolvedText.orEmpty()
+        }
+        "MANUAL" -> draft.manualText.orEmpty()
+        "FORMAT" -> when (draft.formatType?.uppercase(Locale.ROOT)) {
+            "DATE" -> formatNow(dateFormat, now)
+            "TIME" -> formatNow(timeFormat, now)
+            "ROTATING_TEXT" -> resolveRotatingTextToken(resolvedCells)
+            // 정책: COUNTER는 파일명 suffix 자동 정책만 사용. slot token으로 추가하지 않는다.
+            "COUNTER" -> ""
+            else -> ""
+        }
+        else -> ""
+    }
+    return sanitizeFilePart(value)
+}
+
+private fun resolvePathSlotToken(
+    draft: TableEditorSlotDraft?,
+    resolvedById: Map<String, ResolvedCell>,
+    resolvedCells: List<ResolvedCell>,
+    now: Date,
+    dateFormat: String,
+    timeFormat: String,
+): String {
+    val value = when (draft?.kind?.uppercase(Locale.ROOT)) {
+        "CELL" -> draft.cellId?.let { resolvedById[it]?.resolvedText }.orEmpty()
+        "MANUAL" -> draft.manualText.orEmpty()
+        "FORMAT" -> when (draft.formatType?.uppercase(Locale.ROOT)) {
+            "DATE" -> formatNow(dateFormat, now)
+            "TIME" -> formatNow(timeFormat, now)
+            "ROTATING_TEXT" -> resolveRotatingTextToken(resolvedCells)
+            else -> ""
+        }
+        else -> ""
+    }
+    return sanitizeGroupPathSegment(value)
+}
+
+
+fun resolveFileNameDraftToken(
+    draft: TableEditorSlotDraft?,
+    resolvedCells: List<ResolvedCell>,
+    now: Date,
+    dateFormat: String,
+    timeFormat: String,
+): String {
+    val resolvedById = resolvedCells.associateBy { it.id }
+    return resolveFileNameSlotToken(
+        draft = draft,
+        resolvedById = resolvedById,
         resolvedCells = resolvedCells,
-        slots = fileNameSlots ?: List(FILE_NAME_SLOT_COUNT) { null },
-        fnDelim = fnDelim,
-        includeDate = includeDate,
-        includeTime = includeTime,
-        now = now
+        now = now,
+        dateFormat = dateFormat,
+        timeFormat = timeFormat,
     )
+}
 
-    // COUNTER는 resolver가 padding까지 완료한 값을 제공한다.
-    val counterText = ordered.firstOrNull { it.type == TableCellDataType.COUNTER }?.resolvedText
+fun resolvePathDraftToken(
+    draft: TableEditorSlotDraft?,
+    resolvedCells: List<ResolvedCell>,
+    now: Date,
+    dateFormat: String,
+    timeFormat: String,
+): String {
+    val resolvedById = resolvedCells.associateBy { it.id }
+    return resolvePathSlotToken(
+        draft = draft,
+        resolvedById = resolvedById,
+        resolvedCells = resolvedCells,
+        now = now,
+        dateFormat = dateFormat,
+        timeFormat = timeFormat,
+    )
+}
+
+fun buildDisplayNameFromSlotDrafts(
+    resolvedCells: List<ResolvedCell>,
+    fileNameSlotDrafts: List<TableEditorSlotDraft?>,
+    fnDelim: String,
+    counterDigits: Int,
+    usedCounter: Int,
+    now: Date,
+    dateFormat: String,
+    timeFormat: String,
+): String {
+    val resolvedById = resolvedCells.associateBy { it.id }
+    val delim = fnDelim.ifBlank { "_" }
+    val prefixParts = normalizeSlotDrafts(fileNameSlotDrafts, FILE_NAME_SLOT_COUNT)
+        .map { resolveFileNameSlotToken(it, resolvedById, resolvedCells, now, dateFormat, timeFormat) }
+        .filter { it.isNotBlank() }
+
+    val prefix = if (prefixParts.isEmpty()) "DZlog" else prefixParts.joinToString(delim)
+
+    // suffix 카운터 정책 유지: 항상 자동 suffix 하나만 부여.
+    val resolvedCounterText = resolvedCells
+        .firstOrNull { it.type == TableCellDataType.COUNTER }
+        ?.resolvedText
         ?.takeIf { it.isNotBlank() }
         .orEmpty()
+    val resolvedWidth = resolvedCounterText.takeIf { it.all(Char::isDigit) }?.length ?: 0
+    val width = maxOf(resolvedWidth, counterDigits.coerceAtLeast(0))
+    val counterSuffix = if (width > 0) usedCounter.toString().padStart(width, '0') else usedCounter.toString()
 
-    // MVP 정책: 파일명 suffix 카운터는 "단일 소스"(counterOverride) 우선.
-    // - COUNTER 셀 표기 ON/OFF, seed 변경 등 UI 상태에 의해 파일명 카운터가 흔들리지 않도록 한다.
-    // - counterOverride가 있으면 항상 그것을 사용하고, padding은 기존 counterText 길이를 따르도록 시도한다.
-    val counterFinal = counterOverride
-        ?.takeIf { it >= 0 }
-        ?.let { ov ->
-            val resolvedWidth = counterText.takeIf { it.all { ch -> ch.isDigit() } }?.length ?: 0
-            val width = maxOf(resolvedWidth, counterDigits.coerceAtLeast(0))
-            if (width > 0) ov.toString().padStart(width, '0') else ov.toString()
-        }
-        ?: counterText.ifBlank { "1" }
-
-    val base = "${prefix}_${counterFinal}"
+    val base = "${prefix}_$counterSuffix"
     val withExt = if (base.endsWith(".jpg", true) || base.endsWith(".jpeg", true)) base else "$base.jpg"
     return sanitizeFilePart(withExt)
 }
 
-fun buildFileNamePrefixFromSlots(
+fun buildGalleryRelativePathFromSlotDrafts(
     resolvedCells: List<ResolvedCell>,
-    slots: List<CellKey?>,
-    fnDelim: String,
-    includeDate: Boolean,
-    includeTime: Boolean,
-    now: Date = Date()
+    pathSlotDrafts: List<TableEditorSlotDraft?>,
+    now: Date,
+    dateFormat: String,
+    timeFormat: String,
 ): String {
-    val delim = fnDelim.ifBlank { "_" }
-    val normalizedSlots = slots.take(FILE_NAME_SLOT_COUNT) +
-        List((FILE_NAME_SLOT_COUNT - slots.size).coerceAtLeast(0)) { null }
+    val resolvedById = resolvedCells.associateBy { it.id }
+    val segments = normalizeSlotDrafts(pathSlotDrafts, PATH_SLOT_COUNT)
+        .map { resolvePathSlotToken(it, resolvedById, resolvedCells, now, dateFormat, timeFormat) }
+        .filter { it.isNotBlank() }
 
-    val parts = normalizedSlots
-        .asSequence()
-        .mapNotNull { slot ->
-            slot?.let { key -> resolvedCells.firstOrNull { rc -> rc.id == key } }
-        }
-        .mapNotNull { rc ->
-            when (rc.type) {
-                TableCellDataType.COUNTER -> null
-                TableCellDataType.DATE,
-                TableCellDataType.TIME -> digitsOnly(rc.resolvedText)
-                else -> sanitizeFilePart(rc.resolvedText)
-            }.takeIf { !it.isNullOrBlank() }
-        }
-        .toMutableList()
-
-    if (includeDate || includeTime) {
-        if (includeDate) parts.add(SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(now))
-        if (includeTime) parts.add(SimpleDateFormat("HHmmss", Locale.getDefault()).format(now))
+    return if (segments.isEmpty()) {
+        "Pictures/DZlog/"
+    } else {
+        "Pictures/DZlog/${segments.joinToString("/")}/"
     }
-
-    if (parts.isEmpty()) parts.add("DZlog")
-
-    return parts.joinToString(delim)
 }
