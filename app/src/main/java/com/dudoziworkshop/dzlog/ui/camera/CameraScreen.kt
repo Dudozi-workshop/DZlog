@@ -1200,8 +1200,7 @@ private fun SyncCounterSeedEffect(
         appSettings.includeFilenameInCounterScope,
     ) {
         if (!isTemplateReady) {
-            // 템플릿 미준비(초기/임시 상태)에서는 seed 계산/스냅샷 갱신을 수행하지 않는다.
-            // 초기 prefix(DZlog)로 잘못 계산된 next=1이 UI seed를 덮어쓰지 않도록 방지한다.
+            // 템플릿 미준비 상태에서는 counter 동기화를 수행하지 않는다.
             return@LaunchedEffect
         }
 
@@ -1253,7 +1252,7 @@ private fun SyncCounterSeedEffect(
                 counterScope.streamPrefix.contains("rp_")
         val syncAllowsDownward = isUndoResync
         ui.counter.scopeNextCounter = when {
-            // 규칙 A: 새 스트림 판정 시, 임시 상태에서 next=1로 내려오는 경우의 덮어쓰기를 방지한다.
+            // 규칙 A: 새 스트림 판정에서 비의도적 1 하향을 방지한다.
             isNewStream && !allowResetToOneOnNewStream && nextSeedFromStream == 1 && currentScopeSeed > 1 -> currentScopeSeed
 
             // 규칙 B: 같은 scope/new scope 안정화는 공통 helper(resolveSyncedScopeNext)에서 처리한다.
