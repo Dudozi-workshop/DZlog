@@ -1,6 +1,6 @@
 package com.dudoziworkshop.dzlog.domain.counter.policy
 
-import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
+import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterScopeParts
 
 data class CounterScopeSnapshot(
@@ -17,7 +17,7 @@ fun isNewCounterScope(previous: CounterScopeSnapshot?, current: CounterScopeSnap
 }
 
 fun buildCounterScopeSnapshot(
-    streamContext: CounterStreamContext,
+    streamContext: CounterScope,
     includePathInScope: Boolean,
     includeFilenameInScope: Boolean,
 ): CounterScopeSnapshot {

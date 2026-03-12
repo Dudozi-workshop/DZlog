@@ -5,7 +5,7 @@ import com.dudoziworkshop.dzlog.data.counter.parseCounterFromDisplayNameForPolic
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CounterManager
-import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
+import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.counter.toScopedCounter
 import kotlinx.coroutines.flow.first
 
@@ -39,12 +39,12 @@ internal object CounterResyncPolicy {
 
     internal suspend fun refreshNextCounterFromMediaStore(
         context: Context,
-        streamContext: CounterStreamContext,
+        streamContext: CounterScope,
         counterDigits: Int,
         fnDelim: String
     ): Int {
         val appSettings = AppSettingsStore.flow(context).first()
-        // legacy 타입명(streamContext) 입력이지만, 실제 핵심 모델은 CounterScope alias다.
+        // scoped stream 계산은 CounterScope 단일 모델을 기준으로 수행한다.
         val scopedStream = toScopedCounter(
             counterScope = streamContext,
             includePathInScope = appSettings.includePathInCounterScope,

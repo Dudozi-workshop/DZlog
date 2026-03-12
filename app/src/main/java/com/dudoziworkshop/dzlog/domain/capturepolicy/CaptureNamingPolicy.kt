@@ -22,10 +22,7 @@ internal object CaptureNamingPolicy {
         val relativePath: String,
         val displayName: String,
         val usedCounter: Int?
-    ) {
-        // legacy 호환: 단계적 호출부 이전을 위해 유지(핵심 이름은 counterScope)
-        val streamContext: CounterScope get() = counterScope
-    }
+    )
 
     /**
      * displayName 생성 정책(순수 함수)

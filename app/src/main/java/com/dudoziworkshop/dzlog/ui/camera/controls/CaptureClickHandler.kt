@@ -5,7 +5,6 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.camera.core.ImageCapture
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
-import com.dudoziworkshop.dzlog.domain.captureplan.CapturePlan
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
@@ -16,6 +15,7 @@ import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.naming.resolveGroupValue
+import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import com.dudoziworkshop.dzlog.domain.table.applyPatch
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import kotlinx.coroutines.CoroutineScope
@@ -35,7 +35,7 @@ data class CaptureClickCallbacks(
 /**
  * [handleCaptureClick]
  * - 목적: 촬영 버튼 클릭 시 저장 실행/commit 후처리만 담당한다.
- * - 핵심 정책: 계산은 CameraScreen의 activePlan에서 단일화하고, 클릭 시 재계산하지 않는다.
+ * - 핵심 정책: 계산은 CameraScreen의 finalCapturePreview에서 단일화하고, 클릭 시 재계산하지 않는다.
  */
 internal fun handleCaptureClick(
     context: Context,
@@ -43,7 +43,7 @@ internal fun handleCaptureClick(
     imageCapture: ImageCapture?,
     capturedUriPresent: Boolean,
     continuousPreviewMode: ContinuousPreviewMode,
-    activePlan: CapturePlan,
+    finalCapturePreview: FinalCapturePreview,
     scopedCounterStream: CaptureScopedCounterStream,
     tableTemplateState: TableTemplateState,
     counterDigits: Int,
@@ -101,12 +101,12 @@ internal fun handleCaptureClick(
 
     val req = com.dudoziworkshop.dzlog.domain.model.CaptureRequest(
         // 주요 정책: 실제 저장경로는 preview pipeline이 계산한 relativePath를 그대로 사용한다.
-        relativePath = activePlan.relativePathPreview,
-        group1 = resolveGroupValue(activePlan.resolvedCells, GroupLevel.G1),
-        group2 = resolveGroupValue(activePlan.resolvedCells, GroupLevel.G2),
-        displayName = activePlan.displayName,
-        resolvedCells = activePlan.resolvedCells,
-        watermarkCells = WatermarkBuilder.buildTableCells(activePlan.resolvedCells),
+        relativePath = finalCapturePreview.relativePathPreview,
+        group1 = resolveGroupValue(finalCapturePreview.resolvedCells, GroupLevel.G1),
+        group2 = resolveGroupValue(finalCapturePreview.resolvedCells, GroupLevel.G2),
+        displayName = finalCapturePreview.displayName,
+        resolvedCells = finalCapturePreview.resolvedCells,
+        watermarkCells = WatermarkBuilder.buildTableCells(finalCapturePreview.resolvedCells),
         saveMode = saveMode,
         captureAspect = captureAspect,
         photoQualityMode = photoQualityMode,
@@ -141,9 +141,7 @@ internal fun handleCaptureClick(
                 displayName = entry.displayName,
                 fnDelim = fnDelim,
                 counterDigits = counterDigits
-            )?.coerceAtLeast(1) ?: requireNotNull(activePlan.usedCounter) {
-                "Capture counter must be synchronized before capture"
-            }
+            )?.coerceAtLeast(1) ?: finalCapturePreview.usedCounter
 
             CoroutineScope(Dispatchers.IO).launch {
                 // 핵심 수정: Camera read(SyncCounterSeedEffect)와 동일한 scoped stream key로 commit한다.
@@ -157,12 +155,12 @@ internal fun handleCaptureClick(
 
                 withContext(Dispatchers.Main) {
                     // 정책 유지: 저장 성공 후에만 템플릿 patch/문구 진행/카운터 재동기화를 반영한다.
-                    onApplyTemplatePatch(tableTemplateState.applyPatch(activePlan.tablePatch))
+                    onApplyTemplatePatch(tableTemplateState.applyPatch(finalCapturePreview.tablePatch))
                     // UX 개선: 저장 성공 직후 프리뷰 카운터를 committedCounter + 1로 즉시 반영한다.
                     // 정합성은 기존 onRequestCounterResync() 경로가 최종 보정한다.
                     callbacks.onAdvancePreviewCounter(committedCounter + 1)
                     // 정책 정리(2차): 문구 진행은 모드와 무관하게 저장 성공 후 plan 기준으로만 전진한다.
-                    callbacks.onAdvancePhraseProgress(activePlan.nextPhraseProgressCursor)
+                    callbacks.onAdvancePhraseProgress(finalCapturePreview.nextPhraseProgressCursor)
                     onRequestCounterResync()
 
                     if (entry.isNameAdjusted) {

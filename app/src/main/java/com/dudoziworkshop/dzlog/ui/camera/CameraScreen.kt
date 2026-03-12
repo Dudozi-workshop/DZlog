@@ -105,7 +105,6 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MANUAL
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_ALIGN
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
-import com.dudoziworkshop.dzlog.domain.captureplan.CapturePlan
 import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.counter.CounterStore
 import com.dudoziworkshop.dzlog.domain.counter.policy.buildCounterScopeSnapshot
@@ -126,9 +125,11 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
-import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
-import com.dudoziworkshop.dzlog.domain.preview.PreviewState
-import com.dudoziworkshop.dzlog.domain.preview.buildPreviewState
+import com.dudoziworkshop.dzlog.domain.preview.CaptureScopeInput
+import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
+import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreviewInput
+import com.dudoziworkshop.dzlog.domain.preview.buildCaptureScopeState
+import com.dudoziworkshop.dzlog.domain.preview.buildFinalCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
@@ -269,27 +270,23 @@ fun CameraPreview(
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
-    // 프리뷰 계산 경로를 공용 pipeline으로 통일한다(정상 동작 유지 목적, 저장 흐름 불변).
-    val previewPipeline = remember(
+    // 구조 단순화: pre-sync(scope) 계산은 counter 동기화 전 단계에서만 수행한다.
+    val captureScopeState = remember(
         tableTemplateState,
         ui.capture.now,
         ui.prefs.counterDigits,
-        ui.counter.scopeNextCounter,
         phraseProgressCounter,
-        appSettings.includePathInCounterScope,
         appSettings.includeFilenameInCounterScope,
     ) {
-        buildPreviewState(
-            input = PreviewInput(
+        buildCaptureScopeState(
+            input = CaptureScopeInput(
                 templateState = tableTemplateState,
                 captureNow = ui.capture.now,
                 counterDigits = ui.prefs.counterDigits,
                 dateFormat = dateFormat,
                 timeFormat = timeFormat,
                 fnDelim = fnDelim,
-                includePathInCounterScope = appSettings.includePathInCounterScope,
                 includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-                scopeNextCounter = ui.counter.scopeNextCounter,
                 phraseProgressCursor = phraseProgressCounter,
             ),
             tableResolver = tableResolver,
@@ -305,18 +302,7 @@ fun CameraPreview(
             }
         }
     }
-
-    // 핵심 정책(1차 리팩터링): 프리뷰/저장은 같은 activePlan을 공유한다.
-    val activePlan = remember(
-        previewPipeline,
-        phraseProgressCounter,
-    ) {
-        buildActiveCapturePlan(
-            previewState = previewPipeline,
-            phraseProgressCounter = phraseProgressCounter,
-        )
-    }
-    val counterScope = activePlan.streamContext
+    val counterScope = captureScopeState.counterScope
     // 핵심 정책(카메라): Counter read/commit이 동일한 stream key를 사용하도록 scoped stream을 단일 계산한다.
     val scopedCounterStream = remember(
         counterScope.relativePathKey,
@@ -331,7 +317,35 @@ fun CameraPreview(
         )
     }
     // 표시 정책(단순화): 동기화 전(null)에는 COUNTER 숫자를 표시하지 않는다.
-    val displayCounter = ui.counter.scopeNextCounter
+    val finalCapturePreview: FinalCapturePreview? = remember(
+        captureScopeState,
+        ui.counter.scopeNextCounter,
+        tableTemplateState,
+        ui.capture.now,
+        ui.prefs.counterDigits,
+        appSettings.includePathInCounterScope,
+        appSettings.includeFilenameInCounterScope,
+        phraseProgressCounter,
+    ) {
+        val syncedCounter = ui.counter.scopeNextCounter ?: return@remember null
+        buildFinalCapturePreview(
+            scopeState = captureScopeState,
+            input = FinalCapturePreviewInput(
+                templateState = tableTemplateState,
+                captureNow = ui.capture.now,
+                counterDigits = ui.prefs.counterDigits,
+                dateFormat = dateFormat,
+                timeFormat = timeFormat,
+                fnDelim = fnDelim,
+                includePathInCounterScope = appSettings.includePathInCounterScope,
+                includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+                syncedCounter = syncedCounter,
+                phraseProgressCursor = phraseProgressCounter,
+            ),
+        )
+    }
+    // 표시 정책(단순화): 동기화 전(null)에는 COUNTER 숫자를 표시하지 않는다.
+    val displayCounter = finalCapturePreview?.usedCounter
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
     var resumeResyncTick by remember { mutableIntStateOf(0) }
     var undoResyncTick by remember { mutableIntStateOf(0) }
@@ -441,7 +455,7 @@ fun CameraPreview(
         ui = ui
     )
 
-    val topDisplayName = activePlan.displayName
+    val topDisplayName = finalCapturePreview?.displayName ?: captureScopeState.preSyncDisplayName
 
     fun resetZoomToDefault() {
         ui.prefs.zoomRatioTenths = 10
@@ -460,8 +474,8 @@ fun CameraPreview(
     val triggerCapture: () -> Unit = trigger@{
         // 오작동 방지: 캡처 불가 상태에서는 입력 피드백/촬영 로직을 모두 실행하지 않는다.
         if (boundImageCapture == null || ui.capture.capturedUri != null || ui.capture.isCapturing) return@trigger
-        // counter 미동기화(null) 상태에서는 정확한 seed가 없으므로 캡처를 시작하지 않는다.
-        if (ui.counter.scopeNextCounter == null) return@trigger
+        // counter 미동기화(null) 상태에서는 최종 preview가 없으므로 캡처를 시작하지 않는다.
+        val capturePreview = finalCapturePreview ?: return@trigger
 
         // 정책 변경: 촬영 피드백은 저장 완료가 아니라 촬영 트리거(버튼/음량키) 시점에 즉시 제공한다.
         captureFeedback.play(
@@ -492,7 +506,7 @@ fun CameraPreview(
             imageCapture = boundImageCapture,
             capturedUriPresent = (ui.capture.capturedUri != null),
             continuousPreviewMode = ui.prefs.continuousPreviewMode,
-            activePlan = activePlan,
+            finalCapturePreview = capturePreview,
             scopedCounterStream = scopedCounterStream,
             tableTemplateState = tableTemplateState,
             counterDigits = ui.prefs.counterDigits,
@@ -1136,22 +1150,6 @@ private fun rememberMediaStoreRefreshTick(context: Context): Int {
     }
 
     return refreshTick
-}
-
-private fun buildActiveCapturePlan(
-    previewState: PreviewState,
-    phraseProgressCounter: Int,
-): CapturePlan {
-    return CapturePlan(
-        resolvedCells = previewState.plan.resolvedCells,
-        tablePatch = previewState.plan.patch,
-        displayName = previewState.previewNaming.displayName,
-        usedCounter = previewState.previewNaming.usedCounter,
-        // 정책 정리(2차): 저장 성공 시 phrase cursor는 plan이 제공한 다음 값으로만 이동한다.
-        nextPhraseProgressCursor = phraseProgressCounter.coerceAtLeast(1) + 1,
-        streamContext = previewState.previewNaming.counterScope,
-        relativePathPreview = previewState.previewNaming.relativePath,
-    )
 }
 
 @Composable

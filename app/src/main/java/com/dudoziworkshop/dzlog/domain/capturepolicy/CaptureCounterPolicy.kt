@@ -7,7 +7,7 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_MANUAL_NEXT_OVERRID
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.counter.CounterManager
-import com.dudoziworkshop.dzlog.domain.counter.CounterStreamContext
+import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.counter.toCaptureStreamKey
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import kotlinx.coroutines.flow.first
@@ -26,7 +26,7 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun getNextCounter(
         context: Context,
-        streamContext: CounterStreamContext,
+        streamContext: CounterScope,
         counterDigits: Int,
         fnDelim: String,
         saveMode: SaveMode,
@@ -109,7 +109,7 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun commitCounter(
         context: Context,
-        streamContext: CounterStreamContext,
+        streamContext: CounterScope,
         usedCounter: Int,
         mediaStoreId: Long
     ) {
@@ -182,7 +182,7 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun setNextCounter(
         context: Context,
-        streamContext: CounterStreamContext,
+        streamContext: CounterScope,
         desired: Int,
         force: Boolean,
         counterDigits: Int,
@@ -229,7 +229,7 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun isManualOverrideActive(
         context: Context,
-        streamContext: CounterStreamContext
+        streamContext: CounterScope
     ): Boolean {
         return isManualOverrideActive(
             context = context,
@@ -256,7 +256,7 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun clearManualCounterOverride(
         context: Context,
-        streamContext: CounterStreamContext
+        streamContext: CounterScope
     ) {
         clearManualCounterOverride(
             context = context,
@@ -276,7 +276,7 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun resetToAutoNext(
         context: Context,
-        streamContext: CounterStreamContext,
+        streamContext: CounterScope,
         counterDigits: Int,
         fnDelim: String,
         saveMode: SaveMode,

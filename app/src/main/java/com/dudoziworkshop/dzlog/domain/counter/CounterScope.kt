@@ -44,25 +44,3 @@ fun buildCounterScope(
         isManualMode = isManualMode
     )
 }
-
-typealias CounterStreamContext = CounterScope
-
-fun buildCounterStreamContext(
-    resolvedCells: List<ResolvedCell>,
-    fileNameSlots: List<CellKey?>,
-    nextCounter: Int,
-    isManualMode: Boolean,
-    fnDelim: String = "_",
-    includeFilenameInScope: Boolean = true,
-    scopeOptions: CounterScopeOptions = CounterScopeOptions(),
-    relativePathOverride: String? = null,
-): CounterStreamContext = buildCounterScope(
-    resolvedCells = resolvedCells,
-    fileNameSlots = fileNameSlots,
-    nextCounter = nextCounter,
-    isManualMode = isManualMode,
-    fnDelim = fnDelim,
-    includeFilenameInScope = includeFilenameInScope,
-    scopeOptions = scopeOptions,
-    relativePathOverride = relativePathOverride,
-)

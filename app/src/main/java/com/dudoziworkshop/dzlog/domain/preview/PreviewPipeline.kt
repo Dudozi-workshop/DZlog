@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.domain.preview
 
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureContext
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
+import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.counter.CounterScopeResolver
 import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -28,32 +29,130 @@ internal data class PreviewInput(
     val selectedPhraseTextByCellIdOverride: Map<String, String>? = null,
 )
 
+internal data class CaptureScopeInput(
+    val templateState: TableTemplateState,
+    val captureNow: Date,
+    val counterDigits: Int,
+    val dateFormat: String,
+    val timeFormat: String,
+    val fnDelim: String,
+    val includeFilenameInCounterScope: Boolean,
+    val phraseProgressCursor: Int,
+    val overrideCells: List<TableCellState>? = null,
+    val selectedPhraseTextByCellIdOverride: Map<String, String>? = null,
+)
+
+internal data class FinalCapturePreviewInput(
+    val templateState: TableTemplateState,
+    val captureNow: Date,
+    val counterDigits: Int,
+    val dateFormat: String,
+    val timeFormat: String,
+    val fnDelim: String,
+    val includePathInCounterScope: Boolean,
+    val includeFilenameInCounterScope: Boolean,
+    val syncedCounter: Int,
+    val phraseProgressCursor: Int,
+)
+
+internal data class CaptureScopeState(
+    val effectiveCells: List<TableCellState>,
+    val selectedPhraseTextByCellId: Map<String, String>,
+    val plan: ResolvePlan,
+    val scopeValues: CounterScopeResolver.Result,
+    val counterScope: CounterScope,
+    val preSyncDisplayName: String,
+    val relativePathPreview: String,
+)
+
+internal data class FinalCapturePreview(
+    val resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>,
+    val tablePatch: com.dudoziworkshop.dzlog.domain.table.TablePatch,
+    val displayName: String,
+    val usedCounter: Int,
+    val nextPhraseProgressCursor: Int,
+    val counterScope: CounterScope,
+    val relativePathPreview: String,
+)
+
 internal data class PreviewState(
     val selectedPhraseTextByCellId: Map<String, String>,
     val plan: ResolvePlan,
     val scopeValues: CounterScopeResolver.Result,
     val previewNaming: CaptureNamingPolicy.Result,
-) {
-    // 이전 이름 호환: 점진 이전 단계 동안 기존 호출부를 유지한다.
-    val namingPreview: CaptureNamingPolicy.Result get() = previewNaming
-}
+)
 
 /**
  * 화면별 Preview 계산 경로를 단일화하기 위한 공용 state builder.
- *
- * 핵심 진입점: buildPreviewState(PreviewInput)
- * (아래 buildPreviewPipeline은 legacy 호환 래퍼다.)
- *
- * 순서(고정):
- * 1) selectedPhraseTextByCellId
- * 2) TableResolver.plan
- * 3) CounterScopeResolver.resolve
- * 4) CaptureNamingPolicy.buildForCaptureWithCounter
  */
 internal fun buildPreviewState(
     input: PreviewInput,
     tableResolver: TableResolver = TableResolver(),
 ): PreviewState {
+    val scopeState = buildCaptureScopeState(
+        input = CaptureScopeInput(
+            templateState = input.templateState,
+            captureNow = input.captureNow,
+            counterDigits = input.counterDigits,
+            dateFormat = input.dateFormat,
+            timeFormat = input.timeFormat,
+            fnDelim = input.fnDelim,
+            includeFilenameInCounterScope = input.includeFilenameInCounterScope,
+            phraseProgressCursor = input.phraseProgressCursor,
+            overrideCells = input.overrideCells,
+            selectedPhraseTextByCellIdOverride = input.selectedPhraseTextByCellIdOverride,
+        ),
+        tableResolver = tableResolver,
+    )
+
+    // buildPreviewState는 외부 계약 유지: sync된 counter가 들어오면 plan도 동일 counter 기준으로 맞춘다.
+    val previewPlan = if (input.scopeNextCounter != null) {
+        tableResolver.plan(
+            cells = scopeState.effectiveCells,
+            captureNow = input.captureNow,
+            config = TableResolver.Config(
+                counterDigits = input.counterDigits,
+                dateFormat = input.dateFormat,
+                timeFormat = input.timeFormat,
+            ),
+            counterSeedOverride = input.scopeNextCounter.coerceAtLeast(1),
+            selectedPhraseTextByCellId = scopeState.selectedPhraseTextByCellId,
+        )
+    } else {
+        scopeState.plan
+    }
+
+    val previewNaming = CaptureNamingPolicy.buildForCaptureWithCounter(
+        captureContext = CaptureContext(
+            resolvedCells = previewPlan.resolvedCells,
+            captureNow = input.captureNow,
+            fileNameSlotDrafts = input.templateState.fileNameSlotDrafts,
+            pathSlotDrafts = input.templateState.pathSlotDrafts,
+            fnDelim = input.fnDelim,
+            counterDigits = input.counterDigits,
+            dateFormat = input.dateFormat,
+            timeFormat = input.timeFormat,
+            includePathInCounterScope = input.includePathInCounterScope,
+            includeFilenameInCounterScope = input.includeFilenameInCounterScope,
+            dateScopeValues = scopeState.scopeValues.dateScopeValues,
+            timeScopeValues = scopeState.scopeValues.timeScopeValues,
+            phraseScopeValues = scopeState.scopeValues.phraseScopeValues,
+        ),
+        usedCounter = input.scopeNextCounter,
+    )
+
+    return PreviewState(
+        selectedPhraseTextByCellId = scopeState.selectedPhraseTextByCellId,
+        plan = previewPlan,
+        scopeValues = scopeState.scopeValues,
+        previewNaming = previewNaming,
+    )
+}
+
+internal fun buildCaptureScopeState(
+    input: CaptureScopeInput,
+    tableResolver: TableResolver = TableResolver(),
+): CaptureScopeState {
     val effectiveCells = input.overrideCells ?: input.templateState.cells
     val selectedPhraseTextByCellId = input.selectedPhraseTextByCellIdOverride ?: PhraseResolver.resolveSelectedTextByCellId(
         cells = effectiveCells,
@@ -61,6 +160,7 @@ internal fun buildPreviewState(
         progressCursor = input.phraseProgressCursor,
     )
 
+    // pre-sync 단계: 카운터 seed 없이 scope 계산에 필요한 table plan만 확정한다.
     val plan = tableResolver.plan(
         cells = effectiveCells,
         captureNow = input.captureNow,
@@ -69,7 +169,7 @@ internal fun buildPreviewState(
             dateFormat = input.dateFormat,
             timeFormat = input.timeFormat,
         ),
-        counterSeedOverride = input.scopeNextCounter,
+        counterSeedOverride = null,
         selectedPhraseTextByCellId = selectedPhraseTextByCellId,
     )
 
@@ -89,7 +189,7 @@ internal fun buildPreviewState(
         )
     )
 
-    val previewNaming = CaptureNamingPolicy.buildForCaptureWithCounter(
+    val scopeNaming = CaptureNamingPolicy.buildForCaptureWithCounter(
         captureContext = CaptureContext(
             resolvedCells = plan.resolvedCells,
             captureNow = input.captureNow,
@@ -99,30 +199,72 @@ internal fun buildPreviewState(
             counterDigits = input.counterDigits,
             dateFormat = input.dateFormat,
             timeFormat = input.timeFormat,
-            includePathInCounterScope = input.includePathInCounterScope,
             includeFilenameInCounterScope = input.includeFilenameInCounterScope,
+            includePathInCounterScope = true,
             dateScopeValues = scopeValues.dateScopeValues,
             timeScopeValues = scopeValues.timeScopeValues,
             phraseScopeValues = scopeValues.phraseScopeValues,
         ),
-        // 미동기화(null) 상태에서는 preview builder가 counter를 임시 확정하지 않는다.
-        usedCounter = input.scopeNextCounter,
+        usedCounter = null,
     )
 
-    return PreviewState(
+    return CaptureScopeState(
+        effectiveCells = effectiveCells,
         selectedPhraseTextByCellId = selectedPhraseTextByCellId,
         plan = plan,
         scopeValues = scopeValues,
-        previewNaming = previewNaming,
+        counterScope = scopeNaming.counterScope,
+        preSyncDisplayName = scopeNaming.displayName,
+        relativePathPreview = scopeNaming.relativePath,
     )
 }
 
-// legacy 호환 별칭: 외부 호출부 점진 이전용
-internal typealias PreviewPipelineInput = PreviewInput
-internal typealias PreviewPipelineResult = PreviewState
-
-// legacy 호환 래퍼: 신규 코드는 buildPreviewState 사용
-internal fun buildPreviewPipeline(
-    input: PreviewPipelineInput,
+internal fun buildFinalCapturePreview(
+    scopeState: CaptureScopeState,
+    input: FinalCapturePreviewInput,
     tableResolver: TableResolver = TableResolver(),
-): PreviewPipelineResult = buildPreviewState(input, tableResolver)
+): FinalCapturePreview {
+    // 핵심 정책: post-sync final preview는 synced counter를 반영한 final plan을 다시 계산한다.
+    // 이로써 displayName / resolvedCells / tablePatch가 같은 기준 counter를 사용한다.
+    val finalPlan = tableResolver.plan(
+        cells = scopeState.effectiveCells,
+        captureNow = input.captureNow,
+        config = TableResolver.Config(
+            counterDigits = input.counterDigits,
+            dateFormat = input.dateFormat,
+            timeFormat = input.timeFormat,
+        ),
+        counterSeedOverride = input.syncedCounter.coerceAtLeast(1),
+        selectedPhraseTextByCellId = scopeState.selectedPhraseTextByCellId,
+    )
+
+    val previewNaming = CaptureNamingPolicy.buildForCaptureWithCounter(
+        captureContext = CaptureContext(
+            resolvedCells = finalPlan.resolvedCells,
+            captureNow = input.captureNow,
+            fileNameSlotDrafts = input.templateState.fileNameSlotDrafts,
+            pathSlotDrafts = input.templateState.pathSlotDrafts,
+            fnDelim = input.fnDelim,
+            counterDigits = input.counterDigits,
+            dateFormat = input.dateFormat,
+            timeFormat = input.timeFormat,
+            includePathInCounterScope = input.includePathInCounterScope,
+            includeFilenameInCounterScope = input.includeFilenameInCounterScope,
+            dateScopeValues = scopeState.scopeValues.dateScopeValues,
+            timeScopeValues = scopeState.scopeValues.timeScopeValues,
+            phraseScopeValues = scopeState.scopeValues.phraseScopeValues,
+        ),
+        usedCounter = input.syncedCounter.coerceAtLeast(1),
+    )
+
+    return FinalCapturePreview(
+        resolvedCells = finalPlan.resolvedCells,
+        tablePatch = finalPlan.patch,
+        displayName = previewNaming.displayName,
+        usedCounter = requireNotNull(previewNaming.usedCounter),
+        // 정책 정리: 문구 진행은 sync 이후 최종 preview가 확정된 뒤에만 다음 커서를 계산한다.
+        nextPhraseProgressCursor = input.phraseProgressCursor.coerceAtLeast(1) + 1,
+        counterScope = previewNaming.counterScope,
+        relativePathPreview = previewNaming.relativePath,
+    )
+}
