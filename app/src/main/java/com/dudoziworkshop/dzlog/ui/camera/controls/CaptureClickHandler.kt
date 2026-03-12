@@ -8,6 +8,7 @@ import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.domain.captureplan.CapturePlan
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
+import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
@@ -43,6 +44,7 @@ internal fun handleCaptureClick(
     capturedUriPresent: Boolean,
     continuousPreviewMode: ContinuousPreviewMode,
     activePlan: CapturePlan,
+    scopedCounterStream: CaptureScopedCounterStream,
     tableTemplateState: TableTemplateState,
     counterDigits: Int,
     fnDelim: String,
@@ -142,9 +144,11 @@ internal fun handleCaptureClick(
             )?.coerceAtLeast(1) ?: activePlan.usedCounter
 
             CoroutineScope(Dispatchers.IO).launch {
+                // 핵심 수정: Camera read(SyncCounterSeedEffect)와 동일한 scoped stream key로 commit한다.
+                // includePath/includeFilename scope OFF 시에도 read/commit 키가 분리되지 않도록 일치화한다.
                 CaptureCounterPolicy.commitCounter(
                     context = context,
-                    streamContext = activePlan.streamContext,
+                    scopedStream = scopedCounterStream,
                     usedCounter = committedCounter,
                     mediaStoreId = entry.mediaStoreId
                 )

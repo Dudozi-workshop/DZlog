@@ -319,6 +319,19 @@ fun CameraPreview(
         )
     }
     val counterScope = activePlan.streamContext
+    // 핵심 정책(카메라): Counter read/commit이 동일한 stream key를 사용하도록 scoped stream을 단일 계산한다.
+    val scopedCounterStream = remember(
+        counterScope.relativePathKey,
+        counterScope.streamPrefix,
+        appSettings.includePathInCounterScope,
+        appSettings.includeFilenameInCounterScope,
+    ) {
+        toScopedCounter(
+            counterScope = counterScope,
+            includePathInScope = appSettings.includePathInCounterScope,
+            includeFilenameInScope = appSettings.includeFilenameInCounterScope,
+        )
+    }
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
     var resumeResyncTick by remember { mutableIntStateOf(0) }
     var undoResyncTick by remember { mutableIntStateOf(0) }
@@ -475,6 +488,7 @@ fun CameraPreview(
             capturedUriPresent = (ui.capture.capturedUri != null),
             continuousPreviewMode = ui.prefs.continuousPreviewMode,
             activePlan = activePlan,
+            scopedCounterStream = scopedCounterStream,
             tableTemplateState = tableTemplateState,
             counterDigits = ui.prefs.counterDigits,
             fnDelim = fnDelim,
@@ -1229,14 +1243,23 @@ private fun SyncCounterSeedEffect(
                 counterScope.streamPrefix.contains("t_") ||
                 counterScope.streamPrefix.contains("rp_")
         val syncAllowsDownward = isUndoResync
+        val isSameScope = !isNewStream
+        // 롤백 가드: 같은 scope에서는 stream seed가 낮게 관측되어도 scope seed를 절대 낮추지 않는다.
+        // 단, undo 재동기화는 실제 삭제/되돌리기 반영을 위해 하향 동기화를 허용한다.
+        val guardedStreamNext =
+            if (isSameScope && nextSeedFromStream < currentScopeSeed && !syncAllowsDownward) {
+                currentScopeSeed
+            } else {
+                nextSeedFromStream
+            }
         ui.counter.scopeNextCounter = when {
             // 규칙 A: 새 스트림 판정 시, 임시 상태에서 next=1로 내려오는 경우의 덮어쓰기를 방지한다.
             isNewStream && !allowResetToOneOnNewStream && nextSeedFromStream == 1 && currentScopeSeed > 1 -> currentScopeSeed
 
-            // 규칙 B: 같은 scope에서는 화면 이동/빠른 재진입(resume)으로 낮은 값이 내려오더라도 rollback을 막는다.
+            // 규칙 B: 같은 scope/new scope 안정화는 공통 helper(resolveSyncedScopeNext)에서 처리한다.
             // 단, undo 기반 외부 재동기화는 실제 삭제 반영을 위해 하향 동기화를 허용한다.
             else -> resolveSyncedScopeNext(
-                streamNextFromPolicy = nextSeedFromStream,
+                streamNextFromPolicy = guardedStreamNext,
                 currentScopeNext = currentScopeSeed,
                 isNewScope = isNewStream,
                 allowDownwardSync = syncAllowsDownward,

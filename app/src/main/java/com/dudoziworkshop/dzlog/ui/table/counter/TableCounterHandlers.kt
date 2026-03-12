@@ -286,12 +286,19 @@ internal suspend fun syncCounterStateForScope(
         currentScopeNext = counterUi.scopeNextCounter,
         isNewScope = isNewScope,
     )
+    // 롤백 가드(테이블 진입/복귀): 같은 scope에서 stream seed가 더 낮으면 UI scope seed를 유지한다.
+    val guardedStreamNext =
+        if (!isNewScope && stableStreamNext < counterUi.scopeNextCounter) {
+            counterUi.scopeNextCounter
+        } else {
+            stableStreamNext
+        }
     val isManualCounterMode = TableCounterPolicyCoordinator.isManualOverrideActive(
         context = context,
         scopedStream = scopedCounterStream
     )
     // `streamNext`와 같은 SSOT 값을 UI 표시에 재사용한다.
-    val autoNextCounterValue = stableStreamNext
+    val autoNextCounterValue = guardedStreamNext
 
     val syncResult = TableCounterPolicyCoordinator.resolveSeedForScope(
         input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
@@ -299,7 +306,7 @@ internal suspend fun syncCounterStateForScope(
             isManualMode = isManualCounterModeDisplay,
             hasCounterCell = (counterCell != null),
             currentSeed = currentSeed,
-            streamNext = stableStreamNext,
+            streamNext = guardedStreamNext,
             previousScopeSnapshot = lastScopeSnapshot,
             preserveManualCounterSeed = counterUi.preserveManualCounterSeed,
             manualSeedOverride = counterUi.manualSeedOverride,

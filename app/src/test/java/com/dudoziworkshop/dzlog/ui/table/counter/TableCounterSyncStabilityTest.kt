@@ -26,4 +26,16 @@ class TableCounterSyncStabilityTest {
 
         assertEquals(1, stable)
     }
+
+    @Test
+    fun same_scope_never_resets_to_one() {
+        val stable = stabilizeTableStreamNext(
+            streamNext = 1,
+            currentScopeNext = 5,
+            isNewScope = false,
+        )
+
+        assertEquals(5, stable)
+    }
+
 }
