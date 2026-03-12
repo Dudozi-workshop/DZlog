@@ -39,14 +39,14 @@ internal object CounterResyncPolicy {
 
     internal suspend fun refreshNextCounterFromMediaStore(
         context: Context,
-        streamContext: CounterScope,
+        counterScope: CounterScope,
         counterDigits: Int,
         fnDelim: String
     ): Int {
         val appSettings = AppSettingsStore.flow(context).first()
         // scoped stream 계산은 CounterScope 단일 모델을 기준으로 수행한다.
         val scopedStream = toScopedCounter(
-            counterScope = streamContext,
+            counterScope = counterScope,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
         )
@@ -56,7 +56,7 @@ internal object CounterResyncPolicy {
         val fileNamePrefix = scopedStream.captureStreamKey.prefix
             .substringBefore("|g2=", scopedStream.captureStreamKey.prefix)
 
-        val nextCounterFromScan = CounterManager.getNextCounter(
+        val nextCounterFromScan = CounterManager.computeNextCounterFromMediaStore(
             context = context,
             relativePath = relativePath,
             counterPrefix = fileNamePrefix,

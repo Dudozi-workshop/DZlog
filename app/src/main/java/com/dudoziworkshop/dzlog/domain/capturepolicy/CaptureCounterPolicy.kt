@@ -26,14 +26,14 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun getNextCounter(
         context: Context,
-        streamContext: CounterScope,
+        counterScope: CounterScope,
         counterDigits: Int,
         fnDelim: String,
         saveMode: SaveMode,
     ): Int {
         return getNextCounter(
             context = context,
-            key = toCaptureStreamKey(streamContext),
+            key = toCaptureStreamKey(counterScope),
             counterDigits = counterDigits,
             fnDelim = fnDelim,
             saveMode = saveMode,
@@ -63,7 +63,9 @@ internal object CaptureCounterPolicy {
         fnDelim: String,
         saveMode: SaveMode,
     ): Int {
-        val autoNext = CounterManager.getNextCounter(
+        // auto-next는 MediaStore 실파일 기준 max+1이며(hole fill 없음),
+        // 아래에서 manual override가 있으면 UI/수동 정책으로 덮어쓴다.
+        val autoNext = CounterManager.computeNextCounterFromMediaStore(
             context = context,
             relativePath = key.relativePathKey,
             counterPrefix = key.prefix,
@@ -109,13 +111,13 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun commitCounter(
         context: Context,
-        streamContext: CounterScope,
+        counterScope: CounterScope,
         usedCounter: Int,
         mediaStoreId: Long
     ) {
         commitCounter(
             context = context,
-            key = toCaptureStreamKey(streamContext),
+            key = toCaptureStreamKey(counterScope),
             usedCounter = usedCounter,
             mediaStoreId = mediaStoreId
         )
@@ -147,7 +149,7 @@ internal object CaptureCounterPolicy {
         val normalized = desired.coerceAtLeast(1)
 
         // 자동 기준 next(max+1)
-        val autoNext = CounterManager.getNextCounter(
+        val autoNext = CounterManager.computeNextCounterFromMediaStore(
             context = context,
             relativePath = key.relativePathKey,
             counterPrefix = key.prefix,
@@ -182,7 +184,7 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun setNextCounter(
         context: Context,
-        streamContext: CounterScope,
+        counterScope: CounterScope,
         desired: Int,
         force: Boolean,
         counterDigits: Int,
@@ -191,7 +193,7 @@ internal object CaptureCounterPolicy {
     ) {
         setNextCounter(
             context = context,
-            key = toCaptureStreamKey(streamContext),
+            key = toCaptureStreamKey(counterScope),
             desired = desired,
             force = force,
             counterDigits = counterDigits,
@@ -229,11 +231,11 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun isManualOverrideActive(
         context: Context,
-        streamContext: CounterScope
+        counterScope: CounterScope
     ): Boolean {
         return isManualOverrideActive(
             context = context,
-            key = toCaptureStreamKey(streamContext)
+            key = toCaptureStreamKey(counterScope)
         )
     }
 
@@ -256,11 +258,11 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun clearManualCounterOverride(
         context: Context,
-        streamContext: CounterScope
+        counterScope: CounterScope
     ) {
         clearManualCounterOverride(
             context = context,
-            key = toCaptureStreamKey(streamContext)
+            key = toCaptureStreamKey(counterScope)
         )
     }
 
@@ -276,18 +278,18 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun resetToAutoNext(
         context: Context,
-        streamContext: CounterScope,
+        counterScope: CounterScope,
         counterDigits: Int,
         fnDelim: String,
         saveMode: SaveMode,
     ): Int {
         clearManualCounterOverride(
             context = context,
-            streamContext = streamContext
+            counterScope = counterScope
         )
         return getNextCounter(
             context = context,
-            streamContext = streamContext,
+            counterScope = counterScope,
             counterDigits = counterDigits,
             fnDelim = fnDelim,
             saveMode = saveMode,

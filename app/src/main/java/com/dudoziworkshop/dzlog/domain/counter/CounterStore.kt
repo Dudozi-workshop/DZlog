@@ -19,7 +19,7 @@ internal object CounterStore {
         saveMode: SaveMode,
     ): Int = CaptureCounterPolicy.getNextCounter(
         context = context,
-        streamContext = counterScope,
+        counterScope = counterScope,
         counterDigits = counterDigits,
         fnDelim = fnDelim,
         saveMode = saveMode,

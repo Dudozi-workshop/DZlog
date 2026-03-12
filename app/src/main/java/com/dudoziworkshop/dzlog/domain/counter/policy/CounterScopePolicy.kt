@@ -17,13 +17,13 @@ fun isNewCounterScope(previous: CounterScopeSnapshot?, current: CounterScopeSnap
 }
 
 fun buildCounterScopeSnapshot(
-    streamContext: CounterScope,
+    counterScope: CounterScope,
     includePathInScope: Boolean,
     includeFilenameInScope: Boolean,
 ): CounterScopeSnapshot {
     val scopeParts = buildCounterScopeParts(
-        relativePath = streamContext.relativePathKey,
-        prefix = streamContext.streamPrefix,
+        relativePath = counterScope.relativePathKey,
+        prefix = counterScope.streamPrefix,
         includePathInScope = includePathInScope,
         includeFilenameInScope = includeFilenameInScope,
     )

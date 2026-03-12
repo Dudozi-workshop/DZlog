@@ -34,4 +34,32 @@ class CounterScanPolicyTest {
 
         assertEquals(listOf("Pictures/DZlog/original/"), paths)
     }
+
+    @Test
+    fun `empty counters start from one`() {
+        val next = CounterManager.computeNextFromExistingCounters(emptySet())
+
+        assertEquals(1, next)
+    }
+
+    @Test
+    fun `next counter uses max plus one when counters are sequential`() {
+        val next = CounterManager.computeNextFromExistingCounters(setOf(1, 2, 3))
+
+        assertEquals(4, next)
+    }
+
+    @Test
+    fun `next counter uses max plus one when counters contain holes`() {
+        val next = CounterManager.computeNextFromExistingCounters(setOf(1, 2, 6, 8, 11, 12))
+
+        assertEquals(13, next)
+    }
+
+    @Test
+    fun `deleting last file lowers next to remaining max plus one`() {
+        val next = CounterManager.computeNextFromExistingCounters(setOf(1, 2))
+
+        assertEquals(3, next)
+    }
 }

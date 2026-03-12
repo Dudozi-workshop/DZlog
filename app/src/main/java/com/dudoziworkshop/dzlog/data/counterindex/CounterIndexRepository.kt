@@ -5,8 +5,12 @@ import com.dudoziworkshop.dzlog.data.log.LogDatabase
 
 /**
  * CounterIndex 접근 레이어.
- * - 목적: 중복 체크 / MAX+1 리셋 / 촬영 시점 기록
- * - 파일명/워터마크는 수정하지 않는다. (내부 논리 카운터만 관리)
+ * - 목적: 촬영 시점 카운터 사용 기록(record)과 placeholder 동기화(replace/backfill)
+ * - 파일명/워터마크는 수정하지 않는다. (내부 논리 카운터 기록만 관리)
+ *
+ * 정책:
+ * - 다음 counter 계산은 MediaStore 실파일 스캔(max+1)으로 수행된다.
+ * - 이 저장소는 보조 기록/캐시 용도이며, next 계산 근거로 직접 사용하지 않는다.
  */
 class CounterIndexRepository private constructor(
     private val dao: CounterIndexDao
@@ -49,9 +53,10 @@ class CounterIndexRepository private constructor(
     }
 
     /**
-     * 특정 스트림 카운터를 현재 스캔 결과로 완전 동기화한다.
-     * - 기존 레코드를 모두 제거 후 placeholders로 재적재
-     * - 파일 삭제 이후 stale 인덱스가 남아 next가 커지는 문제를 방지
+     * 특정 스트림 카운터 보조 기록을 현재 스캔 결과에 맞춰 동기화한다.
+     * - committed 레코드는 보존하고 placeholder 집합만 갱신한다.
+     * - MediaStore 스캔 결과를 보조 기록으로 반영하는 목적이며,
+     *   next 계산 근거를 대체하지 않는다.
      */
     suspend fun replaceCounters(relativePath: String, prefix: String, counters: Set<Int>) {
         if (relativePath.isBlank()) return

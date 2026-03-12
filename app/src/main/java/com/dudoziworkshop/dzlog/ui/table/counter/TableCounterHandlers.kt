@@ -43,7 +43,7 @@ internal fun buildTableCounterScopeSnapshot(
     includeFilenameInCounterScope: Boolean
 ): CounterScopeSnapshot =
     buildCounterScopeSnapshot(
-        streamContext = counterScope,
+        counterScope = counterScope,
         includePathInScope = includePathInCounterScope,
         includeFilenameInScope = includeFilenameInCounterScope
     )

@@ -2,7 +2,7 @@ package com.dudoziworkshop.dzlog.domain.counter
 
 import android.content.Context
 import com.dudoziworkshop.dzlog.data.counter.CounterScanTarget
-import com.dudoziworkshop.dzlog.data.counter.scanUsedCountersFromMediaStore
+import com.dudoziworkshop.dzlog.data.counter.scanUsedCountersFromMediaStore as scanCountersInMediaStorePath
 import com.dudoziworkshop.dzlog.data.counter.toCounterScanTarget
 import com.dudoziworkshop.dzlog.data.counterindex.CounterIndexRepository
 import com.dudoziworkshop.dzlog.domain.model.CellKey
@@ -193,12 +193,12 @@ object CounterManager {
         return "$basePrefix|$tag"
     }
 
-    private fun basePrefixFromStreamPrefix(streamPrefix: String): String {
-        return streamPrefix.substringBefore("|g2=", streamPrefix)
+    private fun toPhysicalFileNamePrefix(rawStreamPrefix: String): String {
+        return rawStreamPrefix.substringBefore("|g2=", rawStreamPrefix)
     }
 
 
-    private fun physicalRelativePathFromStreamKey(relativePathKey: String): String {
+    private fun toPhysicalRelativePath(relativePathKey: String): String {
         // relativePathKey may include virtual stream discriminator (e.g. "|g2=enabled_empty").
         // MediaStore path filtering must use physical folder path only.
         return relativePathKey.substringBefore("|g2=", relativePathKey)
@@ -217,12 +217,14 @@ object CounterManager {
     }
 
     /**
-     * 해당 스트림(relativePath  counterPrefix)에서 사용된 카운터 집합을 반환한다.
+     * 해당 스트림(relativePath + counterPrefix)의 used counters를 MediaStore에서 로드한다.
      *
-     * - Room(DB)에 값이 있으면: DB 그대로 반환
-     * - 없으면: MediaStore 스캔 → Room backfill → 스캔 결과 반환
+     * 정책(최종 truth):
+     * - usedCounters는 MediaStore 실파일 스캔 결과만 사용한다.
+     * - Room/CounterIndexRepository는 next 계산의 truth가 아니라 보조 기록(캐시) 용도로만 유지한다.
+     * - 삭제된 파일이 DB에 남아 있어도 next 계산에는 개입하지 못한다.
      */
-    suspend fun getUsedCounters(
+    suspend fun loadUsedCountersFromMediaStore(
         context: Context,
         relativePath: String,
         counterPrefix: String,
@@ -232,80 +234,49 @@ object CounterManager {
     ): Set<Int> {
         val repo = CounterIndexRepository.getInstance(context)
 
-        // counterPrefix는 "streamPrefix"(basePrefix|g2=0/1)로 들어올 수 있다.
-        val streamPrefix = counterPrefix
-        val basePrefix = basePrefixFromStreamPrefix(streamPrefix)
-        val physicalRelativePath = physicalRelativePathFromStreamKey(relativePath)
+        // counterPrefix는 가상 stream tag를 포함할 수 있으므로(rawStreamPrefix),
+        // 실제 파일 스캔에는 physical path/prefix로 변환해 사용한다.
+        val rawStreamPrefix = counterPrefix
+        val physicalFileNamePrefix = toPhysicalFileNamePrefix(rawStreamPrefix)
+        val physicalPath = toPhysicalRelativePath(relativePath)
         val scanTarget = saveMode.toCounterScanTarget()
-        val scanPaths = if (physicalRelativePath.isBlank()) {
+        val scanPaths = if (physicalPath.isBlank()) {
             emptyList()
         } else {
-            computeScanRelativePaths(physicalRelativePath, scanTarget)
+            computeScanRelativePaths(physicalPath, scanTarget)
         }
 
-        // 1) Room 기준 조회 (현재 streamPrefix)
-        val fromDb: Set<Int> = runCatching {
-            repo.getUsedCounters(relativePath, streamPrefix)
-        }.getOrDefault(emptySet())
-
-        if (fromDb.isNotEmpty()) {
-            val scannedFromMediaStore: Set<Int> = runCatching {
-                scanUsedCountersFromPaths(
-                    context = context,
-                    relativePathPrefixes = scanPaths,
-                    fileNamePrefix = basePrefix,
-                    counterDigits = counterDigits,
-                    fnDelim = fnDelim,
-                )
-            }.getOrDefault(fromDb)
-
-            // commit 직후(또는 테스트/인덱싱 지연 환경)에는 MediaStore 스캔이 일시적으로 비어 있을 수 있다.
-            // 이 경우 DB에 기록된 같은 스트림의 used counter를 우선 신뢰해 next가 1로 되돌아가지 않게 한다.
-            if (scannedFromMediaStore.isEmpty()) {
-                return fromDb
-            }
-
-            // MediaStore 스캔은 지연/누락으로 DB 누적분의 부분집합이 될 수 있다.
-            // 같은 스트림에서 commit된 누적 used counter를 잃지 않도록 DB와 스캔 결과를 합집합으로 유지한다.
-            val mergedCounters = fromDb + scannedFromMediaStore
-
-            // 파일 삭제 등으로 DB 인덱스가 실제 보유 파일과 달라진 경우 현재 파일 기준으로 재동기화
-            if (mergedCounters != fromDb) {
-                runCatching { repo.replaceCounters(relativePath, streamPrefix, mergedCounters) }
-            }
-            return mergedCounters
-        }
-
-        // 2) MediaStore 스캔 fallback
-        // - 실제 파일명 prefix에는 stream 구분 태그(|g2=0/1)가 포함되지 않는다.
-        // - 따라서 스캔은 항상 basePrefix로 수행해야 한다.
-        //   (streamPrefix로 스캔하면 파일이 있어도 못 찾고 next=1로 되돌아갈 수 있음)
-        val scanned: Set<Int> = runCatching {
-            scanUsedCountersFromPaths(
+        // 최종 truth: MediaStore 실파일 스캔 결과만 사용한다.
+        // - rawStreamPrefix의 virtual tag(|g2=...)는 실제 파일명에 없으므로 physicalFileNamePrefix로 스캔한다.
+        val usedCountersFromMediaStore: Set<Int> = runCatching {
+            scanUsedCountersFromMediaStore(
                 context = context,
                 relativePathPrefixes = scanPaths,
-                fileNamePrefix = basePrefix,
+                fileNamePrefix = physicalFileNamePrefix,
                 counterDigits = counterDigits,
                 fnDelim = fnDelim,
             )
         }.getOrDefault(emptySet())
 
-        // 3) Room backfill
+        // DB는 보조 기록으로만 유지한다(읽기 truth로 사용 금지).
+        // - replaceCounters: 삭제/undo 후에도 DB가 실파일 상태와 동일하게 따라오도록 정리
+        // - 스캔 실패/빈 결과라도 DB fallback으로 승격하지 않는다.
         runCatching {
-            repo.backfillPlaceholders(relativePath, streamPrefix, scanned)
+            repo.replaceCounters(relativePath, rawStreamPrefix, usedCountersFromMediaStore)
         }
 
-        return scanned
+        return usedCountersFromMediaStore
     }
 
     /**
-
-     * 해당 스트림(relativePath + counterPrefix)의 다음 카운터 값을 계산한다.
+     * 해당 스트림(relativePath + counterPrefix)의 다음 카운터를 MediaStore 기준으로 계산한다.
      *
-     * - Room(DB)에 값이 있으면: max + 1
-     * - 없으면: MediaStore 스캔 → Room backfill → max + 1
+     * 최종 규칙:
+     * - existing counters가 비어 있으면 next = 1
+     * - 아니면 next = max(existing) + 1
+     * - hole fill은 수행하지 않는다.
      */
-    suspend fun getNextCounter(
+    suspend fun computeNextCounterFromMediaStore(
         context: Context,
         relativePath: String,
         counterPrefix: String,
@@ -313,7 +284,7 @@ object CounterManager {
         fnDelim: String,
         saveMode: SaveMode,
     ): Int {
-        val used = getUsedCounters(
+        val used = loadUsedCountersFromMediaStore(
             context = context,
             relativePath = relativePath,
             counterPrefix = counterPrefix,
@@ -321,10 +292,15 @@ object CounterManager {
             fnDelim = fnDelim,
             saveMode = saveMode,
         )
-        return (used.maxOrNull() ?: 0) + 1
+        return computeNextFromExistingCounters(used)
     }
 
-    private fun scanUsedCountersFromPaths(
+    // 정책 요약: next 계산은 used counters 집합에서 max+1만 사용하고, hole fill은 하지 않는다.
+    internal fun computeNextFromExistingCounters(existingCounters: Set<Int>): Int {
+        return (existingCounters.maxOrNull() ?: 0) + 1
+    }
+
+    private fun scanUsedCountersFromMediaStore(
         context: Context,
         relativePathPrefixes: List<String>,
         fileNamePrefix: String,
@@ -337,7 +313,7 @@ object CounterManager {
             .asSequence()
             .filter { it.isNotBlank() }
             .flatMap { rel ->
-                scanUsedCountersFromMediaStore(
+                scanCountersInMediaStorePath(
                     context = context,
                     relativePathPrefix = rel,
                     fileNamePrefix = fileNamePrefix,

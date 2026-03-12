@@ -1204,7 +1204,7 @@ private fun SyncCounterSeedEffect(
         }
 
         val scopeSnapshot = buildCounterScopeSnapshot(
-            streamContext = counterScope,
+            counterScope = counterScope,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
         )
@@ -1235,7 +1235,7 @@ private fun SyncCounterSeedEffect(
         suspend fun readUndoResyncSeedFromMediaStore(): Int =
             CounterResyncPolicy.refreshNextCounterFromMediaStore(
                 context = context,
-                streamContext = counterScope,
+                counterScope = counterScope,
                 counterDigits = counterDigits,
                 fnDelim = fnDelim,
             ).coerceAtLeast(1)

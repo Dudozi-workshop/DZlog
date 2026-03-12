@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.data.counter
 import android.content.Context
 import android.os.Build
 import android.provider.MediaStore
+import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreQueryPolicy
 
 // 0 = no padding (e.g., _1, _10, _5021)
 const val COUNTER_DIGITS_DEFAULT = 0
@@ -65,15 +66,27 @@ fun scanUsedCountersFromMediaStore(
             MediaStore.Images.Media.RELATIVE_PATH
         )
         val isWildcardPath = relativePathPrefix == "*" || relativePathPrefix.isBlank()
-        val selection = if (isWildcardPath) null else "${MediaStore.Images.Media.RELATIVE_PATH} = ?"
-        val selectionArgs = if (isWildcardPath) null else arrayOf(relativePathPrefix)
+        // 주요 정책: RELATIVE_PATH는 단말/버전에 따라 trailing slash 유무가 달라질 수 있다.
+        // 따라서 exact path 매칭은 with-slash/without-slash variant를 모두 포함해 수행한다.
+        val where = if (isWildcardPath) {
+            null
+        } else {
+            MediaStoreQueryPolicy.whereExactRelativePath(relativePathPrefix)
+        }
+        val selection = where?.selection
+        val selectionArgs = where?.selectionArgs
 
         context.contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
             val nameIdx = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
             val pathIdx = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+            val normalizedPathVariants = if (isWildcardPath) {
+                null
+            } else {
+                MediaStoreQueryPolicy.normalizeRelativePathVariants(relativePathPrefix).toList().toSet()
+            }
             while (cursor.moveToNext()) {
                 val rel = if (pathIdx >= 0) cursor.getString(pathIdx) else ""
-                if (!isWildcardPath && rel != relativePathPrefix) continue
+                if (!isWildcardPath && rel !in normalizedPathVariants.orEmpty()) continue
                 val name = if (nameIdx >= 0) cursor.getString(nameIdx) else ""
                 parseCounterFromDisplayName(name, fileNamePrefix, counterDigits, fnDelim)?.let(out::add)
             }

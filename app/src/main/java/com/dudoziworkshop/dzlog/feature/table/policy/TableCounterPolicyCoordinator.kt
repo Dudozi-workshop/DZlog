@@ -52,6 +52,8 @@ internal object TableCounterPolicyCoordinator {
         counterDigits: Int,
         saveMode: SaveMode,
     ): Int {
+        // 정책 명시: auto-next는 CounterManager.computeNextCounterFromMediaStore(max+1)를 기준으로 계산되고,
+        // CaptureCounterPolicy에서 manual override를 결합한 값을 반환한다.
         return CaptureCounterPolicy.getNextCounter(
             context = context,
             scopedStream = scopedStream,

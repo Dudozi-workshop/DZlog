@@ -5,14 +5,15 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * 경로(relativePath)별 카운터 사용 이력 인덱스.
+ * 경로(relativePath)/prefix별 카운터 사용 기록 엔티티.
  *
  * 목적:
- * - 경로별 유일성(중복) 체크
- * - MAX+1 리셋 계산
+ * - 촬영 결과의 counter 사용 이력을 중복 없이 저장한다.
+ * - CounterIndexRepository의 보조 기록(placeholder 포함) 동기화에 사용한다.
  *
  * 주의:
- * - 파일명/워터마크를 수정하지 않는다. (내부 논리 카운터만 관리)
+ * - 다음 counter 계산은 MediaStore 실파일 스캔으로 수행되며,
+ *   이 엔티티는 그 결과를 보조 기록으로 유지하는 용도다.
  */
 @Entity(
     tableName = "counter_index",
