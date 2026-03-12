@@ -497,18 +497,33 @@ internal fun CameraPreviewArea(
             plan.resolvedCells.any { it.type == TableCellDataType.COUNTER }
         }
 
+        // 미동기화(null) 상태에서는 COUNTER 값을 임의 숫자로 확정하지 않고 표시를 보류한다.
+        val resolvedCellsForPreview = remember(plan, args.scopeNextCounter) {
+            if (args.scopeNextCounter != null) {
+                plan.resolvedCells
+            } else {
+                plan.resolvedCells.map { cell ->
+                    if (cell.type == TableCellDataType.COUNTER) {
+                        cell.copy(resolvedText = "", isEmpty = true)
+                    } else {
+                        cell
+                    }
+                }
+            }
+        }
+
         val previewRequest = CaptureRequest(
             relativePath = buildGalleryRelativePathFromSlotDrafts(
-                resolvedCells = plan.resolvedCells,
+                resolvedCells = resolvedCellsForPreview,
                 pathSlotDrafts = args.tableTemplateState.pathSlotDrafts,
                 now = args.now,
                 dateFormat = args.dateFormat,
                 timeFormat = args.timeFormat,
             ),
-            group1 = resolveGroupValue(plan.resolvedCells, GroupLevel.G1),
-            group2 = resolveGroupValue(plan.resolvedCells, GroupLevel.G2),
+            group1 = resolveGroupValue(resolvedCellsForPreview, GroupLevel.G1),
+            group2 = resolveGroupValue(resolvedCellsForPreview, GroupLevel.G2),
             displayName = CaptureNamingPolicy.buildDisplayNameForCounter(
-                resolvedCells = plan.resolvedCells,
+                resolvedCells = resolvedCellsForPreview,
                 fileNameSlotDrafts = args.tableTemplateState.fileNameSlotDrafts,
                 fnDelim = args.fnDelim,
                 counterDigits = args.counterDigits,
@@ -517,8 +532,8 @@ internal fun CameraPreviewArea(
                 dateFormat = args.dateFormat,
                 timeFormat = args.timeFormat,
             ),
-            resolvedCells = plan.resolvedCells,
-            watermarkCells = WatermarkBuilder.buildTableCells(plan.resolvedCells),
+            resolvedCells = resolvedCellsForPreview,
+            watermarkCells = WatermarkBuilder.buildTableCells(resolvedCellsForPreview),
             saveMode = args.saveMode,
             captureAspect = captureAspect,
             photoQualityMode = args.photoQualityMode,

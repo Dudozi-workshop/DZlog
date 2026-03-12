@@ -51,9 +51,10 @@ internal data class CameraPreviewAreaArgs(
     val timeFormat: String,
     val fnDelim: String,
     /**
-     * 단일 소스 카운터(프리뷰 표기용). COUNTER 셀 ON/OFF에 의해 프리뷰 숫자가 흔들리지 않게 하기 위함.
+     * 단일 소스 카운터(프리뷰 표기용).
+     * null이면 CounterStore 동기화 전 상태로 간주하고 COUNTER 표시는 보류한다.
      */
-    val scopeNextCounter: Int,
+    val scopeNextCounter: Int?,
     /**
      * 문구 진행 커서(순환문구 전용). 카운터 seed(scopeNextCounter)와 절대 혼용하지 않는다.
      */

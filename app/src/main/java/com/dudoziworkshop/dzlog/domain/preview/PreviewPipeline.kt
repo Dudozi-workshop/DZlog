@@ -22,7 +22,7 @@ internal data class PreviewInput(
     val fnDelim: String,
     val includePathInCounterScope: Boolean,
     val includeFilenameInCounterScope: Boolean,
-    val scopeNextCounter: Int,
+    val scopeNextCounter: Int?,
     val phraseProgressCursor: Int,
     val overrideCells: List<TableCellState>? = null,
     val selectedPhraseTextByCellIdOverride: Map<String, String>? = null,
@@ -105,6 +105,7 @@ internal fun buildPreviewState(
             timeScopeValues = scopeValues.timeScopeValues,
             phraseScopeValues = scopeValues.phraseScopeValues,
         ),
+        // 미동기화(null) 상태에서는 preview builder가 counter를 임시 확정하지 않는다.
         usedCounter = input.scopeNextCounter,
     )
 

@@ -21,7 +21,7 @@ internal object CaptureNamingPolicy {
         val counterScope: CounterScope,
         val relativePath: String,
         val displayName: String,
-        val usedCounter: Int
+        val usedCounter: Int?
     ) {
         // legacy 호환: 단계적 호출부 이전을 위해 유지(핵심 이름은 counterScope)
         val streamContext: CounterScope get() = counterScope
@@ -39,7 +39,7 @@ internal object CaptureNamingPolicy {
         fileNameSlotDrafts: List<com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft?>,
         fnDelim: String,
         counterDigits: Int,
-        usedCounter: Int,
+        usedCounter: Int?,
         now: Date,
         dateFormat: String,
         timeFormat: String,
@@ -62,7 +62,7 @@ internal object CaptureNamingPolicy {
      */
     internal fun buildForCaptureWithCounter(
         captureContext: CaptureContext,
-        usedCounter: Int
+        usedCounter: Int?
     ): Result {
         val resolvedCells = captureContext.resolvedCells
         val baseRelativePath = buildSavePath(
@@ -72,10 +72,14 @@ internal object CaptureNamingPolicy {
             dateFormat = captureContext.dateFormat,
             timeFormat = captureContext.timeFormat,
         )
+        // CounterScope는 키 계산 모델이라 nextCounter는 nullable을 받지 않는다.
+        // 미동기화(null) 상태에서는 최소값(1)을 내부 모델 값으로만 유지하고,
+        // 실제 표시(displayName suffix)는 nullable usedCounter 정책으로 분리한다.
+        val normalizedScopeCounter = usedCounter?.coerceAtLeast(1) ?: 1
         val counterScope = buildCounterScope(
             resolvedCells = resolvedCells,
             fileNameSlots = captureContext.fileNameCellSlots,
-            nextCounter = usedCounter,
+            nextCounter = normalizedScopeCounter,
             isManualMode = false,
             fnDelim = captureContext.fnDelim,
             includeFilenameInScope = captureContext.includeFilenameInCounterScope,

@@ -141,7 +141,9 @@ internal fun handleCaptureClick(
                 displayName = entry.displayName,
                 fnDelim = fnDelim,
                 counterDigits = counterDigits
-            )?.coerceAtLeast(1) ?: activePlan.usedCounter
+            )?.coerceAtLeast(1) ?: requireNotNull(activePlan.usedCounter) {
+                "Capture counter must be synchronized before capture"
+            }
 
             CoroutineScope(Dispatchers.IO).launch {
                 // 핵심 수정: Camera read(SyncCounterSeedEffect)와 동일한 scoped stream key로 commit한다.

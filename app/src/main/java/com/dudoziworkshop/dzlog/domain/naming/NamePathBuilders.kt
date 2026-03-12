@@ -248,7 +248,7 @@ fun buildFileName(
     fileNameSlotDrafts: List<TableEditorSlotDraft?>,
     fnDelim: String,
     counterDigits: Int,
-    usedCounter: Int,
+    usedCounter: Int?,
     now: Date,
     dateFormat: String,
     timeFormat: String,
@@ -269,9 +269,11 @@ fun buildFileName(
         .orEmpty()
     val resolvedWidth = resolvedCounterText.takeIf { it.all(Char::isDigit) }?.length ?: 0
     val width = maxOf(resolvedWidth, counterDigits.coerceAtLeast(0))
-    val counterSuffix = if (width > 0) usedCounter.toString().padStart(width, '0') else usedCounter.toString()
+    val counterSuffix = usedCounter?.let { counter ->
+        if (width > 0) counter.toString().padStart(width, '0') else counter.toString()
+    }
 
-    val base = "${prefix}_$counterSuffix"
+    val base = if (counterSuffix != null) "${prefix}_$counterSuffix" else prefix
     val withExt = if (base.endsWith(".jpg", true) || base.endsWith(".jpeg", true)) base else "$base.jpg"
     return sanitizeFilePart(withExt)
 }
@@ -302,7 +304,7 @@ fun buildDisplayNameFromSlotDrafts(
     fileNameSlotDrafts: List<TableEditorSlotDraft?>,
     fnDelim: String,
     counterDigits: Int,
-    usedCounter: Int,
+    usedCounter: Int?,
     now: Date,
     dateFormat: String,
     timeFormat: String,

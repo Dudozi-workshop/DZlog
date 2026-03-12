@@ -15,7 +15,7 @@ data class CapturePlan(
     val resolvedCells: List<ResolvedCell>,
     val tablePatch: TablePatch,
     val displayName: String,
-    val usedCounter: Int,
+    val usedCounter: Int?,
     val nextPhraseProgressCursor: Int,
     val streamContext: CounterStreamContext,
     val relativePathPreview: String,

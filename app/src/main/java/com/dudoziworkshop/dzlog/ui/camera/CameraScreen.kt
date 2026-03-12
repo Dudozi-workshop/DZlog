@@ -269,7 +269,6 @@ fun CameraPreview(
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
-
     // 프리뷰 계산 경로를 공용 pipeline으로 통일한다(정상 동작 유지 목적, 저장 흐름 불변).
     val previewPipeline = remember(
         tableTemplateState,
@@ -296,7 +295,6 @@ fun CameraPreview(
             tableResolver = tableResolver,
         )
     }
-
     LaunchedEffect(tableTemplateState.cells, lifecycleOwner) {
         val unit = decideTickUnitFromTemplate(tableTemplateState.cells)
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -332,6 +330,8 @@ fun CameraPreview(
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
         )
     }
+    // 표시 정책(단순화): 동기화 전(null)에는 COUNTER 숫자를 표시하지 않는다.
+    val displayCounter = ui.counter.scopeNextCounter
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
     var resumeResyncTick by remember { mutableIntStateOf(0) }
     var undoResyncTick by remember { mutableIntStateOf(0) }
@@ -460,6 +460,8 @@ fun CameraPreview(
     val triggerCapture: () -> Unit = trigger@{
         // 오작동 방지: 캡처 불가 상태에서는 입력 피드백/촬영 로직을 모두 실행하지 않는다.
         if (boundImageCapture == null || ui.capture.capturedUri != null || ui.capture.isCapturing) return@trigger
+        // counter 미동기화(null) 상태에서는 정확한 seed가 없으므로 캡처를 시작하지 않는다.
+        if (ui.counter.scopeNextCounter == null) return@trigger
 
         // 정책 변경: 촬영 피드백은 저장 완료가 아니라 촬영 트리거(버튼/음량키) 시점에 즉시 제공한다.
         captureFeedback.play(
@@ -470,7 +472,10 @@ fun CameraPreview(
         // 구조 정리: capture 후처리 콜백을 하나의 묶음으로 전달해 호출부 가독성을 유지한다.
         val callbacks = CaptureClickCallbacks(
             // 정책 유지: 저장 성공 직후 프리뷰 숫자를 즉시 다음 값으로 반영한다.
-            onAdvancePreviewCounter = { nextCounter -> ui.counter.scopeNextCounter = nextCounter.coerceAtLeast(1) },
+            onAdvancePreviewCounter = { nextCounter ->
+                val resolved = nextCounter.coerceAtLeast(1)
+                ui.counter.scopeNextCounter = resolved
+            },
             onAddToSessionStack = { uris ->
                 UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
                 scope.launch { reloadLatestImage() }
@@ -601,7 +606,7 @@ fun CameraPreview(
                         dateFormat,
                         timeFormat,
                         fnDelim,
-                        ui.counter.scopeNextCounter,
+                        displayCounter,
                         tableTemplateState,
                         tableResolver,
                         ui.capture.now,
@@ -638,7 +643,7 @@ fun CameraPreview(
                             dateFormat = dateFormat,
                             timeFormat = timeFormat,
                             fnDelim = fnDelim,
-                            scopeNextCounter = ui.counter.scopeNextCounter,
+                            scopeNextCounter = displayCounter,
                             phraseProgressCursor = phraseProgressCounter,
                             tableTemplateState = tableTemplateState,
                             tableResolver = tableResolver,
@@ -762,7 +767,10 @@ fun CameraPreview(
                         contentAlignment = Alignment.Center
                     ) {
                         val enabledNow =
-                            (boundImageCapture != null && ui.capture.capturedUri == null && !ui.capture.isCapturing)
+                            (boundImageCapture != null &&
+                                ui.capture.capturedUri == null &&
+                                !ui.capture.isCapturing &&
+                                ui.counter.scopeNextCounter != null)
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             ZoomControlSection(
@@ -1237,21 +1245,13 @@ private fun SyncCounterSeedEffect(
             previous = ui.counter.lastScopeSnapshot,
             current = scopeSnapshot
         )
-        val currentScopeSeed = ui.counter.scopeNextCounter
+        // null은 아직 동기화 전 상태이므로, 첫 동기화 cycle에서는 stream 관측값을 기준 seed로 사용한다.
+        val currentScopeSeed = ui.counter.scopeNextCounter ?: nextSeedFromStream
         val allowResetToOneOnNewStream =
             counterScope.streamPrefix.contains("d_") ||
                 counterScope.streamPrefix.contains("t_") ||
                 counterScope.streamPrefix.contains("rp_")
         val syncAllowsDownward = isUndoResync
-        val isSameScope = !isNewStream
-        // 롤백 가드: 같은 scope에서는 stream seed가 낮게 관측되어도 scope seed를 절대 낮추지 않는다.
-        // 단, undo 재동기화는 실제 삭제/되돌리기 반영을 위해 하향 동기화를 허용한다.
-        val guardedStreamNext =
-            if (isSameScope && nextSeedFromStream < currentScopeSeed && !syncAllowsDownward) {
-                currentScopeSeed
-            } else {
-                nextSeedFromStream
-            }
         ui.counter.scopeNextCounter = when {
             // 규칙 A: 새 스트림 판정 시, 임시 상태에서 next=1로 내려오는 경우의 덮어쓰기를 방지한다.
             isNewStream && !allowResetToOneOnNewStream && nextSeedFromStream == 1 && currentScopeSeed > 1 -> currentScopeSeed
@@ -1259,7 +1259,7 @@ private fun SyncCounterSeedEffect(
             // 규칙 B: 같은 scope/new scope 안정화는 공통 helper(resolveSyncedScopeNext)에서 처리한다.
             // 단, undo 기반 외부 재동기화는 실제 삭제 반영을 위해 하향 동기화를 허용한다.
             else -> resolveSyncedScopeNext(
-                streamNextFromPolicy = guardedStreamNext,
+                streamNextFromPolicy = nextSeedFromStream,
                 currentScopeNext = currentScopeSeed,
                 isNewScope = isNewStream,
                 allowDownwardSync = syncAllowsDownward,
