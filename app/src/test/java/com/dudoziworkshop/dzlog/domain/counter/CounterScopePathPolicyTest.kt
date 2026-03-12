@@ -7,14 +7,14 @@ import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class CounterStreamContextPathPolicyTest {
+class CounterScopePathPolicyTest {
 
     @Test
     fun `relativePathOverride is used as-is regardless of group level`() {
         val g1 = resolvedCell("c1", GroupLevel.G1, "legacyA")
         val g2 = resolvedCell("c2", GroupLevel.G2, "legacyB")
 
-        val context = buildCounterStreamContext(
+        val counterScope = buildCounterScope(
             resolvedCells = listOf(g1, g2),
             fileNameSlots = emptyList(),
             nextCounter = 1,
@@ -22,7 +22,7 @@ class CounterStreamContextPathPolicyTest {
             relativePathOverride = "Pictures/DZlog/pathSlotA/pathSlotB/",
         )
 
-        assertEquals("Pictures/DZlog/pathSlotA/pathSlotB/", context.relativePathKey)
+        assertEquals("Pictures/DZlog/pathSlotA/pathSlotB/", counterScope.relativePathKey)
     }
 
     private fun resolvedCell(id: String, groupLevel: GroupLevel, text: String): ResolvedCell {

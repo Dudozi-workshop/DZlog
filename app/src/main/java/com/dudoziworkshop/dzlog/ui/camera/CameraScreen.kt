@@ -133,6 +133,7 @@ import com.dudoziworkshop.dzlog.domain.preview.buildFinalCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
+import com.dudoziworkshop.dzlog.feature.capture.policy.CounterResyncPolicy
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.feature.capture.policy.resolveSyncedScopeNext
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
@@ -1214,7 +1215,9 @@ private fun SyncCounterSeedEffect(
         }
 
         val saveModeChanged = (lastSaveMode != null && lastSaveMode != appSettings.saveMode)
-        val isUndoResync = (undoTick != lastUndoTick)
+        // undo tick 최초 구동(-1 -> 0)은 일반 초기 동기화로 취급하고,
+        // 실제 undo/delete 후 tick 변화만 별도 하향 동기화 경로로 분기한다.
+        val isUndoResync = (lastUndoTick >= 0 && undoTick != lastUndoTick)
         // 정책 변경: 촬영 직후 readback은 줄이고, resume/undo/saveMode 변경 시 외부 resync로 취급한다.
         val isExternalResync =
             (resumeTick != lastResumeTick) ||
@@ -1229,7 +1232,19 @@ private fun SyncCounterSeedEffect(
             saveMode = appSettings.saveMode,
         ).coerceAtLeast(1)
 
-        val nextSeedFromStream = if (isExternalResync) {
+        suspend fun readUndoResyncSeedFromMediaStore(): Int =
+            CounterResyncPolicy.refreshNextCounterFromMediaStore(
+                context = context,
+                streamContext = counterScope,
+                counterDigits = counterDigits,
+                fnDelim = fnDelim,
+            ).coerceAtLeast(1)
+
+        val nextSeedFromStream = if (isUndoResync) {
+            // 핵심 정책: undo/delete 재동기화에서는 repository 기반 next가 아니라
+            // MediaStore 실파일 스캔 기준 next를 우선 반영한다(하향 동기화 허용).
+            readUndoResyncSeedFromMediaStore()
+        } else if (isExternalResync) {
             val a = readNextSeed()
             delay(200)
             val b = readNextSeed()

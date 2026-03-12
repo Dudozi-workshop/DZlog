@@ -13,14 +13,14 @@ import java.util.Date
 class CaptureNamingPolicyPathConsistencyTest {
 
     @Test
-    fun `path slot relativePath is reused by stream context key`() {
+    fun `path slot relativePath is reused by counter scope key`() {
         val result = CaptureNamingPolicy.buildForCaptureWithCounter(
             captureContext = baseContext(),
             usedCounter = 1,
         )
 
         assertEquals("Pictures/DZlog/A/B/", result.relativePath)
-        assertEquals(result.relativePath, result.streamContext.relativePathKey)
+        assertEquals(result.relativePath, result.counterScope.relativePathKey)
     }
 
 
@@ -45,10 +45,10 @@ class CaptureNamingPolicyPathConsistencyTest {
             usedCounter = 1,
         )
 
-        val onA = buildCounterScopeParts(first.streamContext.relativePathKey, first.streamContext.streamPrefix, includePathInScope = true, includeFilenameInScope = false)
-        val onB = buildCounterScopeParts(swapped.streamContext.relativePathKey, swapped.streamContext.streamPrefix, includePathInScope = true, includeFilenameInScope = false)
-        val offA = buildCounterScopeParts(first.streamContext.relativePathKey, first.streamContext.streamPrefix, includePathInScope = false, includeFilenameInScope = false)
-        val offB = buildCounterScopeParts(swapped.streamContext.relativePathKey, swapped.streamContext.streamPrefix, includePathInScope = false, includeFilenameInScope = false)
+        val onA = buildCounterScopeParts(first.counterScope.relativePathKey, first.counterScope.streamPrefix, includePathInScope = true, includeFilenameInScope = false)
+        val onB = buildCounterScopeParts(swapped.counterScope.relativePathKey, swapped.counterScope.streamPrefix, includePathInScope = true, includeFilenameInScope = false)
+        val offA = buildCounterScopeParts(first.counterScope.relativePathKey, first.counterScope.streamPrefix, includePathInScope = false, includeFilenameInScope = false)
+        val offB = buildCounterScopeParts(swapped.counterScope.relativePathKey, swapped.counterScope.streamPrefix, includePathInScope = false, includeFilenameInScope = false)
 
         assertEquals(false, onA.scopeKey == onB.scopeKey)
         assertEquals(offA.scopeKey, offB.scopeKey)
