@@ -5,11 +5,6 @@ import com.dudoziworkshop.dzlog.feature.counter.core.CounterReadResult
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterSyncDecider
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterSyncReason
 
-enum class CameraCounterSyncEvent {
-    CAPTURE_COMMITTED,
-    UNDO_COMMITTED,
-}
-
 internal fun buildCameraRequestKey(
     relativePathKey: String,
     prefix: String,
