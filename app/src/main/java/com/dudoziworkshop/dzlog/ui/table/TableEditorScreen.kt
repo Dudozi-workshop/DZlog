@@ -69,10 +69,11 @@ import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.table.policy.confirmCounterConflictDialog
 import com.dudoziworkshop.dzlog.feature.table.policy.dismissCounterConflictDialog
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
+import com.dudoziworkshop.dzlog.feature.counter.CounterFacade
+import com.dudoziworkshop.dzlog.feature.counter.CounterRequestResolver
 import com.dudoziworkshop.dzlog.ui.table.counter.TableCounterUiState
 import com.dudoziworkshop.dzlog.ui.table.counter.applyCounterConflictDialogEffect
 import com.dudoziworkshop.dzlog.ui.table.counter.buildFilenameScopeSignature
-import com.dudoziworkshop.dzlog.ui.table.counter.buildTableScopedCounterStream
 import com.dudoziworkshop.dzlog.ui.table.counter.restoreCounterCellToAutoNext
 import com.dudoziworkshop.dzlog.ui.table.counter.syncCounterStateForScope
 import com.dudoziworkshop.dzlog.ui.table.counter.updateCounterCellAndPolicy
@@ -406,7 +407,26 @@ fun TableEditorScreen(
     )
     val tableSaveMode = settings.saveMode
 
-    var counterUi by remember { mutableStateOf(TableCounterUiState()) }
+    val initialCounterSeed = (currentTemplate.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }?.typedValue as? CellValue.CounterSeed)?.start
+        ?.coerceAtLeast(1) ?: 1
+    var counterUi by remember {
+        mutableStateOf(
+            TableCounterUiState(
+                scopeNextCounter = initialCounterSeed,
+                autoNextCounterValue = initialCounterSeed,
+                // 초기 진입 시에는 facade.read 동기화 전으로 간주한다.
+                isScopeCounterSynced = false,
+            )
+        )
+    }
+    val counterFacade = remember(context, previewCounterDigits) {
+        CounterFacade(
+            context = context,
+            counterDigits = previewCounterDigits,
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+        )
+    }
+
     var resumeTick by remember { mutableIntStateOf(0) }
     var scopeInputTick by remember { mutableIntStateOf(0) }
     var scopeKeySnapshot by remember { mutableStateOf<String?>(null) }
@@ -575,26 +595,47 @@ fun TableEditorScreen(
         derivedStateOf { previewPipeline.previewNaming.scanPrefix }
     }
 
-    val scopedCounterStream by remember(
+    val counterRequest by remember(
         counterScope,
         scanPrefix,
+        tableSaveMode,
         counterUi.includePathInCounterScope,
-        counterUi.includeFilenameInCounterScope
+        counterUi.includeFilenameInCounterScope,
     ) {
         derivedStateOf {
-            buildTableScopedCounterStream(
-                counterScope = counterScope,
+            // 표 상세 카운터 입력은 resolver에서만 정규화한다.
+            CounterRequestResolver.fromTable(
+                saveMode = tableSaveMode,
+                relativePathKey = counterScope.relativePathKey,
+                prefix = counterScope.streamPrefix,
                 scanPrefix = scanPrefix,
-                includePathInCounterScope = counterUi.includePathInCounterScope,
-                includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
+                includePathInScope = counterUi.includePathInCounterScope,
+                includeFilenameInScope = counterUi.includeFilenameInCounterScope,
+                tableTemplateId = null,
             )
         }
     }
 
-    LaunchedEffect(resumeTick) {
-        scopeKeySnapshot = scopedCounterStream.scopeParts.scopeKey
+    fun buildTableCounterRequestKey(request: com.dudoziworkshop.dzlog.feature.counter.CounterRequest): String {
+        return listOf(
+            request.relativePathKey,
+            request.prefix,
+            request.includePathInScope,
+            request.includeFilenameInScope,
+        ).joinToString("|")
     }
-    val activeScopeKey = scopeKeySnapshot ?: scopedCounterStream.scopeParts.scopeKey
+
+
+    fun hideTrailingCounterToken(displayName: String): String {
+        // 초기 동기화 전에는 기본 seed(1) 플리커를 피하기 위해 파일명 말미 카운터 토큰을 숨긴다.
+        // 수동 입력 후보값/첫 readback 완료 이후에는 원본 displayName을 그대로 사용한다.
+        return displayName.replace(Regex("_[0-9]+$"), "")
+    }
+
+    LaunchedEffect(resumeTick, counterRequest) {
+        scopeKeySnapshot = buildTableCounterRequestKey(counterRequest)
+    }
+    val activeScopeKey = scopeKeySnapshot ?: buildTableCounterRequestKey(counterRequest)
 
     // ✅ 스트림 변경 감지용 (스트림이 바뀌면 seed를 "새 스트림 next"로 강제 동기화)
 
@@ -610,6 +651,8 @@ fun TableEditorScreen(
         tableSaveMode,
         resumeTick,
         scopeInputTick,
+        counterRequest,
+        counterFacade,
     ) {
         // 빈 템플릿은 카운터 재동기화 입력이 없으므로 SSOT 경로에서 조기 종료한다.
         if (!hasTemplateCells) return@LaunchedEffect
@@ -621,13 +664,11 @@ fun TableEditorScreen(
 
         val isExternalResync = (resumeTick != lastProcessedResumeTick) || (scopeInputTick != lastProcessedScopeInputTick)
         val syncResult = syncCounterStateForScope(
-            context = context,
             templateState = currentTemplate,
             counterUi = counterUi,
             counterScope = counterScope,
-            scopedCounterStream = scopedCounterStream,
-            previewCounterDigits = previewCounterDigits,
-            saveMode = tableSaveMode,
+            counterRequest = counterRequest,
+            counterFacade = counterFacade,
             isManualCounterModeDisplay = isManualCounterModeDisplay,
             lastScopeSnapshot = lastScopeSnapshot,
             filenameScopeSignature = filenameScopeSignature,
@@ -685,15 +726,13 @@ fun TableEditorScreen(
         result.committedCounterSeed?.let { seed ->
             val cellId = committedCellId ?: return@let
             updateCounterCellAndPolicy(
-                context = context,
                 templateState = currentTemplate,
                 cellId = cellId,
                 seed = seed,
                 preserveManual = true,
-                forcePolicyUpdate = false,
-                scopedCounterStream = scopedCounterStream,
-                previewCounterDigits = previewCounterDigits,
-                saveMode = tableSaveMode,
+                persistToCounterPolicy = false,
+                counterRequest = counterRequest,
+                counterFacade = counterFacade,
                 counterUi = counterUi,
                 onTemplateChange = ::updateTemplateDraft,
                 setCounterUi = { counterUi = it },
@@ -745,17 +784,20 @@ fun TableEditorScreen(
     }
 
     // 주요 정책: 표 상세설정 상단 프리뷰는 실제 촬영/저장과 동일한 previewPipeline 결과를 그대로 사용한다.
-    val filenamePreview = previewPipeline.previewNaming.displayName
+    val rawFilenamePreview = previewPipeline.previewNaming.displayName
+    val filenamePreview = if (counterUi.isScopeCounterSynced || counterUi.manualSeedOverride != null) {
+        rawFilenamePreview
+    } else {
+        hideTrailingCounterToken(rawFilenamePreview)
+    }
     val savePathPreview = previewPipeline.previewNaming.relativePath
 
     fun handleCounterConflictDialogEffect(effect: com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogEffect) {
         applyCounterConflictDialogEffect(
             effect = effect,
-            context = context,
             templateState = currentTemplate,
-            scopedCounterStream = scopedCounterStream,
-            previewCounterDigits = previewCounterDigits,
-            saveMode = tableSaveMode,
+            counterRequest = counterRequest,
+            counterFacade = counterFacade,
             counterUi = counterUi,
             onTemplateChange = ::updateTemplateDraft,
             setCounterUi = { counterUi = it },
@@ -1723,12 +1765,10 @@ fun TableEditorScreen(
                                     if (cell.dataType != TableCellDataType.COUNTER) return@let
                                     val syncedCounterText = counterUi.autoNextCounterValue.toString()
                                     restoreCounterCellToAutoNext(
-                                        context = context,
                                         templateState = currentTemplate,
                                         cellId = cell.cellId,
-                                        scopedCounterStream = scopedCounterStream,
-                                        previewCounterDigits = previewCounterDigits,
-                                        saveMode = tableSaveMode,
+                                        counterRequest = counterRequest,
+                                        counterFacade = counterFacade,
                                         counterUi = counterUi,
                                         onTemplateChange = ::updateTemplateDraft,
                                         setCounterUi = { counterUi = it },

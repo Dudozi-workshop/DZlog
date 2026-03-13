@@ -4,6 +4,7 @@ import android.widget.Toast
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -17,6 +18,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -32,6 +34,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
+import com.dudoziworkshop.dzlog.ui.camera.CameraScreenV2
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
 import com.dudoziworkshop.dzlog.ui.log.LogG1Screen
@@ -49,6 +52,7 @@ import kotlinx.coroutines.launch
 enum class AppScreen {
     HOME,
     CAMERA,
+    CAMERA_V2,
     TABLE_EDITOR,
     SETTINGS,
     ALBUM_G1,
@@ -413,6 +417,7 @@ fun AppRoot() {
             AppScreen.SETTINGS -> screen = AppScreen.HOME
             AppScreen.TABLE_EDITOR -> screen = previousScreen
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
+            AppScreen.CAMERA_V2 -> navigateTo(AppScreen.CAMERA)
 
             AppScreen.ALBUM_GRID -> {
                 handleAlbumGridBack()
@@ -441,6 +446,7 @@ fun AppRoot() {
             tableTemplateState = tableTemplateState,
             onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
             onStartCamera = { navigateTo(AppScreen.CAMERA) },
+            onStartCameraV2 = { navigateTo(AppScreen.CAMERA_V2) },
             onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
             onOpenAlbum = ::openAlbumRoot,
             onOpenRecentCaptureGrid = ::openRecentCaptureGrid
@@ -454,6 +460,17 @@ fun AppRoot() {
                 onOpenAlbum = ::openAlbumRoot,
                 onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
                 sessionCaptureStack = cameraSessionCaptureStack
+            )
+        }
+
+        AppScreen.CAMERA_V2 -> {
+            CameraScreenV2(
+                tableTemplateState = tableTemplateState,
+                onTemplateChange = ::updateTemplateState,
+                onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
+                onOpenAlbum = ::openAlbumRoot,
+                onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
+                sessionCaptureStack = cameraSessionCaptureStack,
             )
         }
 

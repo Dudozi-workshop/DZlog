@@ -50,8 +50,8 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
-import com.dudoziworkshop.dzlog.domain.counter.CounterStore
-import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
+import com.dudoziworkshop.dzlog.feature.counter.CounterFacade
+import com.dudoziworkshop.dzlog.feature.counter.CounterRequestResolver
 import com.dudoziworkshop.dzlog.debug.CounterDebugDump
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
@@ -96,6 +96,7 @@ fun HomeScreen(
     tableTemplateState: TableTemplateState,
     onOpenSettings: () -> Unit,
     onStartCamera: () -> Unit,
+    onStartCameraV2: () -> Unit,
     onOpenTableEditor: () -> Unit,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit
@@ -118,6 +119,13 @@ fun HomeScreen(
 
     // ✅ 즉시 반영(Flow 구독) - 표 프리뷰 설정 묶음
     val previewSettings = rememberTablePreviewSettings()
+    val counterFacade = remember(context, settings.counterPadding) {
+        CounterFacade(
+            context = context,
+            counterDigits = settings.counterPadding,
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+        )
+    }
 
     var savePathPreview by remember { mutableStateOf("Pictures/DZlog/") }
     var filenamePreview by remember { mutableStateOf("DZlog_1.jpg") }
@@ -146,6 +154,7 @@ fun HomeScreen(
         settings.includeFilenameInCounterScope,
         previewNow,
         phraseProgressCursor,
+        counterFacade,
     ) {
         val now = previewNow
         val previewPipeline = buildPreview(
@@ -163,23 +172,18 @@ fun HomeScreen(
                 phraseProgressCursor = phraseProgressCursor,
             )
         )
-        // 주요 정책: 홈 preview의 counter stream도 공용 preview pipeline 결과를 그대로 사용한다.
+        // 주요 정책: 홈 preview도 request 정규화 -> facade read 단일 경로를 사용한다.
         val counterScope = previewPipeline.previewNaming.counterScope
         val scanPrefix = previewPipeline.previewNaming.scanPrefix
-        val scopedCounter = buildScopedCounter(
+        val counterRequest = CounterRequestResolver.fromHome(
             counterScope = counterScope,
+            saveMode = settings.saveMode,
+            scanPrefix = scanPrefix,
             includePathInScope = settings.includePathInCounterScope,
             includeFilenameInScope = settings.includeFilenameInCounterScope,
-            scanPrefix = scanPrefix,
         )
-        val streamNext = CounterStore.getNext(
-            context = context,
-            scopedStream = scopedCounter,
-            scanPrefix = scanPrefix,
-            counterDigits = settings.counterPadding,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-            saveMode = settings.saveMode,
-        ).coerceAtLeast(1)
+        val counterRead = counterFacade.read(counterRequest)
+        val streamNext = counterRead.next.coerceAtLeast(1)
         // 파일명/경로 표시도 공용 pipeline 결과를 사용하되, 사용 카운터만 streamNext로 맞춘다.
         val displayPreviewPipeline = buildPreview(
             PreviewInput(
@@ -200,7 +204,7 @@ fun HomeScreen(
         CounterDebugDump.dump(
             tag = "HomePreview",
             context = context,
-            scopedStream = scopedCounter,
+            scopedStream = counterRead.scopedStream,
             appSettings = settings,
             nextSeed = streamNext,
             note = null,
@@ -417,6 +421,19 @@ fun HomeScreen(
                         .padding(horizontal = 32.dp),
                     style = DDZButtonStyle.Secondary,
                     enabled = false,
+                    minHeight = unifiedActionButtonHeight,
+                    shape = unifiedActionButtonShape
+                )
+
+                // 개발용 병행 검증 진입점.
+                // 기존 CameraScreen을 건드리지 않고 새 counter wiring을 검증하기 위한 화면.
+                DDZButton(
+                    text = "Camera V2 (test)",
+                    onClick = onStartCameraV2,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp),
+                    style = DDZButtonStyle.Secondary,
                     minHeight = unifiedActionButtonHeight,
                     shape = unifiedActionButtonShape
                 )

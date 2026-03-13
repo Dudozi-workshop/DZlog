@@ -4,6 +4,8 @@ import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogS
 
 data class TableCounterUiState(
     val scopeNextCounter: Int = 1,
+    // 초기 진입/복귀 시 facade.read 동기화 전에는 기본 1을 즉시 표시하지 않기 위한 gate.
+    val isScopeCounterSynced: Boolean = false,
     val preserveManualCounterSeed: Boolean = false,
     val manualSeedOverride: Int? = null,
     val isManualCounterMode: Boolean = false,

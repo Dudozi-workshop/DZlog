@@ -175,7 +175,8 @@ fun CameraScreen(
     onOpenTableEditor: () -> Unit,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
-    sessionCaptureStack: SnapshotStateList<List<Uri>>
+    sessionCaptureStack: SnapshotStateList<List<Uri>>,
+    onCounterSyncEvent: (CameraCounterSyncEvent) -> Unit = {},
 ) {
     val context = LocalContext.current
 
@@ -201,7 +202,8 @@ fun CameraScreen(
                 onOpenTableEditor = onOpenTableEditor,
                 onOpenAlbum = onOpenAlbum,
                 onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
-                sessionCaptureStack = sessionCaptureStack
+                sessionCaptureStack = sessionCaptureStack,
+                onCounterSyncEvent = onCounterSyncEvent,
             )
         } else {
             Text(
@@ -221,7 +223,8 @@ fun CameraPreview(
     onOpenTableEditor: () -> Unit,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
-    sessionCaptureStack: SnapshotStateList<List<Uri>>
+    sessionCaptureStack: SnapshotStateList<List<Uri>>,
+    onCounterSyncEvent: (CameraCounterSyncEvent) -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
@@ -377,6 +380,9 @@ fun CameraPreview(
 
     suspend fun syncAfterUndoDelete() {
         reloadLatestImage()
+        // 실제 undo 삭제 완료(미디어 삭제 성공) 시점 이벤트다.
+        // 버튼 클릭 시점이 아니라 완료 시점에만 발행해 V2 재동기화 타이밍을 맞춘다.
+        onCounterSyncEvent(CameraCounterSyncEvent.UNDO_COMMITTED)
         undoResyncTick += 1
     }
 
@@ -502,6 +508,9 @@ fun CameraPreview(
             },
             onAddToSessionStack = { uris ->
                 UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
+                // 실제 촬영 저장 완료(세션 stack 반영 완료) 시점 이벤트다.
+                // 버튼 클릭 시점이 아니라 완료 시점에만 발행해 V2가 완료 이벤트 기반으로 동기화한다.
+                onCounterSyncEvent(CameraCounterSyncEvent.CAPTURE_COMMITTED)
                 scope.launch { reloadLatestImage() }
             },
             onSetCapturedUri = { capturedUri -> ui.capture.capturedUri = capturedUri },
