@@ -29,6 +29,7 @@ class CaptureCounterPolicyPhraseStreamTest {
         val next = CaptureCounterPolicy.getNextCounter(
             context = context,
             scopedStream = stream,
+            scanPrefix = stream.captureStreamKey.scanPrefix,
             counterDigits = 0,
             fnDelim = "_",
             saveMode = SaveMode.WATERMARK_ONLY,
@@ -46,6 +47,7 @@ class CaptureCounterPolicyPhraseStreamTest {
         val wowBefore = CaptureCounterPolicy.getNextCounter(
             context = context,
             scopedStream = wowStream,
+            scanPrefix = wowStream.captureStreamKey.scanPrefix,
             counterDigits = 0,
             fnDelim = "_",
             saveMode = SaveMode.WATERMARK_ONLY,
@@ -61,6 +63,7 @@ class CaptureCounterPolicyPhraseStreamTest {
         val wowAfter = CaptureCounterPolicy.getNextCounter(
             context = context,
             scopedStream = wowStream,
+            scanPrefix = wowStream.captureStreamKey.scanPrefix,
             counterDigits = 0,
             fnDelim = "_",
             saveMode = SaveMode.WATERMARK_ONLY,
@@ -91,6 +94,7 @@ class CaptureCounterPolicyPhraseStreamTest {
         val next = CaptureCounterPolicy.getNextCounter(
             context = context,
             scopedStream = stream,
+            scanPrefix = stream.captureStreamKey.scanPrefix,
             counterDigits = 0,
             fnDelim = "_",
             saveMode = SaveMode.WATERMARK_ONLY,
@@ -111,6 +115,7 @@ class CaptureCounterPolicyPhraseStreamTest {
             captureStreamKey = CaptureStreamKey(
                 relativePathKey = relativePath,
                 prefix = prefix,
+                scanPrefix = prefix,
             )
         )
     }

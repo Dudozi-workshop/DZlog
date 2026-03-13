@@ -14,28 +14,36 @@ internal object CounterStore {
     internal suspend fun next(
         context: Context,
         counterScope: CounterScope,
+        scanPrefix: String,
         counterDigits: Int,
         fnDelim: String,
         saveMode: SaveMode,
-    ): Int = CaptureCounterPolicy.getNextCounter(
-        context = context,
-        counterScope = counterScope,
-        counterDigits = counterDigits,
-        fnDelim = fnDelim,
-        saveMode = saveMode,
-    )
+    ): Int {
+        return CaptureCounterPolicy.getNextCounter(
+            context = context,
+            counterScope = counterScope,
+            scanPrefix = scanPrefix,
+            counterDigits = counterDigits,
+            fnDelim = fnDelim,
+            saveMode = saveMode,
+        )
+    }
 
     internal suspend fun next(
         context: Context,
         scopedStream: ScopedCounter,
+        scanPrefix: String,
         counterDigits: Int,
         fnDelim: String,
         saveMode: SaveMode,
-    ): Int = CaptureCounterPolicy.getNextCounter(
-        context = context,
-        scopedStream = scopedStream,
-        counterDigits = counterDigits,
-        fnDelim = fnDelim,
-        saveMode = saveMode,
-    )
+    ): Int {
+        return CaptureCounterPolicy.getNextCounter(
+            context = context,
+            scopedStream = scopedStream,
+            scanPrefix = scanPrefix,
+            counterDigits = counterDigits,
+            fnDelim = fnDelim,
+            saveMode = saveMode,
+        )
+    }
 }

@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.domain.counter
 import com.dudoziworkshop.dzlog.data.counter.CounterScanTarget
 import com.dudoziworkshop.dzlog.data.counter.toCounterScanTarget
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
+import com.dudoziworkshop.dzlog.domain.naming.buildCounterStreamPath
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -33,6 +34,23 @@ class CounterScanPolicyTest {
         )
 
         assertEquals(listOf("Pictures/DZlog/original/"), paths)
+    }
+
+
+    @Test
+    fun `counter stream path shares water stream for BOTH`() {
+        val water = buildCounterStreamPath("Pictures/DZlog/", SaveMode.WATERMARK_ONLY)
+        val both = buildCounterStreamPath("Pictures/DZlog/", SaveMode.BOTH)
+
+        assertEquals("Pictures/DZlog/", water)
+        assertEquals(water, both)
+    }
+
+    @Test
+    fun `counter stream path separates ORIGINAL_ONLY to original folder`() {
+        val originalOnly = buildCounterStreamPath("Pictures/DZlog/", SaveMode.ORIGINAL_ONLY)
+
+        assertEquals("Pictures/DZlog/original/", originalOnly)
     }
 
     @Test

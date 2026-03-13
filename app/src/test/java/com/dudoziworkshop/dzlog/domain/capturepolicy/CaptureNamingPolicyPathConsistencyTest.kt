@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.domain.capturepolicy
 
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterScopeParts
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
@@ -22,7 +23,6 @@ class CaptureNamingPolicyPathConsistencyTest {
         assertEquals("Pictures/DZlog/A/B/", result.relativePath)
         assertEquals(result.relativePath, result.counterScope.relativePathKey)
     }
-
 
     @Test
     fun `path scope on splits and off keeps when slot order changes`() {
@@ -55,6 +55,26 @@ class CaptureNamingPolicyPathConsistencyTest {
     }
 
     @Test
+    fun `save mode path policy uses water stream for BOTH and separates ORIGINAL_ONLY`() {
+        val water = CaptureNamingPolicy.buildForCaptureWithCounter(
+            captureContext = baseContext(saveMode = SaveMode.WATERMARK_ONLY),
+            usedCounter = 1,
+        )
+        val both = CaptureNamingPolicy.buildForCaptureWithCounter(
+            captureContext = baseContext(saveMode = SaveMode.BOTH),
+            usedCounter = 1,
+        )
+        val originalOnly = CaptureNamingPolicy.buildForCaptureWithCounter(
+            captureContext = baseContext(saveMode = SaveMode.ORIGINAL_ONLY),
+            usedCounter = 1,
+        )
+
+        assertEquals("Pictures/DZlog/A/B/", water.counterScope.relativePathKey)
+        assertEquals(water.counterScope.relativePathKey, both.counterScope.relativePathKey)
+        assertEquals("Pictures/DZlog/A/B/original/", originalOnly.counterScope.relativePathKey)
+    }
+
+    @Test
     fun `group level differences do not change relativePath when path slots are same`() {
         val none = resolvedTextCell("c1", "unused", GroupLevel.NONE)
         val g2 = resolvedTextCell("c1", "unused", GroupLevel.G2)
@@ -77,6 +97,7 @@ class CaptureNamingPolicyPathConsistencyTest {
             TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
             TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "B"),
         ),
+        saveMode: SaveMode = SaveMode.WATERMARK_ONLY,
     ): CaptureContext {
         return CaptureContext(
             resolvedCells = resolvedCells,
@@ -89,6 +110,7 @@ class CaptureNamingPolicyPathConsistencyTest {
             timeFormat = "HHmm",
             includePathInCounterScope = true,
             includeFilenameInCounterScope = true,
+            saveMode = saveMode,
         )
     }
 

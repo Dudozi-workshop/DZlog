@@ -28,13 +28,15 @@ import kotlinx.coroutines.launch
 
 internal fun buildTableScopedCounterStream(
     counterScope: CounterScope,
+    scanPrefix: String,
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean
 ): CaptureScopedCounterStream =
     toScopedCounter(
         counterScope = counterScope,
         includePathInScope = includePathInCounterScope,
-        includeFilenameInScope = includeFilenameInCounterScope
+        includeFilenameInScope = includeFilenameInCounterScope,
+        scanPrefix = scanPrefix
     )
 
 internal fun buildTableCounterScopeSnapshot(
@@ -45,7 +47,7 @@ internal fun buildTableCounterScopeSnapshot(
     buildCounterScopeSnapshot(
         counterScope = counterScope,
         includePathInScope = includePathInCounterScope,
-        includeFilenameInScope = includeFilenameInCounterScope
+        includeFilenameInScope = includeFilenameInCounterScope,
     )
 
 

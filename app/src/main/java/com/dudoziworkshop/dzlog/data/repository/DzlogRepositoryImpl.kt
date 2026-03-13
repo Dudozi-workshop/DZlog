@@ -5,8 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.graphics.RectF
-import android.util.Log
 import android.net.Uri
+import android.util.Log
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.core.content.ContextCompat
@@ -80,6 +80,10 @@ class DzlogRepositoryImpl(
                             val displayName = request.displayName
                             val qualityMode = request.photoQualityMode
                             val jpegQuality = qualityMode.jpegQuality
+                            Log.d(
+                                "CounterReadback",
+                                "captureAndSave request saveMode=${request.saveMode}, baseRel=$baseRel, origRel=$origRel, displayName=$displayName"
+                            )
                             when (request.saveMode) {
                                 SaveMode.WATERMARK_ONLY -> {
                                     val wmBmp = renderWatermarkForRequest(

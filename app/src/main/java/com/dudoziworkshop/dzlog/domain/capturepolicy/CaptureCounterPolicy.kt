@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.domain.capturepolicy
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.preferences.core.edit
 import com.dudoziworkshop.dzlog.data.counterindex.CounterIndexRepository
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_MANUAL_NEXT_OVERRIDES_V1
@@ -27,13 +28,14 @@ internal object CaptureCounterPolicy {
     internal suspend fun getNextCounter(
         context: Context,
         counterScope: CounterScope,
+        scanPrefix: String,
         counterDigits: Int,
         fnDelim: String,
         saveMode: SaveMode,
     ): Int {
         return getNextCounter(
             context = context,
-            key = toCaptureStreamKey(counterScope),
+            key = toCaptureStreamKey(counterScope, scanPrefix),
             counterDigits = counterDigits,
             fnDelim = fnDelim,
             saveMode = saveMode,
@@ -43,13 +45,14 @@ internal object CaptureCounterPolicy {
     internal suspend fun getNextCounter(
         context: Context,
         scopedStream: CaptureScopedCounterStream,
+        scanPrefix: String,
         counterDigits: Int,
         fnDelim: String,
         saveMode: SaveMode,
     ): Int {
         return getNextCounter(
             context = context,
-            key = scopedStream.captureStreamKey,
+            key = scopedStream.captureStreamKey.copy(scanPrefix = scanPrefix),
             counterDigits = counterDigits,
             fnDelim = fnDelim,
             saveMode = saveMode,
@@ -65,10 +68,11 @@ internal object CaptureCounterPolicy {
     ): Int {
         // auto-next는 MediaStore 실파일 기준 max+1이며(hole fill 없음),
         // 아래에서 manual override가 있으면 UI/수동 정책으로 덮어쓴다.
-        val autoNext = CounterManager.computeNextCounterFromMediaStore(
+        val autoNext = CounterManager.computeNextCounter(
             context = context,
             relativePath = key.relativePathKey,
             counterPrefix = key.prefix,
+            scanPrefix = key.scanPrefix,
             counterDigits = counterDigits,
             fnDelim = fnDelim,
             saveMode = saveMode,
@@ -76,6 +80,10 @@ internal object CaptureCounterPolicy {
 
         val manualOverride = loadManualNextOverrides(context)[streamKey(key)]
         val next = (manualOverride ?: autoNext).coerceAtLeast(1)
+        Log.d(
+            "CounterReadback",
+            "CaptureCounterPolicy.getNextCounter relativePathKey=${key.relativePathKey}, prefix=${key.prefix}, autoNext=$autoNext, manualOverride=$manualOverride, resolvedNext=$next, saveMode=$saveMode"
+        )
         return next
     }
 
@@ -112,12 +120,13 @@ internal object CaptureCounterPolicy {
     internal suspend fun commitCounter(
         context: Context,
         counterScope: CounterScope,
+        scanPrefix: String,
         usedCounter: Int,
         mediaStoreId: Long
     ) {
         commitCounter(
             context = context,
-            key = toCaptureStreamKey(counterScope),
+            key = toCaptureStreamKey(counterScope, scanPrefix),
             usedCounter = usedCounter,
             mediaStoreId = mediaStoreId
         )
@@ -149,10 +158,11 @@ internal object CaptureCounterPolicy {
         val normalized = desired.coerceAtLeast(1)
 
         // 자동 기준 next(max+1)
-        val autoNext = CounterManager.computeNextCounterFromMediaStore(
+        val autoNext = CounterManager.computeNextCounter(
             context = context,
             relativePath = key.relativePathKey,
             counterPrefix = key.prefix,
+            scanPrefix = key.scanPrefix,
             counterDigits = counterDigits,
             fnDelim = fnDelim,
             saveMode = saveMode,
@@ -185,6 +195,7 @@ internal object CaptureCounterPolicy {
     internal suspend fun setNextCounter(
         context: Context,
         counterScope: CounterScope,
+        scanPrefix: String,
         desired: Int,
         force: Boolean,
         counterDigits: Int,
@@ -193,7 +204,7 @@ internal object CaptureCounterPolicy {
     ) {
         setNextCounter(
             context = context,
-            key = toCaptureStreamKey(counterScope),
+            key = toCaptureStreamKey(counterScope, scanPrefix),
             desired = desired,
             force = force,
             counterDigits = counterDigits,
@@ -231,11 +242,12 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun isManualOverrideActive(
         context: Context,
-        counterScope: CounterScope
+        counterScope: CounterScope,
+        scanPrefix: String
     ): Boolean {
         return isManualOverrideActive(
             context = context,
-            key = toCaptureStreamKey(counterScope)
+            key = toCaptureStreamKey(counterScope, scanPrefix)
         )
     }
 
@@ -258,11 +270,12 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun clearManualCounterOverride(
         context: Context,
-        counterScope: CounterScope
+        counterScope: CounterScope,
+        scanPrefix: String
     ) {
         clearManualCounterOverride(
             context = context,
-            key = toCaptureStreamKey(counterScope)
+            key = toCaptureStreamKey(counterScope, scanPrefix)
         )
     }
 
@@ -279,17 +292,20 @@ internal object CaptureCounterPolicy {
     internal suspend fun resetToAutoNext(
         context: Context,
         counterScope: CounterScope,
+        scanPrefix: String,
         counterDigits: Int,
         fnDelim: String,
         saveMode: SaveMode,
     ): Int {
         clearManualCounterOverride(
             context = context,
-            counterScope = counterScope
+            counterScope = counterScope,
+            scanPrefix = scanPrefix
         )
         return getNextCounter(
             context = context,
             counterScope = counterScope,
+            scanPrefix = scanPrefix,
             counterDigits = counterDigits,
             fnDelim = fnDelim,
             saveMode = saveMode,
@@ -299,6 +315,7 @@ internal object CaptureCounterPolicy {
     internal suspend fun resetToAutoNext(
         context: Context,
         scopedStream: CaptureScopedCounterStream,
+        scanPrefix: String,
         counterDigits: Int,
         fnDelim: String,
         saveMode: SaveMode,
@@ -310,6 +327,7 @@ internal object CaptureCounterPolicy {
         return getNextCounter(
             context = context,
             scopedStream = scopedStream,
+            scanPrefix = scanPrefix,
             counterDigits = counterDigits,
             fnDelim = fnDelim,
             saveMode = saveMode,

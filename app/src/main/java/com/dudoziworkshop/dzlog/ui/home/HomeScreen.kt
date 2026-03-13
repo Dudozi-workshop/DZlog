@@ -158,20 +158,24 @@ fun HomeScreen(
                 fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
                 includePathInCounterScope = settings.includePathInCounterScope,
                 includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
+                saveMode = settings.saveMode,
                 scopeNextCounter = 1,
                 phraseProgressCursor = phraseProgressCursor,
             )
         )
         // 주요 정책: 홈 preview의 counter stream도 공용 preview pipeline 결과를 그대로 사용한다.
         val counterScope = previewPipeline.previewNaming.counterScope
+        val scanPrefix = previewPipeline.previewNaming.scanPrefix
         val scopedCounter = toScopedCounter(
             counterScope = counterScope,
             includePathInScope = settings.includePathInCounterScope,
             includeFilenameInScope = settings.includeFilenameInCounterScope,
+            scanPrefix = scanPrefix,
         )
         val streamNext = CounterStore.next(
             context = context,
             scopedStream = scopedCounter,
+            scanPrefix = scanPrefix,
             counterDigits = settings.counterPadding,
             fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
             saveMode = settings.saveMode,
@@ -187,6 +191,7 @@ fun HomeScreen(
                 fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
                 includePathInCounterScope = settings.includePathInCounterScope,
                 includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
+                saveMode = settings.saveMode,
                 scopeNextCounter = streamNext,
                 phraseProgressCursor = phraseProgressCursor,
                 selectedPhraseTextByCellIdOverride = previewPipeline.selectedPhraseTextByCellId,

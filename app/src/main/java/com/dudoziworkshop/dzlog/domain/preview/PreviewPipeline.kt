@@ -5,6 +5,7 @@ import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.counter.CounterScopeResolver
 import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -23,6 +24,7 @@ internal data class PreviewInput(
     val fnDelim: String,
     val includePathInCounterScope: Boolean,
     val includeFilenameInCounterScope: Boolean,
+    val saveMode: SaveMode,
     val scopeNextCounter: Int?,
     val phraseProgressCursor: Int,
     val overrideCells: List<TableCellState>? = null,
@@ -37,6 +39,7 @@ internal data class CaptureScopeInput(
     val timeFormat: String,
     val fnDelim: String,
     val includeFilenameInCounterScope: Boolean,
+    val saveMode: SaveMode,
     val phraseProgressCursor: Int,
     val overrideCells: List<TableCellState>? = null,
     val selectedPhraseTextByCellIdOverride: Map<String, String>? = null,
@@ -51,6 +54,7 @@ internal data class FinalCapturePreviewInput(
     val fnDelim: String,
     val includePathInCounterScope: Boolean,
     val includeFilenameInCounterScope: Boolean,
+    val saveMode: SaveMode,
     val syncedCounter: Int,
     val phraseProgressCursor: Int,
 )
@@ -61,6 +65,8 @@ internal data class CaptureScopeState(
     val plan: ResolvePlan,
     val scopeValues: CounterScopeResolver.Result,
     val counterScope: CounterScope,
+    // 주요 정책: stream 분리용 counterScope와 DISPLAY_NAME 파싱용 scanPrefix를 분리 보관한다.
+    val scanPrefix: String,
     val preSyncDisplayName: String,
     val relativePathPreview: String,
 )
@@ -89,7 +95,7 @@ internal fun buildPreviewState(
     input: PreviewInput,
     tableResolver: TableResolver = TableResolver(),
 ): PreviewState {
-    val scopeState = buildCaptureScopeState(
+    val scopeState = buildScopeState(
         input = CaptureScopeInput(
             templateState = input.templateState,
             captureNow = input.captureNow,
@@ -98,6 +104,7 @@ internal fun buildPreviewState(
             timeFormat = input.timeFormat,
             fnDelim = input.fnDelim,
             includeFilenameInCounterScope = input.includeFilenameInCounterScope,
+            saveMode = input.saveMode,
             phraseProgressCursor = input.phraseProgressCursor,
             overrideCells = input.overrideCells,
             selectedPhraseTextByCellIdOverride = input.selectedPhraseTextByCellIdOverride,
@@ -137,6 +144,7 @@ internal fun buildPreviewState(
             dateScopeValues = scopeState.scopeValues.dateScopeValues,
             timeScopeValues = scopeState.scopeValues.timeScopeValues,
             phraseScopeValues = scopeState.scopeValues.phraseScopeValues,
+            saveMode = input.saveMode,
         ),
         usedCounter = input.scopeNextCounter,
     )
@@ -149,7 +157,7 @@ internal fun buildPreviewState(
     )
 }
 
-internal fun buildCaptureScopeState(
+internal fun buildScopeState(
     input: CaptureScopeInput,
     tableResolver: TableResolver = TableResolver(),
 ): CaptureScopeState {
@@ -204,6 +212,7 @@ internal fun buildCaptureScopeState(
             dateScopeValues = scopeValues.dateScopeValues,
             timeScopeValues = scopeValues.timeScopeValues,
             phraseScopeValues = scopeValues.phraseScopeValues,
+            saveMode = input.saveMode,
         ),
         usedCounter = null,
     )
@@ -214,12 +223,13 @@ internal fun buildCaptureScopeState(
         plan = plan,
         scopeValues = scopeValues,
         counterScope = scopeNaming.counterScope,
+        scanPrefix = scopeNaming.scanPrefix,
         preSyncDisplayName = scopeNaming.displayName,
         relativePathPreview = scopeNaming.relativePath,
     )
 }
 
-internal fun buildFinalCapturePreview(
+internal fun buildCapturePreview(
     scopeState: CaptureScopeState,
     input: FinalCapturePreviewInput,
     tableResolver: TableResolver = TableResolver(),
@@ -253,6 +263,7 @@ internal fun buildFinalCapturePreview(
             dateScopeValues = scopeState.scopeValues.dateScopeValues,
             timeScopeValues = scopeState.scopeValues.timeScopeValues,
             phraseScopeValues = scopeState.scopeValues.phraseScopeValues,
+            saveMode = input.saveMode,
         ),
         usedCounter = input.syncedCounter.coerceAtLeast(1),
     )

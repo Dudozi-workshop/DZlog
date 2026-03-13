@@ -3,7 +3,9 @@ package com.dudoziworkshop.dzlog.domain.capturepolicy
 import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterScope
+import com.dudoziworkshop.dzlog.domain.naming.buildCounterStreamPath
 import com.dudoziworkshop.dzlog.domain.naming.buildFileName
+import com.dudoziworkshop.dzlog.domain.naming.buildFileNamePrefix
 import com.dudoziworkshop.dzlog.domain.naming.buildSavePath
 import com.dudoziworkshop.dzlog.domain.naming.resolveFileNameScopeTokensFromDrafts
 import java.util.Date
@@ -19,6 +21,7 @@ internal object CaptureNamingPolicy {
 
     internal data class Result(
         val counterScope: CounterScope,
+        val scanPrefix: String,
         val relativePath: String,
         val displayName: String,
         val usedCounter: Int?
@@ -73,6 +76,21 @@ internal object CaptureNamingPolicy {
         // 미동기화(null) 상태에서는 최소값(1)을 내부 모델 값으로만 유지하고,
         // 실제 표시(displayName suffix)는 nullable usedCounter 정책으로 분리한다.
         val normalizedScopeCounter = usedCounter?.coerceAtLeast(1) ?: 1
+        val scanPrefix = buildFileNamePrefix(
+            resolvedCells = resolvedCells,
+            fileNameSlotDrafts = captureContext.fileNameSlotDrafts,
+            fnDelim = captureContext.fnDelim,
+            now = captureContext.captureNow,
+            dateFormat = captureContext.dateFormat,
+            timeFormat = captureContext.timeFormat,
+        )
+        // 주요 정책(촬영모드별 카운터 스트림 경로):
+        // - WATERMARK_ONLY/BOTH는 baseRelativePath(Pictures/DZlog/...)를 공유
+        // - ORIGINAL_ONLY는 original/ 하위 경로를 스트림 기준으로 분리
+        val counterStreamPath = buildCounterStreamPath(
+            baseRelativePath = baseRelativePath,
+            saveMode = captureContext.saveMode,
+        )
         val counterScope = buildCounterScope(
             resolvedCells = resolvedCells,
             fileNameSlots = captureContext.fileNameCellSlots,
@@ -92,7 +110,7 @@ internal object CaptureNamingPolicy {
                     timeFormat = captureContext.timeFormat,
                 ),
             ),
-            relativePathOverride = baseRelativePath,
+            relativePathOverride = counterStreamPath,
         )
         val displayName = buildDisplayNameForCounter(
             resolvedCells = resolvedCells,
@@ -107,6 +125,7 @@ internal object CaptureNamingPolicy {
 
         return Result(
             counterScope = counterScope,
+            scanPrefix = scanPrefix,
             relativePath = baseRelativePath,
             displayName = displayName,
             usedCounter = usedCounter

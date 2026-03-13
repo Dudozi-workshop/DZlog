@@ -7,6 +7,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import java.text.SimpleDateFormat
@@ -243,12 +244,10 @@ fun resolvePathDraftToken(
     )
 }
 
-fun buildFileName(
+fun buildFileNamePrefix(
     resolvedCells: List<ResolvedCell>,
     fileNameSlotDrafts: List<TableEditorSlotDraft?>,
     fnDelim: String,
-    counterDigits: Int,
-    usedCounter: Int?,
     now: Date,
     dateFormat: String,
     timeFormat: String,
@@ -259,7 +258,27 @@ fun buildFileName(
         .map { resolveFileNameSlotToken(it, resolvedById, resolvedCells, now, dateFormat, timeFormat) }
         .filter { it.isNotBlank() }
 
-    val prefix = if (prefixParts.isEmpty()) "DZlog" else prefixParts.joinToString(delim)
+    return if (prefixParts.isEmpty()) "DZlog" else prefixParts.joinToString(delim)
+}
+
+fun buildFileName(
+    resolvedCells: List<ResolvedCell>,
+    fileNameSlotDrafts: List<TableEditorSlotDraft?>,
+    fnDelim: String,
+    counterDigits: Int,
+    usedCounter: Int?,
+    now: Date,
+    dateFormat: String,
+    timeFormat: String,
+): String {
+    val prefix = buildFileNamePrefix(
+        resolvedCells = resolvedCells,
+        fileNameSlotDrafts = fileNameSlotDrafts,
+        fnDelim = fnDelim,
+        now = now,
+        dateFormat = dateFormat,
+        timeFormat = timeFormat,
+    )
 
     // suffix 카운터 정책 유지: 항상 자동 suffix 하나만 부여.
     val resolvedCounterText = resolvedCells
@@ -294,6 +313,22 @@ fun buildSavePath(
         "Pictures/DZlog/"
     } else {
         "Pictures/DZlog/${segments.joinToString("/")}/"
+    }
+}
+
+/**
+ * 카운터 스트림 기준 경로 정책.
+ * - WATERMARK_ONLY/BOTH: 워터마크 저장 기준(base 경로) 카운터 스트림 공유
+ * - ORIGINAL_ONLY: original 하위 폴더를 카운터 스트림 기준 경로로 사용
+ */
+fun buildCounterStreamPath(baseRelativePath: String, saveMode: SaveMode): String {
+    val normalizedBase = baseRelativePath.trim().let { path ->
+        if (path.isBlank()) "Pictures/DZlog/" else if (path.endsWith('/')) path else "$path/"
+    }
+    return when (saveMode) {
+        SaveMode.ORIGINAL_ONLY -> if (normalizedBase.endsWith("original/")) normalizedBase else "${normalizedBase}original/"
+        SaveMode.WATERMARK_ONLY,
+        SaveMode.BOTH -> normalizedBase
     }
 }
 

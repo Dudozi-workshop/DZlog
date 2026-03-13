@@ -4,6 +4,7 @@ import com.dudoziworkshop.dzlog.domain.counter.toScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
@@ -34,8 +35,8 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             ),
         )
 
-        val alphaScoped = toScopedCounter(alpha.counterScope, includePathInScope = true, includeFilenameInScope = true)
-        val betaScoped = toScopedCounter(beta.counterScope, includePathInScope = true, includeFilenameInScope = true)
+        val alphaScoped = toScopedCounter(alpha.counterScope, includePathInScope = true, includeFilenameInScope = true, scanPrefix = alpha.scanPrefix)
+        val betaScoped = toScopedCounter(beta.counterScope, includePathInScope = true, includeFilenameInScope = true, scanPrefix = beta.scanPrefix)
 
         assertNotEquals(alphaScoped.captureStreamKey.prefix, betaScoped.captureStreamKey.prefix)
     }
@@ -59,8 +60,8 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             ),
         )
 
-        val alphaScoped = toScopedCounter(alpha.counterScope, includePathInScope = true, includeFilenameInScope = true)
-        val betaScoped = toScopedCounter(beta.counterScope, includePathInScope = true, includeFilenameInScope = true)
+        val alphaScoped = toScopedCounter(alpha.counterScope, includePathInScope = true, includeFilenameInScope = true, scanPrefix = alpha.scanPrefix)
+        val betaScoped = toScopedCounter(beta.counterScope, includePathInScope = true, includeFilenameInScope = true, scanPrefix = beta.scanPrefix)
 
         assertEquals(alphaScoped.captureStreamKey.prefix, betaScoped.captureStreamKey.prefix)
     }
@@ -159,6 +160,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
                 dateScopeValues = emptyList(),
                 timeScopeValues = emptyList(),
                 phraseScopeValues = emptyList(),
+                saveMode = SaveMode.WATERMARK_ONLY,
             ),
             usedCounter = 1,
         )

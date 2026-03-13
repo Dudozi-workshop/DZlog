@@ -474,6 +474,7 @@ fun TableEditorScreen(
         timeFormat,
         counterUi.includePathInCounterScope,
         counterUi.includeFilenameInCounterScope,
+        settings.saveMode,
     ) {
         buildPreviewState(
             input = PreviewInput(
@@ -485,6 +486,7 @@ fun TableEditorScreen(
                 fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
                 includePathInCounterScope = counterUi.includePathInCounterScope,
                 includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
+                saveMode = settings.saveMode,
                 scopeNextCounter = counterUi.scopeNextCounter,
                 phraseProgressCursor = phraseProgressCounter,
             ),
@@ -502,6 +504,7 @@ fun TableEditorScreen(
         dateFormat,
         timeFormat,
         counterUi.includeFilenameInCounterScope,
+        settings.saveMode,
     ) {
         if (!counterUi.includeFilenameInCounterScope) {
             emptyList()
@@ -568,15 +571,20 @@ fun TableEditorScreen(
     val counterScope by remember(previewPipeline.previewNaming.counterScope) {
         derivedStateOf { previewPipeline.previewNaming.counterScope }
     }
+    val scanPrefix by remember(previewPipeline.previewNaming.scanPrefix) {
+        derivedStateOf { previewPipeline.previewNaming.scanPrefix }
+    }
 
     val scopedCounterStream by remember(
         counterScope,
+        scanPrefix,
         counterUi.includePathInCounterScope,
         counterUi.includeFilenameInCounterScope
     ) {
         derivedStateOf {
             buildTableScopedCounterStream(
                 counterScope = counterScope,
+                scanPrefix = scanPrefix,
                 includePathInCounterScope = counterUi.includePathInCounterScope,
                 includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
             )

@@ -2,7 +2,7 @@ package com.dudoziworkshop.dzlog.domain.counter
 
 import android.content.Context
 import com.dudoziworkshop.dzlog.data.counter.CounterScanTarget
-import com.dudoziworkshop.dzlog.data.counter.scanUsedCountersFromMediaStore as scanCountersInMediaStorePath
+import com.dudoziworkshop.dzlog.data.counter.scanUsedCounters as scanCountersInMediaStorePath
 import com.dudoziworkshop.dzlog.data.counter.toCounterScanTarget
 import com.dudoziworkshop.dzlog.data.counterindex.CounterIndexRepository
 import com.dudoziworkshop.dzlog.domain.model.CellKey
@@ -35,6 +35,11 @@ object CounterManager {
         baseRel: String,
         target: CounterScanTarget
     ): List<String> {
+        // 주요 정책(readback): includePathInScope=false일 때 baseRel="*"(와일드카드)이 들어온다.
+        // 이 경우 exact RELATIVE_PATH 매칭을 수행하면 항상 empty가 되므로,
+        // scanner의 wildcard 모드를 그대로 태우기 위해 "*"를 유지한다.
+        if (baseRel.trim() == "*") return listOf("*")
+
         val normalizedBaseRel = normalizeRelativePathPrefix(baseRel)
         val originalRel = appendOriginalDirectory(normalizedBaseRel)
 
@@ -193,12 +198,7 @@ object CounterManager {
         return "$basePrefix|$tag"
     }
 
-    private fun toPhysicalFileNamePrefix(rawStreamPrefix: String): String {
-        return rawStreamPrefix.substringBefore("|g2=", rawStreamPrefix)
-    }
-
-
-    private fun toPhysicalRelativePath(relativePathKey: String): String {
+    private fun toScanPath(relativePathKey: String): String {
         // relativePathKey may include virtual stream discriminator (e.g. "|g2=enabled_empty").
         // MediaStore path filtering must use physical folder path only.
         return relativePathKey.substringBefore("|g2=", relativePathKey)
@@ -224,21 +224,23 @@ object CounterManager {
      * - Room/CounterIndexRepository는 next 계산의 truth가 아니라 보조 기록(캐시) 용도로만 유지한다.
      * - 삭제된 파일이 DB에 남아 있어도 next 계산에는 개입하지 못한다.
      */
-    suspend fun loadUsedCountersFromMediaStore(
+    suspend fun loadUsedCounters(
         context: Context,
         relativePath: String,
         counterPrefix: String,
+        scanPrefix: String,
         counterDigits: Int,
         fnDelim: String,
         saveMode: SaveMode,
     ): Set<Int> {
         val repo = CounterIndexRepository.getInstance(context)
 
-        // counterPrefix는 가상 stream tag를 포함할 수 있으므로(rawStreamPrefix),
-        // 실제 파일 스캔에는 physical path/prefix로 변환해 사용한다.
+        // rawStreamPrefix는 내부 스트림 분리키로 유지한다.
+        // MediaStore DISPLAY_NAME 파싱은 scanPrefix(실제 저장 파일명 prefix)만 사용한다.
         val rawStreamPrefix = counterPrefix
-        val physicalFileNamePrefix = toPhysicalFileNamePrefix(rawStreamPrefix)
-        val physicalPath = toPhysicalRelativePath(relativePath)
+        // 주요 정책: stream prefix(내부 스코프 분리키)와 파일명 파싱 prefix를 분리한다.
+        val physicalFileNamePrefix = scanPrefix
+        val physicalPath = toScanPath(relativePath)
         val scanTarget = saveMode.toCounterScanTarget()
         val scanPaths = if (physicalPath.isBlank()) {
             emptyList()
@@ -247,9 +249,10 @@ object CounterManager {
         }
 
         // 최종 truth: MediaStore 실파일 스캔 결과만 사용한다.
-        // - rawStreamPrefix의 virtual tag(|g2=...)는 실제 파일명에 없으므로 physicalFileNamePrefix로 스캔한다.
+        // - stream 분리키(rawStreamPrefix)는 DB key/스코프 비교에만 쓰고,
+        //   실파일 파싱은 scanPrefix(=physicalFileNamePrefix)로 수행한다.
         val usedCountersFromMediaStore: Set<Int> = runCatching {
-            scanUsedCountersFromMediaStore(
+            scanUsedCounters(
                 context = context,
                 relativePathPrefixes = scanPaths,
                 fileNamePrefix = physicalFileNamePrefix,
@@ -276,23 +279,26 @@ object CounterManager {
      * - 아니면 next = max(existing) + 1
      * - hole fill은 수행하지 않는다.
      */
-    suspend fun computeNextCounterFromMediaStore(
+    suspend fun computeNextCounter(
         context: Context,
         relativePath: String,
         counterPrefix: String,
+        scanPrefix: String,
         counterDigits: Int,
         fnDelim: String,
         saveMode: SaveMode,
     ): Int {
-        val used = loadUsedCountersFromMediaStore(
+        val used = loadUsedCounters(
             context = context,
             relativePath = relativePath,
             counterPrefix = counterPrefix,
+            scanPrefix = scanPrefix,
             counterDigits = counterDigits,
             fnDelim = fnDelim,
             saveMode = saveMode,
         )
-        return computeNextFromExistingCounters(used)
+        val next = computeNextFromExistingCounters(used)
+        return next
     }
 
     // 정책 요약: next 계산은 used counters 집합에서 max+1만 사용하고, hole fill은 하지 않는다.
@@ -300,7 +306,7 @@ object CounterManager {
         return (existingCounters.maxOrNull() ?: 0) + 1
     }
 
-    private fun scanUsedCountersFromMediaStore(
+    private fun scanUsedCounters(
         context: Context,
         relativePathPrefixes: List<String>,
         fileNamePrefix: String,

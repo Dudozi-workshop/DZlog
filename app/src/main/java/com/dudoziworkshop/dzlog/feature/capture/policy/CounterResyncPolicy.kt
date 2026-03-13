@@ -37,9 +37,10 @@ internal object CounterResyncPolicy {
         return ParsedCounterSeed(latestCounter = latestCounter, nextCounter = nextCounter)
     }
 
-    internal suspend fun refreshNextCounterFromMediaStore(
+    internal suspend fun refreshNextCounter(
         context: Context,
         counterScope: CounterScope,
+        scanPrefix: String,
         counterDigits: Int,
         fnDelim: String
     ): Int {
@@ -49,17 +50,17 @@ internal object CounterResyncPolicy {
             counterScope = counterScope,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
+            scanPrefix = scanPrefix,
         )
 
         val relativePath = scopedStream.captureStreamKey.relativePathKey
             .substringBefore("|g2=", scopedStream.captureStreamKey.relativePathKey)
-        val fileNamePrefix = scopedStream.captureStreamKey.prefix
-            .substringBefore("|g2=", scopedStream.captureStreamKey.prefix)
 
-        val nextCounterFromScan = CounterManager.computeNextCounterFromMediaStore(
+        val nextCounterFromScan = CounterManager.computeNextCounter(
             context = context,
             relativePath = relativePath,
-            counterPrefix = fileNamePrefix,
+            counterPrefix = scopedStream.captureStreamKey.prefix,
+            scanPrefix = scopedStream.captureStreamKey.scanPrefix,
             counterDigits = counterDigits,
             fnDelim = fnDelim,
             saveMode = appSettings.saveMode,

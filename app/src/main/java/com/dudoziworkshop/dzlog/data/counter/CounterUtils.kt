@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.data.counter
 import android.content.Context
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreQueryPolicy
 
 // 0 = no padding (e.g., _1, _10, _5021)
@@ -50,7 +51,7 @@ internal fun parseCounterFromDisplayNameForPolicy(
     return if (v >= 0) v else null
 }
 
-fun scanUsedCountersFromMediaStore(
+fun scanUsedCounters(
     context: Context,
     relativePathPrefix: String,
     fileNamePrefix: String,
@@ -59,6 +60,11 @@ fun scanUsedCountersFromMediaStore(
 ): Set<Int> {
     val out = mutableSetOf<Int>()
     val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+
+    Log.d(
+        "CounterReadback",
+        "scanUsedCountersFromMediaStore start relativePathPrefix=$relativePathPrefix, fileNamePrefix=$fileNamePrefix, counterDigits=$counterDigits, fnDelim=$fnDelim"
+    )
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         val projection = arrayOf(
@@ -84,13 +90,25 @@ fun scanUsedCountersFromMediaStore(
             } else {
                 MediaStoreQueryPolicy.normalizeRelativePathVariants(relativePathPrefix).toList().toSet()
             }
+            var sampleCount = 0
             while (cursor.moveToNext()) {
                 val rel = if (pathIdx >= 0) cursor.getString(pathIdx) else ""
                 if (!isWildcardPath && rel !in normalizedPathVariants.orEmpty()) continue
                 val name = if (nameIdx >= 0) cursor.getString(nameIdx) else ""
+                if (sampleCount < 5) {
+                    Log.d(
+                        "CounterReadback",
+                        "scanUsedCountersFromMediaStore sample rel=$rel, name=$name"
+                    )
+                    sampleCount += 1
+                }
                 parseCounterFromDisplayName(name, fileNamePrefix, counterDigits, fnDelim)?.let(out::add)
             }
         }
+        Log.d(
+            "CounterReadback",
+            "scanUsedCountersFromMediaStore end relativePathPrefix=$relativePathPrefix, parsedCounters=$out"
+        )
         return out
     }
 
@@ -100,12 +118,24 @@ fun scanUsedCountersFromMediaStore(
     context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
         val nameIdx = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
         val dataIdx = cursor.getColumnIndex(dataCol)
+        var sampleCount = 0
         while (cursor.moveToNext()) {
             val name = if (nameIdx >= 0) cursor.getString(nameIdx) else ""
             val abs = if (dataIdx >= 0) cursor.getString(dataIdx) else ""
             if (!(relativePathPrefix == "*" || relativePathPrefix.isBlank()) && !abs.contains("/$relativePathPrefix")) continue
+            if (sampleCount < 5) {
+                Log.d(
+                    "CounterReadback",
+                    "scanUsedCountersFromMediaStore sample preQ abs=$abs, name=$name"
+                )
+                sampleCount += 1
+            }
             parseCounterFromDisplayName(name, fileNamePrefix, counterDigits, fnDelim)?.let(out::add)
         }
     }
+    Log.d(
+        "CounterReadback",
+        "scanUsedCountersFromMediaStore end preQ relativePathPrefix=$relativePathPrefix, parsedCounters=$out"
+    )
     return out
 }

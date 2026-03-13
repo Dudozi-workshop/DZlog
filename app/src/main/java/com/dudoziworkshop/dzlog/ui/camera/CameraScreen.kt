@@ -128,8 +128,8 @@ import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.CaptureScopeInput
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreviewInput
-import com.dudoziworkshop.dzlog.domain.preview.buildCaptureScopeState
-import com.dudoziworkshop.dzlog.domain.preview.buildFinalCapturePreview
+import com.dudoziworkshop.dzlog.domain.preview.buildScopeState
+import com.dudoziworkshop.dzlog.domain.preview.buildCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
@@ -278,8 +278,9 @@ fun CameraPreview(
         ui.prefs.counterDigits,
         phraseProgressCounter,
         appSettings.includeFilenameInCounterScope,
+        appSettings.saveMode,
     ) {
-        buildCaptureScopeState(
+        buildScopeState(
             input = CaptureScopeInput(
                 templateState = tableTemplateState,
                 captureNow = ui.capture.now,
@@ -288,6 +289,7 @@ fun CameraPreview(
                 timeFormat = timeFormat,
                 fnDelim = fnDelim,
                 includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+                saveMode = appSettings.saveMode,
                 phraseProgressCursor = phraseProgressCounter,
             ),
             tableResolver = tableResolver,
@@ -308,13 +310,16 @@ fun CameraPreview(
     val scopedCounterStream = remember(
         counterScope.relativePathKey,
         counterScope.streamPrefix,
+        captureScopeState.scanPrefix,
         appSettings.includePathInCounterScope,
         appSettings.includeFilenameInCounterScope,
+        appSettings.saveMode,
     ) {
         toScopedCounter(
             counterScope = counterScope,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
+            scanPrefix = captureScopeState.scanPrefix,
         )
     }
     // 표시 정책(단순화): 동기화 전(null)에는 COUNTER 숫자를 표시하지 않는다.
@@ -326,10 +331,11 @@ fun CameraPreview(
         ui.prefs.counterDigits,
         appSettings.includePathInCounterScope,
         appSettings.includeFilenameInCounterScope,
+        appSettings.saveMode,
         phraseProgressCounter,
     ) {
         val syncedCounter = ui.counter.scopeNextCounter ?: return@remember null
-        buildFinalCapturePreview(
+        buildCapturePreview(
             scopeState = captureScopeState,
             input = FinalCapturePreviewInput(
                 templateState = tableTemplateState,
@@ -340,6 +346,7 @@ fun CameraPreview(
                 fnDelim = fnDelim,
                 includePathInCounterScope = appSettings.includePathInCounterScope,
                 includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+                saveMode = appSettings.saveMode,
                 syncedCounter = syncedCounter,
                 phraseProgressCursor = phraseProgressCounter,
             ),
@@ -359,7 +366,8 @@ fun CameraPreview(
                 .substringBefore("|g2=", counterScope.relativePathKey)
                 .let { if (it.endsWith('/')) it else "$it/" }
             val targetRelativePath = if (appSettings.saveMode == SaveMode.ORIGINAL_ONLY) {
-                "${baseRelativePath}original/"
+                // 카운터 스트림 경로가 이미 original/ 인 경우 중복 append(original/original/)를 방지한다.
+                if (baseRelativePath.endsWith("original/")) baseRelativePath else "${baseRelativePath}original/"
             } else {
                 baseRelativePath
             }
@@ -448,6 +456,7 @@ fun CameraPreview(
     SyncCounterSeedEffect(
         context = context,
         counterScope = counterScope,
+        scanPrefix = captureScopeState.scanPrefix,
         counterDigits = ui.prefs.counterDigits,
         resumeTick = resumeResyncTick,
         undoTick = undoResyncTick,
@@ -1157,6 +1166,7 @@ private fun rememberMediaStoreRefreshTick(context: Context): Int {
 private fun SyncCounterSeedEffect(
     context: Context,
     counterScope: CounterScope,
+    scanPrefix: String,
     counterDigits: Int,
     resumeTick: Int,
     undoTick: Int,
@@ -1170,6 +1180,7 @@ private fun SyncCounterSeedEffect(
     val scopedCounter = remember(
         counterScope.relativePathKey,
         counterScope.streamPrefix,
+        scanPrefix,
         appSettings.includePathInCounterScope,
         appSettings.includeFilenameInCounterScope,
         isTemplateReady,
@@ -1178,6 +1189,7 @@ private fun SyncCounterSeedEffect(
             counterScope = counterScope,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
+            scanPrefix = scanPrefix,
         )
     }
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
@@ -1227,15 +1239,17 @@ private fun SyncCounterSeedEffect(
         suspend fun readNextSeed(): Int = CounterStore.next(
             context = context,
             scopedStream = scopedCounter,
+            scanPrefix = scanPrefix,
             counterDigits = counterDigits,
             fnDelim = fnDelim,
             saveMode = appSettings.saveMode,
         ).coerceAtLeast(1)
 
         suspend fun readUndoResyncSeedFromMediaStore(): Int =
-            CounterResyncPolicy.refreshNextCounterFromMediaStore(
+            CounterResyncPolicy.refreshNextCounter(
                 context = context,
                 counterScope = counterScope,
+                scanPrefix = scanPrefix,
                 counterDigits = counterDigits,
                 fnDelim = fnDelim,
             ).coerceAtLeast(1)
