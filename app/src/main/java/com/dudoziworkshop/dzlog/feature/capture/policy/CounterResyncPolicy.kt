@@ -1,13 +1,6 @@
 package com.dudoziworkshop.dzlog.feature.capture.policy
 
-import android.content.Context
 import com.dudoziworkshop.dzlog.data.counter.parseCounterForPolicy
-import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
-import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
-import com.dudoziworkshop.dzlog.domain.counter.CounterManager
-import com.dudoziworkshop.dzlog.domain.counter.CounterScope
-import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
-import kotlinx.coroutines.flow.first
 
 internal object CounterResyncPolicy {
 
@@ -37,40 +30,5 @@ internal object CounterResyncPolicy {
         return ParsedCounterSeed(latestCounter = latestCounter, nextCounter = nextCounter)
     }
 
-    internal suspend fun refreshNextCounter(
-        context: Context,
-        counterScope: CounterScope,
-        scanPrefix: String,
-        counterDigits: Int,
-        fnDelim: String
-    ): Int {
-        val appSettings = AppSettingsStore.flow(context).first()
-        // scoped stream 계산은 CounterScope 단일 모델을 기준으로 수행한다.
-        val scopedStream = buildScopedCounter(
-            counterScope = counterScope,
-            includePathInScope = appSettings.includePathInCounterScope,
-            includeFilenameInScope = appSettings.includeFilenameInCounterScope,
-            scanPrefix = scanPrefix,
-        )
 
-        val relativePath = scopedStream.captureStreamKey.relativePathKey
-            .substringBefore("|g2=", scopedStream.captureStreamKey.relativePathKey)
-
-        val nextCounterFromScan = CounterManager.computeNext(
-            context = context,
-            relativePath = relativePath,
-            counterPrefix = scopedStream.captureStreamKey.prefix,
-            scanPrefix = scopedStream.captureStreamKey.scanPrefix,
-            counterDigits = counterDigits,
-            fnDelim = fnDelim,
-            saveMode = appSettings.saveMode,
-        )
-
-        CaptureCounterPolicy.clearManualOverride(
-            context = context,
-            scopedStream = scopedStream
-        )
-
-        return nextCounterFromScan
-    }
 }

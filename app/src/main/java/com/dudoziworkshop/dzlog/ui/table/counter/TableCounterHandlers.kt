@@ -16,7 +16,6 @@ import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.feature.capture.policy.stabilizeStreamNextCounter
 import com.dudoziworkshop.dzlog.feature.counter.CounterFacade
 import com.dudoziworkshop.dzlog.feature.counter.CounterReadResult
 import com.dudoziworkshop.dzlog.feature.counter.CounterRequest
@@ -303,11 +302,11 @@ internal fun stabilizeTableStreamNext(
     streamNext: Int,
     currentScopeNext: Int,
     isNewScope: Boolean,
-): Int = stabilizeStreamNextCounter(
-    streamNextFromPolicy = streamNext,
-    currentScopeNext = currentScopeNext,
-    isNewStream = isNewScope,
-)
+): Int {
+    val normalizedStreamNext = streamNext.coerceAtLeast(1)
+    val normalizedCurrent = currentScopeNext.coerceAtLeast(1)
+    return if (isNewScope) normalizedStreamNext else maxOf(normalizedStreamNext, normalizedCurrent)
+}
 
 internal fun updateCounterUiScopeFlags(
     counterUi: TableCounterUiState,

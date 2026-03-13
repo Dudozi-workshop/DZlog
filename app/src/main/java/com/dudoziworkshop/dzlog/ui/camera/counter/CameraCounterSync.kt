@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.camera
+package com.dudoziworkshop.dzlog.ui.camera.counter
 
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.feature.counter.CounterReadResult

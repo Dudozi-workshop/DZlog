@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.camera
+package com.dudoziworkshop.dzlog.ui.camera.counter
 
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureStreamKey
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
