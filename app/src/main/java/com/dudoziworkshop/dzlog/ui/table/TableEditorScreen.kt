@@ -69,16 +69,16 @@ import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.table.policy.confirmCounterConflictDialog
 import com.dudoziworkshop.dzlog.feature.table.policy.dismissCounterConflictDialog
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
-import com.dudoziworkshop.dzlog.feature.counter.CounterFacade
-import com.dudoziworkshop.dzlog.feature.counter.CounterRequestResolver
-import com.dudoziworkshop.dzlog.ui.table.counter.TableCounterUiState
-import com.dudoziworkshop.dzlog.ui.table.counter.applyCounterConflictDialogEffect
-import com.dudoziworkshop.dzlog.ui.table.counter.buildFilenameScopeSignature
-import com.dudoziworkshop.dzlog.ui.table.counter.restoreCounterCellToAutoNext
-import com.dudoziworkshop.dzlog.ui.table.counter.syncCounterStateForScope
-import com.dudoziworkshop.dzlog.ui.table.counter.updateCounterCellAndPolicy
-import com.dudoziworkshop.dzlog.ui.table.counter.updateCounterUiConflictDialogState
-import com.dudoziworkshop.dzlog.ui.table.counter.updateCounterUiScopeFlags
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
+import com.dudoziworkshop.dzlog.feature.counter.table.TableCounterUiState
+import com.dudoziworkshop.dzlog.feature.counter.table.applyCounterConflictDialogEffect
+import com.dudoziworkshop.dzlog.feature.counter.table.buildFilenameScopeSignature
+import com.dudoziworkshop.dzlog.feature.counter.table.restoreCounterCellToAutoNext
+import com.dudoziworkshop.dzlog.feature.counter.table.syncCounterStateForScope
+import com.dudoziworkshop.dzlog.feature.counter.table.updateCounterCellAndPolicy
+import com.dudoziworkshop.dzlog.feature.counter.table.updateCounterUiConflictDialogState
+import com.dudoziworkshop.dzlog.feature.counter.table.updateCounterUiScopeFlags
 import com.dudoziworkshop.dzlog.ui.table.editor.InlineEditState
 import com.dudoziworkshop.dzlog.ui.table.editor.clearInlineEditing
 import com.dudoziworkshop.dzlog.ui.table.editor.isEditing
@@ -616,7 +616,7 @@ fun TableEditorScreen(
         }
     }
 
-    fun buildTableCounterRequestKey(request: com.dudoziworkshop.dzlog.feature.counter.CounterRequest): String {
+    fun buildTableCounterRequestKey(request: com.dudoziworkshop.dzlog.feature.counter.core.CounterRequest): String {
         return listOf(
             request.relativePathKey,
             request.prefix,

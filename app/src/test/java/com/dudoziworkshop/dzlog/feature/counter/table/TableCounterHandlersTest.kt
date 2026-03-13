@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.table.counter
+package com.dudoziworkshop.dzlog.feature.counter.table
 
 import androidx.test.core.app.ApplicationProvider
 import com.dudoziworkshop.dzlog.domain.model.CellValue
@@ -6,8 +6,8 @@ import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.feature.counter.CounterFacade
-import com.dudoziworkshop.dzlog.feature.counter.CounterRequestResolver
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals

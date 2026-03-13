@@ -4,23 +4,23 @@
 
 Counter behavior is now centered on the following shared layer:
 
-- `feature/counter/CounterRequestResolver`
+- `feature/counter/core/CounterRequestResolver`
   - Normalizes screen input into final counter request input.
   - Owns saveMode axis mapping contract.
-- `feature/counter/CounterFacade`
+- `feature/counter/core/CounterFacade`
   - Shared entry for read/write (`read`, `setManualNext`, `clearManualNext`, etc.).
   - UI does not call domain counter store/policy directly.
-- `feature/counter/CounterSyncDecider`
+- `feature/counter/core/CounterSyncDecider`
   - Pure sync decision function for apply/guard behavior.
 
 ## 2) Layer responsibilities
 
-- `feature/counter/*`
+- `feature/counter/core/*`
   - Shared counter contract + normalization + engine adapter + sync decision.
-- `ui/camera/counter/*`
+- `feature/counter/camera/*`
   - Camera-specific sync reason/event helpers (`detect -> read -> decide/apply` support).
-- `ui/table/counter/*`
-  - Table-specific UI candidate/manual handling and scope sync helpers.
+- `feature/counter/table/*`
+  - Table-specific UI candidate/manual handling and scope sync helpers/policy coordinator.
 - `ui/home/*`
   - Read-only consumer path for preview counter display.
 

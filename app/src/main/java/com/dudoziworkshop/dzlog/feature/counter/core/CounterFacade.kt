@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.feature.counter
+package com.dudoziworkshop.dzlog.feature.counter.core
 
 import android.content.Context
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
