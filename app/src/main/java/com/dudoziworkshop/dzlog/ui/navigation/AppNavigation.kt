@@ -34,7 +34,6 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
-import com.dudoziworkshop.dzlog.ui.camera.CameraScreenV2
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
 import com.dudoziworkshop.dzlog.ui.log.LogG1Screen
@@ -52,7 +51,6 @@ import kotlinx.coroutines.launch
 enum class AppScreen {
     HOME,
     CAMERA,
-    CAMERA_V2,
     TABLE_EDITOR,
     SETTINGS,
     ALBUM_G1,
@@ -417,7 +415,6 @@ fun AppRoot() {
             AppScreen.SETTINGS -> screen = AppScreen.HOME
             AppScreen.TABLE_EDITOR -> screen = previousScreen
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
-            AppScreen.CAMERA_V2 -> navigateTo(AppScreen.CAMERA)
 
             AppScreen.ALBUM_GRID -> {
                 handleAlbumGridBack()
@@ -446,7 +443,6 @@ fun AppRoot() {
             tableTemplateState = tableTemplateState,
             onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
             onStartCamera = { navigateTo(AppScreen.CAMERA) },
-            onStartCameraV2 = { navigateTo(AppScreen.CAMERA_V2) },
             onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
             onOpenAlbum = ::openAlbumRoot,
             onOpenRecentCaptureGrid = ::openRecentCaptureGrid
@@ -463,16 +459,6 @@ fun AppRoot() {
             )
         }
 
-        AppScreen.CAMERA_V2 -> {
-            CameraScreenV2(
-                tableTemplateState = tableTemplateState,
-                onTemplateChange = ::updateTemplateState,
-                onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
-                onOpenAlbum = ::openAlbumRoot,
-                onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
-                sessionCaptureStack = cameraSessionCaptureStack,
-            )
-        }
 
         AppScreen.TABLE_EDITOR -> {
             TableEditorScreen(

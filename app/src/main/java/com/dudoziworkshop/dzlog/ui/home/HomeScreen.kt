@@ -96,7 +96,6 @@ fun HomeScreen(
     tableTemplateState: TableTemplateState,
     onOpenSettings: () -> Unit,
     onStartCamera: () -> Unit,
-    onStartCameraV2: () -> Unit,
     onOpenTableEditor: () -> Unit,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit
@@ -425,18 +424,6 @@ fun HomeScreen(
                     shape = unifiedActionButtonShape
                 )
 
-                // 개발용 병행 검증 진입점.
-                // 기존 CameraScreen을 건드리지 않고 새 counter wiring을 검증하기 위한 화면.
-                DDZButton(
-                    text = "Camera V2 (test)",
-                    onClick = onStartCameraV2,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 32.dp),
-                    style = DDZButtonStyle.Secondary,
-                    minHeight = unifiedActionButtonHeight,
-                    shape = unifiedActionButtonShape
-                )
             }
 
             Box(

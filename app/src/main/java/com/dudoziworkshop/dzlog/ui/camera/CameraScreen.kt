@@ -106,9 +106,6 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MANUAL
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_ALIGN
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.counter.CounterScope
-import com.dudoziworkshop.dzlog.domain.counter.CounterStore
-import com.dudoziworkshop.dzlog.domain.counter.policy.buildCounterScopeSnapshot
-import com.dudoziworkshop.dzlog.domain.counter.policy.isNewCounterScope
 import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
@@ -133,9 +130,9 @@ import com.dudoziworkshop.dzlog.domain.preview.buildCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
-import com.dudoziworkshop.dzlog.feature.capture.policy.CounterResyncPolicy
+import com.dudoziworkshop.dzlog.feature.counter.CounterFacade
+import com.dudoziworkshop.dzlog.feature.counter.CounterRequestResolver
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
-import com.dudoziworkshop.dzlog.feature.capture.policy.resolveSyncedScopeNext
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
@@ -176,7 +173,6 @@ fun CameraScreen(
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
-    onCounterSyncEvent: (CameraCounterSyncEvent) -> Unit = {},
 ) {
     val context = LocalContext.current
 
@@ -203,7 +199,6 @@ fun CameraScreen(
                 onOpenAlbum = onOpenAlbum,
                 onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
                 sessionCaptureStack = sessionCaptureStack,
-                onCounterSyncEvent = onCounterSyncEvent,
             )
         } else {
             Text(
@@ -224,7 +219,6 @@ fun CameraPreview(
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
-    onCounterSyncEvent: (CameraCounterSyncEvent) -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
@@ -258,6 +252,16 @@ fun CameraPreview(
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     var zoomPanelExpanded by remember { mutableStateOf(false) }
     val ui = remember { CameraUiState() }
+    val counterFacade = remember(context, ui.prefs.counterDigits) {
+        CounterFacade(
+            context = context,
+            counterDigits = ui.prefs.counterDigits,
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+        )
+    }
+    // 실제 capture/undo 완료 이벤트를 카운터 동기화 주 트리거로 사용한다.
+    var counterEventTick by remember { mutableIntStateOf(0) }
+    var latestCounterEvent by remember { mutableStateOf<CameraCounterSyncEvent?>(null) }
     // 정책 변경: ROTATING_TEXT 문구 진행 커서(파일 카운터와 독립) 상태.
     var phraseProgressCounter by remember { mutableIntStateOf(1) }
     var shutterButtonTopY by remember { mutableStateOf<Float?>(null) }
@@ -359,7 +363,6 @@ fun CameraPreview(
     val displayCounter = finalCapturePreview?.usedCounter
     val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
     var resumeResyncTick by remember { mutableIntStateOf(0) }
-    var undoResyncTick by remember { mutableIntStateOf(0) }
     var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
 
     suspend fun reloadLatestImage() {
@@ -381,9 +384,9 @@ fun CameraPreview(
     suspend fun syncAfterUndoDelete() {
         reloadLatestImage()
         // 실제 undo 삭제 완료(미디어 삭제 성공) 시점 이벤트다.
-        // 버튼 클릭 시점이 아니라 완료 시점에만 발행해 V2 재동기화 타이밍을 맞춘다.
-        onCounterSyncEvent(CameraCounterSyncEvent.UNDO_COMMITTED)
-        undoResyncTick += 1
+        // 버튼 클릭 시점이 아니라 완료 시점에만 발행해 카운터 재동기화 타이밍을 맞춘다.
+        latestCounterEvent = CameraCounterSyncEvent.UNDO_COMMITTED
+        counterEventTick += 1
     }
 
     LaunchedEffect(lifecycleOwner) {
@@ -460,15 +463,15 @@ fun CameraPreview(
 
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
     SyncCounterSeedEffect(
-        context = context,
         counterScope = counterScope,
         scanPrefix = captureScopeState.scanPrefix,
-        counterDigits = ui.prefs.counterDigits,
         resumeTick = resumeResyncTick,
-        undoTick = undoResyncTick,
+        counterEventTick = counterEventTick,
+        latestCounterEvent = latestCounterEvent,
         isTemplateReady = isTemplateReady,
         appSettings = appSettings,
-        ui = ui
+        ui = ui,
+        counterFacade = counterFacade,
     )
 
     val topDisplayName = finalCapturePreview?.displayName ?: captureScopeState.preSyncDisplayName
@@ -509,8 +512,9 @@ fun CameraPreview(
             onAddToSessionStack = { uris ->
                 UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
                 // 실제 촬영 저장 완료(세션 stack 반영 완료) 시점 이벤트다.
-                // 버튼 클릭 시점이 아니라 완료 시점에만 발행해 V2가 완료 이벤트 기반으로 동기화한다.
-                onCounterSyncEvent(CameraCounterSyncEvent.CAPTURE_COMMITTED)
+                // 버튼 클릭 시점이 아니라 완료 시점에만 발행해 본체 카운터 동기화가 즉시 반영되게 한다.
+                latestCounterEvent = CameraCounterSyncEvent.CAPTURE_COMMITTED
+                counterEventTick += 1
                 scope.launch { reloadLatestImage() }
             },
             onSetCapturedUri = { capturedUri -> ui.capture.capturedUri = capturedUri },
@@ -1173,139 +1177,95 @@ private fun rememberMediaStoreRefreshTick(context: Context): Int {
 
 @Composable
 private fun SyncCounterSeedEffect(
-    context: Context,
     counterScope: CounterScope,
     scanPrefix: String,
-    counterDigits: Int,
     resumeTick: Int,
-    undoTick: Int,
+    counterEventTick: Int,
+    latestCounterEvent: CameraCounterSyncEvent?,
     isTemplateReady: Boolean,
     appSettings: AppSettings,
-    ui: CameraUiState
+    ui: CameraUiState,
+    counterFacade: CounterFacade,
 ) {
-    var lastResumeTick by remember { mutableIntStateOf(-1) }
-    var lastUndoTick by remember { mutableIntStateOf(-1) }
-    var lastSaveMode by remember { mutableStateOf<SaveMode?>(null) }
-    val scopedCounter = remember(
+    var isInitial by remember { mutableStateOf(true) }
+    var lastHandledResumeTick by remember { mutableIntStateOf(-1) }
+    var lastHandledCounterEventTick by remember { mutableIntStateOf(-1) }
+    var previousSaveMode by remember { mutableStateOf<SaveMode?>(null) }
+    var previousRequestKey by remember { mutableStateOf<String?>(null) }
+
+    val counterRequest = remember(
+        appSettings.saveMode,
         counterScope.relativePathKey,
         counterScope.streamPrefix,
         scanPrefix,
         appSettings.includePathInCounterScope,
         appSettings.includeFilenameInCounterScope,
-        isTemplateReady,
     ) {
-        buildScopedCounter(
-            counterScope = counterScope,
+        CounterRequestResolver.fromCamera(
+            saveMode = appSettings.saveMode,
+            relativePathKey = counterScope.relativePathKey,
+            prefix = counterScope.streamPrefix,
+            scanPrefix = scanPrefix,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
-            scanPrefix = scanPrefix,
         )
     }
-    val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
-    var scopeKeySnapshot by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(resumeTick) {
-        scopeKeySnapshot = scopedCounter.scopeParts.scopeKey
+    val requestKey = remember(counterRequest) {
+        buildCameraRequestKey(
+            relativePathKey = counterRequest.relativePathKey,
+            prefix = counterRequest.prefix,
+            scanPrefix = counterRequest.scanPrefix,
+            includePathInScope = counterRequest.includePathInScope,
+            includeFilenameInScope = counterRequest.includeFilenameInScope,
+        )
     }
-    val activeScopeKey = scopeKeySnapshot ?: scopedCounter.scopeParts.scopeKey
 
     LaunchedEffect(
-        activeScopeKey,
-        counterDigits,
-        resumeTick,
-        undoTick,
         isTemplateReady,
+        counterRequest,
+        requestKey,
+        resumeTick,
+        counterEventTick,
         appSettings.saveMode,
-        appSettings.includePathInCounterScope,
-        appSettings.includeFilenameInCounterScope,
     ) {
-        if (!isTemplateReady) {
-            // 템플릿 미준비 상태에서는 counter 동기화를 수행하지 않는다.
-            return@LaunchedEffect
-        }
+        if (!isTemplateReady || ui.capture.isCapturing) return@LaunchedEffect
 
-        val scopeSnapshot = buildCounterScopeSnapshot(
-            counterScope = counterScope,
-            includePathInScope = appSettings.includePathInCounterScope,
-            includeFilenameInScope = appSettings.includeFilenameInCounterScope,
+        val isResumeEvent = resumeTick > lastHandledResumeTick
+        val hasCounterEvent = counterEventTick > lastHandledCounterEventTick
+        val counterEvent = if (hasCounterEvent) latestCounterEvent else null
+
+        // 카메라 카운터 동기화는 detect -> read -> decide/apply 구조를 사용한다.
+        // - saveMode 변경은 새 stream 전환으로 처리
+        // - CAPTURE_COMMITTED는 같은 stream 전진 이벤트
+        // - UNDO_COMMITTED는 하향 동기화 허용
+        // - same stream resume/re-entry에서는 불필요한 하향을 방지
+        val reason = detectCameraSyncReason(
+            isInitial = isInitial,
+            isResumeEvent = isResumeEvent,
+            counterEvent = counterEvent,
+            previousSaveMode = previousSaveMode,
+            currentSaveMode = appSettings.saveMode,
+            previousRequestKey = previousRequestKey,
+            currentRequestKey = requestKey,
+        )
+        val read = counterFacade.read(counterRequest)
+        val currentDisplayedNext = (ui.counter.scopeNextCounter ?: 1).coerceAtLeast(1)
+        ui.counter.scopeNextCounter = applyCameraSyncedNext(
+            reason = reason,
+            currentDisplayedNext = currentDisplayedNext,
+            read = read,
+            previousRequestKey = previousRequestKey,
+            currentRequestKey = requestKey,
         )
 
-        if (ui.capture.isCapturing) {
-            ui.counter.lastScopeSnapshot = scopeSnapshot
-            return@LaunchedEffect
-        }
-
-        val saveModeChanged = (lastSaveMode != null && lastSaveMode != appSettings.saveMode)
-        // undo tick 최초 구동(-1 -> 0)은 일반 초기 동기화로 취급하고,
-        // 실제 undo/delete 후 tick 변화만 별도 하향 동기화 경로로 분기한다.
-        val isUndoResync = (lastUndoTick >= 0 && undoTick != lastUndoTick)
-        // 정책 변경: 촬영 직후 readback은 줄이고, resume/undo/saveMode 변경 시 외부 resync로 취급한다.
-        val isExternalResync =
-            (resumeTick != lastResumeTick) ||
-                isUndoResync ||
-                saveModeChanged
-
-        suspend fun readNextSeed(): Int = CounterStore.getNext(
-            context = context,
-            scopedStream = scopedCounter,
-            scanPrefix = scanPrefix,
-            counterDigits = counterDigits,
-            fnDelim = fnDelim,
-            saveMode = appSettings.saveMode,
-        ).coerceAtLeast(1)
-
-        suspend fun readUndoResyncSeedFromMediaStore(): Int =
-            CounterResyncPolicy.refreshNextCounter(
-                context = context,
-                counterScope = counterScope,
-                scanPrefix = scanPrefix,
-                counterDigits = counterDigits,
-                fnDelim = fnDelim,
-            ).coerceAtLeast(1)
-
-        val nextSeedFromStream = if (isUndoResync) {
-            // 핵심 정책: undo/delete 재동기화에서는 repository 기반 next가 아니라
-            // MediaStore 실파일 스캔 기준 next를 우선 반영한다(하향 동기화 허용).
-            readUndoResyncSeedFromMediaStore()
-        } else if (isExternalResync) {
-            val a = readNextSeed()
-            delay(200)
-            val b = readNextSeed()
-            if (a == b) a else b
-        } else {
-            readNextSeed()
-        }
-
-        val isNewStream = isNewCounterScope(
-            previous = ui.counter.lastScopeSnapshot,
-            current = scopeSnapshot
-        )
-        // null은 아직 동기화 전 상태이므로, 첫 동기화 cycle에서는 stream 관측값을 기준 seed로 사용한다.
-        val currentScopeSeed = ui.counter.scopeNextCounter ?: nextSeedFromStream
-        val allowResetToOneOnNewStream =
-            counterScope.streamPrefix.contains("d_") ||
-                counterScope.streamPrefix.contains("t_") ||
-                counterScope.streamPrefix.contains("rp_")
-        val syncAllowsDownward = isUndoResync
-        ui.counter.scopeNextCounter = when {
-            // 규칙 A: 새 스트림 판정에서 비의도적 1 하향을 방지한다.
-            isNewStream && !allowResetToOneOnNewStream && nextSeedFromStream == 1 && currentScopeSeed > 1 -> currentScopeSeed
-
-            // 규칙 B: 같은 scope/new scope 안정화는 공통 helper(resolveSyncedScopeNext)에서 처리한다.
-            // 단, undo 기반 외부 재동기화는 실제 삭제 반영을 위해 하향 동기화를 허용한다.
-            else -> resolveSyncedScopeNext(
-                streamNextFromPolicy = nextSeedFromStream,
-                currentScopeNext = currentScopeSeed,
-                isNewScope = isNewStream,
-                allowDownwardSync = syncAllowsDownward,
-            )
-        }
-        lastResumeTick = resumeTick
-        lastUndoTick = undoTick
-        lastSaveMode = appSettings.saveMode
-        ui.counter.lastScopeSnapshot = scopeSnapshot
+        isInitial = false
+        previousSaveMode = appSettings.saveMode
+        previousRequestKey = requestKey
+        if (isResumeEvent) lastHandledResumeTick = resumeTick
+        if (hasCounterEvent) lastHandledCounterEventTick = counterEventTick
     }
 }
+
 private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
     try {
         ui.prefs.wmTableAnchor = when (prefs[KEY_WM_TABLE_ANCHOR] ?: 3) {

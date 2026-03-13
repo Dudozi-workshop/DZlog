@@ -9,11 +9,11 @@ import com.dudoziworkshop.dzlog.feature.counter.CounterSyncReason
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class CameraCounterV2SyncTest {
+class CameraCounterSyncTest {
 
     @Test
     fun `save mode change adopts empty new stream one`() {
-        val reason = detectCameraV2SyncReason(
+        val reason = detectCameraSyncReason(
             isInitial = false,
             isResumeEvent = false,
             counterEvent = null,
@@ -22,7 +22,7 @@ class CameraCounterV2SyncTest {
             previousRequestKey = "water",
             currentRequestKey = "orig",
         )
-        val next = applyCameraV2SyncedNext(
+        val next = applyCameraSyncedNext(
             reason = reason,
             currentDisplayedNext = 2,
             read = readResult(next = 1),
@@ -36,7 +36,7 @@ class CameraCounterV2SyncTest {
 
     @Test
     fun `same stream resume prevents unnecessary downward`() {
-        val reason = detectCameraV2SyncReason(
+        val reason = detectCameraSyncReason(
             isInitial = false,
             isResumeEvent = true,
             counterEvent = null,
@@ -45,7 +45,7 @@ class CameraCounterV2SyncTest {
             previousRequestKey = "same",
             currentRequestKey = "same",
         )
-        val next = applyCameraV2SyncedNext(
+        val next = applyCameraSyncedNext(
             reason = reason,
             currentDisplayedNext = 5,
             read = readResult(next = 3),
@@ -59,7 +59,7 @@ class CameraCounterV2SyncTest {
 
     @Test
     fun `undo allows downward sync`() {
-        val reason = detectCameraV2SyncReason(
+        val reason = detectCameraSyncReason(
             isInitial = false,
             counterEvent = CameraCounterSyncEvent.UNDO_COMMITTED,
             isResumeEvent = false,
@@ -68,7 +68,7 @@ class CameraCounterV2SyncTest {
             previousRequestKey = "same",
             currentRequestKey = "same",
         )
-        val next = applyCameraV2SyncedNext(
+        val next = applyCameraSyncedNext(
             reason = reason,
             currentDisplayedNext = 4,
             read = readResult(next = 2),
@@ -82,7 +82,7 @@ class CameraCounterV2SyncTest {
 
     @Test
     fun `capture committed event uses dedicated forward sync reason`() {
-        val reason = detectCameraV2SyncReason(
+        val reason = detectCameraSyncReason(
             isInitial = false,
             counterEvent = CameraCounterSyncEvent.CAPTURE_COMMITTED,
             isResumeEvent = false,
@@ -91,7 +91,7 @@ class CameraCounterV2SyncTest {
             previousRequestKey = "same",
             currentRequestKey = "same",
         )
-        val next = applyCameraV2SyncedNext(
+        val next = applyCameraSyncedNext(
             reason = reason,
             currentDisplayedNext = 4,
             read = readResult(next = 5),
@@ -105,7 +105,7 @@ class CameraCounterV2SyncTest {
 
     @Test
     fun `without explicit event uses resume-equivalent fallback handling`() {
-        val reason = detectCameraV2SyncReason(
+        val reason = detectCameraSyncReason(
             isInitial = false,
             counterEvent = null,
             isResumeEvent = false,
