@@ -321,7 +321,7 @@ fun buildSavePath(
  * - WATERMARK_ONLY/BOTH: 워터마크 저장 기준(base 경로) 카운터 스트림 공유
  * - ORIGINAL_ONLY: original 하위 폴더를 카운터 스트림 기준 경로로 사용
  */
-fun buildCounterStreamPath(baseRelativePath: String, saveMode: SaveMode): String {
+fun buildCounterPath(baseRelativePath: String, saveMode: SaveMode): String {
     val normalizedBase = baseRelativePath.trim().let { path ->
         if (path.isBlank()) "Pictures/DZlog/" else if (path.endsWith('/')) path else "$path/"
     }

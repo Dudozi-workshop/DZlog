@@ -109,7 +109,7 @@ import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.counter.CounterStore
 import com.dudoziworkshop.dzlog.domain.counter.policy.buildCounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.isNewCounterScope
-import com.dudoziworkshop.dzlog.domain.counter.toScopedCounter
+import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
@@ -128,7 +128,7 @@ import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.CaptureScopeInput
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreviewInput
-import com.dudoziworkshop.dzlog.domain.preview.buildScopeState
+import com.dudoziworkshop.dzlog.domain.preview.buildScope
 import com.dudoziworkshop.dzlog.domain.preview.buildCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
@@ -280,7 +280,7 @@ fun CameraPreview(
         appSettings.includeFilenameInCounterScope,
         appSettings.saveMode,
     ) {
-        buildScopeState(
+        buildScope(
             input = CaptureScopeInput(
                 templateState = tableTemplateState,
                 captureNow = ui.capture.now,
@@ -315,7 +315,7 @@ fun CameraPreview(
         appSettings.includeFilenameInCounterScope,
         appSettings.saveMode,
     ) {
-        toScopedCounter(
+        buildScopedCounter(
             counterScope = counterScope,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
@@ -1185,7 +1185,7 @@ private fun SyncCounterSeedEffect(
         appSettings.includeFilenameInCounterScope,
         isTemplateReady,
     ) {
-        toScopedCounter(
+        buildScopedCounter(
             counterScope = counterScope,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
@@ -1236,7 +1236,7 @@ private fun SyncCounterSeedEffect(
                 isUndoResync ||
                 saveModeChanged
 
-        suspend fun readNextSeed(): Int = CounterStore.next(
+        suspend fun readNextSeed(): Int = CounterStore.getNext(
             context = context,
             scopedStream = scopedCounter,
             scanPrefix = scanPrefix,

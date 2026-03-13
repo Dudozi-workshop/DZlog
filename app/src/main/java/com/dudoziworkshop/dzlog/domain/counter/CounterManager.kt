@@ -2,7 +2,7 @@ package com.dudoziworkshop.dzlog.domain.counter
 
 import android.content.Context
 import com.dudoziworkshop.dzlog.data.counter.CounterScanTarget
-import com.dudoziworkshop.dzlog.data.counter.scanUsedCounters as scanCountersInMediaStorePath
+import com.dudoziworkshop.dzlog.data.counter.scanUsedCounters
 import com.dudoziworkshop.dzlog.data.counter.toCounterScanTarget
 import com.dudoziworkshop.dzlog.data.counterindex.CounterIndexRepository
 import com.dudoziworkshop.dzlog.domain.model.CellKey
@@ -31,7 +31,7 @@ import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
  */
 object CounterManager {
 
-    fun computeScanRelativePaths(
+    fun buildScanPaths(
         baseRel: String,
         target: CounterScanTarget
     ): List<String> {
@@ -245,14 +245,14 @@ object CounterManager {
         val scanPaths = if (physicalPath.isBlank()) {
             emptyList()
         } else {
-            computeScanRelativePaths(physicalPath, scanTarget)
+            buildScanPaths(physicalPath, scanTarget)
         }
 
         // 최종 truth: MediaStore 실파일 스캔 결과만 사용한다.
         // - stream 분리키(rawStreamPrefix)는 DB key/스코프 비교에만 쓰고,
         //   실파일 파싱은 scanPrefix(=physicalFileNamePrefix)로 수행한다.
         val usedCountersFromMediaStore: Set<Int> = runCatching {
-            scanUsedCounters(
+            collectUsedCountersFromPaths(
                 context = context,
                 relativePathPrefixes = scanPaths,
                 fileNamePrefix = physicalFileNamePrefix,
@@ -279,7 +279,7 @@ object CounterManager {
      * - 아니면 next = max(existing) + 1
      * - hole fill은 수행하지 않는다.
      */
-    suspend fun computeNextCounter(
+    suspend fun computeNext(
         context: Context,
         relativePath: String,
         counterPrefix: String,
@@ -297,16 +297,16 @@ object CounterManager {
             fnDelim = fnDelim,
             saveMode = saveMode,
         )
-        val next = computeNextFromExistingCounters(used)
+        val next = nextFromUsed(used)
         return next
     }
 
     // 정책 요약: next 계산은 used counters 집합에서 max+1만 사용하고, hole fill은 하지 않는다.
-    internal fun computeNextFromExistingCounters(existingCounters: Set<Int>): Int {
+    internal fun nextFromUsed(existingCounters: Set<Int>): Int {
         return (existingCounters.maxOrNull() ?: 0) + 1
     }
 
-    private fun scanUsedCounters(
+    private fun collectUsedCountersFromPaths(
         context: Context,
         relativePathPrefixes: List<String>,
         fileNamePrefix: String,
@@ -319,7 +319,7 @@ object CounterManager {
             .asSequence()
             .filter { it.isNotBlank() }
             .flatMap { rel ->
-                scanCountersInMediaStorePath(
+                scanUsedCounters(
                     context = context,
                     relativePathPrefix = rel,
                     fileNamePrefix = fileNamePrefix,

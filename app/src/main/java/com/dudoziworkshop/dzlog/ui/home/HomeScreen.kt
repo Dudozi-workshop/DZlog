@@ -51,7 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.counter.CounterStore
-import com.dudoziworkshop.dzlog.domain.counter.toScopedCounter
+import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
 import com.dudoziworkshop.dzlog.debug.CounterDebugDump
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
@@ -61,7 +61,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
-import com.dudoziworkshop.dzlog.domain.preview.buildPreviewState
+import com.dudoziworkshop.dzlog.domain.preview.buildPreview
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
@@ -148,7 +148,7 @@ fun HomeScreen(
         phraseProgressCursor,
     ) {
         val now = previewNow
-        val previewPipeline = buildPreviewState(
+        val previewPipeline = buildPreview(
             PreviewInput(
                 templateState = tableTemplateState,
                 captureNow = now,
@@ -166,13 +166,13 @@ fun HomeScreen(
         // 주요 정책: 홈 preview의 counter stream도 공용 preview pipeline 결과를 그대로 사용한다.
         val counterScope = previewPipeline.previewNaming.counterScope
         val scanPrefix = previewPipeline.previewNaming.scanPrefix
-        val scopedCounter = toScopedCounter(
+        val scopedCounter = buildScopedCounter(
             counterScope = counterScope,
             includePathInScope = settings.includePathInCounterScope,
             includeFilenameInScope = settings.includeFilenameInCounterScope,
             scanPrefix = scanPrefix,
         )
-        val streamNext = CounterStore.next(
+        val streamNext = CounterStore.getNext(
             context = context,
             scopedStream = scopedCounter,
             scanPrefix = scanPrefix,
@@ -181,7 +181,7 @@ fun HomeScreen(
             saveMode = settings.saveMode,
         ).coerceAtLeast(1)
         // 파일명/경로 표시도 공용 pipeline 결과를 사용하되, 사용 카운터만 streamNext로 맞춘다.
-        val displayPreviewPipeline = buildPreviewState(
+        val displayPreviewPipeline = buildPreview(
             PreviewInput(
                 templateState = tableTemplateState,
                 captureNow = now,

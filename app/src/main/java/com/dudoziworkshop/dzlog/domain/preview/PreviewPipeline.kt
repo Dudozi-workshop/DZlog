@@ -91,11 +91,11 @@ internal data class PreviewState(
 /**
  * 화면별 Preview 계산 경로를 단일화하기 위한 공용 state builder.
  */
-internal fun buildPreviewState(
+internal fun buildPreview(
     input: PreviewInput,
     tableResolver: TableResolver = TableResolver(),
 ): PreviewState {
-    val scopeState = buildScopeState(
+    val scopeState = buildScope(
         input = CaptureScopeInput(
             templateState = input.templateState,
             captureNow = input.captureNow,
@@ -112,7 +112,7 @@ internal fun buildPreviewState(
         tableResolver = tableResolver,
     )
 
-    // buildPreviewState는 외부 계약 유지: sync된 counter가 들어오면 plan도 동일 counter 기준으로 맞춘다.
+    // buildPreview는 외부 계약 유지: sync된 counter가 들어오면 plan도 동일 counter 기준으로 맞춘다.
     val previewPlan = if (input.scopeNextCounter != null) {
         tableResolver.plan(
             cells = scopeState.effectiveCells,
@@ -157,7 +157,7 @@ internal fun buildPreviewState(
     )
 }
 
-internal fun buildScopeState(
+internal fun buildScope(
     input: CaptureScopeInput,
     tableResolver: TableResolver = TableResolver(),
 ): CaptureScopeState {

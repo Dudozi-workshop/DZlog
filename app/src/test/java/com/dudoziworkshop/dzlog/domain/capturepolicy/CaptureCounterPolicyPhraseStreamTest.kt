@@ -19,14 +19,14 @@ class CaptureCounterPolicyPhraseStreamTest {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val stream = createScopedStream("rp_왜|g2=0")
 
-        CaptureCounterPolicy.commitCounter(
+        CaptureCounterPolicy.commit(
             context = context,
             scopedStream = stream,
             usedCounter = 1,
             mediaStoreId = 1001L,
         )
 
-        val next = CaptureCounterPolicy.getNextCounter(
+        val next = CaptureCounterPolicy.resolveNext(
             context = context,
             scopedStream = stream,
             scanPrefix = stream.captureStreamKey.scanPrefix,
@@ -44,7 +44,7 @@ class CaptureCounterPolicyPhraseStreamTest {
         val whyStream = createScopedStream("rp_왜|g2=0")
         val wowStream = createScopedStream("rp_헐|g2=0")
 
-        val wowBefore = CaptureCounterPolicy.getNextCounter(
+        val wowBefore = CaptureCounterPolicy.resolveNext(
             context = context,
             scopedStream = wowStream,
             scanPrefix = wowStream.captureStreamKey.scanPrefix,
@@ -53,14 +53,14 @@ class CaptureCounterPolicyPhraseStreamTest {
             saveMode = SaveMode.WATERMARK_ONLY,
         )
 
-        CaptureCounterPolicy.commitCounter(
+        CaptureCounterPolicy.commit(
             context = context,
             scopedStream = whyStream,
             usedCounter = 1,
             mediaStoreId = 2001L,
         )
 
-        val wowAfter = CaptureCounterPolicy.getNextCounter(
+        val wowAfter = CaptureCounterPolicy.resolveNext(
             context = context,
             scopedStream = wowStream,
             scanPrefix = wowStream.captureStreamKey.scanPrefix,
@@ -78,20 +78,20 @@ class CaptureCounterPolicyPhraseStreamTest {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val stream = createScopedStream("rp_왜|g2=0")
 
-        CaptureCounterPolicy.commitCounter(
+        CaptureCounterPolicy.commit(
             context = context,
             scopedStream = stream,
             usedCounter = 1,
             mediaStoreId = 3001L,
         )
-        CaptureCounterPolicy.commitCounter(
+        CaptureCounterPolicy.commit(
             context = context,
             scopedStream = stream,
             usedCounter = 2,
             mediaStoreId = 3002L,
         )
 
-        val next = CaptureCounterPolicy.getNextCounter(
+        val next = CaptureCounterPolicy.resolveNext(
             context = context,
             scopedStream = stream,
             scanPrefix = stream.captureStreamKey.scanPrefix,

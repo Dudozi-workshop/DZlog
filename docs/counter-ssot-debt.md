@@ -4,7 +4,7 @@
 - 조치 완료: `TableEditorScreen`도 `AppSettingsStore`의
   - `includePathInCounterScope`
   - `includeFilenameInCounterScope`
-  값을 읽어 `toCaptureScopedCounterStream(...)`로 정책 키를 계산하도록 통일.
+  값을 읽어 `buildScopedCounter(...)`로 정책 키를 계산하도록 통일.
 - 기대 효과: 카메라와 테이블에서 동일 설정일 때 동일 scope key를 사용.
 
 ## B. 미사용 이전 설계 경로 정리
@@ -42,7 +42,7 @@
 
 
 ## 3단계 완료 (Coordinator API 슬림화)
-- `TableCounterPolicyCoordinator`의 streamContext 오버로드를 제거하고 scoped stream API만 유지.
+- `TableCounterPolicyCoordinator`의 중복 오버로드를 제거하고 scoped stream 중심 API만 유지.
 - 테이블 호출부는 이미 scoped stream만 사용 중이라 동작 변화 없이 유지보수 경로만 단순화.
 
 
@@ -53,4 +53,4 @@
 
 ## CaptureCounterPolicy 내부 오버로드 정리
 - `CaptureStreamKey` 기반 오버로드는 내부(private) 구현으로 축소.
-- 외부 호출 표면은 `CounterStreamContext`/`CaptureScopedCounterStream` 중심으로 유지.
+- 외부 카운터 read/commit 호출 표면은 `CaptureScopedCounterStream` 중심으로 유지.

@@ -1,12 +1,12 @@
 package com.dudoziworkshop.dzlog.feature.capture.policy
 
 import android.content.Context
-import com.dudoziworkshop.dzlog.data.counter.parseCounterFromDisplayNameForPolicy
+import com.dudoziworkshop.dzlog.data.counter.parseCounterForPolicy
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CounterManager
 import com.dudoziworkshop.dzlog.domain.counter.CounterScope
-import com.dudoziworkshop.dzlog.domain.counter.toScopedCounter
+import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
 import kotlinx.coroutines.flow.first
 
 internal object CounterResyncPolicy {
@@ -24,7 +24,7 @@ internal object CounterResyncPolicy {
     ): ParsedCounterSeed {
         val latestCounter = latestDisplayName
             ?.let {
-                parseCounterFromDisplayNameForPolicy(
+                parseCounterForPolicy(
                     displayName = it,
                     fileNamePrefix = fileNamePrefix,
                     counterDigits = counterDigits,
@@ -46,7 +46,7 @@ internal object CounterResyncPolicy {
     ): Int {
         val appSettings = AppSettingsStore.flow(context).first()
         // scoped stream 계산은 CounterScope 단일 모델을 기준으로 수행한다.
-        val scopedStream = toScopedCounter(
+        val scopedStream = buildScopedCounter(
             counterScope = counterScope,
             includePathInScope = appSettings.includePathInCounterScope,
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
@@ -56,7 +56,7 @@ internal object CounterResyncPolicy {
         val relativePath = scopedStream.captureStreamKey.relativePathKey
             .substringBefore("|g2=", scopedStream.captureStreamKey.relativePathKey)
 
-        val nextCounterFromScan = CounterManager.computeNextCounter(
+        val nextCounterFromScan = CounterManager.computeNext(
             context = context,
             relativePath = relativePath,
             counterPrefix = scopedStream.captureStreamKey.prefix,
@@ -66,7 +66,7 @@ internal object CounterResyncPolicy {
             saveMode = appSettings.saveMode,
         )
 
-        CaptureCounterPolicy.clearManualCounterOverride(
+        CaptureCounterPolicy.clearManualOverride(
             context = context,
             scopedStream = scopedStream
         )

@@ -13,7 +13,7 @@ import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.buildCounterScopeSnapshot
-import com.dudoziworkshop.dzlog.domain.counter.toScopedCounter
+import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -32,7 +32,7 @@ internal fun buildTableScopedCounterStream(
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean
 ): CaptureScopedCounterStream =
-    toScopedCounter(
+    buildScopedCounter(
         counterScope = counterScope,
         includePathInScope = includePathInCounterScope,
         includeFilenameInScope = includeFilenameInCounterScope,
@@ -119,7 +119,7 @@ internal fun updateCounterCellAndPolicy(
     // - 따라서 저장소 next counter는 강제 정책 업데이트가 명시된 경우에만 갱신한다.
     if (forcePolicyUpdate) {
         scope.launch {
-            TableCounterPolicyCoordinator.setNextCounter(
+            TableCounterPolicyCoordinator.setNext(
                 context = context,
                 scopedStream = scopedCounterStream,
                 desired = normalizedSeed,
@@ -136,7 +136,7 @@ internal suspend fun fetchAutoNextCounter(
     scopedCounterStream: CaptureScopedCounterStream,
     previewCounterDigits: Int,
     saveMode: SaveMode,
-): Int = TableCounterPolicyCoordinator.resetToAutoNext(
+): Int = TableCounterPolicyCoordinator.resetToAuto(
     context = context,
     scopedStream = scopedCounterStream,
     counterDigits = previewCounterDigits,
@@ -260,7 +260,7 @@ internal suspend fun syncCounterStateForScope(
 ): TableCounterSyncResult {
     val counterCell = templateState.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
     val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start ?: 1
-    suspend fun readNextSeed(): Int = TableCounterPolicyCoordinator.getNextCounter(
+    suspend fun readNextSeed(): Int = TableCounterPolicyCoordinator.resolveNext(
         context = context,
         scopedStream = scopedCounterStream,
         counterDigits = previewCounterDigits,
@@ -295,7 +295,7 @@ internal suspend fun syncCounterStateForScope(
         } else {
             stableStreamNext
         }
-    val isManualCounterMode = TableCounterPolicyCoordinator.isManualOverrideActive(
+    val isManualCounterMode = TableCounterPolicyCoordinator.hasManualOverride(
         context = context,
         scopedStream = scopedCounterStream
     )

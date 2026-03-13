@@ -1,6 +1,6 @@
 package com.dudoziworkshop.dzlog.domain.capturepolicy
 
-import com.dudoziworkshop.dzlog.domain.counter.toScopedCounter
+import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
@@ -35,8 +35,8 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             ),
         )
 
-        val alphaScoped = toScopedCounter(alpha.counterScope, includePathInScope = true, includeFilenameInScope = true, scanPrefix = alpha.scanPrefix)
-        val betaScoped = toScopedCounter(beta.counterScope, includePathInScope = true, includeFilenameInScope = true, scanPrefix = beta.scanPrefix)
+        val alphaScoped = buildScopedCounter(alpha.counterScope, includePathInScope = true, includeFilenameInScope = true, scanPrefix = alpha.scanPrefix)
+        val betaScoped = buildScopedCounter(beta.counterScope, includePathInScope = true, includeFilenameInScope = true, scanPrefix = beta.scanPrefix)
 
         assertNotEquals(alphaScoped.captureStreamKey.prefix, betaScoped.captureStreamKey.prefix)
     }
@@ -60,8 +60,8 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             ),
         )
 
-        val alphaScoped = toScopedCounter(alpha.counterScope, includePathInScope = true, includeFilenameInScope = true, scanPrefix = alpha.scanPrefix)
-        val betaScoped = toScopedCounter(beta.counterScope, includePathInScope = true, includeFilenameInScope = true, scanPrefix = beta.scanPrefix)
+        val alphaScoped = buildScopedCounter(alpha.counterScope, includePathInScope = true, includeFilenameInScope = true, scanPrefix = alpha.scanPrefix)
+        val betaScoped = buildScopedCounter(beta.counterScope, includePathInScope = true, includeFilenameInScope = true, scanPrefix = beta.scanPrefix)
 
         assertEquals(alphaScoped.captureStreamKey.prefix, betaScoped.captureStreamKey.prefix)
     }

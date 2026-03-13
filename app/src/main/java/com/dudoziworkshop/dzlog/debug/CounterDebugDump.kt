@@ -43,7 +43,7 @@ object CounterDebugDump {
         val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         if (!isDebuggable) return
 
-        val manualOverrideActive = CaptureCounterPolicy.isManualOverrideActive(
+        val manualOverrideActive = CaptureCounterPolicy.hasManualOverride(
             context = context,
             scopedStream = scopedStream,
         )

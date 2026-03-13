@@ -63,7 +63,7 @@ import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.naming.resolveFileNameScopeTokensFromDrafts
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
-import com.dudoziworkshop.dzlog.domain.preview.buildPreviewState
+import com.dudoziworkshop.dzlog.domain.preview.buildPreview
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.table.policy.confirmCounterConflictDialog
@@ -476,7 +476,7 @@ fun TableEditorScreen(
         counterUi.includeFilenameInCounterScope,
         settings.saveMode,
     ) {
-        buildPreviewState(
+        buildPreview(
             input = PreviewInput(
                 templateState = currentTemplate,
                 captureNow = previewNow,

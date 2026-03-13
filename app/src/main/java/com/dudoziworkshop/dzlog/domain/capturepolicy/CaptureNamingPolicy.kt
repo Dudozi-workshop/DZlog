@@ -3,7 +3,7 @@ package com.dudoziworkshop.dzlog.domain.capturepolicy
 import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterScope
-import com.dudoziworkshop.dzlog.domain.naming.buildCounterStreamPath
+import com.dudoziworkshop.dzlog.domain.naming.buildCounterPath
 import com.dudoziworkshop.dzlog.domain.naming.buildFileName
 import com.dudoziworkshop.dzlog.domain.naming.buildFileNamePrefix
 import com.dudoziworkshop.dzlog.domain.naming.buildSavePath
@@ -87,7 +87,7 @@ internal object CaptureNamingPolicy {
         // 주요 정책(촬영모드별 카운터 스트림 경로):
         // - WATERMARK_ONLY/BOTH는 baseRelativePath(Pictures/DZlog/...)를 공유
         // - ORIGINAL_ONLY는 original/ 하위 경로를 스트림 기준으로 분리
-        val counterStreamPath = buildCounterStreamPath(
+        val counterStreamPath = buildCounterPath(
             baseRelativePath = baseRelativePath,
             saveMode = captureContext.saveMode,
         )

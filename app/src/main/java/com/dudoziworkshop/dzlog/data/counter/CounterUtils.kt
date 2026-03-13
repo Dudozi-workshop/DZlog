@@ -11,15 +11,15 @@ const val COUNTER_DIGITS_DEFAULT = 0
 
 fun clampCounterDigits(v: Int) = v.coerceIn(0, 6)
 
-private fun parseCounterFromDisplayName(
+private fun parseCounter(
     displayName: String,
     fileNamePrefix: String,
     counterDigits: Int,
     fnDelim: String
-): Int? = parseCounterFromDisplayNameForPolicy(displayName, fileNamePrefix, counterDigits, fnDelim)
+): Int? = parseCounterForPolicy(displayName, fileNamePrefix, counterDigits, fnDelim)
 
 
-internal fun parseCounterFromDisplayNameForPolicy(
+internal fun parseCounterForPolicy(
     displayName: String,
     fileNamePrefix: String,
     counterDigits: Int,
@@ -102,7 +102,7 @@ fun scanUsedCounters(
                     )
                     sampleCount += 1
                 }
-                parseCounterFromDisplayName(name, fileNamePrefix, counterDigits, fnDelim)?.let(out::add)
+                parseCounter(name, fileNamePrefix, counterDigits, fnDelim)?.let(out::add)
             }
         }
         Log.d(
@@ -130,7 +130,7 @@ fun scanUsedCounters(
                 )
                 sampleCount += 1
             }
-            parseCounterFromDisplayName(name, fileNamePrefix, counterDigits, fnDelim)?.let(out::add)
+            parseCounter(name, fileNamePrefix, counterDigits, fnDelim)?.let(out::add)
         }
     }
     Log.d(

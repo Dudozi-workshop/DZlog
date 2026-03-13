@@ -46,15 +46,15 @@ internal object TableCounterPolicyCoordinator {
         val preserveManualCounterSeed: Boolean
     )
 
-    suspend fun getNextCounter(
+    suspend fun resolveNext(
         context: Context,
         scopedStream: CaptureScopedCounterStream,
         counterDigits: Int,
         saveMode: SaveMode,
     ): Int {
-        // 정책 명시: auto-next는 CounterManager.computeNextCounter(max+1)를 기준으로 계산되고,
+        // 정책 명시: auto-next는 CounterManager.computeNext(max+1)를 기준으로 계산되고,
         // CaptureCounterPolicy에서 manual override를 결합한 값을 반환한다.
-        return CaptureCounterPolicy.getNextCounter(
+        return CaptureCounterPolicy.resolveNext(
             context = context,
             scopedStream = scopedStream,
             scanPrefix = scopedStream.captureStreamKey.scanPrefix,
@@ -65,7 +65,7 @@ internal object TableCounterPolicyCoordinator {
     }
 
 
-    suspend fun setNextCounter(
+    suspend fun setNext(
         context: Context,
         scopedStream: CaptureScopedCounterStream,
         desired: Int,
@@ -73,7 +73,7 @@ internal object TableCounterPolicyCoordinator {
         counterDigits: Int,
         saveMode: SaveMode,
     ) {
-        CaptureCounterPolicy.setNextCounter(
+        CaptureCounterPolicy.setNext(
             context = context,
             scopedStream = scopedStream,
             desired = desired,
@@ -84,23 +84,23 @@ internal object TableCounterPolicyCoordinator {
         )
     }
 
-    suspend fun isManualOverrideActive(
+    suspend fun hasManualOverride(
         context: Context,
         scopedStream: CaptureScopedCounterStream
     ): Boolean {
-        return CaptureCounterPolicy.isManualOverrideActive(
+        return CaptureCounterPolicy.hasManualOverride(
             context = context,
             scopedStream = scopedStream
         )
     }
 
-    suspend fun resetToAutoNext(
+    suspend fun resetToAuto(
         context: Context,
         scopedStream: CaptureScopedCounterStream,
         counterDigits: Int,
         saveMode: SaveMode,
     ): Int {
-        return CaptureCounterPolicy.resetToAutoNext(
+        return CaptureCounterPolicy.resetToAuto(
             context = context,
             scopedStream = scopedStream,
             scanPrefix = scopedStream.captureStreamKey.scanPrefix,
