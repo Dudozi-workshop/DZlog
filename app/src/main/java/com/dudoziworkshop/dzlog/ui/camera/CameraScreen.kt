@@ -130,8 +130,7 @@ import com.dudoziworkshop.dzlog.domain.preview.buildCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
-import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterSyncEffect
-import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
+import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
 import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterSyncEvent
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
@@ -253,13 +252,6 @@ fun CameraPreview(
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     var zoomPanelExpanded by remember { mutableStateOf(false) }
     val ui = remember { CameraUiState() }
-    val counterFacade = remember(context, ui.prefs.counterDigits) {
-        CounterFacade(
-            context = context,
-            counterDigits = ui.prefs.counterDigits,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-        )
-    }
     // 실제 capture/undo 완료 이벤트를 카운터 동기화 주 트리거로 사용한다.
     var counterEventTick by remember { mutableIntStateOf(0) }
     var latestCounterEvent by remember { mutableStateOf<CameraCounterSyncEvent?>(null) }
@@ -463,7 +455,7 @@ fun CameraPreview(
     )
 
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
-    CameraCounterSyncEffect(
+    CameraCounterController(
         counterScope = counterScope,
         scanPrefix = captureScopeState.scanPrefix,
         resumeTick = resumeResyncTick,
@@ -472,7 +464,6 @@ fun CameraPreview(
         isTemplateReady = isTemplateReady,
         appSettings = appSettings,
         ui = ui,
-        counterFacade = counterFacade,
     )
 
     val topDisplayName = finalCapturePreview?.displayName ?: captureScopeState.preSyncDisplayName
