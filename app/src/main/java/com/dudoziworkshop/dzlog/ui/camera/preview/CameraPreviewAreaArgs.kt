@@ -52,7 +52,7 @@ internal data class CameraPreviewAreaArgs(
     val fnDelim: String,
     /**
      * 단일 소스 카운터(프리뷰 표기용).
-     * null이면 CounterStore 동기화 전 상태로 간주하고 COUNTER 표시는 보류한다.
+     * null이면 카운터 readback 동기화 전 상태로 간주하고 COUNTER 표시는 보류한다.
      */
     val scopeNextCounter: Int?,
     /**
