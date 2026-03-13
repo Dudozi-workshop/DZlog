@@ -7,7 +7,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
-import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
@@ -67,10 +66,6 @@ internal class CaptureUiState {
 internal class CounterScopeState {
     // null = CounterStore 동기화 전(초기 렌더) 상태
     var scopeNextCounter by mutableStateOf<Int?>(null)
-    // 표시 안정화용: 같은 scope에서 마지막으로 확인된 동기화 counter
-    var lastResolvedDisplayCounter by mutableStateOf<Int?>(null)
-    var lastResolvedDisplayScopeKey by mutableStateOf<String?>(null)
-    var lastScopeSnapshot by mutableStateOf<CounterScopeSnapshot?>(null)
 }
 
 @Stable

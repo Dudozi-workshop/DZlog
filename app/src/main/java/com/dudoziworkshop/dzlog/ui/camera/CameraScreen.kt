@@ -132,6 +132,10 @@ import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.counter.CounterFacade
 import com.dudoziworkshop.dzlog.feature.counter.CounterRequestResolver
+import com.dudoziworkshop.dzlog.ui.camera.counter.CameraCounterSyncEvent
+import com.dudoziworkshop.dzlog.ui.camera.counter.applyCameraSyncedNext
+import com.dudoziworkshop.dzlog.ui.camera.counter.buildCameraRequestKey
+import com.dudoziworkshop.dzlog.ui.camera.counter.detectCameraSyncReason
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreSaverImpl
@@ -462,7 +466,7 @@ fun CameraPreview(
     )
 
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
-    SyncCounterSeedEffect(
+    CameraCounterSyncEffect(
         counterScope = counterScope,
         scanPrefix = captureScopeState.scanPrefix,
         resumeTick = resumeResyncTick,
@@ -558,7 +562,7 @@ fun CameraPreview(
             buildWatermarkConfig = ::buildWatermarkConfig,
             onApplyTemplatePatch = { onTemplateChange(it) },
             // 정책 변경: 촬영 성공 직후에는 optimistic UI를 우선하고 즉시 강한 readback resync는 생략한다.
-            // 최종 정합성 보정은 resume/undo/saveMode 변경 경로의 SyncCounterSeedEffect가 담당한다.
+            // 최종 정합성 보정은 resume/undo/saveMode 변경 경로의 CameraCounterSyncEffect가 담당한다.
             onRequestCounterResync = { },
             callbacks = callbacks
         )
@@ -1176,7 +1180,7 @@ private fun rememberMediaStoreRefreshTick(context: Context): Int {
 }
 
 @Composable
-private fun SyncCounterSeedEffect(
+private fun CameraCounterSyncEffect(
     counterScope: CounterScope,
     scanPrefix: String,
     resumeTick: Int,

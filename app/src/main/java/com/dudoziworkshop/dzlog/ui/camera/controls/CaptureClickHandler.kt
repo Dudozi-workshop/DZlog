@@ -144,7 +144,7 @@ internal fun handleCaptureClick(
             )?.coerceAtLeast(1) ?: finalCapturePreview.usedCounter
 
             CoroutineScope(Dispatchers.IO).launch {
-                // 핵심 수정: Camera read(SyncCounterSeedEffect)와 동일한 scoped stream key로 commit한다.
+                // 핵심 수정: Camera read(CameraCounterSyncEffect)와 동일한 scoped stream key로 commit한다.
                 // includePath/includeFilename scope OFF 시에도 read/commit 키가 분리되지 않도록 일치화한다.
                 CaptureCounterPolicy.commit(
                     context = context,
