@@ -4,7 +4,7 @@ package com.dudoziworkshop.dzlog.feature.counter.table
  * Counter handlers extracted from TableEditorScreen.
  *
  * Rule:
- * - UI layer delegates counter behavior through this file + policy/coordinator helpers.
+ * - UI layer delegates counter behavior through this file + policy helpers.
  * - Table counter read/write는 CounterFacade + CounterRequestResolver 경로로 수렴한다.
  */
 
@@ -250,8 +250,8 @@ internal suspend fun syncCounterStateForScope(
     val isManualCounterMode = firstRead.hasManualOverride
     val autoNextCounterValue = guardedStreamNext
 
-    val syncResult = TableCounterPolicyCoordinator.resolveSeedForScope(
-        input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
+    val syncResult = TableCounterSeedPolicy.resolveSeedForScope(
+        input = TableCounterSeedPolicy.CounterSeedSyncInput(
             currentScopeSnapshot = currentScopeSnapshot,
             isManualMode = isManualCounterModeDisplay,
             hasCounterCell = (counterCell != null),

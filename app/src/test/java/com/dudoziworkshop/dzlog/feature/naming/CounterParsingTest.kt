@@ -1,14 +1,14 @@
-package com.dudoziworkshop.dzlog.feature.capture.policy
+package com.dudoziworkshop.dzlog.feature.naming
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-class CounterResyncPolicyTest {
+class CounterParsingTest {
 
     @Test
     fun parse_next_counter_from_latest_display_name_success() {
-        val result = CounterResyncPolicy.parseNextCounterFromDisplayName(
+        val result = parseNextCounterFromDisplayName(
             latestDisplayName = "AAA_BBB_0007.jpg",
             fileNamePrefix = "AAA_BBB",
             counterDigits = 4,
@@ -21,7 +21,7 @@ class CounterResyncPolicyTest {
 
     @Test
     fun parse_failure_falls_back_to_one() {
-        val result = CounterResyncPolicy.parseNextCounterFromDisplayName(
+        val result = parseNextCounterFromDisplayName(
             latestDisplayName = "invalid_name.jpg",
             fileNamePrefix = "AAA_BBB",
             counterDigits = 4,
@@ -34,7 +34,7 @@ class CounterResyncPolicyTest {
 
     @Test
     fun null_latest_display_name_falls_back_to_one() {
-        val result = CounterResyncPolicy.parseNextCounterFromDisplayName(
+        val result = parseNextCounterFromDisplayName(
             latestDisplayName = null,
             fileNamePrefix = "*",
             counterDigits = 0,

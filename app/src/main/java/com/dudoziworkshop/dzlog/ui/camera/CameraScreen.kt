@@ -130,12 +130,8 @@ import com.dudoziworkshop.dzlog.domain.preview.buildCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
-import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
-import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
+import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
 import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterSyncEvent
-import com.dudoziworkshop.dzlog.feature.counter.camera.applyCameraSyncedNext
-import com.dudoziworkshop.dzlog.feature.counter.camera.buildCameraRequestKey
-import com.dudoziworkshop.dzlog.feature.counter.camera.detectCameraSyncReason
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreSaverImpl
@@ -256,13 +252,6 @@ fun CameraPreview(
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     var zoomPanelExpanded by remember { mutableStateOf(false) }
     val ui = remember { CameraUiState() }
-    val counterFacade = remember(context, ui.prefs.counterDigits) {
-        CounterFacade(
-            context = context,
-            counterDigits = ui.prefs.counterDigits,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-        )
-    }
     // 실제 capture/undo 완료 이벤트를 카운터 동기화 주 트리거로 사용한다.
     var counterEventTick by remember { mutableIntStateOf(0) }
     var latestCounterEvent by remember { mutableStateOf<CameraCounterSyncEvent?>(null) }
@@ -466,7 +455,7 @@ fun CameraPreview(
     )
 
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
-    CameraCounterSyncEffect(
+    CameraCounterController(
         counterScope = counterScope,
         scanPrefix = captureScopeState.scanPrefix,
         resumeTick = resumeResyncTick,
@@ -475,7 +464,6 @@ fun CameraPreview(
         isTemplateReady = isTemplateReady,
         appSettings = appSettings,
         ui = ui,
-        counterFacade = counterFacade,
     )
 
     val topDisplayName = finalCapturePreview?.displayName ?: captureScopeState.preSyncDisplayName
@@ -1177,97 +1165,6 @@ private fun rememberMediaStoreRefreshTick(context: Context): Int {
     }
 
     return refreshTick
-}
-
-@Composable
-private fun CameraCounterSyncEffect(
-    counterScope: CounterScope,
-    scanPrefix: String,
-    resumeTick: Int,
-    counterEventTick: Int,
-    latestCounterEvent: CameraCounterSyncEvent?,
-    isTemplateReady: Boolean,
-    appSettings: AppSettings,
-    ui: CameraUiState,
-    counterFacade: CounterFacade,
-) {
-    var isInitial by remember { mutableStateOf(true) }
-    var lastHandledResumeTick by remember { mutableIntStateOf(-1) }
-    var lastHandledCounterEventTick by remember { mutableIntStateOf(-1) }
-    var previousSaveMode by remember { mutableStateOf<SaveMode?>(null) }
-    var previousRequestKey by remember { mutableStateOf<String?>(null) }
-
-    val counterRequest = remember(
-        appSettings.saveMode,
-        counterScope.relativePathKey,
-        counterScope.streamPrefix,
-        scanPrefix,
-        appSettings.includePathInCounterScope,
-        appSettings.includeFilenameInCounterScope,
-    ) {
-        CounterRequestResolver.fromCamera(
-            saveMode = appSettings.saveMode,
-            relativePathKey = counterScope.relativePathKey,
-            prefix = counterScope.streamPrefix,
-            scanPrefix = scanPrefix,
-            includePathInScope = appSettings.includePathInCounterScope,
-            includeFilenameInScope = appSettings.includeFilenameInCounterScope,
-        )
-    }
-    val requestKey = remember(counterRequest) {
-        buildCameraRequestKey(
-            relativePathKey = counterRequest.relativePathKey,
-            prefix = counterRequest.prefix,
-            scanPrefix = counterRequest.scanPrefix,
-            includePathInScope = counterRequest.includePathInScope,
-            includeFilenameInScope = counterRequest.includeFilenameInScope,
-        )
-    }
-
-    LaunchedEffect(
-        isTemplateReady,
-        counterRequest,
-        requestKey,
-        resumeTick,
-        counterEventTick,
-        appSettings.saveMode,
-    ) {
-        if (!isTemplateReady || ui.capture.isCapturing) return@LaunchedEffect
-
-        val isResumeEvent = resumeTick > lastHandledResumeTick
-        val hasCounterEvent = counterEventTick > lastHandledCounterEventTick
-        val counterEvent = if (hasCounterEvent) latestCounterEvent else null
-
-        // 카메라 카운터 동기화는 detect -> read -> decide/apply 구조를 사용한다.
-        // - saveMode 변경은 새 stream 전환으로 처리
-        // - CAPTURE_COMMITTED는 같은 stream 전진 이벤트
-        // - UNDO_COMMITTED는 하향 동기화 허용
-        // - same stream resume/re-entry에서는 불필요한 하향을 방지
-        val reason = detectCameraSyncReason(
-            isInitial = isInitial,
-            isResumeEvent = isResumeEvent,
-            counterEvent = counterEvent,
-            previousSaveMode = previousSaveMode,
-            currentSaveMode = appSettings.saveMode,
-            previousRequestKey = previousRequestKey,
-            currentRequestKey = requestKey,
-        )
-        val read = counterFacade.read(counterRequest)
-        val currentDisplayedNext = (ui.counter.scopeNextCounter ?: 1).coerceAtLeast(1)
-        ui.counter.scopeNextCounter = applyCameraSyncedNext(
-            reason = reason,
-            currentDisplayedNext = currentDisplayedNext,
-            read = read,
-            previousRequestKey = previousRequestKey,
-            currentRequestKey = requestKey,
-        )
-
-        isInitial = false
-        previousSaveMode = appSettings.saveMode
-        previousRequestKey = requestKey
-        if (isResumeEvent) lastHandledResumeTick = resumeTick
-        if (hasCounterEvent) lastHandledCounterEventTick = counterEventTick
-    }
 }
 
 private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {

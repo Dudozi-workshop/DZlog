@@ -5,12 +5,12 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class TableCounterPolicyCoordinatorTest {
+class TableCounterSeedPolicyTest {
 
     @Test
     fun same_stream_keeps_manual_override_flag() {
-        val result = TableCounterPolicyCoordinator.resolveSeedForScope(
-            input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
+        val result = TableCounterSeedPolicy.resolveSeedForScope(
+            input = TableCounterSeedPolicy.CounterSeedSyncInput(
                 currentScopeSnapshot = CounterScopeSnapshot(
                     relativePathKey = "A",
                     prefix = "B",
@@ -39,8 +39,8 @@ class TableCounterPolicyCoordinatorTest {
 
     @Test
     fun new_stream_clears_manual_override_flag() {
-        val result = TableCounterPolicyCoordinator.resolveSeedForScope(
-            input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
+        val result = TableCounterSeedPolicy.resolveSeedForScope(
+            input = TableCounterSeedPolicy.CounterSeedSyncInput(
                 currentScopeSnapshot = CounterScopeSnapshot(
                     relativePathKey = "C",
                     prefix = "D",
@@ -76,8 +76,8 @@ class TableCounterPolicyCoordinatorTest {
             includePathInScope = true,
             includeFilenameInScope = true,
         )
-        val result = TableCounterPolicyCoordinator.resolveSeedForScope(
-            input = TableCounterPolicyCoordinator.CounterSeedSyncInput(
+        val result = TableCounterSeedPolicy.resolveSeedForScope(
+            input = TableCounterSeedPolicy.CounterSeedSyncInput(
                 currentScopeSnapshot = sameSnapshot,
                 isManualMode = true,
                 hasCounterCell = true,

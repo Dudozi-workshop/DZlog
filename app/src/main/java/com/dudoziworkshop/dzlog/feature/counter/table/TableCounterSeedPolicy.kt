@@ -6,14 +6,14 @@ import com.dudoziworkshop.dzlog.domain.counter.policy.decideCounterSeed
 import com.dudoziworkshop.dzlog.domain.counter.policy.isNewCounterScope
 
 /**
- * Table counter policy SSOT coordinator.
+ * Table counter seed policy.
  *
  * Rule:
- * - UI/Screen layer must call this coordinator only.
+ * - UI/Screen layer must call this seed policy only.
  * - Direct use of CounterManager/CaptureCounterPolicy from UI layer is discouraged.
  * - Low-level counter index/media-scan strategy remains encapsulated under policy/domain layer.
  */
-internal object TableCounterPolicyCoordinator {
+internal object TableCounterSeedPolicy {
 
     data class CounterSeedSyncInput(
         val currentScopeSnapshot: CounterScopeSnapshot,
