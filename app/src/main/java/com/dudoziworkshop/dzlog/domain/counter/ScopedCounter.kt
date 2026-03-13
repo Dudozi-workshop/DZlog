@@ -3,7 +3,7 @@ package com.dudoziworkshop.dzlog.domain.counter
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureStreamKey
 
 /**
- * CounterScope + 앱 scope 옵션으로 실제 캡처 정책 키를 구성한 결과.
+ * CounterScope 입력을 capture stream 키 + scope parts로 정규화한 결과.
  */
 internal data class ScopedCounter(
     val scopeParts: CounterScopeParts,

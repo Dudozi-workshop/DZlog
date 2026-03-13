@@ -11,24 +11,7 @@ import com.dudoziworkshop.dzlog.domain.model.SaveMode
  * `CounterStore.getNext` 의미로 읽히도록 제공하는 얇은 어댑터다.
  */
 internal object CounterStore {
-    internal suspend fun getNext(
-        context: Context,
-        counterScope: CounterScope,
-        scanPrefix: String,
-        counterDigits: Int,
-        fnDelim: String,
-        saveMode: SaveMode,
-    ): Int {
-        return CaptureCounterPolicy.resolveNext(
-            context = context,
-            counterScope = counterScope,
-            scanPrefix = scanPrefix,
-            counterDigits = counterDigits,
-            fnDelim = fnDelim,
-            saveMode = saveMode,
-        )
-    }
-
+    // SSOT 정리: feature/counter 경로는 scopedStream 기반 단일 진입으로 수렴한다.
     internal suspend fun getNext(
         context: Context,
         scopedStream: ScopedCounter,

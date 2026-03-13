@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-class CounterUtilsTest {
+class CounterParsingUtilsTest {
 
     @Test
     fun parse_with_exact_prefix_keeps_existing_behavior() {
