@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.table.counter
+package com.dudoziworkshop.dzlog.feature.counter.table
 
 /**
  * Counter handlers extracted from TableEditorScreen.
@@ -16,11 +16,10 @@ import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.feature.counter.CounterFacade
-import com.dudoziworkshop.dzlog.feature.counter.CounterReadResult
-import com.dudoziworkshop.dzlog.feature.counter.CounterRequest
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterReadResult
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequest
 import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogEffect
-import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterPolicyCoordinator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

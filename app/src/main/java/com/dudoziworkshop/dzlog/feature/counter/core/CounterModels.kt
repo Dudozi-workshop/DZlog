@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.feature.counter
+package com.dudoziworkshop.dzlog.feature.counter.core
 
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.model.SaveMode

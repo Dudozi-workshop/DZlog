@@ -1,7 +1,6 @@
-package com.dudoziworkshop.dzlog.ui.table
+package com.dudoziworkshop.dzlog.feature.counter.table
 
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
-import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterPolicyCoordinator
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

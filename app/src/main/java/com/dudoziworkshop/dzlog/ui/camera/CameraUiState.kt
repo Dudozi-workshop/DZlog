@@ -64,7 +64,7 @@ internal class CaptureUiState {
 
 @Stable
 internal class CounterScopeState {
-    // null = CounterStore 동기화 전(초기 렌더) 상태
+    // null = 카운터 readback 동기화 전(초기 렌더) 상태
     var scopeNextCounter by mutableStateOf<Int?>(null)
 }
 

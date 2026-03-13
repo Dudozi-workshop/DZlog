@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.feature.table.policy
+package com.dudoziworkshop.dzlog.feature.counter.table
 
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterSeedInput

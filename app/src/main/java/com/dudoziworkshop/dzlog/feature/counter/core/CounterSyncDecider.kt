@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.feature.counter
+package com.dudoziworkshop.dzlog.feature.counter.core
 
 internal object CounterSyncDecider {
 

@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.table.counter
+package com.dudoziworkshop.dzlog.feature.counter.table
 
 import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogState
 

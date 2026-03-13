@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.feature.counter
+package com.dudoziworkshop.dzlog.feature.counter.core
 
 import androidx.test.core.app.ApplicationProvider
 import com.dudoziworkshop.dzlog.domain.model.SaveMode

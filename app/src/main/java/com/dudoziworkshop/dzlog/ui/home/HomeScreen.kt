@@ -50,8 +50,8 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
-import com.dudoziworkshop.dzlog.feature.counter.CounterFacade
-import com.dudoziworkshop.dzlog.feature.counter.CounterRequestResolver
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
 import com.dudoziworkshop.dzlog.debug.CounterDebugDump
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem

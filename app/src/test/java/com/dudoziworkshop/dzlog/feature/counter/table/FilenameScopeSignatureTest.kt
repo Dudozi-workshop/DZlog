@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.table.counter
+package com.dudoziworkshop.dzlog.feature.counter.table
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals

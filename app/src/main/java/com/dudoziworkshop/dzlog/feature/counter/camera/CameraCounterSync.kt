@@ -1,9 +1,9 @@
-package com.dudoziworkshop.dzlog.ui.camera
+package com.dudoziworkshop.dzlog.feature.counter.camera
 
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
-import com.dudoziworkshop.dzlog.feature.counter.CounterReadResult
-import com.dudoziworkshop.dzlog.feature.counter.CounterSyncDecider
-import com.dudoziworkshop.dzlog.feature.counter.CounterSyncReason
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterReadResult
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterSyncDecider
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterSyncReason
 
 enum class CameraCounterSyncEvent {
     CAPTURE_COMMITTED,
