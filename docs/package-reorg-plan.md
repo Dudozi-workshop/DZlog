@@ -44,7 +44,7 @@
 - [x] 1단계 착수: `CounterScopeSnapshot`, `isNewCounterScope`를 `domain/counter/policy`로 이관
 - [x] 2단계: seed 결정 정책(`CounterSeedPolicy`)도 `domain/counter/policy`로 패키지 정렬
 - [x] 3단계 완료: capture/table/settings feature 경계 기준 1차 호출점 이관 완료
-  - [x] table 호출점 1차 이관: `TableCounterPolicyCoordinator` -> `feature/table/policy`
+  - [x] table 호출점 1차 이관: `TableCounterSeedPolicy` -> `feature/table/policy`
   - [x] capture 호출점 1차 이관: `stabilizeStreamNextCounter` -> `feature/capture/policy`
   - [x] settings 호출점 1차 이관: `SettingsRootScreen` -> `feature/settings/ui`
   - [x] settings 컴포넌트 이관: `SegmentedControl` -> `feature/settings/components`

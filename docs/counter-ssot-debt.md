@@ -19,7 +19,7 @@
 2. 설정 화면 placeholder
    - 정리 완료: `CaptureSettingsScreen` 분리 화면 제거, 전체설정에서 카메라 설정 직접 조작으로 통합.
 3. Coordinator/API 정리
-   - `TableCounterPolicyCoordinator` scoped 전용 정리 완료.
+   - `TableCounterSeedPolicy` scoped 전용 정리 완료.
    - `CaptureCounterPolicy` key 오버로드 private 축소까지 완료.
 
 ## 우선순위 제안
@@ -42,7 +42,7 @@
 
 
 ## 3단계 완료 (Coordinator API 슬림화)
-- `TableCounterPolicyCoordinator`의 중복 오버로드를 제거하고 scoped stream 중심 API만 유지.
+- `TableCounterSeedPolicy`의 중복 오버로드를 제거하고 scoped stream 중심 API만 유지.
 - 테이블 호출부는 이미 scoped stream만 사용 중이라 동작 변화 없이 유지보수 경로만 단순화.
 
 
