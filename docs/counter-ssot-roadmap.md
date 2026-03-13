@@ -14,7 +14,7 @@
 2. `TableEditorScreen` 스트림 상태 분산 계산 제거
 3. `TableCounterSeedPolicy` 입력을 context-first로 정리
 4. `CameraScreen` scope 계산/동기화를 context-first로 정리
-5. `CounterCaptureScope` 도입(`buildStreamKey`, `buildScopedCounter`)
+5. `ScopedCounter` 도입(`buildStreamKey`, `buildScopedCounter`)
 6. `CaptureCounterPolicy`에 context/scoped 오버로드 추가
    - `resolveNext`, `setNext`, `commit`, `hasManualOverride`, `clearManualOverride`
 7. `CaptureNamingPolicy` 결과를 `counterScope + scanPrefix` 중심으로 정리

@@ -43,6 +43,9 @@ object CounterDebugDump {
         val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         if (!isDebuggable) return
 
+        // debug inspection 전용 direct policy 접근이다.
+        // production UI call path(Resolver -> Facade)와 분리된 예외 경로이며
+        // 런타임 동작 변경 없이 상태 덤프 가시성만 제공한다.
         val manualOverrideActive = CaptureCounterPolicy.hasManualOverride(
             context = context,
             scopedStream = scopedStream,
