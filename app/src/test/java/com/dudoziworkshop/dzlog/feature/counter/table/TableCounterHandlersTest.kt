@@ -8,6 +8,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
+import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogEffect
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -105,6 +106,36 @@ class TableCounterHandlersTest {
         assertEquals(1, restored)
         val after = facade.read(request)
         assertFalse(after.hasManualOverride)
+    }
+
+    @Test
+    fun `conflict confirm applies global manual override for table scope`() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val facade = CounterFacade(context)
+        val request = tableRequest()
+
+        var templateState = counterTemplate(seed = 1)
+        var counterUi = TableCounterUiState()
+
+        applyCounterConflictDialogEffect(
+            effect = TableCounterConflictDialogEffect.ApplyManualSeed(
+                cellId = templateState.cells.first().cellId,
+                seed = 10,
+            ),
+            templateState = templateState,
+            counterRequest = request,
+            counterFacade = facade,
+            counterUi = counterUi,
+            onTemplateChange = { templateState = it },
+            setCounterUi = { counterUi = it },
+            updateCell = ::updateCounterCell,
+            scope = this,
+        )
+        delay(20)
+
+        val read = facade.read(request)
+        assertEquals(10, read.next)
+        assertTrue(read.hasManualOverride)
     }
 
     private fun tableRequest() = CounterRequestResolver.fromTable(

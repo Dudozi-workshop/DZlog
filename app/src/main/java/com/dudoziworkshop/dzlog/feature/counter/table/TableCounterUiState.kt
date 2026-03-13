@@ -10,6 +10,9 @@ data class TableCounterUiState(
     val manualSeedOverride: Int? = null,
     val isManualCounterMode: Boolean = false,
     val autoNextCounterValue: Int = 1,
+    // 낮은 값 경고는 Table 상세 화면 세션에서 1회만 노출한다.
+    // true면 "현재 low 상태 경고를 이미 1회 노출한 세션"으로 간주한다.
+    val lowCounterWarningLatchedInSession: Boolean = false,
     val includePathInCounterScope: Boolean = true,
     val includeFilenameInCounterScope: Boolean = true,
     val counterConflictDialogState: TableCounterConflictDialogState = TableCounterConflictDialogState()

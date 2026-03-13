@@ -576,14 +576,13 @@ fun TableEditorScreen(
     }
 
     val isManualCounterModeDisplay by remember(
-        counterUi.isManualCounterMode,
-        counterUi.preserveManualCounterSeed,
         counterUi.scopeNextCounter,
         counterUi.autoNextCounterValue
     ) {
         derivedStateOf {
-            counterUi.isManualCounterMode ||
-                (counterUi.preserveManualCounterSeed && counterUi.scopeNextCounter > counterUi.autoNextCounterValue)
+            // 정책: 수동 표시(표 상세/촬영)는 manual override 존재 여부가 아니라
+            // "현재 표시값 vs media auto-next" 차이로 판정한다.
+            counterUi.scopeNextCounter != counterUi.autoNextCounterValue
         }
     }
 
@@ -716,7 +715,11 @@ fun TableEditorScreen(
             inlineState = inlineEdit,
             templateState = currentTemplate,
             autoNextCounterValue = counterUi.autoNextCounterValue,
+            lowCounterWarningLatchedInSession = counterUi.lowCounterWarningLatchedInSession,
             updateCell = ::updateCell
+        )
+        counterUi = counterUi.copy(
+            lowCounterWarningLatchedInSession = result.lowCounterWarningLatchedInSession,
         )
         val committedCellId = inlineEdit.editingCellId
         inlineEdit = result.nextInlineState
@@ -730,14 +733,16 @@ fun TableEditorScreen(
                 cellId = cellId,
                 seed = seed,
                 preserveManual = true,
-                persistToCounterPolicy = false,
+                // 정책 변경: 표 상세에서 사용자 확정(저장/반영)은 전역 manual override 저장으로 반영한다.
+                persistToCounterPolicy = true,
                 counterRequest = counterRequest,
                 counterFacade = counterFacade,
                 counterUi = counterUi,
                 onTemplateChange = ::updateTemplateDraft,
                 setCounterUi = { counterUi = it },
                 updateCell = ::updateCell,
-                scope = scope
+                scope = scope,
+                lowCounterWarningLatchedInSession = result.lowCounterWarningLatchedInSession,
             )
         } ?: result.updatedTemplateState?.let(::updateTemplateDraft)
     }

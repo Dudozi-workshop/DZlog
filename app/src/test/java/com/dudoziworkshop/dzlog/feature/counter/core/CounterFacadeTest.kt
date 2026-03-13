@@ -48,6 +48,21 @@ class CounterFacadeTest {
     }
 
     @Test
+    fun `readAutoNext ignores manual override and returns media based auto next`() = runBlocking {
+        val facade = CounterFacade(ApplicationProvider.getApplicationContext())
+        val request = newRequest()
+
+        facade.setManualNext(request, 9)
+
+        val resolved = facade.read(request)
+        val autoNext = facade.readAutoNext(request)
+
+        assertEquals(9, resolved.next)
+        assertTrue(resolved.hasManualOverride)
+        assertEquals(1, autoNext)
+    }
+
+    @Test
     fun `manual clear returns to auto`() = runBlocking {
         val facade = CounterFacade(ApplicationProvider.getApplicationContext())
         val request = newRequest()

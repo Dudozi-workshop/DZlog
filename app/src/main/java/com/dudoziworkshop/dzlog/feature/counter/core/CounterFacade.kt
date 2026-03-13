@@ -4,6 +4,7 @@ import android.content.Context
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureStreamKey
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
+import com.dudoziworkshop.dzlog.domain.counter.CounterManager
 import com.dudoziworkshop.dzlog.domain.counter.CounterStore
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterScopeParts
 
@@ -41,6 +42,18 @@ internal class CounterFacade(
             scopedStream = request.toScopedStream(),
             desired = value,
             force = true,
+            counterDigits = counterDigits,
+            fnDelim = fnDelim,
+            saveMode = request.effectiveSaveMode,
+        )
+    }
+
+    internal suspend fun readAutoNext(request: CounterRequest): Int {
+        val scopedStream = request.toScopedStream()
+        return CounterStore.getAutoNext(
+            context = context,
+            scopedStream = scopedStream,
+            scanPrefix = scopedStream.captureStreamKey.scanPrefix,
             counterDigits = counterDigits,
             fnDelim = fnDelim,
             saveMode = request.effectiveSaveMode,

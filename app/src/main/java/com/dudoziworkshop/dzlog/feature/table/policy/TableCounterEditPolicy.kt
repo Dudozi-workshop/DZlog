@@ -11,15 +11,15 @@ fun parseNonNegativeInt(text: String): Int? {
 }
 
 fun evaluateCounterEditConflict(
-    oldValueText: String,
     newValueText: String,
-    streamNext: Int
+    streamNext: Int,
+    lowCounterWarningLatchedInSession: Boolean,
 ): CounterEditConflict? {
     val newValue = parseNonNegativeInt(newValueText) ?: return null
-    val oldValue = parseNonNegativeInt(oldValueText)
-    val changed = (oldValue == null) || (newValue != oldValue)
     val normalizedStreamNext = streamNext.coerceAtLeast(1)
-    return if (changed && newValue < normalizedStreamNext) {
+    val isLowCounterInput = newValue < normalizedStreamNext
+    // 정책: 경고는 low 상태(pending < media auto-next)에 "처음 진입"할 때만 1회.
+    return if (isLowCounterInput && !lowCounterWarningLatchedInSession) {
         CounterEditConflict(
             pendingCounterCommitValue = newValue,
             streamNextValue = normalizedStreamNext
@@ -27,4 +27,13 @@ fun evaluateCounterEditConflict(
     } else {
         null
     }
+}
+
+fun nextLowCounterWarningLatch(
+    pendingCounterCommitValue: Int,
+    streamNext: Int,
+): Boolean {
+    val normalizedStreamNext = streamNext.coerceAtLeast(1)
+    val isLowCounterInput = pendingCounterCommitValue < normalizedStreamNext
+    return if (isLowCounterInput) true else false
 }

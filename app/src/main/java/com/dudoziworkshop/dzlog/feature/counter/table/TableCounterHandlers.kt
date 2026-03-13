@@ -17,7 +17,6 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
-import com.dudoziworkshop.dzlog.feature.counter.core.CounterReadResult
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequest
 import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogEffect
 import kotlinx.coroutines.CoroutineScope
@@ -52,6 +51,7 @@ internal fun applyCounterSeed(
     counterUi: TableCounterUiState,
     seed: Int,
     preserveManual: Boolean,
+    lowCounterWarningLatchedInSession: Boolean = counterUi.lowCounterWarningLatchedInSession,
 ): TableCounterUiState {
     val normalizedSeed = seed.coerceAtLeast(1)
     return counterUi.copy(
@@ -61,6 +61,7 @@ internal fun applyCounterSeed(
         preserveManualCounterSeed = preserveManual,
         manualSeedOverride = if (preserveManual) normalizedSeed else null,
         scopeNextCounter = normalizedSeed,
+        lowCounterWarningLatchedInSession = lowCounterWarningLatchedInSession,
         // 수동 입력 후보값을 반영한 시점부터는 화면 표시를 허용한다.
         isScopeCounterSynced = true,
     )
@@ -79,13 +80,21 @@ internal fun updateCounterCellAndPolicy(
     setCounterUi: (TableCounterUiState) -> Unit,
     updateCell: (TableTemplateState, String, (TableCellState) -> TableCellState) -> TableTemplateState,
     scope: CoroutineScope,
+    lowCounterWarningLatchedInSession: Boolean = counterUi.lowCounterWarningLatchedInSession,
 ) {
     val normalizedSeed = seed.coerceAtLeast(1)
     val updated = updateCell(templateState, cellId) { c ->
         c.copy(typedValue = CellValue.CounterSeed(normalizedSeed))
     }
     onTemplateChange(updated)
-    setCounterUi(applyCounterSeed(counterUi, normalizedSeed, preserveManual))
+    setCounterUi(
+        applyCounterSeed(
+            counterUi = counterUi,
+            seed = normalizedSeed,
+            preserveManual = preserveManual,
+            lowCounterWarningLatchedInSession = lowCounterWarningLatchedInSession,
+        )
+    )
 
     // 정책 정리:
     // - manual 입력은 "현재 표시/저장 후보값"만 바꾸고 실제 auto-next(readback 기준값)는 오염시키지 않는다.
@@ -140,6 +149,7 @@ internal fun restoreCounterCellToAutoNext(
             setCounterUi = setCounterUi,
             updateCell = updateCell,
             scope = scope,
+            lowCounterWarningLatchedInSession = false,
         )
     }
 }
@@ -162,8 +172,8 @@ internal fun applyCounterConflictDialogEffect(
                 cellId = effect.cellId,
                 seed = effect.seed,
                 preserveManual = true,
-                // 수동 확정도 auto-next 저장 기준값을 오염시키지 않도록 UI 후보값으로만 반영한다.
-                persistToCounterPolicy = false,
+                // 정책 변경: 표 상세 "진행" 확정은 UI 후보가 아니라 전역 manual override 저장으로 반영한다.
+                persistToCounterPolicy = true,
                 counterRequest = counterRequest,
                 counterFacade = counterFacade,
                 counterUi = counterUi,
@@ -199,6 +209,23 @@ internal data class TableCounterSyncResult(
     val nextFilenameScopeSignature: String,
 )
 
+private data class TableCounterReadSnapshot(
+    val resolvedNext: Int,
+    val mediaAutoNext: Int,
+)
+
+private suspend fun readTableCounterSnapshot(
+    counterFacade: CounterFacade,
+    counterRequest: CounterRequest,
+): TableCounterReadSnapshot {
+    val read = counterFacade.read(counterRequest)
+    val autoNext = counterFacade.readAutoNext(counterRequest)
+    return TableCounterReadSnapshot(
+        resolvedNext = read.next,
+        mediaAutoNext = autoNext,
+    )
+}
+
 internal suspend fun syncCounterStateForScope(
     templateState: TableTemplateState,
     counterUi: TableCounterUiState,
@@ -215,17 +242,23 @@ internal suspend fun syncCounterStateForScope(
     val counterCell = templateState.cells.firstOrNull { it.dataType == TableCellDataType.COUNTER }
     val currentSeed = (counterCell?.typedValue as? CellValue.CounterSeed)?.start ?: 1
 
-    // 정책: 경고/재동기화 기준 stream next는 facade.read(media readback) 결과를 사용한다.
-    suspend fun readCounter(): CounterReadResult = counterFacade.read(counterRequest)
-
-    val firstRead = readCounter()
-    val streamNext = if (isExternalResync) {
+    // 정책: 외부 재동기화에서는 stream/media auto-next를 "같은 read snapshot"으로 맞춰 읽는다.
+    val firstSnapshot = readTableCounterSnapshot(
+        counterFacade = counterFacade,
+        counterRequest = counterRequest,
+    )
+    val settledSnapshot = if (isExternalResync) {
         delay(200)
-        val secondRead = readCounter()
-        if (firstRead.next == secondRead.next) firstRead.next else secondRead.next
+        val secondSnapshot = readTableCounterSnapshot(
+            counterFacade = counterFacade,
+            counterRequest = counterRequest,
+        )
+        if (firstSnapshot == secondSnapshot) firstSnapshot else secondSnapshot
     } else {
-        firstRead.next
+        firstSnapshot
     }
+    val streamNext = settledSnapshot.resolvedNext
+    val mediaAutoNext = settledSnapshot.mediaAutoNext
 
     val currentScopeSnapshot = buildTableCounterScopeSnapshot(
         counterScope = counterScope,
@@ -247,9 +280,6 @@ internal suspend fun syncCounterStateForScope(
         stableStreamNext
     }
 
-    val isManualCounterMode = firstRead.hasManualOverride
-    val autoNextCounterValue = guardedStreamNext
-
     val syncResult = TableCounterSeedPolicy.resolveSeedForScope(
         input = TableCounterSeedPolicy.CounterSeedSyncInput(
             currentScopeSnapshot = currentScopeSnapshot,
@@ -265,12 +295,21 @@ internal suspend fun syncCounterStateForScope(
         ),
     )
 
+    val isManualCounterMode = syncResult.desiredSeed != mediaAutoNext
+    val autoNextCounterValue = mediaAutoNext
+
     val nextCounterUi = counterUi.copy(
         isManualCounterMode = isManualCounterMode,
         autoNextCounterValue = autoNextCounterValue,
         preserveManualCounterSeed = syncResult.preserveManualCounterSeed,
         manualSeedOverride = if (syncResult.shouldClearManualOverride) null else counterUi.manualSeedOverride,
         scopeNextCounter = syncResult.desiredSeed,
+        // 정책: low warning latch는 table 화면 세션 기준이며, stream 변화/외부 재동기화/정상 복귀 시 리셋한다.
+        lowCounterWarningLatchedInSession = when {
+            isNewScope || isExternalResync -> false
+            syncResult.desiredSeed >= mediaAutoNext -> false
+            else -> counterUi.lowCounterWarningLatchedInSession
+        },
         // 최초 facade.read 완료 이후부터 카운터 숫자 표시를 허용한다(초기 1 플리커 방지).
         isScopeCounterSynced = true,
     )

@@ -29,4 +29,23 @@ internal object CounterStore {
             saveMode = saveMode,
         )
     }
+
+    // manual override를 제외한 media scan 기준 auto-next 전용 entry.
+    internal suspend fun getAutoNext(
+        context: Context,
+        scopedStream: ScopedCounter,
+        scanPrefix: String,
+        counterDigits: Int,
+        fnDelim: String,
+        saveMode: SaveMode,
+    ): Int {
+        return CaptureCounterPolicy.resolveAutoNext(
+            context = context,
+            scopedStream = scopedStream,
+            scanPrefix = scanPrefix,
+            counterDigits = counterDigits,
+            fnDelim = fnDelim,
+            saveMode = saveMode,
+        )
+    }
 }

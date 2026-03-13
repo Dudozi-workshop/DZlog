@@ -5,6 +5,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.policy.evaluateCounterEditConflict
+import com.dudoziworkshop.dzlog.feature.table.policy.nextLowCounterWarningLatch
 import com.dudoziworkshop.dzlog.feature.table.policy.openCounterConflictDialog
 import com.dudoziworkshop.dzlog.feature.table.policy.parseNonNegativeInt
 import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogState
@@ -13,7 +14,8 @@ data class CommitResult(
     val nextInlineState: InlineEditState,
     val updatedTemplateState: TableTemplateState?,
     val openedCounterConflict: TableCounterConflictDialogState?,
-    val committedCounterSeed: Int?
+    val committedCounterSeed: Int?,
+    val lowCounterWarningLatchedInSession: Boolean,
 )
 
 fun startInlineEditing(
@@ -40,31 +42,39 @@ fun commitInlineEditIfNeeded(
     inlineState: InlineEditState,
     templateState: TableTemplateState,
     autoNextCounterValue: Int,
+    lowCounterWarningLatchedInSession: Boolean,
     updateCell: (TableTemplateState, String, (TableCellState) -> TableCellState) -> TableTemplateState
 ): CommitResult {
     val id = inlineState.editingCellId ?: return CommitResult(
         nextInlineState = inlineState,
         updatedTemplateState = null,
         openedCounterConflict = null,
-        committedCounterSeed = null
+        committedCounterSeed = null,
+        lowCounterWarningLatchedInSession = lowCounterWarningLatchedInSession,
     )
 
     val cell = templateState.cells.firstOrNull { it.cellId == id }
 
     if (cell != null && cell.dataType == TableCellDataType.COUNTER) {
         val conflict = evaluateCounterEditConflict(
-            oldValueText = inlineState.editingOriginalValue,
             newValueText = inlineState.editingValue,
-            streamNext = autoNextCounterValue
+            streamNext = autoNextCounterValue,
+            lowCounterWarningLatchedInSession = lowCounterWarningLatchedInSession,
         )
-        if (parseNonNegativeInt(inlineState.editingValue) == null) {
+        val pendingValue = parseNonNegativeInt(inlineState.editingValue)
+        if (pendingValue == null) {
             return CommitResult(
                 nextInlineState = inlineState,
                 updatedTemplateState = null,
                 openedCounterConflict = null,
-                committedCounterSeed = null
+                committedCounterSeed = null,
+                lowCounterWarningLatchedInSession = lowCounterWarningLatchedInSession,
             )
         }
+        val nextLowWarningLatch = nextLowCounterWarningLatch(
+            pendingCounterCommitValue = pendingValue,
+            streamNext = autoNextCounterValue,
+        )
         if (conflict != null) {
             return CommitResult(
                 nextInlineState = inlineState,
@@ -73,9 +83,11 @@ fun commitInlineEditIfNeeded(
                     editingCellId = id,
                     conflict = conflict
                 ),
-                committedCounterSeed = null
+                committedCounterSeed = null,
+                lowCounterWarningLatchedInSession = nextLowWarningLatch,
             )
         }
+
     }
 
     val target = templateState.cells.firstOrNull { it.cellId == id }
@@ -86,7 +98,8 @@ fun commitInlineEditIfNeeded(
                 nextInlineState = clearInlineEditing(inlineState),
                 updatedTemplateState = null,
                 openedCounterConflict = null,
-                committedCounterSeed = null
+                committedCounterSeed = null,
+                lowCounterWarningLatchedInSession = lowCounterWarningLatchedInSession,
             )
         }
         value.toString()
@@ -126,6 +139,14 @@ fun commitInlineEditIfNeeded(
         nextInlineState = clearInlineEditing(inlineState),
         updatedTemplateState = updated,
         openedCounterConflict = null,
-        committedCounterSeed = committedCounterSeed
+        committedCounterSeed = committedCounterSeed,
+        lowCounterWarningLatchedInSession = if (target?.dataType == TableCellDataType.COUNTER && committedCounterSeed != null) {
+            nextLowCounterWarningLatch(
+                pendingCounterCommitValue = committedCounterSeed,
+                streamNext = autoNextCounterValue,
+            )
+        } else {
+            lowCounterWarningLatchedInSession
+        },
     )
 }

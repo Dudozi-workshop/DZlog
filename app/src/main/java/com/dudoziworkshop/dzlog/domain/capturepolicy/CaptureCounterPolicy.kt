@@ -87,6 +87,43 @@ internal object CaptureCounterPolicy {
         return next
     }
 
+    private suspend fun resolveAutoNext(
+        context: Context,
+        key: CaptureStreamKey,
+        counterDigits: Int,
+        fnDelim: String,
+        saveMode: SaveMode,
+    ): Int {
+        // auto-next는 MediaStore 실파일 기준 max+1이며(hole fill 없음),
+        // manual override는 이 경로에서 의도적으로 제외한다.
+        return CounterManager.computeNext(
+            context = context,
+            relativePath = key.relativePathKey,
+            counterPrefix = key.prefix,
+            scanPrefix = key.scanPrefix,
+            counterDigits = counterDigits,
+            fnDelim = fnDelim,
+            saveMode = saveMode,
+        ).coerceAtLeast(1)
+    }
+
+    internal suspend fun resolveAutoNext(
+        context: Context,
+        scopedStream: CaptureScopedCounterStream,
+        scanPrefix: String,
+        counterDigits: Int,
+        fnDelim: String,
+        saveMode: SaveMode,
+    ): Int {
+        return resolveAutoNext(
+            context = context,
+            key = scopedStream.captureStreamKey.copy(scanPrefix = scanPrefix),
+            counterDigits = counterDigits,
+            fnDelim = fnDelim,
+            saveMode = saveMode,
+        )
+    }
+
     private suspend fun commit(
         context: Context,
         key: CaptureStreamKey,
