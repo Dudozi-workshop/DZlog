@@ -439,6 +439,8 @@ fun HomeScreen(
                     .border(1.dp, DDZColor.Border.copy(alpha = 0.95f), RoundedCornerShape(DDZLayout.Radius.Large))
                     .padding(horizontal = 10.dp, vertical = 8.dp)
             ) {
+                val recentPreviewShape = RoundedCornerShape(DDZLayout.Radius.Medium)
+
                 Row(modifier = Modifier.fillMaxSize()) {
                     Column(
                         modifier = Modifier
@@ -457,7 +459,6 @@ fun HomeScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clickable(onClick = onOpenTableEditor)
-                                .padding(2.dp)
                         ) {
                             TablePreviewCard(
                                 templateState = tableTemplateState,
@@ -478,7 +479,6 @@ fun HomeScreen(
                         modifier = Modifier
                             .weight(0.4f)
                             .fillMaxHeight()
-                            .padding(horizontal = 2.dp)
                     ) {
                         Text(
                             text = "최근 촬영",
@@ -491,10 +491,10 @@ fun HomeScreen(
                             modifier = Modifier
                                 .weight(0.74f)
                                 .fillMaxWidth()
-                                .shadow(3.dp, RoundedCornerShape(18.dp), clip = false)
-                                .clip(RoundedCornerShape(18.dp))
+                                .shadow(3.dp, recentPreviewShape, clip = false)
+                                .clip(recentPreviewShape)
                                 .background(DDZColor.Surface)
-                                .border(1.dp, DDZColor.Primary.copy(alpha = 0.75f), RoundedCornerShape(18.dp))
+                                .border(1.dp, DDZColor.Primary.copy(alpha = 0.75f), recentPreviewShape)
                                 .clickable {
                                     val it = latestImage
                                     if (it == null) {
