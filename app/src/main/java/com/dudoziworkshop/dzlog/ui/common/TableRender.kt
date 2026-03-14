@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -37,7 +36,7 @@ fun TableRender(
     now: Date,
     modifier: Modifier = Modifier,
     // 배경이 투명/검정인 테이블도 항상 보이도록, 기본 배경은 밝은 회색
-    bgColor: Color = Color(0xFFF2F2F2),
+    bgColor: Color = Color(0xFFF7F4EF),
     // 워터마크 표 배경 스타일(0=BLACK, 1=WHITE, 2=TRANSPARENT)
     @IntRange(from = 0, to = 2) bgStyle: Int = 0,
     bgAlpha: Int = 210,
@@ -48,8 +47,9 @@ fun TableRender(
     gridEnabled: Boolean = true,
 ) {
     // TableRender는 공용 프리뷰 렌더러로, 홈/설정 프리뷰에서는 배치 고정 정책을 사용한다.
+    // 촬영 프리뷰 기본 표 비율(40:20 == 2:1)과 동일 체감을 위해 홈 내부 렌더 비율도 2:1로 고정한다.
     val tableWidthRatio = 100
-    val tableHeightRatio = 35
+    val tableHeightRatio = 50
     val offsetXRatio = 0
     val offsetYRatio = 0
 
@@ -102,12 +102,6 @@ fun TableRender(
                 )
             }
 
-            // 외곽선(회색 배경 위에서 영역 구분)
-            val stroke = 1f
-            drawLine(Color(0x33000000), Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = stroke)
-            drawLine(Color(0x33000000), Offset(0f, size.height), Offset(size.width, size.height), strokeWidth = stroke)
-            drawLine(Color(0x33000000), Offset(0f, 0f), Offset(0f, size.height), strokeWidth = stroke)
-            drawLine(Color(0x33000000), Offset(size.width, 0f), Offset(size.width, size.height), strokeWidth = stroke)
         }
     }
 }

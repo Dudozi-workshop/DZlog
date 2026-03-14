@@ -42,8 +42,9 @@ fun TablePreview(
     // ✅ 프리뷰는 "표를 감싸는 내부 사각틀"이 실제 표 렌더 크기와 일치해야 한다.
     // drawWatermarkTableOnCanvas는 tableH를 width(base) 기준으로 계산하며,
     // tableHeightRatio는 (10..100)로 clamp 된다.
+    // 홈 프리뷰 frame 종횡비도 내부 표(2:1)와 맞춰 셀 비율/텍스트 크기 체감을 촬영과 가깝게 유지한다.
     val previewTableWidthRatio = 100
-    val previewTableHeightRatio = 35
+    val previewTableHeightRatio = 50
     val frameAspectRatio = previewTableWidthRatio / previewTableHeightRatio.toFloat()
 
     TablePreviewFrame(

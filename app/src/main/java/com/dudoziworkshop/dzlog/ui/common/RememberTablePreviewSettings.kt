@@ -7,7 +7,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BG_ALPHA
 import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_DETAIL_GRID_ENABLED
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_GRID_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_ALIGN
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MANUAL
@@ -54,12 +53,8 @@ fun rememberTablePreviewSettings(): TablePreviewSettingsState {
                 .coerceIn(WatermarkManualTextColor.WHITE, WatermarkManualTextColor.BLACK)
             val textAlign = (prefs[KEY_WM_TEXT_ALIGN] ?: WatermarkTextAlign.LEFT)
                 .coerceIn(WatermarkTextAlign.LEFT, WatermarkTextAlign.RIGHT)
-            val gridEnabled = if (prefs.contains(KEY_TABLE_DETAIL_GRID_ENABLED)) {
-                prefs[KEY_TABLE_DETAIL_GRID_ENABLED] ?: true
-            } else {
-                // 주요 정책: 표 상세설정 grid는 전용 키를 우선 사용하고, 없으면 구키를 fallback으로 읽는다.
-                prefs[KEY_WM_GRID_ENABLED] ?: true
-            }
+            // 주요 정책: 홈 표 프리뷰 grid는 표 상세설정 전용 키만 사용한다. (촬영 워터마크 grid와 분리)
+            val gridEnabled = prefs[KEY_TABLE_DETAIL_GRID_ENABLED] ?: true
             TablePreviewSettingsState(
                 wmBgStyle = bgStyle,
                 wmBgAlpha = bgAlpha,
