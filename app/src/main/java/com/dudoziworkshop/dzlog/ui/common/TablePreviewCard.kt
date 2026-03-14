@@ -40,6 +40,14 @@ fun TablePreviewCard(
     wmBgAlpha: Int = 80,
     // 워터마크 표 값 글씨크기(60~160, 기본 100)
     wmValueScale: Int = 100,
+    // 워터마크 표 텍스트 색상 모드(0=AUTO, 1=MANUAL)
+    wmTextColorMode: Int = 0,
+    // 워터마크 표 수동 텍스트 색상(0=WHITE, 1=BLACK)
+    wmManualTextColor: Int = 1,
+    // 워터마크 표 텍스트 정렬(0=LEFT, 1=CENTER, 2=RIGHT)
+    wmTextAlign: Int = 0,
+    // 워터마크 표 그리드 표시 여부
+    tableDetailGridEnabled: Boolean = true,
     title: String? = null,
     onClick: (() -> Unit)? = null,
     // 홈은 박스(테두리/패딩) 스타일이 필요하고, 설정은 단순 프리뷰만 필요한 경우가 있어 옵션 제공
@@ -78,6 +86,10 @@ fun TablePreviewCard(
                     wmBgStyle = wmBgStyle,
                     wmBgAlpha = wmBgAlpha,
                     wmValueScale = wmValueScale,
+                    wmTextColorMode = wmTextColorMode,
+                    wmManualTextColor = wmManualTextColor,
+                    wmTextAlign = wmTextAlign,
+                    tableDetailGridEnabled = tableDetailGridEnabled,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -96,6 +108,10 @@ fun TablePreviewCard(
                     wmBgStyle = wmBgStyle,
                     wmBgAlpha = wmBgAlpha,
                     wmValueScale = wmValueScale,
+                    wmTextColorMode = wmTextColorMode,
+                    wmManualTextColor = wmManualTextColor,
+                    wmTextAlign = wmTextAlign,
+                    tableDetailGridEnabled = tableDetailGridEnabled,
                     modifier = Modifier.fillMaxSize()
                 )
             }

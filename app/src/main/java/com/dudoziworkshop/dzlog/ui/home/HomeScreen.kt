@@ -439,9 +439,6 @@ fun HomeScreen(
                     .border(1.dp, DDZColor.Border.copy(alpha = 0.95f), RoundedCornerShape(DDZLayout.Radius.Large))
                     .padding(horizontal = 10.dp, vertical = 8.dp)
             ) {
-                val recentPreviewShape = RoundedCornerShape(DDZLayout.Radius.Small)
-                val sectionTitleStartPadding = 4.dp
-
                 Row(modifier = Modifier.fillMaxSize()) {
                     Column(
                         modifier = Modifier
@@ -452,7 +449,6 @@ fun HomeScreen(
                         Text(
                             text = "표 상세설정",
                             style = DDZTypography.HomeSectionLabel.copy(fontWeight = FontWeight.Normal),
-                            modifier = Modifier.padding(start = sectionTitleStartPadding),
                             color = DDZColor.TextPrimary
                         )
                         Spacer(Modifier.height(8.dp))
@@ -461,14 +457,19 @@ fun HomeScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clickable(onClick = onOpenTableEditor)
+                                .padding(2.dp)
                         ) {
                             TablePreviewCard(
                                 templateState = tableTemplateState,
-                                counterDigits = 0,
+                                counterDigits = settings.counterPadding,
                                 now = previewNow,
                                 wmBgStyle = previewSettings.wmBgStyle,
                                 wmBgAlpha = previewSettings.wmBgAlpha,
                                 wmValueScale = previewSettings.wmValueScale,
+                                wmTextColorMode = previewSettings.wmTextColorMode,
+                                wmManualTextColor = previewSettings.wmManualTextColor,
+                                wmTextAlign = previewSettings.wmTextAlign,
+                                tableDetailGridEnabled = previewSettings.tableDetailGridEnabled,
                                 modifier = Modifier.fillMaxSize(),
                                 previewModifier = Modifier.fillMaxSize()
                             )
@@ -481,11 +482,11 @@ fun HomeScreen(
                         modifier = Modifier
                             .weight(0.4f)
                             .fillMaxHeight()
+                            .padding(horizontal = 2.dp)
                     ) {
                         Text(
                             text = "최근 촬영",
                             style = DDZTypography.HomeSectionLabel.copy(fontWeight = FontWeight.Normal),
-                            modifier = Modifier.padding(start = sectionTitleStartPadding),
                             color = DDZColor.TextPrimary
                         )
                         Spacer(Modifier.height(8.dp))
@@ -494,10 +495,10 @@ fun HomeScreen(
                             modifier = Modifier
                                 .weight(0.74f)
                                 .fillMaxWidth()
-                                .shadow(3.dp, recentPreviewShape, clip = false)
-                                .clip(recentPreviewShape)
+                                .shadow(3.dp, RoundedCornerShape(18.dp), clip = false)
+                                .clip(RoundedCornerShape(18.dp))
                                 .background(DDZColor.Surface)
-                                .border(1.dp, DDZColor.Primary.copy(alpha = 0.75f), recentPreviewShape)
+                                .border(1.dp, DDZColor.Primary.copy(alpha = 0.75f), RoundedCornerShape(18.dp))
                                 .clickable {
                                     val it = latestImage
                                     if (it == null) {

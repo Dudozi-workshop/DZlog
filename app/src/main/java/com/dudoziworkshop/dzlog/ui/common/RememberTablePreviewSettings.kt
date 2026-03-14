@@ -6,23 +6,34 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BG_ALPHA
+import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_DETAIL_GRID_ENABLED
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_GRID_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_ALIGN
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MANUAL
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
+import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
 import kotlinx.coroutines.flow.map
 
 /**
- * 표 프리뷰에 필요한 “표 설정 묶음” 상태.
+ * 표 프리뷰에 필요한 “표 스타일 설정 묶음” 상태.
  *
- * 라벨은 기획 폐기(값만 표시) 전제이므로 label 관련 필드는 포함하지 않음.
- * - wmBgStyle: 0=BLACK, 1=WHITE, 2=TRANSPARENT
- * - wmBgAlpha: 0~255
- * - wmValueScale: 60~160 (기본 100)
+ * 홈 프리뷰 정책:
+ * - 촬영 화면과 동일한 표 스타일 경로를 사용한다.
+ * - 단, 배치(회전/앵커/오프셋/크기비율)는 홈 전용 고정 정책을 유지한다.
  */
 data class TablePreviewSettingsState(
     val wmBgStyle: Int,
     val wmBgAlpha: Int,
     val wmValueScale: Int,
+    val wmTextColorMode: Int,
+    val wmManualTextColor: Int,
+    val wmTextAlign: Int,
+    val tableDetailGridEnabled: Boolean,
 )
 
 /**
@@ -37,10 +48,26 @@ fun rememberTablePreviewSettings(): TablePreviewSettingsState {
             val bgStyle = (prefs[KEY_WM_TABLE_BG_STYLE] ?: 0).coerceIn(0, 2)
             val bgAlpha = (prefs[KEY_WM_BG_ALPHA] ?: 80).coerceIn(0, 255)
             val valueScale = (prefs[KEY_WM_VALUE_SCALE] ?: 100).coerceIn(60, 160)
+            val textColorMode = (prefs[KEY_WM_TEXT_COLOR_MODE] ?: WatermarkTextColorMode.AUTO)
+                .coerceIn(WatermarkTextColorMode.AUTO, WatermarkTextColorMode.MANUAL)
+            val manualTextColor = (prefs[KEY_WM_TEXT_COLOR_MANUAL] ?: WatermarkManualTextColor.BLACK)
+                .coerceIn(WatermarkManualTextColor.WHITE, WatermarkManualTextColor.BLACK)
+            val textAlign = (prefs[KEY_WM_TEXT_ALIGN] ?: WatermarkTextAlign.LEFT)
+                .coerceIn(WatermarkTextAlign.LEFT, WatermarkTextAlign.RIGHT)
+            val gridEnabled = if (prefs.contains(KEY_TABLE_DETAIL_GRID_ENABLED)) {
+                prefs[KEY_TABLE_DETAIL_GRID_ENABLED] ?: true
+            } else {
+                // 주요 정책: 표 상세설정 grid는 전용 키를 우선 사용하고, 없으면 구키를 fallback으로 읽는다.
+                prefs[KEY_WM_GRID_ENABLED] ?: true
+            }
             TablePreviewSettingsState(
                 wmBgStyle = bgStyle,
                 wmBgAlpha = bgAlpha,
                 wmValueScale = valueScale,
+                wmTextColorMode = textColorMode,
+                wmManualTextColor = manualTextColor,
+                wmTextAlign = textAlign,
+                tableDetailGridEnabled = gridEnabled,
             )
         }
     }
@@ -50,6 +77,10 @@ fun rememberTablePreviewSettings(): TablePreviewSettingsState {
             wmBgStyle = 0,
             wmBgAlpha = 80,
             wmValueScale = 100,
+            wmTextColorMode = WatermarkTextColorMode.AUTO,
+            wmManualTextColor = WatermarkManualTextColor.BLACK,
+            wmTextAlign = WatermarkTextAlign.LEFT,
+            tableDetailGridEnabled = true,
         )
     )
     return state

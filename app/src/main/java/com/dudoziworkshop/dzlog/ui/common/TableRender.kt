@@ -14,7 +14,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
@@ -39,8 +42,12 @@ fun TableRender(
     @IntRange(from = 0, to = 2) bgStyle: Int = 0,
     bgAlpha: Int = 210,
     valueScale: Int = 100,
+    textColorMode: Int = WatermarkTextColorMode.AUTO,
+    manualTextColor: Int = WatermarkManualTextColor.BLACK,
+    textAlign: Int = WatermarkTextAlign.LEFT,
+    gridEnabled: Boolean = true,
 ) {
-    // TableRender는 공용 프리뷰 렌더러로, 표 영역은 고정 프리뷰 비율을 사용한다.
+    // TableRender는 공용 프리뷰 렌더러로, 홈/설정 프리뷰에서는 배치 고정 정책을 사용한다.
     val tableWidthRatio = 100
     val tableHeightRatio = 35
     val offsetXRatio = 0
@@ -84,7 +91,14 @@ fun TableRender(
                     tableWidthRatio = tableWidthRatio,
                     bgAlpha = bgAlpha,
                     bgStyle = bgStyle,
-                    valueScale = valueScale
+                    valueScale = valueScale,
+                    textColorMode = textColorMode,
+                    manualTextColor = manualTextColor,
+                    textAlign = textAlign,
+                    drawGrid = gridEnabled,
+                    rowWeights = templateState.rowWeights,
+                    colWeights = templateState.colWeights,
+                    rotationCwDeg = 0,
                 )
             }
 

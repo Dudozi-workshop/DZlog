@@ -6,6 +6,7 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BG_ALPHA
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_X_10000
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_Y_10000
+import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_DETAIL_GRID_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_GRID_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_X
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_Y
@@ -61,7 +62,12 @@ suspend fun loadTableWatermarkUiState(context: Context): TableWatermarkUiState {
             WatermarkTextAlign.LEFT,
             WatermarkTextAlign.RIGHT
         ),
-        wmGridEnabled = prefs[KEY_WM_GRID_ENABLED] ?: true,
+        wmGridEnabled = if (prefs.contains(KEY_TABLE_DETAIL_GRID_ENABLED)) {
+            prefs[KEY_TABLE_DETAIL_GRID_ENABLED] ?: true
+        } else {
+            // 주요 정책: 구버전 저장값은 1회 fallback으로만 읽고, 이후부터는 표 상세설정 전용 키를 사용한다.
+            prefs[KEY_WM_GRID_ENABLED] ?: true
+        },
         captureAspect = CaptureAspect.from(prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v)
     )
 }
@@ -180,7 +186,7 @@ suspend fun applyGridEnabledChange(
     currentState: TableWatermarkUiState
 ): TableWatermarkUiState {
     context.dataStore.edit { prefs ->
-        prefs[KEY_WM_GRID_ENABLED] = enabled
+        prefs[KEY_TABLE_DETAIL_GRID_ENABLED] = enabled
     }
     return currentState.copy(wmGridEnabled = enabled)
 }
