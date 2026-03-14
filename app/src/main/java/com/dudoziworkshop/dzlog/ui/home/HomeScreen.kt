@@ -439,7 +439,8 @@ fun HomeScreen(
                     .border(1.dp, DDZColor.Border.copy(alpha = 0.95f), RoundedCornerShape(DDZLayout.Radius.Large))
                     .padding(horizontal = 10.dp, vertical = 8.dp)
             ) {
-                val recentPreviewShape = RoundedCornerShape(DDZLayout.Radius.Medium)
+                val recentPreviewShape = RoundedCornerShape(DDZLayout.Radius.Small)
+                val sectionTitleStartPadding = 4.dp
 
                 Row(modifier = Modifier.fillMaxSize()) {
                     Column(
@@ -451,6 +452,7 @@ fun HomeScreen(
                         Text(
                             text = "표 상세설정",
                             style = DDZTypography.HomeSectionLabel.copy(fontWeight = FontWeight.Normal),
+                            modifier = Modifier.padding(start = sectionTitleStartPadding),
                             color = DDZColor.TextPrimary
                         )
                         Spacer(Modifier.height(8.dp))
@@ -483,6 +485,7 @@ fun HomeScreen(
                         Text(
                             text = "최근 촬영",
                             style = DDZTypography.HomeSectionLabel.copy(fontWeight = FontWeight.Normal),
+                            modifier = Modifier.padding(start = sectionTitleStartPadding),
                             color = DDZColor.TextPrimary
                         )
                         Spacer(Modifier.height(8.dp))
