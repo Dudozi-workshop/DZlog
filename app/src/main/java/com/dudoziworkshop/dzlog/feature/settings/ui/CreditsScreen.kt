@@ -4,8 +4,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,10 +46,10 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 private val CARD_SHAPE = RoundedCornerShape(20.dp)
 
-private val SPECIAL_THANKS = listOf("루루", "채채", "작은박")
-private val SUPPORTERS = listOf("아무개", "아무개", "아무개")
-private val PRIVATE_TESTERS = listOf("아무개", "아무개", "아무개")
-private val IDEAS_AND_FEEDBACK = listOf("아무개", "아무개", "아무개")
+private val specialThanks = listOf("루루", "채채", "작은박")
+private val supporters = listOf("아무개", "아무개", "아무개")
+private val privateTesters = listOf("아무개", "아무개")
+private val ideaFeedback = listOf("아무개", "아무개")
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -61,9 +63,9 @@ fun CreditsScreen(
         Scaffold(
             containerColor = DDZColor.Background,
             topBar = { CreditsTopBar(onBack = onBack) },
-            bottomBar = { SupportButton() }
+            bottomBar = { SupportButton(onClick = {}) }
         ) { innerPadding ->
-            // 주요 정책: 상단/하단 고정 레이아웃을 유지하고 중앙 카드 영역만 스크롤되게 한다.
+            // 주요 정책: 상/하단은 고정하고 중앙 콘텐츠만 스크롤되도록 유지한다.
             Column(
                 modifier = Modifier
                     .padding(innerPadding)
@@ -77,14 +79,14 @@ fun CreditsScreen(
                     icon = Icons.Default.Favorite,
                     title = "특별한 감사"
                 ) {
-                    Chips(names = SPECIAL_THANKS)
+                    Chips(names = specialThanks)
                 }
 
                 CreditsSectionCard(
                     icon = Icons.Default.Star,
                     title = "후원해주신 분들"
                 ) {
-                    ContributorLines(names = SUPPORTERS)
+                    ContributorLines(names = supporters)
                 }
 
                 CreditsSectionCard(
@@ -93,11 +95,11 @@ fun CreditsScreen(
                 ) {
                     ContributorGroup(
                         subtitle = "# 비공개 테스터",
-                        names = PRIVATE_TESTERS
+                        names = privateTesters
                     )
                     ContributorGroup(
                         subtitle = "# 아이디어 및 피드백",
-                        names = IDEAS_AND_FEEDBACK
+                        names = ideaFeedback
                     )
                 }
             }
@@ -172,38 +174,11 @@ private fun HeaderCard() {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun Chips(names: List<String>) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        names.forEach { name ->
-            Surface(
-                shape = RoundedCornerShape(50.dp),
-                color = DDZColor.Background,
-                border = BorderStroke(1.dp, DDZColor.Border)
-            ) {
-                Text(
-                    text = title,
-                    style = DDZTypography.Body,
-                    color = DDZColor.Primary
-                )
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                content()
-            }
-        }
-    }
-}
-
 @Composable
 private fun CreditsSectionCard(
     icon: ImageVector,
     title: String,
-    content: @Composable () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -226,6 +201,32 @@ private fun CreditsSectionCard(
                     tint = DDZColor.Primary,
                     modifier = Modifier.size(18.dp)
                 )
+                Text(
+                    text = title,
+                    style = DDZTypography.Body,
+                    color = DDZColor.Primary
+                )
+            }
+            // 주요 정책: 슬롯 콘텐츠는 카드 본문 ColumnScope에서 직접 렌더링한다.
+            content()
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Chips(names: List<String>) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        names.forEach { name ->
+            Surface(
+                shape = RoundedCornerShape(50.dp),
+                color = DDZColor.Background,
+                border = BorderStroke(1.dp, DDZColor.Border)
+            ) {
                 Text(
                     text = name,
                     style = DDZTypography.Caption,
@@ -267,10 +268,12 @@ private fun ContributorGroup(
 }
 
 @Composable
-private fun SupportButton() {
+private fun SupportButton(
+    onClick: () -> Unit,
+) {
     Surface(color = DDZColor.Background) {
         Button(
-            onClick = { },
+            onClick = onClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
