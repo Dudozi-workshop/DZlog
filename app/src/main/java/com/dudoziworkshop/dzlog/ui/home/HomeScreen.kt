@@ -2,6 +2,7 @@
 
 package com.dudoziworkshop.dzlog.ui.home
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,6 +47,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
@@ -434,6 +436,7 @@ fun HomeScreen(
                     .height(190.dp)
                     .clip(RoundedCornerShape(DDZLayout.Radius.Large))
                     .background(DDZColor.Card)
+                    .border(1.dp, DDZColor.Border.copy(alpha = 0.95f), RoundedCornerShape(DDZLayout.Radius.Large))
                     .padding(horizontal = 10.dp, vertical = 8.dp)
             ) {
                 Row(modifier = Modifier.fillMaxSize()) {
@@ -444,11 +447,11 @@ fun HomeScreen(
                     ) {
                         Text(
                             text = "표 상세설정",
-                            style = DDZTypography.HomeSectionLabel,
+                            style = DDZTypography.HomeSectionLabel.copy(fontWeight = FontWeight.Normal),
                             color = DDZColor.TextPrimary
                         )
                         Spacer(Modifier.height(8.dp))
-                        // 홈 카드 정책: 내부 프레임(이중 배경/보더)을 제거하고 표 미리보기가 카드 영역을 더 넓게 쓰도록 유지한다.
+                        // 주요 정책: 표 상세설정은 기존 평평한 프리뷰 구조를 유지한다.
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -477,7 +480,7 @@ fun HomeScreen(
                     ) {
                         Text(
                             text = "최근 촬영",
-                            style = DDZTypography.HomeSectionLabel,
+                            style = DDZTypography.HomeSectionLabel.copy(fontWeight = FontWeight.Normal),
                             color = DDZColor.TextPrimary
                         )
                         Spacer(Modifier.height(8.dp))
@@ -486,8 +489,10 @@ fun HomeScreen(
                             modifier = Modifier
                                 .weight(0.74f)
                                 .fillMaxWidth()
+                                .shadow(4.dp, RoundedCornerShape(22.dp), clip = false)
                                 .clip(RoundedCornerShape(22.dp))
                                 .background(DDZColor.Surface)
+                                .border(1.2.dp, DDZColor.Primary.copy(alpha = 0.75f), RoundedCornerShape(22.dp))
                                 .clickable {
                                     val it = latestImage
                                     if (it == null) {
@@ -524,7 +529,7 @@ fun HomeScreen(
                                 ) {
                                     Text(
                                         text = dzFormatDate(it.dateAddedSeconds),
-                                        style = DDZTypography.Caption.copy(fontSize = 11.sp),
+                                        style = DDZTypography.Caption.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold),
                                         color = DDZColor.Surface
                                     )
                                 }
@@ -537,8 +542,10 @@ fun HomeScreen(
                             modifier = Modifier
                                 .weight(0.26f)
                                 .fillMaxWidth()
+                                .shadow(1.5.dp, RoundedCornerShape(DDZLayout.Radius.Medium), clip = false)
                                 .clip(RoundedCornerShape(DDZLayout.Radius.Medium))
                                 .background(DDZColor.SageLight.copy(alpha = 0.45f))
+                                .border(1.dp, DDZColor.Sage.copy(alpha = 0.55f), RoundedCornerShape(DDZLayout.Radius.Medium))
                                 .clickable(onClick = onOpenAlbum),
                             contentAlignment = Alignment.Center
                         ) {
