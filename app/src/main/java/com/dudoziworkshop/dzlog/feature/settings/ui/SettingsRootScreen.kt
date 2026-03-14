@@ -23,9 +23,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Hd
-import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.VolunteerActivism
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -33,6 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -76,6 +81,32 @@ private val SETTINGS_QUALITY_ITEMS = listOf(
         icon = Icons.Default.Hd,
         title = "화질 우선",
         description = "더 선명하지만 저장이 느릴 수 있어요"
+    )
+)
+
+private val SETTINGS_CAPTURE_FEEDBACK_ITEMS = listOf(
+    ToggleUiItem(
+        icon = Icons.Default.Vibration,
+        title = "촬영 진동",
+        description = "촬영 버튼 입력 시 진동 피드백을 제공해요"
+    ),
+    ToggleUiItem(
+        icon = Icons.Default.VolumeUp,
+        title = "촬영 소리",
+        description = "촬영 버튼 입력 시 셔터 사운드를 재생해요"
+    )
+)
+
+private val SETTINGS_WORKFLOW_ITEMS = listOf(
+    ToggleUiItem(
+        icon = Icons.Default.Folder,
+        title = "카운터 범위에 저장경로 반영",
+        description = "경로가 다르면 카운터 범위를 분리해요"
+    ),
+    ToggleUiItem(
+        icon = Icons.Default.Description,
+        title = "카운터 범위에 파일명 반영",
+        description = "파일명 패턴이 다르면 카운터 범위를 분리해요"
     )
 )
 
@@ -247,51 +278,58 @@ fun SettingsRootScreen(
             }
 
             SectionBlock(title = "촬영 피드백") {
-                ToggleOptionRow(
-                    title = "촬영 진동",
-                    description = "촬영 버튼 입력 시 진동 피드백을 제공해요",
-                    checked = settings.captureHapticEnabled,
-                    onCheckedChange = { enabled ->
-                        scope.launch {
-                            applySettingsAction(context, SettingsAction.CaptureHapticEnabledChanged(enabled))
-                        }
+                // 주요 정책: 토글 항목은 공통 UI로 렌더링하고, 실제 저장 액션만 분기한다.
+                SETTINGS_CAPTURE_FEEDBACK_ITEMS.forEach { item ->
+                    val checked = when (item.title) {
+                        "촬영 진동" -> settings.captureHapticEnabled
+                        else -> settings.captureSoundEnabled
                     }
-                )
-
-                ToggleOptionRow(
-                    title = "촬영 소리",
-                    description = "촬영 버튼 입력 시 셔터 사운드를 재생해요",
-                    checked = settings.captureSoundEnabled,
-                    onCheckedChange = { enabled ->
-                        scope.launch {
-                            applySettingsAction(context, SettingsAction.CaptureSoundEnabledChanged(enabled))
+                    ToggleCardRow(
+                        item = item,
+                        checked = checked,
+                        onCheckedChange = { enabled ->
+                            scope.launch {
+                                when (item.title) {
+                                    "촬영 진동" -> applySettingsAction(
+                                        context,
+                                        SettingsAction.CaptureHapticEnabledChanged(enabled)
+                                    )
+                                    else -> applySettingsAction(
+                                        context,
+                                        SettingsAction.CaptureSoundEnabledChanged(enabled)
+                                    )
+                                }
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
 
             SectionBlock(title = "작업 흐름") {
-                ToggleOptionRow(
-                    title = "카운터 범위에 저장경로 반영",
-                    description = "경로가 다르면 카운터 범위를 분리해요",
-                    checked = settings.includePathInCounterScope,
-                    onCheckedChange = { enabled ->
-                        scope.launch {
-                            applySettingsAction(context, SettingsAction.IncludePathInCounterScopeChanged(enabled))
-                        }
+                SETTINGS_WORKFLOW_ITEMS.forEach { item ->
+                    val checked = when (item.title) {
+                        "카운터 범위에 저장경로 반영" -> settings.includePathInCounterScope
+                        else -> settings.includeFilenameInCounterScope
                     }
-                )
-
-                ToggleOptionRow(
-                    title = "카운터 범위에 파일명 반영",
-                    description = "파일명 패턴이 다르면 카운터 범위를 분리해요",
-                    checked = settings.includeFilenameInCounterScope,
-                    onCheckedChange = { enabled ->
-                        scope.launch {
-                            applySettingsAction(context, SettingsAction.IncludeFilenameInCounterScopeChanged(enabled))
+                    ToggleCardRow(
+                        item = item,
+                        checked = checked,
+                        onCheckedChange = { enabled ->
+                            scope.launch {
+                                when (item.title) {
+                                    "카운터 범위에 저장경로 반영" -> applySettingsAction(
+                                        context,
+                                        SettingsAction.IncludePathInCounterScopeChanged(enabled)
+                                    )
+                                    else -> applySettingsAction(
+                                        context,
+                                        SettingsAction.IncludeFilenameInCounterScopeChanged(enabled)
+                                    )
+                                }
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(2.dp))
@@ -407,6 +445,12 @@ private data class QualityUiItem(
     val description: String
 )
 
+private data class ToggleUiItem(
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val title: String,
+    val description: String
+)
+
 @Composable
 private fun QualityOptionRow(
     item: QualityUiItem,
@@ -477,32 +521,68 @@ private fun QualityOptionRow(
 }
 
 @Composable
-private fun ToggleOptionRow(
-    title: String,
-    description: String,
+private fun ToggleCardRow(
+    item: ToggleUiItem,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    val borderColor = if (checked) DDZColor.SageDark else DDZColor.Border
+    val selectedBg = if (checked) DDZColor.SageLight.copy(alpha = 0.28f) else DDZColor.Surface
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) },
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+        color = selectedBg,
+        border = BorderStroke(1.dp, borderColor)
     ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = title,
-                style = DDZTypography.Body,
-                color = DDZColor.TextPrimary
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = item.icon,
+                contentDescription = null,
+                tint = if (checked) DDZColor.SageDark else DDZColor.TextMuted,
+                modifier = Modifier.size(20.dp)
             )
-            Text(
-                text = description,
-                style = DDZTypography.Caption,
-                color = DDZColor.TextMuted,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = item.title,
+                    style = DDZTypography.Body,
+                    color = DDZColor.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = item.description,
+                    style = DDZTypography.Caption,
+                    color = DDZColor.TextMuted,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = DDZColor.Primary,
+                    checkedTrackColor = DDZColor.SageLight,
+                    uncheckedThumbColor = DDZColor.Border,
+                    uncheckedTrackColor = DDZColor.Surface,
+                    uncheckedBorderColor = DDZColor.Border
+                )
             )
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

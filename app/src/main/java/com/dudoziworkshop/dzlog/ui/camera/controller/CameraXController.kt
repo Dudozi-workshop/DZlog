@@ -36,7 +36,6 @@ internal fun bindCamera(
         val cameraProvider = cameraProviderFuture.get()
 
         val rotation = previewView.display.rotation
-        Log.d("DZlog", "BIND requested=${aspect.label} fixed=3:4 quality=${photoQualityMode.name}")
 
         val previewBuilder = Preview.Builder()
             .setTargetRotation(rotation)

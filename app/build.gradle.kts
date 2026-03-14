@@ -75,6 +75,9 @@ dependencies {
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
+    implementation(libs.androidx.concurrent.futures)
+    // CameraX의 ListenableFuture 타입 해석을 안정화하기 위해 Guava Android를 직접 고정한다.
+    implementation(libs.guava.android)
     implementation(libs.androidx.exifinterface)
 
     implementation(libs.androidx.datastore.preferences)
