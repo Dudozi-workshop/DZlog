@@ -31,6 +31,7 @@ import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.template.defaultTableTemplateState
 import com.dudoziworkshop.dzlog.data.template.tableTemplateStateFromJson
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.settings.ui.CreditsScreen
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
@@ -53,6 +54,7 @@ enum class AppScreen {
     CAMERA,
     TABLE_EDITOR,
     SETTINGS,
+    CREDITS,
     ALBUM_G1,
     ALBUM_G2,
     ALBUM_GRID,
@@ -413,6 +415,7 @@ fun AppRoot() {
             }
 
             AppScreen.SETTINGS -> screen = AppScreen.HOME
+            AppScreen.CREDITS -> screen = AppScreen.SETTINGS
             AppScreen.TABLE_EDITOR -> screen = previousScreen
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
 
@@ -470,7 +473,11 @@ fun AppRoot() {
         }
 
         AppScreen.SETTINGS -> SettingsScreen(
-            onBack = { screen = AppScreen.HOME }
+            onBack = { screen = AppScreen.HOME },
+            onOpenCredits = { navigateTo(AppScreen.CREDITS) }
+        )
+        AppScreen.CREDITS -> CreditsScreen(
+            onBack = { screen = AppScreen.SETTINGS }
         )
         AppScreen.ALBUM_G1 -> {
             fun openGridByCounts(

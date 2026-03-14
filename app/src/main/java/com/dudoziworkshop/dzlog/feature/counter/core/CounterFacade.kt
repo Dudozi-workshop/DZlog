@@ -4,7 +4,6 @@ import android.content.Context
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureStreamKey
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
-import com.dudoziworkshop.dzlog.domain.counter.CounterManager
 import com.dudoziworkshop.dzlog.domain.counter.CounterStore
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterScopeParts
 

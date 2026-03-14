@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,7 +22,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Hd
+import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
@@ -79,6 +83,7 @@ private val SETTINGS_QUALITY_ITEMS = listOf(
 @Composable
 fun SettingsRootScreen(
     onBack: () -> Unit,
+    onOpenCredits: () -> Unit = {},
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
@@ -141,10 +146,12 @@ fun SettingsRootScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = DDZSpacing.screenPadding, vertical = DDZSpacing.itemGap),
-            verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)
+                .padding(horizontal = DDZSpacing.screenPadding, vertical = DDZSpacing.itemGap)
+                .padding(bottom = DDZSpacing.itemGap),
+            // 주요 정책: 부모 컬럼은 섹션(블록) 단위 간격만 담당한다.
+            verticalArrangement = Arrangement.spacedBy(DDZSpacing.sectionGap)
         ) {
-            SectionCard(title = "빠른 설정") {
+            SectionBlock(title = "빠른 설정") {
                 OptionRow(title = "저장 대상") {
                     SegmentedControl(
                         options = listOf("원본", "워터마크", "둘 다"),
@@ -227,7 +234,7 @@ fun SettingsRootScreen(
                 }
             }
 
-            SectionCard(title = "사진 품질") {
+            SectionBlock(title = "사진 품질") {
                 SETTINGS_QUALITY_ITEMS.forEach { item ->
                     QualityOptionRow(
                         item = item,
@@ -239,7 +246,7 @@ fun SettingsRootScreen(
                 }
             }
 
-            SectionCard(title = "촬영 피드백") {
+            SectionBlock(title = "촬영 피드백") {
                 ToggleOptionRow(
                     title = "촬영 진동",
                     description = "촬영 버튼 입력 시 진동 피드백을 제공해요",
@@ -263,7 +270,7 @@ fun SettingsRootScreen(
                 )
             }
 
-            SectionCard(title = "작업 흐름") {
+            SectionBlock(title = "작업 흐름") {
                 ToggleOptionRow(
                     title = "카운터 범위에 저장경로 반영",
                     description = "경로가 다르면 카운터 범위를 분리해요",
@@ -287,39 +294,93 @@ fun SettingsRootScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(2.dp))
+            CreditsEntryRow(onClick = onOpenCredits)
+
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = appVersion,
                 style = DDZTypography.Caption,
                 color = DDZColor.TextMuted,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp)
+                    .padding(bottom = DDZSpacing.sectionGap),
+                textAlign = TextAlign.Center
             )
         }
     }
 }
 
 @Composable
-private fun SectionCard(
+private fun SectionBlock(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(
+    // 주요 정책: 제목-카드는 한 덩어리로 묶고(좁은 간격), 블록 간 간격은 부모 컬럼에서 더 크게 분리한다.
+    Column(
         modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = title,
+            style = DDZTypography.SectionTitle,
+            color = DDZColor.Primary,
+            modifier = Modifier.padding(start = 4.dp)
+        )
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            color = DDZColor.Card,
+            border = BorderStroke(1.dp, DDZColor.Border)
+        ) {
+            Column(
+                modifier = Modifier.padding(DDZSpacing.cardPadding),
+                verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)
+            ) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun CreditsEntryRow(
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
         color = DDZColor.Card,
         border = BorderStroke(1.dp, DDZColor.Border)
     ) {
-        Column(
-            modifier = Modifier.padding(DDZSpacing.cardPadding),
-            verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = DDZSpacing.cardPadding, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(
-                text = title,
-                style = DDZTypography.SectionTitle,
-                color = DDZColor.Primary
+            Icon(
+                imageVector = Icons.Default.VolunteerActivism,
+                contentDescription = null,
+                tint = DDZColor.SageDark,
+                modifier = Modifier.size(20.dp)
             )
-            content()
+            Text(
+                text = "도움 주신 분들",
+                style = DDZTypography.Body,
+                color = DDZColor.TextPrimary,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = DDZColor.TextMuted,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

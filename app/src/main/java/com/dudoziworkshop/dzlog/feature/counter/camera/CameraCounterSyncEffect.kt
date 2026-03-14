@@ -3,7 +3,6 @@ package com.dudoziworkshop.dzlog.feature.counter.camera
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -26,11 +25,8 @@ internal fun CameraCounterSyncEffect(
     ui: CameraUiState,
     counterFacade: CounterFacade,
 ) {
-    var isInitial by remember { mutableStateOf(true) }
-    var lastHandledResumeTick by remember { mutableIntStateOf(-1) }
-    var lastHandledCounterEventTick by remember { mutableIntStateOf(-1) }
-    var previousSaveMode by remember { mutableStateOf<SaveMode?>(null) }
-    var previousRequestKey by remember { mutableStateOf<String?>(null) }
+    // 이전 사이클 메모리는 단일 객체로 유지하여 read/write 의도를 명확히 한다.
+    var syncMemory by remember { mutableStateOf(CameraCounterSyncMemory()) }
 
     val counterRequest = remember(
         appSettings.saveMode,
@@ -49,7 +45,7 @@ internal fun CameraCounterSyncEffect(
             includeFilenameInScope = appSettings.includeFilenameInCounterScope,
         )
     }
-    val requestKey = remember(counterRequest) {
+    val requestKey: String = remember(counterRequest) {
         buildCameraRequestKey(
             relativePathKey = counterRequest.relativePathKey,
             prefix = counterRequest.prefix,
@@ -69,8 +65,8 @@ internal fun CameraCounterSyncEffect(
     ) {
         if (!isTemplateReady || ui.capture.isCapturing) return@LaunchedEffect
 
-        val isResumeEvent = resumeTick > lastHandledResumeTick
-        val hasCounterEvent = counterEventTick > lastHandledCounterEventTick
+        val isResumeEvent = resumeTick > syncMemory.lastHandledResumeTick
+        val hasCounterEvent = counterEventTick > syncMemory.lastHandledCounterEventTick
         val counterEvent = if (hasCounterEvent) latestCounterEvent else null
 
         // 카메라 카운터 동기화는 detect -> read -> decide/apply 구조를 사용한다.
@@ -79,12 +75,12 @@ internal fun CameraCounterSyncEffect(
         // - UNDO_COMMITTED는 하향 동기화 허용
         // - same stream resume/re-entry에서는 불필요한 하향을 방지
         val reason = detectCameraSyncReason(
-            isInitial = isInitial,
+            isInitial = syncMemory.isInitial,
             isResumeEvent = isResumeEvent,
             counterEvent = counterEvent,
-            previousSaveMode = previousSaveMode,
+            previousSaveMode = syncMemory.previousSaveMode,
             currentSaveMode = appSettings.saveMode,
-            previousRequestKey = previousRequestKey,
+            previousRequestKey = syncMemory.previousRequestKey,
             currentRequestKey = requestKey,
         )
         val read = counterFacade.read(counterRequest)
@@ -93,14 +89,31 @@ internal fun CameraCounterSyncEffect(
             reason = reason,
             currentDisplayedNext = currentDisplayedNext,
             read = read,
-            previousRequestKey = previousRequestKey,
+            previousRequestKey = syncMemory.previousRequestKey,
             currentRequestKey = requestKey,
         )
 
-        isInitial = false
-        previousSaveMode = appSettings.saveMode
-        previousRequestKey = requestKey
-        if (isResumeEvent) lastHandledResumeTick = resumeTick
-        if (hasCounterEvent) lastHandledCounterEventTick = counterEventTick
+        // 상태 전이는 단일 시점 copy로 기록해 이전/다음 사이클 경계를 명확히 유지한다.
+        // NOTE: 이 값은 다음 LaunchedEffect cycle에서 read 되므로 dead assignment가 아니다.
+        @Suppress("AssignedValueIsNeverRead")
+        syncMemory = syncMemory.copy(
+            isInitial = false,
+            previousSaveMode = appSettings.saveMode,
+            previousRequestKey = requestKey,
+            lastHandledResumeTick = if (isResumeEvent) resumeTick else syncMemory.lastHandledResumeTick,
+            lastHandledCounterEventTick = if (hasCounterEvent) {
+                counterEventTick
+            } else {
+                syncMemory.lastHandledCounterEventTick
+            },
+        )
     }
 }
+
+private data class CameraCounterSyncMemory(
+    val isInitial: Boolean = true,
+    val lastHandledResumeTick: Int = -1,
+    val lastHandledCounterEventTick: Int = -1,
+    val previousSaveMode: SaveMode? = null,
+    val previousRequestKey: String? = null,
+)
