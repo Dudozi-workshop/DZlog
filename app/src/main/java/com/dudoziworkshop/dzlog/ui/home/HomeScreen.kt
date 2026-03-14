@@ -562,7 +562,7 @@ fun HomeScreen(
                                 .fillMaxWidth()
                                 .shadow(1.5.dp, RoundedCornerShape(DDZLayout.Radius.Medium), clip = false)
                                 .clip(RoundedCornerShape(DDZLayout.Radius.Medium))
-                                .background(DDZColor.SageLight.copy(alpha = 0.45f))
+                                .background(DDZColor.SageLight.copy(alpha = 0.99f))
                                 .border(1.dp, DDZColor.Sage.copy(alpha = 0.55f), RoundedCornerShape(DDZLayout.Radius.Medium))
                                 .clickable(onClick = onOpenAlbum),
                             contentAlignment = Alignment.Center
