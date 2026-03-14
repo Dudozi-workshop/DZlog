@@ -2,7 +2,6 @@ package com.dudoziworkshop.dzlog.ui.common
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -31,33 +30,44 @@ fun TablePreview(
     wmBgAlpha: Int = 80,
     // 워터마크 표 값 글씨크기(60~160, 기본 100)
     wmValueScale: Int = 100,
+    // 워터마크 표 텍스트 색상 모드(0=AUTO, 1=MANUAL)
+    wmTextColorMode: Int = 0,
+    // 워터마크 표 수동 텍스트 색상(0=WHITE, 1=BLACK)
+    wmManualTextColor: Int = 1,
+    // 워터마크 표 텍스트 정렬(0=LEFT, 1=CENTER, 2=RIGHT)
+    wmTextAlign: Int = 0,
+    // 워터마크 표 그리드 표시 여부
+    tableDetailGridEnabled: Boolean = true,
 ) {
     // ✅ 프리뷰는 "표를 감싸는 내부 사각틀"이 실제 표 렌더 크기와 일치해야 한다.
     // drawWatermarkTableOnCanvas는 tableH를 width(base) 기준으로 계산하며,
     // tableHeightRatio는 (10..100)로 clamp 된다.
+    // 홈 프리뷰 frame 종횡비도 내부 표(2:1)와 맞춰 셀 비율/텍스트 크기 체감을 촬영과 가깝게 유지한다.
     val previewTableWidthRatio = 100
-    val previewTableHeightRatio = 35
+    val previewTableHeightRatio = 50
     val frameAspectRatio = previewTableWidthRatio / previewTableHeightRatio.toFloat()
-    RoundedCornerShape(8.dp)
 
     TablePreviewFrame(
         aspectRatio = frameAspectRatio,
         modifier = modifier
     ) { innerModifier ->
-        // ✅ 프리뷰는 "내부 박스에 딱 맞는 표 + 최소 틈"을 목표로 함
-        // - 렌더 내부 축소(92%)와 오프셋(4%)을 제거하고
-        // - 프리뷰 레벨의 dp padding으로만 미세 여백을 제공
+        // ✅ 홈 프리뷰 정책: 스타일은 촬영 프리뷰와 동일 경로를 사용하고,
+        // 배치는 중앙/고정(회전/앵커/오프셋/크기비율 미반영)으로 유지한다.
         TableRender(
             templateState = templateState,
             counterDigits = counterDigits,
             now = now,
             bgStyle = wmBgStyle.coerceIn(0, 2),
+            bgAlpha = wmBgAlpha.coerceIn(0, 255),
+            valueScale = wmValueScale.coerceIn(60, 160),
+            textColorMode = wmTextColorMode,
+            manualTextColor = wmManualTextColor,
+            textAlign = wmTextAlign,
+            gridEnabled = tableDetailGridEnabled,
             modifier = innerModifier
                 .fillMaxSize()
                 // 표 가독성을 위한 미세 여백 (프리뷰 전용)
                 .padding(4.dp),
-            bgAlpha = wmBgAlpha.coerceIn(0, 255),
-            valueScale = wmValueScale.coerceIn(60, 160),
         )
     }
 }

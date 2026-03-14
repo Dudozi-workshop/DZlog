@@ -2,6 +2,7 @@
 
 package com.dudoziworkshop.dzlog.ui.home
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,6 +47,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
@@ -434,6 +436,7 @@ fun HomeScreen(
                     .height(190.dp)
                     .clip(RoundedCornerShape(DDZLayout.Radius.Large))
                     .background(DDZColor.Card)
+                    .border(1.dp, DDZColor.Border.copy(alpha = 0.95f), RoundedCornerShape(DDZLayout.Radius.Large))
                     .padding(horizontal = 10.dp, vertical = 8.dp)
             ) {
                 Row(modifier = Modifier.fillMaxSize()) {
@@ -441,14 +444,15 @@ fun HomeScreen(
                         modifier = Modifier
                             .weight(0.6f)
                             .fillMaxHeight()
+                            .padding(horizontal = 2.dp)
                     ) {
                         Text(
                             text = "표 상세설정",
-                            style = DDZTypography.HomeSectionLabel,
+                            style = DDZTypography.HomeSectionLabel.copy(fontWeight = FontWeight.Normal),
                             color = DDZColor.TextPrimary
                         )
                         Spacer(Modifier.height(8.dp))
-                        // 홈 카드 정책: 내부 프레임(이중 배경/보더)을 제거하고 표 미리보기가 카드 영역을 더 넓게 쓰도록 유지한다.
+                        // 주요 정책: 표 상세설정은 기존 평평한 프리뷰 구조를 유지한다.
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -457,11 +461,15 @@ fun HomeScreen(
                         ) {
                             TablePreviewCard(
                                 templateState = tableTemplateState,
-                                counterDigits = 0,
+                                counterDigits = settings.counterPadding,
                                 now = previewNow,
                                 wmBgStyle = previewSettings.wmBgStyle,
                                 wmBgAlpha = previewSettings.wmBgAlpha,
                                 wmValueScale = previewSettings.wmValueScale,
+                                wmTextColorMode = previewSettings.wmTextColorMode,
+                                wmManualTextColor = previewSettings.wmManualTextColor,
+                                wmTextAlign = previewSettings.wmTextAlign,
+                                tableDetailGridEnabled = previewSettings.tableDetailGridEnabled,
                                 modifier = Modifier.fillMaxSize(),
                                 previewModifier = Modifier.fillMaxSize()
                             )
@@ -474,10 +482,11 @@ fun HomeScreen(
                         modifier = Modifier
                             .weight(0.4f)
                             .fillMaxHeight()
+                            .padding(horizontal = 2.dp)
                     ) {
                         Text(
                             text = "최근 촬영",
-                            style = DDZTypography.HomeSectionLabel,
+                            style = DDZTypography.HomeSectionLabel.copy(fontWeight = FontWeight.Normal),
                             color = DDZColor.TextPrimary
                         )
                         Spacer(Modifier.height(8.dp))
@@ -486,8 +495,10 @@ fun HomeScreen(
                             modifier = Modifier
                                 .weight(0.74f)
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(22.dp))
+                                .shadow(3.dp, RoundedCornerShape(18.dp), clip = false)
+                                .clip(RoundedCornerShape(18.dp))
                                 .background(DDZColor.Surface)
+                                .border(1.dp, DDZColor.Primary.copy(alpha = 0.75f), RoundedCornerShape(18.dp))
                                 .clickable {
                                     val it = latestImage
                                     if (it == null) {
@@ -504,7 +515,23 @@ fun HomeScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("최근 항목 없음", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Collections,
+                                            contentDescription = null,
+                                            tint = DDZColor.TextMuted,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                        Spacer(Modifier.height(6.dp))
+                                        Text(
+                                            text = "최근 촬영 없음",
+                                            style = DDZTypography.Caption,
+                                            color = DDZColor.TextMuted
+                                        )
+                                    }
                                 }
                             } else {
                                 DzThumbnail(it.uri.toString())
@@ -524,7 +551,7 @@ fun HomeScreen(
                                 ) {
                                     Text(
                                         text = dzFormatDate(it.dateAddedSeconds),
-                                        style = DDZTypography.Caption.copy(fontSize = 11.sp),
+                                        style = DDZTypography.Caption.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold),
                                         color = DDZColor.Surface
                                     )
                                 }
@@ -537,8 +564,10 @@ fun HomeScreen(
                             modifier = Modifier
                                 .weight(0.26f)
                                 .fillMaxWidth()
+                                .shadow(1.5.dp, RoundedCornerShape(DDZLayout.Radius.Medium), clip = false)
                                 .clip(RoundedCornerShape(DDZLayout.Radius.Medium))
                                 .background(DDZColor.SageLight.copy(alpha = 0.45f))
+                                .border(1.dp, DDZColor.Sage.copy(alpha = 0.55f), RoundedCornerShape(DDZLayout.Radius.Medium))
                                 .clickable(onClick = onOpenAlbum),
                             contentAlignment = Alignment.Center
                         ) {
