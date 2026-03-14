@@ -52,7 +52,6 @@ import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
-import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -1756,15 +1755,6 @@ fun TableEditorScreen(
                                     updateTemplateDraft(updated)
                                 }
                             },
-                            onSetRotatingCounterModeForSelected = { mode ->
-                                selectedCell?.let { cell ->
-                                    if (cell.dataType != TableCellDataType.ROTATING_TEXT) return@let
-                                    val updated = updateCell(currentTemplate, cell.cellId) { c ->
-                                        c.copy(rotatingCounterMode = mode)
-                                    }
-                                    updateTemplateDraft(updated)
-                                }
-                            },
                             onResetCounterSeedForSelected = {
                                 selectedCell?.let { cell ->
                                     if (cell.dataType != TableCellDataType.COUNTER) return@let
@@ -1903,7 +1893,6 @@ private fun TableCellState.withDataType(newType: TableCellDataType): TableCellSt
             typedValue = CellValue.Text(this.rawText),
             timeFormatOptions = null,
             counterScopeMode = null,
-            rotatingCounterMode = null
         )
 
         TableCellDataType.NUMBER -> this.copy(
@@ -1911,7 +1900,6 @@ private fun TableCellState.withDataType(newType: TableCellDataType): TableCellSt
             typedValue = CellValue.Number(this.rawText),
             timeFormatOptions = null,
             counterScopeMode = null,
-            rotatingCounterMode = null
         )
 
         TableCellDataType.DATE -> this.copy(
@@ -1919,7 +1907,6 @@ private fun TableCellState.withDataType(newType: TableCellDataType): TableCellSt
             typedValue = CellValue.Auto,
             timeFormatOptions = null,
             counterScopeMode = CounterScopeMode.EXCLUDE,
-            rotatingCounterMode = null
         )
 
         TableCellDataType.TIME -> this.copy(
@@ -1927,7 +1914,6 @@ private fun TableCellState.withDataType(newType: TableCellDataType): TableCellSt
             typedValue = CellValue.Auto,
             timeFormatOptions = this.timeFormatOptions ?: TimeFormatOptions(),
             counterScopeMode = CounterScopeMode.EXCLUDE,
-            rotatingCounterMode = null
         )
 
         TableCellDataType.COUNTER -> this.copy(
@@ -1935,7 +1921,6 @@ private fun TableCellState.withDataType(newType: TableCellDataType): TableCellSt
             typedValue = (this.typedValue as? CellValue.CounterSeed) ?: CellValue.CounterSeed(1),
             timeFormatOptions = null,
             counterScopeMode = null,
-            rotatingCounterMode = null
         )
 
         TableCellDataType.ROTATING_TEXT -> this.copy(
@@ -1943,7 +1928,6 @@ private fun TableCellState.withDataType(newType: TableCellDataType): TableCellSt
             typedValue = CellValue.Auto,
             timeFormatOptions = null,
             counterScopeMode = null,
-            rotatingCounterMode = RotatingCounterMode.GLOBAL
         )
     }
 

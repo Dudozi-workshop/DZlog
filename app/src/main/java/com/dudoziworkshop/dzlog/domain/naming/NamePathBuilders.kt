@@ -1,12 +1,12 @@
 package com.dudoziworkshop.dzlog.domain.naming
 
+import com.dudoziworkshop.dzlog.domain.counter.resolveRotatingCounterStreamIdentity
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
-import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
@@ -189,7 +189,13 @@ fun resolveFileNameScopeTokensFromDrafts(
                     TableCellDataType.COUNTER -> null
                     TableCellDataType.DATE -> rc.raw?.counterScopeMode?.takeIf { it == CounterScopeMode.INCLUDE }?.let { sanitizeFilePart(rc.resolvedText) }
                     TableCellDataType.TIME -> rc.raw?.counterScopeMode?.takeIf { it == CounterScopeMode.INCLUDE }?.let { sanitizeFilePart(normalizeTimeWithoutSeconds(rc.resolvedText)) }
-                    TableCellDataType.ROTATING_TEXT -> if (rc.raw?.rotatingCounterMode == RotatingCounterMode.PER_PHRASE) sanitizeFilePart(rc.resolvedText) else null
+                    TableCellDataType.ROTATING_TEXT -> {
+                        sanitizeFilePart(
+                            resolveRotatingCounterStreamIdentity(
+                                activePhraseText = rc.resolvedText,
+                            )
+                        )
+                    }
                     else -> sanitizeFilePart(rc.resolvedText)
                 }
             }
@@ -199,7 +205,11 @@ fun resolveFileNameScopeTokensFromDrafts(
                 "TIME" -> sanitizeFilePart(normalizeTimeWithoutSeconds(formatNow(timeFormat, now)))
                 "ROTATING_TEXT" -> {
                     val rotating = resolvedCells.firstOrNull { it.type == TableCellDataType.ROTATING_TEXT }
-                    if (rotating?.raw?.rotatingCounterMode == RotatingCounterMode.PER_PHRASE) sanitizeFilePart(rotating.resolvedText) else null
+                    sanitizeFilePart(
+                        resolveRotatingCounterStreamIdentity(
+                            activePhraseText = rotating?.resolvedText,
+                        )
+                    )
                 }
                 else -> null
             }
@@ -238,6 +248,25 @@ fun resolvePathDraftToken(
         draft = draft,
         resolvedById = resolvedById,
         resolvedCells = resolvedCells,
+        now = now,
+        dateFormat = dateFormat,
+        timeFormat = timeFormat,
+    )
+}
+
+fun buildCounterScanPrefix(
+    resolvedCells: List<ResolvedCell>,
+    fileNameSlotDrafts: List<TableEditorSlotDraft?>,
+    fnDelim: String,
+    now: Date,
+    dateFormat: String,
+    timeFormat: String,
+): String {
+    // 회전문구를 포함한 파일명 prefix 규칙과 counter scan prefix 규칙을 동일하게 유지한다.
+    return buildFileNamePrefix(
+        resolvedCells = resolvedCells,
+        fileNameSlotDrafts = fileNameSlotDrafts,
+        fnDelim = fnDelim,
         now = now,
         dateFormat = dateFormat,
         timeFormat = timeFormat,

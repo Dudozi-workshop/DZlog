@@ -510,7 +510,7 @@ fun CameraPreview(
                 scope.launch { reloadLatestImage() }
             },
             onSetCapturedUri = { capturedUri -> ui.capture.capturedUri = capturedUri },
-            // 정책 유지: 통합/문구별과 무관하게 저장 성공 후 다음 cursor를 반영한다.
+            // 정책 유지: 저장 성공 후 다음 순환문구 cursor를 반영한다.
             onAdvancePhraseProgress = { nextCursor -> phraseProgressCounter = nextCursor.coerceAtLeast(1) },
             onSetCapturing = { ui.capture.isCapturing = it }
         )

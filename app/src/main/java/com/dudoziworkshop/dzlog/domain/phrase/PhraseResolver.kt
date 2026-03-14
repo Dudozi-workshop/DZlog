@@ -8,7 +8,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
  * 문구 선택 정책 전용 resolver.
  *
  * 정책:
- * - 통합/문구별 모드와 무관하게 progress 기반으로 현재 문구를 선택한다.
+ * - progress 기반으로 현재 문구를 선택한다.
  * - 저장 성공 전에는 progress를 바꾸지 않고, 성공 후 nextProgressCursor를 반영한다.
  */
 object PhraseResolver {

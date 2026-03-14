@@ -2,7 +2,6 @@ package com.dudoziworkshop.dzlog.domain.naming
 
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
-import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
@@ -48,9 +47,9 @@ class NamePathBuildersScopeTokenTest {
     }
 
     @Test
-    fun `rotating text scope token is included only in per phrase mode`() {
-        val perPhrase = resolvedRotatingCell("r1", "WHY", RotatingCounterMode.PER_PHRASE)
-        val global = resolvedRotatingCell("r2", "WOW", RotatingCounterMode.GLOBAL)
+    fun `rotating text scope token is included for rotating text`() {
+        val perPhrase = resolvedRotatingCell("r1", "WHY")
+        val global = resolvedRotatingCell("r2", "WOW")
 
         val perPhraseTokens = resolveFileNameScopeTokensFromDrafts(
             fileNameSlotDrafts = listOf(TableEditorSlotDraft(kind = "FORMAT", label = "순환문구", formatType = "ROTATING_TEXT"), null, null),
@@ -68,7 +67,7 @@ class NamePathBuildersScopeTokenTest {
         )
 
         assertEquals(listOf("WHY"), perPhraseTokens)
-        assertEquals(emptyList<String>(), globalTokens)
+        assertEquals(listOf("WOW"), globalTokens)
     }
 
     @Test
@@ -205,9 +204,9 @@ class NamePathBuildersScopeTokenTest {
     }
 
     @Test
-    fun `rotating text global mode does not change scope tokens across phrase changes`() {
-        val globalA = resolvedRotatingCell("r3", "ALPHA", RotatingCounterMode.GLOBAL)
-        val globalB = resolvedRotatingCell("r3", "BETA", RotatingCounterMode.GLOBAL)
+    fun `rotating text scope tokens change across phrase changes`() {
+        val globalA = resolvedRotatingCell("r3", "ALPHA")
+        val globalB = resolvedRotatingCell("r3", "BETA")
 
         val tokensA = resolveFileNameScopeTokensFromDrafts(
             fileNameSlotDrafts = listOf(TableEditorSlotDraft(kind = "FORMAT", label = "순환문구", formatType = "ROTATING_TEXT"), null, null),
@@ -224,8 +223,8 @@ class NamePathBuildersScopeTokenTest {
             timeFormat = "HHmm",
         )
 
-        assertEquals(emptyList<String>(), tokensA)
-        assertEquals(emptyList<String>(), tokensB)
+        assertEquals(listOf("ALPHA"), tokensA)
+        assertEquals(listOf("BETA"), tokensB)
     }
 
     @Test
@@ -245,15 +244,14 @@ class NamePathBuildersScopeTokenTest {
         assertEquals(emptyList<String>(), tokens)
     }
 
-    private fun resolvedRotatingCell(id: String, text: String, mode: RotatingCounterMode): ResolvedCell {
+    private fun resolvedRotatingCell(id: String, text: String): ResolvedCell {
         val raw = TableCellState(
             rowIndex = 0,
             colIndex = 0,
             rawText = text,
             dataType = TableCellDataType.ROTATING_TEXT,
             groupLevel = GroupLevel.NONE,
-            rotatingCounterMode = mode,
-            cellId = id,
+                        cellId = id,
         )
         return ResolvedCell(id = id, type = TableCellDataType.ROTATING_TEXT, raw = raw, resolvedText = text, isEmpty = false)
     }

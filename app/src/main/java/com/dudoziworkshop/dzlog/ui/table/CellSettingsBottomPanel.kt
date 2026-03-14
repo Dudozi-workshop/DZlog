@@ -52,7 +52,6 @@ import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
-import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -79,8 +78,7 @@ internal fun CellSettingsBottomPanel(
     onResetCounterSeed: (() -> Unit)? = null,
     autoNextCounterValue: Int = 1,
     onOpenRotatingTemplateDialog: (() -> Unit)? = null,
-    onSetRotatingCounterMode: (RotatingCounterMode) -> Unit,
-    onOpenFormatDialog: (cellId: String, type: TableCellDataType) -> Unit,
+        onOpenFormatDialog: (cellId: String, type: TableCellDataType) -> Unit,
     previewNow: Date,
     previewCounterDigits: Int,
     scopeNextCounter: Int,
@@ -98,12 +96,8 @@ internal fun CellSettingsBottomPanel(
     var isSlotEditMode by remember { mutableStateOf(false) }
     var selectedFromIndex by remember { mutableStateOf<Int?>(null) }
     var isCounterScopeDialogOpen by remember { mutableStateOf(false) }
-    var isRotatingCounterDialogOpen by remember { mutableStateOf(false) }
     var pendingCounterScopeMode by remember {
         mutableStateOf(cell.counterScopeMode ?: CounterScopeMode.EXCLUDE)
-    }
-    var pendingRotatingCounterMode by remember {
-        mutableStateOf(cell.rotatingCounterMode ?: RotatingCounterMode.GLOBAL)
     }
     val panelScrollState = rememberScrollState()
 
@@ -117,12 +111,11 @@ internal fun CellSettingsBottomPanel(
     // 주요 정책: CELL_EDIT compact에서는 터치 가능 크기를 유지한 범위에서 밀도를 한 단계 높인다.
 
 
-    androidx.compose.runtime.LaunchedEffect(cell.cellId, cell.counterScopeMode, cell.rotatingCounterMode) {
+    androidx.compose.runtime.LaunchedEffect(cell.cellId, cell.counterScopeMode) {
         pendingCounterScopeMode = cell.counterScopeMode ?: CounterScopeMode.EXCLUDE
-        pendingRotatingCounterMode = cell.rotatingCounterMode ?: RotatingCounterMode.GLOBAL
     }
 
-    val hasDialogPendingPreview = isCounterScopeDialogOpen || isRotatingCounterDialogOpen
+    val hasDialogPendingPreview = isCounterScopeDialogOpen
 
     // 패널 미리보기는 저장(확정) 이전에도 현재 다이얼로그에서 선택 중인 값을 즉시 반영한다.
     // 단, 취소 시에는 원본 셀 상태로 되돌아가야 하므로 "다이얼로그가 열려있는 동안"에만 pending 값을 합성한다.
@@ -130,16 +123,11 @@ internal fun CellSettingsBottomPanel(
         cell,
         hasDialogPendingPreview,
         isCounterScopeDialogOpen,
-        pendingCounterScopeMode,
-        isRotatingCounterDialogOpen,
-        pendingRotatingCounterMode
+        pendingCounterScopeMode
     ) {
         var previewCell = cell
         if (isCounterScopeDialogOpen && (previewCell.dataType == TableCellDataType.DATE || previewCell.dataType == TableCellDataType.TIME)) {
             previewCell = previewCell.copy(counterScopeMode = pendingCounterScopeMode)
-        }
-        if (isRotatingCounterDialogOpen && previewCell.dataType == TableCellDataType.ROTATING_TEXT) {
-            previewCell = previewCell.copy(rotatingCounterMode = pendingRotatingCounterMode)
         }
         previewCell
     }
@@ -500,69 +488,10 @@ internal fun CellSettingsBottomPanel(
                     }
                     Button(
                         modifier = Modifier.weight(1f).height(buttonHeight),
-                        onClick = { isRotatingCounterDialogOpen = true }
+                        onClick = {}
                     ) {
-                        val effectiveRotatingCounterMode = if (isRotatingCounterDialogOpen) {
-                            pendingRotatingCounterMode
-                        } else {
-                            cell.rotatingCounterMode ?: RotatingCounterMode.GLOBAL
-                        }
-                        val label = if (effectiveRotatingCounterMode == RotatingCounterMode.PER_PHRASE) {
-                            "카운터: 문구별"
-                        } else {
-                            "카운터: 통합"
-                        }
-                        Text(label, style = DDZTypography.ButtonText)
+                        Text("카운터: 문구별", style = DDZTypography.ButtonText)
                     }
-                }
-
-                if (isRotatingCounterDialogOpen) {
-                    AlertDialog(
-                        containerColor = DDZColor.Surface,
-                        onDismissRequest = { isRotatingCounterDialogOpen = false },
-                        title = { Text("카운터", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary) },
-                        text = {
-                            Column(verticalArrangement = Arrangement.spacedBy(if (compactForBottomPanel) 6.dp else 8.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().clickable { pendingRotatingCounterMode = RotatingCounterMode.GLOBAL },
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    RadioButton(
-                                        selected = pendingRotatingCounterMode == RotatingCounterMode.GLOBAL,
-                                        onClick = { pendingRotatingCounterMode = RotatingCounterMode.GLOBAL },
-                                        colors = RadioButtonDefaults.colors(
-                                            selectedColor = DDZColor.Primary,
-                                            unselectedColor = DDZColor.TextMuted
-                                        )
-                                    )
-                                    Text("통합", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().clickable { pendingRotatingCounterMode = RotatingCounterMode.PER_PHRASE },
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    RadioButton(
-                                        selected = pendingRotatingCounterMode == RotatingCounterMode.PER_PHRASE,
-                                        onClick = { pendingRotatingCounterMode = RotatingCounterMode.PER_PHRASE },
-                                        colors = RadioButtonDefaults.colors(
-                                            selectedColor = DDZColor.Primary,
-                                            unselectedColor = DDZColor.TextMuted
-                                        )
-                                    )
-                                    Text("문구별", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                                }
-                            }
-                        },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                onSetRotatingCounterMode(pendingRotatingCounterMode)
-                                isRotatingCounterDialogOpen = false
-                            }) { Text("확인", style = DDZTypography.ButtonText, color = DDZColor.Primary) }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { isRotatingCounterDialogOpen = false }) { Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary) }
-                        }
-                    )
                 }
             }
 

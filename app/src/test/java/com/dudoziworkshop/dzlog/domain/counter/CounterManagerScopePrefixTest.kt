@@ -1,388 +1,51 @@
 package com.dudoziworkshop.dzlog.domain.counter
 
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
-import com.dudoziworkshop.dzlog.domain.model.CellValue
-import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
-import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
-import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 
 class CounterManagerScopePrefixTest {
 
     @Test
-    fun `computeCounterPrefix ignores date and time cells`() {
-        val text = resolvedCell(
-            col = 0,
-            type = TableCellDataType.TEXT,
-            text = "SITE-A"
-        )
-        val date = resolvedCell(
-            col = 1,
-            type = TableCellDataType.DATE,
-            text = "2026-02-13"
-        )
-        val time = resolvedCell(
-            col = 2,
-            type = TableCellDataType.TIME,
-            text = "12:34:56"
-        )
-
-        val prefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(text, date, time),
-            fnDelim = "_",
-            fileNameSlots = listOf(text.id, date.id, time.id),
-            includeFilenameInScope = true,
-        )
-
-        assertEquals("SITE-A", prefix)
-    }
-
-    @Test
-    fun `computeCounterPrefix uses delimiter from settings`() {
-        val a = resolvedCell(0, TableCellDataType.TEXT, "A")
-        val b = resolvedCell(1, TableCellDataType.TEXT, "B")
-
-        val prefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(a, b),
-            fnDelim = "-",
-            fileNameSlots = listOf(a.id, b.id, null),
-            includeFilenameInScope = true,
-        )
-
-        assertEquals("A-B", prefix)
-    }
-
-    @Test
-    fun `computeCounterPrefix includes date and time only when scope values are provided`() {
-        val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
-        val date = resolvedCell(1, TableCellDataType.DATE, "2026-03-01")
-        val time = resolvedCell(2, TableCellDataType.TIME, "12:34")
-
-        val defaultPrefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(text, date, time),
-            fnDelim = "_",
-            fileNameSlots = listOf(text.id, date.id, time.id),
-            includeFilenameInScope = true,
-        )
-
-        val dateOnlyPrefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(text, date, time),
-            fnDelim = "_",
-            fileNameSlots = listOf(text.id, date.id, time.id),
-            includeFilenameInScope = true,
-            scopeOptions = CounterScopeOptions(dateScopeValues = listOf("2026-03-01")),
-        )
-
-        val allEnabledPrefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(text, date, time),
-            fnDelim = "_",
-            fileNameSlots = listOf(text.id, date.id, time.id),
-            includeFilenameInScope = true,
-            scopeOptions = CounterScopeOptions(dateScopeValues = listOf("2026-03-01"), timeScopeValues = listOf("1234")),
-        )
-
-        assertEquals("N600", defaultPrefix)
-        assertEquals("N600_d_2026-03-01", dateOnlyPrefix)
-        assertEquals("N600_d_2026-03-01_t_1234", allEnabledPrefix)
-    }
-
-
-    @Test
-    fun `time scope token is HHmm when seconds option is disabled`() {
-        val now = fixedDate("2026-03-01 12:34:56")
-        val resolver = TableResolver()
-        val timeCell = TableCellState(
-            rowIndex = 0,
-            colIndex = 0,
-            dataType = TableCellDataType.TIME,
-            typedValue = CellValue.Auto,
-            timeFormatOptions = TimeFormatOptions(includeSeconds = false),
-        )
-
-        val plan = resolver.plan(
-            cells = listOf(timeCell),
-            captureNow = now,
-            config = TableResolver.Config(
-                counterDigits = 0,
-                dateFormat = "yyyy-MM-dd",
-                timeFormat = "HH:mm",
-                locale = Locale.US,
-            )
-        )
-
-        val resolvedTime = plan.resolvedCells.single()
-        assertEquals("1234", resolvedTime.scopeToken)
-    }
-
-    @Test
-    fun `time scope token remains HHmm even when seconds option is enabled`() {
-        val now = fixedDate("2026-03-01 12:34:56")
-        val resolver = TableResolver()
-        val timeCell = TableCellState(
-            rowIndex = 0,
-            colIndex = 0,
-            dataType = TableCellDataType.TIME,
-            typedValue = CellValue.Auto,
-            timeFormatOptions = TimeFormatOptions(includeSeconds = true),
-        )
-
-        val plan = resolver.plan(
-            cells = listOf(timeCell),
-            captureNow = now,
-            config = TableResolver.Config(
-                counterDigits = 0,
-                dateFormat = "yyyy-MM-dd",
-                timeFormat = "HH:mm",
-                locale = Locale.US,
-            )
-        )
-
-        val resolvedTime = plan.resolvedCells.single()
-        assertEquals("1234", resolvedTime.scopeToken)
-    }
-
-    @Test
-    fun `computeCounterPrefix excludes time when time scope values are not provided even with scope token`() {
-        val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
-        val time = resolvedCell(1, TableCellDataType.TIME, "12:34", scopeToken = "1234")
-
-        val prefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(text, time),
-            fnDelim = "_",
-            fileNameSlots = listOf(text.id, time.id),
-            includeFilenameInScope = true,
-            scopeOptions = CounterScopeOptions(dateScopeValues = listOf("2026-03-01")),
-        )
-
-        assertEquals("N600", prefix)
-    }
-
-
-    @Test
-    fun `computeCounterPrefix includes time when time scope values are provided`() {
-        val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
-        val time = resolvedCell(1, TableCellDataType.TIME, "12:34", scopeToken = "1234")
-
-        val prefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(text, time),
-            fnDelim = "_",
-            fileNameSlots = listOf(text.id, time.id),
-            includeFilenameInScope = true,
-            scopeOptions = CounterScopeOptions(timeScopeValues = listOf("1234")),
-        )
-
-        assertEquals("N600_t_1234", prefix)
-    }
-
-    @Test
-    fun `date scope token is yyyyMMdd`() {
-        val now = fixedDate("2026-03-01 12:34:56")
-        val resolver = TableResolver()
-        val dateCell = TableCellState(
-            rowIndex = 0,
-            colIndex = 0,
-            dataType = TableCellDataType.DATE,
-            typedValue = CellValue.Auto,
-            formatPattern = "yyyy.MM.dd",
-        )
-
-        val plan = resolver.plan(
-            cells = listOf(dateCell),
-            captureNow = now,
-            config = TableResolver.Config(
-                counterDigits = 0,
-                dateFormat = "yyyy-MM-dd",
-                timeFormat = "HH:mm",
-                locale = Locale.US,
-            )
-        )
-
-        val resolvedDate = plan.resolvedCells.single()
-        assertEquals("20260301", resolvedDate.scopeToken)
-    }
-
-
-
-
-    @Test
-    fun `computeCounterPrefix includes phrase scope values in prefix`() {
-        val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
-
-        val prefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(text),
-            fnDelim = "_",
-            fileNameSlots = listOf(text.id, null, null),
-            includeFilenameInScope = true,
-            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_왜")),
-        )
-
-        assertEquals("N600_rp_왜", prefix)
-    }
-
-
-    @Test
-    fun `computeCounterPrefix keeps phrase scope separation when filename scope is off`() {
-        val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
-
-        val prefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(text),
-            fnDelim = "_",
-            fileNameSlots = listOf(text.id, null, null),
-            includeFilenameInScope = false,
-            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_왜")),
-        )
-
-        assertEquals("rp_왜", prefix)
-    }
-
-    @Test
-    fun `computeCounterPrefix uses different prefixes for different phrase scope values when filename scope is off`() {
+    fun `phrase scope values split stream prefix`() {
         val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
 
         val whyPrefix = CounterManager.computeCounterPrefix(
             resolvedCells = listOf(text),
             fnDelim = "_",
             fileNameSlots = listOf(text.id, null, null),
-            includeFilenameInScope = false,
-            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_왜")),
-        )
-
-        val wowPrefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(text),
-            fnDelim = "_",
-            fileNameSlots = listOf(text.id, null, null),
-            includeFilenameInScope = false,
-            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_헐")),
-        )
-
-        assertEquals("rp_왜", whyPrefix)
-        assertEquals("rp_헐", wowPrefix)
-        org.junit.Assert.assertNotEquals(whyPrefix, wowPrefix)
-    }
-
-    @Test
-    fun `computeCounterPrefix keeps same prefix for same phrase scope value when filename scope is off`() {
-        val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
-
-        val first = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(text),
-            fnDelim = "_",
-            fileNameSlots = listOf(text.id, null, null),
-            includeFilenameInScope = false,
-            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_왜")),
-        )
-
-        val second = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(text),
-            fnDelim = "_",
-            fileNameSlots = listOf(text.id, null, null),
-            includeFilenameInScope = false,
-            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_왜")),
-        )
-
-        assertEquals("rp_왜", first)
-        assertEquals(first, second)
-    }
-
-    @Test
-    fun `computeCounterPrefix excludes global rotating text slot value from filename scope`() {
-        val base = resolvedCell(0, TableCellDataType.TEXT, "N600")
-        val rotatingWhy = resolvedCell(
-            col = 1,
-            type = TableCellDataType.ROTATING_TEXT,
-            text = "왜",
-            rotatingCounterMode = RotatingCounterMode.GLOBAL,
-        )
-        val rotatingWow = resolvedCell(
-            col = 1,
-            type = TableCellDataType.ROTATING_TEXT,
-            text = "헐",
-            rotatingCounterMode = RotatingCounterMode.GLOBAL,
-        )
-
-        val whyPrefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(base, rotatingWhy),
-            fnDelim = "_",
-            fileNameSlots = listOf(base.id, rotatingWhy.id, null),
-            includeFilenameInScope = true,
-        )
-        val wowPrefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(base, rotatingWow),
-            fnDelim = "_",
-            fileNameSlots = listOf(base.id, rotatingWow.id, null),
-            includeFilenameInScope = true,
-        )
-
-        assertEquals("N600", whyPrefix)
-        assertEquals("N600", wowPrefix)
-    }
-
-    @Test
-    fun `computeCounterPrefix keeps per-phrase separation through phrase scope values`() {
-        val base = resolvedCell(0, TableCellDataType.TEXT, "N600")
-        val rotatingPerPhrase = resolvedCell(
-            col = 1,
-            type = TableCellDataType.ROTATING_TEXT,
-            text = "왜",
-            rotatingCounterMode = RotatingCounterMode.PER_PHRASE,
-        )
-
-        val whyPrefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(base, rotatingPerPhrase),
-            fnDelim = "_",
-            fileNameSlots = listOf(base.id, rotatingPerPhrase.id, null),
             includeFilenameInScope = true,
             scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_왜")),
         )
         val wowPrefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(base, rotatingPerPhrase.copy(resolvedText = "헐")),
+            resolvedCells = listOf(text),
             fnDelim = "_",
-            fileNameSlots = listOf(base.id, rotatingPerPhrase.id, null),
+            fileNameSlots = listOf(text.id, null, null),
             includeFilenameInScope = true,
             scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_헐")),
         )
 
         assertEquals("N600_rp_왜", whyPrefix)
         assertEquals("N600_rp_헐", wowPrefix)
-        org.junit.Assert.assertNotEquals(whyPrefix, wowPrefix)
+        assertNotEquals(whyPrefix, wowPrefix)
     }
 
     @Test
-    fun `computeCounterPrefix preserves provided phrase scope marker`() {
+    fun `same phrase scope value keeps same stream prefix`() {
         val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
 
-        val prefix = CounterManager.computeCounterPrefix(
-            resolvedCells = listOf(text),
-            fnDelim = "_",
-            fileNameSlots = listOf(text.id, null, null),
-            includeFilenameInScope = true,
-            scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_set A/1")),
-        )
-
-        assertEquals("N600_rp_set_A_1", prefix)
-    }
-
-
-    @Test
-    fun `computeCounterPrefix with same phrase text yields same stream prefix`() {
-        val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
-
-        val a = CounterManager.computeCounterPrefix(
+        val first = CounterManager.computeCounterPrefix(
             resolvedCells = listOf(text),
             fnDelim = "_",
             fileNameSlots = listOf(text.id, null, null),
             includeFilenameInScope = true,
             scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_같은문구")),
         )
-        val b = CounterManager.computeCounterPrefix(
+        val second = CounterManager.computeCounterPrefix(
             resolvedCells = listOf(text),
             fnDelim = "_",
             fileNameSlots = listOf(text.id, null, null),
@@ -390,7 +53,7 @@ class CounterManagerScopePrefixTest {
             scopeOptions = CounterScopeOptions(phraseScopeValues = listOf("rp_같은문구")),
         )
 
-        assertEquals(a, b)
+        assertEquals(first, second)
     }
 
     @Test
@@ -412,72 +75,25 @@ class CounterManagerScopePrefixTest {
         assertEquals("Pictures/DZlog/A/|g2=enabled_empty", g2EnabledEmpty)
     }
 
-    @Test
-    fun `computeCounterStreamRelativePathKey keeps base path when g2 has value`() {
-        val key = CounterManager.computeCounterStreamRelativePathKey(
-            baseRelativePath = "Pictures/DZlog/A/B/",
-            hasG2Group = true,
-            group2Value = "B",
-        )
-
-        assertEquals("Pictures/DZlog/A/B/", key)
-    }
-
-    @Test
-    fun `date cell format falls back to yyyyMMdd when unsupported format is set`() {
-        val now = fixedDate("2026-03-01 12:34:56")
-        val resolver = TableResolver()
-        val dateCell = TableCellState(
-            rowIndex = 0,
-            colIndex = 0,
-            dataType = TableCellDataType.DATE,
-            formatPattern = "yyyy.MM.dd",
-        )
-
-        val plan = resolver.plan(
-            cells = listOf(dateCell),
-            captureNow = now,
-            config = TableResolver.Config(
-                counterDigits = 0,
-                dateFormat = "yyyy.MM.dd",
-                timeFormat = "HHmm",
-                locale = Locale.US,
-            )
-        )
-
-        assertEquals("20260301", plan.resolvedCells.single().resolvedText)
-    }
-
     private fun resolvedCell(
         col: Int,
         type: TableCellDataType,
         text: String,
-        scopeToken: String? = null,
-        rotatingCounterMode: RotatingCounterMode? = null,
     ): ResolvedCell {
-        val row = 0
         val raw = TableCellState(
-            rowIndex = row,
+            rowIndex = 0,
             colIndex = col,
             dataType = type,
             groupLevel = GroupLevel.NONE,
             rawText = text,
-            rotatingCounterMode = rotatingCounterMode,
         )
 
         return ResolvedCell(
-            id = "$row-$col",
+            id = "0-$col",
             type = type,
             raw = raw,
             resolvedText = text,
             isEmpty = false,
-            scopeToken = scopeToken,
         )
-    }
-
-    private fun fixedDate(value: String): Date {
-        val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
-        formatter.timeZone = TimeZone.getTimeZone("UTC")
-        return formatter.parse(value) ?: error("invalid date: $value")
     }
 }

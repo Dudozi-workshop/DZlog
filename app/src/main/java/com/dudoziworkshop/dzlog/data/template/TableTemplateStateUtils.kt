@@ -8,7 +8,6 @@ import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.HourSystem
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
-import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
@@ -134,8 +133,6 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         formatPattern = o.optString("formatPattern", ""),
                         counterScopeMode = o.optString("counterScopeMode").takeIf { it.isNotBlank() }
                             ?.let { runCatching { CounterScopeMode.valueOf(it) }.getOrNull() },
-                        rotatingCounterMode = o.optString("rotatingCounterMode").takeIf { it.isNotBlank() }
-                            ?.let { runCatching { RotatingCounterMode.valueOf(it) }.getOrNull() }
                     )
                 add(cell)
             }
@@ -311,7 +308,6 @@ fun TableTemplateState.toJsonString(): String {
         o.put("dataType", c.dataType.name)
         o.put("formatPattern", c.formatPattern)
         c.counterScopeMode?.let { o.put("counterScopeMode", it.name) }
-        c.rotatingCounterMode?.let { o.put("rotatingCounterMode", it.name) }
 
         // COUNTER seed 저장
         if (c.dataType == TableCellDataType.COUNTER) {

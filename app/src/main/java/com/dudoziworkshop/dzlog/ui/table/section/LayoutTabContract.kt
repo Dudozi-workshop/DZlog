@@ -2,7 +2,6 @@ package com.dudoziworkshop.dzlog.ui.table.section
 
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
-import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -142,7 +141,6 @@ data class LayoutTabActions(
     val onPathGroupActionForSelected: (PathGroupAction) -> Unit,
     val onSetDataTypeForSelected: (TableCellDataType) -> Unit,
     val onSetCounterScopeModeForSelected: (CounterScopeMode) -> Unit,
-    val onSetRotatingCounterModeForSelected: (RotatingCounterMode) -> Unit,
     val onResetCounterSeedForSelected: () -> Unit,
     val onOpenRotatingTemplateDialogForSelected: (String) -> Unit,
     val onSaveSelectedCell: () -> Unit,

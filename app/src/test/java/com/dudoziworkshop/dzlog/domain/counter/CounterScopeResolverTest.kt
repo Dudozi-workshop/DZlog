@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.domain.counter
 
-import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
@@ -10,14 +9,13 @@ import org.junit.Test
 class CounterScopeResolverTest {
 
     @Test
-    fun `per-phrase rotating text in filename slot includes rp token`() {
-        val rotating = rotatingCell(id = "r1", mode = RotatingCounterMode.PER_PHRASE)
+    fun `rotating text in filename slot includes rp identity token`() {
+        val rotating = rotatingCell(id = "r1")
         val result = CounterScopeResolver.resolve(
             CounterScopeResolver.Inputs(
                 cells = listOf(rotating),
                 fileNameSlots = listOf("r1", null, null),
                 resolvedCells = listOf(resolved(rotating, "왜")),
-                isPerPhraseMode = true,
             )
         )
 
@@ -26,13 +24,12 @@ class CounterScopeResolverTest {
 
     @Test
     fun `different resolved text produces different rp token`() {
-        val rotating = rotatingCell(id = "r1", mode = RotatingCounterMode.PER_PHRASE)
+        val rotating = rotatingCell(id = "r1")
         val result = CounterScopeResolver.resolve(
             CounterScopeResolver.Inputs(
                 cells = listOf(rotating),
                 fileNameSlots = listOf("r1", null, null),
                 resolvedCells = listOf(resolved(rotating, "헐")),
-                isPerPhraseMode = true,
             )
         )
 
@@ -40,29 +37,13 @@ class CounterScopeResolverTest {
     }
 
     @Test
-    fun `global rotating mode excludes phrase scope even in filename slot`() {
-        val rotating = rotatingCell(id = "r1", mode = RotatingCounterMode.GLOBAL)
-        val result = CounterScopeResolver.resolve(
-            CounterScopeResolver.Inputs(
-                cells = listOf(rotating),
-                fileNameSlots = listOf("r1", null, null),
-                resolvedCells = listOf(resolved(rotating, "왜")),
-                isPerPhraseMode = true,
-            )
-        )
-
-        assertEquals(emptyList<String>(), result.phraseScopeValues)
-    }
-
-    @Test
-    fun `per-phrase rotating text outside filename slots excludes phrase scope`() {
-        val rotating = rotatingCell(id = "r1", mode = RotatingCounterMode.PER_PHRASE)
+    fun `rotating text outside filename slots excludes phrase scope`() {
+        val rotating = rotatingCell(id = "r1")
         val result = CounterScopeResolver.resolve(
             CounterScopeResolver.Inputs(
                 cells = listOf(rotating),
                 fileNameSlots = listOf(null, null, null),
                 resolvedCells = listOf(resolved(rotating, "왜")),
-                isPerPhraseMode = true,
             )
         )
 
@@ -70,27 +51,25 @@ class CounterScopeResolverTest {
     }
 
     @Test
-    fun `blank resolved text is excluded from phrase scope`() {
-        val rotating = rotatingCell(id = "r1", mode = RotatingCounterMode.PER_PHRASE)
+    fun `blank resolved text uses blank identity token`() {
+        val rotating = rotatingCell(id = "r1")
         val result = CounterScopeResolver.resolve(
             CounterScopeResolver.Inputs(
                 cells = listOf(rotating),
                 fileNameSlots = listOf("r1", null, null),
                 resolvedCells = listOf(resolved(rotating, "   ")),
-                isPerPhraseMode = true,
             )
         )
 
-        assertEquals(emptyList<String>(), result.phraseScopeValues)
+        assertEquals(listOf("rp___blank__"), result.phraseScopeValues)
     }
 
-    private fun rotatingCell(id: String, mode: RotatingCounterMode): TableCellState =
+    private fun rotatingCell(id: String): TableCellState =
         TableCellState(
             rowIndex = 0,
             colIndex = 0,
             cellId = id,
             dataType = TableCellDataType.ROTATING_TEXT,
-            rotatingCounterMode = mode,
         )
 
     private fun resolved(cell: TableCellState, text: String): ResolvedCell =

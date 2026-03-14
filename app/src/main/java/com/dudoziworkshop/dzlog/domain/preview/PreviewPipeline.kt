@@ -4,7 +4,6 @@ import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureContext
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.counter.CounterScopeResolver
-import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -182,18 +181,11 @@ internal fun buildScope(
     )
 
     val fileNameCellSlots = deriveFileNameCellSlotsFromDrafts(input.templateState.fileNameSlotDrafts)
-    val fileNameCellIds = fileNameCellSlots.filterNotNull().toSet()
-    val isPerPhraseMode = effectiveCells.any { cell ->
-        cell.dataType == TableCellDataType.ROTATING_TEXT &&
-            cell.rotatingCounterMode == RotatingCounterMode.PER_PHRASE &&
-            cell.cellId in fileNameCellIds
-    }
     val scopeValues = CounterScopeResolver.resolve(
         CounterScopeResolver.Inputs(
             cells = effectiveCells,
             fileNameSlots = fileNameCellSlots,
             resolvedCells = plan.resolvedCells,
-            isPerPhraseMode = isPerPhraseMode,
         )
     )
 

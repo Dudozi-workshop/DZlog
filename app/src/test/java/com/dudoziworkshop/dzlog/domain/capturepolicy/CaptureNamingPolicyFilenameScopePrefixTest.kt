@@ -3,7 +3,6 @@ package com.dudoziworkshop.dzlog.domain.capturepolicy
 import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
-import com.dudoziworkshop.dzlog.domain.model.RotatingCounterMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -19,7 +18,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
     @Test
     fun `per phrase rotating text changes scoped counter key`() {
         val alpha = buildResult(
-            resolvedCells = listOf(resolvedRotating("r1", "ALPHA", RotatingCounterMode.PER_PHRASE)),
+            resolvedCells = listOf(resolvedRotating("r1", "ALPHA")),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "FORMAT", label = "순환문구", formatType = "ROTATING_TEXT"),
                 null,
@@ -27,7 +26,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             ),
         )
         val beta = buildResult(
-            resolvedCells = listOf(resolvedRotating("r1", "BETA", RotatingCounterMode.PER_PHRASE)),
+            resolvedCells = listOf(resolvedRotating("r1", "BETA")),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "FORMAT", label = "순환문구", formatType = "ROTATING_TEXT"),
                 null,
@@ -42,9 +41,9 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
     }
 
     @Test
-    fun `global rotating text keeps scoped counter key`() {
+    fun `rotating text changes scoped counter key by phrase`() {
         val alpha = buildResult(
-            resolvedCells = listOf(resolvedRotating("r1", "ALPHA", RotatingCounterMode.GLOBAL)),
+            resolvedCells = listOf(resolvedRotating("r1", "ALPHA")),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "FORMAT", label = "순환문구", formatType = "ROTATING_TEXT"),
                 null,
@@ -52,7 +51,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             ),
         )
         val beta = buildResult(
-            resolvedCells = listOf(resolvedRotating("r1", "BETA", RotatingCounterMode.GLOBAL)),
+            resolvedCells = listOf(resolvedRotating("r1", "BETA")),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "FORMAT", label = "순환문구", formatType = "ROTATING_TEXT"),
                 null,
@@ -63,7 +62,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
         val alphaScoped = buildScopedCounter(alpha.counterScope, includePathInScope = true, includeFilenameInScope = true, scanPrefix = alpha.scanPrefix)
         val betaScoped = buildScopedCounter(beta.counterScope, includePathInScope = true, includeFilenameInScope = true, scanPrefix = beta.scanPrefix)
 
-        assertEquals(alphaScoped.captureStreamKey.prefix, betaScoped.captureStreamKey.prefix)
+        assertNotEquals(alphaScoped.captureStreamKey.prefix, betaScoped.captureStreamKey.prefix)
     }
 
     @Test
@@ -178,15 +177,14 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
         return ResolvedCell(id, raw.dataType, raw, text, isEmpty = text.isBlank())
     }
 
-    private fun resolvedRotating(id: String, text: String, mode: RotatingCounterMode): ResolvedCell {
+    private fun resolvedRotating(id: String, text: String): ResolvedCell {
         val raw = TableCellState(
             rowIndex = 0,
             colIndex = 0,
             rawText = text,
             dataType = TableCellDataType.ROTATING_TEXT,
             groupLevel = GroupLevel.NONE,
-            rotatingCounterMode = mode,
-            cellId = id,
+                        cellId = id,
         )
         return ResolvedCell(id, raw.dataType, raw, text, isEmpty = text.isBlank())
     }

@@ -218,7 +218,6 @@ fun LayoutTabContent(
             onSetDataTypeForSelected = actions.onSetDataTypeForSelected,
             onSetCounterScopeModeForSelected = actions.onSetCounterScopeModeForSelected,
             onResetCounterSeedForSelected = actions.onResetCounterSeedForSelected,
-            onSetRotatingCounterModeForSelected = actions.onSetRotatingCounterModeForSelected,
             onOpenFormatDialog = actions.onOpenFormatDialog,
             onOpenRotatingTemplateDialogForSelected = actions.onOpenRotatingTemplateDialogForSelected,
             onStartInlineEditing = actions.onStartInlineEditing,
@@ -286,8 +285,7 @@ fun LayoutTabContent(
                 onOpenRotatingTemplateDialog = {
                     uiState.selectedCell?.let { actions.onOpenRotatingTemplateDialogForSelected(it.cellId) }
                 },
-                onSetRotatingCounterMode = actions.onSetRotatingCounterModeForSelected,
-                onOpenFormatDialog = actions.onOpenFormatDialog,
+                                onOpenFormatDialog = actions.onOpenFormatDialog,
                 previewNow = uiState.previewNow,
                 previewCounterDigits = uiState.previewCounterDigits,
                 scopeNextCounter = uiState.scopeNextCounter,
