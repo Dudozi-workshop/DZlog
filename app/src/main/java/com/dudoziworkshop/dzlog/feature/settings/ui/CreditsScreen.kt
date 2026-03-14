@@ -1,10 +1,10 @@
 package com.dudoziworkshop.dzlog.feature.settings.ui
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +16,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -27,14 +34,18 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.R
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
+private val CARD_SHAPE = RoundedCornerShape(20.dp)
+
 private val SPECIAL_THANKS = listOf("루루", "채채", "작은박")
+private val SUPPORTERS = listOf("아무개", "아무개", "아무개")
 private val PRIVATE_TESTERS = listOf("아무개", "아무개", "아무개")
 private val IDEAS_AND_FEEDBACK = listOf("아무개", "아무개", "아무개")
 
@@ -43,148 +54,199 @@ private val IDEAS_AND_FEEDBACK = listOf("아무개", "아무개", "아무개")
 fun CreditsScreen(
     onBack: () -> Unit,
 ) {
-    Scaffold(
-        containerColor = DDZColor.Background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = "도움 주신 분들",
-                        style = DDZTypography.CardTitle,
-                        color = DDZColor.Primary
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = DDZColor.Background
+    ) {
+        Scaffold(
+            containerColor = DDZColor.Background,
+            topBar = { CreditsTopBar(onBack = onBack) },
+            bottomBar = { SupportButton() }
+        ) { innerPadding ->
+            // 주요 정책: 상단/하단 고정 레이아웃을 유지하고 중앙 카드 영역만 스크롤되게 한다.
+            Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                HeaderCard()
+
+                CreditsSectionCard(
+                    icon = Icons.Default.Favorite,
+                    title = "특별한 감사"
+                ) {
+                    Chips(names = SPECIAL_THANKS)
+                }
+
+                CreditsSectionCard(
+                    icon = Icons.Default.Star,
+                    title = "후원해주신 분들"
+                ) {
+                    ContributorLines(names = SUPPORTERS)
+                }
+
+                CreditsSectionCard(
+                    icon = Icons.Default.Build,
+                    title = "앱 개발에 도움 주신 분들"
+                ) {
+                    ContributorGroup(
+                        subtitle = "# 비공개 테스터",
+                        names = PRIVATE_TESTERS
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "뒤로가기",
-                            tint = DDZColor.Primary
-                        )
-                    }
-                },
-                actions = { Spacer(modifier = Modifier.size(48.dp)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DDZColor.Background,
-                    navigationIconContentColor = DDZColor.Primary,
-                    titleContentColor = DDZColor.Primary,
-                    actionIconContentColor = DDZColor.Primary
-                )
-            )
+                    ContributorGroup(
+                        subtitle = "# 아이디어 및 피드백",
+                        names = IDEAS_AND_FEEDBACK
+                    )
+                }
+            }
         }
-    ) { innerPadding ->
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CreditsTopBar(
+    onBack: () -> Unit,
+) {
+    CenterAlignedTopAppBar(
+        title = {
+            Text(
+                text = "도움 주신 분들",
+                style = DDZTypography.CardTitle,
+                color = DDZColor.Primary
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "뒤로가기",
+                    tint = DDZColor.Primary
+                )
+            }
+        },
+        actions = { Spacer(modifier = Modifier.size(48.dp)) },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = DDZColor.Background,
+            navigationIconContentColor = DDZColor.Primary,
+            titleContentColor = DDZColor.Primary,
+            actionIconContentColor = DDZColor.Primary
+        )
+    )
+}
+
+@Composable
+private fun HeaderCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = CARD_SHAPE,
+        colors = CardDefaults.cardColors(containerColor = DDZColor.Card),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, DDZColor.Border)
+    ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = DDZSpacing.screenPadding, vertical = DDZSpacing.sectionGap)
-                .padding(bottom = DDZSpacing.itemGap),
-            verticalArrangement = Arrangement.spacedBy(DDZSpacing.sectionGap)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            Image(
+                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                contentDescription = "DZLog 앱 아이콘",
+                modifier = Modifier.size(56.dp)
+            )
+            Text(
+                text = "DZLog",
+                style = DDZTypography.ScreenTitle,
+                color = DDZColor.Primary
+            )
+            Text(
+                text = "촬영·기록·정리를 한 번에",
+                style = DDZTypography.Caption,
+                color = DDZColor.TextMuted
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Chips(names: List<String>) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        names.forEach { name ->
             Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = DDZColor.Card,
+                shape = RoundedCornerShape(50.dp),
+                color = DDZColor.Background,
                 border = BorderStroke(1.dp, DDZColor.Border)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = DDZSpacing.cardPadding, vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                        contentDescription = "DZLog 앱 아이콘",
-                        modifier = Modifier.size(56.dp)
-                    )
-                    Text(
-                        text = "DZLog",
-                        style = DDZTypography.ScreenTitle,
-                        color = DDZColor.TextPrimary
-                    )
-                    Text(
-                        text = "디지털의 영혼, 아날로그의 마음",
-                        style = DDZTypography.Caption,
-                        color = DDZColor.TextMuted
-                    )
-                }
-            }
-
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
                 Text(
-                    text = "특별한 감사",
-                    style = DDZTypography.SectionTitle,
-                    color = DDZColor.Primary,
-                    modifier = Modifier.padding(start = 4.dp)
+                    text = title,
+                    style = DDZTypography.Body,
+                    color = DDZColor.Primary
                 )
-
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = DDZColor.Card,
-                    border = BorderStroke(1.dp, DDZColor.Border)
-                ) {
-                    FlowRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(DDZSpacing.cardPadding),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        SPECIAL_THANKS.forEach { name ->
-                            Surface(
-                                shape = RoundedCornerShape(999.dp),
-                                color = DDZColor.SageLight.copy(alpha = 0.32f),
-                                border = BorderStroke(1.dp, DDZColor.Border)
-                            ) {
-                                Text(
-                                    text = name,
-                                    style = DDZTypography.Caption,
-                                    color = DDZColor.TextPrimary,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                )
-                            }
-                        }
-                    }
-                }
             }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                content()
+            }
+        }
+    }
+}
 
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+@Composable
+private fun CreditsSectionCard(
+    icon: ImageVector,
+    title: String,
+    content: @Composable () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = CARD_SHAPE,
+        colors = CardDefaults.cardColors(containerColor = DDZColor.Card),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, DDZColor.Border)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "앱 개발에 도움 주신 분들",
-                    style = DDZTypography.SectionTitle,
-                    color = DDZColor.Primary,
-                    modifier = Modifier.padding(start = 4.dp)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = DDZColor.Primary,
+                    modifier = Modifier.size(18.dp)
                 )
-
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = DDZColor.Card,
-                    border = BorderStroke(1.dp, DDZColor.Border)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(DDZSpacing.cardPadding),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        ContributorGroup(
-                            subtitle = "# 비공개 테스터",
-                            names = PRIVATE_TESTERS
-                        )
-                        ContributorGroup(
-                            subtitle = "# 아이디어 및 피드백",
-                            names = IDEAS_AND_FEEDBACK
-                        )
-                    }
-                }
+                Text(
+                    text = name,
+                    style = DDZTypography.Caption,
+                    color = DDZColor.TextPrimary,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun ContributorLines(names: List<String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        names.forEach { name ->
+            Text(
+                text = name,
+                style = DDZTypography.Caption,
+                color = DDZColor.TextPrimary,
+                modifier = Modifier.padding(start = 4.dp)
+            )
         }
     }
 }
@@ -200,13 +262,25 @@ private fun ContributorGroup(
             style = DDZTypography.Body,
             color = DDZColor.Primary
         )
+        ContributorLines(names = names)
+    }
+}
 
-        names.forEach { name ->
+@Composable
+private fun SupportButton() {
+    Surface(color = DDZColor.Background) {
+        Button(
+            onClick = { },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = DDZColor.Primary)
+        ) {
             Text(
-                text = name,
-                style = DDZTypography.Caption,
-                color = DDZColor.TextPrimary,
-                modifier = Modifier.padding(start = 4.dp)
+                text = "후원하기",
+                style = DDZTypography.ButtonText,
+                color = Color.White
             )
         }
     }

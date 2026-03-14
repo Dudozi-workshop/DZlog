@@ -366,7 +366,8 @@ internal fun CellSettingsBottomPanel(
             Spacer(Modifier.height(if (compactForBottomPanel) 0.dp else 2.dp))
 
             if (cell.dataType == TableCellDataType.COUNTER && onResetCounterSeed != null) {
-                Text("카운터", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                SectionCaption("카운터")
+                Spacer(Modifier.height(4.dp))
                 Button(
                     modifier = Modifier.fillMaxWidth().height(buttonHeight),
                     onClick = onResetCounterSeed
@@ -387,7 +388,8 @@ internal fun CellSettingsBottomPanel(
                     CounterScopeMode.INCLUDE -> "스코프: 포함"
                 }
 
-                Text("형식 설정", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                SectionCaption("형식 설정")
+                Spacer(Modifier.height(4.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -475,28 +477,21 @@ internal fun CellSettingsBottomPanel(
             }
 
             if (cell.dataType == TableCellDataType.ROTATING_TEXT && onOpenRotatingTemplateDialog != null) {
-                Text("순환문구", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                SectionCaption("순환문구")
+                Spacer(Modifier.height(4.dp))
+                Button(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(buttonHeight),
+                    onClick = onOpenRotatingTemplateDialog
                 ) {
-                    Button(
-                        modifier = Modifier.weight(1f).height(buttonHeight),
-                        onClick = onOpenRotatingTemplateDialog
-                    ) {
-                        Text("템플릿 설정", style = DDZTypography.ButtonText)
-                    }
-                    Button(
-                        modifier = Modifier.weight(1f).height(buttonHeight),
-                        onClick = {}
-                    ) {
-                        Text("카운터: 문구별", style = DDZTypography.ButtonText)
-                    }
+                    Text("템플릿 설정", style = DDZTypography.ButtonText)
                 }
             }
 
             // 주요 정책: CELL_EDIT 본문 순서는 타입별 버튼 다음에 데이터 타입 카드를 배치한다.
-            Text("데이터 타입", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+            SectionCaption("데이터 타입")
+            Spacer(Modifier.height(4.dp))
             DataTypeCardGrid3(
                 selected = cell.dataType,
                 onSelect = onSetDataType,
@@ -506,6 +501,17 @@ internal fun CellSettingsBottomPanel(
             Spacer(Modifier.height(if (compactForBottomPanel) 2.dp else 10.dp))
         }
     }
+}
+
+@Composable
+private fun SectionCaption(
+    text: String
+) {
+    Text(
+        text = text,
+        style = DDZTypography.Caption,
+        color = DDZColor.TextMuted
+    )
 }
 
 @Composable
@@ -559,7 +565,7 @@ private fun DataTypeCardGrid3(
                             )
                             Text(
                                 text = koLabel,
-                                style = DDZTypography.Caption,
+                                  style = DDZTypography.Caption,
                                 color = DDZColor.TextPrimary,
                                 textAlign = TextAlign.Center,
                                 maxLines = if (type == TableCellDataType.ROTATING_TEXT) 2 else 1,

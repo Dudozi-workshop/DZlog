@@ -1,6 +1,6 @@
 package com.dudoziworkshop.dzlog.domain.counter
 
-internal const val ROTATING_COUNTER_BLANK_KEY: String = "__blank__"
+internal const val ROTATING_PHRASE_BLANK_KEY: String = "__blank__"
 
 /**
  * ROTATING_TEXT의 "카운터 스트림 식별" 키를 계산한다.
@@ -11,5 +11,5 @@ internal fun resolveRotatingCounterStreamIdentity(
     activePhraseText: String?,
 ): String {
     val normalized = activePhraseText?.trim().orEmpty()
-    return if (normalized.isBlank()) ROTATING_COUNTER_BLANK_KEY else normalized
+    return if (normalized.isBlank()) ROTATING_PHRASE_BLANK_KEY else normalized
 }
