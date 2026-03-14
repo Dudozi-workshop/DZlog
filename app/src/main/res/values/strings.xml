@@ -20,6 +20,6 @@
     <string name="error_decode_failed">디코딩 실패</string>
     <string name="error_g2_enabled_but_empty">G2가 활성화됐지만 비어 있어요</string>
 
-    <!-- TODO: 운영 배포 전 실제 AdMob App ID로 교체 필요 -->
-    <string name="admob_app_id">ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy</string>
+    <!-- 개발/테스트 안정화를 위해 Google 공식 테스트 App ID를 사용한다. (운영 배포 전 교체) -->
+    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
 </resources>
