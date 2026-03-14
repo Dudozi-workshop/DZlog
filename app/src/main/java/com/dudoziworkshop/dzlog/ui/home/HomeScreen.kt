@@ -444,6 +444,7 @@ fun HomeScreen(
                         modifier = Modifier
                             .weight(0.6f)
                             .fillMaxHeight()
+                            .padding(horizontal = 2.dp)
                     ) {
                         Text(
                             text = "표 상세설정",
@@ -477,6 +478,7 @@ fun HomeScreen(
                         modifier = Modifier
                             .weight(0.4f)
                             .fillMaxHeight()
+                            .padding(horizontal = 2.dp)
                     ) {
                         Text(
                             text = "최근 촬영",
@@ -489,10 +491,10 @@ fun HomeScreen(
                             modifier = Modifier
                                 .weight(0.74f)
                                 .fillMaxWidth()
-                                .shadow(4.dp, RoundedCornerShape(22.dp), clip = false)
-                                .clip(RoundedCornerShape(22.dp))
+                                .shadow(3.dp, RoundedCornerShape(18.dp), clip = false)
+                                .clip(RoundedCornerShape(18.dp))
                                 .background(DDZColor.Surface)
-                                .border(1.2.dp, DDZColor.Primary.copy(alpha = 0.75f), RoundedCornerShape(22.dp))
+                                .border(1.dp, DDZColor.Primary.copy(alpha = 0.75f), RoundedCornerShape(18.dp))
                                 .clickable {
                                     val it = latestImage
                                     if (it == null) {
@@ -509,7 +511,23 @@ fun HomeScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("최근 항목 없음", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Collections,
+                                            contentDescription = null,
+                                            tint = DDZColor.TextMuted,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                        Spacer(Modifier.height(6.dp))
+                                        Text(
+                                            text = "최근 촬영 없음",
+                                            style = DDZTypography.Caption,
+                                            color = DDZColor.TextMuted
+                                        )
+                                    }
                                 }
                             } else {
                                 DzThumbnail(it.uri.toString())
