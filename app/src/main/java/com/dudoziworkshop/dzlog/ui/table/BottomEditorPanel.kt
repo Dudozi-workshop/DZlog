@@ -23,9 +23,12 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -119,8 +122,24 @@ internal fun BottomEditorPanel(
     onRemoveRow: () -> Unit,
     onAddCol: () -> Unit,
     onRemoveCol: () -> Unit,
+    onResetRowWeights: () -> Unit,
+    onResetColumnWeights: () -> Unit,
     onReset: () -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    onSetBgStyle: (Int) -> Unit,
+    onSetGridEnabled: (Boolean) -> Unit,
+    onSetTextColorMode: (Int) -> Unit,
+    onSetManualTextColor: (Int) -> Unit,
+    onSetValueScale: (Int) -> Unit,
+    onSetTextAlign: (Int) -> Unit,
+    wmBgStyle: Int,
+    wmGridEnabled: Boolean,
+    wmTextColorMode: Int,
+    wmManualTextColor: Int,
+    wmValueScale: Int,
+    wmTextAlign: Int,
+    onOpenStructureMode: () -> Unit,
+    onOpenStyleMode: () -> Unit,
 ) {
     @Composable
     fun PanelHeader(title: String) {
@@ -141,6 +160,21 @@ internal fun BottomEditorPanel(
         }
     }
 
+    @Composable
+    fun ModeHeader(title: String) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onClosePanel) { Text("뒤로", style = DDZTypography.Caption, color = DDZColor.Primary) }
+            Spacer(Modifier.weight(1f))
+            Text(title, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.width(48.dp))
+        }
+    }
+
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -154,12 +188,14 @@ internal fun BottomEditorPanel(
 
         when (panelMode) {
             BottomEditorPanelMode.NONE -> {
-                Text("셀을 눌러 편집을 시작하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                Text("원하는 설정 모드를 선택하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(modifier = Modifier.weight(1f), onClick = onAddRow) { Text("행 +", style = DDZTypography.ButtonText) }
-                    Button(modifier = Modifier.weight(1f), onClick = onRemoveRow, enabled = rows > 1) { Text("행 -", style = DDZTypography.ButtonText) }
-                    Button(modifier = Modifier.weight(1f), onClick = onAddCol) { Text("열 +", style = DDZTypography.ButtonText) }
-                    Button(modifier = Modifier.weight(1f), onClick = onRemoveCol, enabled = cols > 1) { Text("열 -", style = DDZTypography.ButtonText) }
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onOpenStructureMode) {
+                        Text("구조 설정", style = DDZTypography.ButtonText)
+                    }
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onOpenStyleMode) {
+                        Text("서식 설정", style = DDZTypography.ButtonText)
+                    }
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(modifier = Modifier.weight(1f), onClick = onReset) { Text("초기화", style = DDZTypography.ButtonText) }
@@ -172,6 +208,61 @@ internal fun BottomEditorPanel(
                             Text("저장", style = DDZTypography.ButtonText)
                         }
                     }
+                }
+            }
+            BottomEditorPanelMode.STRUCTURE_EDIT -> {
+                ModeHeader("구조 설정")
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(modifier = Modifier.weight(1f), onClick = onAddRow) { Text("행 추가") }
+                    Button(modifier = Modifier.weight(1f), onClick = onAddCol) { Text("열 추가") }
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(modifier = Modifier.weight(1f), onClick = onRemoveRow, enabled = rows > 1) { Text("행 삭제") }
+                    Button(modifier = Modifier.weight(1f), onClick = onRemoveCol, enabled = cols > 1) { Text("열 삭제") }
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetRowWeights) { Text("행 비율 초기화") }
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetColumnWeights) { Text("열 비율 초기화") }
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = {
+                        onResetRowWeights()
+                        onResetColumnWeights()
+                    }) { Text("균등 분배") }
+                    Button(modifier = Modifier.weight(1f), onClick = onReset) { Text("Undo") }
+                }
+            }
+            BottomEditorPanelMode.STYLE_EDIT -> {
+                ModeHeader("서식 설정")
+                Text("배경 스타일 (현재: ${if (wmBgStyle == 0) "블랙" else if (wmBgStyle == 1) "화이트" else "투명"})", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetBgStyle(0) }) { Text("블랙") }
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetBgStyle(1) }) { Text("화이트") }
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetBgStyle(2) }) { Text("투명") }
+                }
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("그리드", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                    Switch(checked = wmGridEnabled, onCheckedChange = onSetGridEnabled)
+                }
+                Text("글씨 색", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetTextColorMode(0) }) { Text("자동") }
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetTextColorMode(1) }) { Text("수동") }
+                    if (wmTextColorMode == 1) {
+                        OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetManualTextColor(if (wmManualTextColor == 0) 1 else 0) }) {
+                            Text(if (wmManualTextColor == 0) "흰색" else "검정")
+                        }
+                    }
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetValueScale((wmValueScale - 10).coerceAtLeast(60)) }) { Text("글씨 -") }
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetValueScale((wmValueScale + 10).coerceAtMost(160)) }) { Text("글씨 +") }
+                }
+                Text("정렬 (현재: ${if (wmTextAlign == 0) "좌" else if (wmTextAlign == 1) "중" else "우"})", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetTextAlign(0) }) { Text("좌") }
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetTextAlign(1) }) { Text("중") }
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetTextAlign(2) }) { Text("우") }
                 }
             }
             BottomEditorPanelMode.CELL_EDIT -> {

@@ -101,11 +101,12 @@ import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabActions
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabContent
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabUiState
 import com.dudoziworkshop.dzlog.ui.table.section.PreviewTabContent
-import com.dudoziworkshop.dzlog.ui.table.section.TableEditorTabs
 import com.dudoziworkshop.dzlog.feature.table.editor.addColumn
 import com.dudoziworkshop.dzlog.feature.table.editor.addRow
 import com.dudoziworkshop.dzlog.feature.table.editor.removeColumn
 import com.dudoziworkshop.dzlog.feature.table.editor.removeRow
+import com.dudoziworkshop.dzlog.feature.table.editor.resetColumnWeights
+import com.dudoziworkshop.dzlog.feature.table.editor.resetRowWeights
 import com.dudoziworkshop.dzlog.feature.table.editor.updateCell
 import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
@@ -1236,11 +1237,6 @@ fun TableEditorScreen(
                 .dzScaffoldContent()
                 .padding(innerPadding)
         ) {
-            TableEditorTabs(
-                selectedTabIndex = selectedTabIndex,
-                onTabSelected = { requestTabSwitch(it) }
-            )
-
             when (selectedTabIndex) {
                 0 -> {
                     LayoutTabContent(
@@ -1281,7 +1277,12 @@ fun TableEditorScreen(
                             captureAspect = watermarkUi.captureAspect,
                             wmWidthRatio = watermarkUi.wmWidthRatio,
                             wmHeightRatio = watermarkUi.wmHeightRatio,
-                            wmBgStyle = tableStyleUi.bgStyle
+                            wmBgStyle = tableStyleUi.bgStyle,
+                            wmGridEnabled = tableStyleUi.gridEnabled,
+                            wmTextColorMode = tableStyleUi.textColorMode,
+                            wmManualTextColor = tableStyleUi.manualTextColor,
+                            wmValueScale = tableStyleUi.valueScale,
+                            wmTextAlign = tableStyleUi.textAlign,
                         ),
                         actions = LayoutTabActions(
                             onSelectCellId = ::requestSelectCell,
@@ -1662,7 +1663,14 @@ fun TableEditorScreen(
                                     selectedCellId = nextTemplate.cells.firstOrNull()?.cellId
                                 }
                             },
+                            onResetRowWeights = {
+                                updateTemplateDraft(resetRowWeights(currentTemplate))
+                            },
+                            onResetColumnWeights = {
+                                updateTemplateDraft(resetColumnWeights(currentTemplate))
+                            },
                             onReset = {
+
                                 // 정책 변경: 초기화는 기본 템플릿이 아니라 "화면 진입 시점(initialTemplateSnapshot)" 복원이다.
                                 editableTemplateState = initialTemplateSnapshot
                                 selectedCellId = initialTemplateSnapshot.cells.firstOrNull()?.cellId
@@ -1781,6 +1789,36 @@ fun TableEditorScreen(
                                     Toast.makeText(context, "카운터를 자동 기준으로 초기화했습니다.", Toast.LENGTH_SHORT).show()
                                 }
                             },
+                            onSetBgStyle = { bgStyle ->
+                                scope.launch {
+                                    tableStyleUi = applyBgStyleChange(context, bgStyle, tableStyleUi)
+                                }
+                            },
+                            onSetGridEnabled = { enabled ->
+                                scope.launch {
+                                    tableStyleUi = applyGridEnabledChange(context, enabled, tableStyleUi)
+                                }
+                            },
+                            onSetTextColorMode = { mode ->
+                                scope.launch {
+                                    tableStyleUi = applyTextColorModeChange(context, mode, tableStyleUi)
+                                }
+                            },
+                            onSetManualTextColor = { color ->
+                                scope.launch {
+                                    tableStyleUi = applyManualTextColorChange(context, color, tableStyleUi)
+                                }
+                            },
+                            onSetValueScale = { scale ->
+                                scope.launch {
+                                    tableStyleUi = applyValueScaleChange(context, scale, tableStyleUi)
+                                }
+                            },
+                            onSetTextAlign = { align ->
+                                scope.launch {
+                                    tableStyleUi = applyTextAlignChange(context, align, tableStyleUi)
+                                }
+                            },
                             onOpenRotatingTemplateDialogForSelected = { cellId ->
                                 val cell = currentTemplate.cells.firstOrNull { it.cellId == cellId }
                                 if (cell != null && cell.dataType == TableCellDataType.ROTATING_TEXT) {
@@ -1790,15 +1828,15 @@ fun TableEditorScreen(
                                 }
                             },
                             onSaveSelectedCell = ::requestSaveSelectedCell,
-                            onRevertSelectedCell = ::requestRevertSelectedCell
+                            onRevertSelectedCell = ::requestRevertSelectedCell,
+                            onOpenPreview = { requestTabSwitch(1) }
                         )
                     )
                 }
 
                 1 -> {
-                    // ==========================
-                    // 탭1: 표 미리보기
-                    // ==========================
+                    // 탭 제거 후 미리보기는 셀 구성 우측 버튼으로 진입한다.
+                    TextButton(onClick = { requestTabSwitch(0) }) { Text("셀 구성으로") }
                     PreviewTabContent(
                         scrollState = previewTabScrollState,
                         captureAspect = watermarkUi.captureAspect,

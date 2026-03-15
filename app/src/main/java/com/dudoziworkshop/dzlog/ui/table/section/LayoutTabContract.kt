@@ -12,6 +12,8 @@ import java.util.Date
 
 enum class BottomEditorPanelMode {
     NONE,
+    STRUCTURE_EDIT,
+    STYLE_EDIT,
     CELL_EDIT,
     FILENAME_EDIT,
     PATH_EDIT
@@ -96,7 +98,12 @@ data class LayoutTabUiState(
     val captureAspect: CaptureAspect,
     val wmWidthRatio: Int,
     val wmHeightRatio: Int,
-    val wmBgStyle: Int
+    val wmBgStyle: Int,
+    val wmGridEnabled: Boolean,
+    val wmTextColorMode: Int,
+    val wmManualTextColor: Int,
+    val wmValueScale: Int,
+    val wmTextAlign: Int,
 )
 
 data class LayoutTabActions(
@@ -133,6 +140,8 @@ data class LayoutTabActions(
     val onRemoveRow: () -> Unit,
     val onAddCol: () -> Unit,
     val onRemoveCol: () -> Unit,
+    val onResetRowWeights: () -> Unit,
+    val onResetColumnWeights: () -> Unit,
     val onReset: () -> Unit,
     val onSave: () -> Unit,
     val onDismissSettingsPanel: () -> Unit,
@@ -142,7 +151,14 @@ data class LayoutTabActions(
     val onSetDataTypeForSelected: (TableCellDataType) -> Unit,
     val onSetCounterScopeModeForSelected: (CounterScopeMode) -> Unit,
     val onResetCounterSeedForSelected: () -> Unit,
+    val onSetBgStyle: (Int) -> Unit,
+    val onSetGridEnabled: (Boolean) -> Unit,
+    val onSetTextColorMode: (Int) -> Unit,
+    val onSetManualTextColor: (Int) -> Unit,
+    val onSetValueScale: (Int) -> Unit,
+    val onSetTextAlign: (Int) -> Unit,
     val onOpenRotatingTemplateDialogForSelected: (String) -> Unit,
     val onSaveSelectedCell: () -> Unit,
-    val onRevertSelectedCell: () -> Unit
+    val onRevertSelectedCell: () -> Unit,
+    val onOpenPreview: () -> Unit
 )

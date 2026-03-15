@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.feature.table.render
 
+import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+
 object TableLayoutCalculator {
     const val DEFAULT_WIDTH_RATIO = 100
     const val DEFAULT_HEIGHT_RATIO = 50
@@ -22,4 +24,12 @@ object TableLayoutCalculator {
         }
         return sizes
     }
+}
+
+fun resolveContentAspectRatio(templateState: TableTemplateState): Float {
+    val cols = templateState.cols.coerceAtLeast(1)
+    val rows = templateState.rows.coerceAtLeast(1)
+    val col = TableLayoutCalculator.resolveWeights(templateState.colWeights, cols).sum().coerceAtLeast(0.0001f)
+    val row = TableLayoutCalculator.resolveWeights(templateState.rowWeights, rows).sum().coerceAtLeast(0.0001f)
+    return (col / row).coerceAtLeast(0.2f).coerceAtMost(5f)
 }

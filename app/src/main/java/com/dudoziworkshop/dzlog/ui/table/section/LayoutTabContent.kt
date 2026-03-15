@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,7 +13,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -89,7 +92,16 @@ fun LayoutTabContent(
                 )
 
                 Spacer(Modifier.height(10.dp))
-                DDZSectionHeader(title = "셀 구성")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    DDZSectionHeader(title = "셀 구성")
+                    TextButton(onClick = actions.onOpenPreview) {
+                        Text("미리보기", style = DDZTypography.Caption, color = DDZColor.Primary)
+                    }
+                }
                 Spacer(Modifier.height(6.dp))
 
                 Box(
@@ -256,8 +268,24 @@ fun LayoutTabContent(
             onRemoveRow = actions.onRemoveRow,
             onAddCol = actions.onAddCol,
             onRemoveCol = actions.onRemoveCol,
+            onResetRowWeights = actions.onResetRowWeights,
+            onResetColumnWeights = actions.onResetColumnWeights,
             onReset = actions.onReset,
-            onSave = actions.onSave
+            onSave = actions.onSave,
+            onSetBgStyle = actions.onSetBgStyle,
+            onSetGridEnabled = actions.onSetGridEnabled,
+            onSetTextColorMode = actions.onSetTextColorMode,
+            onSetManualTextColor = actions.onSetManualTextColor,
+            onSetValueScale = actions.onSetValueScale,
+            onSetTextAlign = actions.onSetTextAlign,
+            wmBgStyle = uiState.wmBgStyle,
+            wmGridEnabled = uiState.wmGridEnabled,
+            wmTextColorMode = uiState.wmTextColorMode,
+            wmManualTextColor = uiState.wmManualTextColor,
+            wmValueScale = uiState.wmValueScale,
+            wmTextAlign = uiState.wmTextAlign,
+            onOpenStructureMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STRUCTURE_EDIT) },
+            onOpenStyleMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STYLE_EDIT) },
         )
 
         if (uiState.showCellSettingsPanel && uiState.selectedCell != null && uiState.editingCellId == null && uiState.bottomPanelMode != BottomEditorPanelMode.CELL_EDIT) {
