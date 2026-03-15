@@ -24,6 +24,8 @@ import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
+import com.dudoziworkshop.dzlog.feature.table.render.computeShapeLockedRatios
+import com.dudoziworkshop.dzlog.feature.table.render.resolveContentAspectRatio
 
 /**
  * [WatermarkPreviewOverlay]
@@ -47,13 +49,19 @@ fun WatermarkPreviewOverlay(
         return
     }
 
+    val shapeLockedRatio = computeShapeLockedRatios(
+        contentAspectRatio = resolveContentAspectRatio(request.tableTemplate),
+        maxWidthRatio = request.watermark.tableWidthRatio,
+        maxHeightRatio = request.watermark.tableHeightRatio,
+    )
+
     val layout = computeWatermarkTableLayout(
         bounds = previewContentRect,
         anchor = request.watermark.anchor,
         offsetXRatio = request.watermark.offsetXRatio,
         offsetYRatio = request.watermark.offsetYRatio,
-        tableHeightRatio = request.watermark.tableHeightRatio,
-        tableWidthRatio = request.watermark.tableWidthRatio
+        tableHeightRatio = shapeLockedRatio.tableHeightRatio,
+        tableWidthRatio = shapeLockedRatio.tableWidthRatio
     )
 
     val baseRawRect = layout.rect
@@ -120,8 +128,8 @@ fun WatermarkPreviewOverlay(
                     anchor = request.watermark.anchor,
                     offsetXRatio = request.watermark.offsetXRatio,
                     offsetYRatio = request.watermark.offsetYRatio,
-                    tableHeightRatio = request.watermark.tableHeightRatio,
-                    tableWidthRatio = request.watermark.tableWidthRatio,
+                    tableHeightRatio = shapeLockedRatio.tableHeightRatio,
+                    tableWidthRatio = shapeLockedRatio.tableWidthRatio,
                     overrideOffsetLeftPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawLeftPx else null,
                     overrideOffsetTopPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawTopPx else null,
                     rotationCwDeg = request.watermark.rotationCwDeg,

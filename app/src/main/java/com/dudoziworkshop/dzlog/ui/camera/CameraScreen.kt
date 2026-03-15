@@ -569,6 +569,13 @@ fun CameraPreview(
         loadCameraPrefsIntoUi(context.dataStore.data.first(), ui)
     }
 
+
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            loadCameraPrefsIntoUi(context.dataStore.data.first(), ui)
+        }
+    }
+
     DisposableEffect(Unit) {
         onDispose {
             resetZoomToDefault()
