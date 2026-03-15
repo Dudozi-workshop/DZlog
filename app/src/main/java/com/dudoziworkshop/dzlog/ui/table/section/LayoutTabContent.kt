@@ -137,6 +137,14 @@ fun LayoutTabContent(
                         wmWidthRatio = uiState.wmWidthRatio,
                         wmHeightRatio = uiState.wmHeightRatio,
                         wmBgStyle = uiState.wmBgStyle,
+                        wmBgAlpha = uiState.wmBgAlpha,
+                        wmValueScale = uiState.wmValueScale,
+                        wmTextColorMode = uiState.wmTextColorMode,
+                        wmManualTextColor = uiState.wmManualTextColor,
+                        wmTextAlign = uiState.wmTextAlign,
+                        wmGridEnabled = uiState.wmGridEnabled,
+                        isStructureMode = uiState.bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT,
+                        structureSelectedCellIds = uiState.structureSelectedCellIds,
                         onSelectCell = { id ->
                             // 정책 변경: FILENAME_EDIT + 셀 선택 대기 상태에서는 표 셀 탭을
                             // CELL_EDIT 진입이 아니라 "파일명 슬롯 셀 연결"로 우선 처리한다.
@@ -161,6 +169,11 @@ fun LayoutTabContent(
                                 if (!actions.onTryCommitInlineAndContinue()) return@RealTableGridSection
                             }
                             actions.onSelectCellId(id)
+                            if (uiState.bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                // 구조 모드에서는 셀 편집 진입 차단, 선택만 수행
+                                actions.onShowCellSettingsPanel(false)
+                                return@RealTableGridSection
+                            }
                             // 정책 변경: 셀 편집 진입점은 단일하게 CELL_EDIT 패널로 고정한다(더블탭 인라인 편집 제거).
                             actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT)
                             actions.onShowCellSettingsPanel(false)
@@ -181,9 +194,16 @@ fun LayoutTabContent(
                                 if (!actions.onTryCommitInlineAndContinue()) return@RealTableGridSection
                             }
                             actions.onSelectCellId(cell.cellId)
+                            if (uiState.bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                actions.onShowCellSettingsPanel(false)
+                                return@RealTableGridSection
+                            }
                             actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT)
                             actions.onShowCellSettingsPanel(false)
-                        }
+                        },
+                        onCommitRowWeightsDragEnd = actions.onCommitRowWeightsDragEnd,
+                        onCommitColumnWeightsDragEnd = actions.onCommitColumnWeightsDragEnd,
+                        onSelectRange = actions.onSelectStructureRange,
                     )
                 }
 
@@ -270,6 +290,9 @@ fun LayoutTabContent(
             onRemoveCol = actions.onRemoveCol,
             onResetRowWeights = actions.onResetRowWeights,
             onResetColumnWeights = actions.onResetColumnWeights,
+            onResetAllWeights = actions.onResetAllWeights,
+            onUndo = actions.onUndo,
+            isUndoAvailable = uiState.isUndoAvailable,
             onReset = actions.onReset,
             onSave = actions.onSave,
             onSetBgStyle = actions.onSetBgStyle,

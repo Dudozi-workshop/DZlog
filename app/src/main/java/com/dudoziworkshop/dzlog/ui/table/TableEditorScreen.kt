@@ -101,28 +101,30 @@ import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabActions
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabContent
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabUiState
 import com.dudoziworkshop.dzlog.ui.table.section.PreviewTabContent
+import com.dudoziworkshop.dzlog.feature.table.editor.TableHandleOverlay
+import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
+import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionResolver
+import com.dudoziworkshop.dzlog.feature.table.editor.TableUndoManager
 import com.dudoziworkshop.dzlog.feature.table.editor.addColumn
+import com.dudoziworkshop.dzlog.feature.table.editor.addColumnBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.addRow
+import com.dudoziworkshop.dzlog.feature.table.editor.addRowBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.removeColumn
+import com.dudoziworkshop.dzlog.feature.table.editor.removeColumnBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.removeRow
+import com.dudoziworkshop.dzlog.feature.table.editor.removeRowBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.resetColumnWeights
 import com.dudoziworkshop.dzlog.feature.table.editor.resetRowWeights
 import com.dudoziworkshop.dzlog.feature.table.editor.updateCell
 import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.placement.applyAnchorOffsetDragChange
-import com.dudoziworkshop.dzlog.feature.table.state.applyBgAlphaChange
-import com.dudoziworkshop.dzlog.feature.table.state.applyBgStyleChange
 import com.dudoziworkshop.dzlog.feature.table.placement.applyCaptureAspectChange
-import com.dudoziworkshop.dzlog.feature.table.state.applyGridEnabledChange
 import com.dudoziworkshop.dzlog.feature.table.placement.applyHeightRatioChange
-import com.dudoziworkshop.dzlog.feature.table.state.applyManualTextColorChange
-import com.dudoziworkshop.dzlog.feature.table.state.applyTextAlignChange
-import com.dudoziworkshop.dzlog.feature.table.state.applyTextColorModeChange
-import com.dudoziworkshop.dzlog.feature.table.state.applyValueScaleChange
 import com.dudoziworkshop.dzlog.feature.table.placement.applyWidthRatioChange
 import com.dudoziworkshop.dzlog.feature.table.placement.loadTablePlacementState
 import com.dudoziworkshop.dzlog.feature.table.state.loadTableStyleState
+import com.dudoziworkshop.dzlog.feature.table.state.persistTableStyleState
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import androidx.lifecycle.Lifecycle
@@ -139,6 +141,14 @@ private data class DeletedStructureSnapshot(
     val cells: List<TableCellState>,
     val fileNameSlotsSnapshot: List<FileNameSlotUiItem?>,
     val pathSlotsSnapshot: List<PathSlotUiItem?>
+)
+
+private data class TableEditorUndoSnapshot(
+    val templateState: TableTemplateState,
+    val styleState: TableStyleState,
+    val selectedCellId: String?,
+    val structureSelectedCellIds: Set<String>,
+    val structureSelectionRange: TableSelectionRange?,
 )
 
 private fun normalizeFileNameDraftSlots(slots: List<FileNameSlotUiItem?>): List<FileNameSlotUiItem?> {
@@ -273,7 +283,9 @@ fun TableEditorScreen(
         }
     }
 
-    var selectedCellId by remember { mutableStateOf(currentTemplate.cells.firstOrNull()?.cellId) }
+    var selectedCellId by remember { mutableStateOf<String?>(null) }
+    var structureSelectedCellIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var structureSelectionRange by remember { mutableStateOf<TableSelectionRange?>(null) }
     // ✅ 탭0: 셀 설정 패널 표시 여부
     var showCellSettingsPanel by remember { mutableStateOf(false) }
     // 모드형 하단 편집 패널 1차 구조 상태 (다음 단계 슬롯/직접 편집 확장 대비)
@@ -761,11 +773,14 @@ fun TableEditorScreen(
         editSessionSnapshotCellId = cellId
     }
 
-    if (selectedCellId == null && currentTemplate.cells.isNotEmpty()) {
-        selectedCellId = currentTemplate.cells.first().cellId
-    }
-
     val selectedCell = currentTemplate.cells.firstOrNull { it.cellId == selectedCellId }
+
+    LaunchedEffect(currentTemplate.cells, selectedCellId) {
+        val hasSelectedCell = selectedCellId != null && currentTemplate.cells.any { it.cellId == selectedCellId }
+        if (!hasSelectedCell) {
+            selectedCellId = null
+        }
+    }
 
     LaunchedEffect(bottomPanelMode, selectedCellId, currentTemplate.cells) {
         // 주요 정책: 되돌리기 snapshot은 CELL_EDIT 진입 상태에서만 selectedCell 기준으로 1회 저장한다.
@@ -784,11 +799,63 @@ fun TableEditorScreen(
 
     var watermarkUi by remember { mutableStateOf(TablePlacementState()) }
     var tableStyleUi by remember { mutableStateOf(TableStyleState()) }
+    var initialStyleSnapshot by remember { mutableStateOf(TableStyleState()) }
+    val undoManager = remember { TableUndoManager<TableEditorUndoSnapshot>() }
+    var undoRevision by remember { mutableIntStateOf(0) }
+
+    fun currentUndoSnapshot(): TableEditorUndoSnapshot {
+        return TableEditorUndoSnapshot(
+            templateState = currentTemplate,
+            styleState = tableStyleUi,
+            selectedCellId = selectedCellId,
+            structureSelectedCellIds = structureSelectedCellIds,
+            structureSelectionRange = structureSelectionRange,
+        )
+    }
+
+    fun pushUndoSnapshotBeforeChange(
+        nextTemplate: TableTemplateState = currentTemplate,
+        nextStyle: TableStyleState = tableStyleUi,
+    ) {
+        val currentSnapshot = currentUndoSnapshot()
+        val nextSnapshot = currentSnapshot.copy(
+            templateState = nextTemplate,
+            styleState = nextStyle,
+        )
+        if (currentSnapshot == nextSnapshot) return
+        undoManager.pushSnapshotBeforeAction(currentSnapshot)
+        undoRevision += 1
+    }
+
+    fun applyUndo() {
+        val restored = undoManager.undo(currentUndoSnapshot())
+        if (restored == currentUndoSnapshot()) return
+        editableTemplateState = restored.templateState
+        tableStyleUi = restored.styleState
+        selectedCellId = restored.selectedCellId
+        structureSelectedCellIds = restored.structureSelectedCellIds
+        structureSelectionRange = restored.structureSelectionRange
+        undoRevision += 1
+    }
+
+    fun applyTemplateWithUndo(nextTemplate: TableTemplateState) {
+        if (nextTemplate == currentTemplate) return
+        pushUndoSnapshotBeforeChange(nextTemplate = nextTemplate)
+        updateTemplateDraft(nextTemplate)
+    }
+
+    fun applyStyleWithUndo(nextStyle: TableStyleState) {
+        if (nextStyle == tableStyleUi) return
+        pushUndoSnapshotBeforeChange(nextStyle = nextStyle)
+        tableStyleUi = nextStyle
+    }
 
     LaunchedEffect(Unit) {
         runCatching {
             watermarkUi = loadTablePlacementState(context)
-            tableStyleUi = loadTableStyleState(context)
+            val loadedStyle = loadTableStyleState(context)
+            tableStyleUi = loadedStyle
+            initialStyleSnapshot = loadedStyle
         }
     }
 
@@ -1064,13 +1131,18 @@ fun TableEditorScreen(
 
     // 주요 정책: 셀 선택 전에는 inline 값을 항상 먼저 commit 시도해 유실을 막는다.
     fun requestSelectCell(cellId: String?) {
-        if (selectedCellId == cellId) return
+        if (selectedCellId == cellId && bottomPanelMode != BottomEditorPanelMode.STRUCTURE_EDIT) return
         if (inlineEdit.isEditing()) {
             commitInlineEditIfNeeded()
             if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
         }
         snapshotCellForEditSession(cellId)
         selectedCellId = cellId
+        if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+            val selected = cellId?.let { setOf(it) } ?: emptySet()
+            structureSelectedCellIds = selected
+            structureSelectionRange = TableSelectionResolver.rangeFromSelection(currentTemplate.cells, selected)
+        }
     }
 
     // 주요 정책: 패널 모드 변경 전에도 inline commit을 우선 보장한다.
@@ -1088,7 +1160,13 @@ fun TableEditorScreen(
         if (nextMode != BottomEditorPanelMode.PATH_EDIT) {
             clearPathEditorTransientState(clearDraft = true)
         }
+        val wasStructureMode = bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT
         bottomPanelMode = nextMode
+        if (nextMode == BottomEditorPanelMode.STRUCTURE_EDIT || wasStructureMode) {
+            structureSelectedCellIds = emptySet()
+            structureSelectionRange = null
+            selectedCellId = null
+        }
     }
 
     fun requestSaveSelectedCell() {
@@ -1108,16 +1186,22 @@ fun TableEditorScreen(
     val hasUnsavedChanges by remember(
         currentTemplate,
         initialTemplateSnapshot,
+        tableStyleUi,
+        initialStyleSnapshot,
         inlineEdit,
         manualInputDraft,
         pathManualInputDraft
     ) {
         derivedStateOf {
             currentTemplate != initialTemplateSnapshot ||
+                tableStyleUi != initialStyleSnapshot ||
                 inlineEdit.isEditing() ||
                 manualInputDraft.isNotBlank() ||
                 pathManualInputDraft.isNotBlank()
         }
+    }
+    val isUndoAvailable by remember(undoRevision) {
+        derivedStateOf { undoManager.canUndo() }
     }
 
     fun saveTemplateAndExit() {
@@ -1125,21 +1209,43 @@ fun TableEditorScreen(
         if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
         isSavingTemplate = true
         val savePayload = editableTemplateState
+        val stylePayload = tableStyleUi
         scope.launch {
-            saveTableTemplate(context, savePayload)
-                .onFailure {
-                    Toast.makeText(
-                        context,
-                        "저장 실패: ${it.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    isSavingTemplate = false
+            val templateSaveResult = saveTableTemplate(context, savePayload)
+            if (templateSaveResult.isFailure) {
+                Toast.makeText(
+                    context,
+                    "저장 실패: ${templateSaveResult.exceptionOrNull()?.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+                isSavingTemplate = false
+                return@launch
+            }
+
+            val styleSaveResult = runCatching { persistTableStyleState(context, stylePayload) }
+            if (styleSaveResult.isFailure) {
+                // 정책 보강: 스타일 저장 실패 시 템플릿 저장 롤백을 시도해 부분 성공 방치를 줄인다.
+                val rollbackResult = saveTableTemplate(context, initialTemplateSnapshot)
+                val rollbackSuffix = if (rollbackResult.isFailure) {
+                    " (롤백 실패: ${rollbackResult.exceptionOrNull()?.message})"
+                } else {
+                    ""
                 }
-                .onSuccess {
-                    Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
-                    onTemplateChange(savePayload)
-                    onBack()
-                }
+                Toast.makeText(
+                    context,
+                    "서식 저장 실패로 저장을 취소했습니다: ${styleSaveResult.exceptionOrNull()?.message}${rollbackSuffix}",
+                    Toast.LENGTH_LONG
+                ).show()
+                isSavingTemplate = false
+                return@launch
+            }
+
+            initialStyleSnapshot = stylePayload
+            undoManager.clear()
+            undoRevision += 1
+            Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
+            onTemplateChange(savePayload)
+            onBack()
         }
     }
 
@@ -1147,6 +1253,8 @@ fun TableEditorScreen(
         if (hasUnsavedChanges) {
             showUnsavedChangesDialog = true
         } else {
+            undoManager.clear()
+            undoRevision += 1
             onBack()
         }
     }
@@ -1190,6 +1298,8 @@ fun TableEditorScreen(
                     }
                     TextButton(onClick = {
                         showUnsavedChangesDialog = false
+                        undoManager.clear()
+                        undoRevision += 1
                         onBack()
                     }) {
                         Text("저장안함", style = DDZTypography.ButtonText, color = DDZColor.Primary)
@@ -1278,14 +1388,26 @@ fun TableEditorScreen(
                             wmWidthRatio = watermarkUi.wmWidthRatio,
                             wmHeightRatio = watermarkUi.wmHeightRatio,
                             wmBgStyle = tableStyleUi.bgStyle,
+                            wmBgAlpha = tableStyleUi.bgAlpha,
                             wmGridEnabled = tableStyleUi.gridEnabled,
                             wmTextColorMode = tableStyleUi.textColorMode,
                             wmManualTextColor = tableStyleUi.manualTextColor,
                             wmValueScale = tableStyleUi.valueScale,
                             wmTextAlign = tableStyleUi.textAlign,
+                            structureSelectedCellIds = structureSelectedCellIds,
+                            isUndoAvailable = isUndoAvailable,
                         ),
                         actions = LayoutTabActions(
                             onSelectCellId = ::requestSelectCell,
+                            onSelectStructureRange = { startId, endId ->
+                                if (bottomPanelMode != BottomEditorPanelMode.STRUCTURE_EDIT) return@LayoutTabActions
+                                val result = TableSelectionResolver.selectByDrag(currentTemplate.cells, startId, endId)
+                                if (result.range != null) {
+                                    structureSelectedCellIds = result.selectedCellIds
+                                    structureSelectionRange = result.range
+                                    selectedCellId = result.lastSelectedCellId
+                                }
+                            },
                             onChangeBottomPanelMode = ::requestBottomPanelModeChange,
                             onCloseBottomPanel = ::requestCloseBottomPanelToNone,
                             onShowCellSettingsPanel = { showCellSettingsPanel = it },
@@ -1556,23 +1678,43 @@ fun TableEditorScreen(
                                     }
                                     next
                                 } else {
-                                    sanitizePathGroupAfterStructureChange(addRow(currentTemplate))
+                                    sanitizePathGroupAfterStructureChange(if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) addRowBySelection(currentTemplate, structureSelectionRange) else addRow(currentTemplate))
                                 }
-                                updateTemplateDraft(nextTemplate)
+                                applyTemplateWithUndo(nextTemplate)
                                 fileNameSlotsDirtySinceStructureChange = false
                                 pathSlotsDirtySinceStructureChange = false
+                                if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                    val maxRow = (nextTemplate.rows - 1).coerceAtLeast(0)
+                                    val maxCol = (nextTemplate.cols - 1).coerceAtLeast(0)
+                                    val range = structureSelectionRange
+                                    if (range != null) {
+                                        val bounded = TableSelectionRange(
+                                            minRow = range.minRow.coerceIn(0, maxRow),
+                                            maxRow = range.maxRow.coerceIn(0, maxRow),
+                                            minCol = range.minCol.coerceIn(0, maxCol),
+                                            maxCol = range.maxCol.coerceIn(0, maxCol),
+                                        )
+                                        structureSelectionRange = bounded
+                                        structureSelectedCellIds = nextTemplate.cells.filter { bounded.contains(it.rowIndex, it.colIndex) }.map { it.cellId }.toSet()
+                                    }
+                                }
                             },
                             onRemoveRow = {
-                                val lastRowIndex = currentTemplate.rows - 1
-                                val lastRowCells = currentTemplate.cells
-                                    .filter { it.rowIndex == lastRowIndex }
-                                    .sortedBy { it.colIndex }
+                                val deletedRowRange = if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                    structureSelectionRange?.let { it.minRow..it.maxRow }
+                                } else {
+                                    val lastRowIndex = currentTemplate.rows - 1
+                                    lastRowIndex..lastRowIndex
+                                }
+                                val deletedRowCells = currentTemplate.cells
+                                    .filter { cell -> deletedRowRange?.contains(cell.rowIndex) == true }
+                                    .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
 
-                                val deletedCellIds = lastRowCells.map { it.cellId }.toSet()
-                                if (lastRowCells.isNotEmpty()) {
+                                val deletedCellIds = deletedRowCells.map { it.cellId }.toSet()
+                                if (deletedRowCells.isNotEmpty()) {
                                     deletedRowsStack.add(
                                         DeletedStructureSnapshot(
-                                            cells = lastRowCells,
+                                            cells = deletedRowCells,
                                             fileNameSlotsSnapshot = fileNameSlotItems,
                                             pathSlotsSnapshot = pathSlotItems
                                         )
@@ -1580,7 +1722,7 @@ fun TableEditorScreen(
                                 }
 
                                 // 정책: 구조 삭제 + 슬롯 정리를 하나의 템플릿으로 순차 가공 후 단일 update로 반영한다.
-                                var nextTemplate = sanitizePathGroupAfterStructureChange(removeRow(currentTemplate))
+                                var nextTemplate = sanitizePathGroupAfterStructureChange(if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) removeRowBySelection(currentTemplate, structureSelectionRange) else removeRow(currentTemplate))
                                 nextTemplate = withUpdatedFileNameSlots(
                                     nextTemplate,
                                     removeCellRefsFromFileNameSlots(fileNameSlotItems, deletedCellIds)
@@ -1589,12 +1731,17 @@ fun TableEditorScreen(
                                     nextTemplate,
                                     removeCellRefsFromPathSlots(pathSlotItems, deletedCellIds)
                                 )
-                                updateTemplateDraft(nextTemplate)
+                                applyTemplateWithUndo(nextTemplate)
                                 fileNameSlotsDirtySinceStructureChange = false
                                 pathSlotsDirtySinceStructureChange = false
+                                if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                    structureSelectedCellIds = emptySet()
+                                    structureSelectionRange = null
+                                    selectedCellId = null
+                                }
 
-                                if (nextTemplate.cells.none { it.cellId == selectedCellId }) {
-                                    selectedCellId = nextTemplate.cells.firstOrNull()?.cellId
+                                if (bottomPanelMode != BottomEditorPanelMode.STRUCTURE_EDIT && nextTemplate.cells.none { it.cellId == selectedCellId }) {
+                                    selectedCellId = null
                                 }
                             },
                             onAddCol = {
@@ -1622,23 +1769,43 @@ fun TableEditorScreen(
                                     }
                                     next
                                 } else {
-                                    sanitizePathGroupAfterStructureChange(addColumn(currentTemplate))
+                                    sanitizePathGroupAfterStructureChange(if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) addColumnBySelection(currentTemplate, structureSelectionRange) else addColumn(currentTemplate))
                                 }
-                                updateTemplateDraft(nextTemplate)
+                                applyTemplateWithUndo(nextTemplate)
                                 fileNameSlotsDirtySinceStructureChange = false
                                 pathSlotsDirtySinceStructureChange = false
+                                if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                    val maxRow = (nextTemplate.rows - 1).coerceAtLeast(0)
+                                    val maxCol = (nextTemplate.cols - 1).coerceAtLeast(0)
+                                    val range = structureSelectionRange
+                                    if (range != null) {
+                                        val bounded = TableSelectionRange(
+                                            minRow = range.minRow.coerceIn(0, maxRow),
+                                            maxRow = range.maxRow.coerceIn(0, maxRow),
+                                            minCol = range.minCol.coerceIn(0, maxCol),
+                                            maxCol = range.maxCol.coerceIn(0, maxCol),
+                                        )
+                                        structureSelectionRange = bounded
+                                        structureSelectedCellIds = nextTemplate.cells.filter { bounded.contains(it.rowIndex, it.colIndex) }.map { it.cellId }.toSet()
+                                    }
+                                }
                             },
                             onRemoveCol = {
-                                val lastColIndex = currentTemplate.cols - 1
-                                val lastColCells = currentTemplate.cells
-                                    .filter { it.colIndex == lastColIndex }
-                                    .sortedBy { it.rowIndex }
+                                val deletedColRange = if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                    structureSelectionRange?.let { it.minCol..it.maxCol }
+                                } else {
+                                    val lastColIndex = currentTemplate.cols - 1
+                                    lastColIndex..lastColIndex
+                                }
+                                val deletedColCells = currentTemplate.cells
+                                    .filter { cell -> deletedColRange?.contains(cell.colIndex) == true }
+                                    .sortedWith(compareBy({ it.colIndex }, { it.rowIndex }))
 
-                                val deletedCellIds = lastColCells.map { it.cellId }.toSet()
-                                if (lastColCells.isNotEmpty()) {
+                                val deletedCellIds = deletedColCells.map { it.cellId }.toSet()
+                                if (deletedColCells.isNotEmpty()) {
                                     deletedColsStack.add(
                                         DeletedStructureSnapshot(
-                                            cells = lastColCells,
+                                            cells = deletedColCells,
                                             fileNameSlotsSnapshot = fileNameSlotItems,
                                             pathSlotsSnapshot = pathSlotItems
                                         )
@@ -1646,7 +1813,7 @@ fun TableEditorScreen(
                                 }
 
                                 // 정책: 구조 삭제 + 슬롯 정리를 하나의 템플릿으로 순차 가공 후 단일 update로 반영한다.
-                                var nextTemplate = sanitizePathGroupAfterStructureChange(removeColumn(currentTemplate))
+                                var nextTemplate = sanitizePathGroupAfterStructureChange(if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) removeColumnBySelection(currentTemplate, structureSelectionRange) else removeColumn(currentTemplate))
                                 nextTemplate = withUpdatedFileNameSlots(
                                     nextTemplate,
                                     removeCellRefsFromFileNameSlots(fileNameSlotItems, deletedCellIds)
@@ -1655,25 +1822,38 @@ fun TableEditorScreen(
                                     nextTemplate,
                                     removeCellRefsFromPathSlots(pathSlotItems, deletedCellIds)
                                 )
-                                updateTemplateDraft(nextTemplate)
+                                applyTemplateWithUndo(nextTemplate)
                                 fileNameSlotsDirtySinceStructureChange = false
                                 pathSlotsDirtySinceStructureChange = false
+                                if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                    structureSelectedCellIds = emptySet()
+                                    structureSelectionRange = null
+                                    selectedCellId = null
+                                }
 
-                                if (nextTemplate.cells.none { it.cellId == selectedCellId }) {
-                                    selectedCellId = nextTemplate.cells.firstOrNull()?.cellId
+                                if (bottomPanelMode != BottomEditorPanelMode.STRUCTURE_EDIT && nextTemplate.cells.none { it.cellId == selectedCellId }) {
+                                    selectedCellId = null
                                 }
                             },
                             onResetRowWeights = {
-                                updateTemplateDraft(resetRowWeights(currentTemplate))
+                                applyTemplateWithUndo(resetRowWeights(currentTemplate))
                             },
                             onResetColumnWeights = {
-                                updateTemplateDraft(resetColumnWeights(currentTemplate))
+                                applyTemplateWithUndo(resetColumnWeights(currentTemplate))
+                            },
+                            onResetAllWeights = {
+                                applyTemplateWithUndo(resetColumnWeights(resetRowWeights(currentTemplate)))
+                            },
+                            onUndo = {
+                                applyUndo()
                             },
                             onReset = {
-
                                 // 정책 변경: 초기화는 기본 템플릿이 아니라 "화면 진입 시점(initialTemplateSnapshot)" 복원이다.
                                 editableTemplateState = initialTemplateSnapshot
-                                selectedCellId = initialTemplateSnapshot.cells.firstOrNull()?.cellId
+                                tableStyleUi = initialStyleSnapshot
+                                selectedCellId = null
+                                structureSelectedCellIds = emptySet()
+                                structureSelectionRange = null
                                 showCellSettingsPanel = false
                                 bottomPanelMode = BottomEditorPanelMode.NONE
                                 currentlySelectedFileNameSlot = null
@@ -1686,6 +1866,8 @@ fun TableEditorScreen(
                                 deletedColsStack.clear()
                                 fileNameSlotsDirtySinceStructureChange = false
                                 pathSlotsDirtySinceStructureChange = false
+                                undoManager.clear()
+                                undoRevision += 1
                             },
                             onSave = { saveTemplateAndExit() },
                             onDismissSettingsPanel = {
@@ -1790,34 +1972,28 @@ fun TableEditorScreen(
                                 }
                             },
                             onSetBgStyle = { bgStyle ->
-                                scope.launch {
-                                    tableStyleUi = applyBgStyleChange(context, bgStyle, tableStyleUi)
-                                }
+                                applyStyleWithUndo(tableStyleUi.copy(bgStyle = bgStyle.coerceIn(0, 2)))
                             },
                             onSetGridEnabled = { enabled ->
-                                scope.launch {
-                                    tableStyleUi = applyGridEnabledChange(context, enabled, tableStyleUi)
-                                }
+                                applyStyleWithUndo(tableStyleUi.copy(gridEnabled = enabled))
                             },
                             onSetTextColorMode = { mode ->
-                                scope.launch {
-                                    tableStyleUi = applyTextColorModeChange(context, mode, tableStyleUi)
-                                }
+                                applyStyleWithUndo(tableStyleUi.copy(textColorMode = mode.coerceIn(0, 1)))
                             },
                             onSetManualTextColor = { color ->
-                                scope.launch {
-                                    tableStyleUi = applyManualTextColorChange(context, color, tableStyleUi)
-                                }
+                                applyStyleWithUndo(tableStyleUi.copy(manualTextColor = color.coerceIn(0, 1)))
                             },
                             onSetValueScale = { scale ->
-                                scope.launch {
-                                    tableStyleUi = applyValueScaleChange(context, scale, tableStyleUi)
-                                }
+                                applyStyleWithUndo(tableStyleUi.copy(valueScale = scale.coerceIn(60, 160)))
                             },
                             onSetTextAlign = { align ->
-                                scope.launch {
-                                    tableStyleUi = applyTextAlignChange(context, align, tableStyleUi)
-                                }
+                                applyStyleWithUndo(tableStyleUi.copy(textAlign = align.coerceIn(0, 2)))
+                            },
+                            onCommitRowWeightsDragEnd = { nextWeights ->
+                                applyTemplateWithUndo(TableHandleOverlay.applyRowWeightDragEnd(currentTemplate, nextWeights))
+                            },
+                            onCommitColumnWeightsDragEnd = { nextWeights ->
+                                applyTemplateWithUndo(TableHandleOverlay.applyColumnWeightDragEnd(currentTemplate, nextWeights))
                             },
                             onOpenRotatingTemplateDialogForSelected = { cellId ->
                                 val cell = currentTemplate.cells.firstOrNull { it.cellId == cellId }
@@ -1879,39 +2055,25 @@ fun TableEditorScreen(
                             }
                         },
                         onBgStyleChange = { bgStyle ->
-                            scope.launch {
-                                tableStyleUi = applyBgStyleChange(context, bgStyle, tableStyleUi)
-                            }
+                            tableStyleUi = tableStyleUi.copy(bgStyle = bgStyle.coerceIn(0, 2))
                         },
                         onBgAlphaChange = { alpha ->
-                            scope.launch {
-                                tableStyleUi = applyBgAlphaChange(context, alpha, tableStyleUi)
-                            }
+                            tableStyleUi = tableStyleUi.copy(bgAlpha = alpha.coerceIn(0, 255))
                         },
                         onValueScaleChange = { scale ->
-                            scope.launch {
-                                tableStyleUi = applyValueScaleChange(context, scale, tableStyleUi)
-                            }
+                            tableStyleUi = tableStyleUi.copy(valueScale = scale.coerceIn(60, 160))
                         },
                         onTextColorModeChange = { mode ->
-                            scope.launch {
-                                tableStyleUi = applyTextColorModeChange(context, mode, tableStyleUi)
-                            }
+                            tableStyleUi = tableStyleUi.copy(textColorMode = mode.coerceIn(0, 1))
                         },
                         onManualTextColorChange = { color ->
-                            scope.launch {
-                                tableStyleUi = applyManualTextColorChange(context, color, tableStyleUi)
-                            }
+                            tableStyleUi = tableStyleUi.copy(manualTextColor = color.coerceIn(0, 1))
                         },
                         onTextAlignChange = { align ->
-                            scope.launch {
-                                tableStyleUi = applyTextAlignChange(context, align, tableStyleUi)
-                            }
+                            tableStyleUi = tableStyleUi.copy(textAlign = align.coerceIn(0, 2))
                         },
                         onGridEnabledChange = { enabled ->
-                            scope.launch {
-                                tableStyleUi = applyGridEnabledChange(context, enabled, tableStyleUi)
-                            }
+                            tableStyleUi = tableStyleUi.copy(gridEnabled = enabled)
                         }
                     )
                 }

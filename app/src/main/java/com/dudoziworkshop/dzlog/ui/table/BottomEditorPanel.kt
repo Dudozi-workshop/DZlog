@@ -124,6 +124,9 @@ internal fun BottomEditorPanel(
     onRemoveCol: () -> Unit,
     onResetRowWeights: () -> Unit,
     onResetColumnWeights: () -> Unit,
+    onResetAllWeights: () -> Unit,
+    onUndo: () -> Unit,
+    isUndoAvailable: Boolean,
     onReset: () -> Unit,
     onSave: () -> Unit,
     onSetBgStyle: (Int) -> Unit,
@@ -198,6 +201,9 @@ internal fun BottomEditorPanel(
                     }
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onUndo, enabled = isUndoAvailable) {
+                        Text("Undo", style = DDZTypography.ButtonText)
+                    }
                     Button(modifier = Modifier.weight(1f), onClick = onReset) { Text("초기화", style = DDZTypography.ButtonText) }
                     Button(modifier = Modifier.weight(1f), onClick = onSave, enabled = !isSaving) {
                         if (isSaving) {
@@ -225,15 +231,19 @@ internal fun BottomEditorPanel(
                     OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetColumnWeights) { Text("열 균등 분배") }
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(modifier = Modifier.weight(1f), onClick = {
-                        onResetRowWeights()
-                        onResetColumnWeights()
-                    }) { Text("전체 균등 분배") }
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetAllWeights) { Text("전체 균등 분배") }
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onUndo, enabled = isUndoAvailable) { Text("Undo") }
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(modifier = Modifier.weight(1f), onClick = onReset) { Text("초기화") }
                 }
             }
             BottomEditorPanelMode.STYLE_EDIT -> {
                 ModeHeader("서식 설정")
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onUndo, enabled = isUndoAvailable) { Text("Undo") }
+                    Button(modifier = Modifier.weight(1f), onClick = onReset) { Text("초기화") }
+                }
                 Text("배경 스타일 (현재: ${if (wmBgStyle == 0) "블랙" else if (wmBgStyle == 1) "화이트" else "투명"})", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetBgStyle(0) }) { Text("블랙") }

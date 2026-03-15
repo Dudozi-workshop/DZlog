@@ -83,3 +83,25 @@ suspend fun applyGridEnabledChange(context: Context, enabled: Boolean, current: 
     context.dataStore.edit { it[KEY_TABLE_DETAIL_GRID_ENABLED] = enabled }
     return current.copy(gridEnabled = enabled)
 }
+
+
+suspend fun persistTableStyleState(context: Context, style: TableStyleState) {
+    context.dataStore.edit {
+        it[KEY_WM_TABLE_BG_STYLE] = style.bgStyle.coerceIn(0, 2)
+        it[KEY_WM_BG_ALPHA] = style.bgAlpha.coerceIn(0, 255)
+        it[KEY_WM_VALUE_SCALE] = style.valueScale.coerceIn(60, 160)
+        it[KEY_WM_TEXT_COLOR_MODE] = style.textColorMode.coerceIn(
+            WatermarkTextColorMode.AUTO,
+            WatermarkTextColorMode.MANUAL,
+        )
+        it[KEY_WM_TEXT_COLOR_MANUAL] = style.manualTextColor.coerceIn(
+            WatermarkManualTextColor.WHITE,
+            WatermarkManualTextColor.BLACK,
+        )
+        it[KEY_WM_TEXT_ALIGN] = style.textAlign.coerceIn(
+            WatermarkTextAlign.LEFT,
+            WatermarkTextAlign.RIGHT,
+        )
+        it[KEY_TABLE_DETAIL_GRID_ENABLED] = style.gridEnabled
+    }
+}
