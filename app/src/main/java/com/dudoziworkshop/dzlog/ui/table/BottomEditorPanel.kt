@@ -26,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -141,6 +142,12 @@ internal fun BottomEditorPanel(
     wmManualTextColor: Int,
     wmValueScale: Int,
     wmTextAlign: Int,
+    wmWidthRatio: Int,
+    wmHeightRatio: Int,
+    isWmRatioLocked: Boolean,
+    onSetWmRatioLocked: (Boolean) -> Unit,
+    onSetWmWidthRatio: (Int) -> Unit,
+    onSetWmHeightRatio: (Int) -> Unit,
     onOpenStructureMode: () -> Unit,
     onOpenStyleMode: () -> Unit,
 ) {
@@ -214,19 +221,77 @@ internal fun BottomEditorPanel(
                 ) {
                     Spacer(Modifier.size(2.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(modifier = Modifier.weight(1f), onClick = onAddRow) { Text("행 추가") }
-                        Button(modifier = Modifier.weight(1f), onClick = onAddCol) { Text("열 추가") }
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(modifier = Modifier.weight(1f), onClick = onRemoveRow, enabled = rows > 1) { Text("행 삭제") }
-                        Button(modifier = Modifier.weight(1f), onClick = onRemoveCol, enabled = cols > 1) { Text("열 삭제") }
+                        Button(modifier = Modifier.weight(1f), onClick = onAddRow) { Text("행+") }
+                        Button(modifier = Modifier.weight(1f), onClick = onRemoveRow, enabled = rows > 1) { Text("행-") }
+                        Button(modifier = Modifier.weight(1f), onClick = onAddCol) { Text("열+") }
+                        Button(modifier = Modifier.weight(1f), onClick = onRemoveCol, enabled = cols > 1) { Text("열-") }
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetRowWeights) { Text("행 균등 분배") }
                         OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetColumnWeights) { Text("열 균등 분배") }
                     }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetAllWeights) { Text("전체 균등 분배") }
+
+                    HorizontalDivider(color = DDZColor.Border.copy(alpha = 0.75f), thickness = 1.dp)
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("표 크기", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                        Spacer(Modifier.weight(1f))
+                        if (isWmRatioLocked) {
+                            Button(
+                                onClick = { onSetWmRatioLocked(false) },
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("비율고정", style = DDZTypography.Caption)
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = { onSetWmRatioLocked(true) },
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("비율고정", style = DDZTypography.Caption)
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "가로(${wmWidthRatio}%)",
+                            modifier = Modifier.width(74.dp),
+                            style = DDZTypography.Caption,
+                            color = DDZColor.TextPrimary
+                        )
+                        Slider(
+                            modifier = Modifier.weight(1f),
+                            value = wmWidthRatio.toFloat(),
+                            onValueChange = { onSetWmWidthRatio(it.toInt().coerceIn(10, 100)) },
+                            valueRange = 10f..100f
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "세로(${wmHeightRatio}%)",
+                            modifier = Modifier.width(74.dp),
+                            style = DDZTypography.Caption,
+                            color = DDZColor.TextPrimary
+                        )
+                        Slider(
+                            modifier = Modifier.weight(1f),
+                            value = wmHeightRatio.toFloat(),
+                            onValueChange = { onSetWmHeightRatio(it.toInt().coerceIn(10, 100)) },
+                            valueRange = 10f..100f
+                        )
                     }
                 }
             }

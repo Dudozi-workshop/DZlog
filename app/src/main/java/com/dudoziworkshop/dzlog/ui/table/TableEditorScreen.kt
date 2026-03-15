@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -132,6 +133,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import kotlinx.coroutines.awaitCancellation
 import java.util.Date
 import java.util.UUID
@@ -798,6 +800,7 @@ fun TableEditorScreen(
     }
 
     var watermarkUi by remember { mutableStateOf(TablePlacementState()) }
+    var isWmRatioLocked by rememberSaveable { mutableStateOf(false) }
     var tableStyleUi by remember { mutableStateOf(TableStyleState()) }
     var initialStyleSnapshot by remember { mutableStateOf(TableStyleState()) }
     val undoManager = remember { TableUndoManager<TableEditorUndoSnapshot>() }
@@ -1391,6 +1394,7 @@ fun TableEditorScreen(
                             captureAspect = watermarkUi.captureAspect,
                             wmWidthRatio = watermarkUi.wmWidthRatio,
                             wmHeightRatio = watermarkUi.wmHeightRatio,
+                            isWmRatioLocked = isWmRatioLocked,
                             wmBgStyle = tableStyleUi.bgStyle,
                             wmBgAlpha = tableStyleUi.bgAlpha,
                             wmGridEnabled = tableStyleUi.gridEnabled,
@@ -1992,6 +1996,49 @@ fun TableEditorScreen(
                             },
                             onSetTextAlign = { align ->
                                 applyStyleWithUndo(tableStyleUi.copy(textAlign = align.coerceIn(0, 2)))
+                            },
+                            onSetWmRatioLocked = { locked ->
+                                isWmRatioLocked = locked
+                            },
+                            onSetWmWidthRatio = { width ->
+                                val normalized = width.coerceIn(10, 100)
+                                scope.launch {
+                                    var nextState = watermarkUi
+                                    val baseWidth = nextState.wmWidthRatio.coerceAtLeast(1)
+                                    val baseHeight = nextState.wmHeightRatio.coerceAtLeast(1)
+                                    if (nextState.wmWidthRatio != normalized) {
+                                        nextState = applyWidthRatioChange(context, normalized, nextState)
+                                    }
+                                    if (isWmRatioLocked) {
+                                        val syncedHeight = (normalized * baseHeight.toFloat() / baseWidth.toFloat())
+                                            .roundToInt()
+                                            .coerceIn(10, 100)
+                                        if (nextState.wmHeightRatio != syncedHeight) {
+                                            nextState = applyHeightRatioChange(context, syncedHeight, nextState)
+                                        }
+                                    }
+                                    watermarkUi = nextState
+                                }
+                            },
+                            onSetWmHeightRatio = { height ->
+                                val normalized = height.coerceIn(10, 100)
+                                scope.launch {
+                                    var nextState = watermarkUi
+                                    val baseWidth = nextState.wmWidthRatio.coerceAtLeast(1)
+                                    val baseHeight = nextState.wmHeightRatio.coerceAtLeast(1)
+                                    if (nextState.wmHeightRatio != normalized) {
+                                        nextState = applyHeightRatioChange(context, normalized, nextState)
+                                    }
+                                    if (isWmRatioLocked) {
+                                        val syncedWidth = (normalized * baseWidth.toFloat() / baseHeight.toFloat())
+                                            .roundToInt()
+                                            .coerceIn(10, 100)
+                                        if (nextState.wmWidthRatio != syncedWidth) {
+                                            nextState = applyWidthRatioChange(context, syncedWidth, nextState)
+                                        }
+                                    }
+                                    watermarkUi = nextState
+                                }
                             },
                             onCommitRowWeightsDragEnd = { nextWeights ->
                                 applyTemplateWithUndo(TableHandleOverlay.applyRowWeightDragEnd(currentTemplate, nextWeights))
