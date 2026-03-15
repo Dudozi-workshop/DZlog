@@ -201,6 +201,10 @@ fun LayoutTabContent(
                             actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT)
                             actions.onShowCellSettingsPanel(false)
                         },
+                        onStartRowWeightsDrag = actions.onStartRowWeightsDrag,
+                        onStartColumnWeightsDrag = actions.onStartColumnWeightsDrag,
+                        onFinishRowWeightsDrag = actions.onFinishRowWeightsDrag,
+                        onFinishColumnWeightsDrag = actions.onFinishColumnWeightsDrag,
                         onCommitRowWeightsDragEnd = actions.onCommitRowWeightsDragEnd,
                         onCommitColumnWeightsDragEnd = actions.onCommitColumnWeightsDragEnd,
                         onSelectRange = actions.onSelectStructureRange,

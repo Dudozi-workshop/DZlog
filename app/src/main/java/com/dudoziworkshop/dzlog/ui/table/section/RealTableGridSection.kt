@@ -48,6 +48,7 @@ import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 /**
  * Layout 탭 전용 실제 표 편집 뷰.
@@ -76,6 +77,10 @@ fun RealTableGridSection(
     structureSelectedCellIds: Set<String>,
     onSelectCell: (String) -> Unit,
     onDoubleClickCell: (TableCellState) -> Unit,
+    onStartRowWeightsDrag: () -> Unit,
+    onStartColumnWeightsDrag: () -> Unit,
+    onFinishRowWeightsDrag: () -> Unit,
+    onFinishColumnWeightsDrag: () -> Unit,
     onCommitRowWeightsDragEnd: (List<Float>) -> Unit,
     onCommitColumnWeightsDragEnd: (List<Float>) -> Unit,
     onSelectRange: (String, String) -> Unit,
@@ -129,6 +134,8 @@ fun RealTableGridSection(
         var previewColWeights by remember(templateState.colWeights, cols) {
             mutableStateOf(resolveWeightsOrOnes(templateState.colWeights, cols))
         }
+        var activeRowBoundary by remember { mutableStateOf<Int?>(null) }
+        var activeColBoundary by remember { mutableStateOf<Int?>(null) }
         LaunchedEffect(templateState.rowWeights, rows) {
             previewRowWeights = resolveWeightsOrOnes(templateState.rowWeights, rows)
         }
@@ -211,6 +218,63 @@ fun RealTableGridSection(
                 )
             }
 
+            if (isStructureMode) {
+                activeRowBoundary?.let { boundary ->
+                    if (boundary in 1 until rows) {
+                        val topRowIndex = boundary - 1
+                        val bottomRowIndex = boundary
+                        val topY = tableTopPx + rowOffsets[topRowIndex]
+                        val topH = rowSizes[topRowIndex]
+                        val bottomY = tableTopPx + rowOffsets[bottomRowIndex]
+                        val bottomH = rowSizes[bottomRowIndex]
+                        drawRect(
+                            color = DDZColor.Primary.copy(alpha = 0.10f),
+                            topLeft = Offset(tableLeftPx, topY),
+                            size = androidx.compose.ui.geometry.Size(tableWidthPx, topH)
+                        )
+                        drawRect(
+                            color = DDZColor.Primary.copy(alpha = 0.10f),
+                            topLeft = Offset(tableLeftPx, bottomY),
+                            size = androidx.compose.ui.geometry.Size(tableWidthPx, bottomH)
+                        )
+                        val lineY = tableTopPx + rowOffsets[boundary]
+                        drawLine(
+                            color = DDZColor.Primary,
+                            start = Offset(tableLeftPx, lineY),
+                            end = Offset(tableLeftPx + tableWidthPx, lineY),
+                            strokeWidth = 4f
+                        )
+                    }
+                }
+                activeColBoundary?.let { boundary ->
+                    if (boundary in 1 until cols) {
+                        val leftColIndex = boundary - 1
+                        val rightColIndex = boundary
+                        val leftX = tableLeftPx + colOffsets[leftColIndex]
+                        val leftW = colSizes[leftColIndex]
+                        val rightX = tableLeftPx + colOffsets[rightColIndex]
+                        val rightW = colSizes[rightColIndex]
+                        drawRect(
+                            color = DDZColor.Primary.copy(alpha = 0.10f),
+                            topLeft = Offset(leftX, tableTopPx),
+                            size = androidx.compose.ui.geometry.Size(leftW, tableHeightPx)
+                        )
+                        drawRect(
+                            color = DDZColor.Primary.copy(alpha = 0.10f),
+                            topLeft = Offset(rightX, tableTopPx),
+                            size = androidx.compose.ui.geometry.Size(rightW, tableHeightPx)
+                        )
+                        val lineX = tableLeftPx + colOffsets[boundary]
+                        drawLine(
+                            color = DDZColor.Primary,
+                            start = Offset(lineX, tableTopPx),
+                            end = Offset(lineX, tableTopPx + tableHeightPx),
+                            strokeWidth = 4f
+                        )
+                    }
+                }
+            }
+
             // 편집 화면 선택 강조:
             // - 테이블 테마(밝음/어두움)에 맞춰 fill/border 색을 분기해 가독성을 유지한다.
             val effectiveSelectionIds = if (isStructureMode && structureSelectedCellIds.isNotEmpty()) {
@@ -250,19 +314,27 @@ fun RealTableGridSection(
 
             for (boundary in 1 until rows) {
                 val yPx = tableTopPx + rowOffsets[boundary]
+                val rowHandleActive = activeRowBoundary == boundary
+                val rowTriangleDp = if (rowHandleActive) 15.dp else rowTriangleSize
                 Box(
                     modifier = Modifier
                         .offset(
                             x = with(density) { (tableLeftPx + tableWidthPx + handleGapPx).toDp() },
                             y = with(density) { (yPx - handleHitPx / 2f).toDp() }
                         )
-                        .size(with(density) { handleHitPx.toDp() })
+                        .size(with(density) { (if (rowHandleActive) handleHitPx + 6.dp.toPx() else handleHitPx).toDp() })
+                        .background(
+                            if (rowHandleActive) DDZColor.Primary.copy(alpha = 0.18f) else Color.Transparent,
+                            RoundedCornerShape(999.dp)
+                        )
                         .pointerInput(boundary, rows) {
                             var startWeights: List<Float> = emptyList()
                             var startSizes: List<Float> = emptyList()
                             var accumulatedDelta = 0f
                             detectDragGestures(
                                 onDragStart = {
+                                    onStartRowWeightsDrag()
+                                    activeRowBoundary = boundary
                                     startWeights = previewRowWeights
                                     startSizes = computeSizes(
                                         total = tableHeightPx,
@@ -283,6 +355,8 @@ fun RealTableGridSection(
                                 },
                                 onDragCancel = {
                                     if (startWeights.isNotEmpty()) previewRowWeights = startWeights
+                                    activeRowBoundary = null
+                                    onFinishRowWeightsDrag()
                                 },
                                 onDragEnd = {
                                     if (startWeights.isNotEmpty()) {
@@ -292,6 +366,8 @@ fun RealTableGridSection(
                                             onCommitRowWeightsDragEnd(previewRowWeights)
                                         }
                                     }
+                                    activeRowBoundary = null
+                                    onFinishRowWeightsDrag()
                                 }
                             )
                         },
@@ -299,8 +375,8 @@ fun RealTableGridSection(
                 ) {
                     Canvas(
                         modifier = Modifier
-                            .width(rowTriangleSize)
-                            .height(rowTriangleSize)
+                            .width(rowTriangleDp)
+                            .height(rowTriangleDp)
                     ) {
                         val path = Path().apply {
                             moveTo(0f, size.height / 2f)
@@ -308,26 +384,34 @@ fun RealTableGridSection(
                             lineTo(size.width, size.height)
                             close()
                         }
-                        drawPath(path = path, color = DDZColor.Primary)
+                        drawPath(path = path, color = if (rowHandleActive) DDZColor.Primary else DDZColor.Primary.copy(alpha = 0.86f))
                     }
                 }
             }
 
             for (boundary in 1 until cols) {
                 val xPx = tableLeftPx + colOffsets[boundary]
+                val colHandleActive = activeColBoundary == boundary
+                val colTriangleDp = if (colHandleActive) 15.dp else colTriangleSize
                 Box(
                     modifier = Modifier
                         .offset(
                             x = with(density) { (xPx - handleHitPx / 2f).toDp() },
                             y = with(density) { (tableTopPx + tableHeightPx + handleGapPx).toDp() }
                         )
-                        .size(with(density) { handleHitPx.toDp() })
+                        .size(with(density) { (if (colHandleActive) handleHitPx + 6.dp.toPx() else handleHitPx).toDp() })
+                        .background(
+                            if (colHandleActive) DDZColor.Primary.copy(alpha = 0.18f) else Color.Transparent,
+                            RoundedCornerShape(999.dp)
+                        )
                         .pointerInput(boundary, cols) {
                             var startWeights: List<Float> = emptyList()
                             var startSizes: List<Float> = emptyList()
                             var accumulatedDelta = 0f
                             detectDragGestures(
                                 onDragStart = {
+                                    onStartColumnWeightsDrag()
+                                    activeColBoundary = boundary
                                     startWeights = previewColWeights
                                     startSizes = computeSizes(
                                         total = tableWidthPx,
@@ -348,6 +432,8 @@ fun RealTableGridSection(
                                 },
                                 onDragCancel = {
                                     if (startWeights.isNotEmpty()) previewColWeights = startWeights
+                                    activeColBoundary = null
+                                    onFinishColumnWeightsDrag()
                                 },
                                 onDragEnd = {
                                     if (startWeights.isNotEmpty()) {
@@ -357,6 +443,8 @@ fun RealTableGridSection(
                                             onCommitColumnWeightsDragEnd(previewColWeights)
                                         }
                                     }
+                                    activeColBoundary = null
+                                    onFinishColumnWeightsDrag()
                                 }
                             )
                         },
@@ -364,8 +452,8 @@ fun RealTableGridSection(
                 ) {
                     Canvas(
                         modifier = Modifier
-                            .width(colTriangleSize)
-                            .height(colTriangleSize)
+                            .width(colTriangleDp)
+                            .height(colTriangleDp)
                     ) {
                         val path = Path().apply {
                             moveTo(size.width / 2f, 0f)
@@ -373,7 +461,7 @@ fun RealTableGridSection(
                             lineTo(size.width, size.height)
                             close()
                         }
-                        drawPath(path = path, color = DDZColor.Primary)
+                        drawPath(path = path, color = if (colHandleActive) DDZColor.Primary else DDZColor.Primary.copy(alpha = 0.86f))
                     }
                 }
             }

@@ -805,6 +805,8 @@ fun TableEditorScreen(
     var initialStyleSnapshot by remember { mutableStateOf(TableStyleState()) }
     val undoManager = remember { TableUndoManager<TableEditorUndoSnapshot>() }
     var undoRevision by remember { mutableIntStateOf(0) }
+    var rowWeightsDragBaseTemplate by remember { mutableStateOf<TableTemplateState?>(null) }
+    var colWeightsDragBaseTemplate by remember { mutableStateOf<TableTemplateState?>(null) }
 
     fun currentUndoSnapshot(): TableEditorUndoSnapshot {
         return TableEditorUndoSnapshot(
@@ -831,6 +833,8 @@ fun TableEditorScreen(
     }
 
     fun applyUndo() {
+        rowWeightsDragBaseTemplate = null
+        colWeightsDragBaseTemplate = null
         val restored = undoManager.undo(currentUndoSnapshot())
         if (restored == currentUndoSnapshot()) return
         editableTemplateState = restored.templateState
@@ -838,6 +842,14 @@ fun TableEditorScreen(
         selectedCellId = restored.selectedCellId
         structureSelectedCellIds = restored.structureSelectedCellIds
         structureSelectionRange = restored.structureSelectionRange
+        undoRevision += 1
+    }
+
+    fun applyTemplateDragCommitWithUndo(baseTemplate: TableTemplateState, nextTemplate: TableTemplateState) {
+        if (baseTemplate == nextTemplate) return
+        val baseSnapshot = currentUndoSnapshot().copy(templateState = baseTemplate)
+        undoManager.pushSnapshotBeforeAction(baseSnapshot)
+        updateTemplateDraft(nextTemplate)
         undoRevision += 1
     }
 
@@ -1245,6 +1257,8 @@ fun TableEditorScreen(
 
             initialTemplateSnapshot = savePayload
             initialStyleSnapshot = stylePayload
+            rowWeightsDragBaseTemplate = null
+            colWeightsDragBaseTemplate = null
             undoManager.clear()
             undoRevision += 1
             Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
@@ -1874,6 +1888,8 @@ fun TableEditorScreen(
                                 deletedColsStack.clear()
                                 fileNameSlotsDirtySinceStructureChange = false
                                 pathSlotsDirtySinceStructureChange = false
+                                rowWeightsDragBaseTemplate = null
+                                colWeightsDragBaseTemplate = null
                                 undoManager.clear()
                                 undoRevision += 1
                             },
@@ -2040,11 +2056,29 @@ fun TableEditorScreen(
                                     watermarkUi = nextState
                                 }
                             },
+                            onStartRowWeightsDrag = {
+                                rowWeightsDragBaseTemplate = editableTemplateState
+                            },
+                            onStartColumnWeightsDrag = {
+                                colWeightsDragBaseTemplate = editableTemplateState
+                            },
+                            onFinishRowWeightsDrag = {
+                                rowWeightsDragBaseTemplate = null
+                            },
+                            onFinishColumnWeightsDrag = {
+                                colWeightsDragBaseTemplate = null
+                            },
                             onCommitRowWeightsDragEnd = { nextWeights ->
-                                applyTemplateWithUndo(TableHandleOverlay.applyRowWeightDragEnd(currentTemplate, nextWeights))
+                                val baseTemplate = rowWeightsDragBaseTemplate ?: editableTemplateState
+                                rowWeightsDragBaseTemplate = null
+                                val nextTemplate = TableHandleOverlay.applyRowWeightDragEnd(baseTemplate, nextWeights)
+                                applyTemplateDragCommitWithUndo(baseTemplate, nextTemplate)
                             },
                             onCommitColumnWeightsDragEnd = { nextWeights ->
-                                applyTemplateWithUndo(TableHandleOverlay.applyColumnWeightDragEnd(currentTemplate, nextWeights))
+                                val baseTemplate = colWeightsDragBaseTemplate ?: editableTemplateState
+                                colWeightsDragBaseTemplate = null
+                                val nextTemplate = TableHandleOverlay.applyColumnWeightDragEnd(baseTemplate, nextWeights)
+                                applyTemplateDragCommitWithUndo(baseTemplate, nextTemplate)
                             },
                             onOpenRotatingTemplateDialogForSelected = { cellId ->
                                 val cell = currentTemplate.cells.firstOrNull { it.cellId == cellId }
