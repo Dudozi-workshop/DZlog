@@ -470,6 +470,8 @@ fun HomeScreen(
                                 wmManualTextColor = previewSettings.wmManualTextColor,
                                 wmTextAlign = previewSettings.wmTextAlign,
                                 tableDetailGridEnabled = previewSettings.tableDetailGridEnabled,
+                                wmWidthRatio = previewSettings.wmWidthRatio,
+                                wmHeightRatio = previewSettings.wmHeightRatio,
                                 modifier = Modifier.fillMaxSize(),
                                 previewModifier = Modifier.fillMaxSize()
                             )

@@ -93,3 +93,36 @@ suspend fun applyHeightRatioChange(
     val patch = applyTableWatermarkAction(context, TableWatermarkAction.HeightRatioChanged(height))
     return currentState.copy(wmHeightRatio = patch.heightRatio ?: currentState.wmHeightRatio)
 }
+
+
+suspend fun persistTablePlacementState(
+    context: Context,
+    placementState: TablePlacementState,
+): TablePlacementState {
+    val nx = placementState.wmOffsetXRatio.coerceIn(0, 100)
+    val ny = placementState.wmOffsetYRatio.coerceIn(0, 100)
+    val nx10000 = (nx * 100).coerceIn(0, 10000)
+    val ny10000 = (ny * 100).coerceIn(0, 10000)
+    context.dataStore.edit { prefs ->
+        prefs[KEY_CAPTURE_ASPECT] = placementState.captureAspect.v
+        prefs[KEY_WM_TABLE_ANCHOR] = when (placementState.wmAnchor) {
+            WatermarkTableAnchor.TOP_LEFT -> 0
+            WatermarkTableAnchor.TOP_RIGHT -> 1
+            WatermarkTableAnchor.BOTTOM_LEFT -> 2
+            WatermarkTableAnchor.BOTTOM_RIGHT -> 3
+            WatermarkTableAnchor.CUSTOM -> 4
+        }
+        prefs[KEY_WM_OFFSET_X] = nx
+        prefs[KEY_WM_OFFSET_Y] = ny
+        prefs[KEY_WM_BOUNDS_OFFSET_X_10000] = nx10000
+        prefs[KEY_WM_BOUNDS_OFFSET_Y_10000] = ny10000
+        prefs[KEY_WM_TABLE_WIDTH] = placementState.wmWidthRatio.coerceIn(10, 100)
+        prefs[KEY_WM_TABLE_HEIGHT] = placementState.wmHeightRatio.coerceIn(10, 100)
+    }
+    return placementState.copy(
+        wmOffsetXRatio = nx,
+        wmOffsetYRatio = ny,
+        wmWidthRatio = placementState.wmWidthRatio.coerceIn(10, 100),
+        wmHeightRatio = placementState.wmHeightRatio.coerceIn(10, 100),
+    )
+}

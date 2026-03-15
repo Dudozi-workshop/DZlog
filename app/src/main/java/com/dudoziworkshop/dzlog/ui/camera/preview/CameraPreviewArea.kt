@@ -56,6 +56,8 @@ import com.dudoziworkshop.dzlog.ui.camera.controller.bindCamera
 import com.dudoziworkshop.dzlog.ui.camera.controller.startTapToFocus
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.watermark.computeBoundsSize
+import com.dudoziworkshop.dzlog.feature.table.render.computeShapeLockedRatios
+import com.dudoziworkshop.dzlog.feature.table.render.resolveContentAspectRatio
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -564,6 +566,11 @@ internal fun CameraPreviewArea(
             val widthPx = with(density) { maxWidth.toPx() }
             val parentHeightPx = with(density) { maxHeight.toPx() }
             val safeAspect = captureAspect.ratioF.coerceAtLeast(0.01f)
+            val shapeLockedRatio = computeShapeLockedRatios(
+                contentAspectRatio = resolveContentAspectRatio(args.tableTemplateState),
+                maxWidthRatio = args.watermarkUi.tableWidthRatio,
+                maxHeightRatio = args.watermarkUi.tableHeightRatio,
+            )
 
             // ===== Preview Layout Anchor Rule =====
             // 9:16 프리뷰는 PreviewArea의 top(=상단바 바로 아래)에 붙인다.
@@ -601,8 +608,8 @@ internal fun CameraPreviewArea(
             ) {
                 val baseBoundsOffsetPx = if (captureRect.width() > 0f && captureRect.height() > 0f) {
                     val baseW = captureRect.width()
-                    val rawW = baseW * (args.watermarkUi.tableWidthRatio.coerceIn(10, 100) / 100f)
-                    val rawH = baseW * (args.watermarkUi.tableHeightRatio.coerceIn(10, 100) / 100f)
+                    val rawW = baseW * (shapeLockedRatio.tableWidthRatio.coerceIn(10, 100) / 100f)
+                    val rawH = baseW * (shapeLockedRatio.tableHeightRatio.coerceIn(10, 100) / 100f)
                     val (boundsW, boundsH) = computeBoundsSize(rawW, rawH, args.watermarkUi.rotationCwDeg)
                     val boundsMaxX = (captureRect.width() - boundsW).coerceAtLeast(0f)
                     val boundsMaxY = (captureRect.height() - boundsH).coerceAtLeast(0f)

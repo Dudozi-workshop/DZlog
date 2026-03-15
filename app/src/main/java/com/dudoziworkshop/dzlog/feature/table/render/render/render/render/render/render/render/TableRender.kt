@@ -23,6 +23,34 @@ import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import java.util.Date
 
+private const val HOME_MIN_CONTENT_ASPECT_RATIO = 0.5f
+private const val HOME_MAX_CONTENT_ASPECT_RATIO = 2.0f
+private const val HOME_MIN_WIDTH_RATIO = 30
+private const val HOME_MIN_HEIGHT_RATIO = 30
+private const val HOME_MAX_FILL_RATIO = 95
+
+internal fun computeHomePreviewRatio(
+    contentAspectRatio: Float,
+    boundsWidth: Float,
+    boundsHeight: Float,
+    tableWidthRatio: Int,
+    tableHeightRatio: Int,
+): TableShapeRatios {
+    val safeAspect = contentAspectRatio.coerceIn(HOME_MIN_CONTENT_ASPECT_RATIO, HOME_MAX_CONTENT_ASPECT_RATIO)
+    val safeWidth = boundsWidth.coerceAtLeast(1f)
+    val safeHeight = boundsHeight.coerceAtLeast(1f)
+    val maxHeightByBounds = ((safeHeight / safeWidth) * 100f).toInt().coerceAtLeast(HOME_MIN_HEIGHT_RATIO)
+
+    return computeShapeLockedRatios(
+        contentAspectRatio = safeAspect,
+        maxWidthRatio = tableWidthRatio.coerceIn(HOME_MIN_WIDTH_RATIO, HOME_MAX_FILL_RATIO),
+        maxHeightRatio = minOf(tableHeightRatio.coerceIn(HOME_MIN_HEIGHT_RATIO, HOME_MAX_FILL_RATIO), maxHeightByBounds.coerceAtMost(HOME_MAX_FILL_RATIO)),
+        minWidthRatio = HOME_MIN_WIDTH_RATIO,
+        minHeightRatio = HOME_MIN_HEIGHT_RATIO,
+        hardMaxRatio = HOME_MAX_FILL_RATIO,
+    )
+}
+
 /**
  * TableRender
  * - "표 + 값" 만 보여주는 순수 렌더러 (홈/설정/촬영/로그 등 공용)
@@ -44,23 +72,10 @@ fun TableRender(
     manualTextColor: Int = WatermarkManualTextColor.BLACK,
     textAlign: Int = WatermarkTextAlign.LEFT,
     gridEnabled: Boolean = true,
+    tableWidthRatio: Int = 40,
+    tableHeightRatio: Int = 20,
 ) {
-    // TableRender는 공용 프리뷰 렌더러로, 홈/설정 프리뷰에서는 배치 고정 정책을 사용한다.
-    // 단, 표 shape(행/열 및 weight 비율 체감)는 템플릿을 반영하도록 내부 table 비율을 동적으로 계산한다.
     val contentAspectRatio = resolveContentAspectRatio(templateState)
-    val (tableWidthRatio, tableHeightRatio) = if (contentAspectRatio >= 1f) {
-        val height = (TableLayoutCalculator.DEFAULT_WIDTH_RATIO / contentAspectRatio)
-            .toInt()
-            .coerceIn(10, 100)
-        TableLayoutCalculator.DEFAULT_WIDTH_RATIO to height
-    } else {
-        val width = (TableLayoutCalculator.DEFAULT_HEIGHT_RATIO * contentAspectRatio)
-            .toInt()
-            .coerceIn(10, 100)
-        width to 100
-    }
-    val offsetXRatio = 0
-    val offsetYRatio = 0
 
     val resolver = remember { TableResolver() }
     val plan = remember(templateState, now, counterDigits) {
@@ -87,6 +102,13 @@ fun TableRender(
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawIntoCanvas { canvas ->
                 val bounds = RectF(0f, 0f, size.width, size.height)
+                val ratio = computeHomePreviewRatio(
+                    contentAspectRatio = contentAspectRatio,
+                    boundsWidth = bounds.width(),
+                    boundsHeight = bounds.height(),
+                    tableWidthRatio = tableWidthRatio,
+                    tableHeightRatio = tableHeightRatio,
+                )
                 TableRenderAdapter.draw(
                     canvas = canvas.nativeCanvas,
                     bounds = bounds,
@@ -107,11 +129,13 @@ fun TableRender(
                         drawGrid = gridEnabled,
                     ),
                     placement = TableRenderPlacement(
-                        anchor = WatermarkTableAnchor.TOP_LEFT,
-                        offsetXRatio = offsetXRatio,
-                        offsetYRatio = offsetYRatio,
-                        tableHeightRatio = tableHeightRatio,
-                        tableWidthRatio = tableWidthRatio,
+                        // 홈 프리뷰는 placement/rotation 문맥을 배제하고,
+                        // 카드 내부에서 center-fit 된 "표 자체"만 보여준다.
+                        anchor = WatermarkTableAnchor.CUSTOM,
+                        offsetXRatio = 50,
+                        offsetYRatio = 50,
+                        tableHeightRatio = ratio.tableHeightRatio,
+                        tableWidthRatio = ratio.tableWidthRatio,
                         rotationCwDeg = 0,
                     ),
                 )

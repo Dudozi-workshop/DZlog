@@ -48,6 +48,8 @@ fun TablePreviewCard(
     wmTextAlign: Int = 0,
     // 워터마크 표 그리드 표시 여부
     tableDetailGridEnabled: Boolean = true,
+    wmWidthRatio: Int = 40,
+    wmHeightRatio: Int = 20,
     title: String? = null,
     onClick: (() -> Unit)? = null,
     // 홈은 박스(테두리/패딩) 스타일이 필요하고, 설정은 단순 프리뷰만 필요한 경우가 있어 옵션 제공
@@ -93,6 +95,8 @@ fun TablePreviewCard(
                     wmManualTextColor = wmManualTextColor,
                     wmTextAlign = wmTextAlign,
                     tableDetailGridEnabled = tableDetailGridEnabled,
+                    wmWidthRatio = wmWidthRatio,
+                    wmHeightRatio = wmHeightRatio,
                     modifier = Modifier.fillMaxSize(),
                     overlay = if (showBadgeOverlay) ({
                         TablePreviewBadgeLayer(
@@ -122,6 +126,8 @@ fun TablePreviewCard(
                     wmManualTextColor = wmManualTextColor,
                     wmTextAlign = wmTextAlign,
                     tableDetailGridEnabled = tableDetailGridEnabled,
+                    wmWidthRatio = wmWidthRatio,
+                    wmHeightRatio = wmHeightRatio,
                     modifier = Modifier.fillMaxSize(),
                     overlay = if (showBadgeOverlay) ({
                         TablePreviewBadgeLayer(
