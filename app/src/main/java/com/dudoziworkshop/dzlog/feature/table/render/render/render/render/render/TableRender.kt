@@ -46,9 +46,19 @@ fun TableRender(
     gridEnabled: Boolean = true,
 ) {
     // TableRender는 공용 프리뷰 렌더러로, 홈/설정 프리뷰에서는 배치 고정 정책을 사용한다.
-    // 촬영 프리뷰 기본 표 비율(40:20 == 2:1)과 동일 체감을 위해 홈 내부 렌더 비율도 2:1로 고정한다.
-    val tableWidthRatio = TableLayoutCalculator.DEFAULT_WIDTH_RATIO
-    val tableHeightRatio = TableLayoutCalculator.DEFAULT_HEIGHT_RATIO
+    // 단, 표 shape(행/열 및 weight 비율 체감)는 템플릿을 반영하도록 내부 table 비율을 동적으로 계산한다.
+    val contentAspectRatio = resolveContentAspectRatio(templateState)
+    val (tableWidthRatio, tableHeightRatio) = if (contentAspectRatio >= 1f) {
+        val height = (TableLayoutCalculator.DEFAULT_WIDTH_RATIO / contentAspectRatio)
+            .toInt()
+            .coerceIn(10, 100)
+        TableLayoutCalculator.DEFAULT_WIDTH_RATIO to height
+    } else {
+        val width = (TableLayoutCalculator.DEFAULT_HEIGHT_RATIO * contentAspectRatio)
+            .toInt()
+            .coerceIn(10, 100)
+        width to 100
+    }
     val offsetXRatio = 0
     val offsetYRatio = 0
 

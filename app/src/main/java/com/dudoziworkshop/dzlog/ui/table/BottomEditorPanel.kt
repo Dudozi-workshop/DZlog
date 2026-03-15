@@ -221,15 +221,15 @@ internal fun BottomEditorPanel(
                     Button(modifier = Modifier.weight(1f), onClick = onRemoveCol, enabled = cols > 1) { Text("열 삭제") }
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetRowWeights) { Text("행 비율 초기화") }
-                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetColumnWeights) { Text("열 비율 초기화") }
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetRowWeights) { Text("행 균등 분배") }
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetColumnWeights) { Text("열 균등 분배") }
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(modifier = Modifier.weight(1f), onClick = {
                         onResetRowWeights()
                         onResetColumnWeights()
-                    }) { Text("균등 분배") }
-                    Button(modifier = Modifier.weight(1f), onClick = onReset) { Text("Undo") }
+                    }) { Text("전체 균등 분배") }
+                    Button(modifier = Modifier.weight(1f), onClick = onReset) { Text("초기화") }
                 }
             }
             BottomEditorPanelMode.STYLE_EDIT -> {
