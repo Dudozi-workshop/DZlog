@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.common
+package com.dudoziworkshop.dzlog.feature.table.state
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState

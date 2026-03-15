@@ -69,8 +69,8 @@ import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZCard
-import com.dudoziworkshop.dzlog.ui.common.TablePreviewCard
-import com.dudoziworkshop.dzlog.ui.common.rememberTablePreviewSettings
+import com.dudoziworkshop.dzlog.feature.table.preview.TablePreviewCard
+import com.dudoziworkshop.dzlog.feature.table.state.rememberTablePreviewSettings
 import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
 import com.dudoziworkshop.dzlog.ui.log.dzFormatDate

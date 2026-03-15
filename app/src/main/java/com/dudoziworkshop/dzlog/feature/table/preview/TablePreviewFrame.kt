@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.common
+package com.dudoziworkshop.dzlog.feature.table.preview
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints

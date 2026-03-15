@@ -33,7 +33,7 @@ import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControl
 import com.dudoziworkshop.dzlog.ui.table.TableRowColSizeSection
-import com.dudoziworkshop.dzlog.ui.table.watermark.CameraLikeWatermarkPlacementPreview
+import com.dudoziworkshop.dzlog.feature.table.placement.CameraLikeWatermarkPlacementPreview
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 

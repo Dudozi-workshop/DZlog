@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.common
+package com.dudoziworkshop.dzlog.feature.table.preview
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -6,6 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
+import com.dudoziworkshop.dzlog.feature.table.render.TableRender
 import java.util.Date
 
 /**
@@ -19,7 +21,7 @@ import java.util.Date
  * - 프레임(TablePreviewFrame)과 렌더(TableRender) 조합은 여기서만 관리한다.
  */
 @Composable
-fun TablePreview(
+fun TablePreviewCanvas(
     templateState: TableTemplateState,
     counterDigits: Int,
     now: Date,
@@ -38,14 +40,13 @@ fun TablePreview(
     wmTextAlign: Int = 0,
     // 워터마크 표 그리드 표시 여부
     tableDetailGridEnabled: Boolean = true,
+    overlay: (@Composable () -> Unit)? = null,
 ) {
     // ✅ 프리뷰는 "표를 감싸는 내부 사각틀"이 실제 표 렌더 크기와 일치해야 한다.
     // drawWatermarkTableOnCanvas는 tableH를 width(base) 기준으로 계산하며,
     // tableHeightRatio는 (10..100)로 clamp 된다.
     // 홈 프리뷰 frame 종횡비도 내부 표(2:1)와 맞춰 셀 비율/텍스트 크기 체감을 촬영과 가깝게 유지한다.
-    val previewTableWidthRatio = 100
-    val previewTableHeightRatio = 50
-    val frameAspectRatio = previewTableWidthRatio / previewTableHeightRatio.toFloat()
+    val frameAspectRatio = TableLayoutCalculator.defaultAspectRatio
 
     TablePreviewFrame(
         aspectRatio = frameAspectRatio,
@@ -69,5 +70,37 @@ fun TablePreview(
                 // 표 가독성을 위한 미세 여백 (프리뷰 전용)
                 .padding(4.dp),
         )
+        overlay?.invoke()
     }
+}
+
+@Composable
+fun TablePreview(
+    templateState: TableTemplateState,
+    counterDigits: Int,
+    now: Date,
+    modifier: Modifier = Modifier,
+    wmBgStyle: Int = 0,
+    wmBgAlpha: Int = 80,
+    wmValueScale: Int = 100,
+    wmTextColorMode: Int = 0,
+    wmManualTextColor: Int = 1,
+    wmTextAlign: Int = 0,
+    tableDetailGridEnabled: Boolean = true,
+    overlay: (@Composable () -> Unit)? = null,
+) {
+    TablePreviewCanvas(
+        templateState = templateState,
+        counterDigits = counterDigits,
+        now = now,
+        modifier = modifier,
+        wmBgStyle = wmBgStyle,
+        wmBgAlpha = wmBgAlpha,
+        wmValueScale = wmValueScale,
+        wmTextColorMode = wmTextColorMode,
+        wmManualTextColor = wmManualTextColor,
+        wmTextAlign = wmTextAlign,
+        tableDetailGridEnabled = tableDetailGridEnabled,
+        overlay = overlay,
+    )
 }

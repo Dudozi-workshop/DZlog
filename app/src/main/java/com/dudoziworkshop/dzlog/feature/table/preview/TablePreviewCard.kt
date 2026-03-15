@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.common
+package com.dudoziworkshop.dzlog.feature.table.preview
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -56,6 +56,9 @@ fun TablePreviewCard(
     // - 홈: Modifier.fillMaxSize()
     // - 설정(스크롤 화면): Modifier.heightIn(...)
     previewModifier: Modifier = Modifier,
+    fileNameBadge: String? = null,
+    savePathBadge: String? = null,
+    showBadgeOverlay: Boolean = false,
 ) {
     val root = if (onClick != null) modifier.clickable(onClick = onClick) else modifier
     val topPad = if (title != null) 8.dp else 0.dp
@@ -90,7 +93,14 @@ fun TablePreviewCard(
                     wmManualTextColor = wmManualTextColor,
                     wmTextAlign = wmTextAlign,
                     tableDetailGridEnabled = tableDetailGridEnabled,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    overlay = if (showBadgeOverlay) ({
+                        TablePreviewBadgeLayer(
+                            fileNameBadge = fileNameBadge,
+                            savePathBadge = savePathBadge,
+                            modifier = Modifier.padding(8.dp),
+                        )
+                    }) else null,
                 )
             }
         } else {
@@ -112,7 +122,14 @@ fun TablePreviewCard(
                     wmManualTextColor = wmManualTextColor,
                     wmTextAlign = wmTextAlign,
                     tableDetailGridEnabled = tableDetailGridEnabled,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    overlay = if (showBadgeOverlay) ({
+                        TablePreviewBadgeLayer(
+                            fileNameBadge = fileNameBadge,
+                            savePathBadge = savePathBadge,
+                            modifier = Modifier.padding(8.dp),
+                        )
+                    }) else null,
                 )
             }
         }

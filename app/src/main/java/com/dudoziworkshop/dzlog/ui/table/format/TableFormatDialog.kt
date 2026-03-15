@@ -13,7 +13,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.model.TimeSeparator
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import com.dudoziworkshop.dzlog.ui.table.template.updateCell
+import com.dudoziworkshop.dzlog.feature.table.editor.updateCell
 
 @Composable
 fun TableFormatDialog(

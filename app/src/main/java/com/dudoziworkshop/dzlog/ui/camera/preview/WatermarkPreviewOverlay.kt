@@ -20,7 +20,10 @@ import com.dudoziworkshop.dzlog.watermark.computeBoundsSize
 import com.dudoziworkshop.dzlog.watermark.computeWatermarkBoundsRect
 import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableLayout
 import com.dudoziworkshop.dzlog.watermark.rawRectFromBounds
-import com.dudoziworkshop.dzlog.watermark.drawWatermarkTableOnCanvas
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 
 /**
  * [WatermarkPreviewOverlay]
@@ -94,29 +97,35 @@ fun WatermarkPreviewOverlay(
             .zIndex(1f)
     ) {
         drawIntoCanvas { canvas ->
-            drawWatermarkTableOnCanvas(
+            TableRenderAdapter.draw(
                 canvas = canvas.nativeCanvas,
                 bounds = previewContentRect,
-                cells = cells,
-                rows = request.tableTemplate.rows,
-                cols = request.tableTemplate.cols,
-                anchor = request.watermark.anchor,
-                offsetXRatio = request.watermark.offsetXRatio,
-                offsetYRatio = request.watermark.offsetYRatio,
-                tableHeightRatio = request.watermark.tableHeightRatio,
-                tableWidthRatio = request.watermark.tableWidthRatio,
-                bgAlpha = request.watermark.tableBgAlpha,
-                bgStyle = request.watermark.bgStyle,
-                valueScale = request.watermark.valueScale,
-                textColorMode = request.watermark.textColorMode,
-                manualTextColor = request.watermark.manualTextColor,
-                textAlign = request.watermark.textAlign,
-                drawGrid = request.watermark.gridEnabled,
-                rowWeights = request.tableTemplate.rowWeights,
-                colWeights = request.tableTemplate.colWeights,
-                overrideOffsetLeftPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawLeftPx else null,
-                overrideOffsetTopPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawTopPx else null,
-                rotationCwDeg = request.watermark.rotationCwDeg
+                payload = TableRenderPayload(
+                    rows = request.tableTemplate.rows,
+                    cols = request.tableTemplate.cols,
+                    rowWeights = request.tableTemplate.rowWeights,
+                    colWeights = request.tableTemplate.colWeights,
+                    cells = cells,
+                ),
+                style = TableRenderStyle(
+                    bgAlpha = request.watermark.tableBgAlpha,
+                    bgStyle = request.watermark.bgStyle,
+                    valueScale = request.watermark.valueScale,
+                    textColorMode = request.watermark.textColorMode,
+                    manualTextColor = request.watermark.manualTextColor,
+                    textAlign = request.watermark.textAlign,
+                    drawGrid = request.watermark.gridEnabled,
+                ),
+                placement = TableRenderPlacement(
+                    anchor = request.watermark.anchor,
+                    offsetXRatio = request.watermark.offsetXRatio,
+                    offsetYRatio = request.watermark.offsetYRatio,
+                    tableHeightRatio = request.watermark.tableHeightRatio,
+                    tableWidthRatio = request.watermark.tableWidthRatio,
+                    overrideOffsetLeftPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawLeftPx else null,
+                    overrideOffsetTopPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawTopPx else null,
+                    rotationCwDeg = request.watermark.rotationCwDeg,
+                ),
             )
         }
 

@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.common
+package com.dudoziworkshop.dzlog.feature.table.render
 
 import android.graphics.RectF
 import androidx.annotation.IntRange
@@ -21,7 +21,6 @@ import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
-import com.dudoziworkshop.dzlog.watermark.drawWatermarkTableOnCanvas
 import java.util.Date
 
 /**
@@ -48,8 +47,8 @@ fun TableRender(
 ) {
     // TableRender는 공용 프리뷰 렌더러로, 홈/설정 프리뷰에서는 배치 고정 정책을 사용한다.
     // 촬영 프리뷰 기본 표 비율(40:20 == 2:1)과 동일 체감을 위해 홈 내부 렌더 비율도 2:1로 고정한다.
-    val tableWidthRatio = 100
-    val tableHeightRatio = 50
+    val tableWidthRatio = TableLayoutCalculator.DEFAULT_WIDTH_RATIO
+    val tableHeightRatio = TableLayoutCalculator.DEFAULT_HEIGHT_RATIO
     val offsetXRatio = 0
     val offsetYRatio = 0
 
@@ -78,27 +77,33 @@ fun TableRender(
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawIntoCanvas { canvas ->
                 val bounds = RectF(0f, 0f, size.width, size.height)
-                drawWatermarkTableOnCanvas(
+                TableRenderAdapter.draw(
                     canvas = canvas.nativeCanvas,
                     bounds = bounds,
-                    cells = cells,
-                    rows = templateState.rows,
-                    cols = templateState.cols,
-                    anchor = WatermarkTableAnchor.TOP_LEFT,
-                    offsetXRatio = offsetXRatio,
-                    offsetYRatio = offsetYRatio,
-                    tableHeightRatio = tableHeightRatio,
-                    tableWidthRatio = tableWidthRatio,
-                    bgAlpha = bgAlpha,
-                    bgStyle = bgStyle,
-                    valueScale = valueScale,
-                    textColorMode = textColorMode,
-                    manualTextColor = manualTextColor,
-                    textAlign = textAlign,
-                    drawGrid = gridEnabled,
-                    rowWeights = templateState.rowWeights,
-                    colWeights = templateState.colWeights,
-                    rotationCwDeg = 0,
+                    payload = TableRenderPayload(
+                        rows = templateState.rows,
+                        cols = templateState.cols,
+                        rowWeights = templateState.rowWeights,
+                        colWeights = templateState.colWeights,
+                        cells = cells,
+                    ),
+                    style = TableRenderStyle(
+                        bgStyle = bgStyle,
+                        bgAlpha = bgAlpha,
+                        valueScale = valueScale,
+                        textColorMode = textColorMode,
+                        manualTextColor = manualTextColor,
+                        textAlign = textAlign,
+                        drawGrid = gridEnabled,
+                    ),
+                    placement = TableRenderPlacement(
+                        anchor = WatermarkTableAnchor.TOP_LEFT,
+                        offsetXRatio = offsetXRatio,
+                        offsetYRatio = offsetYRatio,
+                        tableHeightRatio = tableHeightRatio,
+                        tableWidthRatio = tableWidthRatio,
+                        rotationCwDeg = 0,
+                    ),
                 )
             }
 

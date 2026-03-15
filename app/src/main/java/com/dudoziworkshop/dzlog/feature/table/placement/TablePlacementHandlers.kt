@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.table.watermark
+package com.dudoziworkshop.dzlog.feature.table.placement
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
@@ -24,6 +24,7 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
+import com.dudoziworkshop.dzlog.feature.table.model.TableWatermarkUiState
 import com.dudoziworkshop.dzlog.feature.table.policy.TableWatermarkAction
 import com.dudoziworkshop.dzlog.feature.table.policy.applyTableWatermarkAction
 import kotlinx.coroutines.flow.first

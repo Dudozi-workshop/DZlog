@@ -43,7 +43,7 @@ import com.dudoziworkshop.dzlog.ui.log.LogGridScreen
 import com.dudoziworkshop.dzlog.ui.log.LogViewerScreen
 import com.dudoziworkshop.dzlog.ui.log.ORIGINAL_PHOTOS_TITLE
 import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
-import com.dudoziworkshop.dzlog.ui.table.TableEditorScreen
+import com.dudoziworkshop.dzlog.ui.table.detail.TableDetailRoute
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -464,7 +464,7 @@ fun AppRoot() {
 
 
         AppScreen.TABLE_EDITOR -> {
-            TableEditorScreen(
+            TableDetailRoute(
                 templateState = tableTemplateState,
                 onTemplateChange = ::updateTemplateState,
                 onReset = ::resetTemplateState,

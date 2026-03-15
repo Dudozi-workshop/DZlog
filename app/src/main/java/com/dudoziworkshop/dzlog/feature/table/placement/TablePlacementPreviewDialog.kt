@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.table.watermark
+package com.dudoziworkshop.dzlog.feature.table.placement
 
 import android.graphics.RectF
 import androidx.compose.foundation.Canvas
@@ -26,12 +26,15 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableRect
-import com.dudoziworkshop.dzlog.watermark.drawWatermarkTableOnCanvas
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 @Composable
-internal fun CameraLikeWatermarkPlacementPreview(
+fun CameraLikeWatermarkPlacementPreview(
     captureAspect: CaptureAspect,
     rows: Int,
     cols: Int,
@@ -212,28 +215,34 @@ internal fun CameraLikeWatermarkPlacementPreview(
                 } else {
                     anchor
                 }
-                drawWatermarkTableOnCanvas(
+                TableRenderAdapter.draw(
                     canvas = canvas.nativeCanvas,
                     bounds = contentRect,
-                    cells = watermarkCells,
-                    rows = rows.coerceAtLeast(1),
-                    cols = cols.coerceAtLeast(1),
-                    anchor = displayAnchor,
-                    offsetXRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetXRatio else 0,
-                    offsetYRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetYRatio else 0,
-                    tableHeightRatio = tableHeightRatio,
-                    tableWidthRatio = tableWidthRatio,
-                    bgAlpha = bgAlpha.coerceIn(0, 255),
-                    bgStyle = bgStyle,
-                    valueScale = valueScale.coerceIn(60, 160),
-                    textColorMode = textColorMode,
-                    manualTextColor = manualTextColor,
-                    textAlign = textAlign,
-                    drawGrid = drawGrid,
-                    rowWeights = rowWeights,
-                    colWeights = colWeights,
-                    overrideOffsetLeftPx = if (hasOverride) dragLeftPx else null,
-                    overrideOffsetTopPx = if (hasOverride) dragTopPx else null
+                    payload = TableRenderPayload(
+                        rows = rows,
+                        cols = cols,
+                        rowWeights = rowWeights,
+                        colWeights = colWeights,
+                        cells = watermarkCells,
+                    ),
+                    style = TableRenderStyle(
+                        bgAlpha = bgAlpha,
+                        bgStyle = bgStyle,
+                        valueScale = valueScale,
+                        textColorMode = textColorMode,
+                        manualTextColor = manualTextColor,
+                        textAlign = textAlign,
+                        drawGrid = drawGrid,
+                    ),
+                    placement = TableRenderPlacement(
+                        anchor = displayAnchor,
+                        offsetXRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetXRatio else 0,
+                        offsetYRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetYRatio else 0,
+                        tableHeightRatio = tableHeightRatio,
+                        tableWidthRatio = tableWidthRatio,
+                        overrideOffsetLeftPx = if (hasOverride) dragLeftPx else null,
+                        overrideOffsetTopPx = if (hasOverride) dragTopPx else null,
+                    ),
                 )
             }
 

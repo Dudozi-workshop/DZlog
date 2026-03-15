@@ -32,7 +32,11 @@ import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadgesOverlay
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import com.dudoziworkshop.dzlog.watermark.drawWatermarkTableOnCanvas
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 
 /**
  * Layout 탭 전용 실제 표 편집 뷰.
@@ -143,22 +147,28 @@ fun RealTableGridSection(
             )
 
             drawIntoCanvas { canvas ->
-                drawWatermarkTableOnCanvas(
+                TableRenderAdapter.draw(
                     canvas = canvas.nativeCanvas,
                     bounds = bounds,
-                    cells = resolvedCells,
-                    rows = rows,
-                    cols = cols,
-                    anchor = WatermarkTableAnchor.TOP_LEFT,
-                    offsetXRatio = 0,
-                    offsetYRatio = 0,
-                    tableHeightRatio = safeHeightRatio,
-                    tableWidthRatio = safeWidthRatio,
-                    bgAlpha = 210,
-                    bgStyle = wmBgStyle.coerceIn(0, 2),
-                    valueScale = 100,
-                    rowWeights = templateState.rowWeights,
-                    colWeights = templateState.colWeights
+                    payload = TableRenderPayload(
+                        rows = rows,
+                        cols = cols,
+                        rowWeights = templateState.rowWeights,
+                        colWeights = templateState.colWeights,
+                        cells = resolvedCells,
+                    ),
+                    style = TableRenderStyle(
+                        bgAlpha = 210,
+                        bgStyle = wmBgStyle,
+                        valueScale = 100,
+                    ),
+                    placement = TableRenderPlacement(
+                        anchor = WatermarkTableAnchor.TOP_LEFT,
+                        offsetXRatio = 0,
+                        offsetYRatio = 0,
+                        tableHeightRatio = safeHeightRatio,
+                        tableWidthRatio = safeWidthRatio,
+                    ),
                 )
             }
 
@@ -262,17 +272,11 @@ private fun resolveAdaptiveTableScale(cellCount: Int): Float =
 
 private fun resolveWeightsOrOnes(weights: List<Float>?, count: Int): List<Float> {
     if (count <= 0) return emptyList()
-    if (weights == null || weights.size != count) return List(count) { 1f }
-    return weights.map { it.coerceAtLeast(0f) }
+    return TableLayoutCalculator.resolveWeights(weights, count)
 }
 
 private fun computeSizes(total: Float, weights: List<Float>): List<Float> {
-    if (weights.isEmpty()) return emptyList()
-    val sum = weights.sum().takeIf { it > 0f } ?: return List(weights.size) { total / weights.size }
-    val sizes = weights.map { total * (it / sum) }.toMutableList()
-    val diff = total - sizes.sum()
-    sizes[sizes.lastIndex] = (sizes.last() + diff).coerceAtLeast(0f)
-    return sizes
+    return TableLayoutCalculator.computeSizes(total, weights)
 }
 
 private fun cumulativeOffsets(sizes: List<Float>): List<Float> {

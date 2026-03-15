@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.table.watermark
+package com.dudoziworkshop.dzlog.feature.table.model
 
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
@@ -6,7 +6,7 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
 
-data class TableWatermarkUiState(
+data class TablePlacementState(
     val wmAnchor: WatermarkTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT,
     val wmOffsetXRatio: Int = 0,
     val wmOffsetYRatio: Int = 0,
@@ -21,3 +21,5 @@ data class TableWatermarkUiState(
     val wmGridEnabled: Boolean = true,
     val captureAspect: CaptureAspect = CaptureAspect.R3_4
 )
+
+typealias TableWatermarkUiState = TablePlacementState
