@@ -119,11 +119,8 @@ import com.dudoziworkshop.dzlog.feature.table.editor.resetRowWeights
 import com.dudoziworkshop.dzlog.feature.table.editor.updateCell
 import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
-import com.dudoziworkshop.dzlog.feature.table.placement.applyAnchorOffsetDragChange
-import com.dudoziworkshop.dzlog.feature.table.placement.applyCaptureAspectChange
-import com.dudoziworkshop.dzlog.feature.table.placement.applyHeightRatioChange
-import com.dudoziworkshop.dzlog.feature.table.placement.applyWidthRatioChange
 import com.dudoziworkshop.dzlog.feature.table.placement.loadTablePlacementState
+import com.dudoziworkshop.dzlog.feature.table.placement.persistTablePlacementState
 import com.dudoziworkshop.dzlog.feature.table.state.loadTableStyleState
 import com.dudoziworkshop.dzlog.feature.table.state.persistTableStyleState
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -800,6 +797,7 @@ fun TableEditorScreen(
     }
 
     var watermarkUi by remember { mutableStateOf(TablePlacementState()) }
+    var initialPlacementSnapshot by remember { mutableStateOf(TablePlacementState()) }
     var isWmRatioLocked by rememberSaveable { mutableStateOf(false) }
     var tableStyleUi by remember { mutableStateOf(TableStyleState()) }
     var initialStyleSnapshot by remember { mutableStateOf(TableStyleState()) }
@@ -867,7 +865,9 @@ fun TableEditorScreen(
 
     LaunchedEffect(Unit) {
         runCatching {
-            watermarkUi = loadTablePlacementState(context)
+            val loadedPlacement = loadTablePlacementState(context)
+            watermarkUi = loadedPlacement
+            initialPlacementSnapshot = loadedPlacement
             val loadedStyle = loadTableStyleState(context)
             tableStyleUi = loadedStyle
             initialStyleSnapshot = loadedStyle
@@ -1210,6 +1210,7 @@ fun TableEditorScreen(
         derivedStateOf {
             currentTemplate != initialTemplateSnapshot ||
                 tableStyleUi != initialStyleSnapshot ||
+                watermarkUi != initialPlacementSnapshot ||
                 inlineEdit.isEditing() ||
                 manualInputDraft.isNotBlank() ||
                 pathManualInputDraft.isNotBlank()
@@ -1255,8 +1256,22 @@ fun TableEditorScreen(
                 return@launch
             }
 
+            val placementSaveResult = runCatching { persistTablePlacementState(context, watermarkUi) }
+            if (placementSaveResult.isFailure) {
+                Toast.makeText(
+                    context,
+                    "배치 저장 실패: ${placementSaveResult.exceptionOrNull()?.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+                isSavingTemplate = false
+                return@launch
+            }
+
+            val savedPlacement = placementSaveResult.getOrThrow()
+            watermarkUi = savedPlacement
             initialTemplateSnapshot = savePayload
             initialStyleSnapshot = stylePayload
+            initialPlacementSnapshot = savedPlacement
             rowWeightsDragBaseTemplate = null
             colWeightsDragBaseTemplate = null
             undoManager.clear()
@@ -2018,43 +2033,29 @@ fun TableEditorScreen(
                             },
                             onSetWmWidthRatio = { width ->
                                 val normalized = width.coerceIn(10, 100)
-                                scope.launch {
-                                    var nextState = watermarkUi
-                                    val baseWidth = nextState.wmWidthRatio.coerceAtLeast(1)
-                                    val baseHeight = nextState.wmHeightRatio.coerceAtLeast(1)
-                                    if (nextState.wmWidthRatio != normalized) {
-                                        nextState = applyWidthRatioChange(context, normalized, nextState)
-                                    }
-                                    if (isWmRatioLocked) {
-                                        val syncedHeight = (normalized * baseHeight.toFloat() / baseWidth.toFloat())
-                                            .roundToInt()
-                                            .coerceIn(10, 100)
-                                        if (nextState.wmHeightRatio != syncedHeight) {
-                                            nextState = applyHeightRatioChange(context, syncedHeight, nextState)
-                                        }
-                                    }
-                                    watermarkUi = nextState
+                                val baseWidth = watermarkUi.wmWidthRatio.coerceAtLeast(1)
+                                val baseHeight = watermarkUi.wmHeightRatio.coerceAtLeast(1)
+                                var nextState = watermarkUi.copy(wmWidthRatio = normalized)
+                                if (isWmRatioLocked) {
+                                    val syncedHeight = (normalized * baseHeight.toFloat() / baseWidth.toFloat())
+                                        .roundToInt()
+                                        .coerceIn(10, 100)
+                                    nextState = nextState.copy(wmHeightRatio = syncedHeight)
                                 }
+                                watermarkUi = nextState
                             },
                             onSetWmHeightRatio = { height ->
                                 val normalized = height.coerceIn(10, 100)
-                                scope.launch {
-                                    var nextState = watermarkUi
-                                    val baseWidth = nextState.wmWidthRatio.coerceAtLeast(1)
-                                    val baseHeight = nextState.wmHeightRatio.coerceAtLeast(1)
-                                    if (nextState.wmHeightRatio != normalized) {
-                                        nextState = applyHeightRatioChange(context, normalized, nextState)
-                                    }
-                                    if (isWmRatioLocked) {
-                                        val syncedWidth = (normalized * baseWidth.toFloat() / baseHeight.toFloat())
-                                            .roundToInt()
-                                            .coerceIn(10, 100)
-                                        if (nextState.wmWidthRatio != syncedWidth) {
-                                            nextState = applyWidthRatioChange(context, syncedWidth, nextState)
-                                        }
-                                    }
-                                    watermarkUi = nextState
+                                val baseWidth = watermarkUi.wmWidthRatio.coerceAtLeast(1)
+                                val baseHeight = watermarkUi.wmHeightRatio.coerceAtLeast(1)
+                                var nextState = watermarkUi.copy(wmHeightRatio = normalized)
+                                if (isWmRatioLocked) {
+                                    val syncedWidth = (normalized * baseWidth.toFloat() / baseHeight.toFloat())
+                                        .roundToInt()
+                                        .coerceIn(10, 100)
+                                    nextState = nextState.copy(wmWidthRatio = syncedWidth)
                                 }
+                                watermarkUi = nextState
                             },
                             onStartRowWeightsDrag = {
                                 rowWeightsDragBaseTemplate = editableTemplateState
@@ -2116,28 +2117,24 @@ fun TableEditorScreen(
                         wmTextAlign = tableStyleUi.textAlign,
                         wmGridEnabled = tableStyleUi.gridEnabled,
                         onCaptureAspectChange = { aspect ->
-                            scope.launch {
-                                watermarkUi = applyCaptureAspectChange(context, aspect, watermarkUi)
-                            }
+                            watermarkUi = watermarkUi.copy(captureAspect = aspect)
                         },
                         onWatermarkDragPreview = { _, _ ->
                             // 드래그 중에는 로컬 프리뷰만 갱신하고 상위 상태/SSOT 갱신은 하지 않음
                         },
                         onWatermarkDragCommit = { offsetX, offsetY ->
-                            scope.launch {
-                                watermarkUi = applyAnchorOffsetDragChange(context, offsetX, offsetY, watermarkUi)
-                            }
+                            watermarkUi = watermarkUi.copy(
+                                wmAnchor = com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor.CUSTOM,
+                                wmOffsetXRatio = offsetX.coerceIn(0, 100),
+                                wmOffsetYRatio = offsetY.coerceIn(0, 100),
+                            )
                         },
                         onRowColWeightsChange = { updated -> updateTemplateDraft(updated) },
                         onWidthRatioChange = { width ->
-                            scope.launch {
-                                watermarkUi = applyWidthRatioChange(context, width, watermarkUi)
-                            }
+                            watermarkUi = watermarkUi.copy(wmWidthRatio = width.coerceIn(10, 100))
                         },
                         onHeightRatioChange = { height ->
-                            scope.launch {
-                                watermarkUi = applyHeightRatioChange(context, height, watermarkUi)
-                            }
+                            watermarkUi = watermarkUi.copy(wmHeightRatio = height.coerceIn(10, 100))
                         },
                         onBgStyleChange = { bgStyle ->
                             tableStyleUi = tableStyleUi.copy(bgStyle = bgStyle.coerceIn(0, 2))

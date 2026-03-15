@@ -52,11 +52,15 @@ class HomePreviewRatioTest {
             contentAspectRatio = 1.2f,
             boundsWidth = 600f,
             boundsHeight = 260f,
+            tableWidthRatio = 95,
+            tableHeightRatio = 90,
         )
         val extreme = computeHomePreviewRatio(
             contentAspectRatio = 0.05f,
             boundsWidth = 600f,
             boundsHeight = 260f,
+            tableWidthRatio = 40,
+            tableHeightRatio = 20,
         )
 
         assertEquals(95, normal.tableWidthRatio)

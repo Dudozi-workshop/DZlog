@@ -6,6 +6,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BG_ALPHA
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_DETAIL_GRID_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_ALIGN
@@ -33,6 +35,8 @@ data class TablePreviewSettingsState(
     val wmManualTextColor: Int,
     val wmTextAlign: Int,
     val tableDetailGridEnabled: Boolean,
+    val wmWidthRatio: Int,
+    val wmHeightRatio: Int,
 )
 
 /**
@@ -55,6 +59,8 @@ fun rememberTablePreviewSettings(): TablePreviewSettingsState {
                 .coerceIn(WatermarkTextAlign.LEFT, WatermarkTextAlign.RIGHT)
             // 주요 정책: 홈 표 프리뷰 grid는 표 상세설정 전용 키만 사용한다. (촬영 워터마크 grid와 분리)
             val gridEnabled = prefs[KEY_TABLE_DETAIL_GRID_ENABLED] ?: true
+            val wmWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(10, 100)
+            val wmHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 100)
             TablePreviewSettingsState(
                 wmBgStyle = bgStyle,
                 wmBgAlpha = bgAlpha,
@@ -63,6 +69,8 @@ fun rememberTablePreviewSettings(): TablePreviewSettingsState {
                 wmManualTextColor = manualTextColor,
                 wmTextAlign = textAlign,
                 tableDetailGridEnabled = gridEnabled,
+                wmWidthRatio = wmWidthRatio,
+                wmHeightRatio = wmHeightRatio,
             )
         }
     }
@@ -76,6 +84,8 @@ fun rememberTablePreviewSettings(): TablePreviewSettingsState {
             wmManualTextColor = WatermarkManualTextColor.BLACK,
             wmTextAlign = WatermarkTextAlign.LEFT,
             tableDetailGridEnabled = true,
+            wmWidthRatio = 40,
+            wmHeightRatio = 20,
         )
     )
     return state

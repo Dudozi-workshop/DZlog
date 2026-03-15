@@ -33,6 +33,8 @@ internal fun computeHomePreviewRatio(
     contentAspectRatio: Float,
     boundsWidth: Float,
     boundsHeight: Float,
+    tableWidthRatio: Int,
+    tableHeightRatio: Int,
 ): TableShapeRatios {
     val safeAspect = contentAspectRatio.coerceIn(HOME_MIN_CONTENT_ASPECT_RATIO, HOME_MAX_CONTENT_ASPECT_RATIO)
     val safeWidth = boundsWidth.coerceAtLeast(1f)
@@ -41,8 +43,8 @@ internal fun computeHomePreviewRatio(
 
     return computeShapeLockedRatios(
         contentAspectRatio = safeAspect,
-        maxWidthRatio = HOME_MAX_FILL_RATIO,
-        maxHeightRatio = maxHeightByBounds.coerceAtMost(HOME_MAX_FILL_RATIO),
+        maxWidthRatio = tableWidthRatio.coerceIn(HOME_MIN_WIDTH_RATIO, HOME_MAX_FILL_RATIO),
+        maxHeightRatio = minOf(tableHeightRatio.coerceIn(HOME_MIN_HEIGHT_RATIO, HOME_MAX_FILL_RATIO), maxHeightByBounds.coerceAtMost(HOME_MAX_FILL_RATIO)),
         minWidthRatio = HOME_MIN_WIDTH_RATIO,
         minHeightRatio = HOME_MIN_HEIGHT_RATIO,
         hardMaxRatio = HOME_MAX_FILL_RATIO,
@@ -70,6 +72,8 @@ fun TableRender(
     manualTextColor: Int = WatermarkManualTextColor.BLACK,
     textAlign: Int = WatermarkTextAlign.LEFT,
     gridEnabled: Boolean = true,
+    tableWidthRatio: Int = 40,
+    tableHeightRatio: Int = 20,
 ) {
     val contentAspectRatio = resolveContentAspectRatio(templateState)
 
@@ -102,6 +106,8 @@ fun TableRender(
                     contentAspectRatio = contentAspectRatio,
                     boundsWidth = bounds.width(),
                     boundsHeight = bounds.height(),
+                    tableWidthRatio = tableWidthRatio,
+                    tableHeightRatio = tableHeightRatio,
                 )
                 TableRenderAdapter.draw(
                     canvas = canvas.nativeCanvas,
