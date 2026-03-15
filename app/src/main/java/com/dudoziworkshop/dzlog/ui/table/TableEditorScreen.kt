@@ -107,19 +107,21 @@ import com.dudoziworkshop.dzlog.feature.table.editor.addRow
 import com.dudoziworkshop.dzlog.feature.table.editor.removeColumn
 import com.dudoziworkshop.dzlog.feature.table.editor.removeRow
 import com.dudoziworkshop.dzlog.feature.table.editor.updateCell
-import com.dudoziworkshop.dzlog.feature.table.model.TableWatermarkUiState
+import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
+import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.placement.applyAnchorOffsetDragChange
-import com.dudoziworkshop.dzlog.feature.table.placement.applyBgAlphaChange
-import com.dudoziworkshop.dzlog.feature.table.placement.applyBgStyleChange
+import com.dudoziworkshop.dzlog.feature.table.state.applyBgAlphaChange
+import com.dudoziworkshop.dzlog.feature.table.state.applyBgStyleChange
 import com.dudoziworkshop.dzlog.feature.table.placement.applyCaptureAspectChange
-import com.dudoziworkshop.dzlog.feature.table.placement.applyGridEnabledChange
+import com.dudoziworkshop.dzlog.feature.table.state.applyGridEnabledChange
 import com.dudoziworkshop.dzlog.feature.table.placement.applyHeightRatioChange
-import com.dudoziworkshop.dzlog.feature.table.placement.applyManualTextColorChange
-import com.dudoziworkshop.dzlog.feature.table.placement.applyTextAlignChange
-import com.dudoziworkshop.dzlog.feature.table.placement.applyTextColorModeChange
-import com.dudoziworkshop.dzlog.feature.table.placement.applyValueScaleChange
+import com.dudoziworkshop.dzlog.feature.table.state.applyManualTextColorChange
+import com.dudoziworkshop.dzlog.feature.table.state.applyTextAlignChange
+import com.dudoziworkshop.dzlog.feature.table.state.applyTextColorModeChange
+import com.dudoziworkshop.dzlog.feature.table.state.applyValueScaleChange
 import com.dudoziworkshop.dzlog.feature.table.placement.applyWidthRatioChange
-import com.dudoziworkshop.dzlog.feature.table.placement.loadTableWatermarkUiState
+import com.dudoziworkshop.dzlog.feature.table.placement.loadTablePlacementState
+import com.dudoziworkshop.dzlog.feature.table.state.loadTableStyleState
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import androidx.lifecycle.Lifecycle
@@ -779,11 +781,13 @@ fun TableEditorScreen(
         plan.resolvedCells.associate { it.id to it.resolvedText }
     }
 
-    var watermarkUi by remember { mutableStateOf(TableWatermarkUiState()) }
+    var watermarkUi by remember { mutableStateOf(TablePlacementState()) }
+    var tableStyleUi by remember { mutableStateOf(TableStyleState()) }
 
     LaunchedEffect(Unit) {
         runCatching {
-            watermarkUi = loadTableWatermarkUiState(context)
+            watermarkUi = loadTablePlacementState(context)
+            tableStyleUi = loadTableStyleState(context)
         }
     }
 
@@ -1277,7 +1281,7 @@ fun TableEditorScreen(
                             captureAspect = watermarkUi.captureAspect,
                             wmWidthRatio = watermarkUi.wmWidthRatio,
                             wmHeightRatio = watermarkUi.wmHeightRatio,
-                            wmBgStyle = watermarkUi.wmBgStyle
+                            wmBgStyle = tableStyleUi.bgStyle
                         ),
                         actions = LayoutTabActions(
                             onSelectCellId = ::requestSelectCell,
@@ -1805,13 +1809,13 @@ fun TableEditorScreen(
                         wmOffsetYRatio = watermarkUi.wmOffsetYRatio,
                         wmWidthRatio = watermarkUi.wmWidthRatio,
                         wmHeightRatio = watermarkUi.wmHeightRatio,
-                        wmBgStyle = watermarkUi.wmBgStyle,
-                        wmBgAlpha = watermarkUi.wmBgAlpha,
-                        wmValueScale = watermarkUi.wmValueScale,
-                        wmTextColorMode = watermarkUi.wmTextColorMode,
-                        wmManualTextColor = watermarkUi.wmManualTextColor,
-                        wmTextAlign = watermarkUi.wmTextAlign,
-                        wmGridEnabled = watermarkUi.wmGridEnabled,
+                        wmBgStyle = tableStyleUi.bgStyle,
+                        wmBgAlpha = tableStyleUi.bgAlpha,
+                        wmValueScale = tableStyleUi.valueScale,
+                        wmTextColorMode = tableStyleUi.textColorMode,
+                        wmManualTextColor = tableStyleUi.manualTextColor,
+                        wmTextAlign = tableStyleUi.textAlign,
+                        wmGridEnabled = tableStyleUi.gridEnabled,
                         onCaptureAspectChange = { aspect ->
                             scope.launch {
                                 watermarkUi = applyCaptureAspectChange(context, aspect, watermarkUi)
@@ -1838,37 +1842,37 @@ fun TableEditorScreen(
                         },
                         onBgStyleChange = { bgStyle ->
                             scope.launch {
-                                watermarkUi = applyBgStyleChange(context, bgStyle, watermarkUi)
+                                tableStyleUi = applyBgStyleChange(context, bgStyle, tableStyleUi)
                             }
                         },
                         onBgAlphaChange = { alpha ->
                             scope.launch {
-                                watermarkUi = applyBgAlphaChange(context, alpha, watermarkUi)
+                                tableStyleUi = applyBgAlphaChange(context, alpha, tableStyleUi)
                             }
                         },
                         onValueScaleChange = { scale ->
                             scope.launch {
-                                watermarkUi = applyValueScaleChange(context, scale, watermarkUi)
+                                tableStyleUi = applyValueScaleChange(context, scale, tableStyleUi)
                             }
                         },
                         onTextColorModeChange = { mode ->
                             scope.launch {
-                                watermarkUi = applyTextColorModeChange(context, mode, watermarkUi)
+                                tableStyleUi = applyTextColorModeChange(context, mode, tableStyleUi)
                             }
                         },
                         onManualTextColorChange = { color ->
                             scope.launch {
-                                watermarkUi = applyManualTextColorChange(context, color, watermarkUi)
+                                tableStyleUi = applyManualTextColorChange(context, color, tableStyleUi)
                             }
                         },
                         onTextAlignChange = { align ->
                             scope.launch {
-                                watermarkUi = applyTextAlignChange(context, align, watermarkUi)
+                                tableStyleUi = applyTextAlignChange(context, align, tableStyleUi)
                             }
                         },
                         onGridEnabledChange = { enabled ->
                             scope.launch {
-                                watermarkUi = applyGridEnabledChange(context, enabled, watermarkUi)
+                                tableStyleUi = applyGridEnabledChange(context, enabled, tableStyleUi)
                             }
                         }
                     )

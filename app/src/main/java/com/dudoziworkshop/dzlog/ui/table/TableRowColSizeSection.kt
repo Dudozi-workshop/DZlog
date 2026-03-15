@@ -17,6 +17,9 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -25,9 +28,6 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import java.util.Locale
 
-// =========================
-// Stage 4: Row/Col size controls (weights)
-// =========================
 private fun ensureRowWeights(state: TableTemplateState): List<Float> {
     val n = state.rows.coerceAtLeast(1)
     val w = state.rowWeights
@@ -47,7 +47,18 @@ internal fun TableRowColSizeSection(
 ) {
     val rowWeights = ensureRowWeights(templateState)
     val colWeights = ensureColWeights(templateState)
+    val editingRowWeights = remember { mutableStateListOf<Float>() }
+    val editingColWeights = remember { mutableStateListOf<Float>() }
     val innerScroll = rememberScrollState()
+
+    LaunchedEffect(rowWeights) {
+        editingRowWeights.clear()
+        editingRowWeights.addAll(rowWeights)
+    }
+    LaunchedEffect(colWeights) {
+        editingColWeights.clear()
+        editingColWeights.addAll(colWeights)
+    }
 
     Column(
         modifier = Modifier
@@ -74,7 +85,6 @@ internal fun TableRowColSizeSection(
             }) { Text("RESET", style = DDZTypography.ButtonText) }
         }
 
-        // 행/열이 많을 때 레이아웃 섹션만 스크롤되도록 제한
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -84,15 +94,18 @@ internal fun TableRowColSizeSection(
         ) {
             Text("행 높이", style = DDZTypography.Body, color = DDZColor.TextPrimary)
             for (r in 0 until templateState.rows.coerceAtLeast(1)) {
-                val v = rowWeights.getOrNull(r) ?: 1f
+                val v = editingRowWeights.getOrElse(r) { 1f }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("R${r + 1}", modifier = Modifier.width(34.dp), style = DDZTypography.Caption, color = DDZColor.TextMuted)
                     Slider(
                         value = v.coerceIn(0.3f, 3.0f),
                         onValueChange = { nv ->
-                            val next = rowWeights.toMutableList()
-                            next[r] = nv.coerceIn(0.3f, 3.0f)
-                            onTemplateChange(templateState.copy(rowWeights = next))
+                            if (r < editingRowWeights.size) {
+                                editingRowWeights[r] = nv.coerceIn(0.3f, 3.0f)
+                            }
+                        },
+                        onValueChangeFinished = {
+                            onTemplateChange(templateState.copy(rowWeights = editingRowWeights.toList()))
                         },
                         valueRange = 0.3f..3.0f,
                         modifier = Modifier.weight(1f)
@@ -104,15 +117,18 @@ internal fun TableRowColSizeSection(
             Spacer(Modifier.height(6.dp))
             Text("열 너비", style = DDZTypography.Body, color = DDZColor.TextPrimary)
             for (c in 0 until templateState.cols.coerceAtLeast(1)) {
-                val v = colWeights.getOrNull(c) ?: 1f
+                val v = editingColWeights.getOrElse(c) { 1f }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("C${c + 1}", modifier = Modifier.width(34.dp), style = DDZTypography.Caption, color = DDZColor.TextMuted)
                     Slider(
                         value = v.coerceIn(0.3f, 3.0f),
                         onValueChange = { nv ->
-                            val next = colWeights.toMutableList()
-                            next[c] = nv.coerceIn(0.3f, 3.0f)
-                            onTemplateChange(templateState.copy(colWeights = next))
+                            if (c < editingColWeights.size) {
+                                editingColWeights[c] = nv.coerceIn(0.3f, 3.0f)
+                            }
+                        },
+                        onValueChangeFinished = {
+                            onTemplateChange(templateState.copy(colWeights = editingColWeights.toList()))
                         },
                         valueRange = 0.3f..3.0f,
                         modifier = Modifier.weight(1f)

@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.feature.table.editor
 
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 
 object TableHandleOverlay {
     fun applyRowWeightDragEnd(
@@ -21,7 +22,9 @@ object TableHandleOverlay {
 
     private fun normalizeWeights(weights: List<Float>, count: Int): List<Float> {
         if (count <= 0) return emptyList()
-        val safe = if (weights.size == count) weights else List(count) { 1f }
-        return safe.map { it.coerceAtLeast(0.0001f) }
+        return TableLayoutCalculator.resolveWeights(
+            weights = if (weights.size == count) weights else null,
+            count = count,
+        )
     }
 }

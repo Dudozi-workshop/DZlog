@@ -1,11 +1,9 @@
 package com.dudoziworkshop.dzlog.feature.table.editor
 
-import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-
-class TableUndoManager(
+class TableUndoManager<T>(
     private val maxSize: Int = 100,
 ) {
-    private val undoStack = ArrayDeque<TableTemplateState>()
+    private val undoStack = ArrayDeque<T>()
 
     fun clear() {
         undoStack.clear()
@@ -13,7 +11,7 @@ class TableUndoManager(
 
     fun canUndo(): Boolean = undoStack.isNotEmpty()
 
-    fun pushSnapshotBeforeAction(current: TableTemplateState) {
+    fun pushSnapshotBeforeAction(current: T) {
         val last = undoStack.lastOrNull()
         if (last == current) return
         undoStack.addLast(current)
@@ -22,8 +20,7 @@ class TableUndoManager(
         }
     }
 
-    fun undo(current: TableTemplateState): TableTemplateState {
-        val previous = undoStack.removeLastOrNull() ?: return current
-        return previous
+    fun undo(current: T): T {
+        return undoStack.removeLastOrNull() ?: current
     }
 }

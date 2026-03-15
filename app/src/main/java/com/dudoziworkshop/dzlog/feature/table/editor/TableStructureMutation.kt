@@ -9,6 +9,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.policy.TableEditorPolicy
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 
 fun updateCell(
     templateState: TableTemplateState,
@@ -56,7 +57,7 @@ fun addRowBySelection(
         )
     }
 
-    val baseWeights = resolveWeightsOrOnes(templateState.rowWeights, templateState.rows)
+    val baseWeights = TableLayoutCalculator.resolveWeights(templateState.rowWeights, templateState.rows)
     val nextWeights = baseWeights.toMutableList().apply { add(insertAt, 1f) }
 
     return templateState.copy(
@@ -88,7 +89,7 @@ fun addColumnBySelection(
         )
     }
 
-    val baseWeights = resolveWeightsOrOnes(templateState.colWeights, templateState.cols)
+    val baseWeights = TableLayoutCalculator.resolveWeights(templateState.colWeights, templateState.cols)
     val nextWeights = baseWeights.toMutableList().apply { add(insertAt, 1f) }
 
     return templateState.copy(
@@ -124,7 +125,7 @@ fun removeRowBySelection(
     return templateState.copy(
         rows = nextRows,
         cells = remainingCells.sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex })),
-        rowWeights = removeRange(resolveWeightsOrOnes(templateState.rowWeights, templateState.rows), removeStart, actualRemoveEnd),
+        rowWeights = removeRange(TableLayoutCalculator.resolveWeights(templateState.rowWeights, templateState.rows), removeStart, actualRemoveEnd),
         fileNameSlotDrafts = sanitizeFileNameSlotDrafts(templateState.fileNameSlotDrafts, remainingCells),
         pathSlotDrafts = sanitizePathSlotDrafts(templateState.pathSlotDrafts, remainingCells),
     )
@@ -156,7 +157,7 @@ fun removeColumnBySelection(
     return templateState.copy(
         cols = nextCols,
         cells = remainingCells.sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex })),
-        colWeights = removeRange(resolveWeightsOrOnes(templateState.colWeights, templateState.cols), removeStart, actualRemoveEnd),
+        colWeights = removeRange(TableLayoutCalculator.resolveWeights(templateState.colWeights, templateState.cols), removeStart, actualRemoveEnd),
         fileNameSlotDrafts = sanitizeFileNameSlotDrafts(templateState.fileNameSlotDrafts, remainingCells),
         pathSlotDrafts = sanitizePathSlotDrafts(templateState.pathSlotDrafts, remainingCells),
     )
@@ -210,12 +211,6 @@ private fun sanitizeAndCompressSlotDrafts(
         }
     }
     return filtered + List((slotCount - filtered.size).coerceAtLeast(0)) { null }
-}
-
-private fun resolveWeightsOrOnes(weights: List<Float>?, count: Int): List<Float> {
-    if (count <= 0) return emptyList()
-    if (weights == null || weights.size != count) return List(count) { 1f }
-    return weights.map { it.coerceAtLeast(0.0001f) }
 }
 
 private fun removeRange(weights: List<Float>, start: Int, end: Int): List<Float> {
