@@ -228,7 +228,7 @@ fun TableEditorScreen(
     // ✅ 탭 상태
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
-    val initialTemplateSnapshot = remember { templateState }
+    var initialTemplateSnapshot by remember { mutableStateOf(templateState) }
     var editableTemplateState by remember { mutableStateOf(templateState) }
     val currentTemplate = editableTemplateState
 
@@ -1204,7 +1204,7 @@ fun TableEditorScreen(
         derivedStateOf { undoManager.canUndo() }
     }
 
-    fun saveTemplateAndExit() {
+    fun saveTemplate(exitAfterSave: Boolean = false) {
         commitInlineEditIfNeeded()
         if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
         isSavingTemplate = true
@@ -1240,12 +1240,16 @@ fun TableEditorScreen(
                 return@launch
             }
 
+            initialTemplateSnapshot = savePayload
             initialStyleSnapshot = stylePayload
             undoManager.clear()
             undoRevision += 1
             Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
             onTemplateChange(savePayload)
-            onBack()
+            isSavingTemplate = false
+            if (exitAfterSave) {
+                onBack()
+            }
         }
     }
 
@@ -1292,7 +1296,7 @@ fun TableEditorScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = {
                         showUnsavedChangesDialog = false
-                        saveTemplateAndExit()
+                        saveTemplate(exitAfterSave = true)
                     }) {
                         Text("저장", style = DDZTypography.ButtonText, color = DDZColor.Primary)
                     }
@@ -1869,7 +1873,7 @@ fun TableEditorScreen(
                                 undoManager.clear()
                                 undoRevision += 1
                             },
-                            onSave = { saveTemplateAndExit() },
+                            onSave = { saveTemplate(exitAfterSave = false) },
                             onDismissSettingsPanel = {
                                 commitInlineEditIfNeeded()
                                 showCellSettingsPanel = false
