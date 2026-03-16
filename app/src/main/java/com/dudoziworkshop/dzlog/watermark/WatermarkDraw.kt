@@ -16,6 +16,8 @@ import kotlin.math.abs
 private const val BG_STYLE_BLACK = 0
 private const val BG_STYLE_WHITE = 1
 private const val BG_STYLE_TRANSPARENT = 2
+private const val TEXT_BASE_RATIO = 0.36f
+private const val TEXT_CELL_SAFE_RATIO = 0.80f
 
 data class WatermarkTableLayout(
     val rect: RectF,
@@ -284,6 +286,82 @@ private fun computeSizes(total: Float, weights: List<Float>): List<Float> {
 }
 
 
+/**
+ * 표 전체 공통 텍스트 기준 크기 계산.
+ * - 기준 셀: tableWidth/cols, tableHeight/rows의 균등 분할 셀
+ * - row/col weights는 여기서 사용하지 않는다.
+ */
+internal fun computeBaseTextSizeFromRenderedTable(
+    tableWidth: Float,
+    tableHeight: Float,
+    rows: Int,
+    cols: Int,
+): Float {
+    val safeRows = rows.coerceAtLeast(1)
+    val safeCols = cols.coerceAtLeast(1)
+    val baseCellWidth = tableWidth / safeCols
+    val baseCellHeight = tableHeight / safeRows
+    val baseCellShortSide = minOf(baseCellWidth, baseCellHeight).coerceAtLeast(0f)
+    return (baseCellShortSide * TEXT_BASE_RATIO).coerceAtLeast(1f)
+}
+
+internal fun applyValueScaleFactor(baseTextSize: Float, valueScale: Int): Float {
+    val scaleFactor = valueScale / 100f
+    return (baseTextSize * scaleFactor).coerceAtLeast(1f)
+}
+
+/**
+ * 실제 셀 안전 상한(cap)만 적용한다.
+ * - 셀별 기본 텍스트 크기 재계산은 하지 않는다.
+ */
+internal fun applyCellSafeTextCap(
+    scaledTextSize: Float,
+    actualCellWidth: Float,
+    actualCellHeight: Float,
+): Float {
+    val actualCellShortSide = minOf(actualCellWidth, actualCellHeight).coerceAtLeast(0f)
+    val cellMaxTextSize = (actualCellShortSide * TEXT_CELL_SAFE_RATIO).coerceAtLeast(1f)
+    return minOf(scaledTextSize, cellMaxTextSize)
+}
+
+
+private fun resolveCellTextPadding(tableHeight: Float): Float =
+    (tableHeight * 0.08f).coerceIn(8f, 20f)
+
+private fun drawCellValueText(
+    canvas: Canvas,
+    paint: Paint,
+    cellRect: RectF,
+    cellText: String,
+    textAlign: Int,
+    commonScaledTextSize: Float,
+    cellTextPadding: Float,
+) {
+    paint.textSize = applyCellSafeTextCap(
+        scaledTextSize = commonScaledTextSize,
+        actualCellWidth = cellRect.width(),
+        actualCellHeight = cellRect.height(),
+    )
+
+    val fm = paint.fontMetrics
+    val centerY = cellRect.top + cellRect.height() / 2f - (fm.ascent + fm.descent) / 2
+    val availableWidth = (cellRect.width() - (cellTextPadding * 2f)).coerceAtLeast(0f)
+    val drawText = ellipsizeToWidth(cellText, paint, availableWidth)
+    val drawX = resolveTextDrawX(
+        cellLeft = cellRect.left,
+        cellWidth = cellRect.width(),
+        pad = cellTextPadding,
+        text = drawText,
+        paint = paint,
+        textAlign = textAlign,
+    )
+
+    canvas.save()
+    canvas.clipRect(cellRect)
+    canvas.drawText(drawText, drawX, centerY, paint)
+    canvas.restore()
+}
+
 private fun resolveValueTextColor(bgStyle: Int, textColorMode: Int, manualTextColor: Int): Int {
     return if (textColorMode == WatermarkTextColorMode.MANUAL) {
         if (manualTextColor == WatermarkManualTextColor.WHITE) Color.WHITE else Color.BLACK
@@ -429,13 +507,23 @@ fun drawWatermarkTableFromResolvedCells(
         drawGridLines(canvas, left, top, tableW, tableH, rowOffsets, colOffsets, bgStyle)
     }
 
+    val commonScaledTextSize = applyValueScaleFactor(
+        baseTextSize = computeBaseTextSizeFromRenderedTable(
+            tableWidth = tableW,
+            tableHeight = tableH,
+            rows = safeRows,
+            cols = safeCols,
+        ),
+        valueScale = valueScale,
+    )
+
     val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = resolveValueTextColor(bgStyle, textColorMode, manualTextColor)
         typeface = Typeface.DEFAULT_BOLD
-        textSize = (tableH * 0.16f * (valueScale / 100f)).coerceAtLeast(18f)
+        textSize = commonScaledTextSize
     }
 
-    val pad = (tableH * 0.08f).coerceIn(8f, 20f)
+    val cellTextPadding = resolveCellTextPadding(tableH)
 
     for (r in 0 until safeRows) {
         for (c in 0 until safeCols) {
@@ -449,16 +537,15 @@ fun drawWatermarkTableFromResolvedCells(
             val y = top + rowOffsets[r]
             val cellRect = RectF(x, y, x + cellW, y + cellH)
 
-            val fm = valuePaint.fontMetrics
-            val centerY = y + cellH / 2f - (fm.ascent + fm.descent) / 2
-            val availableWidth = (cellRect.width() - (pad * 2f)).coerceAtLeast(0f)
-            val drawText = ellipsizeToWidth(cell.valueText, valuePaint, availableWidth)
-            val drawX = resolveTextDrawX(x, cellW, pad, drawText, valuePaint, textAlign)
-
-            canvas.save()
-            canvas.clipRect(cellRect)
-            canvas.drawText(drawText, drawX, centerY, valuePaint)
-            canvas.restore()
+            drawCellValueText(
+                canvas = canvas,
+                paint = valuePaint,
+                cellRect = cellRect,
+                cellText = cell.valueText,
+                textAlign = textAlign,
+                commonScaledTextSize = commonScaledTextSize,
+                cellTextPadding = cellTextPadding,
+            )
         }
     }
 
@@ -541,13 +628,23 @@ fun drawWatermarkTableOnCanvas(
         drawGridLines(canvas, left, top, tableW, tableH, rowOffsets, colOffsets, bgStyle)
     }
 
+    val commonScaledTextSize = applyValueScaleFactor(
+        baseTextSize = computeBaseTextSizeFromRenderedTable(
+            tableWidth = tableW,
+            tableHeight = tableH,
+            rows = safeRows,
+            cols = safeCols,
+        ),
+        valueScale = valueScale,
+    )
+
     val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = resolveValueTextColor(bgStyle, textColorMode, manualTextColor)
         typeface = Typeface.DEFAULT_BOLD
-        textSize = (tableH * 0.16f * (valueScale / 100f)).coerceAtLeast(18f)
+        textSize = commonScaledTextSize
     }
 
-    val pad = (tableH * 0.08f).coerceIn(8f, 20f)
+    val cellTextPadding = resolveCellTextPadding(tableH)
 
     for (r in 0 until safeRows) {
         for (c in 0 until safeCols) {
@@ -561,16 +658,15 @@ fun drawWatermarkTableOnCanvas(
             val y = top + rowOffsets[r]
             val cellRect = RectF(x, y, x + cellW, y + cellH)
 
-            val fm = valuePaint.fontMetrics
-            val centerY = y + cellH / 2f - (fm.ascent + fm.descent) / 2
-            val availableWidth = (cellRect.width() - (pad * 2f)).coerceAtLeast(0f)
-            val drawText = ellipsizeToWidth(cell.valueText, valuePaint, availableWidth)
-            val drawX = resolveTextDrawX(x, cellW, pad, drawText, valuePaint, textAlign)
-
-            canvas.save()
-            canvas.clipRect(cellRect)
-            canvas.drawText(drawText, drawX, centerY, valuePaint)
-            canvas.restore()
+            drawCellValueText(
+                canvas = canvas,
+                paint = valuePaint,
+                cellRect = cellRect,
+                cellText = cell.valueText,
+                textAlign = textAlign,
+                commonScaledTextSize = commonScaledTextSize,
+                cellTextPadding = cellTextPadding,
+            )
         }
     }
 

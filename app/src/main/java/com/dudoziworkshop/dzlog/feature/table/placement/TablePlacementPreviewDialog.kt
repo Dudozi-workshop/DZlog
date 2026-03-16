@@ -28,10 +28,9 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableRect
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
-import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
-import com.dudoziworkshop.dzlog.feature.table.render.computeShapeLockedRatios
-import com.dudoziworkshop.dzlog.feature.table.render.resolveContentAspectRatio
+import com.dudoziworkshop.dzlog.feature.table.render.buildCameraPreviewPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.computeRatioOnlyTableShape
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
@@ -61,15 +60,11 @@ fun CameraLikeWatermarkPlacementPreview(
     onDragCommit: (Int, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val shapeLockedRatio = remember(rows, cols, rowWeights, colWeights, tableWidthRatio, tableHeightRatio) {
-        val contentAspectRatio = resolveContentAspectRatio(
-            rows = rows,
-            cols = cols,
-            rowWeights = rowWeights,
-            colWeights = colWeights,
-        )
-        computeShapeLockedRatios(
-            contentAspectRatio = contentAspectRatio,
+    // Camera Preview 정책: 외곽 비율(표 자체 속성)과 위치/회전(촬영 배치 속성)을 분리한다.
+    val cameraPreviewShape = remember(rows, cols, rowWeights, colWeights, tableWidthRatio, tableHeightRatio) {
+        computeRatioOnlyTableShape(
+            tableWidthRatio = tableWidthRatio,
+            tableHeightRatio = tableHeightRatio,
             maxWidthRatio = tableWidthRatio,
             maxHeightRatio = tableHeightRatio,
         )
@@ -101,7 +96,7 @@ fun CameraLikeWatermarkPlacementPreview(
         }
     }
 
-    val tapModifier = Modifier.pointerInput(captureAspect, anchor, shapeLockedRatio.tableWidthRatio, shapeLockedRatio.tableHeightRatio) {
+    val tapModifier = Modifier.pointerInput(captureAspect, anchor, cameraPreviewShape.tableWidthRatio, cameraPreviewShape.tableHeightRatio) {
         detectTapGestures { tapOffset ->
             val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
             val tableRect = computeWatermarkTableRect(
@@ -109,8 +104,8 @@ fun CameraLikeWatermarkPlacementPreview(
                 anchor = anchor,
                 offsetXRatio = dragOffsetXRatio,
                 offsetYRatio = dragOffsetYRatio,
-                tableWidthRatio = shapeLockedRatio.tableWidthRatio,
-                tableHeightRatio = shapeLockedRatio.tableHeightRatio
+                tableWidthRatio = cameraPreviewShape.tableWidthRatio,
+                tableHeightRatio = cameraPreviewShape.tableHeightRatio
             )
             val nextArmed = tableRect.contains(tapOffset.x, tapOffset.y)
             onArmedChange(nextArmed)
@@ -122,7 +117,7 @@ fun CameraLikeWatermarkPlacementPreview(
     }
 
     val dragModifier = if (armed) {
-        Modifier.pointerInput(captureAspect, anchor, shapeLockedRatio.tableWidthRatio, shapeLockedRatio.tableHeightRatio) {
+        Modifier.pointerInput(captureAspect, anchor, cameraPreviewShape.tableWidthRatio, cameraPreviewShape.tableHeightRatio) {
             detectDragGestures(
                 onDragStart = { start ->
                     val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
@@ -131,8 +126,8 @@ fun CameraLikeWatermarkPlacementPreview(
                         anchor = anchor,
                         offsetXRatio = dragOffsetXRatio,
                         offsetYRatio = dragOffsetYRatio,
-                        tableWidthRatio = shapeLockedRatio.tableWidthRatio,
-                        tableHeightRatio = shapeLockedRatio.tableHeightRatio
+                        tableWidthRatio = cameraPreviewShape.tableWidthRatio,
+                        tableHeightRatio = cameraPreviewShape.tableHeightRatio
                     )
                     dragActive = tableRect.contains(start.x, start.y)
                     if (!dragActive) {
@@ -188,8 +183,8 @@ fun CameraLikeWatermarkPlacementPreview(
                 anchor = anchor,
                 offsetXRatio = dragOffsetXRatio,
                 offsetYRatio = dragOffsetYRatio,
-                tableWidthRatio = shapeLockedRatio.tableWidthRatio,
-                tableHeightRatio = shapeLockedRatio.tableHeightRatio
+                tableWidthRatio = cameraPreviewShape.tableWidthRatio,
+                tableHeightRatio = cameraPreviewShape.tableHeightRatio
             )
 
             val tableW = baseTableRect.width()
@@ -250,12 +245,12 @@ fun CameraLikeWatermarkPlacementPreview(
                         textAlign = textAlign,
                         drawGrid = drawGrid,
                     ),
-                    placement = TableRenderPlacement(
+                    placement = buildCameraPreviewPlacement(
                         anchor = displayAnchor,
                         offsetXRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetXRatio else 0,
                         offsetYRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetYRatio else 0,
-                        tableHeightRatio = shapeLockedRatio.tableHeightRatio,
-                        tableWidthRatio = shapeLockedRatio.tableWidthRatio,
+                        tableWidthRatio = cameraPreviewShape.tableWidthRatio,
+                        tableHeightRatio = cameraPreviewShape.tableHeightRatio,
                         overrideOffsetLeftPx = if (hasOverride) dragLeftPx else null,
                         overrideOffsetTopPx = if (hasOverride) dragTopPx else null,
                     ),
