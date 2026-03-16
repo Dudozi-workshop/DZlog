@@ -9,6 +9,10 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.watermark.drawWatermarkTableOnCanvas
 
+/**
+ * 표 자체 속성(구조 + 내부 분배 + 셀 값) payload.
+ * Design Preview / Camera Preview 모두에서 공통으로 사용한다.
+ */
 data class TableRenderPayload(
     val rows: Int,
     val cols: Int,
@@ -17,6 +21,10 @@ data class TableRenderPayload(
     val cells: List<WatermarkBuilder.WatermarkCell>,
 )
 
+/**
+ * 표 자체 서식 속성.
+ * Design Preview / Camera Preview 공통.
+ */
 data class TableRenderStyle(
     val bgStyle: Int = 0,
     val bgAlpha: Int = 210,
@@ -27,6 +35,10 @@ data class TableRenderStyle(
     val drawGrid: Boolean = true,
 )
 
+/**
+ * 촬영 배치 속성(위치/회전/offset override).
+ * Camera Preview 문맥에서 의미가 있고, Design Preview에서는 중립값을 사용한다.
+ */
 data class TableRenderPlacement(
     val anchor: WatermarkTableAnchor = WatermarkTableAnchor.TOP_LEFT,
     val offsetXRatio: Int = 0,
@@ -36,6 +48,39 @@ data class TableRenderPlacement(
     val rotationCwDeg: Int = 0,
     val overrideOffsetLeftPx: Float? = null,
     val overrideOffsetTopPx: Float? = null,
+)
+
+
+fun buildDesignPreviewPlacement(
+    tableWidthRatio: Int,
+    tableHeightRatio: Int,
+): TableRenderPlacement = TableRenderPlacement(
+    anchor = WatermarkTableAnchor.CUSTOM,
+    offsetXRatio = 50,
+    offsetYRatio = 50,
+    tableWidthRatio = tableWidthRatio,
+    tableHeightRatio = tableHeightRatio,
+    rotationCwDeg = 0,
+)
+
+fun buildCameraPreviewPlacement(
+    anchor: WatermarkTableAnchor,
+    offsetXRatio: Int,
+    offsetYRatio: Int,
+    tableWidthRatio: Int,
+    tableHeightRatio: Int,
+    rotationCwDeg: Int = 0,
+    overrideOffsetLeftPx: Float? = null,
+    overrideOffsetTopPx: Float? = null,
+): TableRenderPlacement = TableRenderPlacement(
+    anchor = anchor,
+    offsetXRatio = offsetXRatio,
+    offsetYRatio = offsetYRatio,
+    tableWidthRatio = tableWidthRatio,
+    tableHeightRatio = tableHeightRatio,
+    rotationCwDeg = rotationCwDeg,
+    overrideOffsetLeftPx = overrideOffsetLeftPx,
+    overrideOffsetTopPx = overrideOffsetTopPx,
 )
 
 object TableRenderAdapter {

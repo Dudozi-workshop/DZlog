@@ -45,6 +45,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
+import com.dudoziworkshop.dzlog.feature.table.render.computeDesignPreviewFitShape
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
@@ -122,11 +123,17 @@ fun RealTableGridSection(
         val areaHeightPx = with(density) { maxHeight.toPx() }
         val safeWidthRatio = wmWidthRatio.coerceIn(10, 100)
         val safeHeightRatio = wmHeightRatio.coerceIn(10, 100)
-        val tableAspect = safeWidthRatio / safeHeightRatio.toFloat()
 
         val rows = templateState.rows.coerceAtLeast(1)
         val cols = templateState.cols.coerceAtLeast(1)
-        val cellCount = rows * cols
+        val designPreviewShape = computeDesignPreviewFitShape(
+            boundsWidth = areaWidthPx,
+            boundsHeight = areaHeightPx,
+            tableWidthRatio = safeWidthRatio,
+            tableHeightRatio = safeHeightRatio,
+            rows = rows,
+            cols = cols,
+        )
 
         var previewRowWeights by remember(templateState.rowWeights, rows) {
             mutableStateOf(resolveWeightsOrOnes(templateState.rowWeights, rows))
@@ -143,26 +150,19 @@ fun RealTableGridSection(
             previewColWeights = resolveWeightsOrOnes(templateState.colWeights, cols)
         }
 
-        // 1) contain-fit 기준 크기 계산
-        val fitTableWidthPx: Float
-        val fitTableHeightPx: Float
-        if (areaWidthPx <= 0f || areaHeightPx <= 0f) {
-            fitTableWidthPx = 0f
-            fitTableHeightPx = 0f
-        } else if (areaWidthPx / areaHeightPx > tableAspect) {
-            fitTableHeightPx = areaHeightPx
-            fitTableWidthPx = fitTableHeightPx * tableAspect
+        // Design Preview 공통 fit/scale helper 기준으로 렌더 박스 계산.
+        // (상세 + 홈 동일 축: 외곽 비율 + rows*cols 스케일, 단일 rect SSOT)
+        val tableWidthPx = if (areaWidthPx <= 0f || areaHeightPx <= 0f) {
+            0f
         } else {
-            fitTableWidthPx = areaWidthPx
-            fitTableHeightPx = fitTableWidthPx / tableAspect
+            areaWidthPx * designPreviewShape.tableWidthRatio / 100f
         }
-
-        // 2) 셀 수 기반 adaptive scale cap 적용 (작은 표 과확대 방지)
-        val adaptiveScale = resolveAdaptiveTableScale(cellCount)
-
-        // 3) 최종 표 크기(전체 스케일) 계산 + 4) 최종 기준 center 정렬
-        val tableWidthPx = fitTableWidthPx * adaptiveScale
-        val tableHeightPx = fitTableHeightPx * adaptiveScale
+        val tableHeightPx = if (areaWidthPx <= 0f || areaHeightPx <= 0f) {
+            0f
+        } else {
+            // 렌더 코어(width-base)와 동일하게 높이를 width 기준으로 파생한다.
+            tableWidthPx * designPreviewShape.tableHeightRatio / designPreviewShape.tableWidthRatio.toFloat()
+        }
         val tableLeftPx = ((areaWidthPx - tableWidthPx) / 2f).coerceAtLeast(0f)
         val tableTopPx = ((areaHeightPx - tableHeightPx) / 2f).coerceAtLeast(0f)
         val rowSizes = remember(previewRowWeights, rows, tableHeightPx) {
@@ -179,8 +179,8 @@ fun RealTableGridSection(
             if (tableWidthPx <= 0f || tableHeightPx <= 0f) return@Canvas
 
             // drawWatermarkTableOnCanvas는 bounds.width를 base로 table 크기를 계산한다.
-            // 따라서 "현재 영역에 fit된 목표 표 rect"가 정확히 나오도록 base bounds를 역산해 맞춘다.
-            val baseWidth = tableWidthPx * 100f / safeWidthRatio
+            // 따라서 width 기준 base만 역산하고, 목표 높이는 실제 fit 높이(tableHeightPx)를 직접 사용한다.
+            val baseWidth = tableWidthPx * 100f / designPreviewShape.tableWidthRatio.coerceAtLeast(1)
             val bounds = RectF(
                 tableLeftPx,
                 tableTopPx,
@@ -212,8 +212,8 @@ fun RealTableGridSection(
                         anchor = WatermarkTableAnchor.TOP_LEFT,
                         offsetXRatio = 0,
                         offsetYRatio = 0,
-                        tableHeightRatio = safeHeightRatio,
-                        tableWidthRatio = safeWidthRatio,
+                        tableHeightRatio = designPreviewShape.tableHeightRatio,
+                        tableWidthRatio = designPreviewShape.tableWidthRatio,
                     ),
                 )
             }
@@ -586,14 +586,6 @@ fun RealTableGridSection(
     }
 }
 
-
-private fun resolveAdaptiveTableScale(cellCount: Int): Float =
-    when {
-        cellCount <= 4 -> 0.72f
-        cellCount <= 6 -> 0.82f
-        cellCount <= 8 -> 0.90f
-        else -> 1.00f
-    }
 
 private fun resolveWeightsOrOnes(weights: List<Float>?, count: Int): List<Float> {
     if (count <= 0) return emptyList()

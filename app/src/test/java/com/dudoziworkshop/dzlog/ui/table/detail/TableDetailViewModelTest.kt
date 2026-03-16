@@ -1,6 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.detail
 
-import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.data.template.defaultTableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
 import com.dudoziworkshop.dzlog.feature.table.editor.addRow
 import com.dudoziworkshop.dzlog.feature.table.model.TableEditMode
@@ -12,7 +12,7 @@ class TableDetailViewModelTest {
 
     @Test
     fun structure_mode_selection_controls_row_insertion_point() {
-        val vm = TableDetailViewModel(TableTemplateState.default)
+        val vm = TableDetailViewModel(defaultTableTemplateState())
         vm.dispatch(TableDetailAction.ToggleStructureMode)
         vm.dispatch(TableDetailAction.InjectSelectionRangeForTest(TableSelectionRange(0, 0, 0, 0)))
 
@@ -26,7 +26,7 @@ class TableDetailViewModelTest {
 
     @Test
     fun delete_clears_selection_and_style_change_can_undo() {
-        val vm = TableDetailViewModel(addRow(TableTemplateState.default))
+        val vm = TableDetailViewModel(addRow(defaultTableTemplateState()))
         vm.dispatch(TableDetailAction.ToggleStructureMode)
         vm.dispatch(TableDetailAction.InjectSelectionRangeForTest(TableSelectionRange(0, 1, 0, 0)))
         vm.dispatch(TableDetailAction.RemoveRow)

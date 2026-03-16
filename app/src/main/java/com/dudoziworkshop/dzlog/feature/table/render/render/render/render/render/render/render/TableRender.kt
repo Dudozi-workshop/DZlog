@@ -14,7 +14,6 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
-import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
@@ -23,44 +22,12 @@ import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import java.util.Date
 
-private const val HOME_MIN_CONTENT_ASPECT_RATIO = 0.2f
-private const val HOME_MAX_CONTENT_ASPECT_RATIO = 5.0f
-private const val HOME_MIN_WIDTH_RATIO = 20
-private const val HOME_MIN_HEIGHT_RATIO = 20
-private const val HOME_MAX_FILL_RATIO = 98
-
-@Suppress("UNUSED_PARAMETER")
-internal fun computeHomePreviewRatio(
-    contentAspectRatio: Float,
-    boundsWidth: Float,
-    boundsHeight: Float,
-    tableWidthRatio: Int,
-    tableHeightRatio: Int,
-): TableShapeRatios {
-    val safeAspect = contentAspectRatio.coerceIn(HOME_MIN_CONTENT_ASPECT_RATIO, HOME_MAX_CONTENT_ASPECT_RATIO)
-    val safeWidth = boundsWidth.coerceAtLeast(1f)
-    val safeHeight = boundsHeight.coerceAtLeast(1f)
-    val maxHeightByBounds = ((safeHeight / safeWidth) * HOME_MAX_FILL_RATIO)
-        .toInt()
-        .coerceAtLeast(HOME_MIN_HEIGHT_RATIO)
-
-    // 홈 프리뷰는 size-independent shape 정책을 따른다.
-    // wmWidthRatio / wmHeightRatio 절대값은 무시하고, 템플릿 shape만 카드 bounds에 최대한 맞춘다.
-
-    return computeShapeLockedRatios(
-        contentAspectRatio = safeAspect,
-        maxWidthRatio = HOME_MAX_FILL_RATIO,
-        maxHeightRatio = maxHeightByBounds.coerceAtMost(HOME_MAX_FILL_RATIO),
-        minWidthRatio = HOME_MIN_WIDTH_RATIO,
-        minHeightRatio = HOME_MIN_HEIGHT_RATIO,
-        hardMaxRatio = HOME_MAX_FILL_RATIO,
-    )
-}
 
 /**
  * TableRender
- * - "표 + 값" 만 보여주는 순수 렌더러 (홈/설정/촬영/로그 등 공용)
- * - 라벨/배지/경고색/편집 UI는 절대 포함하지 않음
+ * - "표 자체 속성"(구조/내부분배/서식)만 렌더하는 순수 렌더러.
+ * - Design Preview(상세/홈)와 Camera Preview(미리보기/촬영)가 공통으로 사용한다.
+ * - 위치/회전 같은 촬영 배치 속성은 placement에서 주입한다.
  */
 @Composable
 fun TableRender(
@@ -81,8 +48,6 @@ fun TableRender(
     tableWidthRatio: Int = 40,
     tableHeightRatio: Int = 20,
 ) {
-    val contentAspectRatio = resolveContentAspectRatio(templateState)
-
     val resolver = remember { TableResolver() }
     val plan = remember(templateState, now, counterDigits) {
         val selectedPhraseTextByCellId = PhraseResolver.resolveSelectedTextByCellId(
@@ -108,12 +73,13 @@ fun TableRender(
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawIntoCanvas { canvas ->
                 val bounds = RectF(0f, 0f, size.width, size.height)
-                val ratio = computeHomePreviewRatio(
-                    contentAspectRatio = contentAspectRatio,
+                val ratio = computeDesignPreviewFitShape(
                     boundsWidth = bounds.width(),
                     boundsHeight = bounds.height(),
                     tableWidthRatio = tableWidthRatio,
                     tableHeightRatio = tableHeightRatio,
+                    rows = templateState.rows,
+                    cols = templateState.cols,
                 )
                 TableRenderAdapter.draw(
                     canvas = canvas.nativeCanvas,
@@ -134,15 +100,9 @@ fun TableRender(
                         textAlign = textAlign,
                         drawGrid = gridEnabled,
                     ),
-                    placement = TableRenderPlacement(
-                        // 홈 프리뷰는 placement/rotation 문맥을 배제하고,
-                        // 카드 내부에서 center-fit 된 "표 자체"만 보여준다.
-                        anchor = WatermarkTableAnchor.CUSTOM,
-                        offsetXRatio = 50,
-                        offsetYRatio = 50,
-                        tableHeightRatio = ratio.tableHeightRatio,
+                    placement = buildDesignPreviewPlacement(
                         tableWidthRatio = ratio.tableWidthRatio,
-                        rotationCwDeg = 0,
+                        tableHeightRatio = ratio.tableHeightRatio,
                     ),
                 )
             }
