@@ -41,14 +41,16 @@ class HomePreviewRatioTest {
             boundsHeight = 260f,
             tableWidthRatio = 2,
             tableHeightRatio = 4,
-            cellCount = 9,
+            rows = 3,
+            cols = 3,
         )
         val largeAbsoluteSize = computeDesignPreviewFitShape(
             boundsWidth = 600f,
             boundsHeight = 260f,
             tableWidthRatio = 20,
             tableHeightRatio = 40,
-            cellCount = 9,
+            rows = 3,
+            cols = 3,
         )
 
         assertEquals(smallAbsoluteSize.tableWidthRatio, largeAbsoluteSize.tableWidthRatio)
@@ -62,14 +64,16 @@ class HomePreviewRatioTest {
             boundsHeight = 260f,
             tableWidthRatio = 95,
             tableHeightRatio = 90,
-            cellCount = 9,
+            rows = 3,
+            cols = 3,
         )
         val extreme = computeDesignPreviewFitShape(
             boundsWidth = 600f,
             boundsHeight = 260f,
             tableWidthRatio = 40,
             tableHeightRatio = 20,
-            cellCount = 9,
+            rows = 3,
+            cols = 3,
         )
 
         val normalAspect = normal.tableWidthRatio.toFloat() / normal.tableHeightRatio.toFloat()
@@ -82,9 +86,9 @@ class HomePreviewRatioTest {
 
     @Test
     fun `design preview scale is shared between home and detail`() {
-        assertEquals(0.72f, resolveDesignPreviewScale(cellCount = 4), 0.0001f)
-        assertEquals(0.82f, resolveDesignPreviewScale(cellCount = 6), 0.0001f)
-        assertEquals(0.90f, resolveDesignPreviewScale(cellCount = 8), 0.0001f)
-        assertEquals(1.0f, resolveDesignPreviewScale(cellCount = 9), 0.0001f)
+        assertEquals(0.72f, resolveDesignPreviewScale(rows = 2, cols = 2), 0.0001f)
+        assertEquals(0.82f, resolveDesignPreviewScale(rows = 2, cols = 3), 0.0001f)
+        assertEquals(0.90f, resolveDesignPreviewScale(rows = 2, cols = 4), 0.0001f)
+        assertEquals(1.0f, resolveDesignPreviewScale(rows = 3, cols = 3), 0.0001f)
     }
 }

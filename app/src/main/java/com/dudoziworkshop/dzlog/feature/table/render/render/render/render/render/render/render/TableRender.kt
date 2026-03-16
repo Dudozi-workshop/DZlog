@@ -78,7 +78,8 @@ fun TableRender(
                     boundsHeight = bounds.height(),
                     tableWidthRatio = tableWidthRatio,
                     tableHeightRatio = tableHeightRatio,
-                    cellCount = templateState.cells.size,
+                    rows = templateState.rows,
+                    cols = templateState.cols,
                 )
                 TableRenderAdapter.draw(
                     canvas = canvas.nativeCanvas,

@@ -139,13 +139,22 @@ fun computeRatioOnlyTableShape(
  * - 작은 표는 과도하게 커 보이지 않게 완만하게 축소한다.
  * - 표 자체 비율(wmWidthRatio:wmHeightRatio)은 절대 변경하지 않는다.
  */
-fun resolveDesignPreviewScale(cellCount: Int): Float =
-    when {
-        cellCount <= 4 -> 0.72f
-        cellCount <= 6 -> 0.82f
-        cellCount <= 8 -> 0.90f
+fun resolveDesignPreviewScale(rows: Int, cols: Int): Float {
+    val gridCellCount = (rows.coerceAtLeast(1) * cols.coerceAtLeast(1))
+    return when {
+        gridCellCount <= 4 -> 0.72f
+        gridCellCount <= 6 -> 0.82f
+        gridCellCount <= 8 -> 0.90f
         else -> 1.00f
     }
+}
+
+@Deprecated(
+    message = "Use resolveDesignPreviewScale(rows, cols). Design Preview scale SSOT is rows*cols.",
+    replaceWith = ReplaceWith("resolveDesignPreviewScale(rows, cols)"),
+)
+fun resolveDesignPreviewScale(cellCount: Int): Float =
+    resolveDesignPreviewScale(rows = 1, cols = cellCount.coerceAtLeast(1))
 
 /**
  * Design Preview(표 상세/홈) 공통 fit shape 계산.
@@ -157,11 +166,12 @@ fun computeDesignPreviewFitShape(
     boundsHeight: Float,
     tableWidthRatio: Int,
     tableHeightRatio: Int,
-    cellCount: Int,
+    rows: Int,
+    cols: Int,
 ): TableShapeRatios {
     val safeWidth = boundsWidth.coerceAtLeast(1f)
     val safeHeight = boundsHeight.coerceAtLeast(1f)
-    val adaptiveMaxFillRatio = (DESIGN_PREVIEW_MAX_FILL_RATIO * resolveDesignPreviewScale(cellCount))
+    val adaptiveMaxFillRatio = (DESIGN_PREVIEW_MAX_FILL_RATIO * resolveDesignPreviewScale(rows, cols))
         .toInt()
         .coerceIn(DESIGN_PREVIEW_MIN_RATIO, DESIGN_PREVIEW_MAX_FILL_RATIO)
     val maxHeightByBounds = ((safeHeight / safeWidth) * adaptiveMaxFillRatio)
@@ -181,9 +191,30 @@ fun computeDesignPreviewFitShape(
 
 
 @Deprecated(
-    message = "Use computeDesignPreviewFitShape with cellCount for Design Preview policy.",
+    message = "Use computeDesignPreviewFitShape with rows/cols. Design Preview scale SSOT is rows*cols.",
     replaceWith = ReplaceWith(
-        "computeDesignPreviewFitShape(boundsWidth, boundsHeight, tableWidthRatio, tableHeightRatio, cellCount = 9)",
+        "computeDesignPreviewFitShape(boundsWidth, boundsHeight, tableWidthRatio, tableHeightRatio, rows, cols)",
+    ),
+)
+fun computeDesignPreviewFitShape(
+    boundsWidth: Float,
+    boundsHeight: Float,
+    tableWidthRatio: Int,
+    tableHeightRatio: Int,
+    cellCount: Int,
+): TableShapeRatios = computeDesignPreviewFitShape(
+    boundsWidth = boundsWidth,
+    boundsHeight = boundsHeight,
+    tableWidthRatio = tableWidthRatio,
+    tableHeightRatio = tableHeightRatio,
+    rows = 1,
+    cols = cellCount.coerceAtLeast(1),
+)
+
+@Deprecated(
+    message = "Use computeDesignPreviewFitShape with rows/cols for Design Preview policy.",
+    replaceWith = ReplaceWith(
+        "computeDesignPreviewFitShape(boundsWidth, boundsHeight, tableWidthRatio, tableHeightRatio, rows = 3, cols = 3)",
     ),
 )
 fun computeHomePreviewRatio(
@@ -196,5 +227,6 @@ fun computeHomePreviewRatio(
     boundsHeight = boundsHeight,
     tableWidthRatio = tableWidthRatio,
     tableHeightRatio = tableHeightRatio,
-    cellCount = 9,
+    rows = 3,
+    cols = 3,
 )

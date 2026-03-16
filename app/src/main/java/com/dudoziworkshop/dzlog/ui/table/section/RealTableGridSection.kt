@@ -45,7 +45,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
-import com.dudoziworkshop.dzlog.feature.table.render.resolveDesignPreviewScale
+import com.dudoziworkshop.dzlog.feature.table.render.computeDesignPreviewFitShape
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
@@ -123,11 +123,18 @@ fun RealTableGridSection(
         val areaHeightPx = with(density) { maxHeight.toPx() }
         val safeWidthRatio = wmWidthRatio.coerceIn(10, 100)
         val safeHeightRatio = wmHeightRatio.coerceIn(10, 100)
-        val tableAspect = safeWidthRatio / safeHeightRatio.toFloat()
 
         val rows = templateState.rows.coerceAtLeast(1)
         val cols = templateState.cols.coerceAtLeast(1)
-        val cellCount = rows * cols
+        val designPreviewShape = computeDesignPreviewFitShape(
+            boundsWidth = areaWidthPx,
+            boundsHeight = areaHeightPx,
+            tableWidthRatio = safeWidthRatio,
+            tableHeightRatio = safeHeightRatio,
+            rows = rows,
+            cols = cols,
+        )
+        val designPreviewAspect = designPreviewShape.tableWidthRatio / designPreviewShape.tableHeightRatio.toFloat()
 
         var previewRowWeights by remember(templateState.rowWeights, rows) {
             mutableStateOf(resolveWeightsOrOnes(templateState.rowWeights, rows))
@@ -144,27 +151,18 @@ fun RealTableGridSection(
             previewColWeights = resolveWeightsOrOnes(templateState.colWeights, cols)
         }
 
-        // 1) contain-fit 기준 크기 계산
-        val fitTableWidthPx: Float
-        val fitTableHeightPx: Float
-        if (areaWidthPx <= 0f || areaHeightPx <= 0f) {
-            fitTableWidthPx = 0f
-            fitTableHeightPx = 0f
-        } else if (areaWidthPx / areaHeightPx > tableAspect) {
-            fitTableHeightPx = areaHeightPx
-            fitTableWidthPx = fitTableHeightPx * tableAspect
+        // Design Preview 공통 fit/scale helper 기준으로 렌더 박스 계산.
+        // (상세 + 홈 동일 축: 외곽 비율 + rows*cols 스케일)
+        val tableWidthPx = if (areaWidthPx <= 0f || areaHeightPx <= 0f) {
+            0f
         } else {
-            fitTableWidthPx = areaWidthPx
-            fitTableHeightPx = fitTableWidthPx / tableAspect
+            areaWidthPx * designPreviewShape.tableWidthRatio / 100f
         }
-
-        // 2) 셀 수 기반 adaptive scale cap 적용 (작은 표 과확대 방지)
-        // Design Preview 공통 축소 정책(홈/상세 동일)
-        val adaptiveScale = resolveDesignPreviewScale(cellCount)
-
-        // 3) 최종 표 크기(전체 스케일) 계산 + 4) 최종 기준 center 정렬
-        val tableWidthPx = fitTableWidthPx * adaptiveScale
-        val tableHeightPx = fitTableHeightPx * adaptiveScale
+        val tableHeightPx = if (tableWidthPx <= 0f) {
+            0f
+        } else {
+            tableWidthPx / designPreviewAspect
+        }
         val tableLeftPx = ((areaWidthPx - tableWidthPx) / 2f).coerceAtLeast(0f)
         val tableTopPx = ((areaHeightPx - tableHeightPx) / 2f).coerceAtLeast(0f)
         val rowSizes = remember(previewRowWeights, rows, tableHeightPx) {
@@ -182,7 +180,7 @@ fun RealTableGridSection(
 
             // drawWatermarkTableOnCanvas는 bounds.width를 base로 table 크기를 계산한다.
             // 따라서 "현재 영역에 fit된 목표 표 rect"가 정확히 나오도록 base bounds를 역산해 맞춘다.
-            val baseWidth = tableWidthPx * 100f / safeWidthRatio
+            val baseWidth = tableWidthPx * 100f / designPreviewShape.tableWidthRatio.coerceAtLeast(1)
             val bounds = RectF(
                 tableLeftPx,
                 tableTopPx,
@@ -214,8 +212,8 @@ fun RealTableGridSection(
                         anchor = WatermarkTableAnchor.TOP_LEFT,
                         offsetXRatio = 0,
                         offsetYRatio = 0,
-                        tableHeightRatio = safeHeightRatio,
-                        tableWidthRatio = safeWidthRatio,
+                        tableHeightRatio = designPreviewShape.tableHeightRatio,
+                        tableWidthRatio = designPreviewShape.tableWidthRatio,
                     ),
                 )
             }
