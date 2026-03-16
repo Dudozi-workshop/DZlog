@@ -1,12 +1,12 @@
 package com.dudoziworkshop.dzlog.feature.table.preview
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.render.TableRender
 import java.util.Date
 
@@ -27,12 +27,7 @@ fun TablePreviewCanvas(
     wmHeightRatio: Int = 20,
     overlay: (@Composable () -> Unit)? = null,
 ) {
-    val frameAspectRatio = TableLayoutCalculator.defaultAspectRatio
-
-    TablePreviewFrame(
-        aspectRatio = frameAspectRatio,
-        modifier = modifier
-    ) { innerModifier ->
+    Box(modifier = modifier) {
         TableRender(
             templateState = templateState,
             counterDigits = counterDigits,
@@ -46,9 +41,9 @@ fun TablePreviewCanvas(
             gridEnabled = tableDetailGridEnabled,
             tableWidthRatio = wmWidthRatio,
             tableHeightRatio = wmHeightRatio,
-            modifier = innerModifier
+            modifier = Modifier
                 .fillMaxSize()
-                .padding(4.dp),
+                .padding(1.dp),
         )
         overlay?.invoke()
     }

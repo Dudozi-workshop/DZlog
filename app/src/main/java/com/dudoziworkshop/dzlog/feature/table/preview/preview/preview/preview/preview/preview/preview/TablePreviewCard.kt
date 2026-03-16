@@ -81,7 +81,7 @@ fun TablePreviewCard(
                     .padding(top = topPad)
                     .background(DDZColor.Surface, RoundedCornerShape(10.dp))
                     .border(1.dp, DDZColor.Border, RoundedCornerShape(10.dp))
-                    .padding(6.dp)
+                    .padding(3.dp)
                     .then(previewModifier)
             ) {
                 TablePreview(

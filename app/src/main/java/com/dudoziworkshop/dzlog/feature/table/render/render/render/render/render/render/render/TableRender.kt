@@ -23,12 +23,13 @@ import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import java.util.Date
 
-private const val HOME_MIN_CONTENT_ASPECT_RATIO = 0.5f
-private const val HOME_MAX_CONTENT_ASPECT_RATIO = 2.0f
-private const val HOME_MIN_WIDTH_RATIO = 30
-private const val HOME_MIN_HEIGHT_RATIO = 30
-private const val HOME_MAX_FILL_RATIO = 95
+private const val HOME_MIN_CONTENT_ASPECT_RATIO = 0.2f
+private const val HOME_MAX_CONTENT_ASPECT_RATIO = 5.0f
+private const val HOME_MIN_WIDTH_RATIO = 20
+private const val HOME_MIN_HEIGHT_RATIO = 20
+private const val HOME_MAX_FILL_RATIO = 98
 
+@Suppress("UNUSED_PARAMETER")
 internal fun computeHomePreviewRatio(
     contentAspectRatio: Float,
     boundsWidth: Float,
@@ -39,12 +40,17 @@ internal fun computeHomePreviewRatio(
     val safeAspect = contentAspectRatio.coerceIn(HOME_MIN_CONTENT_ASPECT_RATIO, HOME_MAX_CONTENT_ASPECT_RATIO)
     val safeWidth = boundsWidth.coerceAtLeast(1f)
     val safeHeight = boundsHeight.coerceAtLeast(1f)
-    val maxHeightByBounds = ((safeHeight / safeWidth) * 100f).toInt().coerceAtLeast(HOME_MIN_HEIGHT_RATIO)
+    val maxHeightByBounds = ((safeHeight / safeWidth) * HOME_MAX_FILL_RATIO)
+        .toInt()
+        .coerceAtLeast(HOME_MIN_HEIGHT_RATIO)
+
+    // 홈 프리뷰는 size-independent shape 정책을 따른다.
+    // wmWidthRatio / wmHeightRatio 절대값은 무시하고, 템플릿 shape만 카드 bounds에 최대한 맞춘다.
 
     return computeShapeLockedRatios(
         contentAspectRatio = safeAspect,
-        maxWidthRatio = tableWidthRatio.coerceIn(HOME_MIN_WIDTH_RATIO, HOME_MAX_FILL_RATIO),
-        maxHeightRatio = minOf(tableHeightRatio.coerceIn(HOME_MIN_HEIGHT_RATIO, HOME_MAX_FILL_RATIO), maxHeightByBounds.coerceAtMost(HOME_MAX_FILL_RATIO)),
+        maxWidthRatio = HOME_MAX_FILL_RATIO,
+        maxHeightRatio = maxHeightByBounds.coerceAtMost(HOME_MAX_FILL_RATIO),
         minWidthRatio = HOME_MIN_WIDTH_RATIO,
         minHeightRatio = HOME_MIN_HEIGHT_RATIO,
         hardMaxRatio = HOME_MAX_FILL_RATIO,
