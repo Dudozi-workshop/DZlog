@@ -22,10 +22,9 @@ import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableLayout
 import com.dudoziworkshop.dzlog.watermark.rawRectFromBounds
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
-import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
-import com.dudoziworkshop.dzlog.feature.table.render.computeShapeLockedRatios
-import com.dudoziworkshop.dzlog.feature.table.render.resolveContentAspectRatio
+import com.dudoziworkshop.dzlog.feature.table.render.buildCameraPreviewPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.computeRatioOnlyTableShape
 
 /**
  * [WatermarkPreviewOverlay]
@@ -49,8 +48,11 @@ fun WatermarkPreviewOverlay(
         return
     }
 
-    val shapeLockedRatio = computeShapeLockedRatios(
-        contentAspectRatio = resolveContentAspectRatio(request.tableTemplate),
+    // Camera Preview 정책: 외곽 비율은 표 자체 속성(SSOT),
+    // 위치/회전은 촬영 배치 속성으로 별도 주입한다.
+    val cameraPreviewShape = computeRatioOnlyTableShape(
+        tableWidthRatio = request.watermark.tableWidthRatio,
+        tableHeightRatio = request.watermark.tableHeightRatio,
         maxWidthRatio = request.watermark.tableWidthRatio,
         maxHeightRatio = request.watermark.tableHeightRatio,
     )
@@ -60,8 +62,8 @@ fun WatermarkPreviewOverlay(
         anchor = request.watermark.anchor,
         offsetXRatio = request.watermark.offsetXRatio,
         offsetYRatio = request.watermark.offsetYRatio,
-        tableHeightRatio = shapeLockedRatio.tableHeightRatio,
-        tableWidthRatio = shapeLockedRatio.tableWidthRatio
+        tableHeightRatio = cameraPreviewShape.tableHeightRatio,
+        tableWidthRatio = cameraPreviewShape.tableWidthRatio
     )
 
     val baseRawRect = layout.rect
@@ -124,12 +126,12 @@ fun WatermarkPreviewOverlay(
                     textAlign = request.watermark.textAlign,
                     drawGrid = request.watermark.gridEnabled,
                 ),
-                placement = TableRenderPlacement(
+                placement = buildCameraPreviewPlacement(
                     anchor = request.watermark.anchor,
                     offsetXRatio = request.watermark.offsetXRatio,
                     offsetYRatio = request.watermark.offsetYRatio,
-                    tableHeightRatio = shapeLockedRatio.tableHeightRatio,
-                    tableWidthRatio = shapeLockedRatio.tableWidthRatio,
+                    tableWidthRatio = cameraPreviewShape.tableWidthRatio,
+                    tableHeightRatio = cameraPreviewShape.tableHeightRatio,
                     overrideOffsetLeftPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawLeftPx else null,
                     overrideOffsetTopPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawTopPx else null,
                     rotationCwDeg = request.watermark.rotationCwDeg,

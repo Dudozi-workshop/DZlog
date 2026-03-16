@@ -56,8 +56,7 @@ import com.dudoziworkshop.dzlog.ui.camera.controller.bindCamera
 import com.dudoziworkshop.dzlog.ui.camera.controller.startTapToFocus
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.watermark.computeBoundsSize
-import com.dudoziworkshop.dzlog.feature.table.render.computeShapeLockedRatios
-import com.dudoziworkshop.dzlog.feature.table.render.resolveContentAspectRatio
+import com.dudoziworkshop.dzlog.feature.table.render.computeRatioOnlyTableShape
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -566,8 +565,10 @@ internal fun CameraPreviewArea(
             val widthPx = with(density) { maxWidth.toPx() }
             val parentHeightPx = with(density) { maxHeight.toPx() }
             val safeAspect = captureAspect.ratioF.coerceAtLeast(0.01f)
-            val shapeLockedRatio = computeShapeLockedRatios(
-                contentAspectRatio = resolveContentAspectRatio(args.tableTemplateState),
+            // Camera Preview: 표 자체 외곽 비율(SSOT) + 촬영 배치(위치/회전)는 분리한다.
+            val cameraPreviewShape = computeRatioOnlyTableShape(
+                tableWidthRatio = args.watermarkUi.tableWidthRatio,
+                tableHeightRatio = args.watermarkUi.tableHeightRatio,
                 maxWidthRatio = args.watermarkUi.tableWidthRatio,
                 maxHeightRatio = args.watermarkUi.tableHeightRatio,
             )
@@ -608,8 +609,8 @@ internal fun CameraPreviewArea(
             ) {
                 val baseBoundsOffsetPx = if (captureRect.width() > 0f && captureRect.height() > 0f) {
                     val baseW = captureRect.width()
-                    val rawW = baseW * (shapeLockedRatio.tableWidthRatio.coerceIn(10, 100) / 100f)
-                    val rawH = baseW * (shapeLockedRatio.tableHeightRatio.coerceIn(10, 100) / 100f)
+                    val rawW = baseW * (cameraPreviewShape.tableWidthRatio.coerceIn(10, 100) / 100f)
+                    val rawH = baseW * (cameraPreviewShape.tableHeightRatio.coerceIn(10, 100) / 100f)
                     val (boundsW, boundsH) = computeBoundsSize(rawW, rawH, args.watermarkUi.rotationCwDeg)
                     val boundsMaxX = (captureRect.width() - boundsW).coerceAtLeast(0f)
                     val boundsMaxY = (captureRect.height() - boundsH).coerceAtLeast(0f)

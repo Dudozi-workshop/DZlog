@@ -7,60 +7,50 @@ import org.junit.Test
 class HomePreviewRatioTest {
 
     @Test
-    fun `common shape policy keeps template aspect for vertical case`() {
-        val contentAspect = resolveContentAspectRatio(
-            rows = 6,
-            cols = 2,
-            rowWeights = listOf(2f, 2f, 2f, 2f, 2f, 2f),
-            colWeights = listOf(1f, 1f),
-        )
-
-        val ratio = computeShapeLockedRatios(
-            contentAspectRatio = contentAspect,
+    fun `ratio only shape keeps wm aspect for vertical case`() {
+        val ratio = computeRatioOnlyTableShape(
+            tableWidthRatio = 20,
+            tableHeightRatio = 40,
             maxWidthRatio = 60,
             maxHeightRatio = 60,
         )
 
         val resolvedAspect = ratio.tableWidthRatio.toFloat() / ratio.tableHeightRatio.toFloat()
         assertTrue(resolvedAspect < 1f)
-        assertTrue(kotlin.math.abs(resolvedAspect - contentAspect) < 0.2f)
+        assertTrue(kotlin.math.abs(resolvedAspect - 0.5f) < 0.1f)
     }
 
     @Test
-    fun `common shape policy keeps template aspect for horizontal weighted case`() {
-        val contentAspect = resolveContentAspectRatio(
-            rows = 2,
-            cols = 5,
-            rowWeights = listOf(1f, 1f),
-            colWeights = listOf(4f, 2f, 2f, 1f, 1f),
-        )
-
-        val ratio = computeShapeLockedRatios(
-            contentAspectRatio = contentAspect,
+    fun `ratio only shape keeps wm aspect for horizontal case`() {
+        val ratio = computeRatioOnlyTableShape(
+            tableWidthRatio = 40,
+            tableHeightRatio = 20,
             maxWidthRatio = 80,
             maxHeightRatio = 40,
         )
 
         val resolvedAspect = ratio.tableWidthRatio.toFloat() / ratio.tableHeightRatio.toFloat()
         assertTrue(resolvedAspect > 1f)
-        assertTrue(kotlin.math.abs(resolvedAspect - contentAspect) < 0.25f)
+        assertTrue(kotlin.math.abs(resolvedAspect - 2f) < 0.1f)
     }
 
     @Test
-    fun `home preview ignores absolute wm size and keeps same shape`() {
-        val smallAbsoluteSize = computeHomePreviewRatio(
-            contentAspectRatio = 0.5f,
+    fun `design preview ignores absolute wm size and keeps same shape`() {
+        val smallAbsoluteSize = computeDesignPreviewFitShape(
             boundsWidth = 600f,
             boundsHeight = 260f,
             tableWidthRatio = 2,
             tableHeightRatio = 4,
+            rows = 3,
+            cols = 3,
         )
-        val largeAbsoluteSize = computeHomePreviewRatio(
-            contentAspectRatio = 0.5f,
+        val largeAbsoluteSize = computeDesignPreviewFitShape(
             boundsWidth = 600f,
             boundsHeight = 260f,
             tableWidthRatio = 20,
             tableHeightRatio = 40,
+            rows = 3,
+            cols = 3,
         )
 
         assertEquals(smallAbsoluteSize.tableWidthRatio, largeAbsoluteSize.tableWidthRatio)
@@ -68,25 +58,37 @@ class HomePreviewRatioTest {
     }
 
     @Test
-    fun `home safe clamp intervenes only for extreme aspect`() {
-        val normal = computeHomePreviewRatio(
-            contentAspectRatio = 1.2f,
+    fun `design preview safe clamp keeps ratio-only shape and enforces minimum size`() {
+        val normal = computeDesignPreviewFitShape(
             boundsWidth = 600f,
             boundsHeight = 260f,
             tableWidthRatio = 95,
             tableHeightRatio = 90,
+            rows = 3,
+            cols = 3,
         )
-        val extreme = computeHomePreviewRatio(
-            contentAspectRatio = 0.05f,
+        val extreme = computeDesignPreviewFitShape(
             boundsWidth = 600f,
             boundsHeight = 260f,
             tableWidthRatio = 40,
             tableHeightRatio = 20,
+            rows = 3,
+            cols = 3,
         )
 
-        assertTrue(normal.tableWidthRatio > extreme.tableWidthRatio)
-        assertTrue(normal.tableHeightRatio >= extreme.tableHeightRatio)
+        val normalAspect = normal.tableWidthRatio.toFloat() / normal.tableHeightRatio.toFloat()
+        val extremeAspect = extreme.tableWidthRatio.toFloat() / extreme.tableHeightRatio.toFloat()
+        assertTrue(kotlin.math.abs(normalAspect - (95f / 90f)) < 0.1f)
+        assertTrue(kotlin.math.abs(extremeAspect - 2f) < 0.1f)
         assertTrue(extreme.tableWidthRatio >= 20)
         assertTrue(extreme.tableHeightRatio >= 20)
+    }
+
+    @Test
+    fun `design preview scale is shared between home and detail`() {
+        assertEquals(0.72f, resolveDesignPreviewScale(rows = 2, cols = 2), 0.0001f)
+        assertEquals(0.82f, resolveDesignPreviewScale(rows = 2, cols = 3), 0.0001f)
+        assertEquals(0.90f, resolveDesignPreviewScale(rows = 2, cols = 4), 0.0001f)
+        assertEquals(1.0f, resolveDesignPreviewScale(rows = 3, cols = 3), 0.0001f)
     }
 }
