@@ -49,6 +49,9 @@ import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import androidx.compose.foundation.shape.RoundedCornerShape
 
+private val STRUCTURE_PREVIEW_WORKING_INSET_DP = 10.dp
+private val STRUCTURE_HANDLE_GAP_DP = 4.dp
+
 /**
  * Layout 탭 전용 실제 표 편집 뷰.
  *
@@ -134,14 +137,19 @@ fun RealTableGridSection(
         val density = LocalDensity.current
         val areaWidthPx = with(density) { maxWidth.toPx() }
         val areaHeightPx = with(density) { maxHeight.toPx() }
+        val workingInsetPx = with(density) { STRUCTURE_PREVIEW_WORKING_INSET_DP.toPx() }
+        val workingLeftPx = workingInsetPx.coerceAtMost(areaWidthPx / 2f)
+        val workingTopPx = workingInsetPx.coerceAtMost(areaHeightPx / 2f)
+        val workingWidthPx = (areaWidthPx - (workingLeftPx * 2f)).coerceAtLeast(0f)
+        val workingHeightPx = (areaHeightPx - (workingTopPx * 2f)).coerceAtLeast(0f)
         val safeWidthRatio = wmWidthRatio.coerceIn(10, 100)
         val safeHeightRatio = wmHeightRatio.coerceIn(10, 100)
 
         val rows = templateState.rows.coerceAtLeast(1)
         val cols = templateState.cols.coerceAtLeast(1)
         val designPreviewShape = computeDesignPreviewFitShape(
-            boundsWidth = areaWidthPx,
-            boundsHeight = areaHeightPx,
+            boundsWidth = workingWidthPx,
+            boundsHeight = workingHeightPx,
             tableWidthRatio = safeWidthRatio,
             tableHeightRatio = safeHeightRatio,
             rows = rows,
@@ -165,19 +173,19 @@ fun RealTableGridSection(
 
         // Design Preview 공통 fit/scale helper 기준으로 렌더 박스 계산.
         // (상세 + 홈 동일 축: 외곽 비율 + rows*cols 스케일, 단일 rect SSOT)
-        val tableWidthPx = if (areaWidthPx <= 0f || areaHeightPx <= 0f) {
+        val tableWidthPx = if (workingWidthPx <= 0f || workingHeightPx <= 0f) {
             0f
         } else {
-            areaWidthPx * designPreviewShape.tableWidthRatio / 100f
+            workingWidthPx * designPreviewShape.tableWidthRatio / 100f
         }
-        val tableHeightPx = if (areaWidthPx <= 0f || areaHeightPx <= 0f) {
+        val tableHeightPx = if (workingWidthPx <= 0f || workingHeightPx <= 0f) {
             0f
         } else {
             // 렌더 코어(width-base)와 동일하게 높이를 width 기준으로 파생한다.
             tableWidthPx * designPreviewShape.tableHeightRatio / designPreviewShape.tableWidthRatio.toFloat()
         }
-        val tableLeftPx = ((areaWidthPx - tableWidthPx) / 2f).coerceAtLeast(0f)
-        val tableTopPx = ((areaHeightPx - tableHeightPx) / 2f).coerceAtLeast(0f)
+        val tableLeftPx = (workingLeftPx + (workingWidthPx - tableWidthPx) / 2f).coerceAtLeast(0f)
+        val tableTopPx = (workingTopPx + (workingHeightPx - tableHeightPx) / 2f).coerceAtLeast(0f)
         val rowSizes = remember(previewRowWeights, rows, tableHeightPx) {
             computeSizes(total = tableHeightPx, weights = resolveWeightsOrOnes(previewRowWeights, rows))
         }
@@ -321,7 +329,7 @@ fun RealTableGridSection(
 
         if (isStructureMode) {
             // 구조 모드: 표 바깥 핸들(삼각형) + 넓은 hit target으로 비율 조절 문맥을 분리한다.
-            val handleGapPx = with(density) { 8.dp.toPx() }
+            val handleGapPx = with(density) { STRUCTURE_HANDLE_GAP_DP.toPx() }
             val handleHitPx = with(density) { 26.dp.toPx() }
             val rowTriangleSize = 12.dp
             val colTriangleSize = 12.dp
