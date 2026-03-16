@@ -45,6 +45,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
+import com.dudoziworkshop.dzlog.feature.table.render.resolveDesignPreviewScale
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
@@ -158,7 +159,8 @@ fun RealTableGridSection(
         }
 
         // 2) 셀 수 기반 adaptive scale cap 적용 (작은 표 과확대 방지)
-        val adaptiveScale = resolveAdaptiveTableScale(cellCount)
+        // Design Preview 공통 축소 정책(홈/상세 동일)
+        val adaptiveScale = resolveDesignPreviewScale(cellCount)
 
         // 3) 최종 표 크기(전체 스케일) 계산 + 4) 최종 기준 center 정렬
         val tableWidthPx = fitTableWidthPx * adaptiveScale
@@ -586,14 +588,6 @@ fun RealTableGridSection(
     }
 }
 
-
-private fun resolveAdaptiveTableScale(cellCount: Int): Float =
-    when {
-        cellCount <= 4 -> 0.72f
-        cellCount <= 6 -> 0.82f
-        cellCount <= 8 -> 0.90f
-        else -> 1.00f
-    }
 
 private fun resolveWeightsOrOnes(weights: List<Float>?, count: Int): List<Float> {
     if (count <= 0) return emptyList()
