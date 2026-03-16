@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Text
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -42,7 +41,6 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadgesOverlay
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.computeDesignPreviewFitShape
@@ -86,36 +84,53 @@ fun RealTableGridSection(
     onCommitColumnWeightsDragEnd: (List<Float>) -> Unit,
     onSelectRange: (String, String) -> Unit,
 ) {
-    val resolvedCells = remember(templateState.cells, displayTextProvider) {
-        // 정책 보정:
-        // - WatermarkCell은 좌표(row/col)를 받지 않고 valueText만 가지므로,
-        //   drawWatermarkTableOnCanvas가 "입력 리스트 순서"를 좌표 매핑 기준으로 사용할 수 있다.
-        // - 따라서 templateState.cells의 원본 순서에 의존하지 않고,
-        //   rowIndex -> colIndex(row-major)로 명시 정렬해 안정적으로 전달한다.
-        templateState.cells
-            .sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex }))
-            .map { cell ->
-                WatermarkBuilder.WatermarkCell(
-                    valueText = displayTextProvider(cell.cellId)
-                )
-            }
+    val orderedCells = remember(templateState.cells) {
+        templateState.cells.sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex }))
     }
-
+    val placeholderTextByCellId = remember(orderedCells) {
+        orderedCells.associate { it.cellId to dataTypeLabelKo(it.dataType) }
+    }
+    val displayTextByCellId = remember(orderedCells, displayTextProvider) {
+        orderedCells.associate { cell ->
+            val valueText = displayTextProvider(cell.cellId)
+            val isPlaceholder = valueText.isBlank()
+            val displayText = if (isPlaceholder) {
+                placeholderTextByCellId[cell.cellId].orEmpty()
+            } else {
+                valueText
+            }
+            cell.cellId to displayText
+        }
+    }
+    val placeholderCellIndexes = remember(orderedCells, displayTextProvider) {
+        buildSet {
+            orderedCells.forEachIndexed { index, cell ->
+                if (displayTextProvider(cell.cellId).isBlank()) add(index)
+            }
+        }
+    }
+    val resolvedCells = remember(displayTextByCellId, orderedCells) {
+        orderedCells.map { cell ->
+            WatermarkBuilder.WatermarkCell(
+                valueText = displayTextByCellId[cell.cellId].orEmpty(),
+            )
+        }
+    }
     // 정책 보강: 표 배경 테마(검정/흰색/투명)에 맞춰 overlay 색을 동적으로 분기한다.
     // - BG_STYLE_BLACK(0): dark table
     // - BG_STYLE_WHITE(1), BG_STYLE_TRANSPARENT(2): light table 취급
     val isDarkTableTheme = wmBgStyle == 0
-    val placeholderColor = if (isDarkTableTheme) {
-        Color.White.copy(alpha = 0.72f)
-    } else {
-        Color.Black.copy(alpha = 0.56f)
-    }
     val selectedFillColor = if (isDarkTableTheme) {
         DDZColor.Primary.copy(alpha = 0.09f)
     } else {
         DDZColor.Primary.copy(alpha = 0.06f)
     }
     val selectedBorderColor = if (isDarkTableTheme) Color.White.copy(alpha = 0.90f) else DDZColor.Primary
+    val placeholderTextColorArgb = if (isDarkTableTheme) {
+        android.graphics.Color.argb(184, 255, 255, 255)
+    } else {
+        android.graphics.Color.argb(150, 0, 0, 0)
+    }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val density = LocalDensity.current
@@ -207,6 +222,8 @@ fun RealTableGridSection(
                         manualTextColor = wmManualTextColor,
                         textAlign = wmTextAlign,
                         drawGrid = wmGridEnabled,
+                        placeholderCellIndexes = placeholderCellIndexes,
+                        placeholderTextColorArgb = placeholderTextColorArgb,
                     ),
                     placement = TableRenderPlacement(
                         anchor = WatermarkTableAnchor.TOP_LEFT,
@@ -475,7 +492,6 @@ fun RealTableGridSection(
             val cellW = colSizes[cell.colIndex]
             val cellH = rowSizes[cell.rowIndex]
             val isEditingCell = cell.cellId == editingCellId
-            val display = displayTextProvider(cell.cellId)
             val nameIdx = deriveFileNameCellSlotsFromDrafts(templateState.fileNameSlotDrafts).indexOf(cell.cellId).takeIf { it >= 0 }
             val pathIdx = derivePathSlotIndexByCellId(templateState.pathSlotDrafts, cell.cellId)
 
@@ -502,25 +518,6 @@ fun RealTableGridSection(
                     )
                     .padding(horizontal = 6.dp, vertical = 4.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (display.isBlank()) {
-                        // 정책 변경:
-                        // - 일반 상태의 값 텍스트는 Canvas(실표 렌더 코어)만 사용하고 Overlay 텍스트는 제거한다.
-                        // - Overlay는 "값 없음 placeholder"일 때만 노출해 중복 렌더/잔상처럼 보이는 문제를 방지한다.
-                        Text(
-                            text = dataTypeLabelKo(cell.dataType),
-                            style = DDZTypography.Caption,
-                            // 테이블 테마 기반 placeholder muted 색상 분기
-                            color = placeholderColor
-                        )
-                    }
-                }
-
                 CellHeaderBadgesOverlay(
                     cell = cell,
                     fileNameSlotIndex = nameIdx,

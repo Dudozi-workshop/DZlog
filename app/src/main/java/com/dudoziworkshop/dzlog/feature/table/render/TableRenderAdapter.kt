@@ -33,6 +33,8 @@ data class TableRenderStyle(
     val manualTextColor: Int = WatermarkManualTextColor.BLACK,
     val textAlign: Int = WatermarkTextAlign.LEFT,
     val drawGrid: Boolean = true,
+    val placeholderCellIndexes: Set<Int> = emptySet(),
+    val placeholderTextColorArgb: Int? = null,
 )
 
 /**
@@ -114,6 +116,8 @@ object TableRenderAdapter {
             overrideOffsetLeftPx = placement.overrideOffsetLeftPx,
             overrideOffsetTopPx = placement.overrideOffsetTopPx,
             rotationCwDeg = placement.rotationCwDeg,
+            placeholderCellIndexes = style.placeholderCellIndexes,
+            placeholderTextColorArgb = style.placeholderTextColorArgb,
         )
     }
 }
