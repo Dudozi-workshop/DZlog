@@ -87,32 +87,30 @@ fun RealTableGridSection(
     val orderedCells = remember(templateState.cells) {
         templateState.cells.sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex }))
     }
-    val placeholderTextByCellId = remember(orderedCells) {
-        orderedCells.associate { it.cellId to dataTypeLabelKo(it.dataType) }
-    }
-    val displayTextByCellId = remember(orderedCells, displayTextProvider) {
-        orderedCells.associate { cell ->
-            val valueText = displayTextProvider(cell.cellId)
-            val isPlaceholder = valueText.isBlank()
-            val displayText = if (isPlaceholder) {
-                placeholderTextByCellId[cell.cellId].orEmpty()
-            } else {
-                valueText
-            }
-            cell.cellId to displayText
-        }
-    }
-    val placeholderCellIndexes = remember(orderedCells, displayTextProvider) {
-        buildSet {
-            orderedCells.forEachIndexed { index, cell ->
-                if (displayTextProvider(cell.cellId).isBlank()) add(index)
-            }
-        }
-    }
-    val resolvedCells = remember(displayTextByCellId, orderedCells) {
+    data class CellRenderEntry(
+        val cell: TableCellState,
+        val displayText: String,
+        val isPlaceholder: Boolean,
+    )
+    val cellRenderEntries = remember(orderedCells, displayTextProvider) {
         orderedCells.map { cell ->
+            val rawValue = displayTextProvider(cell.cellId)
+            val isPlaceholder = rawValue.isBlank()
+            val displayText = if (isPlaceholder) dataTypeLabelKo(cell.dataType) else rawValue
+            CellRenderEntry(cell = cell, displayText = displayText, isPlaceholder = isPlaceholder)
+        }
+    }
+    val placeholderCellIndexes = remember(cellRenderEntries) {
+        buildSet {
+            cellRenderEntries.forEachIndexed { index, entry ->
+                if (entry.isPlaceholder) add(index)
+            }
+        }
+    }
+    val resolvedCells = remember(cellRenderEntries) {
+        cellRenderEntries.map { entry ->
             WatermarkBuilder.WatermarkCell(
-                valueText = displayTextByCellId[cell.cellId].orEmpty(),
+                valueText = entry.displayText,
             )
         }
     }
@@ -213,6 +211,7 @@ fun RealTableGridSection(
                         rowWeights = previewRowWeights,
                         colWeights = previewColWeights,
                         cells = resolvedCells,
+                        placeholderCellIndexes = placeholderCellIndexes,
                     ),
                     style = TableRenderStyle(
                         bgAlpha = wmBgAlpha.coerceIn(0, 255),
@@ -222,7 +221,6 @@ fun RealTableGridSection(
                         manualTextColor = wmManualTextColor,
                         textAlign = wmTextAlign,
                         drawGrid = wmGridEnabled,
-                        placeholderCellIndexes = placeholderCellIndexes,
                         placeholderTextColorArgb = placeholderTextColorArgb,
                     ),
                     placement = TableRenderPlacement(
