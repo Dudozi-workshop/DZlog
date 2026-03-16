@@ -94,6 +94,7 @@ suspend fun applyHeightRatioChange(
     return currentState.copy(wmHeightRatio = patch.heightRatio ?: currentState.wmHeightRatio)
 }
 
+
 suspend fun persistTablePlacementState(
     context: Context,
     placementState: TablePlacementState,
