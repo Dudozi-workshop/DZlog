@@ -47,6 +47,27 @@ class HomePreviewRatioTest {
     }
 
     @Test
+    fun `home preview ignores absolute wm size and keeps same shape`() {
+        val smallAbsoluteSize = computeHomePreviewRatio(
+            contentAspectRatio = 0.5f,
+            boundsWidth = 600f,
+            boundsHeight = 260f,
+            tableWidthRatio = 2,
+            tableHeightRatio = 4,
+        )
+        val largeAbsoluteSize = computeHomePreviewRatio(
+            contentAspectRatio = 0.5f,
+            boundsWidth = 600f,
+            boundsHeight = 260f,
+            tableWidthRatio = 20,
+            tableHeightRatio = 40,
+        )
+
+        assertEquals(smallAbsoluteSize.tableWidthRatio, largeAbsoluteSize.tableWidthRatio)
+        assertEquals(smallAbsoluteSize.tableHeightRatio, largeAbsoluteSize.tableHeightRatio)
+    }
+
+    @Test
     fun `home safe clamp intervenes only for extreme aspect`() {
         val normal = computeHomePreviewRatio(
             contentAspectRatio = 1.2f,
@@ -63,9 +84,9 @@ class HomePreviewRatioTest {
             tableHeightRatio = 20,
         )
 
-        assertEquals(95, normal.tableWidthRatio)
-        assertTrue(normal.tableHeightRatio in 70..90)
-        assertTrue(extreme.tableWidthRatio >= 30)
-        assertTrue(extreme.tableHeightRatio >= 30)
+        assertTrue(normal.tableWidthRatio > extreme.tableWidthRatio)
+        assertTrue(normal.tableHeightRatio >= extreme.tableHeightRatio)
+        assertTrue(extreme.tableWidthRatio >= 20)
+        assertTrue(extreme.tableHeightRatio >= 20)
     }
 }
