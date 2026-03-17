@@ -176,5 +176,5 @@ data class LayoutTabActions(
     val onOpenRotatingTemplateDialogForSelected: (String) -> Unit,
     val onSaveSelectedCell: () -> Unit,
     val onRevertSelectedCell: () -> Unit,
-    val onOpenPreview: () -> Unit
+    val onOpenPlacementDialog: () -> Unit
 )

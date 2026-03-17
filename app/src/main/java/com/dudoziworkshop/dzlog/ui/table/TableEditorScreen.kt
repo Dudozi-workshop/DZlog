@@ -100,7 +100,7 @@ import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabActions
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabContent
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabUiState
-import com.dudoziworkshop.dzlog.ui.table.section.PreviewTabContent
+import com.dudoziworkshop.dzlog.ui.table.section.WatermarkPlacementDialog
 import com.dudoziworkshop.dzlog.feature.table.editor.TableHandleOverlay
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionResolver
@@ -120,6 +120,8 @@ import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.placement.loadTablePlacementState
 import com.dudoziworkshop.dzlog.feature.table.placement.persistTablePlacementState
+import com.dudoziworkshop.dzlog.feature.table.placement.resolveRatioLockedSizeFromHeight
+import com.dudoziworkshop.dzlog.feature.table.placement.resolveRatioLockedSizeFromWidth
 import com.dudoziworkshop.dzlog.feature.table.state.loadTableStyleState
 import com.dudoziworkshop.dzlog.feature.table.state.persistTableStyleState
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -129,7 +131,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 import kotlinx.coroutines.awaitCancellation
 import java.util.Date
 import java.util.UUID
@@ -223,8 +224,7 @@ fun TableEditorScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // ✅ 탭 상태
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    var showPlacementDialog by remember { mutableStateOf(false) }
 
     var initialTemplateSnapshot by remember { mutableStateOf(templateState) }
     var editableTemplateState by remember { mutableStateOf(templateState) }
@@ -1130,18 +1130,6 @@ fun TableEditorScreen(
         }
     }
 
-    // ✅ 탭 전환: 편집 중이면 먼저 commit (중복 다이얼로그 등으로 commit이 보류되면 탭 전환 막기)
-    fun requestTabSwitch(targetIndex: Int) {
-        if (selectedTabIndex == targetIndex) return
-
-        if (inlineEdit.isEditing()) {
-            commitInlineEditIfNeeded()
-            // commit이 보류되면(=editingCellId가 유지됨) 전환 막음
-            if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
-        }
-        selectedTabIndex = targetIndex
-    }
-
     // 주요 정책: 셀 선택 전에는 inline 값을 항상 먼저 commit 시도해 유실을 막는다.
     fun requestSelectCell(cellId: String?) {
         if (selectedCellId == cellId && bottomPanelMode != BottomEditorPanelMode.STRUCTURE_EDIT) return
@@ -1294,7 +1282,7 @@ fun TableEditorScreen(
     }
 
     fun requestCloseBottomPanelToNone() {
-        // 정책 보강: X 닫기에서도 탭 전환과 동일하게 inline commit을 우선 시도해 값 유실을 막는다.
+        // 정책 보강: X 닫기에서도 모드 전환과 동일하게 inline commit을 우선 시도해 값 유실을 막는다.
         if (inlineEdit.isEditing()) {
             commitInlineEditIfNeeded()
             if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
@@ -1381,9 +1369,7 @@ fun TableEditorScreen(
                 .dzScaffoldContent()
                 .padding(innerPadding)
         ) {
-            when (selectedTabIndex) {
-                0 -> {
-                    LayoutTabContent(
+            LayoutTabContent(
                         uiState = LayoutTabUiState(
                             savePathPreview = savePathPreview,
                             filenamePreview = filenamePreview,
@@ -2031,29 +2017,35 @@ fun TableEditorScreen(
                             },
                             onSetWmWidthRatio = { width ->
                                 val normalized = width.coerceIn(10, 100)
-                                val baseWidth = watermarkUi.wmWidthRatio.coerceAtLeast(1)
-                                val baseHeight = watermarkUi.wmHeightRatio.coerceAtLeast(1)
-                                var nextState = watermarkUi.copy(wmWidthRatio = normalized)
-                                if (isWmRatioLocked) {
-                                    val syncedHeight = (normalized * baseHeight.toFloat() / baseWidth.toFloat())
-                                        .roundToInt()
-                                        .coerceIn(10, 100)
-                                    nextState = nextState.copy(wmHeightRatio = syncedHeight)
+                                if (!isWmRatioLocked) {
+                                    watermarkUi = watermarkUi.copy(wmWidthRatio = normalized)
+                                } else {
+                                    val ratioLocked = resolveRatioLockedSizeFromWidth(
+                                        baseWidthRatio = watermarkUi.wmWidthRatio,
+                                        baseHeightRatio = watermarkUi.wmHeightRatio,
+                                        requestedWidthRatio = normalized,
+                                    )
+                                    watermarkUi = watermarkUi.copy(
+                                        wmWidthRatio = ratioLocked.widthRatio,
+                                        wmHeightRatio = ratioLocked.heightRatio,
+                                    )
                                 }
-                                watermarkUi = nextState
                             },
                             onSetWmHeightRatio = { height ->
                                 val normalized = height.coerceIn(10, 100)
-                                val baseWidth = watermarkUi.wmWidthRatio.coerceAtLeast(1)
-                                val baseHeight = watermarkUi.wmHeightRatio.coerceAtLeast(1)
-                                var nextState = watermarkUi.copy(wmHeightRatio = normalized)
-                                if (isWmRatioLocked) {
-                                    val syncedWidth = (normalized * baseWidth.toFloat() / baseHeight.toFloat())
-                                        .roundToInt()
-                                        .coerceIn(10, 100)
-                                    nextState = nextState.copy(wmWidthRatio = syncedWidth)
+                                if (!isWmRatioLocked) {
+                                    watermarkUi = watermarkUi.copy(wmHeightRatio = normalized)
+                                } else {
+                                    val ratioLocked = resolveRatioLockedSizeFromHeight(
+                                        baseWidthRatio = watermarkUi.wmWidthRatio,
+                                        baseHeightRatio = watermarkUi.wmHeightRatio,
+                                        requestedHeightRatio = normalized,
+                                    )
+                                    watermarkUi = watermarkUi.copy(
+                                        wmWidthRatio = ratioLocked.widthRatio,
+                                        wmHeightRatio = ratioLocked.heightRatio,
+                                    )
                                 }
-                                watermarkUi = nextState
                             },
                             onStartRowWeightsDrag = {
                                 rowWeightsDragBaseTemplate = editableTemplateState
@@ -2089,41 +2081,36 @@ fun TableEditorScreen(
                             },
                             onSaveSelectedCell = ::requestSaveSelectedCell,
                             onRevertSelectedCell = ::requestRevertSelectedCell,
-                            onOpenPreview = { requestTabSwitch(1) }
+                            onOpenPlacementDialog = { showPlacementDialog = true }
                         )
                     )
-                }
 
-                1 -> {
-                    // 탭 제거 후 미리보기는 셀 구성 우측 버튼으로 진입한다.
-                    TextButton(onClick = { requestTabSwitch(0) }) { Text("셀 구성으로") }
-                    PreviewTabContent(
-                        templateState = currentTemplate,
-                        resolvedCells = plan.resolvedCells,
-                        wmBgStyle = tableStyleUi.bgStyle,
-                        wmBgAlpha = tableStyleUi.bgAlpha,
-                        wmValueScale = tableStyleUi.valueScale,
-                        wmTextColorMode = tableStyleUi.textColorMode,
-                        wmManualTextColor = tableStyleUi.manualTextColor,
-                        wmTextAlign = tableStyleUi.textAlign,
-                        wmGridEnabled = tableStyleUi.gridEnabled,
-                        placementState = watermarkUi,
-                        onApplyPlacement = { applied ->
-                            watermarkUi = applied.copy(
-                                wmAnchor = com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor.CUSTOM,
-                                wmOffsetXRatio = applied.wmOffsetXRatio.coerceIn(0, 100),
-                                wmOffsetYRatio = applied.wmOffsetYRatio.coerceIn(0, 100),
-                                wmWidthRatio = applied.wmWidthRatio.coerceIn(10, 100),
-                                wmHeightRatio = applied.wmHeightRatio.coerceIn(10, 100),
-                                rotationCwDeg = if (applied.rotationCwDeg == 90) 90 else 0,
-                                captureAspect = applied.captureAspect,
-                                keepAspectRatio = true,
-                            )
-                            requestTabSwitch(0)
-                        },
-                        onClose = { requestTabSwitch(0) }
-                    )
-                }
+            if (showPlacementDialog) {
+                WatermarkPlacementDialog(
+                    templateState = currentTemplate,
+                    resolvedCells = plan.resolvedCells,
+                    wmBgStyle = tableStyleUi.bgStyle,
+                    wmBgAlpha = tableStyleUi.bgAlpha,
+                    wmValueScale = tableStyleUi.valueScale,
+                    wmTextColorMode = tableStyleUi.textColorMode,
+                    wmManualTextColor = tableStyleUi.manualTextColor,
+                    wmTextAlign = tableStyleUi.textAlign,
+                    wmGridEnabled = tableStyleUi.gridEnabled,
+                    placementState = watermarkUi,
+                    onApplyPlacement = { applied ->
+                        watermarkUi = applied.copy(
+                            wmOffsetXRatio = applied.wmOffsetXRatio.coerceIn(0, 100),
+                            wmOffsetYRatio = applied.wmOffsetYRatio.coerceIn(0, 100),
+                            wmWidthRatio = applied.wmWidthRatio.coerceIn(10, 100),
+                            wmHeightRatio = applied.wmHeightRatio.coerceIn(10, 100),
+                            rotationCwDeg = if (applied.rotationCwDeg == 90) 90 else 0,
+                            captureAspect = applied.captureAspect,
+                            keepAspectRatio = true,
+                        )
+                        showPlacementDialog = false
+                    },
+                    onClose = { showPlacementDialog = false }
+                )
             }
         }
     }

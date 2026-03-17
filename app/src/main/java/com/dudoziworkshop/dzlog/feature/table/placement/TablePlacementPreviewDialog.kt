@@ -3,7 +3,6 @@ package com.dudoziworkshop.dzlog.feature.table.placement
 import android.graphics.RectF
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -42,7 +41,6 @@ fun CameraLikeWatermarkPlacementPreview(
     rowWeights: List<Float>?,
     colWeights: List<Float>?,
     watermarkCells: List<WatermarkBuilder.WatermarkCell>,
-    anchor: WatermarkTableAnchor,
     offsetXRatio: Int,
     offsetYRatio: Int,
     tableWidthRatio: Int,
@@ -55,8 +53,6 @@ fun CameraLikeWatermarkPlacementPreview(
     manualTextColor: Int,
     textAlign: Int,
     drawGrid: Boolean,
-    armed: Boolean,
-    onArmedChange: (Boolean) -> Unit,
     onDragPreview: (Int, Int) -> Unit,
     onDragCommit: (Int, Int) -> Unit,
     modifier: Modifier = Modifier
@@ -71,8 +67,8 @@ fun CameraLikeWatermarkPlacementPreview(
         )
     }
 
-    var dragOffsetXRatio by remember(anchor, offsetXRatio) { mutableIntStateOf(offsetXRatio.coerceIn(0, 100)) }
-    var dragOffsetYRatio by remember(anchor, offsetYRatio) { mutableIntStateOf(offsetYRatio.coerceIn(0, 100)) }
+    var dragOffsetXRatio by remember(offsetXRatio) { mutableIntStateOf(offsetXRatio.coerceIn(0, 100)) }
+    var dragOffsetYRatio by remember(offsetYRatio) { mutableIntStateOf(offsetYRatio.coerceIn(0, 100)) }
     var dragActive by remember { mutableStateOf(false) }
     var dragLeftPx by remember { mutableFloatStateOf(0f) }
     var dragTopPx by remember { mutableFloatStateOf(0f) }
@@ -97,91 +93,66 @@ fun CameraLikeWatermarkPlacementPreview(
         }
     }
 
-    val tapModifier = Modifier.pointerInput(captureAspect, anchor, cameraPreviewShape.tableWidthRatio, cameraPreviewShape.tableHeightRatio) {
-        detectTapGestures { tapOffset ->
-            val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
-            val tableRect = computeWatermarkTableRect(
-                bounds = contentRect,
-                anchor = anchor,
-                offsetXRatio = dragOffsetXRatio,
-                offsetYRatio = dragOffsetYRatio,
-                tableWidthRatio = cameraPreviewShape.tableWidthRatio,
-                tableHeightRatio = cameraPreviewShape.tableHeightRatio
-            )
-            val nextArmed = tableRect.contains(tapOffset.x, tapOffset.y)
-            onArmedChange(nextArmed)
-            if (!nextArmed) {
+    val dragModifier = Modifier.pointerInput(captureAspect, cameraPreviewShape.tableWidthRatio, cameraPreviewShape.tableHeightRatio) {
+        detectDragGestures(
+            onDragStart = { start ->
+                val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
+                val tableRect = computeWatermarkTableRect(
+                    bounds = contentRect,
+                    anchor = WatermarkTableAnchor.CUSTOM,
+                    offsetXRatio = dragOffsetXRatio,
+                    offsetYRatio = dragOffsetYRatio,
+                    tableWidthRatio = cameraPreviewShape.tableWidthRatio,
+                    tableHeightRatio = cameraPreviewShape.tableHeightRatio
+                )
+                dragActive = tableRect.contains(start.x, start.y)
+                if (!dragActive) {
+                    hasOverride = false
+                    return@detectDragGestures
+                }
+                dragLeftPx = tableRect.left - contentRect.left
+                dragTopPx = tableRect.top - contentRect.top
+                dragMaxXPx = (contentRect.width() - tableRect.width()).coerceAtLeast(0f)
+                dragMaxYPx = (contentRect.height() - tableRect.height()).coerceAtLeast(0f)
+                hasOverride = true
+            },
+            onDragCancel = {
                 dragActive = false
-                hasOverride = false
-            }
-        }
-    }
-
-    val dragModifier = if (armed) {
-        Modifier.pointerInput(captureAspect, anchor, cameraPreviewShape.tableWidthRatio, cameraPreviewShape.tableHeightRatio) {
-            detectDragGestures(
-                onDragStart = { start ->
-                    val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
-                    val tableRect = computeWatermarkTableRect(
-                        bounds = contentRect,
-                        anchor = anchor,
-                        offsetXRatio = dragOffsetXRatio,
-                        offsetYRatio = dragOffsetYRatio,
-                        tableWidthRatio = cameraPreviewShape.tableWidthRatio,
-                        tableHeightRatio = cameraPreviewShape.tableHeightRatio
-                    )
-                    dragActive = tableRect.contains(start.x, start.y)
-                    if (!dragActive) {
-                        onArmedChange(false)
-                        hasOverride = false
-                        return@detectDragGestures
-                    }
-                    dragLeftPx = tableRect.left - contentRect.left
-                    dragTopPx = tableRect.top - contentRect.top
-                    dragMaxXPx = (contentRect.width() - tableRect.width()).coerceAtLeast(0f)
-                    dragMaxYPx = (contentRect.height() - tableRect.height()).coerceAtLeast(0f)
-                    hasOverride = true
-                },
-                onDragCancel = {
-                    dragActive = false
-                    overrideReleaseTick += 1
-                },
-                onDragEnd = {
-                    if (dragActive) {
-                        val ratioX = if (dragMaxXPx <= 0f) 0 else ((dragLeftPx / dragMaxXPx) * 100f).roundToInt().coerceIn(0, 100)
-                        val ratioY = if (dragMaxYPx <= 0f) 0 else ((dragTopPx / dragMaxYPx) * 100f).roundToInt().coerceIn(0, 100)
-                        dragOffsetXRatio = ratioX
-                        dragOffsetYRatio = ratioY
-                        onDragCommit(ratioX, ratioY)
-                        overrideReleaseTick += 1
-                    }
-                    dragActive = false
-                },
-                onDrag = { change, dragAmount ->
-                    if (!dragActive) return@detectDragGestures
-                    change.consume()
-                    dragLeftPx = (dragLeftPx + dragAmount.x).coerceIn(0f, dragMaxXPx)
-                    dragTopPx = (dragTopPx + dragAmount.y).coerceIn(0f, dragMaxYPx)
+                overrideReleaseTick += 1
+            },
+            onDragEnd = {
+                if (dragActive) {
                     val ratioX = if (dragMaxXPx <= 0f) 0 else ((dragLeftPx / dragMaxXPx) * 100f).roundToInt().coerceIn(0, 100)
                     val ratioY = if (dragMaxYPx <= 0f) 0 else ((dragTopPx / dragMaxYPx) * 100f).roundToInt().coerceIn(0, 100)
                     dragOffsetXRatio = ratioX
                     dragOffsetYRatio = ratioY
-                    onDragPreview(ratioX, ratioY)
+                    onDragCommit(ratioX, ratioY)
+                    overrideReleaseTick += 1
                 }
-            )
-        }
-    } else {
-        Modifier
+                dragActive = false
+            },
+            onDrag = { change, dragAmount ->
+                if (!dragActive) return@detectDragGestures
+                change.consume()
+                dragLeftPx = (dragLeftPx + dragAmount.x).coerceIn(0f, dragMaxXPx)
+                dragTopPx = (dragTopPx + dragAmount.y).coerceIn(0f, dragMaxYPx)
+                val ratioX = if (dragMaxXPx <= 0f) 0 else ((dragLeftPx / dragMaxXPx) * 100f).roundToInt().coerceIn(0, 100)
+                val ratioY = if (dragMaxYPx <= 0f) 0 else ((dragTopPx / dragMaxYPx) * 100f).roundToInt().coerceIn(0, 100)
+                dragOffsetXRatio = ratioX
+                dragOffsetYRatio = ratioY
+                onDragPreview(ratioX, ratioY)
+            }
+        )
     }
 
-    Box(modifier = modifier.then(tapModifier).then(dragModifier)) {
+    Box(modifier = modifier.then(dragModifier)) {
         Canvas(Modifier.fillMaxSize()) {
             val boxW = size.width
             val boxH = size.height
             val contentRect = computeContentRect(boxW, boxH, captureAspect.ratioF)
             val baseTableRect = computeWatermarkTableRect(
                 bounds = contentRect,
-                anchor = anchor,
+                anchor = WatermarkTableAnchor.CUSTOM,
                 offsetXRatio = dragOffsetXRatio,
                 offsetYRatio = dragOffsetYRatio,
                 tableWidthRatio = cameraPreviewShape.tableWidthRatio,
@@ -222,11 +193,6 @@ fun CameraLikeWatermarkPlacementPreview(
             drawRect(DDZColor.Surface.copy(alpha = 0.13f), Offset(contentRect.left, contentRect.centerY() - 0.5f), Size(contentRect.width(), 1f))
 
             drawIntoCanvas { canvas ->
-                val displayAnchor = if (hasOverride || anchor == WatermarkTableAnchor.CUSTOM || dragActive) {
-                    WatermarkTableAnchor.CUSTOM
-                } else {
-                    anchor
-                }
                 TableRenderAdapter.draw(
                     canvas = canvas.nativeCanvas,
                     bounds = contentRect,
@@ -247,9 +213,9 @@ fun CameraLikeWatermarkPlacementPreview(
                         drawGrid = drawGrid,
                     ),
                     placement = buildCameraPreviewPlacement(
-                        anchor = displayAnchor,
-                        offsetXRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetXRatio else 0,
-                        offsetYRatio = if (displayAnchor == WatermarkTableAnchor.CUSTOM) dragOffsetYRatio else 0,
+                        anchor = WatermarkTableAnchor.CUSTOM,
+                        offsetXRatio = dragOffsetXRatio,
+                        offsetYRatio = dragOffsetYRatio,
                         tableWidthRatio = cameraPreviewShape.tableWidthRatio,
                         tableHeightRatio = cameraPreviewShape.tableHeightRatio,
                         rotationCwDeg = if (rotationCwDeg == 90) 90 else 0,
@@ -259,7 +225,7 @@ fun CameraLikeWatermarkPlacementPreview(
                 )
             }
 
-            if (armed) {
+            if (dragActive) {
                 drawRect(
                     color = DDZColor.Surface,
                     topLeft = Offset(drawTableRect.left, drawTableRect.top),

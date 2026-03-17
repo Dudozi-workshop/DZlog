@@ -30,18 +30,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
-import com.dudoziworkshop.dzlog.feature.table.placement.CameraLikeWatermarkPlacementPreview
 import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
+import com.dudoziworkshop.dzlog.feature.table.placement.CameraLikeWatermarkPlacementPreview
 import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControl
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import kotlin.math.roundToInt
+import com.dudoziworkshop.dzlog.feature.table.placement.resolveRatioLockedScaleRange
+import com.dudoziworkshop.dzlog.feature.table.placement.resolveRatioLockedSizeFromScale
 
 @Composable
-fun PreviewTabContent(
+fun WatermarkPlacementDialog(
     templateState: TableTemplateState,
     resolvedCells: List<ResolvedCell>,
     wmBgStyle: Int,
@@ -59,14 +59,9 @@ fun PreviewTabContent(
     val watermarkCells = remember(resolvedCells) { WatermarkBuilder.buildTableCells(resolvedCells) }
     val aspectOptions = remember { listOf(CaptureAspect.R1_1, CaptureAspect.R3_4, CaptureAspect.R9_16) }
 
-    // 배치 편집 진입 시점 snapshot: 닫기(dismiss) 시에는 이 값을 유지하고, 적용 시에만 상위에 반영한다.
-    val entryPlacement = remember(placementState) { placementState }
-    val shapeWidthBase = remember(entryPlacement.wmWidthRatio, entryPlacement.wmHeightRatio) {
-        entryPlacement.wmWidthRatio.coerceAtLeast(10)
-    }
-    val shapeHeightBase = remember(entryPlacement.wmWidthRatio, entryPlacement.wmHeightRatio) {
-        entryPlacement.wmHeightRatio.coerceAtLeast(10)
-    }
+    val entryPlacement = remember(placementState) { placementState.copy(keepAspectRatio = true) }
+    val shapeWidthBase = remember(entryPlacement.wmWidthRatio) { entryPlacement.wmWidthRatio.coerceAtLeast(10) }
+    val shapeHeightBase = remember(entryPlacement.wmHeightRatio) { entryPlacement.wmHeightRatio.coerceAtLeast(10) }
 
     var draftCaptureAspect by remember(entryPlacement.captureAspect) { mutableStateOf(entryPlacement.captureAspect) }
     var draftOffsetX by remember(entryPlacement.wmOffsetXRatio) { mutableIntStateOf(entryPlacement.wmOffsetXRatio.coerceIn(0, 100)) }
@@ -75,20 +70,29 @@ fun PreviewTabContent(
         mutableIntStateOf(if (entryPlacement.rotationCwDeg == 90) 90 else 0)
     }
     var draftScale by remember(entryPlacement.wmWidthRatio, shapeWidthBase) {
-        mutableFloatStateOf((entryPlacement.wmWidthRatio.toFloat() / shapeWidthBase.toFloat() * 100f).coerceIn(50f, 200f))
+        mutableFloatStateOf(entryPlacement.wmWidthRatio.toFloat() / shapeWidthBase.toFloat() * 100f)
     }
-    var isWatermarkArmed by remember { mutableStateOf(false) }
 
     fun resetToEntryPlacement() {
         draftCaptureAspect = entryPlacement.captureAspect
         draftOffsetX = entryPlacement.wmOffsetXRatio.coerceIn(0, 100)
         draftOffsetY = entryPlacement.wmOffsetYRatio.coerceIn(0, 100)
         draftRotation = if (entryPlacement.rotationCwDeg == 90) 90 else 0
-        draftScale = (entryPlacement.wmWidthRatio.toFloat() / shapeWidthBase.toFloat() * 100f).coerceIn(50f, 200f)
+        draftScale = entryPlacement.wmWidthRatio.toFloat() / shapeWidthBase.toFloat() * 100f
     }
 
-    val previewWidthRatio = (shapeWidthBase * (draftScale / 100f)).roundToInt().coerceIn(10, 100)
-    val previewHeightRatio = (shapeHeightBase * (draftScale / 100f)).roundToInt().coerceIn(10, 100)
+    val ratioLockedScaleRange = resolveRatioLockedScaleRange(
+        baseWidthRatio = shapeWidthBase,
+        baseHeightRatio = shapeHeightBase,
+    )
+    val ratioLockedSize = resolveRatioLockedSizeFromScale(
+        baseWidthRatio = shapeWidthBase,
+        baseHeightRatio = shapeHeightBase,
+        requestedScalePercent = draftScale,
+    )
+    val previewWidthRatio = ratioLockedSize.widthRatio
+    val previewHeightRatio = ratioLockedSize.heightRatio
+    val clampedScale = ratioLockedSize.scalePercent
 
     Dialog(onDismissRequest = onClose) {
         Column(
@@ -99,6 +103,12 @@ fun PreviewTabContent(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            Text(
+                text = "촬영화면 미리보기",
+                color = DDZColor.Card,
+                style = DDZTypography.CardTitle
+            )
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -115,7 +125,6 @@ fun PreviewTabContent(
                     rowWeights = templateState.rowWeights,
                     colWeights = templateState.colWeights,
                     watermarkCells = watermarkCells,
-                    anchor = WatermarkTableAnchor.CUSTOM,
                     offsetXRatio = draftOffsetX,
                     offsetYRatio = draftOffsetY,
                     tableWidthRatio = previewWidthRatio,
@@ -128,8 +137,6 @@ fun PreviewTabContent(
                     manualTextColor = wmManualTextColor,
                     textAlign = wmTextAlign,
                     drawGrid = wmGridEnabled,
-                    armed = isWatermarkArmed,
-                    onArmedChange = { isWatermarkArmed = it },
                     onDragPreview = { offsetX, offsetY ->
                         draftOffsetX = offsetX.coerceIn(0, 100)
                         draftOffsetY = offsetY.coerceIn(0, 100)
@@ -141,6 +148,12 @@ fun PreviewTabContent(
                     modifier = Modifier.clipToBounds()
                 )
             }
+
+            Text(
+                text = "표를 움직여 위치를 이동하세요.",
+                color = DDZColor.Card,
+                style = DDZTypography.Caption
+            )
 
             Row(
                 modifier = Modifier
@@ -173,7 +186,7 @@ fun PreviewTabContent(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "회전 ${draftRotation}°",
+                        text = "회전",
                         color = DDZColor.Card,
                         style = DDZTypography.Caption
                     )
@@ -186,9 +199,15 @@ fun PreviewTabContent(
             ) {
                 Text("표 크기", color = DDZColor.Card, style = DDZTypography.Caption)
                 Slider(
-                    value = draftScale,
-                    onValueChange = { draftScale = it.coerceIn(50f, 200f) },
-                    valueRange = 50f..200f
+                    value = clampedScale,
+                    onValueChange = { requested ->
+                        draftScale = resolveRatioLockedSizeFromScale(
+                            baseWidthRatio = shapeWidthBase,
+                            baseHeightRatio = shapeHeightBase,
+                            requestedScalePercent = requested,
+                        ).scalePercent
+                    },
+                    valueRange = ratioLockedScaleRange.minScalePercent..ratioLockedScaleRange.maxScalePercent
                 )
             }
 
@@ -201,7 +220,6 @@ fun PreviewTabContent(
                 Button(onClick = {
                     onApplyPlacement(
                         entryPlacement.copy(
-                            wmAnchor = WatermarkTableAnchor.CUSTOM,
                             wmOffsetXRatio = draftOffsetX,
                             wmOffsetYRatio = draftOffsetY,
                             wmWidthRatio = previewWidthRatio,

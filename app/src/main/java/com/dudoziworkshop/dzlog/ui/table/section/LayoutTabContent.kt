@@ -98,7 +98,7 @@ fun LayoutTabContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     DDZSectionHeader(title = "셀 구성")
-                    TextButton(onClick = actions.onOpenPreview) {
+                    TextButton(onClick = actions.onOpenPlacementDialog) {
                         Text("미리보기", style = DDZTypography.Caption, color = DDZColor.Primary)
                     }
                 }
