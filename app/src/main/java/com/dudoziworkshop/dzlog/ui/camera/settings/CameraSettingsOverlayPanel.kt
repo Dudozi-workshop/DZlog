@@ -32,6 +32,7 @@ import androidx.compose.ui.zIndex
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
+import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControl
 import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControlOption
 import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControlStyles
@@ -60,6 +61,8 @@ internal fun CameraSettingsOverlayPanel(
     onShowTableChange: (Boolean) -> Unit,
     continuousPreviewMode: ContinuousPreviewMode,
     onContinuousPreviewModeChange: (ContinuousPreviewMode) -> Unit,
+    volumeKeyAction: VolumeKeyAction,
+    onVolumeKeyActionChange: (VolumeKeyAction) -> Unit,
     onDismiss: () -> Unit
 ) {
     val dismissInteraction = remember { MutableInteractionSource() }
@@ -164,6 +167,21 @@ internal fun CameraSettingsOverlayPanel(
                     options = listOf(
                         SegmentedControlOption("그리드", showGrid) { onShowGridChange(!showGrid) },
                         SegmentedControlOption("표", showTable) { onShowTableChange(!showTable) }
+                    )
+                )
+
+                SettingSectionTitle("음량키")
+                CompactSegments(
+                    options = listOf(
+                        SegmentedControlOption("기능없음", volumeKeyAction == VolumeKeyAction.NONE) {
+                            onVolumeKeyActionChange(VolumeKeyAction.NONE)
+                        },
+                        SegmentedControlOption("배율", volumeKeyAction == VolumeKeyAction.ZOOM) {
+                            onVolumeKeyActionChange(VolumeKeyAction.ZOOM)
+                        },
+                        SegmentedControlOption("촬영", volumeKeyAction == VolumeKeyAction.CAPTURE) {
+                            onVolumeKeyActionChange(VolumeKeyAction.CAPTURE)
+                        },
                     )
                 )
             }

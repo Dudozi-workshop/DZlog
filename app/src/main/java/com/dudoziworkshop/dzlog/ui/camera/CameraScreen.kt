@@ -8,6 +8,8 @@ package com.dudoziworkshop.dzlog.ui.camera
 import android.Manifest
 import android.annotation.SuppressLint
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
@@ -43,7 +45,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -59,44 +60,24 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
-import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
-import com.dudoziworkshop.dzlog.data.counter.clampCounterDigits
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_GRID_ON
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
-import com.dudoziworkshop.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
-import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
-import com.dudoziworkshop.dzlog.data.preferences.KEY_PHOTO_QUALITY_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SAVE_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BG_ALPHA
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_X_10000
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_Y_10000
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_GRID_ENABLED
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_X
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_Y
+import com.dudoziworkshop.dzlog.data.preferences.KEY_VOLUME_KEY_ACTION
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_ROTATION_CW_90
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_ALIGN
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MANUAL
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MODE
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.preferences.persistCaptureAspect
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
-import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
-import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
@@ -104,34 +85,24 @@ import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.domain.model.WatermarkConfig
-import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
-import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
-import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
-import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
-import com.dudoziworkshop.dzlog.domain.preview.CaptureScopeInput
-import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
-import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreviewInput
-import com.dudoziworkshop.dzlog.domain.preview.buildCapturePreview
-import com.dudoziworkshop.dzlog.domain.preview.buildScope
 import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
-import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterSyncEvent
 import com.dudoziworkshop.dzlog.ui.camera.controls.CaptureButtonSection
 import com.dudoziworkshop.dzlog.ui.camera.controls.CaptureClickCallbacks
 import com.dudoziworkshop.dzlog.ui.camera.controls.ZoomControlSection
 import com.dudoziworkshop.dzlog.ui.camera.controls.handleCaptureClick
+import com.dudoziworkshop.dzlog.ui.camera.effects.CameraPrefsEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraVolumeKeyEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.rememberLatestImageController
 import com.dudoziworkshop.dzlog.ui.camera.effects.rememberUndoDeleteController
+import com.dudoziworkshop.dzlog.ui.camera.presenter.rememberCameraPreviewAreaArgs
 import com.dudoziworkshop.dzlog.ui.camera.preview.CameraPreviewArea
-import com.dudoziworkshop.dzlog.ui.camera.preview.CameraPreviewAreaArgs
-import com.dudoziworkshop.dzlog.ui.camera.preview.WatermarkUiArgs
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsOverlayPanel
 import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
@@ -146,7 +117,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
-import kotlin.math.roundToInt
 
 private val USABLE_VERTICAL_MARGIN = 10.dp
 
@@ -209,6 +179,7 @@ fun CameraPreview(
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
     val scope = rememberCoroutineScope()
+    val cameraViewModel: CameraViewModel = viewModel()
     val repository: DzlogRepositoryImpl = remember {
         DzlogRepositoryImpl(
             saver = MediaStoreSaverImpl(),
@@ -237,12 +208,7 @@ fun CameraPreview(
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     var zoomPanelExpanded by remember { mutableStateOf(false) }
-    val ui = remember { CameraUiState() }
-    // 실제 capture/undo 완료 이벤트를 카운터 동기화 주 트리거로 사용한다.
-    var counterEventTick by remember { mutableIntStateOf(0) }
-    var latestCounterEvent by remember { mutableStateOf<CameraCounterSyncEvent?>(null) }
-    // 정책 변경: ROTATING_TEXT 문구 진행 커서(파일 카운터와 독립) 상태.
-    var phraseProgressCounter by remember { mutableIntStateOf(1) }
+    val ui = cameraViewModel.ui
     var shutterButtonTopY by remember { mutableStateOf<Float?>(null) }
     var cameraRootHeightPx by remember { mutableStateOf(0f) }
     val density = LocalDensity.current
@@ -257,27 +223,25 @@ fun CameraPreview(
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
-    // 구조 단순화: pre-sync(scope) 계산은 counter 동기화 전 단계에서만 수행한다.
-    val captureScopeState = remember(
+    val derivedState = remember(
         tableTemplateState,
         ui.capture.now,
         ui.prefs.counterDigits,
-        phraseProgressCounter,
+        cameraViewModel.phraseProgressCounter,
+        appSettings.includePathInCounterScope,
         appSettings.includeFilenameInCounterScope,
         appSettings.saveMode,
+        ui.counter.scopeNextCounter,
     ) {
-        buildScope(
-            input = CaptureScopeInput(
-                templateState = tableTemplateState,
-                captureNow = ui.capture.now,
-                counterDigits = ui.prefs.counterDigits,
-                dateFormat = dateFormat,
-                timeFormat = timeFormat,
-                fnDelim = fnDelim,
-                includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-                saveMode = appSettings.saveMode,
-                phraseProgressCursor = phraseProgressCounter,
-            ),
+        computeCameraDerivedState(
+            tableTemplateState = tableTemplateState,
+            now = ui.capture.now,
+            counterDigits = ui.prefs.counterDigits,
+            phraseProgressCounter = cameraViewModel.phraseProgressCounter,
+            includePathInCounterScope = appSettings.includePathInCounterScope,
+            includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+            saveMode = appSettings.saveMode,
+            syncedNextCounter = ui.counter.scopeNextCounter,
             tableResolver = tableResolver,
         )
     }
@@ -291,106 +255,52 @@ fun CameraPreview(
             }
         }
     }
-    val counterScope = captureScopeState.counterScope
-    // 핵심 정책(카메라): Counter read/commit이 동일한 stream key를 사용하도록 scoped stream을 단일 계산한다.
-    val scopedCounterStream = remember(
-        counterScope.relativePathKey,
-        counterScope.streamPrefix,
-        captureScopeState.scanPrefix,
-        appSettings.includePathInCounterScope,
-        appSettings.includeFilenameInCounterScope,
-        appSettings.saveMode,
-    ) {
-        buildScopedCounter(
-            counterScope = counterScope,
-            includePathInScope = appSettings.includePathInCounterScope,
-            includeFilenameInScope = appSettings.includeFilenameInCounterScope,
-            scanPrefix = captureScopeState.scanPrefix,
-        )
-    }
-    // 표시 정책(단순화): 동기화 전(null)에는 COUNTER 숫자를 표시하지 않는다.
-    val finalCapturePreview: FinalCapturePreview? = remember(
-        captureScopeState,
-        ui.counter.scopeNextCounter,
-        tableTemplateState,
-        ui.capture.now,
-        ui.prefs.counterDigits,
-        appSettings.includePathInCounterScope,
-        appSettings.includeFilenameInCounterScope,
-        appSettings.saveMode,
-        phraseProgressCounter,
-    ) {
-        val syncedCounter = ui.counter.scopeNextCounter ?: return@remember null
-        buildCapturePreview(
-            scopeState = captureScopeState,
-            input = FinalCapturePreviewInput(
-                templateState = tableTemplateState,
-                captureNow = ui.capture.now,
-                counterDigits = ui.prefs.counterDigits,
-                dateFormat = dateFormat,
-                timeFormat = timeFormat,
-                fnDelim = fnDelim,
-                includePathInCounterScope = appSettings.includePathInCounterScope,
-                includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-                saveMode = appSettings.saveMode,
-                syncedCounter = syncedCounter,
-                phraseProgressCursor = phraseProgressCounter,
-            ),
-        )
-    }
-    // 표시 정책(단순화): 동기화 전(null)에는 COUNTER 숫자를 표시하지 않는다.
-    val displayCounter = finalCapturePreview?.usedCounter
-    var resumeResyncTick by remember { mutableIntStateOf(0) }
+    val captureScopeState = derivedState.captureScopeState
+    val scopedCounterStream = derivedState.scopedCounterStream
+    val finalCapturePreview = derivedState.finalCapturePreview
+    val displayCounter = derivedState.displayCounter
     val latestImageController = rememberLatestImageController(
         context = context,
-        counterScopeRelativePathKey = counterScope.relativePathKey,
+        counterScopeRelativePathKey = captureScopeState.counterScope.relativePathKey,
         saveMode = appSettings.saveMode
     )
     val latestImage = latestImageController.latestImage
 
-    suspend fun syncAfterUndoDelete() {
+    fun syncAfterUndoDelete() {
         latestImageController.reload()
         // 실제 undo 삭제 완료(미디어 삭제 성공) 시점 이벤트다.
         // 버튼 클릭 시점이 아니라 완료 시점에만 발행해 카운터 재동기화 타이밍을 맞춘다.
-        latestCounterEvent = CameraCounterSyncEvent.UNDO_COMMITTED
-        counterEventTick += 1
+        cameraViewModel.onUndoCommitted()
     }
 
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            resumeResyncTick += 1
+            cameraViewModel.bumpResumeResyncTick()
             awaitCancellation()
         }
     }
 
     val undoDeleteController = rememberUndoDeleteController(
         context = context,
-        onCommitted = { scope.launch { syncAfterUndoDelete() } },
+        onCommitted = { syncAfterUndoDelete() },
         onRestore = { targetUris -> UndoCapturePolicy.restoreCapture(sessionCaptureStack, targetUris) },
     )
 
-    val hasTemplateCells = tableTemplateState.cells.isNotEmpty()
-    val hasAnyFilenameSlot = deriveFileNameCellSlotsFromDrafts(tableTemplateState.fileNameSlotDrafts).any { it != null }
-    val allFilenameSlotsOff = deriveFileNameCellSlotsFromDrafts(tableTemplateState.fileNameSlotDrafts).all { it == null }
-    val isTemplateReady = hasTemplateCells && (
-        !appSettings.includeFilenameInCounterScope ||
-            allFilenameSlotsOff ||
-            hasAnyFilenameSlot
-    )
+    val isTemplateReady = derivedState.isTemplateReady
 
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
     CameraCounterController(
-        counterScope = counterScope,
+        counterScope = captureScopeState.counterScope,
         scanPrefix = captureScopeState.scanPrefix,
-        resumeTick = resumeResyncTick,
-        counterEventTick = counterEventTick,
-        latestCounterEvent = latestCounterEvent,
+        resumeTick = cameraViewModel.resumeResyncTick,
+        counterEventTick = cameraViewModel.counterEventTick,
+        latestCounterEvent = cameraViewModel.latestCounterEvent,
         isTemplateReady = isTemplateReady,
         appSettings = appSettings,
         ui = ui,
     )
 
-    val topDisplayName = finalCapturePreview?.displayName ?: captureScopeState.preSyncDisplayName
+    val topDisplayName = derivedState.topDisplayName
 
     fun resetZoomToDefault() {
         ui.prefs.zoomRatioTenths = 10
@@ -414,7 +324,7 @@ fun CameraPreview(
 
         // 정책 변경: 촬영 피드백은 저장 완료가 아니라 촬영 트리거(버튼/음량키) 시점에 즉시 제공한다.
         captureFeedback.play(
-            successVibrationEnabled = appSettings.captureHapticEnabled,
+            successVibrationEnabled = appSettings.hapticEnabled && appSettings.captureHapticEnabled,
             soundEnabled = appSettings.captureSoundEnabled
         )
 
@@ -429,13 +339,12 @@ fun CameraPreview(
                 UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
                 // 실제 촬영 저장 완료(세션 stack 반영 완료) 시점 이벤트다.
                 // 버튼 클릭 시점이 아니라 완료 시점에만 발행해 본체 카운터 동기화가 즉시 반영되게 한다.
-                latestCounterEvent = CameraCounterSyncEvent.CAPTURE_COMMITTED
-                counterEventTick += 1
+                cameraViewModel.onCaptureCommitted()
                 latestImageController.reload()
             },
             onSetCapturedUri = { capturedUri -> ui.capture.capturedUri = capturedUri },
             // 정책 유지: 저장 성공 후 다음 순환문구 cursor를 반영한다.
-            onAdvancePhraseProgress = { nextCursor -> phraseProgressCounter = nextCursor.coerceAtLeast(1) },
+            onAdvancePhraseProgress = { nextCursor -> cameraViewModel.advancePhraseProgress(nextCursor) },
             onSetCapturing = { ui.capture.isCapturing = it }
         )
 
@@ -487,16 +396,11 @@ fun CameraPreview(
         }
     }
 
-    LaunchedEffect(Unit) {
-        loadCameraPrefsIntoUi(context.dataStore.data.first(), ui)
-    }
-
-
-    LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            loadCameraPrefsIntoUi(context.dataStore.data.first(), ui)
-        }
-    }
+    CameraPrefsEffect(
+        lifecycleOwner = lifecycleOwner,
+        readPrefs = { context.dataStore.data.first() },
+        ui = ui
+    )
 
     DisposableEffect(Unit) {
         onDispose {
@@ -541,146 +445,24 @@ fun CameraPreview(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                    val previewAreaArgs = remember(
-                        context,
-                        lifecycleOwner,
-                        scope,
-                        ui.prefs.captureAspect,
-                        appSettings.saveMode,
-                        ui.prefs.continuousPreviewMode,
-                        ui.prefs.counterDigits,
-                        dateFormat,
-                        timeFormat,
-                        fnDelim,
-                        displayCounter,
-                        tableTemplateState,
-                        tableResolver,
-                        ui.capture.now,
-                        ui.prefs.showWmPreview,
-                        ui.prefs.showGrid,
-                        ui.prefs.zoomRatioTenths,
-                        ui.prefs.wmTableAnchor,
-                        ui.prefs.wmTableWidthRatio,
-                        ui.prefs.wmTableHeightRatio,
-                        ui.prefs.wmOffsetXRatio,
-                        ui.prefs.wmOffsetYRatio,
-                        ui.prefs.wmBgAlpha,
-                        ui.prefs.wmBgStyle,
-                        ui.prefs.wmValueScale,
-                        ui.prefs.wmTextColorMode,
-                        ui.prefs.wmManualTextColor,
-                        ui.prefs.wmTextAlign,
-                        ui.prefs.wmGridEnabled,
-                        ui.prefs.wmRotationCwDeg,
-                        shutterButtonTopY,
-                        safeTopY,
-                        safeBottomY,
-                        usableVerticalMarginPx
-                    ) {
-                        CameraPreviewAreaArgs(
-                            context = context,
-                            lifecycleOwner = lifecycleOwner,
-                            scope = scope,
-                            captureAspect = ui.prefs.captureAspect,
-                            saveMode = appSettings.saveMode,
-                            continuousPreviewMode = ui.prefs.continuousPreviewMode,
-                            photoQualityMode = appSettings.photoQualityMode,
-                            counterDigits = ui.prefs.counterDigits,
-                            dateFormat = dateFormat,
-                            timeFormat = timeFormat,
-                            fnDelim = fnDelim,
-                            scopeNextCounter = displayCounter,
-                            phraseProgressCursor = phraseProgressCounter,
-                            tableTemplateState = tableTemplateState,
-                            tableResolver = tableResolver,
-                            now = ui.capture.now,
-                            showWmPreview = ui.prefs.showWmPreview,
-                            showGrid = ui.prefs.showGrid,
-                            zoomRatioTenths = ui.prefs.zoomRatioTenths,
-                            maxZoomTenths = ui.capture.maxZoomTenths,
-                            onActualZoomTenthsChange = { ui.capture.actualZoomTenths = it },
-                            onRequestedZoomTenthsCommit = { next ->
-                                val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
-                                ui.prefs.zoomRatioTenths = normalized
-                                scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
-                            },
-                            onMaxZoomTenthsChange = { ui.capture.maxZoomTenths = it.coerceAtLeast(10) },
-                            shutterButtonTopY = shutterButtonTopY,
-                            safeTopY = safeTopY,
-                            safeBottomY = safeBottomY,
-                            usableVerticalMarginPx = usableVerticalMarginPx,
-                            onUsableVerticalRatioChange = { topRatio, bottomRatio ->
-                                ui.capture.usableTopRatio = topRatio
-                                ui.capture.usableBottomRatio = bottomRatio
-                            },
-                            onWatermarkOffsetRatioPreview = { x, y ->
-                                ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
-                                ui.prefs.wmOffsetXRatio = x
-                                ui.prefs.wmOffsetYRatio = y
-                            },
-                            onWatermarkOffsetRatioCommit = { x, y ->
-                                val nx = x.coerceIn(0, 100)
-                                val ny = y.coerceIn(0, 100)
-                                ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
-                                ui.prefs.wmOffsetXRatio = nx
-                                ui.prefs.wmOffsetYRatio = ny
-                                scope.launch {
-                                    context.dataStore.edit {
-                                        it[KEY_WM_TABLE_ANCHOR] = 4
-                                        it[KEY_WM_OFFSET_X] = nx
-                                        it[KEY_WM_OFFSET_Y] = ny
-                                    }
-                                }
-                            },
-                            onWatermarkBoundsOffset10000Preview = { x10000, y10000 ->
-                                val nx10000 = x10000.coerceIn(0, 10000)
-                                val ny10000 = y10000.coerceIn(0, 10000)
-                                ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
-                                ui.prefs.wmBoundsOffsetX10000 = nx10000
-                                ui.prefs.wmBoundsOffsetY10000 = ny10000
-                                ui.prefs.wmOffsetXRatio = (nx10000 / 100f).roundToInt().coerceIn(0, 100)
-                                ui.prefs.wmOffsetYRatio = (ny10000 / 100f).roundToInt().coerceIn(0, 100)
-                            },
-                            onWatermarkBoundsOffset10000Commit = { x10000, y10000 ->
-                                val nx10000 = x10000.coerceIn(0, 10000)
-                                val ny10000 = y10000.coerceIn(0, 10000)
-                                val nx = (nx10000 / 100f).roundToInt().coerceIn(0, 100)
-                                val ny = (ny10000 / 100f).roundToInt().coerceIn(0, 100)
-                                ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
-                                ui.prefs.wmBoundsOffsetX10000 = nx10000
-                                ui.prefs.wmBoundsOffsetY10000 = ny10000
-                                ui.prefs.wmOffsetXRatio = nx
-                                ui.prefs.wmOffsetYRatio = ny
-                                scope.launch {
-                                    context.dataStore.edit {
-                                        it[KEY_WM_TABLE_ANCHOR] = 4
-                                        it[KEY_WM_BOUNDS_OFFSET_X_10000] = nx10000
-                                        it[KEY_WM_BOUNDS_OFFSET_Y_10000] = ny10000
-                                        it[KEY_WM_OFFSET_X] = nx
-                                        it[KEY_WM_OFFSET_Y] = ny
-                                    }
-                                }
-                            },
-                            onOpenTableEditor = onOpenTableEditor,
-                            watermarkUi = WatermarkUiArgs(
-                                anchor = ui.prefs.wmTableAnchor,
-                                tableWidthRatio = ui.prefs.wmTableWidthRatio,
-                                tableHeightRatio = ui.prefs.wmTableHeightRatio,
-                                offsetXRatio = ui.prefs.wmOffsetXRatio,
-                                offsetYRatio = ui.prefs.wmOffsetYRatio,
-                                boundsOffsetX10000 = ui.prefs.wmBoundsOffsetX10000,
-                                boundsOffsetY10000 = ui.prefs.wmBoundsOffsetY10000,
-                                bgAlpha = ui.prefs.wmBgAlpha,
-                                bgStyle = ui.prefs.wmBgStyle,
-                                valueScale = ui.prefs.wmValueScale,
-                                textColorMode = ui.prefs.wmTextColorMode,
-                                manualTextColor = ui.prefs.wmManualTextColor,
-                                textAlign = ui.prefs.wmTextAlign,
-                                wmGridEnabled = ui.prefs.wmGridEnabled,
-                                rotationCwDeg = ui.prefs.wmRotationCwDeg
-                            )
-                        )
-                    }
+                val previewAreaArgs = rememberCameraPreviewAreaArgs(
+                    context = context,
+                    lifecycleOwner = lifecycleOwner,
+                    ui = ui,
+                    appSettings = appSettings,
+                    tableTemplateState = tableTemplateState,
+                    tableResolver = tableResolver,
+                    scopeNextCounter = displayCounter,
+                    phraseProgressCursor = cameraViewModel.phraseProgressCounter,
+                    dateFormat = dateFormat,
+                    timeFormat = timeFormat,
+                    fnDelim = fnDelim,
+                    shutterButtonTopY = shutterButtonTopY,
+                    safeTopY = safeTopY,
+                    safeBottomY = safeBottomY,
+                    usableVerticalMarginPx = usableVerticalMarginPx,
+                    onOpenTableEditor = onOpenTableEditor,
+                )
 
                     CameraPreviewArea(
                         args = previewAreaArgs,
@@ -865,6 +647,10 @@ fun CameraPreview(
                 onContinuousPreviewModeChange = { mode ->
                     ui.prefs.continuousPreviewMode = mode
                     scope.launch { context.dataStore.edit { it[KEY_CONTINUOUS_PREVIEW_MODE] = mode.v } }
+                },
+                volumeKeyAction = appSettings.volumeKeyAction,
+                onVolumeKeyActionChange = { action ->
+                    scope.launch { context.dataStore.edit { it[KEY_VOLUME_KEY_ACTION] = action.v } }
                 },
                 onDismiss = { ui.showWizard = false }
             )
@@ -1054,77 +840,3 @@ internal fun buildWatermarkConfig(
     )
 }
 
-private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
-    try {
-        ui.prefs.wmTableAnchor = when (prefs[KEY_WM_TABLE_ANCHOR] ?: 3) {
-            0 -> WatermarkTableAnchor.TOP_LEFT
-            1 -> WatermarkTableAnchor.TOP_RIGHT
-            2 -> WatermarkTableAnchor.BOTTOM_LEFT
-            3 -> WatermarkTableAnchor.BOTTOM_RIGHT
-            else -> WatermarkTableAnchor.CUSTOM
-        }
-
-        ui.prefs.wmTableWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(10, 100)
-        ui.prefs.wmTableHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 100)
-        ui.prefs.wmBoundsOffsetX10000 = (prefs[KEY_WM_BOUNDS_OFFSET_X_10000] ?: 0).coerceIn(0, 10000)
-        ui.prefs.wmBoundsOffsetY10000 = (prefs[KEY_WM_BOUNDS_OFFSET_Y_10000] ?: 0).coerceIn(0, 10000)
-        ui.prefs.wmOffsetXRatio = (ui.prefs.wmBoundsOffsetX10000 / 100f).roundToInt().coerceIn(0, 100)
-        ui.prefs.wmOffsetYRatio = (ui.prefs.wmBoundsOffsetY10000 / 100f).roundToInt().coerceIn(0, 100)
-
-        ui.prefs.wmBgAlpha = (prefs[KEY_WM_BG_ALPHA] ?: 80).coerceIn(0, 255)
-        ui.prefs.wmBgStyle = (prefs[KEY_WM_TABLE_BG_STYLE] ?: 0).coerceIn(0, 2)
-        ui.prefs.wmValueScale = (prefs[KEY_WM_VALUE_SCALE] ?: 100).coerceIn(60, 160)
-        ui.prefs.wmTextColorMode = (prefs[KEY_WM_TEXT_COLOR_MODE] ?: WatermarkTextColorMode.AUTO).coerceIn(0, 1)
-        ui.prefs.wmManualTextColor = (prefs[KEY_WM_TEXT_COLOR_MANUAL] ?: WatermarkManualTextColor.BLACK).coerceIn(0, 1)
-        ui.prefs.wmTextAlign = (prefs[KEY_WM_TEXT_ALIGN] ?: WatermarkTextAlign.LEFT).coerceIn(0, 2)
-        ui.prefs.wmGridEnabled = prefs[KEY_WM_GRID_ENABLED] ?: true
-        ui.prefs.wmRotationCwDeg = if ((prefs[KEY_WM_ROTATION_CW_90] ?: 0) == 90) 90 else 0
-
-        ui.prefs.captureAspect = CaptureAspect.from(
-            prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v
-        )
-
-        // 표준: 0=원본, 1=워터마크, 2=원본+워터마크
-        ui.prefs.saveMode = SaveMode.from(prefs[KEY_SAVE_MODE] ?: SaveMode.BOTH.v)
-
-        ui.prefs.continuousPreviewMode = ContinuousPreviewMode.from(
-            prefs[KEY_CONTINUOUS_PREVIEW_MODE] ?: ContinuousPreviewMode.OFF.v
-        )
-        ui.prefs.photoQualityMode = PhotoQualityMode.from(
-            prefs[KEY_PHOTO_QUALITY_MODE] ?: PhotoQualityMode.BALANCED.v
-        )
-
-        ui.prefs.counterDigits = clampCounterDigits(prefs[KEY_COUNTER_DIGITS] ?: COUNTER_DIGITS_DEFAULT)
-        ui.prefs.showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
-        ui.prefs.showGrid = prefs[KEY_CAMERA_GRID_ON] ?: false
-        ui.prefs.zoomRatioTenths = (prefs[KEY_CAMERA_ZOOM_TENTHS] ?: 10).coerceIn(10, 100)
-        ui.capture.actualZoomTenths = ui.prefs.zoomRatioTenths
-        ui.capture.maxZoomTenths = maxOf(ui.capture.maxZoomTenths, 20)
-    } catch (_: Exception) {
-        ui.prefs.captureAspect = CaptureAspect.R3_4
-        ui.prefs.saveMode = SaveMode.WATERMARK_ONLY
-        ui.prefs.continuousPreviewMode = ContinuousPreviewMode.OFF
-        ui.prefs.photoQualityMode = PhotoQualityMode.BALANCED
-        ui.prefs.counterDigits = COUNTER_DIGITS_DEFAULT
-        ui.prefs.showWmPreview = true
-        ui.prefs.showGrid = false
-        ui.prefs.zoomRatioTenths = 10
-        ui.capture.actualZoomTenths = 10
-        ui.capture.maxZoomTenths = 20
-        ui.prefs.wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
-        ui.prefs.wmTableWidthRatio = 40
-        ui.prefs.wmTableHeightRatio = 20
-        ui.prefs.wmOffsetXRatio = 0
-        ui.prefs.wmOffsetYRatio = 0
-        ui.prefs.wmBoundsOffsetX10000 = 0
-        ui.prefs.wmBoundsOffsetY10000 = 0
-        ui.prefs.wmBgAlpha = 80
-        ui.prefs.wmBgStyle = 0
-        ui.prefs.wmValueScale = 100
-        ui.prefs.wmTextColorMode = WatermarkTextColorMode.AUTO
-        ui.prefs.wmManualTextColor = WatermarkManualTextColor.BLACK
-        ui.prefs.wmTextAlign = WatermarkTextAlign.LEFT
-        ui.prefs.wmGridEnabled = true
-        ui.prefs.wmRotationCwDeg = 0
-    }
-}

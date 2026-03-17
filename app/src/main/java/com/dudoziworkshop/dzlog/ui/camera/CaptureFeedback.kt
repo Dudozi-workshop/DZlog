@@ -31,19 +31,19 @@ internal class CaptureFeedback(private val context: Context) {
     private fun vibrateSuccessPattern() {
         val vibrator = resolveVibrator() ?: return
         if (!vibrator.hasVibrator()) return
-
-        val effect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // 짧고 선명한 듀얼 펄스로 촬영 성공감을 강화하되 연속 촬영에서도 과하지 않게 유지.
-            VibrationEffect.createWaveform(longArrayOf(0, 20, 18, 26), intArrayOf(0, 170, 0, 220), -1)
-        } else {
-            null
-        }
+        // UX: 짧고 강하게 2회(디-딩). 너무 짧으면 체감이 약해서 35~40ms로 유지한다.
+        val timings = longArrayOf(0, 38, 55, 38)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val effect = if (vibrator.hasAmplitudeControl()) {
+                VibrationEffect.createWaveform(timings, intArrayOf(0, 255, 0, 255), -1)
+            } else {
+                VibrationEffect.createWaveform(timings, -1)
+            }
             vibrator.vibrate(effect)
         } else {
             @Suppress("DEPRECATION")
-            vibrator.vibrate(35)
+            vibrator.vibrate(timings, -1)
         }
     }
 
