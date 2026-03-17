@@ -17,26 +17,15 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.RotateRight
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -52,12 +41,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.edit
@@ -74,12 +59,10 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SAVE_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
 import com.dudoziworkshop.dzlog.data.preferences.KEY_VOLUME_KEY_ACTION
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_ROTATION_CW_90
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.preferences.persistCaptureAspect
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
-import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -87,27 +70,24 @@ import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.domain.model.WatermarkConfig
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
-import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
-import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
-import com.dudoziworkshop.dzlog.ui.camera.controls.CaptureButtonSection
+import com.dudoziworkshop.dzlog.ui.camera.controls.CameraBottomControls
 import com.dudoziworkshop.dzlog.ui.camera.controls.CaptureClickCallbacks
-import com.dudoziworkshop.dzlog.ui.camera.controls.ZoomControlSection
 import com.dudoziworkshop.dzlog.ui.camera.controls.handleCaptureClick
+import com.dudoziworkshop.dzlog.ui.camera.effects.CameraNowTickEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraPrefsEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraVolumeKeyEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.rememberLatestImageController
 import com.dudoziworkshop.dzlog.ui.camera.effects.rememberUndoDeleteController
+import com.dudoziworkshop.dzlog.ui.camera.presenter.rememberCameraLayoutState
 import com.dudoziworkshop.dzlog.ui.camera.presenter.rememberCameraPreviewAreaArgs
 import com.dudoziworkshop.dzlog.ui.camera.preview.CameraPreviewArea
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsOverlayPanel
 import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
-import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
-import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
@@ -116,7 +96,6 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.Date
 
 private val USABLE_VERTICAL_MARGIN = 10.dp
 
@@ -209,15 +188,7 @@ fun CameraPreview(
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     var zoomPanelExpanded by remember { mutableStateOf(false) }
     val ui = cameraViewModel.ui
-    var shutterButtonTopY by remember { mutableStateOf<Float?>(null) }
-    var cameraRootHeightPx by remember { mutableStateOf(0f) }
-    val density = LocalDensity.current
-    val safeDrawingPadding = WindowInsets.safeDrawing.asPaddingValues()
-    val safeTopInsetPx = with(density) { safeDrawingPadding.calculateTopPadding().toPx() }
-    val safeBottomInsetPx = with(density) { safeDrawingPadding.calculateBottomPadding().toPx() }
-    val safeTopY = safeTopInsetPx.takeIf { it > 0f }
-    val safeBottomY = (cameraRootHeightPx - safeBottomInsetPx).takeIf { cameraRootHeightPx > 0f }
-    val usableVerticalMarginPx = with(density) { USABLE_VERTICAL_MARGIN.toPx() }
+    val layout = rememberCameraLayoutState(usableVerticalMargin = USABLE_VERTICAL_MARGIN)
 
     val tableResolver = remember { TableResolver() }
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
@@ -245,16 +216,11 @@ fun CameraPreview(
             tableResolver = tableResolver,
         )
     }
-    LaunchedEffect(tableTemplateState.cells, lifecycleOwner) {
-        val unit = decideTickUnitFromTemplate(tableTemplateState.cells)
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            while (true) {
-                val delayMs = computeNextDelayMillis(unit)
-                delay(delayMs)
-                ui.capture.now = Date()
-            }
-        }
-    }
+    CameraNowTickEffect(
+        lifecycleOwner = lifecycleOwner,
+        cells = tableTemplateState.cells,
+        onNowChange = { ui.capture.now = it },
+    )
     val captureScopeState = derivedState.captureScopeState
     val scopedCounterStream = derivedState.scopedCounterStream
     val finalCapturePreview = derivedState.finalCapturePreview
@@ -425,7 +391,7 @@ fun CameraPreview(
                 .fillMaxSize()
                 .background(DDZColor.PrimaryDark.copy(alpha = 0f))
                 .onGloballyPositioned { coordinates ->
-                    cameraRootHeightPx = coordinates.size.height.toFloat()
+                    layout.onCameraRootHeightPxChange(coordinates.size.height.toFloat())
                 }
         ) {
             CameraTopBar(
@@ -457,10 +423,10 @@ fun CameraPreview(
                     dateFormat = dateFormat,
                     timeFormat = timeFormat,
                     fnDelim = fnDelim,
-                    shutterButtonTopY = shutterButtonTopY,
-                    safeTopY = safeTopY,
-                    safeBottomY = safeBottomY,
-                    usableVerticalMarginPx = usableVerticalMarginPx,
+                    shutterButtonTopY = layout.shutterButtonTopY,
+                    safeTopY = layout.safeTopY,
+                    safeBottomY = layout.safeBottomY,
+                    usableVerticalMarginPx = layout.usableVerticalMarginPx,
                     onOpenTableEditor = onOpenTableEditor,
                 )
 
@@ -476,135 +442,25 @@ fun CameraPreview(
                     )
 
 
-                    if (zoomPanelExpanded) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) { zoomPanelExpanded = false }
-                        )
-                    }
-
                     Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility)
-                            .padding(bottom = DDZSpacing.screenPadding),
-                        contentAlignment = Alignment.Center
+                        modifier = Modifier.align(Alignment.BottomCenter)
                     ) {
-                        val enabledNow =
-                            (boundImageCapture != null &&
-                                ui.capture.capturedUri == null &&
-                                !ui.capture.isCapturing &&
-                                ui.counter.scopeNextCounter != null)
-
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            ZoomControlSection(
-                                zoomRatioTenths = ui.capture.actualZoomTenths,
-                                maxZoomTenths = ui.capture.maxZoomTenths,
-                                expanded = zoomPanelExpanded,
-                                onToggleExpanded = { zoomPanelExpanded = !zoomPanelExpanded },
-                                onZoomTenthsChange = ::commitZoomTenths
-                            )
-
-                            Box(modifier = Modifier.height(2.dp))
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .onGloballyPositioned { coordinates ->
-                                        shutterButtonTopY = coordinates.positionInRoot().y
-                                    }
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    // 하단 조작부 정책: 15/23/24/23/15 비율로 중심축(anchor-3)과 2·4 midpoint 균형을 비율 기반으로 유지한다.
-                                    // slot1: 최근(anchor-1)
-                                    Box(
-                                        modifier = Modifier.weight(15f),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        RecentCaptureThumbButton(
-                                            latestImage = latestImage,
-                                            onClick = {
-                                                zoomPanelExpanded = false
-                                                val it = latestImage
-                                                if (it == null) {
-                                                    onOpenAlbum()
-                                                } else {
-                                                    val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
-                                                    onOpenRecentCaptureGrid(g1, g2, it.relativePath, 0)
-                                                }
-                                            }
-                                        )
-                                    }
-
-                                    // slot2: midpoint(1-3), 추후 확장용 빈 슬롯
-                                    Box(
-                                        modifier = Modifier.weight(23f),
-                                        contentAlignment = Alignment.Center
-                                    ) {}
-
-                                    // slot3: 촬영(anchor-center)
-                                    Box(
-                                        modifier = Modifier.weight(24f),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CaptureButtonSection(
-                                            ready = enabledNow,
-                                            onClick = {
-                                                // UX 정책: 패널이 열려 있어도 촬영 버튼은 즉시 촬영하고, 패널만 최소화한다.
-                                                zoomPanelExpanded = false
-                                                triggerCapture()
-                                            }
-                                        )
-                                    }
-
-                                    // slot4: midpoint(3-5)
-                                    Box(
-                                        modifier = Modifier.weight(23f),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        WatermarkRotateButton(
-                                            onClick = {
-                                                val nextRotation = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
-                                                ui.prefs.wmRotationCwDeg = nextRotation
-                                                // 회전은 0°/90°만 토글한다. 위치/크기는 사용자가 직접 이동/조절한다.
-                                                scope.launch {
-                                                    context.dataStore.edit {
-                                                        it[KEY_WM_ROTATION_CW_90] = nextRotation
-                                                    }
-                                                }
-                                            }
-                                        )
-                                    }
-
-                                    // slot5: undo(anchor-5)
-                                    Box(
-                                        modifier = Modifier.weight(15f),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        UndoCaptureButton(
-                                            enabled = sessionCaptureStack.isNotEmpty() && undoDeleteController.pendingUris == null,
-                                            onClick = {
-                                                if (undoDeleteController.pendingUris != null) return@UndoCaptureButton
-                                                val targetUris = UndoCapturePolicy.consumeLatestCapture(
-                                                    stack = sessionCaptureStack
-                                                )
-                                                if (targetUris.isEmpty()) return@UndoCaptureButton
-                                                undoDeleteController.delete(targetUris)
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        CameraBottomControls(
+                            context = context,
+                            scope = scope,
+                            ui = ui,
+                            boundImageCaptureAvailable = (boundImageCapture != null),
+                            latestImage = latestImage,
+                            onOpenAlbum = onOpenAlbum,
+                            onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
+                            sessionCaptureStack = sessionCaptureStack,
+                            undoPending = (undoDeleteController.pendingUris != null),
+                            onUndoDelete = { uris -> undoDeleteController.delete(uris) },
+                            onTriggerCapture = { triggerCapture() },
+                            onShutterButtonTopYChange = { layout.onShutterButtonTopYChange(it) },
+                            zoomPanelExpanded = zoomPanelExpanded,
+                            onZoomPanelExpandedChange = { zoomPanelExpanded = it },
+                        )
                     }
             }
         }
@@ -725,81 +581,6 @@ private fun CameraTopBar(
                     tint = DDZColor.SageDarkStrong
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun CameraControlButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    backgroundColor: Color = Color.Transparent,
-    borderColor: Color = DDZColor.SageBorder,
-    content: @Composable BoxScope.() -> Unit
-) {
-    // 4단계 정책: 하단 보조 버튼 3종의 공통 외곽(size/clip/border/background/clickable)만 통합한다.
-    Box(
-        modifier = modifier
-            .size(DDZLayout.Control.CameraSmall)
-            .clip(CameraCompactControlShape)
-            .border(1.dp, borderColor, CameraCompactControlShape)
-            .background(backgroundColor)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-        content = content
-    )
-}
-
-@Composable
-private fun WatermarkRotateButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    CameraControlButton(
-        onClick = onClick,
-        modifier = modifier
-    ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.RotateRight,
-            contentDescription = "워터마크 90도 회전",
-            tint = DDZColor.SageDarkStrong
-        )
-    }
-}
-
-@Composable
-private fun UndoCaptureButton(
-    enabled: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    CameraControlButton(
-        onClick = onClick,
-        modifier = modifier,
-        enabled = enabled,
-        backgroundColor = if (enabled) DDZColor.SagePrimary else Color.Transparent
-    ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.Undo,
-            contentDescription = "Undo",
-            tint = if (enabled) Color.White else DDZColor.SageDark
-        )
-    }
-}
-
-@Composable
-private fun RecentCaptureThumbButton(
-    latestImage: MediaImageItem?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    CameraControlButton(
-        onClick = onClick,
-        modifier = modifier
-    ) {
-        latestImage?.let {
-            DzThumbnail(it.uri.toString())
         }
     }
 }

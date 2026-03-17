@@ -1,0 +1,246 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
+package com.dudoziworkshop.dzlog.ui.camera.controls
+
+import android.content.Context
+import android.net.Uri
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.RotateRight
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.unit.dp
+import androidx.datastore.preferences.core.edit
+import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_ROTATION_CW_90
+import com.dudoziworkshop.dzlog.data.preferences.dataStore
+import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
+import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
+import com.dudoziworkshop.dzlog.ui.camera.CameraUiState
+import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
+import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
+import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
+import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+
+@Composable
+internal fun CameraBottomControls(
+    context: Context,
+    scope: CoroutineScope,
+    ui: CameraUiState,
+    boundImageCaptureAvailable: Boolean,
+    latestImage: MediaImageItem?,
+    onOpenAlbum: () -> Unit,
+    onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
+    sessionCaptureStack: MutableList<List<Uri>>,
+    undoPending: Boolean,
+    onUndoDelete: (targetUris: List<Uri>) -> Unit,
+    onTriggerCapture: () -> Unit,
+    onShutterButtonTopYChange: (Float?) -> Unit,
+    zoomPanelExpanded: Boolean,
+    onZoomPanelExpandedChange: (Boolean) -> Unit,
+) {
+    if (zoomPanelExpanded) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { onZoomPanelExpandedChange(false) }
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility)
+            .padding(bottom = DDZSpacing.screenPadding),
+        contentAlignment = Alignment.Center
+    ) {
+        val enabledNow =
+            (boundImageCaptureAvailable &&
+                ui.capture.capturedUri == null &&
+                !ui.capture.isCapturing &&
+                ui.counter.scopeNextCounter != null)
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            ZoomControlSection(
+                zoomRatioTenths = ui.capture.actualZoomTenths,
+                maxZoomTenths = ui.capture.maxZoomTenths,
+                expanded = zoomPanelExpanded,
+                onToggleExpanded = { onZoomPanelExpandedChange(!zoomPanelExpanded) },
+                onZoomTenthsChange = { next ->
+                    val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
+                    ui.prefs.zoomRatioTenths = normalized
+                    scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
+                }
+            )
+
+            Box(modifier = Modifier.height(2.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned { coordinates ->
+                        onShutterButtonTopYChange(coordinates.positionInRoot().y)
+                    }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.weight(15f), contentAlignment = Alignment.Center) {
+                        RecentCaptureThumbButton(
+                            latestImage = latestImage,
+                            onClick = {
+                                onZoomPanelExpandedChange(false)
+                                val it = latestImage
+                                if (it == null) {
+                                    onOpenAlbum()
+                                } else {
+                                    val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
+                                    onOpenRecentCaptureGrid(g1, g2, it.relativePath, 0)
+                                }
+                            }
+                        )
+                    }
+
+                    Box(modifier = Modifier.weight(23f), contentAlignment = Alignment.Center) {}
+
+                    Box(modifier = Modifier.weight(24f), contentAlignment = Alignment.Center) {
+                        CaptureButtonSection(
+                            ready = enabledNow,
+                            onClick = {
+                                onZoomPanelExpandedChange(false)
+                                onTriggerCapture()
+                            }
+                        )
+                    }
+
+                    Box(modifier = Modifier.weight(23f), contentAlignment = Alignment.Center) {
+                        WatermarkRotateButton(
+                            onClick = {
+                                val nextRotation = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
+                                ui.prefs.wmRotationCwDeg = nextRotation
+                                scope.launch {
+                                    context.dataStore.edit { it[KEY_WM_ROTATION_CW_90] = nextRotation }
+                                }
+                            }
+                        )
+                    }
+
+                    Box(modifier = Modifier.weight(15f), contentAlignment = Alignment.Center) {
+                        UndoCaptureButton(
+                            enabled = sessionCaptureStack.isNotEmpty() && !undoPending,
+                            onClick = {
+                                if (undoPending) return@UndoCaptureButton
+                                val targetUris = UndoCapturePolicy.consumeLatestCapture(stack = sessionCaptureStack)
+                                if (targetUris.isEmpty()) return@UndoCaptureButton
+                                onUndoDelete(targetUris)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 2단계 라운딩 토큰: 카메라 하단의 소형 컨트롤은 Small로 통일한다.
+private val CameraCompactControlShape = RoundedCornerShape(DDZLayout.Radius.Small)
+
+@Composable
+private fun CameraControlButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    backgroundColor: Color = Color.Transparent,
+    borderColor: Color = DDZColor.SageBorder,
+    content: @Composable BoxScope.() -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(DDZLayout.Control.CameraSmall)
+            .clip(CameraCompactControlShape)
+            .border(1.dp, borderColor, CameraCompactControlShape)
+            .background(backgroundColor)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+        content = content
+    )
+}
+
+@Composable
+private fun WatermarkRotateButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    CameraControlButton(onClick = onClick, modifier = modifier) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.RotateRight,
+            contentDescription = "워터마크 90도 회전",
+            tint = DDZColor.SageDarkStrong
+        )
+    }
+}
+
+@Composable
+private fun UndoCaptureButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    CameraControlButton(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        backgroundColor = if (enabled) DDZColor.SagePrimary else Color.Transparent
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.Undo,
+            contentDescription = "Undo",
+            tint = if (enabled) Color.White else DDZColor.SageDark
+        )
+    }
+}
+
+@Composable
+private fun RecentCaptureThumbButton(
+    latestImage: MediaImageItem?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    CameraControlButton(onClick = onClick, modifier = modifier) {
+        latestImage?.let { DzThumbnail(it.uri.toString()) }
+    }
+}
+
