@@ -11,7 +11,9 @@ internal data class TableEditorBootstrapState(
     val style: TableStyleState,
 )
 
-internal fun loadTableEditorBootstrapState(context: Context): Result<TableEditorBootstrapState> = runCatching {
+internal suspend fun loadTableEditorBootstrapState(
+    context: Context
+): Result<TableEditorBootstrapState> = runCatching {
     TableEditorBootstrapState(
         placement = loadTablePlacementState(context),
         style = loadTableStyleState(context),
