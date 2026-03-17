@@ -7,139 +7,128 @@ package com.dudoziworkshop.dzlog.ui.camera
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Activity
-import android.app.RecoverableSecurityException
-import android.content.Context
 import android.net.Uri
-import android.os.Build
-import android.database.ContentObserver
-import android.os.Handler
-import android.os.Looper
-import android.provider.MediaStore
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.filled.RotateRight
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.data.counter.clampCounterDigits
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
-import com.dudoziworkshop.dzlog.data.preferences.KEY_CAPTURE_ASPECT
-import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
+import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_GRID_ON
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
+import com.dudoziworkshop.dzlog.data.preferences.KEY_CAPTURE_ASPECT
+import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
-import com.dudoziworkshop.dzlog.data.preferences.KEY_SAVE_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_PHOTO_QUALITY_MODE
+import com.dudoziworkshop.dzlog.data.preferences.KEY_SAVE_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BG_ALPHA
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_X_10000
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_Y_10000
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_GRID_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_X
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_X_10000
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_Y
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_Y_10000
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_ROTATION_CW_90
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_VALUE_SCALE
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MODE
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MANUAL
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_ALIGN
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MANUAL
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MODE
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_VALUE_SCALE
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
-import com.dudoziworkshop.dzlog.domain.counter.CounterScope
+import com.dudoziworkshop.dzlog.data.preferences.persistCaptureAspect
+import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
+import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
+import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
+import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.domain.model.WatermarkConfig
-import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
-import com.dudoziworkshop.dzlog.domain.model.SaveMode
-import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
-import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
-import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
-import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
 import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
+import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
-import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.CaptureScopeInput
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreviewInput
-import com.dudoziworkshop.dzlog.domain.preview.buildScope
 import com.dudoziworkshop.dzlog.domain.preview.buildCapturePreview
+import com.dudoziworkshop.dzlog.domain.preview.buildScope
+import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
+import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
 import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterSyncEvent
-import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
-import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
-import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreSaverImpl
-import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.ui.camera.controls.CaptureButtonSection
 import com.dudoziworkshop.dzlog.ui.camera.controls.CaptureClickCallbacks
 import com.dudoziworkshop.dzlog.ui.camera.controls.ZoomControlSection
 import com.dudoziworkshop.dzlog.ui.camera.controls.handleCaptureClick
+import com.dudoziworkshop.dzlog.ui.camera.effects.CameraVolumeKeyEffect
+import com.dudoziworkshop.dzlog.ui.camera.effects.rememberLatestImageController
+import com.dudoziworkshop.dzlog.ui.camera.effects.rememberUndoDeleteController
 import com.dudoziworkshop.dzlog.ui.camera.preview.CameraPreviewArea
 import com.dudoziworkshop.dzlog.ui.camera.preview.CameraPreviewAreaArgs
 import com.dudoziworkshop.dzlog.ui.camera.preview.WatermarkUiArgs
@@ -152,15 +141,12 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import com.dudoziworkshop.dzlog.data.preferences.persistCaptureAspect
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
 import java.util.Date
+import kotlin.math.roundToInt
 
 private val USABLE_VERTICAL_MARGIN = 10.dp
 
@@ -354,28 +340,16 @@ fun CameraPreview(
     }
     // 표시 정책(단순화): 동기화 전(null)에는 COUNTER 숫자를 표시하지 않는다.
     val displayCounter = finalCapturePreview?.usedCounter
-    val mediaStoreRefreshTick = rememberMediaStoreRefreshTick(context)
     var resumeResyncTick by remember { mutableIntStateOf(0) }
-    var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
-
-    suspend fun reloadLatestImage() {
-        latestImage = withContext(Dispatchers.IO) {
-            val reader = DzlogMediaStoreReader(context.contentResolver)
-            val baseRelativePath = counterScope.relativePathKey
-                .substringBefore("|g2=", counterScope.relativePathKey)
-                .let { if (it.endsWith('/')) it else "$it/" }
-            val targetRelativePath = if (appSettings.saveMode == SaveMode.ORIGINAL_ONLY) {
-                // 카운터 스트림 경로가 이미 original/ 인 경우 중복 append(original/original/)를 방지한다.
-                if (baseRelativePath.endsWith("original/")) baseRelativePath else "${baseRelativePath}original/"
-            } else {
-                baseRelativePath
-            }
-            runCatching { reader.loadLatestImageInRelativePath(targetRelativePath) }.getOrNull()
-        }
-    }
+    val latestImageController = rememberLatestImageController(
+        context = context,
+        counterScopeRelativePathKey = counterScope.relativePathKey,
+        saveMode = appSettings.saveMode
+    )
+    val latestImage = latestImageController.latestImage
 
     suspend fun syncAfterUndoDelete() {
-        reloadLatestImage()
+        latestImageController.reload()
         // 실제 undo 삭제 완료(미디어 삭제 성공) 시점 이벤트다.
         // 버튼 클릭 시점이 아니라 완료 시점에만 발행해 카운터 재동기화 타이밍을 맞춘다.
         latestCounterEvent = CameraCounterSyncEvent.UNDO_COMMITTED
@@ -389,61 +363,11 @@ fun CameraPreview(
         }
     }
 
-
-    LaunchedEffect(Unit) { reloadLatestImage() }
-    LaunchedEffect(mediaStoreRefreshTick) { reloadLatestImage() }
-    LaunchedEffect(appSettings.saveMode, counterScope.relativePathKey) { reloadLatestImage() }
-
-    var pendingUndoDeleteUris by remember { mutableStateOf<List<Uri>?>(null) }
-
-    val undoDeleteLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult()
-    ) { result ->
-        val pendingUris = pendingUndoDeleteUris ?: return@rememberLauncherForActivityResult
-        if (result.resultCode == Activity.RESULT_OK) {
-            scope.launch { syncAfterUndoDelete() }
-        } else {
-            UndoCapturePolicy.restoreCapture(sessionCaptureStack, pendingUris)
-        }
-        pendingUndoDeleteUris = null
-    }
-
-    fun launchScopedDeleteRequest(targetUris: List<Uri>): Boolean {
-        if (targetUris.isEmpty()) return false
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, targetUris)
-            pendingUndoDeleteUris = targetUris
-            undoDeleteLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
-            return true
-        }
-        return false
-    }
-
-    fun performUndoDelete(targetUris: List<Uri>) {
-        if (targetUris.isEmpty()) return
-
-        val deletedAll = runCatching {
-            targetUris.all { uri ->
-                context.contentResolver.delete(uri, null, null) > 0
-            }
-        }.getOrElse { throwable ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && throwable is RecoverableSecurityException) {
-                pendingUndoDeleteUris = targetUris
-                undoDeleteLauncher.launch(
-                    IntentSenderRequest.Builder(throwable.userAction.actionIntent.intentSender).build()
-                )
-                return
-            }
-            false
-        }
-
-        if (!deletedAll) {
-            UndoCapturePolicy.restoreCapture(sessionCaptureStack, targetUris)
-            return
-        }
-
-        scope.launch { syncAfterUndoDelete() }
-    }
+    val undoDeleteController = rememberUndoDeleteController(
+        context = context,
+        onCommitted = { scope.launch { syncAfterUndoDelete() } },
+        onRestore = { targetUris -> UndoCapturePolicy.restoreCapture(sessionCaptureStack, targetUris) },
+    )
 
     val hasTemplateCells = tableTemplateState.cells.isNotEmpty()
     val hasAnyFilenameSlot = deriveFileNameCellSlotsFromDrafts(tableTemplateState.fileNameSlotDrafts).any { it != null }
@@ -507,7 +431,7 @@ fun CameraPreview(
                 // 버튼 클릭 시점이 아니라 완료 시점에만 발행해 본체 카운터 동기화가 즉시 반영되게 한다.
                 latestCounterEvent = CameraCounterSyncEvent.CAPTURE_COMMITTED
                 counterEventTick += 1
-                scope.launch { reloadLatestImage() }
+                latestImageController.reload()
             },
             onSetCapturedUri = { capturedUri -> ui.capture.capturedUri = capturedUri },
             // 정책 유지: 저장 성공 후 다음 순환문구 cursor를 반영한다.
@@ -555,8 +479,6 @@ fun CameraPreview(
             callbacks = callbacks
         )
     }
-    val latestVolumeKeyAction by rememberUpdatedState(appSettings.volumeKeyAction)
-    val latestTriggerCapture by rememberUpdatedState(triggerCapture)
 
     LaunchedEffect(ui.capture.capturedUri, ui.prefs.continuousPreviewMode) {
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode == ContinuousPreviewMode.SHORT) {
@@ -582,28 +504,16 @@ fun CameraPreview(
         }
     }
 
-    DisposableEffect(appSettings.volumeKeyAction) {
-        VolumeKeyInputBus.setVolumeKeyAction(appSettings.volumeKeyAction)
-        onDispose { VolumeKeyInputBus.setVolumeKeyAction(VolumeKeyAction.NONE) }
-    }
-
-    LaunchedEffect(Unit) {
-        VolumeKeyInputBus.events.collect { press ->
-            when (latestVolumeKeyAction) {
-                VolumeKeyAction.CAPTURE -> {
-                    zoomPanelExpanded = false
-                    latestTriggerCapture()
-                }
-
-                VolumeKeyAction.ZOOM -> {
-                    val delta = if (press == VolumeKeyPress.UP) 1 else -1
-                    commitZoomTenths(ui.prefs.zoomRatioTenths + delta)
-                }
-
-                VolumeKeyAction.NONE -> Unit
-            }
+    CameraVolumeKeyEffect(
+        volumeKeyAction = appSettings.volumeKeyAction,
+        onCapture = {
+            zoomPanelExpanded = false
+            triggerCapture()
+        },
+        onZoomDelta = { deltaTenths ->
+            commitZoomTenths(ui.prefs.zoomRatioTenths + deltaTenths)
         }
-    }
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -899,18 +809,14 @@ fun CameraPreview(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         UndoCaptureButton(
-                                            enabled = sessionCaptureStack.isNotEmpty() && pendingUndoDeleteUris == null,
+                                            enabled = sessionCaptureStack.isNotEmpty() && undoDeleteController.pendingUris == null,
                                             onClick = {
-                                                if (pendingUndoDeleteUris != null) return@UndoCaptureButton
+                                                if (undoDeleteController.pendingUris != null) return@UndoCaptureButton
                                                 val targetUris = UndoCapturePolicy.consumeLatestCapture(
                                                     stack = sessionCaptureStack
                                                 )
                                                 if (targetUris.isEmpty()) return@UndoCaptureButton
-
-                                                if (launchScopedDeleteRequest(targetUris)) {
-                                                    return@UndoCaptureButton
-                                                }
-                                                performUndoDelete(targetUris)
+                                                undoDeleteController.delete(targetUris)
                                             }
                                         )
                                     }
@@ -1146,32 +1052,6 @@ internal fun buildWatermarkConfig(
         gridEnabled = gridEnabled,
         rotationCwDeg = if (rotationCwDeg == 90) 90 else 0
     )
-}
-
-@Composable
-private fun rememberMediaStoreRefreshTick(context: Context): Int {
-    var refreshTick by remember { mutableIntStateOf(0) }
-
-    DisposableEffect(context) {
-        val resolver = context.contentResolver
-        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean) {
-                refreshTick += 1
-            }
-        }
-
-        resolver.registerContentObserver(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            true,
-            observer
-        )
-
-        onDispose {
-            resolver.unregisterContentObserver(observer)
-        }
-    }
-
-    return refreshTick
 }
 
 private fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {

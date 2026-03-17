@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -41,6 +42,25 @@ internal fun UnsavedChangesDialog(
     )
 }
 
+
+
+@Composable
+internal fun TableEditorUnsavedChangesHost(
+    showUnsavedChangesDialog: Boolean,
+    onRequestNavigateBack: () -> Unit,
+    onSaveAndExit: () -> Unit,
+    onDiscardAndExit: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    BackHandler(onBack = onRequestNavigateBack)
+
+    UnsavedChangesDialog(
+        visible = showUnsavedChangesDialog,
+        onSave = onSaveAndExit,
+        onDiscard = onDiscardAndExit,
+        onCancel = onCancel,
+    )
+}
 @Composable
 internal fun PlacementDialogHost(
     show: Boolean,

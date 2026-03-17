@@ -7,7 +7,6 @@
 package com.dudoziworkshop.dzlog.ui.table
 
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -1060,41 +1059,42 @@ fun TableEditorScreen(
     }
 
     fun requestNavigateBack() {
-        if (shouldShowUnsavedChangesDialog(hasUnsavedChanges)) {
-            showUnsavedChangesDialog = true
-        } else {
-            undoManager.clear()
-            undoRevision += 1
-            onBack()
-        }
+        handleTableEditorBackNavigation(
+            hasUnsavedChanges = hasUnsavedChanges,
+            onShowUnsavedDialog = { showUnsavedChangesDialog = true },
+            onNavigateBack = {
+                undoManager.clear()
+                undoRevision += 1
+                onBack()
+            },
+        )
     }
 
     fun requestCloseBottomPanelToNone() {
-        // 정책 보강: X 닫기에서도 모드 전환과 동일하게 inline commit을 우선 시도해 값 유실을 막는다.
-        if (inlineEdit.isEditing()) {
-            commitInlineEditIfNeeded()
-            if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
-        }
-
-        bottomPanelMode = BottomEditorPanelMode.NONE
-        showCellSettingsPanel = false
-
-        currentlySelectedFileNameSlot = null
-        currentlySelectedPathSlot = null
-        clearFileNameEditorTransientState(clearDraft = true)
-        clearPathEditorTransientState(clearDraft = true)
+        requestCloseBottomPanel(
+            inlineEdit = inlineEdit,
+            onCommitInlineEdit = ::commitInlineEditIfNeeded,
+            onClosed = {
+                closeBottomPanelUiState(
+                    clearFileNameEditorTransientState = ::clearFileNameEditorTransientState,
+                    clearPathEditorTransientState = ::clearPathEditorTransientState,
+                    setBottomPanelMode = { bottomPanelMode = it },
+                    setShowCellSettingsPanel = { showCellSettingsPanel = it },
+                    clearSelectedFileNameSlot = { currentlySelectedFileNameSlot = null },
+                    clearSelectedPathSlot = { currentlySelectedPathSlot = null },
+                )
+            },
+        )
     }
 
-    // [분해 후보] BackHandler + unsaved dialog 연결 블록
-    BackHandler { requestNavigateBack() }
-
-    UnsavedChangesDialog(
-        visible = showUnsavedChangesDialog,
-        onSave = {
+    TableEditorUnsavedChangesHost(
+        showUnsavedChangesDialog = showUnsavedChangesDialog,
+        onRequestNavigateBack = ::requestNavigateBack,
+        onSaveAndExit = {
             showUnsavedChangesDialog = false
             saveTemplate(exitAfterSave = true)
         },
-        onDiscard = {
+        onDiscardAndExit = {
             showUnsavedChangesDialog = false
             undoManager.clear()
             undoRevision += 1
