@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -368,7 +367,6 @@ fun TableEditorScreen(
     }
 
     // 탭1 스크롤 (분리)
-    val previewTabScrollState = rememberScrollState()
 
     val scope = rememberCoroutineScope()
     var isSavingTemplate by remember { mutableStateOf(false) }
@@ -2100,15 +2098,8 @@ fun TableEditorScreen(
                     // 탭 제거 후 미리보기는 셀 구성 우측 버튼으로 진입한다.
                     TextButton(onClick = { requestTabSwitch(0) }) { Text("셀 구성으로") }
                     PreviewTabContent(
-                        scrollState = previewTabScrollState,
-                        captureAspect = watermarkUi.captureAspect,
                         templateState = currentTemplate,
                         resolvedCells = plan.resolvedCells,
-                        wmAnchor = watermarkUi.wmAnchor,
-                        wmOffsetXRatio = watermarkUi.wmOffsetXRatio,
-                        wmOffsetYRatio = watermarkUi.wmOffsetYRatio,
-                        wmWidthRatio = watermarkUi.wmWidthRatio,
-                        wmHeightRatio = watermarkUi.wmHeightRatio,
                         wmBgStyle = tableStyleUi.bgStyle,
                         wmBgAlpha = tableStyleUi.bgAlpha,
                         wmValueScale = tableStyleUi.valueScale,
@@ -2116,47 +2107,21 @@ fun TableEditorScreen(
                         wmManualTextColor = tableStyleUi.manualTextColor,
                         wmTextAlign = tableStyleUi.textAlign,
                         wmGridEnabled = tableStyleUi.gridEnabled,
-                        onCaptureAspectChange = { aspect ->
-                            watermarkUi = watermarkUi.copy(captureAspect = aspect)
-                        },
-                        onWatermarkDragPreview = { _, _ ->
-                            // 드래그 중에는 로컬 프리뷰만 갱신하고 상위 상태/SSOT 갱신은 하지 않음
-                        },
-                        onWatermarkDragCommit = { offsetX, offsetY ->
-                            watermarkUi = watermarkUi.copy(
+                        placementState = watermarkUi,
+                        onApplyPlacement = { applied ->
+                            watermarkUi = applied.copy(
                                 wmAnchor = com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor.CUSTOM,
-                                wmOffsetXRatio = offsetX.coerceIn(0, 100),
-                                wmOffsetYRatio = offsetY.coerceIn(0, 100),
+                                wmOffsetXRatio = applied.wmOffsetXRatio.coerceIn(0, 100),
+                                wmOffsetYRatio = applied.wmOffsetYRatio.coerceIn(0, 100),
+                                wmWidthRatio = applied.wmWidthRatio.coerceIn(10, 100),
+                                wmHeightRatio = applied.wmHeightRatio.coerceIn(10, 100),
+                                rotationCwDeg = if (applied.rotationCwDeg == 90) 90 else 0,
+                                captureAspect = applied.captureAspect,
+                                keepAspectRatio = true,
                             )
+                            requestTabSwitch(0)
                         },
-                        onRowColWeightsChange = { updated -> updateTemplateDraft(updated) },
-                        onWidthRatioChange = { width ->
-                            watermarkUi = watermarkUi.copy(wmWidthRatio = width.coerceIn(10, 100))
-                        },
-                        onHeightRatioChange = { height ->
-                            watermarkUi = watermarkUi.copy(wmHeightRatio = height.coerceIn(10, 100))
-                        },
-                        onBgStyleChange = { bgStyle ->
-                            tableStyleUi = tableStyleUi.copy(bgStyle = bgStyle.coerceIn(0, 2))
-                        },
-                        onBgAlphaChange = { alpha ->
-                            tableStyleUi = tableStyleUi.copy(bgAlpha = alpha.coerceIn(0, 255))
-                        },
-                        onValueScaleChange = { scale ->
-                            tableStyleUi = tableStyleUi.copy(valueScale = scale.coerceIn(60, 160))
-                        },
-                        onTextColorModeChange = { mode ->
-                            tableStyleUi = tableStyleUi.copy(textColorMode = mode.coerceIn(0, 1))
-                        },
-                        onManualTextColorChange = { color ->
-                            tableStyleUi = tableStyleUi.copy(manualTextColor = color.coerceIn(0, 1))
-                        },
-                        onTextAlignChange = { align ->
-                            tableStyleUi = tableStyleUi.copy(textAlign = align.coerceIn(0, 2))
-                        },
-                        onGridEnabledChange = { enabled ->
-                            tableStyleUi = tableStyleUi.copy(gridEnabled = enabled)
-                        }
+                        onClose = { requestTabSwitch(0) }
                     )
                 }
             }

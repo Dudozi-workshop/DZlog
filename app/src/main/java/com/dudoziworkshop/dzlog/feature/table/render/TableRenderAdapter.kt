@@ -19,6 +19,7 @@ data class TableRenderPayload(
     val rowWeights: List<Float>?,
     val colWeights: List<Float>?,
     val cells: List<WatermarkBuilder.WatermarkCell>,
+    val placeholderCellIndexes: Set<Int> = emptySet(),
 )
 
 /**
@@ -33,6 +34,7 @@ data class TableRenderStyle(
     val manualTextColor: Int = WatermarkManualTextColor.BLACK,
     val textAlign: Int = WatermarkTextAlign.LEFT,
     val drawGrid: Boolean = true,
+    val placeholderTextColorArgb: Int? = null,
 )
 
 /**
@@ -114,6 +116,8 @@ object TableRenderAdapter {
             overrideOffsetLeftPx = placement.overrideOffsetLeftPx,
             overrideOffsetTopPx = placement.overrideOffsetTopPx,
             rotationCwDeg = placement.rotationCwDeg,
+            placeholderCellIndexes = payload.placeholderCellIndexes,
+            placeholderTextColorArgb = style.placeholderTextColorArgb,
         )
     }
 }

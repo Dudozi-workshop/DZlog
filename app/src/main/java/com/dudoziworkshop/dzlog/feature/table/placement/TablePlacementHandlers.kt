@@ -7,6 +7,7 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_X_10000
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_Y_10000
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_X
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_Y
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_ROTATION_CW_90
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
@@ -37,6 +38,7 @@ suspend fun loadTablePlacementState(context: Context): TablePlacementState {
         wmOffsetYRatio = ratioOffsetY,
         wmWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(10, 100),
         wmHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 100),
+        rotationCwDeg = if ((prefs[KEY_WM_ROTATION_CW_90] ?: 0) == 90) 90 else 0,
         captureAspect = CaptureAspect.from(prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v)
     )
 }
@@ -118,11 +120,13 @@ suspend fun persistTablePlacementState(
         prefs[KEY_WM_BOUNDS_OFFSET_Y_10000] = ny10000
         prefs[KEY_WM_TABLE_WIDTH] = placementState.wmWidthRatio.coerceIn(10, 100)
         prefs[KEY_WM_TABLE_HEIGHT] = placementState.wmHeightRatio.coerceIn(10, 100)
+        prefs[KEY_WM_ROTATION_CW_90] = if (placementState.rotationCwDeg == 90) 90 else 0
     }
     return placementState.copy(
         wmOffsetXRatio = nx,
         wmOffsetYRatio = ny,
         wmWidthRatio = placementState.wmWidthRatio.coerceIn(10, 100),
         wmHeightRatio = placementState.wmHeightRatio.coerceIn(10, 100),
+        rotationCwDeg = if (placementState.rotationCwDeg == 90) 90 else 0,
     )
 }

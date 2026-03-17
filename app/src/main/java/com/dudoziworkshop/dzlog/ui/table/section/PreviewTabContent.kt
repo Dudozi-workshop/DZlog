@@ -1,23 +1,24 @@
 package com.dudoziworkshop.dzlog.ui.table.section
 
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Button
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -26,28 +27,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
-import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControl
-import com.dudoziworkshop.dzlog.ui.table.TableRowColSizeSection
 import com.dudoziworkshop.dzlog.feature.table.placement.CameraLikeWatermarkPlacementPreview
+import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
+import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControl
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import kotlin.math.roundToInt
 
 @Composable
 fun PreviewTabContent(
-    scrollState: ScrollState,
-    captureAspect: CaptureAspect,
     templateState: TableTemplateState,
     resolvedCells: List<ResolvedCell>,
-    wmAnchor: WatermarkTableAnchor,
-    wmOffsetXRatio: Int,
-    wmOffsetYRatio: Int,
-    wmWidthRatio: Int,
-    wmHeightRatio: Int,
     wmBgStyle: Int,
     wmBgAlpha: Int,
     wmValueScale: Int,
@@ -55,62 +51,76 @@ fun PreviewTabContent(
     wmManualTextColor: Int,
     wmTextAlign: Int,
     wmGridEnabled: Boolean,
-    onCaptureAspectChange: (CaptureAspect) -> Unit,
-    onWatermarkDragPreview: (Int, Int) -> Unit,
-    onWatermarkDragCommit: (Int, Int) -> Unit,
-    onRowColWeightsChange: (TableTemplateState) -> Unit,
-    onWidthRatioChange: (Int) -> Unit,
-    onHeightRatioChange: (Int) -> Unit,
-    onBgStyleChange: (Int) -> Unit,
-    onBgAlphaChange: (Int) -> Unit,
-    onValueScaleChange: (Int) -> Unit,
-    onTextColorModeChange: (Int) -> Unit,
-    onManualTextColorChange: (Int) -> Unit,
-    onTextAlignChange: (Int) -> Unit,
-    onGridEnabledChange: (Boolean) -> Unit,
+    placementState: TablePlacementState,
+    onApplyPlacement: (TablePlacementState) -> Unit,
+    onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val watermarkCells = remember(resolvedCells) { WatermarkBuilder.buildTableCells(resolvedCells) }
+    val aspectOptions = remember { listOf(CaptureAspect.R1_1, CaptureAspect.R3_4, CaptureAspect.R9_16) }
+
+    // 배치 편집 진입 시점 snapshot: 닫기(dismiss) 시에는 이 값을 유지하고, 적용 시에만 상위에 반영한다.
+    val entryPlacement = remember(placementState) { placementState }
+    val shapeWidthBase = remember(entryPlacement.wmWidthRatio, entryPlacement.wmHeightRatio) {
+        entryPlacement.wmWidthRatio.coerceAtLeast(10)
+    }
+    val shapeHeightBase = remember(entryPlacement.wmWidthRatio, entryPlacement.wmHeightRatio) {
+        entryPlacement.wmHeightRatio.coerceAtLeast(10)
+    }
+
+    var draftCaptureAspect by remember(entryPlacement.captureAspect) { mutableStateOf(entryPlacement.captureAspect) }
+    var draftOffsetX by remember(entryPlacement.wmOffsetXRatio) { mutableIntStateOf(entryPlacement.wmOffsetXRatio.coerceIn(0, 100)) }
+    var draftOffsetY by remember(entryPlacement.wmOffsetYRatio) { mutableIntStateOf(entryPlacement.wmOffsetYRatio.coerceIn(0, 100)) }
+    var draftRotation by remember(entryPlacement.rotationCwDeg) {
+        mutableIntStateOf(if (entryPlacement.rotationCwDeg == 90) 90 else 0)
+    }
+    var draftScale by remember(entryPlacement.wmWidthRatio, shapeWidthBase) {
+        mutableFloatStateOf((entryPlacement.wmWidthRatio.toFloat() / shapeWidthBase.toFloat() * 100f).coerceIn(50f, 200f))
+    }
     var isWatermarkArmed by remember { mutableStateOf(false) }
 
-    val settingsScrollModifier = if (isWatermarkArmed) Modifier else Modifier.verticalScroll(scrollState)
+    fun resetToEntryPlacement() {
+        draftCaptureAspect = entryPlacement.captureAspect
+        draftOffsetX = entryPlacement.wmOffsetXRatio.coerceIn(0, 100)
+        draftOffsetY = entryPlacement.wmOffsetYRatio.coerceIn(0, 100)
+        draftRotation = if (entryPlacement.rotationCwDeg == 90) 90 else 0
+        draftScale = (entryPlacement.wmWidthRatio.toFloat() / shapeWidthBase.toFloat() * 100f).coerceIn(50f, 200f)
+    }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    val previewWidthRatio = (shapeWidthBase * (draftScale / 100f)).roundToInt().coerceIn(10, 100)
+    val previewHeightRatio = (shapeHeightBase * (draftScale / 100f)).roundToInt().coerceIn(10, 100)
+
+    Dialog(onDismissRequest = onClose) {
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .clipToBounds()
+                .clip(RoundedCornerShape(20.dp))
                 .background(DDZColor.Primary)
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(240.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .height(320.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .clipToBounds()
                     .background(DDZColor.Primary)
-                    .border(1.dp, DDZColor.Border, RoundedCornerShape(10.dp))
+                    .border(1.dp, DDZColor.Border, RoundedCornerShape(12.dp))
             ) {
                 CameraLikeWatermarkPlacementPreview(
-                    captureAspect = captureAspect,
+                    captureAspect = draftCaptureAspect,
                     rows = templateState.rows,
                     cols = templateState.cols,
                     rowWeights = templateState.rowWeights,
                     colWeights = templateState.colWeights,
                     watermarkCells = watermarkCells,
-                    anchor = wmAnchor,
-                    offsetXRatio = wmOffsetXRatio,
-                    offsetYRatio = wmOffsetYRatio,
-                    tableWidthRatio = wmWidthRatio,
-                    tableHeightRatio = wmHeightRatio,
+                    anchor = WatermarkTableAnchor.CUSTOM,
+                    offsetXRatio = draftOffsetX,
+                    offsetYRatio = draftOffsetY,
+                    tableWidthRatio = previewWidthRatio,
+                    tableHeightRatio = previewHeightRatio,
+                    rotationCwDeg = draftRotation,
                     bgStyle = wmBgStyle,
                     bgAlpha = wmBgAlpha,
                     valueScale = wmValueScale,
@@ -120,95 +130,91 @@ fun PreviewTabContent(
                     drawGrid = wmGridEnabled,
                     armed = isWatermarkArmed,
                     onArmedChange = { isWatermarkArmed = it },
-                    onDragPreview = onWatermarkDragPreview,
-                    onDragCommit = onWatermarkDragCommit,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clipToBounds()
+                    onDragPreview = { offsetX, offsetY ->
+                        draftOffsetX = offsetX.coerceIn(0, 100)
+                        draftOffsetY = offsetY.coerceIn(0, 100)
+                    },
+                    onDragCommit = { offsetX, offsetY ->
+                        draftOffsetX = offsetX.coerceIn(0, 100)
+                        draftOffsetY = offsetY.coerceIn(0, 100)
+                    },
+                    modifier = Modifier.clipToBounds()
                 )
             }
 
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(24.dp)
+                    .height(28.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "비율 설정",
                     color = DDZColor.Card,
                     style = DDZTypography.Caption,
-                    modifier = Modifier.align(Alignment.CenterStart)
+                    modifier = Modifier.weight(1f)
                 )
 
-                val aspectOptions = listOf(CaptureAspect.R1_1, CaptureAspect.R3_4, CaptureAspect.R9_16)
-                val selectedIndex = aspectOptions.indexOf(captureAspect).coerceAtLeast(0)
-
+                val selectedIndex = aspectOptions.indexOf(draftCaptureAspect).coerceAtLeast(0)
                 DDZSegmentedControl(
                     options = listOf("1:1", "3:4", "9:16"),
                     selectedIndex = selectedIndex,
-                    onSelect = { index -> onCaptureAspectChange(aspectOptions[index]) },
+                    onSelect = { index -> draftCaptureAspect = aspectOptions[index] },
                     modifier = Modifier
-                        .align(Alignment.Center)
-                        .width(104.dp)
-                        .height(24.dp),
+                        .width(160.dp)
+                        .height(28.dp),
                     horizontalPadding = 2.dp,
                     verticalPadding = 1.dp,
                     textStyle = DDZTypography.Caption
                 )
+
+                TextButton(
+                    onClick = { draftRotation = if (draftRotation == 90) 0 else 90 },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "회전 ${draftRotation}°",
+                        color = DDZColor.Card,
+                        style = DDZTypography.Caption
+                    )
+                }
             }
-        }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .then(settingsScrollModifier)
-                .background(DDZColor.Card)
-                .padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-                TableRowColSizeSection(
-                    templateState = templateState,
-                    onTemplateChange = onRowColWeightsChange
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text("표 크기", color = DDZColor.Card, style = DDZTypography.Caption)
+                Slider(
+                    value = draftScale,
+                    onValueChange = { draftScale = it.coerceIn(50f, 200f) },
+                    valueRange = 50f..200f
                 )
+            }
 
-                Spacer(Modifier.height(4.dp))
-
-                WatermarkPlacementSection(
-                    wmWidthRatio = wmWidthRatio,
-                    wmHeightRatio = wmHeightRatio,
-                    onWidthRatioChange = onWidthRatioChange,
-                    onHeightRatioChange = onHeightRatioChange
-                )
-
-                HorizontalDivider()
-
-                TableStyleSection(
-                    wmBgStyle = wmBgStyle,
-                    wmGridEnabled = wmGridEnabled,
-                    onBgStyleChange = onBgStyleChange,
-                    onGridEnabledChange = onGridEnabledChange
-                )
-
-                HorizontalDivider()
-
-                TableOpacitySection(
-                    wmBgAlpha = wmBgAlpha,
-                    onBgAlphaChange = onBgAlphaChange
-                )
-
-                HorizontalDivider()
-
-                TableTextStyleSection(
-                    wmTextColorMode = wmTextColorMode,
-                    wmManualTextColor = wmManualTextColor,
-                    wmTextAlign = wmTextAlign,
-                    wmValueScale = wmValueScale,
-                    onTextColorModeChange = onTextColorModeChange,
-                    onManualTextColorChange = onManualTextColorChange,
-                    onTextAlignChange = onTextAlignChange,
-                    onValueScaleChange = onValueScaleChange
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = { resetToEntryPlacement() }) { Text("초기화") }
+                TextButton(onClick = onClose) { Text("닫기") }
+                Button(onClick = {
+                    onApplyPlacement(
+                        entryPlacement.copy(
+                            wmAnchor = WatermarkTableAnchor.CUSTOM,
+                            wmOffsetXRatio = draftOffsetX,
+                            wmOffsetYRatio = draftOffsetY,
+                            wmWidthRatio = previewWidthRatio,
+                            wmHeightRatio = previewHeightRatio,
+                            rotationCwDeg = draftRotation,
+                            captureAspect = draftCaptureAspect,
+                            keepAspectRatio = true,
+                        )
+                    )
+                }) {
+                    Text("적용")
+                }
             }
         }
     }
+}
