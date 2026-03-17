@@ -38,7 +38,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 @Composable
-fun WatermarkPlacementDialog(
+fun TablePlacementPreviewDialog(
     templateState: TableTemplateState,
     resolvedCells: List<ResolvedCell>,
     wmBgStyle: Int,

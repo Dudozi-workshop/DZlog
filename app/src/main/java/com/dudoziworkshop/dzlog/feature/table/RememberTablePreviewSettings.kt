@@ -5,11 +5,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_DETAIL_GRID_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BG_ALPHA
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
-import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_DETAIL_GRID_ENABLED
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_ALIGN
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MANUAL
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MODE

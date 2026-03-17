@@ -8,20 +8,17 @@ package com.dudoziworkshop.dzlog.ui.table
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,14 +29,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.dudoziworkshop.dzlog.ui.common.dzScaffoldContent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.data.counter.clampCounterDigits
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
@@ -52,7 +49,6 @@ import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
-import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -60,14 +56,11 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.naming.resolveFileNameScopeTokensFromDrafts
-import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
 import com.dudoziworkshop.dzlog.domain.preview.buildPreview
+import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
-import com.dudoziworkshop.dzlog.feature.table.policy.confirmCounterConflictDialog
-import com.dudoziworkshop.dzlog.feature.table.policy.dismissCounterConflictDialog
-import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
 import com.dudoziworkshop.dzlog.feature.counter.table.TableCounterUiState
@@ -78,29 +71,6 @@ import com.dudoziworkshop.dzlog.feature.counter.table.syncCounterStateForScope
 import com.dudoziworkshop.dzlog.feature.counter.table.updateCounterCellAndPolicy
 import com.dudoziworkshop.dzlog.feature.counter.table.updateCounterUiConflictDialogState
 import com.dudoziworkshop.dzlog.feature.counter.table.updateCounterUiScopeFlags
-import com.dudoziworkshop.dzlog.ui.table.editor.InlineEditState
-import com.dudoziworkshop.dzlog.ui.table.editor.clearInlineEditing
-import com.dudoziworkshop.dzlog.ui.table.editor.isEditing
-import com.dudoziworkshop.dzlog.ui.table.editor.shouldBlockTabSwitchAfterCommit
-import com.dudoziworkshop.dzlog.ui.table.editor.startInlineEditing
-import com.dudoziworkshop.dzlog.ui.table.format.TableFormatDialog
-import com.dudoziworkshop.dzlog.ui.table.format.TableFormatDialogState
-import com.dudoziworkshop.dzlog.ui.table.format.close
-import com.dudoziworkshop.dzlog.ui.table.format.open
-import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
-import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseTemplateDialog
-import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseUiState
-import com.dudoziworkshop.dzlog.ui.table.section.BottomEditorPanelMode
-import com.dudoziworkshop.dzlog.ui.table.section.FileNameFormatType
-import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotKind
-import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
-import com.dudoziworkshop.dzlog.ui.table.section.PathFormatType
-import com.dudoziworkshop.dzlog.ui.table.section.PathSlotKind
-import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
-import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabActions
-import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabContent
-import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabUiState
-import com.dudoziworkshop.dzlog.feature.table.placement.WatermarkPlacementDialog
 import com.dudoziworkshop.dzlog.feature.table.editor.TableHandleOverlay
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionResolver
@@ -122,18 +92,39 @@ import com.dudoziworkshop.dzlog.feature.table.placement.loadTablePlacementState
 import com.dudoziworkshop.dzlog.feature.table.placement.persistTablePlacementState
 import com.dudoziworkshop.dzlog.feature.table.placement.resolveRatioLockedSizeFromHeight
 import com.dudoziworkshop.dzlog.feature.table.placement.resolveRatioLockedSizeFromWidth
+import com.dudoziworkshop.dzlog.feature.table.policy.confirmCounterConflictDialog
+import com.dudoziworkshop.dzlog.feature.table.policy.dismissCounterConflictDialog
+import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.feature.table.state.loadTableStyleState
 import com.dudoziworkshop.dzlog.feature.table.state.persistTableStyleState
+import com.dudoziworkshop.dzlog.ui.common.dzScaffoldContent
+import com.dudoziworkshop.dzlog.ui.table.editor.InlineEditState
+import com.dudoziworkshop.dzlog.ui.table.editor.clearInlineEditing
+import com.dudoziworkshop.dzlog.ui.table.editor.isEditing
+import com.dudoziworkshop.dzlog.ui.table.editor.shouldBlockTabSwitchAfterCommit
+import com.dudoziworkshop.dzlog.ui.table.editor.startInlineEditing
+import com.dudoziworkshop.dzlog.ui.table.format.TableFormatDialog
+import com.dudoziworkshop.dzlog.ui.table.format.TableFormatDialogState
+import com.dudoziworkshop.dzlog.ui.table.format.close
+import com.dudoziworkshop.dzlog.ui.table.format.open
+import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseUiState
+import com.dudoziworkshop.dzlog.ui.table.section.BottomEditorPanelMode
+import com.dudoziworkshop.dzlog.ui.table.section.FileNameFormatType
+import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotKind
+import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
+import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabActions
+import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabContent
+import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabUiState
+import com.dudoziworkshop.dzlog.ui.table.section.PathFormatType
+import com.dudoziworkshop.dzlog.ui.table.section.PathSlotKind
+import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.awaitCancellation
 import java.util.Date
-import java.util.UUID
 import com.dudoziworkshop.dzlog.ui.table.editor.commitInlineEditIfNeeded as commitInlineEdit
 
 private data class DeletedStructureSnapshot(
@@ -290,6 +281,7 @@ fun TableEditorScreen(
     var showCellSettingsPanel by remember { mutableStateOf(false) }
     // 모드형 하단 편집 패널 1차 구조 상태 (다음 단계 슬롯/직접 편집 확장 대비)
     var bottomPanelMode by remember { mutableStateOf(BottomEditorPanelMode.NONE) }
+    fun isStructureEditMode(): Boolean = bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT
     var currentlySelectedFileNameSlot by remember { mutableStateOf<Int?>(null) }
     var currentlySelectedPathSlot by remember { mutableStateOf<Int?>(null) }
     // 정책 변경: FILENAME_EDIT 2단계에서는 템플릿의 실제 셀 연결과 분리된 "슬롯 UI 상태"를 별도로 유지한다.
@@ -468,6 +460,7 @@ fun TableEditorScreen(
             awaitCancellation()
         }
     }
+
 
     LaunchedEffect(Unit) {
         runCatching {
@@ -863,6 +856,7 @@ fun TableEditorScreen(
         tableStyleUi = nextStyle
     }
 
+
     LaunchedEffect(Unit) {
         runCatching {
             val loadedPlacement = loadTablePlacementState(context)
@@ -945,207 +939,30 @@ fun TableEditorScreen(
         dateFormatOptions = dateFormatOptions
     )
 
-    if (rotatingUi.isTemplateDialogOpen) {
-        val dialogCell = currentTemplate.cells.firstOrNull { it.cellId == rotatingUi.templateDialogCellId }
-        if (dialogCell == null || dialogCell.dataType != TableCellDataType.ROTATING_TEXT) {
-            closeRotatingPhraseTemplateDialog()
-        } else {
-            RotatingPhraseTemplateDialog(
-                cell = dialogCell,
-                phraseSets = currentTemplate.phraseSets,
-                onDismiss = { closeRotatingPhraseTemplateDialog() },
-                onRestore = {
-                    rotatingUi.templateDialogRestore?.let { updateTemplateDraft(it) }
-                    closeRotatingPhraseTemplateDialog()
-                },
-                onSelectSet = { phraseSetId ->
-                    val updated = updateCell(currentTemplate, dialogCell.cellId) { current ->
-                        if (phraseSetId == null) {
-                            current.copy(phraseSetId = null, everyOverride = null)
-                        } else {
-                            current.copy(phraseSetId = phraseSetId)
-                        }
-                    }
-                    updateTemplateDraft(updated)
-                },
-                onEveryChange = { every ->
-                    val updated = updateCell(currentTemplate, dialogCell.cellId) { current ->
-                        current.copy(everyOverride = every.coerceAtLeast(1))
-                    }
-                    updateTemplateDraft(updated)
-                },
-                onIncreaseEvery = {
-                    val selectedSet = currentTemplate.phraseSets.firstOrNull { it.id == dialogCell.phraseSetId }
-                    val currentEvery = dialogCell.everyOverride ?: selectedSet?.defaultEvery ?: 1
-                    val nextEvery = (currentEvery + 1).coerceAtLeast(1)
-                    val updated = updateCell(currentTemplate, dialogCell.cellId) { current ->
-                        current.copy(everyOverride = nextEvery)
-                    }
-                    updateTemplateDraft(updated)
-                },
-                onDecreaseEvery = {
-                    val selectedSet = currentTemplate.phraseSets.firstOrNull { it.id == dialogCell.phraseSetId }
-                    val currentEvery = dialogCell.everyOverride ?: selectedSet?.defaultEvery ?: 1
-                    val nextEvery = (currentEvery - 1).coerceAtLeast(1)
-                    val updated = updateCell(currentTemplate, dialogCell.cellId) { current ->
-                        current.copy(everyOverride = nextEvery)
-                    }
-                    updateTemplateDraft(updated)
-                },
-                onRequestCreateSet = {
-                    rotatingUi = rotatingUi.copy(isCreateSetDialogOpen = true, createSetName = "")
-                },
-                onRequestDeleteSet = { phraseSetId ->
-                    rotatingUi = rotatingUi.copy(pendingDeleteSetId = phraseSetId)
-                },
-                onRequestEditSet = { phraseSetId ->
-                    rotatingUi = rotatingUi.copy(isSetEditDialogOpen = true, editingSetId = phraseSetId)
-                }
-            )
-        }
-    }
 
-    if (rotatingUi.isSetEditDialogOpen) {
-        val editingSet = currentTemplate.phraseSets.firstOrNull { it.id == rotatingUi.editingSetId }
-        if (editingSet == null) {
-            rotatingUi = rotatingUi.copy(isSetEditDialogOpen = false, editingSetId = null)
-        } else {
-            RotatingPhraseSetEditDialog(
-                phraseSet = editingSet,
-                onClose = {
-                    rotatingUi = rotatingUi.copy(isSetEditDialogOpen = false, editingSetId = null)
-                },
-                onUpdateSet = { transform ->
-                    val updated = currentTemplate.copy(
-                        phraseSets = currentTemplate.phraseSets.map { set ->
-                            if (set.id == editingSet.id) transform(set) else set
-                        }
-                    )
-                    updateTemplateDraft(updated)
-                },
-                onDeleteSet = { deleteId ->
-                    val updated = currentTemplate.copy(
-                        phraseSets = currentTemplate.phraseSets.filterNot { it.id == deleteId },
-                        cells = currentTemplate.cells.map { cell ->
-                            if (cell.phraseSetId == deleteId) {
-                                cell.copy(phraseSetId = null, everyOverride = null)
-                            } else {
-                                cell
-                            }
-                        }
-                    )
-                    updateTemplateDraft(updated)
-                    rotatingUi = rotatingUi.copy(isSetEditDialogOpen = false, editingSetId = null)
-                }
-            )
-        }
-    }
+    RotatingPhraseDialogsHost(
+        rotatingUi = rotatingUi,
+        templateState = currentTemplate,
+        onRotatingUiChange = { rotatingUi = it },
+        updateTemplate = { updateTemplateDraft(it) },
+        closeTemplateDialog = ::closeRotatingPhraseTemplateDialog,
+    )
 
-    if (rotatingUi.isCreateSetDialogOpen) {
-        AlertDialog(
-            containerColor = DDZColor.Surface,
-            onDismissRequest = { rotatingUi = rotatingUi.copy(isCreateSetDialogOpen = false, createSetName = "") },
-            title = { Text("새 템플릿 추가", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary) },
-            text = {
-                OutlinedTextField(
-                    value = rotatingUi.createSetName,
-                    onValueChange = { rotatingUi = rotatingUi.copy(createSetName = it) },
-                    singleLine = true,
-                    label = { Text("세트 이름") }
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val name = rotatingUi.createSetName.trim()
-                    if (name.isNotEmpty() && rotatingUi.templateDialogCellId != null) {
-                        val created = RotatingPhraseSet(
-                            id = UUID.randomUUID().toString(),
-                            name = name,
-                            items = emptyList(),
-                            defaultEvery = 1
-                        )
-                        val updatedTemplate = currentTemplate.copy(
-                            phraseSets = currentTemplate.phraseSets + created,
-                            cells = currentTemplate.cells.map { cell ->
-                                if (cell.cellId == rotatingUi.templateDialogCellId) {
-                                    cell.copy(phraseSetId = created.id, everyOverride = null)
-                                } else {
-                                    cell
-                                }
-                            }
-                        )
-                        updateTemplateDraft(updatedTemplate)
-                    }
-                    rotatingUi = rotatingUi.copy(isCreateSetDialogOpen = false, createSetName = "")
-                }) {
-                    Text("추가", style = DDZTypography.ButtonText, color = DDZColor.Primary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { rotatingUi = rotatingUi.copy(isCreateSetDialogOpen = false, createSetName = "") }) {
-                    Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary)
-                }
-            }
-        )
-    }
-
-    rotatingUi.pendingDeleteSetId?.let { deleteId ->
-        val deleteTarget = currentTemplate.phraseSets.firstOrNull { it.id == deleteId }
-        if (deleteTarget != null) {
-            AlertDialog(
-                containerColor = DDZColor.Surface,
-                onDismissRequest = { rotatingUi = rotatingUi.copy(pendingDeleteSetId = null) },
-                title = { Text("세트 삭제", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary) },
-                text = {
-                    Text(
-                        "${deleteTarget.name} 세트를 삭제하시겠습니까?",
-                        style = DDZTypography.Body,
-                        color = DDZColor.TextPrimary
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        val updated = currentTemplate.copy(
-                            phraseSets = currentTemplate.phraseSets.filterNot { it.id == deleteId },
-                            cells = currentTemplate.cells.map { cell ->
-                                if (cell.phraseSetId == deleteId) {
-                                    cell.copy(phraseSetId = null, everyOverride = null)
-                                } else {
-                                    cell
-                                }
-                            }
-                        )
-                        updateTemplateDraft(updated)
-                        rotatingUi = rotatingUi.copy(pendingDeleteSetId = null)
-                    }) {
-                        Text("삭제", style = DDZTypography.ButtonText, color = DDZColor.Primary)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { rotatingUi = rotatingUi.copy(pendingDeleteSetId = null) }) {
-                        Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary)
-                    }
-                }
-            )
-        } else {
-            rotatingUi = rotatingUi.copy(pendingDeleteSetId = null)
-        }
-    }
 
     // 주요 정책: 셀 선택 전에는 inline 값을 항상 먼저 commit 시도해 유실을 막는다.
     fun requestSelectCell(cellId: String?) {
-        if (selectedCellId == cellId && bottomPanelMode != BottomEditorPanelMode.STRUCTURE_EDIT) return
+        if (selectedCellId == cellId && !isStructureEditMode()) return
         if (inlineEdit.isEditing()) {
             commitInlineEditIfNeeded()
             if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
         }
         snapshotCellForEditSession(cellId)
         selectedCellId = cellId
-        if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+        if (isStructureEditMode()) {
             val selected = cellId?.let { setOf(it) } ?: emptySet()
             structureSelectedCellIds = selected
             structureSelectionRange = TableSelectionResolver.rangeFromSelection(currentTemplate.cells, selected)
-        }
+            }
     }
 
     // 주요 정책: 패널 모드 변경 전에도 inline commit을 우선 보장한다.
@@ -1163,7 +980,7 @@ fun TableEditorScreen(
         if (nextMode != BottomEditorPanelMode.PATH_EDIT) {
             clearPathEditorTransientState(clearDraft = true)
         }
-        val wasStructureMode = bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT
+        val wasStructureMode = isStructureEditMode()
         bottomPanelMode = nextMode
         if (nextMode == BottomEditorPanelMode.STRUCTURE_EDIT || wasStructureMode) {
             structureSelectedCellIds = emptySet()
@@ -1303,41 +1120,20 @@ fun TableEditorScreen(
     // [분해 후보] BackHandler + unsaved dialog 연결 블록
     BackHandler { requestNavigateBack() }
 
-    if (showUnsavedChangesDialog) {
-        AlertDialog(
-            containerColor = DDZColor.Surface,
-            onDismissRequest = { showUnsavedChangesDialog = false },
-            title = {
-                Text("저장되지 않은 변경사항", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
-            },
-            text = {
-                Text("변경사항을 저장하시겠습니까?", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-            },
-            confirmButton = {
-                // 주요 정책 변경: 채워진 버튼 3등분 UI를 제거하고 일반 팝업 액션처럼 텍스트 버튼 3개를 통일 적용한다.
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(onClick = {
-                        showUnsavedChangesDialog = false
-                        saveTemplate(exitAfterSave = true)
-                    }) {
-                        Text("저장", style = DDZTypography.ButtonText, color = DDZColor.Primary)
-                    }
-                    TextButton(onClick = {
-                        showUnsavedChangesDialog = false
-                        undoManager.clear()
-                        undoRevision += 1
-                        onBack()
-                    }) {
-                        Text("저장안함", style = DDZTypography.ButtonText, color = DDZColor.Primary)
-                    }
-                    TextButton(onClick = { showUnsavedChangesDialog = false }) {
-                        Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary)
-                    }
-                }
-            },
-            dismissButton = {}
-        )
-    }
+    UnsavedChangesDialog(
+        visible = showUnsavedChangesDialog,
+        onSave = {
+            showUnsavedChangesDialog = false
+            saveTemplate(exitAfterSave = true)
+        },
+        onDiscard = {
+            showUnsavedChangesDialog = false
+            undoManager.clear()
+            undoRevision += 1
+            onBack()
+        },
+        onCancel = { showUnsavedChangesDialog = false },
+    )
 
     Scaffold(
         containerColor = DDZColor.Background,
@@ -1425,13 +1221,13 @@ fun TableEditorScreen(
                         actions = LayoutTabActions(
                             onSelectCellId = ::requestSelectCell,
                             onSelectStructureRange = { startId, endId ->
-                                if (bottomPanelMode != BottomEditorPanelMode.STRUCTURE_EDIT) return@LayoutTabActions
+                                if (!isStructureEditMode()) return@LayoutTabActions
                                 val result = TableSelectionResolver.selectByDrag(currentTemplate.cells, startId, endId)
                                 if (result.range != null) {
                                     structureSelectedCellIds = result.selectedCellIds
                                     structureSelectionRange = result.range
                                     selectedCellId = result.lastSelectedCellId
-                                }
+                                                            }
                             },
                             onChangeBottomPanelMode = ::requestBottomPanelModeChange,
                             onCloseBottomPanel = ::requestCloseBottomPanelToNone,
@@ -1703,12 +1499,12 @@ fun TableEditorScreen(
                                     }
                                     next
                                 } else {
-                                    sanitizePathGroupAfterStructureChange(if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) addRowBySelection(currentTemplate, structureSelectionRange) else addRow(currentTemplate))
+                                    sanitizePathGroupAfterStructureChange(if (isStructureEditMode()) addRowBySelection(currentTemplate, structureSelectionRange) else addRow(currentTemplate))
                                 }
                                 applyTemplateWithUndo(nextTemplate)
                                 fileNameSlotsDirtySinceStructureChange = false
                                 pathSlotsDirtySinceStructureChange = false
-                                if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                if (isStructureEditMode()) {
                                     val maxRow = (nextTemplate.rows - 1).coerceAtLeast(0)
                                     val maxCol = (nextTemplate.cols - 1).coerceAtLeast(0)
                                     val range = structureSelectionRange
@@ -1725,7 +1521,7 @@ fun TableEditorScreen(
                                 }
                             },
                             onRemoveRow = {
-                                val deletedRowRange = if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                val deletedRowRange = if (isStructureEditMode()) {
                                     structureSelectionRange?.let { it.minRow..it.maxRow }
                                 } else {
                                     val lastRowIndex = currentTemplate.rows - 1
@@ -1747,7 +1543,7 @@ fun TableEditorScreen(
                                 }
 
                                 // 정책: 구조 삭제 + 슬롯 정리를 하나의 템플릿으로 순차 가공 후 단일 update로 반영한다.
-                                var nextTemplate = sanitizePathGroupAfterStructureChange(if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) removeRowBySelection(currentTemplate, structureSelectionRange) else removeRow(currentTemplate))
+                                var nextTemplate = sanitizePathGroupAfterStructureChange(if (isStructureEditMode()) removeRowBySelection(currentTemplate, structureSelectionRange) else removeRow(currentTemplate))
                                 nextTemplate = withUpdatedFileNameSlots(
                                     nextTemplate,
                                     removeCellRefsFromFileNameSlots(fileNameSlotItems, deletedCellIds)
@@ -1759,13 +1555,13 @@ fun TableEditorScreen(
                                 applyTemplateWithUndo(nextTemplate)
                                 fileNameSlotsDirtySinceStructureChange = false
                                 pathSlotsDirtySinceStructureChange = false
-                                if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                if (isStructureEditMode()) {
                                     structureSelectedCellIds = emptySet()
                                     structureSelectionRange = null
                                     selectedCellId = null
                                 }
 
-                                if (bottomPanelMode != BottomEditorPanelMode.STRUCTURE_EDIT && nextTemplate.cells.none { it.cellId == selectedCellId }) {
+                                if (!isStructureEditMode() && nextTemplate.cells.none { it.cellId == selectedCellId }) {
                                     selectedCellId = null
                                 }
                             },
@@ -1794,12 +1590,12 @@ fun TableEditorScreen(
                                     }
                                     next
                                 } else {
-                                    sanitizePathGroupAfterStructureChange(if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) addColumnBySelection(currentTemplate, structureSelectionRange) else addColumn(currentTemplate))
+                                    sanitizePathGroupAfterStructureChange(if (isStructureEditMode()) addColumnBySelection(currentTemplate, structureSelectionRange) else addColumn(currentTemplate))
                                 }
                                 applyTemplateWithUndo(nextTemplate)
                                 fileNameSlotsDirtySinceStructureChange = false
                                 pathSlotsDirtySinceStructureChange = false
-                                if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                if (isStructureEditMode()) {
                                     val maxRow = (nextTemplate.rows - 1).coerceAtLeast(0)
                                     val maxCol = (nextTemplate.cols - 1).coerceAtLeast(0)
                                     val range = structureSelectionRange
@@ -1816,7 +1612,7 @@ fun TableEditorScreen(
                                 }
                             },
                             onRemoveCol = {
-                                val deletedColRange = if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                val deletedColRange = if (isStructureEditMode()) {
                                     structureSelectionRange?.let { it.minCol..it.maxCol }
                                 } else {
                                     val lastColIndex = currentTemplate.cols - 1
@@ -1838,7 +1634,7 @@ fun TableEditorScreen(
                                 }
 
                                 // 정책: 구조 삭제 + 슬롯 정리를 하나의 템플릿으로 순차 가공 후 단일 update로 반영한다.
-                                var nextTemplate = sanitizePathGroupAfterStructureChange(if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) removeColumnBySelection(currentTemplate, structureSelectionRange) else removeColumn(currentTemplate))
+                                var nextTemplate = sanitizePathGroupAfterStructureChange(if (isStructureEditMode()) removeColumnBySelection(currentTemplate, structureSelectionRange) else removeColumn(currentTemplate))
                                 nextTemplate = withUpdatedFileNameSlots(
                                     nextTemplate,
                                     removeCellRefsFromFileNameSlots(fileNameSlotItems, deletedCellIds)
@@ -1850,13 +1646,13 @@ fun TableEditorScreen(
                                 applyTemplateWithUndo(nextTemplate)
                                 fileNameSlotsDirtySinceStructureChange = false
                                 pathSlotsDirtySinceStructureChange = false
-                                if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                if (isStructureEditMode()) {
                                     structureSelectedCellIds = emptySet()
                                     structureSelectionRange = null
                                     selectedCellId = null
                                 }
 
-                                if (bottomPanelMode != BottomEditorPanelMode.STRUCTURE_EDIT && nextTemplate.cells.none { it.cellId == selectedCellId }) {
+                                if (!isStructureEditMode() && nextTemplate.cells.none { it.cellId == selectedCellId }) {
                                     selectedCellId = null
                                 }
                             },
@@ -2089,34 +1885,26 @@ fun TableEditorScreen(
                         )
                     )
 
-            // [분해 후보] Placement dialog 연결 블록(기준축: feature/table/placement/*)
-            if (showPlacementDialog) {
-                WatermarkPlacementDialog(
-                    templateState = currentTemplate,
-                    resolvedCells = plan.resolvedCells,
-                    wmBgStyle = tableStyleUi.bgStyle,
-                    wmBgAlpha = tableStyleUi.bgAlpha,
-                    wmValueScale = tableStyleUi.valueScale,
-                    wmTextColorMode = tableStyleUi.textColorMode,
-                    wmManualTextColor = tableStyleUi.manualTextColor,
-                    wmTextAlign = tableStyleUi.textAlign,
-                    wmGridEnabled = tableStyleUi.gridEnabled,
-                    placementState = watermarkUi,
-                    onApplyPlacement = { applied ->
-                        watermarkUi = applied.copy(
-                            wmOffsetXRatio = applied.wmOffsetXRatio.coerceIn(0, 100),
-                            wmOffsetYRatio = applied.wmOffsetYRatio.coerceIn(0, 100),
-                            wmWidthRatio = applied.wmWidthRatio.coerceIn(10, 100),
-                            wmHeightRatio = applied.wmHeightRatio.coerceIn(10, 100),
-                            rotationCwDeg = if (applied.rotationCwDeg == 90) 90 else 0,
-                            captureAspect = applied.captureAspect,
-                            keepAspectRatio = true,
-                        )
-                        showPlacementDialog = false
-                    },
-                    onClose = { showPlacementDialog = false }
-                )
-            }
+            PlacementDialogHost(
+                show = showPlacementDialog,
+                templateState = currentTemplate,
+                resolvedCells = plan.resolvedCells,
+                styleState = tableStyleUi,
+                placementState = watermarkUi,
+                onApplyPlacement = { applied ->
+                    watermarkUi = applied.copy(
+                        wmOffsetXRatio = applied.wmOffsetXRatio.coerceIn(0, 100),
+                        wmOffsetYRatio = applied.wmOffsetYRatio.coerceIn(0, 100),
+                        wmWidthRatio = applied.wmWidthRatio.coerceIn(10, 100),
+                        wmHeightRatio = applied.wmHeightRatio.coerceIn(10, 100),
+                        rotationCwDeg = if (applied.rotationCwDeg == 90) 90 else 0,
+                        captureAspect = applied.captureAspect,
+                        keepAspectRatio = true,
+                    )
+                                showPlacementDialog = false
+                },
+                onClose = { showPlacementDialog = false },
+            )
         }
     }
 }

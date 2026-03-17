@@ -1,9 +1,10 @@
 package com.dudoziworkshop.dzlog.ui.table.detail
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.Composable
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.TableHandleOverlay
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
@@ -40,8 +41,8 @@ class TableDetailViewModel(
         placement = TablePlacementState(),
         editMode = TableEditMode.Normal,
         selection = TableSelectionState(),
+        canUndo = false,
     )
-        private set
 
     val viewState: MutableState<TableDetailScreenState> = mutableStateOf(state)
 
@@ -55,15 +56,16 @@ class TableDetailViewModel(
         }
         currentTemplate = updated
         syncDefinitionState()
+        syncUndoAvailability()
     }
 
     fun canUndo(): Boolean = undoManager.canUndo()
 
     fun dispatch(action: TableDetailAction): TableTemplateState {
         when (action) {
-            TableDetailAction.ToggleStructureMode -> {
+            is TableDetailAction.SetStructureMode -> {
                 updateState(state.copy(
-                    editMode = if (state.editMode == TableEditMode.Normal) TableEditMode.Structure else TableEditMode.Normal
+                    editMode = if (action.enabled) TableEditMode.Structure else TableEditMode.Normal
                 ))
             }
 
@@ -112,6 +114,7 @@ class TableDetailViewModel(
             is TableDetailAction.SetStyleManualTextColor -> commitStyleChange { it.copy(manualTextColor = action.color) }
             is TableDetailAction.SetStyleValueScale -> commitStyleChange { it.copy(valueScale = action.scale.coerceIn(60, 160)) }
             is TableDetailAction.SetStyleTextAlign -> commitStyleChange { it.copy(textAlign = action.align) }
+            is TableDetailAction.SetPlacementState -> updateState(state.copy(placement = action.placement))
 
             TableDetailAction.Undo -> {
                 val restored = undoManager.undo(currentSnapshot())
@@ -120,10 +123,12 @@ class TableDetailViewModel(
                 syncDefinitionState()
                 selection = TableSelectionResult(emptySet(), null, null)
                 syncSelectionState()
+                syncUndoAvailability()
             }
 
             TableDetailAction.Save -> {
                 undoManager.clear()
+                syncUndoAvailability()
             }
 
             is TableDetailAction.InjectSelectionRangeForTest -> {
@@ -140,12 +145,19 @@ class TableDetailViewModel(
         viewState.value = newState
     }
 
+    private fun syncUndoAvailability() {
+        if (state.canUndo != undoManager.canUndo()) {
+            updateState(state.copy(canUndo = undoManager.canUndo()))
+        }
+    }
+
     private fun commitStyleChange(transform: (TableStyleState) -> TableStyleState) {
         val before = state.style
         val after = transform(before)
         if (before != after) {
             undoManager.pushSnapshotBeforeAction(currentSnapshot())
             updateState(state.copy(style = after))
+            syncUndoAvailability()
         }
     }
 
@@ -181,6 +193,7 @@ class TableDetailViewModel(
                 SelectionPolicy.KEEP_AFTER_ADD -> rebuildSelectionForCurrentTemplate(after)
             }
             syncSelectionState()
+            syncUndoAvailability()
         }
     }
 
@@ -216,5 +229,9 @@ private enum class SelectionPolicy {
 
 @Composable
 fun rememberTableDetailViewModel(initialTemplate: TableTemplateState): TableDetailViewModel {
-    return remember(initialTemplate) { TableDetailViewModel(initialTemplate) }
+    val viewModel = remember { TableDetailViewModel(initialTemplate) }
+    LaunchedEffect(initialTemplate) {
+        viewModel.applyTemplateFromUi(initialTemplate, isActionCommit = false)
+    }
+    return viewModel
 }

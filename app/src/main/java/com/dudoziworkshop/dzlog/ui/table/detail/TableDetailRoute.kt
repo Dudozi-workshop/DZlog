@@ -20,5 +20,7 @@ fun TableDetailRoute(
         onReset = onReset,
         onBack = onBack,
         detailViewState = viewState,
+        onDetailAction = viewModel::dispatch,
+        onSyncTemplateToDetail = viewModel::applyTemplateFromUi,
     )
 }

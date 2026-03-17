@@ -1,9 +1,10 @@
 package com.dudoziworkshop.dzlog.ui.table.detail
 
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
+import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
 
 sealed interface TableDetailAction {
-    data object ToggleStructureMode : TableDetailAction
+    data class SetStructureMode(val enabled: Boolean) : TableDetailAction
     data class SelectSingleCell(val cellId: String, val additive: Boolean) : TableDetailAction
     data class SelectRange(val startCellId: String, val endCellId: String) : TableDetailAction
 
@@ -23,6 +24,7 @@ sealed interface TableDetailAction {
     data class SetStyleManualTextColor(val color: Int) : TableDetailAction
     data class SetStyleValueScale(val scale: Int) : TableDetailAction
     data class SetStyleTextAlign(val align: Int) : TableDetailAction
+    data class SetPlacementState(val placement: TablePlacementState) : TableDetailAction
 
     data object Undo : TableDetailAction
     data object Save : TableDetailAction

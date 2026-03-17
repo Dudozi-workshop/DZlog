@@ -11,12 +11,11 @@ fun TableDetailScreen(
     onTemplateChange: (TableTemplateState) -> Unit,
     onReset: () -> Unit,
     onBack: () -> Unit,
-    detailViewState: TableDetailScreenState,
+    @Suppress("UNUSED_PARAMETER") detailViewState: TableDetailScreenState,
+    @Suppress("UNUSED_PARAMETER") onDetailAction: (TableDetailAction) -> TableTemplateState,
+    @Suppress("UNUSED_PARAMETER") onSyncTemplateToDetail: (TableTemplateState, Boolean) -> Unit,
 ) {
-    // Patch 1: 상세 화면의 실제 렌더링은 기존 TableEditorScreen 기반을 유지하되,
-    // ui/table/detail 축에서 ViewModel state를 구독하고 있음을 명시해 다음 패치 주도권 이전 준비를 한다.
-    @Suppress("UNUSED_VARIABLE")
-    val keepDetailAxisAlive = detailViewState
+    // 안정화 패치: 상세 축(viewModel/state)은 유지하되, editor 내부 state 주도권 침투는 한 단계 뒤로 미룬다.
     TableEditorScreen(
         templateState = templateState,
         onTemplateChange = onTemplateChange,

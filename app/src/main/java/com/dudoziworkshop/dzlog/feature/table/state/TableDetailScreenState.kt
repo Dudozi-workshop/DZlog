@@ -12,4 +12,5 @@ data class TableDetailScreenState(
     val placement: TablePlacementState,
     val editMode: TableEditMode = TableEditMode.Normal,
     val selection: TableSelectionState = TableSelectionState(),
+    val canUndo: Boolean = false,
 )
