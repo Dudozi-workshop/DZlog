@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Text
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -42,7 +41,6 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadgesOverlay
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.computeDesignPreviewFitShape
@@ -50,6 +48,9 @@ import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import androidx.compose.foundation.shape.RoundedCornerShape
+
+private val STRUCTURE_PREVIEW_WORKING_INSET_DP = 10.dp
+private val STRUCTURE_HANDLE_GAP_DP = 4.dp
 
 /**
  * Layout 탭 전용 실제 표 편집 뷰.
@@ -86,49 +87,69 @@ fun RealTableGridSection(
     onCommitColumnWeightsDragEnd: (List<Float>) -> Unit,
     onSelectRange: (String, String) -> Unit,
 ) {
-    val resolvedCells = remember(templateState.cells, displayTextProvider) {
-        // 정책 보정:
-        // - WatermarkCell은 좌표(row/col)를 받지 않고 valueText만 가지므로,
-        //   drawWatermarkTableOnCanvas가 "입력 리스트 순서"를 좌표 매핑 기준으로 사용할 수 있다.
-        // - 따라서 templateState.cells의 원본 순서에 의존하지 않고,
-        //   rowIndex -> colIndex(row-major)로 명시 정렬해 안정적으로 전달한다.
-        templateState.cells
-            .sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex }))
-            .map { cell ->
-                WatermarkBuilder.WatermarkCell(
-                    valueText = displayTextProvider(cell.cellId)
-                )
-            }
+    val orderedCells = remember(templateState.cells) {
+        templateState.cells.sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex }))
     }
-
+    data class CellRenderEntry(
+        val cell: TableCellState,
+        val displayText: String,
+        val isPlaceholder: Boolean,
+    )
+    val cellRenderEntries = remember(orderedCells, displayTextProvider) {
+        orderedCells.map { cell ->
+            val rawValue = displayTextProvider(cell.cellId)
+            val isPlaceholder = rawValue.isBlank()
+            val displayText = if (isPlaceholder) dataTypeLabelKo(cell.dataType) else rawValue
+            CellRenderEntry(cell = cell, displayText = displayText, isPlaceholder = isPlaceholder)
+        }
+    }
+    val placeholderCellIndexes = remember(cellRenderEntries) {
+        buildSet {
+            cellRenderEntries.forEachIndexed { index, entry ->
+                if (entry.isPlaceholder) add(index)
+            }
+        }
+    }
+    val resolvedCells = remember(cellRenderEntries) {
+        cellRenderEntries.map { entry ->
+            WatermarkBuilder.WatermarkCell(
+                valueText = entry.displayText,
+            )
+        }
+    }
     // 정책 보강: 표 배경 테마(검정/흰색/투명)에 맞춰 overlay 색을 동적으로 분기한다.
     // - BG_STYLE_BLACK(0): dark table
     // - BG_STYLE_WHITE(1), BG_STYLE_TRANSPARENT(2): light table 취급
     val isDarkTableTheme = wmBgStyle == 0
-    val placeholderColor = if (isDarkTableTheme) {
-        Color.White.copy(alpha = 0.72f)
-    } else {
-        Color.Black.copy(alpha = 0.56f)
-    }
     val selectedFillColor = if (isDarkTableTheme) {
         DDZColor.Primary.copy(alpha = 0.09f)
     } else {
         DDZColor.Primary.copy(alpha = 0.06f)
     }
     val selectedBorderColor = if (isDarkTableTheme) Color.White.copy(alpha = 0.90f) else DDZColor.Primary
+    val placeholderTextColorArgb = if (isDarkTableTheme) {
+        android.graphics.Color.argb(184, 255, 255, 255)
+    } else {
+        android.graphics.Color.argb(150, 0, 0, 0)
+    }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val areaWidthPx = with(density) { maxWidth.toPx() }
         val areaHeightPx = with(density) { maxHeight.toPx() }
+        val workingInsetPx = with(density) { STRUCTURE_PREVIEW_WORKING_INSET_DP.toPx() }
+        val workingLeftPx = workingInsetPx.coerceAtMost(areaWidthPx / 2f)
+        val workingTopPx = workingInsetPx.coerceAtMost(areaHeightPx / 2f)
+        val workingWidthPx = (areaWidthPx - (workingLeftPx * 2f)).coerceAtLeast(0f)
+        val workingHeightPx = (areaHeightPx - (workingTopPx * 2f)).coerceAtLeast(0f)
         val safeWidthRatio = wmWidthRatio.coerceIn(10, 100)
         val safeHeightRatio = wmHeightRatio.coerceIn(10, 100)
 
         val rows = templateState.rows.coerceAtLeast(1)
         val cols = templateState.cols.coerceAtLeast(1)
         val designPreviewShape = computeDesignPreviewFitShape(
-            boundsWidth = areaWidthPx,
-            boundsHeight = areaHeightPx,
+            boundsWidth = workingWidthPx,
+            boundsHeight = workingHeightPx,
             tableWidthRatio = safeWidthRatio,
             tableHeightRatio = safeHeightRatio,
             rows = rows,
@@ -152,19 +173,19 @@ fun RealTableGridSection(
 
         // Design Preview 공통 fit/scale helper 기준으로 렌더 박스 계산.
         // (상세 + 홈 동일 축: 외곽 비율 + rows*cols 스케일, 단일 rect SSOT)
-        val tableWidthPx = if (areaWidthPx <= 0f || areaHeightPx <= 0f) {
+        val tableWidthPx = if (workingWidthPx <= 0f || workingHeightPx <= 0f) {
             0f
         } else {
-            areaWidthPx * designPreviewShape.tableWidthRatio / 100f
+            workingWidthPx * designPreviewShape.tableWidthRatio / 100f
         }
-        val tableHeightPx = if (areaWidthPx <= 0f || areaHeightPx <= 0f) {
+        val tableHeightPx = if (workingWidthPx <= 0f || workingHeightPx <= 0f) {
             0f
         } else {
             // 렌더 코어(width-base)와 동일하게 높이를 width 기준으로 파생한다.
             tableWidthPx * designPreviewShape.tableHeightRatio / designPreviewShape.tableWidthRatio.toFloat()
         }
-        val tableLeftPx = ((areaWidthPx - tableWidthPx) / 2f).coerceAtLeast(0f)
-        val tableTopPx = ((areaHeightPx - tableHeightPx) / 2f).coerceAtLeast(0f)
+        val tableLeftPx = (workingLeftPx + (workingWidthPx - tableWidthPx) / 2f).coerceAtLeast(0f)
+        val tableTopPx = (workingTopPx + (workingHeightPx - tableHeightPx) / 2f).coerceAtLeast(0f)
         val rowSizes = remember(previewRowWeights, rows, tableHeightPx) {
             computeSizes(total = tableHeightPx, weights = resolveWeightsOrOnes(previewRowWeights, rows))
         }
@@ -198,6 +219,7 @@ fun RealTableGridSection(
                         rowWeights = previewRowWeights,
                         colWeights = previewColWeights,
                         cells = resolvedCells,
+                        placeholderCellIndexes = placeholderCellIndexes,
                     ),
                     style = TableRenderStyle(
                         bgAlpha = wmBgAlpha.coerceIn(0, 255),
@@ -207,6 +229,7 @@ fun RealTableGridSection(
                         manualTextColor = wmManualTextColor,
                         textAlign = wmTextAlign,
                         drawGrid = wmGridEnabled,
+                        placeholderTextColorArgb = placeholderTextColorArgb,
                     ),
                     placement = TableRenderPlacement(
                         anchor = WatermarkTableAnchor.TOP_LEFT,
@@ -306,7 +329,7 @@ fun RealTableGridSection(
 
         if (isStructureMode) {
             // 구조 모드: 표 바깥 핸들(삼각형) + 넓은 hit target으로 비율 조절 문맥을 분리한다.
-            val handleGapPx = with(density) { 8.dp.toPx() }
+            val handleGapPx = with(density) { STRUCTURE_HANDLE_GAP_DP.toPx() }
             val handleHitPx = with(density) { 26.dp.toPx() }
             val rowTriangleSize = 12.dp
             val colTriangleSize = 12.dp
@@ -475,7 +498,6 @@ fun RealTableGridSection(
             val cellW = colSizes[cell.colIndex]
             val cellH = rowSizes[cell.rowIndex]
             val isEditingCell = cell.cellId == editingCellId
-            val display = displayTextProvider(cell.cellId)
             val nameIdx = deriveFileNameCellSlotsFromDrafts(templateState.fileNameSlotDrafts).indexOf(cell.cellId).takeIf { it >= 0 }
             val pathIdx = derivePathSlotIndexByCellId(templateState.pathSlotDrafts, cell.cellId)
 
@@ -502,25 +524,6 @@ fun RealTableGridSection(
                     )
                     .padding(horizontal = 6.dp, vertical = 4.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (display.isBlank()) {
-                        // 정책 변경:
-                        // - 일반 상태의 값 텍스트는 Canvas(실표 렌더 코어)만 사용하고 Overlay 텍스트는 제거한다.
-                        // - Overlay는 "값 없음 placeholder"일 때만 노출해 중복 렌더/잔상처럼 보이는 문제를 방지한다.
-                        Text(
-                            text = dataTypeLabelKo(cell.dataType),
-                            style = DDZTypography.Caption,
-                            // 테이블 테마 기반 placeholder muted 색상 분기
-                            color = placeholderColor
-                        )
-                    }
-                }
-
                 CellHeaderBadgesOverlay(
                     cell = cell,
                     fileNameSlotIndex = nameIdx,

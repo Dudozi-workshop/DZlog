@@ -336,12 +336,19 @@ private fun drawCellValueText(
     textAlign: Int,
     commonScaledTextSize: Float,
     cellTextPadding: Float,
+    isPlaceholder: Boolean = false,
+    placeholderTextColorArgb: Int? = null,
 ) {
     paint.textSize = applyCellSafeTextCap(
         scaledTextSize = commonScaledTextSize,
         actualCellWidth = cellRect.width(),
         actualCellHeight = cellRect.height(),
     )
+
+    val originalColor = paint.color
+    if (isPlaceholder) {
+        paint.color = placeholderTextColorArgb ?: Color.argb(160, Color.red(originalColor), Color.green(originalColor), Color.blue(originalColor))
+    }
 
     val fm = paint.fontMetrics
     val centerY = cellRect.top + cellRect.height() / 2f - (fm.ascent + fm.descent) / 2
@@ -360,6 +367,7 @@ private fun drawCellValueText(
     canvas.clipRect(cellRect)
     canvas.drawText(drawText, drawX, centerY, paint)
     canvas.restore()
+    paint.color = originalColor
 }
 
 private fun resolveValueTextColor(bgStyle: Int, textColorMode: Int, manualTextColor: Int): Int {
@@ -445,7 +453,9 @@ fun drawWatermarkTableFromResolvedCells(
     colWeights: List<Float>? = null,
     bgStyle: Int = BG_STYLE_BLACK,
     drawGrid: Boolean = true,
-    rotationCwDeg: Int = 0
+    rotationCwDeg: Int = 0,
+    placeholderCellIndexes: Set<Int> = emptySet(),
+    placeholderTextColorArgb: Int? = null,
 ): Bitmap {
     val out = src.copy(Bitmap.Config.ARGB_8888, true)
     val canvas = Canvas(out)
@@ -545,6 +555,8 @@ fun drawWatermarkTableFromResolvedCells(
                 textAlign = textAlign,
                 commonScaledTextSize = commonScaledTextSize,
                 cellTextPadding = cellTextPadding,
+                isPlaceholder = idx in placeholderCellIndexes,
+                placeholderTextColorArgb = placeholderTextColorArgb,
             )
         }
     }
@@ -576,7 +588,9 @@ fun drawWatermarkTableOnCanvas(
     overrideOffsetLeftPx: Float? = null,
     overrideOffsetTopPx: Float? = null,
     drawGrid: Boolean = true,
-    rotationCwDeg: Int = 0
+    rotationCwDeg: Int = 0,
+    placeholderCellIndexes: Set<Int> = emptySet(),
+    placeholderTextColorArgb: Int? = null,
 ) {
     val layout = if (
         anchor == WatermarkTableAnchor.CUSTOM &&
@@ -666,6 +680,8 @@ fun drawWatermarkTableOnCanvas(
                 textAlign = textAlign,
                 commonScaledTextSize = commonScaledTextSize,
                 cellTextPadding = cellTextPadding,
+                isPlaceholder = idx in placeholderCellIndexes,
+                placeholderTextColorArgb = placeholderTextColorArgb,
             )
         }
     }
