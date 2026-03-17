@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.table.section
+package com.dudoziworkshop.dzlog.feature.table.placement
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,12 +33,9 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
-import com.dudoziworkshop.dzlog.feature.table.placement.CameraLikeWatermarkPlacementPreview
 import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControl
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import com.dudoziworkshop.dzlog.feature.table.placement.resolveRatioLockedScaleRange
-import com.dudoziworkshop.dzlog.feature.table.placement.resolveRatioLockedSizeFromScale
 
 @Composable
 fun WatermarkPlacementDialog(

@@ -1,5 +1,9 @@
 package com.dudoziworkshop.dzlog.ui.table.detail
 
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.Composable
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.TableHandleOverlay
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
@@ -30,7 +34,7 @@ class TableDetailViewModel(
     private var selection = TableSelectionResult(emptySet(), null, null)
     private val undoManager = TableUndoManager<TableEditorSnapshot>()
 
-    var state: TableDetailScreenState = TableDetailScreenState(
+    private var state: TableDetailScreenState = TableDetailScreenState(
         definition = TableDefinitionState.from(initialTemplate),
         style = TableStyleState(),
         placement = TablePlacementState(),
@@ -38,6 +42,8 @@ class TableDetailViewModel(
         selection = TableSelectionState(),
     )
         private set
+
+    val viewState: MutableState<TableDetailScreenState> = mutableStateOf(state)
 
     var currentTemplate: TableTemplateState = initialTemplate
         private set
@@ -56,9 +62,9 @@ class TableDetailViewModel(
     fun dispatch(action: TableDetailAction): TableTemplateState {
         when (action) {
             TableDetailAction.ToggleStructureMode -> {
-                state = state.copy(
+                updateState(state.copy(
                     editMode = if (state.editMode == TableEditMode.Normal) TableEditMode.Structure else TableEditMode.Normal
-                )
+                ))
             }
 
             is TableDetailAction.SelectSingleCell -> {
@@ -110,7 +116,7 @@ class TableDetailViewModel(
             TableDetailAction.Undo -> {
                 val restored = undoManager.undo(currentSnapshot())
                 currentTemplate = restored.template
-                state = state.copy(style = restored.style)
+                updateState(state.copy(style = restored.style))
                 syncDefinitionState()
                 selection = TableSelectionResult(emptySet(), null, null)
                 syncSelectionState()
@@ -129,21 +135,26 @@ class TableDetailViewModel(
         return currentTemplate
     }
 
+    private fun updateState(newState: TableDetailScreenState) {
+        state = newState
+        viewState.value = newState
+    }
+
     private fun commitStyleChange(transform: (TableStyleState) -> TableStyleState) {
         val before = state.style
         val after = transform(before)
         if (before != after) {
             undoManager.pushSnapshotBeforeAction(currentSnapshot())
-            state = state.copy(style = after)
+            updateState(state.copy(style = after))
         }
     }
 
     private fun syncDefinitionState() {
-        state = state.copy(definition = TableDefinitionState.from(currentTemplate))
+        updateState(state.copy(definition = TableDefinitionState.from(currentTemplate)))
     }
 
     private fun syncSelectionState() {
-        state = state.copy(
+        updateState(state.copy(
             selection = TableSelectionState(
                 selectedCellIds = selection.selectedCellIds,
                 lastSelectedCellId = selection.lastSelectedCellId,
@@ -152,7 +163,7 @@ class TableDetailViewModel(
                 minCol = selection.range?.minCol,
                 maxCol = selection.range?.maxCol,
             )
-        )
+        ))
     }
 
     private inline fun commitTemplateChange(
@@ -200,4 +211,10 @@ class TableDetailViewModel(
 private enum class SelectionPolicy {
     KEEP_AFTER_ADD,
     CLEAR_AFTER_DELETE,
+}
+
+
+@Composable
+fun rememberTableDetailViewModel(initialTemplate: TableTemplateState): TableDetailViewModel {
+    return remember(initialTemplate) { TableDetailViewModel(initialTemplate) }
 }

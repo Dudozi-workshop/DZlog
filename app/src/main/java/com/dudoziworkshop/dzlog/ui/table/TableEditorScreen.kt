@@ -100,7 +100,7 @@ import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabActions
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabContent
 import com.dudoziworkshop.dzlog.ui.table.section.LayoutTabUiState
-import com.dudoziworkshop.dzlog.ui.table.section.WatermarkPlacementDialog
+import com.dudoziworkshop.dzlog.feature.table.placement.WatermarkPlacementDialog
 import com.dudoziworkshop.dzlog.feature.table.editor.TableHandleOverlay
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionResolver
@@ -215,6 +215,8 @@ private fun buildPathDraftSlots(template: TableTemplateState): List<PathSlotUiIt
 }
 
 @Composable
+// Patch 1: TableEditorScreen는 다음 단계 분해(dialogs/handlers/state coordinator)를 위한 경계 주석만 추가하고
+// 실제 동작 흐름은 유지한다.
 fun TableEditorScreen(
     templateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
@@ -1206,6 +1208,7 @@ fun TableEditorScreen(
         derivedStateOf { undoManager.canUndo() }
     }
 
+    // [분해 후보] Save/Reset/Back handler 묶음: 다음 패치에서 별도 coordinator로 이동 예정
     fun saveTemplate(exitAfterSave: Boolean = false) {
         commitInlineEditIfNeeded()
         if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
@@ -1297,6 +1300,7 @@ fun TableEditorScreen(
         clearPathEditorTransientState(clearDraft = true)
     }
 
+    // [분해 후보] BackHandler + unsaved dialog 연결 블록
     BackHandler { requestNavigateBack() }
 
     if (showUnsavedChangesDialog) {
@@ -2085,6 +2089,7 @@ fun TableEditorScreen(
                         )
                     )
 
+            // [분해 후보] Placement dialog 연결 블록(기준축: feature/table/placement/*)
             if (showPlacementDialog) {
                 WatermarkPlacementDialog(
                     templateState = currentTemplate,
