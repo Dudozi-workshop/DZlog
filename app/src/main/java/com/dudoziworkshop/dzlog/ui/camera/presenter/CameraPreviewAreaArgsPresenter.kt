@@ -4,22 +4,15 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.LifecycleOwner
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
-import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_X_10000
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_Y_10000
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_X
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_Y
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
-import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
-import com.dudoziworkshop.dzlog.ui.camera.CameraUiState
 import com.dudoziworkshop.dzlog.ui.camera.preview.CameraPreviewAreaArgs
 import com.dudoziworkshop.dzlog.ui.camera.preview.WatermarkUiArgs
+import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -30,6 +23,7 @@ internal fun rememberCameraPreviewAreaArgs(
     lifecycleOwner: LifecycleOwner,
     ui: CameraUiState,
     appSettings: AppSettings,
+    settingsWriter: CameraSettingsWriter,
     tableTemplateState: TableTemplateState,
     tableResolver: TableResolver,
     scopeNextCounter: Int?,
@@ -110,7 +104,7 @@ internal fun rememberCameraPreviewAreaArgs(
             onRequestedZoomTenthsCommit = { next ->
                 val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
                 ui.prefs.zoomRatioTenths = normalized
-                scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
+                scope.launch { settingsWriter.setZoomTenths(normalized) }
             },
             onMaxZoomTenthsChange = { ui.capture.maxZoomTenths = it.coerceAtLeast(10) },
             shutterButtonTopY = shutterButtonTopY,
@@ -128,9 +122,9 @@ internal fun rememberCameraPreviewAreaArgs(
             },
             onWatermarkOffsetRatioCommit = { x, y ->
                 commitOffsetRatio(
-                    context = context,
                     scope = scope,
                     ui = ui,
+                    settingsWriter = settingsWriter,
                     x = x,
                     y = y,
                 )
@@ -146,9 +140,9 @@ internal fun rememberCameraPreviewAreaArgs(
             },
             onWatermarkBoundsOffset10000Commit = { x10000, y10000 ->
                 commitBoundsOffset10000(
-                    context = context,
                     scope = scope,
                     ui = ui,
+                    settingsWriter = settingsWriter,
                     x10000 = x10000,
                     y10000 = y10000,
                 )
@@ -176,9 +170,9 @@ internal fun rememberCameraPreviewAreaArgs(
 }
 
 private fun commitOffsetRatio(
-    context: Context,
     scope: CoroutineScope,
     ui: CameraUiState,
+    settingsWriter: CameraSettingsWriter,
     x: Int,
     y: Int,
 ) {
@@ -187,19 +181,13 @@ private fun commitOffsetRatio(
     ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
     ui.prefs.wmOffsetXRatio = nx
     ui.prefs.wmOffsetYRatio = ny
-    scope.launch {
-        context.dataStore.edit {
-            it[KEY_WM_TABLE_ANCHOR] = 4
-            it[KEY_WM_OFFSET_X] = nx
-            it[KEY_WM_OFFSET_Y] = ny
-        }
-    }
+    scope.launch { settingsWriter.setWmCustomOffsetRatio(nx, ny) }
 }
 
 private fun commitBoundsOffset10000(
-    context: Context,
     scope: CoroutineScope,
     ui: CameraUiState,
+    settingsWriter: CameraSettingsWriter,
     x10000: Int,
     y10000: Int,
 ) {
@@ -212,14 +200,6 @@ private fun commitBoundsOffset10000(
     ui.prefs.wmBoundsOffsetY10000 = ny10000
     ui.prefs.wmOffsetXRatio = nx
     ui.prefs.wmOffsetYRatio = ny
-    scope.launch {
-        context.dataStore.edit {
-            it[KEY_WM_TABLE_ANCHOR] = 4
-            it[KEY_WM_BOUNDS_OFFSET_X_10000] = nx10000
-            it[KEY_WM_BOUNDS_OFFSET_Y_10000] = ny10000
-            it[KEY_WM_OFFSET_X] = nx
-            it[KEY_WM_OFFSET_Y] = ny
-        }
-    }
+    scope.launch { settingsWriter.setWmCustomBoundsOffset10000(nx10000, ny10000) }
 }
 

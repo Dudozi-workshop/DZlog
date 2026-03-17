@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.camera
+package com.dudoziworkshop.dzlog.ui.camera.state
 
 import android.net.Uri
 import androidx.compose.runtime.Stable
@@ -9,12 +9,12 @@ import androidx.compose.runtime.setValue
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
-import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
-import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
-import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
 import com.dudoziworkshop.dzlog.ui.camera.preview.TapFocusUiState
 import java.util.Date
 import java.util.concurrent.atomic.AtomicBoolean
@@ -76,3 +76,4 @@ internal class CameraUiState {
 
     var showWizard by mutableStateOf(false)
 }
+

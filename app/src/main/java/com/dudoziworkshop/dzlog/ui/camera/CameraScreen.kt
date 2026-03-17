@@ -45,7 +45,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -53,14 +52,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreSaverImpl
-import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_GRID_ON
-import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
-import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
-import com.dudoziworkshop.dzlog.data.preferences.KEY_SAVE_MODE
-import com.dudoziworkshop.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
-import com.dudoziworkshop.dzlog.data.preferences.KEY_VOLUME_KEY_ACTION
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
-import com.dudoziworkshop.dzlog.data.preferences.persistCaptureAspect
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
@@ -86,6 +78,9 @@ import com.dudoziworkshop.dzlog.ui.camera.presenter.rememberCameraLayoutState
 import com.dudoziworkshop.dzlog.ui.camera.presenter.rememberCameraPreviewAreaArgs
 import com.dudoziworkshop.dzlog.ui.camera.preview.CameraPreviewArea
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsOverlayPanel
+import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraViewModel
+import com.dudoziworkshop.dzlog.ui.camera.state.computeCameraDerivedState
 import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -159,6 +154,7 @@ fun CameraPreview(
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
     val scope = rememberCoroutineScope()
     val cameraViewModel: CameraViewModel = viewModel()
+    val settingsWriter = remember(context) { CameraSettingsWriter(context) }
     val repository: DzlogRepositoryImpl = remember {
         DzlogRepositoryImpl(
             saver = MediaStoreSaverImpl(),
@@ -416,6 +412,7 @@ fun CameraPreview(
                     lifecycleOwner = lifecycleOwner,
                     ui = ui,
                     appSettings = appSettings,
+                    settingsWriter = settingsWriter,
                     tableTemplateState = tableTemplateState,
                     tableResolver = tableResolver,
                     scopeNextCounter = displayCounter,
@@ -449,6 +446,7 @@ fun CameraPreview(
                             context = context,
                             scope = scope,
                             ui = ui,
+                            settingsWriter = settingsWriter,
                             boundImageCaptureAvailable = (boundImageCapture != null),
                             latestImage = latestImage,
                             onOpenAlbum = onOpenAlbum,
@@ -482,31 +480,31 @@ fun CameraPreview(
                 captureAspect = ui.prefs.captureAspect,
                 onCaptureAspectChange = { aspect ->
                     ui.prefs.captureAspect = aspect
-                    scope.launch { persistCaptureAspect(context, aspect) }
+                    scope.launch { settingsWriter.setCaptureAspect(aspect) }
                 },
                 saveMode = ui.prefs.saveMode,
                 onSaveModeChange = { mode ->
                     ui.prefs.saveMode = mode
-                    scope.launch { context.dataStore.edit { it[KEY_SAVE_MODE] = mode.v } }
+                    scope.launch { settingsWriter.setSaveMode(mode) }
                 },
                 showGrid = ui.prefs.showGrid,
                 onShowGridChange = { checked ->
                     ui.prefs.showGrid = checked
-                    scope.launch { context.dataStore.edit { it[KEY_CAMERA_GRID_ON] = checked } }
+                    scope.launch { settingsWriter.setShowGrid(checked) }
                 },
                 showTable = ui.prefs.showWmPreview,
                 onShowTableChange = { checked ->
                     ui.prefs.showWmPreview = checked
-                    scope.launch { context.dataStore.edit { it[KEY_SHOW_WM_PREVIEW] = if (checked) 1 else 0 } }
+                    scope.launch { settingsWriter.setShowWmPreview(checked) }
                 },
                 continuousPreviewMode = ui.prefs.continuousPreviewMode,
                 onContinuousPreviewModeChange = { mode ->
                     ui.prefs.continuousPreviewMode = mode
-                    scope.launch { context.dataStore.edit { it[KEY_CONTINUOUS_PREVIEW_MODE] = mode.v } }
+                    scope.launch { settingsWriter.setContinuousPreviewMode(mode) }
                 },
                 volumeKeyAction = appSettings.volumeKeyAction,
                 onVolumeKeyActionChange = { action ->
-                    scope.launch { context.dataStore.edit { it[KEY_VOLUME_KEY_ACTION] = action.v } }
+                    scope.launch { settingsWriter.setVolumeKeyAction(action) }
                 },
                 onDismiss = { ui.showWizard = false }
             )

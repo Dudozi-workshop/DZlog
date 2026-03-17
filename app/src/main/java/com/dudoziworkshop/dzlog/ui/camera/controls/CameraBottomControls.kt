@@ -34,13 +34,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.dp
-import androidx.datastore.preferences.core.edit
-import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_ROTATION_CW_90
-import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
-import com.dudoziworkshop.dzlog.ui.camera.CameraUiState
+import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraUiState
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -54,6 +51,7 @@ internal fun CameraBottomControls(
     context: Context,
     scope: CoroutineScope,
     ui: CameraUiState,
+    settingsWriter: CameraSettingsWriter,
     boundImageCaptureAvailable: Boolean,
     latestImage: MediaImageItem?,
     onOpenAlbum: () -> Unit,
@@ -99,7 +97,7 @@ internal fun CameraBottomControls(
                 onZoomTenthsChange = { next ->
                     val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
                     ui.prefs.zoomRatioTenths = normalized
-                    scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
+                    scope.launch { settingsWriter.setZoomTenths(normalized) }
                 }
             )
 
@@ -151,9 +149,7 @@ internal fun CameraBottomControls(
                             onClick = {
                                 val nextRotation = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
                                 ui.prefs.wmRotationCwDeg = nextRotation
-                                scope.launch {
-                                    context.dataStore.edit { it[KEY_WM_ROTATION_CW_90] = nextRotation }
-                                }
+                                scope.launch { settingsWriter.setWmRotationCwDeg(nextRotation) }
                             }
                         )
                     }

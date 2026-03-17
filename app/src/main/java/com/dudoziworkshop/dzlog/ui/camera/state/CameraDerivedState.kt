@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.camera
+package com.dudoziworkshop.dzlog.ui.camera.state
 
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
@@ -105,3 +105,4 @@ internal fun computeCameraDerivedState(
         isTemplateReady = isTemplateReady,
     )
 }
+

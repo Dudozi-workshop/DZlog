@@ -11,7 +11,7 @@ import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
-import com.dudoziworkshop.dzlog.ui.camera.CameraUiState
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraUiState
 
 @Composable
 internal fun CameraCounterSyncEffect(

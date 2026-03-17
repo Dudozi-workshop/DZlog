@@ -1,4 +1,4 @@
-package com.dudoziworkshop.dzlog.ui.camera
+package com.dudoziworkshop.dzlog.ui.camera.state
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
