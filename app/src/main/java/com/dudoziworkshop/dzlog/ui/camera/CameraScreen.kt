@@ -268,13 +268,13 @@ fun CameraPreview(
         ui.prefs.zoomRatioTenths = 10
         ui.capture.actualZoomTenths = 10
         ui.capture.maxZoomTenths = 20
-        scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = 10 } }
+        scope.launch { settingsWriter.setZoomTenths(10) }
     }
 
     fun commitZoomTenths(next: Int) {
         val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
         ui.prefs.zoomRatioTenths = normalized
-        scope.launch { context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = normalized } }
+        scope.launch { settingsWriter.setZoomTenths(normalized) }
     }
 
     // 정책 정리: 셔터 버튼/음량키 모두 같은 촬영 실행 경로를 사용한다.

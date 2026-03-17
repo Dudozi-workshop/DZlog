@@ -37,7 +37,7 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
-import com.dudoziworkshop.dzlog.ui.camera.CameraUiState
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraUiState
 import kotlin.math.roundToInt
 
 @Composable
