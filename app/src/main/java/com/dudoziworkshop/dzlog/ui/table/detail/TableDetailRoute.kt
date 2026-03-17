@@ -8,7 +8,6 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 fun TableDetailRoute(
     templateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
-    onReset: () -> Unit,
     onBack: () -> Unit,
 ) {
     val viewModel = rememberTableDetailViewModel(templateState)
@@ -17,7 +16,6 @@ fun TableDetailRoute(
     TableDetailScreen(
         templateState = templateState,
         onTemplateChange = onTemplateChange,
-        onReset = onReset,
         onBack = onBack,
         detailViewState = viewState,
         onDetailAction = viewModel::dispatch,

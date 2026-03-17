@@ -1,24 +1,22 @@
 package com.dudoziworkshop.dzlog.ui.navigation
 
-import android.widget.Toast
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -30,12 +28,12 @@ import com.dudoziworkshop.dzlog.data.preferences.OrientationMode
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.template.defaultTableTemplateState
 import com.dudoziworkshop.dzlog.data.template.tableTemplateStateFromJson
+import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.settings.ui.CreditsScreen
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
-import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
 import com.dudoziworkshop.dzlog.ui.log.LogG1Screen
 import com.dudoziworkshop.dzlog.ui.log.LogG2Screen
@@ -46,7 +44,6 @@ import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
 import com.dudoziworkshop.dzlog.ui.table.detail.TableDetailRoute
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-
 
 
 enum class AppScreen {
@@ -192,14 +189,6 @@ fun AppRoot() {
         }
     }
 
-    fun resetTemplateState() {
-        val reset = defaultTableTemplateState()
-        tableTemplateViewModel.update(reset)
-        if (!hasRestoredTemplate) return
-        appScope.launch {
-            saveTableTemplate(context, reset)
-        }
-    }
 
     LaunchedEffect(orientationMode) {
         val a = activity ?: return@LaunchedEffect
@@ -467,7 +456,6 @@ fun AppRoot() {
             TableDetailRoute(
                 templateState = tableTemplateState,
                 onTemplateChange = ::updateTemplateState,
-                onReset = ::resetTemplateState,
                 onBack = { screen = previousScreen }
             )
         }

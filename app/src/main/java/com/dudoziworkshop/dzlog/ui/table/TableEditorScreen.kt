@@ -88,15 +88,10 @@ import com.dudoziworkshop.dzlog.feature.table.editor.resetRowWeights
 import com.dudoziworkshop.dzlog.feature.table.editor.updateCell
 import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
-import com.dudoziworkshop.dzlog.feature.table.placement.loadTablePlacementState
-import com.dudoziworkshop.dzlog.feature.table.placement.persistTablePlacementState
 import com.dudoziworkshop.dzlog.feature.table.placement.resolveRatioLockedSizeFromHeight
 import com.dudoziworkshop.dzlog.feature.table.placement.resolveRatioLockedSizeFromWidth
 import com.dudoziworkshop.dzlog.feature.table.policy.confirmCounterConflictDialog
 import com.dudoziworkshop.dzlog.feature.table.policy.dismissCounterConflictDialog
-import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
-import com.dudoziworkshop.dzlog.feature.table.state.loadTableStyleState
-import com.dudoziworkshop.dzlog.feature.table.state.persistTableStyleState
 import com.dudoziworkshop.dzlog.ui.common.dzScaffoldContent
 import com.dudoziworkshop.dzlog.ui.table.editor.InlineEditState
 import com.dudoziworkshop.dzlog.ui.table.editor.clearInlineEditing
@@ -131,14 +126,6 @@ private data class DeletedStructureSnapshot(
     val cells: List<TableCellState>,
     val fileNameSlotsSnapshot: List<FileNameSlotUiItem?>,
     val pathSlotsSnapshot: List<PathSlotUiItem?>
-)
-
-private data class TableEditorUndoSnapshot(
-    val templateState: TableTemplateState,
-    val styleState: TableStyleState,
-    val selectedCellId: String?,
-    val structureSelectedCellIds: Set<String>,
-    val structureSelectionRange: TableSelectionRange?,
 )
 
 private fun normalizeFileNameDraftSlots(slots: List<FileNameSlotUiItem?>): List<FileNameSlotUiItem?> {
@@ -211,7 +198,6 @@ private fun buildPathDraftSlots(template: TableTemplateState): List<PathSlotUiIt
 fun TableEditorScreen(
     templateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
-    onReset: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -800,7 +786,7 @@ fun TableEditorScreen(
     var colWeightsDragBaseTemplate by remember { mutableStateOf<TableTemplateState?>(null) }
 
     fun currentUndoSnapshot(): TableEditorUndoSnapshot {
-        return TableEditorUndoSnapshot(
+        return buildTableEditorUndoSnapshot(
             templateState = currentTemplate,
             styleState = tableStyleUi,
             selectedCellId = selectedCellId,
@@ -809,25 +795,13 @@ fun TableEditorScreen(
         )
     }
 
-    fun pushUndoSnapshotBeforeChange(
-        nextTemplate: TableTemplateState = currentTemplate,
-        nextStyle: TableStyleState = tableStyleUi,
-    ) {
-        val currentSnapshot = currentUndoSnapshot()
-        val nextSnapshot = currentSnapshot.copy(
-            templateState = nextTemplate,
-            styleState = nextStyle,
-        )
-        if (currentSnapshot == nextSnapshot) return
-        undoManager.pushSnapshotBeforeAction(currentSnapshot)
-        undoRevision += 1
-    }
-
     fun applyUndo() {
         rowWeightsDragBaseTemplate = null
         colWeightsDragBaseTemplate = null
-        val restored = undoManager.undo(currentUndoSnapshot())
-        if (restored == currentUndoSnapshot()) return
+        val restored = undoTableEditorSnapshot(
+            undoManager = undoManager,
+            currentSnapshot = currentUndoSnapshot(),
+        ) ?: return
         editableTemplateState = restored.templateState
         tableStyleUi = restored.styleState
         selectedCellId = restored.selectedCellId
@@ -837,34 +811,49 @@ fun TableEditorScreen(
     }
 
     fun applyTemplateDragCommitWithUndo(baseTemplate: TableTemplateState, nextTemplate: TableTemplateState) {
-        if (baseTemplate == nextTemplate) return
-        val baseSnapshot = currentUndoSnapshot().copy(templateState = baseTemplate)
-        undoManager.pushSnapshotBeforeAction(baseSnapshot)
+        val pushed = pushTemplateDragCommitUndoSnapshot(
+            undoManager = undoManager,
+            currentSnapshot = currentUndoSnapshot(),
+            baseTemplate = baseTemplate,
+            nextTemplate = nextTemplate,
+        )
+        if (!pushed) return
         updateTemplateDraft(nextTemplate)
         undoRevision += 1
     }
 
     fun applyTemplateWithUndo(nextTemplate: TableTemplateState) {
         if (nextTemplate == currentTemplate) return
-        pushUndoSnapshotBeforeChange(nextTemplate = nextTemplate)
+        val pushed = pushUndoSnapshotBeforeChange(
+            undoManager = undoManager,
+            currentSnapshot = currentUndoSnapshot(),
+            nextTemplate = nextTemplate,
+        )
+        if (pushed) {
+            undoRevision += 1
+        }
         updateTemplateDraft(nextTemplate)
     }
 
     fun applyStyleWithUndo(nextStyle: TableStyleState) {
         if (nextStyle == tableStyleUi) return
-        pushUndoSnapshotBeforeChange(nextStyle = nextStyle)
+        val pushed = pushUndoSnapshotBeforeChange(
+            undoManager = undoManager,
+            currentSnapshot = currentUndoSnapshot(),
+            nextStyle = nextStyle,
+        )
+        if (pushed) {
+            undoRevision += 1
+        }
         tableStyleUi = nextStyle
     }
 
-
     LaunchedEffect(Unit) {
-        runCatching {
-            val loadedPlacement = loadTablePlacementState(context)
-            watermarkUi = loadedPlacement
-            initialPlacementSnapshot = loadedPlacement
-            val loadedStyle = loadTableStyleState(context)
-            tableStyleUi = loadedStyle
-            initialStyleSnapshot = loadedStyle
+        loadTableEditorBootstrapState(context).onSuccess { loaded ->
+            watermarkUi = loaded.placement
+            initialPlacementSnapshot = loaded.placement
+            tableStyleUi = loaded.style
+            initialStyleSnapshot = loaded.style
         }
     }
 
@@ -1025,7 +1014,7 @@ fun TableEditorScreen(
         derivedStateOf { undoManager.canUndo() }
     }
 
-    // [분해 후보] Save/Reset/Back handler 묶음: 다음 패치에서 별도 coordinator로 이동 예정
+    // Save/Reset/Back 동작은 editor 내부 local state를 기준으로 유지하되, 구현만 별도 helper로 분리한다.
     fun saveTemplate(exitAfterSave: Boolean = false) {
         commitInlineEditIfNeeded()
         if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
@@ -1033,66 +1022,45 @@ fun TableEditorScreen(
         val savePayload = editableTemplateState
         val stylePayload = tableStyleUi
         scope.launch {
-            val templateSaveResult = saveTableTemplate(context, savePayload)
-            if (templateSaveResult.isFailure) {
-                Toast.makeText(
-                    context,
-                    "저장 실패: ${templateSaveResult.exceptionOrNull()?.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
-                isSavingTemplate = false
-                return@launch
-            }
-
-            val styleSaveResult = runCatching { persistTableStyleState(context, stylePayload) }
-            if (styleSaveResult.isFailure) {
-                // 정책 보강: 스타일 저장 실패 시 템플릿 저장 롤백을 시도해 부분 성공 방치를 줄인다.
-                val rollbackResult = saveTableTemplate(context, initialTemplateSnapshot)
-                val rollbackSuffix = if (rollbackResult.isFailure) {
-                    " (롤백 실패: ${rollbackResult.exceptionOrNull()?.message})"
-                } else {
-                    ""
+            when (val result = persistTableEditorState(
+                context = context,
+                savePayload = savePayload,
+                stylePayload = stylePayload,
+                placementPayload = watermarkUi,
+                rollbackTemplate = initialTemplateSnapshot,
+            )) {
+                is TableEditorSaveResult.Failure -> {
+                    Toast.makeText(
+                        context,
+                        result.message,
+                        if (result.isLongToast) Toast.LENGTH_LONG else Toast.LENGTH_SHORT,
+                    ).show()
+                    isSavingTemplate = false
+                    return@launch
                 }
-                Toast.makeText(
-                    context,
-                    "서식 저장 실패로 저장을 취소했습니다: ${styleSaveResult.exceptionOrNull()?.message}${rollbackSuffix}",
-                    Toast.LENGTH_LONG
-                ).show()
-                isSavingTemplate = false
-                return@launch
-            }
 
-            val placementSaveResult = runCatching { persistTablePlacementState(context, watermarkUi) }
-            if (placementSaveResult.isFailure) {
-                Toast.makeText(
-                    context,
-                    "배치 저장 실패: ${placementSaveResult.exceptionOrNull()?.message}",
-                    Toast.LENGTH_LONG
-                ).show()
-                isSavingTemplate = false
-                return@launch
-            }
-
-            val savedPlacement = placementSaveResult.getOrThrow()
-            watermarkUi = savedPlacement
-            initialTemplateSnapshot = savePayload
-            initialStyleSnapshot = stylePayload
-            initialPlacementSnapshot = savedPlacement
-            rowWeightsDragBaseTemplate = null
-            colWeightsDragBaseTemplate = null
-            undoManager.clear()
-            undoRevision += 1
-            Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
-            onTemplateChange(savePayload)
-            isSavingTemplate = false
-            if (exitAfterSave) {
-                onBack()
+                is TableEditorSaveResult.Success -> {
+                    watermarkUi = result.savedPlacement
+                    initialTemplateSnapshot = savePayload
+                    initialStyleSnapshot = stylePayload
+                    initialPlacementSnapshot = result.savedPlacement
+                    rowWeightsDragBaseTemplate = null
+                    colWeightsDragBaseTemplate = null
+                    undoManager.clear()
+                    undoRevision += 1
+                    Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
+                    onTemplateChange(savePayload)
+                    isSavingTemplate = false
+                    if (exitAfterSave) {
+                        onBack()
+                    }
+                }
             }
         }
     }
 
     fun requestNavigateBack() {
-        if (hasUnsavedChanges) {
+        if (shouldShowUnsavedChangesDialog(hasUnsavedChanges)) {
             showUnsavedChangesDialog = true
         } else {
             undoManager.clear()
