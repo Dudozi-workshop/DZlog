@@ -171,6 +171,88 @@ object TableEditorFileNameSlotUiHandlers {
         )
     }
 
+    fun startCellPick(
+        state: FileNameSlotEditorUiState,
+    ): FileNameSlotEditorUiResult {
+        if (state.selectedSlotIndex == null) return snapshot(state = state)
+        return snapshot(
+            state = state,
+            isCellPickMode = true,
+            showManualInputEditor = false,
+        )
+    }
+
+    fun startManualInput(
+        state: FileNameSlotEditorUiState,
+    ): FileNameSlotEditorUiResult {
+        val selected = state.selectedSlotIndex ?: return snapshot(state = state)
+        val current = state.slots.getOrNull(selected)
+        return snapshot(
+            state = state,
+            isCellPickMode = false,
+            showManualInputEditor = true,
+            manualInputDraft = current?.manualText ?: current?.label.orEmpty(),
+        )
+    }
+
+    fun updateManualInputDraft(
+        state: FileNameSlotEditorUiState,
+        draft: String,
+    ): FileNameSlotEditorUiResult {
+        return snapshot(
+            state = state,
+            manualInputDraft = draft,
+        )
+    }
+
+    fun applyManualInput(
+        state: FileNameSlotEditorUiState,
+    ): FileNameSlotEditorUiResult {
+        val selected = state.selectedSlotIndex ?: return snapshot(state = state)
+        val trimmed = state.manualInputDraft.trim()
+        if (trimmed.isEmpty()) return snapshot(state = state)
+
+        val nextSlots = state.slots.toMutableList().apply {
+            this[selected] = FileNameSlotUiItem(
+                kind = FileNameSlotKind.MANUAL,
+                label = trimmed,
+                manualText = trimmed,
+            )
+        }
+
+        return snapshot(
+            state = state,
+            nextSlots = nextSlots,
+            isCellPickMode = false,
+            showManualInputEditor = false,
+            markDirty = true,
+        )
+    }
+
+    fun bindSelectedSlotToCell(
+        state: FileNameSlotEditorUiState,
+        cellId: String,
+        cellLabel: String,
+    ): FileNameSlotEditorUiResult {
+        val selected = state.selectedSlotIndex ?: return snapshot(state = state)
+        val nextSlots = state.slots.toMutableList().apply {
+            this[selected] = FileNameSlotUiItem(
+                kind = FileNameSlotKind.CELL,
+                label = cellLabel,
+                cellId = cellId,
+            )
+        }
+
+        return snapshot(
+            state = state,
+            nextSlots = nextSlots,
+            isCellPickMode = false,
+            showManualInputEditor = false,
+            manualInputDraft = "",
+            markDirty = true,
+        )
+    }
+
     private fun snapshot(
         state: FileNameSlotEditorUiState,
         nextSlots: List<FileNameSlotUiItem?> = state.slots,

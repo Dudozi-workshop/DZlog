@@ -1294,58 +1294,47 @@ fun TableEditorScreen(
                                 }
                             },
                             onStartFileNameCellPick = {
-                                if (currentlySelectedFileNameSlot != null) {
-                                    isFileNameCellPickMode = true
-                                    showManualInputEditor = false
-                                }
+                                applyFileNameSlotUiResult(
+                                    TableEditorFileNameSlotUiHandlers.startCellPick(
+                                        state = currentFileNameSlotEditorState(),
+                                    )
+                                )
                             },
                             onStartManualInputEditor = {
-                                val selected = currentlySelectedFileNameSlot
-                                if (selected != null) {
-                                    val current = normalizeFileNameDraftSlots(fileNameSlotItems).getOrNull(selected)
-                                    manualInputDraft = current?.manualText ?: current?.label.orEmpty()
-                                    isFileNameCellPickMode = false
-                                    showManualInputEditor = true
-                                }
+                                applyFileNameSlotUiResult(
+                                    TableEditorFileNameSlotUiHandlers.startManualInput(
+                                        state = currentFileNameSlotEditorState(),
+                                    )
+                                )
                             },
                             onManualInputDraftChange = {
-                                manualInputDraft = it
+                                applyFileNameSlotUiResult(
+                                    TableEditorFileNameSlotUiHandlers.updateManualInputDraft(
+                                        state = currentFileNameSlotEditorState(),
+                                        draft = it,
+                                    )
+                                )
                             },
                             onApplyManualInput = {
-                                val selected = currentlySelectedFileNameSlot
-                                val trimmed = manualInputDraft.trim()
-                                if (selected != null && trimmed.isNotEmpty()) {
-                                    val normalized = normalizeFileNameDraftSlots(fileNameSlotItems)
-                                    val next = normalized.toMutableList().apply {
-                                        this[selected] = FileNameSlotUiItem(
-                                            kind = FileNameSlotKind.MANUAL,
-                                            label = trimmed,
-                                            manualText = trimmed
-                                        )
-                                    }
-                                    updateFileNameSlotDraft(currentTemplate, next)
-                                    showManualInputEditor = false
-                                    isFileNameCellPickMode = false
-                                }
+                                applyFileNameSlotUiResult(
+                                    TableEditorFileNameSlotUiHandlers.applyManualInput(
+                                        state = currentFileNameSlotEditorState(),
+                                    )
+                                )
                             },
                             onBindSelectedSlotToCell = { cellId ->
-                                val selected = currentlySelectedFileNameSlot
-                                if (selected != null) {
-                                    val cellLabel = currentTemplate.cells.firstOrNull { it.cellId == cellId }?.let { cell ->
-                                        resolvedByCellId[cell.cellId]?.takeIf { it.isNotBlank() }
-                                            ?: "셀(${cell.rowIndex + 1},${cell.colIndex + 1})"
-                                    } ?: "셀"
-                                    val normalized = normalizeFileNameDraftSlots(fileNameSlotItems)
-                                    val next = normalized.toMutableList().apply {
-                                        this[selected] = FileNameSlotUiItem(
-                                            kind = FileNameSlotKind.CELL,
-                                            label = cellLabel,
-                                            cellId = cellId
-                                        )
-                                    }
-                                    updateFileNameSlotDraft(currentTemplate, next)
-                                    clearFileNameEditorTransientState(clearDraft = true)
-                                }
+                                val cellLabel = currentTemplate.cells.firstOrNull { it.cellId == cellId }?.let { cell ->
+                                    resolvedByCellId[cell.cellId]?.takeIf { it.isNotBlank() }
+                                        ?: "셀(${cell.rowIndex + 1},${cell.colIndex + 1})"
+                                } ?: "셀"
+
+                                applyFileNameSlotUiResult(
+                                    TableEditorFileNameSlotUiHandlers.bindSelectedSlotToCell(
+                                        state = currentFileNameSlotEditorState(),
+                                        cellId = cellId,
+                                        cellLabel = cellLabel,
+                                    )
+                                )
                             },
                             onSelectPathSlot = { slotIndex ->
                                 currentlySelectedPathSlot = slotIndex
