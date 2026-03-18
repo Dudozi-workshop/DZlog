@@ -40,11 +40,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -101,10 +101,8 @@ internal fun CellSettingsBottomPanel(
     }
     val panelScrollState = rememberScrollState()
 
-    val density = LocalDensity.current
-    val maxPanelHeight = with(density) {
-        LocalWindowInfo.current.containerSize.height.toDp() * 0.5f
-    }
+    val configuration = LocalConfiguration.current
+    val maxPanelHeight = configuration.screenHeightDp.dp * 0.5f
     val panelVerticalPadding = if (compactForBottomPanel) 6.dp else 14.dp
     val sectionSpacing = if (compactForBottomPanel) 6.dp else 12.dp
     val buttonHeight = if (compactForBottomPanel) 36.dp else 44.dp
@@ -323,11 +321,11 @@ internal fun CellSettingsBottomPanel(
                                     )
                                     .pointerInput(isSlotEditMode, selectedFromIndex) {
                                         detectTapGestures(
-                                            onLongPress = {
+                                            onLongPress = { _: Offset ->
                                                 isSlotEditMode = !isSlotEditMode
                                                 selectedFromIndex = null
                                             },
-                                            onTap = {
+                                            onTap = { _: Offset ->
                                                 if (!isSlotEditMode) {
                                                     Toast.makeText(context, "길게 눌러 편집", Toast.LENGTH_SHORT).show()
                                                 } else {

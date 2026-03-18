@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -63,6 +64,7 @@ fun DzThumbnail(uriString: String) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DzFullImage(
     uriString: String,

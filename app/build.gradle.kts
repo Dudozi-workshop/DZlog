@@ -11,15 +11,14 @@ plugins {
 
 extensions.configure<ApplicationExtension> {
     namespace = "com.dudoziworkshop.dzlog"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.dudoziworkshop.dzlog"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 2
         versionName = "0.0.0"
-
     }
 
     buildTypes {
@@ -54,7 +53,6 @@ extensions.configure<KotlinAndroidProjectExtension> {
     }
 }
 
-
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
     arg("room.incremental", "true")
@@ -63,12 +61,14 @@ ksp {
 
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
+
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.reorderable)
+
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     implementation(libs.androidx.camera.core)
@@ -76,23 +76,22 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.androidx.concurrent.futures)
-    // CameraX의 ListenableFuture 타입 해석을 안정화하기 위해 Guava Android를 직접 고정한다.
     implementation(libs.guava.android)
     implementation(libs.androidx.exifinterface)
 
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.coroutines.android)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
     implementation(libs.coil.compose)
-    implementation("com.android.billingclient:billing-ktx:8.3.0")
-    implementation("com.google.android.gms:play-services-ads:25.0.0")
+    implementation(libs.google.billing.ktx)
+    implementation(libs.google.play.services.ads)
 
     testImplementation(libs.junit)
     testImplementation("androidx.test:core:1.6.1")
