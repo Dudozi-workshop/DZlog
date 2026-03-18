@@ -10,7 +10,7 @@ internal fun handleTableEditorBackNavigation(
     onShowUnsavedDialog: () -> Unit,
     onNavigateBack: () -> Unit,
 ) {
-    if (shouldShowUnsavedChangesDialog(hasUnsavedChanges)) {
+    if (hasUnsavedChanges) {
         onShowUnsavedDialog()
     } else {
         onNavigateBack()

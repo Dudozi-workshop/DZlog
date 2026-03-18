@@ -85,6 +85,13 @@ import com.dudoziworkshop.dzlog.feature.table.editor.removeRowBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.resetColumnWeights
 import com.dudoziworkshop.dzlog.feature.table.editor.resetRowWeights
 import com.dudoziworkshop.dzlog.feature.table.editor.updateCell
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorExitCoordinator
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveCoordinator
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveResult
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorModeTransitionHandlers
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotListHandlers
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotDraftHandlers
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorTransientStateHandlers
 import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.placement.resolveRatioLockedSizeFromHeight
@@ -219,23 +226,22 @@ fun TableEditorScreen(
     fun withUpdatedFileNameSlots(
         base: TableTemplateState,
         updatedSlots: List<FileNameSlotUiItem?>
-    ): TableTemplateState {
-        val normalized = normalizeFileNameDraftSlots(updatedSlots)
-        val domainDrafts = normalized.map(::toFileNameDomainSlotDraft)
-        return base.copy(
-            fileNameSlotDrafts = domainDrafts
-        )
-    }
+    ): TableTemplateState = TableEditorSlotDraftHandlers.withUpdatedFileNameSlots(
+        base = base,
+        updatedSlots = updatedSlots,
+        normalize = ::normalizeFileNameDraftSlots,
+        toDomain = ::toFileNameDomainSlotDraft,
+    )
 
     fun withUpdatedPathSlots(
         base: TableTemplateState,
         updatedSlots: List<PathSlotUiItem?>
-    ): TableTemplateState {
-        val normalized = normalizePathDraftSlots(updatedSlots)
-        return base.copy(
-            pathSlotDrafts = normalized.map(::toPathDomainSlotDraft)
-        )
-    }
+    ): TableTemplateState = TableEditorSlotDraftHandlers.withUpdatedPathSlots(
+        base = base,
+        updatedSlots = updatedSlots,
+        normalize = ::normalizePathDraftSlots,
+        toDomain = ::toPathDomainSlotDraft,
+    )
 
     fun updateFileNameSlotDraft(
         base: TableTemplateState,
@@ -277,25 +283,29 @@ fun TableEditorScreen(
     var showManualInputEditor by remember { mutableStateOf(false) }
 
     fun removeFileNameSlotAt(slots: List<FileNameSlotUiItem?>, index: Int): List<FileNameSlotUiItem?> {
-        val compacted = slots.filterIndexed { i, item -> i != index && item != null }
-        return normalizeFileNameDraftSlots(compacted)
+        return TableEditorSlotListHandlers.removeSlotAt(
+            slots = slots,
+            index = index,
+            normalize = ::normalizeFileNameDraftSlots,
+        )
     }
 
     fun moveFileNameSlot(slots: List<FileNameSlotUiItem?>, from: Int, to: Int): List<FileNameSlotUiItem?> {
-        val mutable = slots.toMutableList()
-        val temp = mutable[from]
-        mutable[from] = mutable[to]
-        mutable[to] = temp
-        return normalizeFileNameDraftSlots(mutable)
+        return TableEditorSlotListHandlers.moveSlot(
+            slots = slots,
+            from = from,
+            to = to,
+            normalize = ::normalizeFileNameDraftSlots,
+        )
     }
 
     fun clearFileNameEditorTransientState(clearDraft: Boolean) {
-        // 정책 보강: 파일명 편집의 보조 UI 상태는 슬롯/모드 전환 시 잔존하지 않게 정리한다.
-        isFileNameCellPickMode = false
-        showManualInputEditor = false
-        if (clearDraft) {
-            manualInputDraft = ""
-        }
+        TableEditorTransientStateHandlers.clearFileNameEditorTransientState(
+            clearDraft = clearDraft,
+            setIsFileNameCellPickMode = { isFileNameCellPickMode = it },
+            setShowManualInputEditor = { showManualInputEditor = it },
+            setManualInputDraft = { manualInputDraft = it },
+        )
     }
 
     val pathSlotItems = buildPathDraftSlots(currentTemplate)
@@ -304,45 +314,53 @@ fun TableEditorScreen(
     var pathManualInputDraft by remember { mutableStateOf("") }
 
     fun removePathSlotAt(slots: List<PathSlotUiItem?>, index: Int): List<PathSlotUiItem?> {
-        val compacted = slots.filterIndexed { i, item -> i != index && item != null }
-        return normalizePathDraftSlots(compacted)
+        return TableEditorSlotListHandlers.removeSlotAt(
+            slots = slots,
+            index = index,
+            normalize = ::normalizePathDraftSlots,
+        )
     }
 
     fun movePathSlot(slots: List<PathSlotUiItem?>, from: Int, to: Int): List<PathSlotUiItem?> {
-        val mutable = slots.toMutableList()
-        val temp = mutable[from]
-        mutable[from] = mutable[to]
-        mutable[to] = temp
-        return normalizePathDraftSlots(mutable)
+        return TableEditorSlotListHandlers.moveSlot(
+            slots = slots,
+            from = from,
+            to = to,
+            normalize = ::normalizePathDraftSlots,
+        )
     }
 
     fun removeCellRefsFromFileNameSlots(
         slots: List<FileNameSlotUiItem?>,
         deletedCellIds: Set<String>
     ): List<FileNameSlotUiItem?> {
-        val filtered = slots.filter { slot ->
-            slot != null && (slot.cellId == null || slot.cellId !in deletedCellIds)
-        }
-        return normalizeFileNameDraftSlots(filtered)
+        return TableEditorSlotListHandlers.removeCellRefs(
+            slots = slots,
+            deletedCellIds = deletedCellIds,
+            slotCellId = { it.cellId },
+            normalize = ::normalizeFileNameDraftSlots,
+        )
     }
 
     fun removeCellRefsFromPathSlots(
         slots: List<PathSlotUiItem?>,
         deletedCellIds: Set<String>
     ): List<PathSlotUiItem?> {
-        val filtered = slots.filter { slot ->
-            slot != null && (slot.cellId == null || slot.cellId !in deletedCellIds)
-        }
-        return normalizePathDraftSlots(filtered)
+        return TableEditorSlotListHandlers.removeCellRefs(
+            slots = slots,
+            deletedCellIds = deletedCellIds,
+            slotCellId = { it.cellId },
+            normalize = ::normalizePathDraftSlots,
+        )
     }
 
     fun clearPathEditorTransientState(clearDraft: Boolean) {
-        // 정책 보강: 저장경로 편집의 보조 UI 상태(셀대기/서식/직접입력)는 모드/슬롯 전환에서 분리 정리한다.
-        isPathCellPickMode = false
-        showPathManualInputEditor = false
-        if (clearDraft) {
-            pathManualInputDraft = ""
-        }
+        TableEditorTransientStateHandlers.clearPathEditorTransientState(
+            clearDraft = clearDraft,
+            setIsPathCellPickMode = { isPathCellPickMode = it },
+            setShowPathManualInputEditor = { showPathManualInputEditor = it },
+            setPathManualInputDraft = { pathManualInputDraft = it },
+        )
     }
 
     // 탭1 스크롤 (분리)
@@ -961,16 +979,19 @@ fun TableEditorScreen(
             if (shouldBlockTabSwitchAfterCommit(inlineEdit)) return
         }
 
-        // 정책 보강: 각 편집 모드를 벗어날 때 해당 임시 상태를 분리 정리한다.
-        if (nextMode != BottomEditorPanelMode.FILENAME_EDIT) {
+        val wasStructureMode = isStructureEditMode()
+        val effects = TableEditorModeTransitionHandlers.resolveEffects(
+            nextMode = nextMode,
+            wasStructureMode = wasStructureMode,
+        )
+        if (effects.clearFileNameTransientState) {
             clearFileNameEditorTransientState(clearDraft = true)
         }
-        if (nextMode != BottomEditorPanelMode.PATH_EDIT) {
+        if (effects.clearPathTransientState) {
             clearPathEditorTransientState(clearDraft = true)
         }
-        val wasStructureMode = isStructureEditMode()
         bottomPanelMode = nextMode
-        if (nextMode == BottomEditorPanelMode.STRUCTURE_EDIT || wasStructureMode) {
+        if (effects.shouldResetStructureSelection) {
             structureSelectedCellIds = emptySet()
             structureSelectionRange = null
             selectedCellId = null
@@ -1021,9 +1042,9 @@ fun TableEditorScreen(
         val savePayload = editableTemplateState
         val stylePayload = tableStyleUi
         scope.launch {
-            when (val result = persistTableEditorState(
+            when (val result = TableEditorSaveCoordinator.persist(
                 context = context,
-                savePayload = savePayload,
+                templatePayload = savePayload,
                 stylePayload = stylePayload,
                 placementPayload = watermarkUi,
                 rollbackTemplate = initialTemplateSnapshot,
@@ -1059,15 +1080,14 @@ fun TableEditorScreen(
     }
 
     fun requestNavigateBack() {
-        handleTableEditorBackNavigation(
-            hasUnsavedChanges = hasUnsavedChanges,
-            onShowUnsavedDialog = { showUnsavedChangesDialog = true },
-            onNavigateBack = {
+        when (TableEditorExitCoordinator.onBackPressed(hasUnsavedChanges)) {
+            TableEditorExitCoordinator.Effect.OpenUnsavedChangesDialog -> showUnsavedChangesDialog = true
+            TableEditorExitCoordinator.Effect.ExitNow -> {
                 undoManager.clear()
                 undoRevision += 1
                 onBack()
-            },
-        )
+            }
+        }
     }
 
     fun requestCloseBottomPanelToNone() {
