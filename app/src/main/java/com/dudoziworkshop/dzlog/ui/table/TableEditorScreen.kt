@@ -78,6 +78,16 @@ import com.dudoziworkshop.dzlog.feature.table.editor.addColumn
 import com.dudoziworkshop.dzlog.feature.table.editor.addColumnBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.addRow
 import com.dudoziworkshop.dzlog.feature.table.editor.addRowBySelection
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorExitCoordinator
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveCoordinator
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveResult
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.FileNameSlotEditorUiResult
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.FileNameSlotEditorUiState
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorFileNameSlotUiHandlers
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorModeTransitionHandlers
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotDraftHandlers
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotListHandlers
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorTransientStateHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.removeColumn
 import com.dudoziworkshop.dzlog.feature.table.editor.removeColumnBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.removeRow
@@ -85,13 +95,6 @@ import com.dudoziworkshop.dzlog.feature.table.editor.removeRowBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.resetColumnWeights
 import com.dudoziworkshop.dzlog.feature.table.editor.resetRowWeights
 import com.dudoziworkshop.dzlog.feature.table.editor.updateCell
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorExitCoordinator
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveCoordinator
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveResult
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorModeTransitionHandlers
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotListHandlers
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotDraftHandlers
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorTransientStateHandlers
 import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.placement.resolveRatioLockedSizeFromHeight
@@ -306,6 +309,30 @@ fun TableEditorScreen(
             setShowManualInputEditor = { showManualInputEditor = it },
             setManualInputDraft = { manualInputDraft = it },
         )
+    }
+
+    fun currentFileNameSlotEditorState(): FileNameSlotEditorUiState {
+        return FileNameSlotEditorUiState(
+            slots = fileNameSlotItems,
+            selectedSlotIndex = currentlySelectedFileNameSlot,
+            isCellPickMode = isFileNameCellPickMode,
+            showManualInputEditor = showManualInputEditor,
+            manualInputDraft = manualInputDraft,
+        )
+    }
+
+    fun applyFileNameSlotUiResult(result: FileNameSlotEditorUiResult) {
+        if (result.nextSlots != fileNameSlotItems) {
+            updateFileNameSlotDraft(
+                base = currentTemplate,
+                updated = result.nextSlots,
+                markDirty = result.markDirty,
+            )
+        }
+        currentlySelectedFileNameSlot = result.nextSelectedSlotIndex
+        isFileNameCellPickMode = result.isCellPickMode
+        showManualInputEditor = result.showManualInputEditor
+        manualInputDraft = result.manualInputDraft
     }
 
     val pathSlotItems = buildPathDraftSlots(currentTemplate)
@@ -1221,55 +1248,36 @@ fun TableEditorScreen(
                             onCloseBottomPanel = ::requestCloseBottomPanelToNone,
                             onShowCellSettingsPanel = { showCellSettingsPanel = it },
                             onSelectFileNameSlot = { slotIndex ->
-                                currentlySelectedFileNameSlot = slotIndex
-                                // 정책 보강: 슬롯 전환 시 이전 슬롯 보조 UI 상태를 모두 정리한다.
-                                clearFileNameEditorTransientState(clearDraft = true)
+                                applyFileNameSlotUiResult(
+                                    TableEditorFileNameSlotUiHandlers.selectSlot(
+                                        state = currentFileNameSlotEditorState(),
+                                        slotIndex = slotIndex,
+                                    )
+                                )
                             },
                             onFillEmptyFileNameSlot = { slotIndex ->
-                                val normalized = normalizeFileNameDraftSlots(fileNameSlotItems)
-                                val firstEmptyIndex = normalized.indexOfFirst { it == null }
-                                if (firstEmptyIndex < 0) {
-                                    currentlySelectedFileNameSlot = slotIndex
-                                } else {
-                                    // 정책 변경: 어떤 '+'를 눌러도 항상 가장 앞의 빈 슬롯부터 채워
-                                    // 파일명 슬롯 상태를 [A, B, C, null...] 형태로 연속 유지한다.
-                                    val next = normalized.toMutableList().apply {
-                                        this[firstEmptyIndex] = FileNameSlotUiItem(
-                                            kind = FileNameSlotKind.CELL,
-                                            label = "셀"
-                                        )
-                                    }
-                                    updateFileNameSlotDraft(currentTemplate, next)
-                                    currentlySelectedFileNameSlot = firstEmptyIndex
-                                    isFileNameCellPickMode = false
-                                    showManualInputEditor = false
-                                }
+                                applyFileNameSlotUiResult(
+                                    TableEditorFileNameSlotUiHandlers.fillEmptySlot(
+                                        state = currentFileNameSlotEditorState(),
+                                        requestedSlotIndex = slotIndex,
+                                    )
+                                )
                             },
                             onMoveSelectedFileNameSlotLeft = {
-                                isFileNameCellPickMode = false
-                                showManualInputEditor = false
-                                val selected = currentlySelectedFileNameSlot
-                                if (selected != null) {
-                                    val normalized = normalizeFileNameDraftSlots(fileNameSlotItems)
-                                    val target = selected - 1
-                                    if (target >= 0 && normalized[selected] != null && normalized[target] != null) {
-                                        updateFileNameSlotDraft(currentTemplate, moveFileNameSlot(normalized, selected, target))
-                                        currentlySelectedFileNameSlot = target
-                                    }
-                                }
+                                applyFileNameSlotUiResult(
+                                    TableEditorFileNameSlotUiHandlers.moveSelectedLeft(
+                                        state = currentFileNameSlotEditorState(),
+                                        moveSlot = ::moveFileNameSlot,
+                                    )
+                                )
                             },
                             onMoveSelectedFileNameSlotRight = {
-                                isFileNameCellPickMode = false
-                                showManualInputEditor = false
-                                val selected = currentlySelectedFileNameSlot
-                                if (selected != null) {
-                                    val normalized = normalizeFileNameDraftSlots(fileNameSlotItems)
-                                    val target = selected + 1
-                                    if (target < normalized.size && normalized[selected] != null && normalized[target] != null) {
-                                        updateFileNameSlotDraft(currentTemplate, moveFileNameSlot(normalized, selected, target))
-                                        currentlySelectedFileNameSlot = target
-                                    }
-                                }
+                                applyFileNameSlotUiResult(
+                                    TableEditorFileNameSlotUiHandlers.moveSelectedRight(
+                                        state = currentFileNameSlotEditorState(),
+                                        moveSlot = ::moveFileNameSlot,
+                                    )
+                                )
                             },
                             onDeleteSelectedFileNameSlot = {
                                 isFileNameCellPickMode = false
