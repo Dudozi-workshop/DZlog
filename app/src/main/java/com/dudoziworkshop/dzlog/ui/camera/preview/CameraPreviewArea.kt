@@ -51,7 +51,6 @@ import com.dudoziworkshop.dzlog.domain.naming.resolveGroupValue
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
-import com.dudoziworkshop.dzlog.ui.camera.buildWatermarkConfig
 import com.dudoziworkshop.dzlog.ui.camera.controller.bindCamera
 import com.dudoziworkshop.dzlog.ui.camera.controller.startTapToFocus
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
