@@ -12,7 +12,6 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.pointer.awaitPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChanged
@@ -35,16 +34,12 @@ internal fun Modifier.cameraPreviewGestureModifier(
     watermarkBoundsRect: RectF?,
     watermarkRawRect: RectF?,
     isWatermarkArmed: Boolean,
-    watermarkDragActive: Boolean,
     dragTouchSlop: Float,
     dragStartLeftPx: Float,
     dragStartTopPx: Float,
     dragTableWidthPx: Float,
     dragTableHeightPx: Float,
     dragPreviewOffsetPx: Offset?,
-    dragAccumDx: Float,
-    dragAccumDy: Float,
-    dragStartedAfterSlop: Boolean,
     rotationCwDeg: Int,
     onTapFocusUiChange: (TapFocusUiState?) -> Unit,
     onOpenTableEditor: () -> Unit,
@@ -126,24 +121,21 @@ internal fun Modifier.cameraPreviewGestureModifier(
         awaitEachGesture {
             val activeCamera = boundCamera ?: return@awaitEachGesture
             val firstDown = awaitFirstDown(requireUnconsumed = false)
-            val boundsRect = watermarkBoundsRect
-            val rawRect = watermarkRawRect
-            var localDragEnabled = isWatermarkArmed && boundsRect != null && rawRect != null &&
-                boundsRect.contains(firstDown.position.x, firstDown.position.y)
+            var localDragEnabled = isWatermarkArmed && watermarkBoundsRect != null && watermarkRawRect != null &&
+                watermarkBoundsRect.contains(firstDown.position.x, firstDown.position.y)
             var localDragStartLeftPx = dragStartLeftPx
             var localDragStartTopPx = dragStartTopPx
             var localDragTableWidthPx = dragTableWidthPx
             var localDragTableHeightPx = dragTableHeightPx
             var localDragPreviewOffsetPx = dragPreviewOffsetPx
-            var localDragAccumDx = dragAccumDx
-            var localDragAccumDy = dragAccumDy
-            var localDragStartedAfterSlop = dragStartedAfterSlop
-            var localWatermarkDragActive = watermarkDragActive
+            var localDragAccumDx = 0f
+            var localDragAccumDy = 0f
+            var localDragStartedAfterSlop = false
+            var localWatermarkDragActive = false
 
             onWatermarkDragActiveChange(false)
-            localWatermarkDragActive = false
-            if (localDragEnabled && rawRect != null) {
-                val br = boundsRect!!
+            if (localDragEnabled) {
+                val br = watermarkBoundsRect!!
                 localDragStartLeftPx = br.left - captureRect.left
                 localDragStartTopPx = br.top - captureRect.top
                 localDragTableWidthPx = br.width()
@@ -300,7 +292,6 @@ internal fun Modifier.cameraPreviewGestureModifier(
         }
     }
 
-@Suppress("UNUSED_PARAMETER")
 private fun computeClampedDragOffsetPxForRotation(
     contentRect: RectF,
     dragStartLeftPx: Float,
