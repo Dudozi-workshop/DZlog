@@ -371,7 +371,6 @@ fun CameraPreview(
                     modifier = Modifier.align(Alignment.BottomCenter)
                 ) {
                     CameraBottomControls(
-                        context = context,
                         scope = scope,
                         ui = ui,
                         settingsWriter = settingsWriter,

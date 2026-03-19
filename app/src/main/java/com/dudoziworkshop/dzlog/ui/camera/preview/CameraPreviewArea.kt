@@ -621,16 +621,20 @@ internal fun CameraPreviewArea(
                 }
                 val effectiveOverrideOffsetPx = dragPreviewOffsetPx ?: baseBoundsOffsetPx
 
+                val previewContentRect = if (captureRect.width() > 0f && captureRect.height() > 0f) captureRect else null
+
                 CameraPreviewHost(
                     previewView = previewView,
-                    previewContentRect = if (captureRect.width() > 0f && captureRect.height() > 0f) captureRect else null,
+                )
+
+                CameraPreviewOverlays(
+                    previewContentRect = previewContentRect,
                     previewRequest = previewRequest,
                     showWmPreview = args.showWmPreview,
                     showGrid = args.showGrid,
                     capturedUri = capturedUri,
                     continuousPreviewMode = args.continuousPreviewMode,
                     aspectRatio = captureAspect.ratioF,
-                    captureAspectRatio = captureAspect.ratioF,
                     onDismissCaptured = onDismissCaptured,
                     tapFocusUi = tapFocusUi,
                     isWatermarkArmed = isWatermarkArmed,

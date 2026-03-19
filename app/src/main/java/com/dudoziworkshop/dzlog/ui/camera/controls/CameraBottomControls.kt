@@ -2,7 +2,6 @@
 
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
-import android.content.Context
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -10,12 +9,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,14 +23,19 @@ import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
@@ -46,9 +48,11 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
+private val BottomControlsHorizontalPadding = 12.dp
+private val ZoomOverlayBottomSpacing = 10.dp
+
 @Composable
 internal fun CameraBottomControls(
-    context: Context,
     scope: CoroutineScope,
     ui: CameraUiState,
     settingsWriter: CameraSettingsWriter,
@@ -64,110 +68,162 @@ internal fun CameraBottomControls(
     zoomPanelExpanded: Boolean,
     onZoomPanelExpandedChange: (Boolean) -> Unit,
 ) {
-    if (zoomPanelExpanded) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { onZoomPanelExpandedChange(false) }
-        )
-    }
+    val density = LocalDensity.current
+    var bottomBarHeightPx by remember { mutableIntStateOf(0) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility)
-            .padding(bottom = DDZSpacing.screenPadding),
-        contentAlignment = Alignment.Center
-    ) {
-        val enabledNow =
-            (boundImageCaptureAvailable &&
-                ui.capture.capturedUri == null &&
-                !ui.capture.isCapturing &&
-                ui.counter.scopeNextCounter != null)
+    val enabledNow =
+        (boundImageCaptureAvailable &&
+            ui.capture.capturedUri == null &&
+            !ui.capture.isCapturing &&
+            ui.counter.scopeNextCounter != null)
 
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            ZoomControlSection(
-                zoomRatioTenths = ui.capture.actualZoomTenths,
-                maxZoomTenths = ui.capture.maxZoomTenths,
-                expanded = zoomPanelExpanded,
-                onToggleExpanded = { onZoomPanelExpandedChange(!zoomPanelExpanded) },
-                onZoomTenthsChange = { next ->
-                    val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
-                    ui.prefs.zoomRatioTenths = normalized
-                    scope.launch { settingsWriter.setZoomTenths(normalized) }
-                }
-            )
-
-            Box(modifier = Modifier.height(2.dp))
-
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (zoomPanelExpanded) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .onGloballyPositioned { coordinates ->
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { onZoomPanelExpandedChange(false) }
+            )
+        }
+
+        CameraBottomBarRow(
+            latestImage = latestImage,
+            enabledNow = enabledNow,
+            sessionCaptureStack = sessionCaptureStack,
+            undoPending = undoPending,
+            onOpenAlbum = onOpenAlbum,
+            onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
+            onZoomPanelExpandedChange = onZoomPanelExpandedChange,
+            onTriggerCapture = onTriggerCapture,
+            onUndoDelete = onUndoDelete,
+            onShutterButtonTopYChange = onShutterButtonTopYChange,
+            onRotateClick = {
+                val nextRotation = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
+                ui.prefs.wmRotationCwDeg = nextRotation
+                scope.launch { settingsWriter.setWmRotationCwDeg(nextRotation) }
+            },
+            onBottomBarHeightChange = { bottomBarHeightPx = it }
+        )
+
+        CameraZoomOverlayPanel(
+            zoomRatioTenths = ui.capture.actualZoomTenths,
+            maxZoomTenths = ui.capture.maxZoomTenths,
+            expanded = zoomPanelExpanded,
+            bottomOffset = with(density) { bottomBarHeightPx.toDp() + ZoomOverlayBottomSpacing },
+            onToggleExpanded = { onZoomPanelExpandedChange(!zoomPanelExpanded) },
+            onZoomTenthsChange = { next ->
+                val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
+                ui.prefs.zoomRatioTenths = normalized
+                scope.launch { settingsWriter.setZoomTenths(normalized) }
+            }
+        )
+    }
+}
+
+@Composable
+private fun BoxScope.CameraBottomBarRow(
+    latestImage: MediaImageItem?,
+    enabledNow: Boolean,
+    sessionCaptureStack: MutableList<List<Uri>>,
+    undoPending: Boolean,
+    onOpenAlbum: () -> Unit,
+    onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
+    onZoomPanelExpandedChange: (Boolean) -> Unit,
+    onTriggerCapture: () -> Unit,
+    onUndoDelete: (List<Uri>) -> Unit,
+    onShutterButtonTopYChange: (Float?) -> Unit,
+    onRotateClick: () -> Unit,
+    onBottomBarHeightChange: (Int) -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility)
+            .padding(bottom = DDZSpacing.screenPadding)
+            .padding(horizontal = BottomControlsHorizontalPadding)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .onSizeChanged { onBottomBarHeightChange(it.height) },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.weight(15f), contentAlignment = Alignment.Center) {
+                RecentCaptureThumbButton(
+                    latestImage = latestImage,
+                    onClick = {
+                        onZoomPanelExpandedChange(false)
+                        if (latestImage == null) {
+                            onOpenAlbum()
+                        } else {
+                            val (g1, g2) = parseG1G2FromRelativePath(latestImage.relativePath)
+                            onOpenRecentCaptureGrid(g1, g2, latestImage.relativePath, 0)
+                        }
+                    }
+                )
+            }
+
+            Box(modifier = Modifier.weight(23f), contentAlignment = Alignment.Center) {}
+
+            Box(modifier = Modifier.weight(24f), contentAlignment = Alignment.Center) {
+                CaptureButtonSection(
+                    ready = enabledNow,
+                    onClick = {
+                        onZoomPanelExpandedChange(false)
+                        onTriggerCapture()
+                    },
+                    modifier = Modifier.onGloballyPositioned { coordinates ->
                         onShutterButtonTopYChange(coordinates.positionInRoot().y)
                     }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(modifier = Modifier.weight(15f), contentAlignment = Alignment.Center) {
-                        RecentCaptureThumbButton(
-                            latestImage = latestImage,
-                            onClick = {
-                                onZoomPanelExpandedChange(false)
-                                val it = latestImage
-                                if (it == null) {
-                                    onOpenAlbum()
-                                } else {
-                                    val (g1, g2) = parseG1G2FromRelativePath(it.relativePath)
-                                    onOpenRecentCaptureGrid(g1, g2, it.relativePath, 0)
-                                }
-                            }
-                        )
-                    }
+                )
+            }
 
-                    Box(modifier = Modifier.weight(23f), contentAlignment = Alignment.Center) {}
+            Box(modifier = Modifier.weight(23f), contentAlignment = Alignment.Center) {
+                WatermarkRotateButton(onClick = onRotateClick)
+            }
 
-                    Box(modifier = Modifier.weight(24f), contentAlignment = Alignment.Center) {
-                        CaptureButtonSection(
-                            ready = enabledNow,
-                            onClick = {
-                                onZoomPanelExpandedChange(false)
-                                onTriggerCapture()
-                            }
-                        )
+            Box(modifier = Modifier.weight(15f), contentAlignment = Alignment.Center) {
+                UndoCaptureButton(
+                    enabled = sessionCaptureStack.isNotEmpty() && !undoPending,
+                    onClick = {
+                        if (undoPending) return@UndoCaptureButton
+                        val targetUris = UndoCapturePolicy.consumeLatestCapture(stack = sessionCaptureStack)
+                        if (targetUris.isEmpty()) return@UndoCaptureButton
+                        onUndoDelete(targetUris)
                     }
-
-                    Box(modifier = Modifier.weight(23f), contentAlignment = Alignment.Center) {
-                        WatermarkRotateButton(
-                            onClick = {
-                                val nextRotation = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
-                                ui.prefs.wmRotationCwDeg = nextRotation
-                                scope.launch { settingsWriter.setWmRotationCwDeg(nextRotation) }
-                            }
-                        )
-                    }
-
-                    Box(modifier = Modifier.weight(15f), contentAlignment = Alignment.Center) {
-                        UndoCaptureButton(
-                            enabled = sessionCaptureStack.isNotEmpty() && !undoPending,
-                            onClick = {
-                                if (undoPending) return@UndoCaptureButton
-                                val targetUris = UndoCapturePolicy.consumeLatestCapture(stack = sessionCaptureStack)
-                                if (targetUris.isEmpty()) return@UndoCaptureButton
-                                onUndoDelete(targetUris)
-                            }
-                        )
-                    }
-                }
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun BoxScope.CameraZoomOverlayPanel(
+    zoomRatioTenths: Int,
+    maxZoomTenths: Int,
+    expanded: Boolean,
+    bottomOffset: androidx.compose.ui.unit.Dp,
+    onToggleExpanded: () -> Unit,
+    onZoomTenthsChange: (Int) -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility)
+            .padding(bottom = DDZSpacing.screenPadding + bottomOffset),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        ZoomControlSection(
+            zoomRatioTenths = zoomRatioTenths,
+            maxZoomTenths = maxZoomTenths,
+            expanded = expanded,
+            onToggleExpanded = onToggleExpanded,
+            onZoomTenthsChange = onZoomTenthsChange
+        )
     }
 }
 
@@ -239,4 +295,3 @@ private fun RecentCaptureThumbButton(
         latestImage?.let { DzThumbnail(it.uri.toString()) }
     }
 }
-

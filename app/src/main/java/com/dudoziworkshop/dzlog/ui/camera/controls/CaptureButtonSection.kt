@@ -25,13 +25,14 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 @Composable
 internal fun CaptureButtonSection(
     ready: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed = interactionSource.collectIsPressedAsState().value
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(70.dp)
             .background(
                 color = when {
