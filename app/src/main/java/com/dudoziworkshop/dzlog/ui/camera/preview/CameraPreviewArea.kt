@@ -11,7 +11,6 @@ import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
@@ -30,14 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculateCentroid
-import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.lifecycle.Observer
@@ -52,14 +44,10 @@ import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.ui.camera.controller.bindCamera
-import com.dudoziworkshop.dzlog.ui.camera.controller.startTapToFocus
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.watermark.computeBoundsSize
 import com.dudoziworkshop.dzlog.feature.table.render.computeRatioOnlyTableShape
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlin.math.abs
-import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.roundToInt
 import androidx.compose.ui.unit.IntOffset
@@ -261,209 +249,54 @@ internal fun CameraPreviewArea(
 
         val gestureModifier = Modifier
             .fillMaxSize()
-            .pointerInput(boundCamera, captureRect, tapFocusUi) {
-                detectTapGestures { offset ->
-                    if (SystemClock.uptimeMillis() < suppressWatermarkTapUntilMs) return@detectTapGestures
-                    if (watermarkBoundsRect?.contains(offset.x, offset.y) == true) {
-                        if (isWatermarkArmed) {
-                            commitWatermarkOffsetIfNeeded()
-                            args.onOpenTableEditor()
-                            isWatermarkArmed = false
-                        } else {
-                            isWatermarkArmed = true
-                            markWatermarkInteraction()
-                        }
-                        return@detectTapGestures
-                    }
-                    if (isWatermarkArmed) {
-                        commitWatermarkOffsetIfNeeded()
-                        isWatermarkArmed = false
-                        return@detectTapGestures
-                    }
-                    val activeCamera = boundCamera ?: return@detectTapGestures
-                    if (!captureRect.contains(offset.x, offset.y)) return@detectTapGestures
-
-                    onTapFocusUiChange(
-                        TapFocusUiState(
-                            xPx = offset.x,
-                            yPx = offset.y,
-                            phase = FocusRingPhase.FOCUSING
-                        )
-                    )
-                    startTapToFocus(
-                        context = context,
-                        camera = activeCamera,
-                        previewView = previewView,
-                        xPx = offset.x,
-                        yPx = offset.y,
-                        onResult = { success ->
-                            scope.launch {
-                                if (success) {
-                                    onTapFocusUiChange(TapFocusUiState(offset.x, offset.y, FocusRingPhase.SUCCESS))
-                                    delay(350)
-                                } else {
-                                    delay(200)
-                                }
-                                onTapFocusUiChange(null)
-                            }
-                        }
-                    )
-                }
-            }
-            .pointerInput(boundCamera, captureRect, isWatermarkArmed) {
-                val pinchScaleDeadZone = 0.01f
-                awaitEachGesture {
-                    val activeCamera = boundCamera ?: return@awaitEachGesture
-                    val firstDown = awaitFirstDown(requireUnconsumed = false)
-                    val boundsRect = watermarkBoundsRect
-                    val rawRect = watermarkRawRect
-                    var dragEnabled = isWatermarkArmed && boundsRect != null && rawRect != null &&
-                        boundsRect.contains(firstDown.position.x, firstDown.position.y)
-                    watermarkDragActive = false
-                    if (dragEnabled && rawRect != null) {
-                        val br = boundsRect!!
-                        dragStartLeftPx = br.left - captureRect.left
-                        dragStartTopPx = br.top - captureRect.top
-                        dragTableWidthPx = br.width()
-                        dragTableHeightPx = br.height()
-                        dragAccumDx = 0f
-                        dragAccumDy = 0f
-                        dragStartedAfterSlop = false
-                        dragPreviewOffsetPx = Offset(dragStartLeftPx, dragStartTopPx)
-                        markWatermarkInteraction()
-                    }
-
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val activePointers = event.changes.count { it.pressed }
-                        if (activePointers == 0) break
-
-                        if (activePointers > 1) {
-                            if (isWatermarkArmed) {
-                                event.changes.forEach { change ->
-                                    if (change.positionChanged()) change.consume()
-                                }
-                                continue
-                            }
-                            if (dragEnabled) {
-                                dragEnabled = false
-                                watermarkDragActive = false
-                                dragAccumDx = 0f
-                                dragAccumDy = 0f
-                                dragStartedAfterSlop = false
-                                dragPreviewOffsetPx = null
-                                dragTableWidthPx = 0f
-                                dragTableHeightPx = 0f
-                            }
-                            val zoom = event.calculateZoom()
-                            if (abs(zoom - 1f) >= pinchScaleDeadZone) {
-                                val centroid = event.calculateCentroid(useCurrent = true)
-                                if (shouldHandlePinch(
-                                        centroidX = centroid.x,
-                                        centroidY = centroid.y,
-                                        captureRect = captureRect,
-                                        watermarkDragActive = watermarkDragActive
-                                    )
-                                ) {
-                                    val zoomState = activeCamera.cameraInfo.zoomState.value
-                                    if (zoomState != null) {
-                                        val (minZoom, maxZoom) = resolveZoomBounds(
-                                            minSupported = zoomState.minZoomRatio,
-                                            maxSupported = zoomState.maxZoomRatio
-                                        )
-                                        val next = (zoomState.zoomRatio * zoom).coerceIn(minZoom, maxZoom)
-                                        runCatching { activeCamera.cameraControl.setZoomRatio(next) }
-                                        val maxTenths = (maxZoom * 10f).roundToInt().coerceAtLeast(10)
-                                        args.onMaxZoomTenthsChange(maxTenths)
-                                        val tenths = (next * 10f).roundToInt().coerceIn(10, maxTenths)
-                                        args.onRequestedZoomTenthsCommit(tenths)
-                                        args.onActualZoomTenthsChange(tenths)
-                                    }
-                                }
-                            }
-                            event.changes.forEach { change ->
-                                if (change.positionChanged()) change.consume()
-                            }
-                            continue
-                        }
-
-                        if (!dragEnabled) continue
-                        val change = event.changes.firstOrNull { it.pressed } ?: continue
-
-                        val contentRect = captureRect
-                        val tableW = dragTableWidthPx
-                        val tableH = dragTableHeightPx
-
-                        val delta = change.positionChange()
-                        dragAccumDx += delta.x
-                        dragAccumDy += delta.y
-                        if (!dragStartedAfterSlop) {
-                            val moved = hypot(dragAccumDx.toDouble(), dragAccumDy.toDouble()).toFloat()
-                            if (moved < dragTouchSlop) continue
-                            dragStartedAfterSlop = true
-                            watermarkDragActive = true
-                        }
-                        if (change.positionChanged()) change.consume()
-
-                        val nextOffsetPx = computeClampedDragOffsetPxForRotation(
-                            contentRect = contentRect,
-                            dragStartLeftPx = dragStartLeftPx,
-                            dragStartTopPx = dragStartTopPx,
-                            dragAccumDx = dragAccumDx,
-                            dragAccumDy = dragAccumDy,
-                            rawW = tableW,
-                            rawH = tableH,
-                            rotationCwDeg = args.watermarkUi.rotationCwDeg
-                        )
-
-                        dragPreviewOffsetPx = nextOffsetPx
-                        markWatermarkInteraction()
-                    }
-
-                    if (dragEnabled && dragStartedAfterSlop) {
-                        suppressWatermarkTapUntilMs = SystemClock.uptimeMillis() + 180L
-                        isWatermarkArmed = true
-
-                        val committedOffset = dragPreviewOffsetPx ?: Offset(dragStartLeftPx, dragStartTopPx)
-                        val committedLeftPx = committedOffset.x
-                        val committedTopPx = committedOffset.y
-                        val boundsW = dragTableWidthPx
-                        val boundsH = dragTableHeightPx
-                        val boundsMaxX = (captureRect.width() - boundsW).coerceAtLeast(0f)
-                        val boundsMaxY = (captureRect.height() - boundsH).coerceAtLeast(0f)
-                        val committedX10000 = if (boundsMaxX <= 0f) {
-                            0
-                        } else {
-                            ((committedLeftPx / boundsMaxX) * 10000f).roundToInt().coerceIn(0, 10000)
-                        }
-                        val committedY10000 = if (boundsMaxY <= 0f) {
-                            0
-                        } else {
-                            ((committedTopPx / boundsMaxY) * 10000f).roundToInt().coerceIn(0, 10000)
-                        }
-                        val committedXRatio = (committedX10000 / 100f).roundToInt().coerceIn(0, 100)
-                        val committedYRatio = (committedY10000 / 100f).roundToInt().coerceIn(0, 100)
-
-                        previewBoundsOffsetX10000 = committedX10000
-                        previewBoundsOffsetY10000 = committedY10000
-                        previewOffsetX = committedXRatio
-                        previewOffsetY = committedYRatio
-                        pendingLocalOffsetSync = true
-                        args.onWatermarkBoundsOffset10000Preview(committedX10000, committedY10000)
-                        args.onWatermarkOffsetRatioPreview(committedXRatio, committedYRatio)
-                        markWatermarkInteraction()
-                        commitWatermarkOffsetIfNeeded()
-                    }
-                    watermarkDragActive = false
-                    dragPreviewOffsetPx = null
-                    dragTableWidthPx = 0f
-                    dragTableHeightPx = 0f
-                    dragAccumDx = 0f
-                    dragAccumDy = 0f
-                    dragStartedAfterSlop = false
-                }
-            }
-
+            .cameraPreviewGestureModifier(
+                context = context,
+                scope = scope,
+                previewView = previewView,
+                boundCamera = boundCamera,
+                captureRect = captureRect,
+                tapFocusUi = tapFocusUi,
+                suppressWatermarkTapUntilMs = suppressWatermarkTapUntilMs,
+                watermarkBoundsRect = watermarkBoundsRect,
+                watermarkRawRect = watermarkRawRect,
+                isWatermarkArmed = isWatermarkArmed,
+                watermarkDragActive = watermarkDragActive,
+                dragTouchSlop = dragTouchSlop,
+                dragStartLeftPx = dragStartLeftPx,
+                dragStartTopPx = dragStartTopPx,
+                dragTableWidthPx = dragTableWidthPx,
+                dragTableHeightPx = dragTableHeightPx,
+                dragPreviewOffsetPx = dragPreviewOffsetPx,
+                dragAccumDx = dragAccumDx,
+                dragAccumDy = dragAccumDy,
+                dragStartedAfterSlop = dragStartedAfterSlop,
+                rotationCwDeg = args.watermarkUi.rotationCwDeg,
+                onTapFocusUiChange = onTapFocusUiChange,
+                onOpenTableEditor = args.onOpenTableEditor,
+                onCommitWatermarkOffsetIfNeeded = ::commitWatermarkOffsetIfNeeded,
+                onMarkWatermarkInteraction = ::markWatermarkInteraction,
+                onWatermarkArmedChange = { isWatermarkArmed = it },
+                onWatermarkDragActiveChange = { watermarkDragActive = it },
+                onDragStartLeftPxChange = { dragStartLeftPx = it },
+                onDragStartTopPxChange = { dragStartTopPx = it },
+                onDragTableWidthPxChange = { dragTableWidthPx = it },
+                onDragTableHeightPxChange = { dragTableHeightPx = it },
+                onDragPreviewOffsetPxChange = { dragPreviewOffsetPx = it },
+                onDragAccumDxChange = { dragAccumDx = it },
+                onDragAccumDyChange = { dragAccumDy = it },
+                onDragStartedAfterSlopChange = { dragStartedAfterSlop = it },
+                onSuppressWatermarkTapUntilMsChange = { suppressWatermarkTapUntilMs = it },
+                onPreviewBoundsOffsetX10000Change = { previewBoundsOffsetX10000 = it },
+                onPreviewBoundsOffsetY10000Change = { previewBoundsOffsetY10000 = it },
+                onPreviewOffsetXChange = { previewOffsetX = it },
+                onPreviewOffsetYChange = { previewOffsetY = it },
+                onPendingLocalOffsetSyncChange = { pendingLocalOffsetSync = it },
+                onWatermarkBoundsOffset10000Preview = args.onWatermarkBoundsOffset10000Preview,
+                onWatermarkOffsetRatioPreview = args.onWatermarkOffsetRatioPreview,
+                onMaxZoomTenthsChange = args.onMaxZoomTenthsChange,
+                onRequestedZoomTenthsCommit = args.onRequestedZoomTenthsCommit,
+                onActualZoomTenthsChange = args.onActualZoomTenthsChange,
+            )
 
         val plan = remember(
             args.tableTemplateState,
@@ -665,27 +498,6 @@ internal fun CameraPreviewArea(
     }
 }
 
-@Suppress("UNUSED_PARAMETER")
-private fun computeClampedDragOffsetPxForRotation(
-    contentRect: RectF,
-    dragStartLeftPx: Float,
-    dragStartTopPx: Float,
-    dragAccumDx: Float,
-    dragAccumDy: Float,
-    rawW: Float,
-    rawH: Float,
-    rotationCwDeg: Int
-): Offset {
-    val candidateLeft = dragStartLeftPx + dragAccumDx
-    val candidateTop = dragStartTopPx + dragAccumDy
-    val maxX = (contentRect.width() - rawW).coerceAtLeast(0f)
-    val maxY = (contentRect.height() - rawH).coerceAtLeast(0f)
-    return Offset(
-        x = candidateLeft.coerceIn(0f, maxX),
-        y = candidateTop.coerceIn(0f, maxY)
-    )
-}
-
 internal fun computeOffsetRatioFromPx(
     committedOffsetPx: Offset,
     maxX: Float,
@@ -710,14 +522,3 @@ internal fun resolveZoomBounds(minSupported: Float, maxSupported: Float): Pair<F
     return clampedMin to clampedMax
 }
 
-internal fun shouldHandlePinch(
-    centroidX: Float,
-    centroidY: Float,
-    captureRect: RectF,
-    watermarkDragActive: Boolean
-): Boolean {
-    if (captureRect.width() <= 0f || captureRect.height() <= 0f) return false
-    if (!captureRect.contains(centroidX, centroidY)) return false
-    if (watermarkDragActive) return false
-    return true
-}
