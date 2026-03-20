@@ -6,8 +6,11 @@
 
 package com.dudoziworkshop.dzlog.ui.table
 
+import android.content.pm.ApplicationInfo
 import android.widget.Toast
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -31,8 +34,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
@@ -83,7 +88,11 @@ import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.DeletedStructur
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveCoordinator
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveResult
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.StructureRestoreAxis
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureDeletionCoordinatorInput
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureDeletionCoordinatorResult
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureDeletionDebugInfo
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureRestoreCoordinator
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureRestoreDebugInfo
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureRestoreCoordinatorInput
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.FileNameSlotEditorUiResult
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.FileNameSlotEditorUiState
@@ -94,8 +103,6 @@ import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorPathSlo
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorModeTransitionHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotDraftHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotListHandlers
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorStructureSlotHandlers
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.StructureSlotDeletionResult
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorTransientStateHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.removeColumn
 import com.dudoziworkshop.dzlog.feature.table.editor.removeColumnBySelection
@@ -116,6 +123,9 @@ import com.dudoziworkshop.dzlog.ui.table.editor.clearInlineEditing
 import com.dudoziworkshop.dzlog.ui.table.editor.isEditing
 import com.dudoziworkshop.dzlog.ui.table.editor.shouldBlockTabSwitchAfterCommit
 import com.dudoziworkshop.dzlog.ui.table.editor.startInlineEditing
+import com.dudoziworkshop.dzlog.ui.table.debug.TableEditorDebugOverlay
+import com.dudoziworkshop.dzlog.ui.table.debug.TableEditorDebugOverlaySource
+import com.dudoziworkshop.dzlog.ui.table.debug.buildTableEditorDebugOverlayState
 import com.dudoziworkshop.dzlog.ui.table.format.TableFormatDialog
 import com.dudoziworkshop.dzlog.ui.table.format.TableFormatDialogState
 import com.dudoziworkshop.dzlog.ui.table.format.close
@@ -214,6 +224,9 @@ fun TableEditorScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val isDebugBuild = remember(context) {
+        (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    }
 
     var showPlacementDialog by remember { mutableStateOf(false) }
 
@@ -387,7 +400,7 @@ fun TableEditorScreen(
 
     fun applyStructureSlotDeletionResult(
         base: TableTemplateState,
-        result: StructureSlotDeletionResult,
+        result: TableEditorStructureDeletionCoordinatorResult,
     ): TableTemplateState {
         var next = withUpdatedFileNameSlots(base, result.nextFileNameSlots)
         next = withUpdatedPathSlots(next, result.nextPathSlots)
@@ -767,6 +780,10 @@ fun TableEditorScreen(
     var showUnsavedChangesDialog by remember { mutableStateOf(false) }
     val deletedRowsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
     val deletedColsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
+    var debugOverlayVisible by rememberSaveable { mutableStateOf(false) }
+    var debugLastAction by rememberSaveable { mutableStateOf("init") }
+    var latestStructureDeletionDebugInfo by remember { mutableStateOf<TableEditorStructureDeletionDebugInfo?>(null) }
+    var latestStructureRestoreDebugInfo by remember { mutableStateOf<TableEditorStructureRestoreDebugInfo?>(null) }
 
     fun clearInlineEditingState() {
         inlineEdit = clearInlineEditing(inlineEdit)
@@ -1101,6 +1118,26 @@ fun TableEditorScreen(
         derivedStateOf { undoManager.canUndo() }
     }
 
+    val debugOverlayState = buildTableEditorDebugOverlayState(
+        TableEditorDebugOverlaySource(
+            lastAction = debugLastAction,
+            currentMode = if (isStructureEditMode()) "STRUCTURE_EDIT" else "NORMAL",
+            bottomPanelMode = bottomPanelMode,
+            rows = currentTemplate.rows,
+            cols = currentTemplate.cols,
+            selectedCellId = selectedCellId,
+            selectedCell = selectedCell,
+            selectionRange = structureSelectionRange,
+            deletedRowsStackSize = deletedRowsStack.size,
+            deletedColsStackSize = deletedColsStack.size,
+            latestDeletionDebugInfo = latestStructureDeletionDebugInfo,
+            latestRestoreDebugInfo = latestStructureRestoreDebugInfo,
+            fileNameSlotsDirty = fileNameSlotsDirtySinceStructureChange,
+            pathSlotsDirty = pathSlotsDirtySinceStructureChange,
+            undoSummary = "canUndo=${isUndoAvailable}, revision=${undoRevision}",
+        )
+    )
+
     // Save/Reset/Back 동작은 editor 내부 local state를 기준으로 유지하되, 구현만 별도 helper로 분리한다.
     fun saveTemplate(exitAfterSave: Boolean = false) {
         commitInlineEditIfNeeded()
@@ -1190,7 +1227,8 @@ fun TableEditorScreen(
         onCancel = { showUnsavedChangesDialog = false },
     )
 
-    Scaffold(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
         containerColor = DDZColor.Background,
         topBar = {
             CenterAlignedTopAppBar(
@@ -1485,8 +1523,13 @@ fun TableEditorScreen(
                                     )
                                     fileNameSlotsDirtySinceStructureChange = restoreResult.nextFileNameSlotsDirtySinceStructureChange
                                     pathSlotsDirtySinceStructureChange = restoreResult.nextPathSlotsDirtySinceStructureChange
+                                    debugLastAction = "add_row_restore"
+                                    latestStructureDeletionDebugInfo = null
+                                    latestStructureRestoreDebugInfo = restoreResult.debugInfo
                                     restoreResult.nextTemplate
                                 } else {
+                                    debugLastAction = "add_row_blank"
+                                    latestStructureRestoreDebugInfo = null
                                     sanitizePathGroupAfterStructureChange(if (isStructureEditMode()) addRowBySelection(currentTemplate, structureSelectionRange) else addRow(currentTemplate))
                                 }
                                 applyTemplateWithUndo(nextTemplate)
@@ -1513,30 +1556,25 @@ fun TableEditorScreen(
                                     val lastRowIndex = currentTemplate.rows - 1
                                     lastRowIndex..lastRowIndex
                                 }
-                                val deletedRowCells = currentTemplate.cells
-                                    .filter { cell -> deletedRowRange?.contains(cell.rowIndex) == true }
-                                    .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
-
-                                val deletedCellIds = deletedRowCells.map { it.cellId }.toSet()
-                                val slotDeletionResult = TableEditorStructureSlotHandlers.handleStructureDeletion(
-                                    deletedCellIds = deletedCellIds,
-                                    currentFileNameSlots = fileNameSlotItems,
-                                    currentPathSlots = pathSlotItems,
-                                    removeCellRefsFromFileNameSlots = ::removeCellRefsFromFileNameSlots,
-                                    removeCellRefsFromPathSlots = ::removeCellRefsFromPathSlots,
-                                )
-                                if (deletedRowCells.isNotEmpty()) {
-                                    deletedRowsStack.add(
-                                        DeletedStructureSnapshot(
-                                            cells = deletedRowCells,
-                                            slotSnapshot = slotDeletionResult.snapshotToStore,
-                                        )
+                                val structureDeletionResult = TableEditorStructureRestoreCoordinator.buildDeletionPayload(
+                                    TableEditorStructureDeletionCoordinatorInput(
+                                        currentTemplate = currentTemplate,
+                                        deleteAxis = StructureRestoreAxis.ROW,
+                                        deletedRange = deletedRowRange,
+                                        currentFileNameSlots = fileNameSlotItems,
+                                        currentPathSlots = pathSlotItems,
+                                        removeCellRefsFromFileNameSlots = ::removeCellRefsFromFileNameSlots,
+                                        removeCellRefsFromPathSlots = ::removeCellRefsFromPathSlots,
                                     )
-                                }
+                                )
+                                structureDeletionResult.deletedSnapshot?.let(deletedRowsStack::add)
+                                debugLastAction = "remove_row"
+                                latestStructureRestoreDebugInfo = null
+                                latestStructureDeletionDebugInfo = structureDeletionResult.debugInfo
 
                                 // 정책: 구조 삭제 + 슬롯 정리를 하나의 템플릿으로 순차 가공 후 단일 update로 반영한다.
                                 var nextTemplate = sanitizePathGroupAfterStructureChange(if (isStructureEditMode()) removeRowBySelection(currentTemplate, structureSelectionRange) else removeRow(currentTemplate))
-                                nextTemplate = applyStructureSlotDeletionResult(nextTemplate, slotDeletionResult)
+                                nextTemplate = applyStructureSlotDeletionResult(nextTemplate, structureDeletionResult)
                                 applyTemplateWithUndo(nextTemplate)
                                 if (isStructureEditMode()) {
                                     structureSelectedCellIds = emptySet()
@@ -1568,8 +1606,13 @@ fun TableEditorScreen(
                                     )
                                     fileNameSlotsDirtySinceStructureChange = restoreResult.nextFileNameSlotsDirtySinceStructureChange
                                     pathSlotsDirtySinceStructureChange = restoreResult.nextPathSlotsDirtySinceStructureChange
+                                    debugLastAction = "add_col_restore"
+                                    latestStructureDeletionDebugInfo = null
+                                    latestStructureRestoreDebugInfo = restoreResult.debugInfo
                                     restoreResult.nextTemplate
                                 } else {
+                                    debugLastAction = "add_col_blank"
+                                    latestStructureRestoreDebugInfo = null
                                     sanitizePathGroupAfterStructureChange(if (isStructureEditMode()) addColumnBySelection(currentTemplate, structureSelectionRange) else addColumn(currentTemplate))
                                 }
                                 applyTemplateWithUndo(nextTemplate)
@@ -1596,30 +1639,25 @@ fun TableEditorScreen(
                                     val lastColIndex = currentTemplate.cols - 1
                                     lastColIndex..lastColIndex
                                 }
-                                val deletedColCells = currentTemplate.cells
-                                    .filter { cell -> deletedColRange?.contains(cell.colIndex) == true }
-                                    .sortedWith(compareBy({ it.colIndex }, { it.rowIndex }))
-
-                                val deletedCellIds = deletedColCells.map { it.cellId }.toSet()
-                                val slotDeletionResult = TableEditorStructureSlotHandlers.handleStructureDeletion(
-                                    deletedCellIds = deletedCellIds,
-                                    currentFileNameSlots = fileNameSlotItems,
-                                    currentPathSlots = pathSlotItems,
-                                    removeCellRefsFromFileNameSlots = ::removeCellRefsFromFileNameSlots,
-                                    removeCellRefsFromPathSlots = ::removeCellRefsFromPathSlots,
-                                )
-                                if (deletedColCells.isNotEmpty()) {
-                                    deletedColsStack.add(
-                                        DeletedStructureSnapshot(
-                                            cells = deletedColCells,
-                                            slotSnapshot = slotDeletionResult.snapshotToStore,
-                                        )
+                                val structureDeletionResult = TableEditorStructureRestoreCoordinator.buildDeletionPayload(
+                                    TableEditorStructureDeletionCoordinatorInput(
+                                        currentTemplate = currentTemplate,
+                                        deleteAxis = StructureRestoreAxis.COL,
+                                        deletedRange = deletedColRange,
+                                        currentFileNameSlots = fileNameSlotItems,
+                                        currentPathSlots = pathSlotItems,
+                                        removeCellRefsFromFileNameSlots = ::removeCellRefsFromFileNameSlots,
+                                        removeCellRefsFromPathSlots = ::removeCellRefsFromPathSlots,
                                     )
-                                }
+                                )
+                                structureDeletionResult.deletedSnapshot?.let(deletedColsStack::add)
+                                debugLastAction = "remove_col"
+                                latestStructureRestoreDebugInfo = null
+                                latestStructureDeletionDebugInfo = structureDeletionResult.debugInfo
 
                                 // 정책: 구조 삭제 + 슬롯 정리를 하나의 템플릿으로 순차 가공 후 단일 update로 반영한다.
                                 var nextTemplate = sanitizePathGroupAfterStructureChange(if (isStructureEditMode()) removeColumnBySelection(currentTemplate, structureSelectionRange) else removeColumn(currentTemplate))
-                                nextTemplate = applyStructureSlotDeletionResult(nextTemplate, slotDeletionResult)
+                                nextTemplate = applyStructureSlotDeletionResult(nextTemplate, structureDeletionResult)
                                 applyTemplateWithUndo(nextTemplate)
                                 if (isStructureEditMode()) {
                                     structureSelectedCellIds = emptySet()
@@ -1641,9 +1679,15 @@ fun TableEditorScreen(
                                 applyTemplateWithUndo(resetColumnWeights(resetRowWeights(currentTemplate)))
                             },
                             onUndo = {
+                                debugLastAction = "undo"
+                                latestStructureRestoreDebugInfo = null
+                                latestStructureDeletionDebugInfo = null
                                 applyUndo()
                             },
                             onReset = {
+                                debugLastAction = "reset"
+                                latestStructureRestoreDebugInfo = null
+                                latestStructureDeletionDebugInfo = null
                                 // 정책 변경: 초기화는 기본 템플릿이 아니라 "화면 진입 시점(initialTemplateSnapshot)" 복원이다.
                                 editableTemplateState = initialTemplateSnapshot
                                 tableStyleUi = initialStyleSnapshot
@@ -1849,6 +1893,19 @@ fun TableEditorScreen(
                                 showPlacementDialog = false
                 },
                 onClose = { showPlacementDialog = false },
+            )
+        }
+
+        }
+
+        if (isDebugBuild) {
+            TableEditorDebugOverlay(
+                visible = debugOverlayVisible,
+                state = debugOverlayState,
+                onToggle = { debugOverlayVisible = !debugOverlayVisible },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 80.dp, end = 12.dp)
             )
         }
     }
