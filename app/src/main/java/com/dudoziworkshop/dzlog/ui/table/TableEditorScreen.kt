@@ -79,8 +79,12 @@ import com.dudoziworkshop.dzlog.feature.table.editor.addColumnBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.addRow
 import com.dudoziworkshop.dzlog.feature.table.editor.addRowBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorExitCoordinator
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.DeletedStructureSnapshot
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveCoordinator
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveResult
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.StructureRestoreAxis
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureRestoreCoordinator
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureRestoreCoordinatorInput
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.FileNameSlotEditorUiResult
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.FileNameSlotEditorUiState
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorFileNameSlotUiHandlers
@@ -92,8 +96,6 @@ import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotDra
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotListHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorStructureSlotHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.StructureSlotDeletionResult
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.StructureSlotRestoreResult
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.StructureSlotSnapshot
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorTransientStateHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.removeColumn
 import com.dudoziworkshop.dzlog.feature.table.editor.removeColumnBySelection
@@ -137,11 +139,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
 import com.dudoziworkshop.dzlog.ui.table.editor.commitInlineEditIfNeeded as commitInlineEdit
-
-private data class DeletedStructureSnapshot(
-    val cells: List<TableCellState>,
-    val slotSnapshot: StructureSlotSnapshot,
-)
 
 private fun normalizeFileNameDraftSlots(slots: List<FileNameSlotUiItem?>): List<FileNameSlotUiItem?> {
     return List(3) { index -> slots.getOrNull(index) }
@@ -394,22 +391,6 @@ fun TableEditorScreen(
     ): TableTemplateState {
         var next = withUpdatedFileNameSlots(base, result.nextFileNameSlots)
         next = withUpdatedPathSlots(next, result.nextPathSlots)
-        fileNameSlotsDirtySinceStructureChange = result.nextFileNameSlotsDirtySinceStructureChange
-        pathSlotsDirtySinceStructureChange = result.nextPathSlotsDirtySinceStructureChange
-        return next
-    }
-
-    fun applyStructureSlotRestoreResult(
-        base: TableTemplateState,
-        result: StructureSlotRestoreResult,
-    ): TableTemplateState {
-        var next = base
-        if (result.restoredFileNameSlotsSnapshot) {
-            next = withUpdatedFileNameSlots(next, result.nextFileNameSlots)
-        }
-        if (result.restoredPathSlotsSnapshot) {
-            next = withUpdatedPathSlots(next, result.nextPathSlots)
-        }
         fileNameSlotsDirtySinceStructureChange = result.nextFileNameSlotsDirtySinceStructureChange
         pathSlotsDirtySinceStructureChange = result.nextPathSlotsDirtySinceStructureChange
         return next
@@ -1488,26 +1469,23 @@ fun TableEditorScreen(
                                 val restored = deletedRowsStack.lastOrNull()
                                 val nextTemplate = if (restored != null) {
                                     deletedRowsStack.removeAt(deletedRowsStack.lastIndex)
-                                    val newRowIndex = currentTemplate.rows
-                                    val restoredReindexed = restored.cells.map { it.copy(rowIndex = newRowIndex) }
-                                    val baseRowWeights = currentTemplate.rowWeights
-                                        ?: List(currentTemplate.rows.coerceAtLeast(1)) { 1f }
-                                    var next = sanitizePathGroupAfterStructureChange(
-                                        currentTemplate.copy(
-                                            rows = currentTemplate.rows + 1,
-                                            cells = currentTemplate.cells + restoredReindexed,
-                                            rowWeights = baseRowWeights + 1f
+                                    val restoreResult = TableEditorStructureRestoreCoordinator.restore(
+                                        TableEditorStructureRestoreCoordinatorInput(
+                                            currentTemplate = currentTemplate,
+                                            restoredSnapshot = restored,
+                                            currentFileNameSlots = fileNameSlotItems,
+                                            currentPathSlots = pathSlotItems,
+                                            fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
+                                            pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
+                                            restoreAxis = StructureRestoreAxis.ROW,
+                                            sanitizeTemplate = ::sanitizePathGroupAfterStructureChange,
+                                            applyFileNameSlots = ::withUpdatedFileNameSlots,
+                                            applyPathSlots = ::withUpdatedPathSlots,
                                         )
                                     )
-
-                                    val slotRestoreResult = TableEditorStructureSlotHandlers.handleStructureRestore(
-                                        restoredSnapshot = restored.slotSnapshot,
-                                        currentFileNameSlots = fileNameSlotItems,
-                                        currentPathSlots = pathSlotItems,
-                                        fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
-                                        pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
-                                    )
-                                    applyStructureSlotRestoreResult(next, slotRestoreResult)
+                                    fileNameSlotsDirtySinceStructureChange = restoreResult.nextFileNameSlotsDirtySinceStructureChange
+                                    pathSlotsDirtySinceStructureChange = restoreResult.nextPathSlotsDirtySinceStructureChange
+                                    restoreResult.nextTemplate
                                 } else {
                                     sanitizePathGroupAfterStructureChange(if (isStructureEditMode()) addRowBySelection(currentTemplate, structureSelectionRange) else addRow(currentTemplate))
                                 }
@@ -1547,11 +1525,11 @@ fun TableEditorScreen(
                                     removeCellRefsFromFileNameSlots = ::removeCellRefsFromFileNameSlots,
                                     removeCellRefsFromPathSlots = ::removeCellRefsFromPathSlots,
                                 )
-                                slotDeletionResult.snapshotToStore?.let { slotSnapshot ->
+                                if (deletedRowCells.isNotEmpty()) {
                                     deletedRowsStack.add(
                                         DeletedStructureSnapshot(
                                             cells = deletedRowCells,
-                                            slotSnapshot = slotSnapshot,
+                                            slotSnapshot = slotDeletionResult.snapshotToStore,
                                         )
                                     )
                                 }
@@ -1574,26 +1552,23 @@ fun TableEditorScreen(
                                 val restored = deletedColsStack.lastOrNull()
                                 val nextTemplate = if (restored != null) {
                                     deletedColsStack.removeAt(deletedColsStack.lastIndex)
-                                    val newColIndex = currentTemplate.cols
-                                    val restoredReindexed = restored.cells.map { it.copy(colIndex = newColIndex) }
-                                    val baseColWeights = currentTemplate.colWeights
-                                        ?: List(currentTemplate.cols.coerceAtLeast(1)) { 1f }
-                                    var next = sanitizePathGroupAfterStructureChange(
-                                        currentTemplate.copy(
-                                            cols = currentTemplate.cols + 1,
-                                            cells = currentTemplate.cells + restoredReindexed,
-                                            colWeights = baseColWeights + 1f
+                                    val restoreResult = TableEditorStructureRestoreCoordinator.restore(
+                                        TableEditorStructureRestoreCoordinatorInput(
+                                            currentTemplate = currentTemplate,
+                                            restoredSnapshot = restored,
+                                            currentFileNameSlots = fileNameSlotItems,
+                                            currentPathSlots = pathSlotItems,
+                                            fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
+                                            pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
+                                            restoreAxis = StructureRestoreAxis.COL,
+                                            sanitizeTemplate = ::sanitizePathGroupAfterStructureChange,
+                                            applyFileNameSlots = ::withUpdatedFileNameSlots,
+                                            applyPathSlots = ::withUpdatedPathSlots,
                                         )
                                     )
-
-                                    val slotRestoreResult = TableEditorStructureSlotHandlers.handleStructureRestore(
-                                        restoredSnapshot = restored.slotSnapshot,
-                                        currentFileNameSlots = fileNameSlotItems,
-                                        currentPathSlots = pathSlotItems,
-                                        fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
-                                        pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
-                                    )
-                                    applyStructureSlotRestoreResult(next, slotRestoreResult)
+                                    fileNameSlotsDirtySinceStructureChange = restoreResult.nextFileNameSlotsDirtySinceStructureChange
+                                    pathSlotsDirtySinceStructureChange = restoreResult.nextPathSlotsDirtySinceStructureChange
+                                    restoreResult.nextTemplate
                                 } else {
                                     sanitizePathGroupAfterStructureChange(if (isStructureEditMode()) addColumnBySelection(currentTemplate, structureSelectionRange) else addColumn(currentTemplate))
                                 }
@@ -1633,11 +1608,11 @@ fun TableEditorScreen(
                                     removeCellRefsFromFileNameSlots = ::removeCellRefsFromFileNameSlots,
                                     removeCellRefsFromPathSlots = ::removeCellRefsFromPathSlots,
                                 )
-                                slotDeletionResult.snapshotToStore?.let { slotSnapshot ->
+                                if (deletedColCells.isNotEmpty()) {
                                     deletedColsStack.add(
                                         DeletedStructureSnapshot(
                                             cells = deletedColCells,
-                                            slotSnapshot = slotSnapshot,
+                                            slotSnapshot = slotDeletionResult.snapshotToStore,
                                         )
                                     )
                                 }
