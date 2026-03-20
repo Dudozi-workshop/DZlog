@@ -40,7 +40,6 @@ internal fun Modifier.cameraPreviewGestureModifier(
     dragTableWidthPx: Float,
     dragTableHeightPx: Float,
     dragPreviewOffsetPx: Offset?,
-    rotationCwDeg: Int,
     onTapFocusUiChange: (TapFocusUiState?) -> Unit,
     onOpenTableEditor: () -> Unit,
     onCommitWatermarkOffsetIfNeeded: () -> Unit,
@@ -131,7 +130,6 @@ internal fun Modifier.cameraPreviewGestureModifier(
             var localDragAccumDx = 0f
             var localDragAccumDy = 0f
             var localDragStartedAfterSlop = false
-            var localWatermarkDragActive = false
 
             onWatermarkDragActiveChange(false)
             if (localDragEnabled) {
@@ -150,7 +148,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
                 onDragTableHeightPxChange(localDragTableHeightPx)
                 onDragAccumDxChange(localDragAccumDx)
                 onDragAccumDyChange(localDragAccumDy)
-                onDragStartedAfterSlopChange(localDragStartedAfterSlop)
+                onDragStartedAfterSlopChange(false)
                 onDragPreviewOffsetPxChange(localDragPreviewOffsetPx)
                 onMarkWatermarkInteraction()
             }
@@ -167,23 +165,6 @@ internal fun Modifier.cameraPreviewGestureModifier(
                         }
                         continue
                     }
-                    if (localDragEnabled) {
-                        localDragEnabled = false
-                        localWatermarkDragActive = false
-                        localDragAccumDx = 0f
-                        localDragAccumDy = 0f
-                        localDragStartedAfterSlop = false
-                        localDragPreviewOffsetPx = null
-                        localDragTableWidthPx = 0f
-                        localDragTableHeightPx = 0f
-                        onWatermarkDragActiveChange(false)
-                        onDragAccumDxChange(0f)
-                        onDragAccumDyChange(0f)
-                        onDragStartedAfterSlopChange(false)
-                        onDragPreviewOffsetPxChange(null)
-                        onDragTableWidthPxChange(0f)
-                        onDragTableHeightPxChange(0f)
-                    }
                     val zoom = event.calculateZoom()
                     if (abs(zoom - 1f) >= pinchScaleDeadZone) {
                         val centroid = event.calculateCentroid(useCurrent = true)
@@ -191,7 +172,6 @@ internal fun Modifier.cameraPreviewGestureModifier(
                                 centroidX = centroid.x,
                                 centroidY = centroid.y,
                                 captureRect = captureRect,
-                                watermarkDragActive = localWatermarkDragActive
                             )
                         ) {
                             val zoomState = activeCamera.cameraInfo.zoomState.value
@@ -228,21 +208,19 @@ internal fun Modifier.cameraPreviewGestureModifier(
                     val moved = hypot(localDragAccumDx.toDouble(), localDragAccumDy.toDouble()).toFloat()
                     if (moved < dragTouchSlop) continue
                     localDragStartedAfterSlop = true
-                    localWatermarkDragActive = true
                     onDragStartedAfterSlopChange(true)
                     onWatermarkDragActiveChange(true)
                 }
                 if (change.positionChanged()) change.consume()
 
-                val nextOffsetPx = computeClampedDragOffsetPxForRotation(
+                val nextOffsetPx = computeClampedDragOffsetPx(
                     contentRect = captureRect,
                     dragStartLeftPx = localDragStartLeftPx,
                     dragStartTopPx = localDragStartTopPx,
                     dragAccumDx = localDragAccumDx,
                     dragAccumDy = localDragAccumDy,
                     rawW = localDragTableWidthPx,
-                    rawH = localDragTableHeightPx,
-                    rotationCwDeg = rotationCwDeg
+                    rawH = localDragTableHeightPx
                 )
 
                 localDragPreviewOffsetPx = nextOffsetPx
@@ -292,15 +270,13 @@ internal fun Modifier.cameraPreviewGestureModifier(
         }
     }
 
-private fun computeClampedDragOffsetPxForRotation(
-    contentRect: RectF,
+private fun computeClampedDragOffsetPx(    contentRect: RectF,
     dragStartLeftPx: Float,
     dragStartTopPx: Float,
     dragAccumDx: Float,
     dragAccumDy: Float,
     rawW: Float,
-    rawH: Float,
-    rotationCwDeg: Int
+    rawH: Float
 ): Offset {
     val candidateLeft = dragStartLeftPx + dragAccumDx
     val candidateTop = dragStartTopPx + dragAccumDy
@@ -315,11 +291,9 @@ private fun computeClampedDragOffsetPxForRotation(
 private fun shouldHandlePreviewPinch(
     centroidX: Float,
     centroidY: Float,
-    captureRect: RectF,
-    watermarkDragActive: Boolean
+    captureRect: RectF
 ): Boolean {
     if (captureRect.width() <= 0f || captureRect.height() <= 0f) return false
     if (!captureRect.contains(centroidX, centroidY)) return false
-    if (watermarkDragActive) return false
     return true
 }

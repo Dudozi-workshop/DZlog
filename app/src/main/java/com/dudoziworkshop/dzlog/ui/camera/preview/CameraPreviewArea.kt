@@ -45,8 +45,6 @@ import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.ui.camera.controller.bindCamera
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import com.dudoziworkshop.dzlog.watermark.computeBoundsSize
-import com.dudoziworkshop.dzlog.feature.table.render.computeRatioOnlyTableShape
 import kotlinx.coroutines.delay
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -154,23 +152,20 @@ internal fun CameraPreviewArea(
         }
 
         fun updateCaptureRect() {
-            val contentRect = resolvePreviewContentRect(
+            val previewCaptureLayout = calculatePreviewCaptureLayout(
                 previewView = previewView,
                 overlayWidth = previewBoxWidthPx.takeIf { it > 0f } ?: previewView.width.toFloat(),
-                overlayHeight = previewBoxHeightPx.takeIf { it > 0f } ?: previewView.height.toFloat()
-            )
-            captureRect = computeCaptureAreaRect(
-                contentRect = contentRect,
+                overlayHeight = previewBoxHeightPx.takeIf { it > 0f } ?: previewView.height.toFloat(),
                 captureAspectRatio = captureAspect.ratioF,
-                usableRect = contentRect
             )
+            captureRect = previewCaptureLayout.captureRect
             usableTopRatio = 0f
             usableBottomRatio = 1f
             args.onUsableVerticalRatioChange(0f, 1f)
             if (!previewLogged) {
                 Log.d(
                     "DZlogPreview",
-                    "Preview crop=${captureRect.width().toInt()}x${captureRect.height().toInt()} aspect=${captureAspect.label} content=${contentRect.width().toInt()}x${contentRect.height().toInt()} usableTop=0 usableBottom=${contentRect.bottom.toInt()}"
+                    "Preview crop=${captureRect.width().toInt()}x${captureRect.height().toInt()} aspect=${captureAspect.label} content=${previewCaptureLayout.contentRect.width().toInt()}x${previewCaptureLayout.contentRect.height().toInt()} usableTop=0 usableBottom=${previewCaptureLayout.contentRect.bottom.toInt()}"
                 )
                 previewLogged = true
             }
@@ -266,7 +261,6 @@ internal fun CameraPreviewArea(
                 dragTableWidthPx = dragTableWidthPx,
                 dragTableHeightPx = dragTableHeightPx,
                 dragPreviewOffsetPx = dragPreviewOffsetPx,
-                rotationCwDeg = args.watermarkUi.rotationCwDeg,
                 onTapFocusUiChange = onTapFocusUiChange,
                 onOpenTableEditor = args.onOpenTableEditor,
                 onCommitWatermarkOffsetIfNeeded = ::commitWatermarkOffsetIfNeeded,
@@ -392,65 +386,33 @@ internal fun CameraPreviewArea(
             val density = LocalDensity.current
             val widthPx = with(density) { maxWidth.toPx() }
             val parentHeightPx = with(density) { maxHeight.toPx() }
-            val safeAspect = captureAspect.ratioF.coerceAtLeast(0.01f)
-            // Camera Preview: 표 자체 외곽 비율(SSOT) + 촬영 배치(위치/회전)는 분리한다.
-            val cameraPreviewShape = computeRatioOnlyTableShape(
-                tableWidthRatio = args.watermarkUi.tableWidthRatio,
-                tableHeightRatio = args.watermarkUi.tableHeightRatio,
-                maxWidthRatio = args.watermarkUi.tableWidthRatio,
-                maxHeightRatio = args.watermarkUi.tableHeightRatio,
+            val previewBoxLayout = calculatePreviewBoxLayout(
+                parentWidthPx = widthPx,
+                parentHeightPx = parentHeightPx,
+                captureAspect = captureAspect,
             )
-
-            // ===== Preview Layout Anchor Rule =====
-            // 9:16 프리뷰는 PreviewArea의 top(=상단바 바로 아래)에 붙인다.
-            // 3:4, 1:1 프리뷰는 9:16의 centerY를 기준으로 중앙 정렬한다.
-            // 이 규칙은 “9:16 최대 세로 확보 + 비율 변경 시 중심 흔들림 최소화”를 위한 고정 설계다.
-            val previewWidthPx = widthPx
-            val h916 = if (previewWidthPx > 0f) previewWidthPx * 16f / 9f else 0f
-            val top916 = 0f
-            val centerY = top916 + (h916 / 2f)
-            val h34 = if (previewWidthPx > 0f) previewWidthPx * 4f / 3f else 0f
-            val top34 = centerY - (h34 / 2f)
-            val h11 = previewWidthPx
-            val top11 = centerY - (h11 / 2f)
-
-            val rawTopCurrentPx = when (captureAspect) {
-                CaptureAspect.R9_16 -> top916
-                CaptureAspect.R3_4 -> top34
-                CaptureAspect.R1_1 -> top11
-            }
-            val heightCurrentPx = if (previewWidthPx > 0f) previewWidthPx / safeAspect else 0f
-            val minTopPx = 0f
-            val maxTopPx = (parentHeightPx - heightCurrentPx).coerceAtLeast(0f)
-            val topCurrentPx = rawTopCurrentPx.coerceIn(minTopPx, maxTopPx)
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(safeAspect)
-                    .offset { IntOffset(0, topCurrentPx.roundToInt()) }
+                    .aspectRatio(previewBoxLayout.safeAspect)
+                    .offset { IntOffset(0, previewBoxLayout.topOffsetPx.roundToInt()) }
                     .onSizeChanged { size ->
                         previewBoxWidthPx = size.width.toFloat()
                         previewBoxHeightPx = size.height.toFloat()
                     }
                     .clipToBounds()
             ) {
-                val baseBoundsOffsetPx = if (captureRect.width() > 0f && captureRect.height() > 0f) {
-                    val baseW = captureRect.width()
-                    val rawW = baseW * (cameraPreviewShape.tableWidthRatio.coerceIn(10, 100) / 100f)
-                    val rawH = baseW * (cameraPreviewShape.tableHeightRatio.coerceIn(10, 100) / 100f)
-                    val (boundsW, boundsH) = computeBoundsSize(rawW, rawH, args.watermarkUi.rotationCwDeg)
-                    val boundsMaxX = (captureRect.width() - boundsW).coerceAtLeast(0f)
-                    val boundsMaxY = (captureRect.height() - boundsH).coerceAtLeast(0f)
-                    val baseBoundsLeftPx = boundsMaxX * (previewBoundsOffsetX10000 / 10000f)
-                    val baseBoundsTopPx = boundsMaxY * (previewBoundsOffsetY10000 / 10000f)
-                    Offset(baseBoundsLeftPx, baseBoundsTopPx)
-                } else {
-                    null
-                }
+                val previewContentRect = captureRect.takeIf { it.width() > 0f && it.height() > 0f }
+                val baseBoundsOffsetPx = calculatePreviewWatermarkBaseBoundsOffsetPx(
+                    captureRect = captureRect,
+                    tableWidthRatio = args.watermarkUi.tableWidthRatio,
+                    tableHeightRatio = args.watermarkUi.tableHeightRatio,
+                    rotationCwDeg = args.watermarkUi.rotationCwDeg,
+                    previewBoundsOffsetX10000 = previewBoundsOffsetX10000,
+                    previewBoundsOffsetY10000 = previewBoundsOffsetY10000,
+                )
                 val effectiveOverrideOffsetPx = dragPreviewOffsetPx ?: baseBoundsOffsetPx
-
-                val previewContentRect = if (captureRect.width() > 0f && captureRect.height() > 0f) captureRect else null
 
                 CameraPreviewHost(
                     previewView = previewView,
@@ -492,24 +454,6 @@ internal fun CameraPreviewArea(
             }
         }
     }
-}
-
-internal fun computeOffsetRatioFromPx(
-    committedOffsetPx: Offset,
-    maxX: Float,
-    maxY: Float
-): Pair<Int, Int> {
-    val committedXRatio = if (maxX > 0f) {
-        ((committedOffsetPx.x / maxX) * 100f).roundToInt().coerceIn(0, 100)
-    } else {
-        0
-    }
-    val committedYRatio = if (maxY > 0f) {
-        ((committedOffsetPx.y / maxY) * 100f).roundToInt().coerceIn(0, 100)
-    } else {
-        0
-    }
-    return committedXRatio to committedYRatio
 }
 
 internal fun resolveZoomBounds(minSupported: Float, maxSupported: Float): Pair<Float, Float> {
