@@ -1,18 +1,18 @@
 package com.dudoziworkshop.dzlog.feature.table.editor.handlers
 
-import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotKind
-import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
+import com.dudoziworkshop.dzlog.ui.table.section.PathSlotKind
+import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
 
-data class FileNameSlotEditorUiState(
-    val slots: List<FileNameSlotUiItem?>,
+data class PathSlotEditorUiState(
+    val slots: List<PathSlotUiItem?>,
     val selectedSlotIndex: Int?,
     val isCellPickMode: Boolean,
     val showManualInputEditor: Boolean,
     val manualInputDraft: String,
 )
 
-data class FileNameSlotEditorUiResult(
-    val nextSlots: List<FileNameSlotUiItem?>,
+data class PathSlotEditorUiResult(
+    val nextSlots: List<PathSlotUiItem?>,
     val nextSelectedSlotIndex: Int?,
     val isCellPickMode: Boolean,
     val showManualInputEditor: Boolean,
@@ -20,11 +20,11 @@ data class FileNameSlotEditorUiResult(
     val markDirty: Boolean,
 )
 
-object TableEditorFileNameSlotUiHandlers {
+object TableEditorPathSlotUiHandlers {
     fun selectSlot(
-        state: FileNameSlotEditorUiState,
+        state: PathSlotEditorUiState,
         slotIndex: Int,
-    ): FileNameSlotEditorUiResult {
+    ): PathSlotEditorUiResult {
         return snapshot(
             state = state,
             nextSelectedSlotIndex = slotIndex,
@@ -35,9 +35,9 @@ object TableEditorFileNameSlotUiHandlers {
     }
 
     fun fillEmptySlot(
-        state: FileNameSlotEditorUiState,
+        state: PathSlotEditorUiState,
         requestedSlotIndex: Int,
-    ): FileNameSlotEditorUiResult {
+    ): PathSlotEditorUiResult {
         val firstEmptyIndex = state.slots.indexOfFirst { it == null }
         if (firstEmptyIndex < 0) {
             return snapshot(
@@ -47,8 +47,8 @@ object TableEditorFileNameSlotUiHandlers {
         }
 
         val nextSlots = state.slots.toMutableList().apply {
-            this[firstEmptyIndex] = FileNameSlotUiItem(
-                kind = FileNameSlotKind.CELL,
+            this[firstEmptyIndex] = PathSlotUiItem(
+                kind = PathSlotKind.CELL,
                 label = "셀",
             )
         }
@@ -59,14 +59,15 @@ object TableEditorFileNameSlotUiHandlers {
             nextSelectedSlotIndex = firstEmptyIndex,
             isCellPickMode = false,
             showManualInputEditor = false,
+            manualInputDraft = "",
             markDirty = true,
         )
     }
 
     fun moveSelectedLeft(
-        state: FileNameSlotEditorUiState,
-        moveSlot: (List<FileNameSlotUiItem?>, Int, Int) -> List<FileNameSlotUiItem?>,
-    ): FileNameSlotEditorUiResult {
+        state: PathSlotEditorUiState,
+        moveSlot: (List<PathSlotUiItem?>, Int, Int) -> List<PathSlotUiItem?>,
+    ): PathSlotEditorUiResult {
         val selected = state.selectedSlotIndex
             ?: return snapshot(
                 state = state,
@@ -102,9 +103,9 @@ object TableEditorFileNameSlotUiHandlers {
     }
 
     fun moveSelectedRight(
-        state: FileNameSlotEditorUiState,
-        moveSlot: (List<FileNameSlotUiItem?>, Int, Int) -> List<FileNameSlotUiItem?>,
-    ): FileNameSlotEditorUiResult {
+        state: PathSlotEditorUiState,
+        moveSlot: (List<PathSlotUiItem?>, Int, Int) -> List<PathSlotUiItem?>,
+    ): PathSlotEditorUiResult {
         val selected = state.selectedSlotIndex
             ?: return snapshot(
                 state = state,
@@ -140,14 +141,15 @@ object TableEditorFileNameSlotUiHandlers {
     }
 
     fun deleteSelectedSlot(
-        state: FileNameSlotEditorUiState,
-        removeSlotAt: (List<FileNameSlotUiItem?>, Int) -> List<FileNameSlotUiItem?>,
-    ): FileNameSlotEditorUiResult {
+        state: PathSlotEditorUiState,
+        removeSlotAt: (List<PathSlotUiItem?>, Int) -> List<PathSlotUiItem?>,
+    ): PathSlotEditorUiResult {
         val selected = state.selectedSlotIndex
             ?: return snapshot(
                 state = state,
                 isCellPickMode = false,
                 showManualInputEditor = false,
+                manualInputDraft = "",
             )
 
         if (state.slots.getOrNull(selected) == null) {
@@ -155,6 +157,7 @@ object TableEditorFileNameSlotUiHandlers {
                 state = state,
                 isCellPickMode = false,
                 showManualInputEditor = false,
+                manualInputDraft = "",
             )
         }
 
@@ -167,13 +170,14 @@ object TableEditorFileNameSlotUiHandlers {
             nextSelectedSlotIndex = nextFilledIndex,
             isCellPickMode = false,
             showManualInputEditor = false,
+            manualInputDraft = "",
             markDirty = true,
         )
     }
 
     fun startCellPick(
-        state: FileNameSlotEditorUiState,
-    ): FileNameSlotEditorUiResult {
+        state: PathSlotEditorUiState,
+    ): PathSlotEditorUiResult {
         if (state.selectedSlotIndex == null) return snapshot(state = state)
         return snapshot(
             state = state,
@@ -183,8 +187,8 @@ object TableEditorFileNameSlotUiHandlers {
     }
 
     fun startManualInput(
-        state: FileNameSlotEditorUiState,
-    ): FileNameSlotEditorUiResult {
+        state: PathSlotEditorUiState,
+    ): PathSlotEditorUiResult {
         val selected = state.selectedSlotIndex ?: return snapshot(state = state)
         val current = state.slots.getOrNull(selected)
         return snapshot(
@@ -196,9 +200,9 @@ object TableEditorFileNameSlotUiHandlers {
     }
 
     fun updateManualInputDraft(
-        state: FileNameSlotEditorUiState,
+        state: PathSlotEditorUiState,
         draft: String,
-    ): FileNameSlotEditorUiResult {
+    ): PathSlotEditorUiResult {
         return snapshot(
             state = state,
             manualInputDraft = draft,
@@ -206,15 +210,15 @@ object TableEditorFileNameSlotUiHandlers {
     }
 
     fun applyManualInput(
-        state: FileNameSlotEditorUiState,
-    ): FileNameSlotEditorUiResult {
+        state: PathSlotEditorUiState,
+    ): PathSlotEditorUiResult {
         val selected = state.selectedSlotIndex ?: return snapshot(state = state)
         val trimmed = state.manualInputDraft.trim()
         if (trimmed.isEmpty()) return snapshot(state = state)
 
         val nextSlots = state.slots.toMutableList().apply {
-            this[selected] = FileNameSlotUiItem(
-                kind = FileNameSlotKind.MANUAL,
+            this[selected] = PathSlotUiItem(
+                kind = PathSlotKind.MANUAL,
                 label = trimmed,
                 manualText = trimmed,
             )
@@ -225,19 +229,20 @@ object TableEditorFileNameSlotUiHandlers {
             nextSlots = nextSlots,
             isCellPickMode = false,
             showManualInputEditor = false,
+            manualInputDraft = "",
             markDirty = true,
         )
     }
 
     fun bindSelectedSlotToCell(
-        state: FileNameSlotEditorUiState,
+        state: PathSlotEditorUiState,
         cellId: String,
         resolveCellLabel: (String) -> String,
-    ): FileNameSlotEditorUiResult {
+    ): PathSlotEditorUiResult {
         val selected = state.selectedSlotIndex ?: return snapshot(state = state)
         val nextSlots = state.slots.toMutableList().apply {
-            this[selected] = FileNameSlotUiItem(
-                kind = FileNameSlotKind.CELL,
+            this[selected] = PathSlotUiItem(
+                kind = PathSlotKind.CELL,
                 label = resolveCellLabel(cellId),
                 cellId = cellId,
             )
@@ -253,80 +258,16 @@ object TableEditorFileNameSlotUiHandlers {
         )
     }
 
-
-    fun toggleSelectedCell(
-        state: FileNameSlotEditorUiState,
-        cellId: String,
-        enabled: Boolean,
-    ): FileNameSlotEditorUiResult {
-        val currentSlots = normalizeSlots(state.slots)
-        val nextSlots = if (enabled) {
-            if (currentSlots.any { it?.cellId == cellId }) {
-                currentSlots
-            } else {
-                val firstEmptyIndex = currentSlots.indexOfFirst { it == null }
-                if (firstEmptyIndex < 0) {
-                    currentSlots
-                } else {
-                    currentSlots.toMutableList().apply {
-                        this[firstEmptyIndex] = FileNameSlotUiItem(
-                            kind = FileNameSlotKind.CELL,
-                            label = "셀",
-                            cellId = cellId,
-                        )
-                    }
-                }
-            }
-        } else {
-            normalizeSlots(currentSlots.filter { slot -> slot != null && slot.cellId != cellId })
-        }
-
-        return snapshot(
-            state = state,
-            nextSlots = nextSlots,
-            markDirty = nextSlots != currentSlots,
-        )
-    }
-
-    fun reorderSlots(
-        state: FileNameSlotEditorUiState,
-        fromIndex: Int,
-        toIndex: Int,
-    ): FileNameSlotEditorUiResult {
-        if (fromIndex == toIndex || fromIndex !in 0..2 || toIndex !in 0..2) {
-            return snapshot(state = state)
-        }
-
-        val currentSlots = normalizeSlots(state.slots)
-        val nextSlots = normalizeSlots(
-            currentSlots.toMutableList().apply {
-                val moved = this[fromIndex]
-                this[fromIndex] = this[toIndex]
-                this[toIndex] = moved
-            }
-        )
-
-        return snapshot(
-            state = state,
-            nextSlots = nextSlots,
-            markDirty = nextSlots != currentSlots,
-        )
-    }
-
-    private fun normalizeSlots(slots: List<FileNameSlotUiItem?>): List<FileNameSlotUiItem?> {
-        return List(3) { index -> slots.getOrNull(index) }
-    }
-
     private fun snapshot(
-        state: FileNameSlotEditorUiState,
-        nextSlots: List<FileNameSlotUiItem?> = state.slots,
+        state: PathSlotEditorUiState,
+        nextSlots: List<PathSlotUiItem?> = state.slots,
         nextSelectedSlotIndex: Int? = state.selectedSlotIndex,
         isCellPickMode: Boolean = state.isCellPickMode,
         showManualInputEditor: Boolean = state.showManualInputEditor,
         manualInputDraft: String = state.manualInputDraft,
         markDirty: Boolean = false,
-    ): FileNameSlotEditorUiResult {
-        return FileNameSlotEditorUiResult(
+    ): PathSlotEditorUiResult {
+        return PathSlotEditorUiResult(
             nextSlots = nextSlots,
             nextSelectedSlotIndex = nextSelectedSlotIndex,
             isCellPickMode = isCellPickMode,
