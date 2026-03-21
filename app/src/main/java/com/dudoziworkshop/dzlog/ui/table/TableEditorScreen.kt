@@ -78,22 +78,18 @@ import com.dudoziworkshop.dzlog.feature.counter.table.updateCounterUiScopeFlags
 import com.dudoziworkshop.dzlog.feature.table.editor.TableHandleOverlay
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionResolver
+import com.dudoziworkshop.dzlog.feature.table.editor.StructureActionResult
+import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorStructureActions
+import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorStructureAddOrRestoreActionInput
+import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorStructureRemoveActionInput
 import com.dudoziworkshop.dzlog.feature.table.editor.TableUndoManager
-import com.dudoziworkshop.dzlog.feature.table.editor.addColumn
-import com.dudoziworkshop.dzlog.feature.table.editor.addColumnBySelection
-import com.dudoziworkshop.dzlog.feature.table.editor.addRow
-import com.dudoziworkshop.dzlog.feature.table.editor.addRowBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorExitCoordinator
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.DeletedStructureSnapshot
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveCoordinator
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveResult
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.StructureRestoreAxis
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureDeletionCoordinatorInput
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureDeletionCoordinatorResult
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureDeletionDebugInfo
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureRestoreCoordinator
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureRestoreDebugInfo
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureRestoreCoordinatorInput
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.FileNameSlotEditorUiResult
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.FileNameSlotEditorUiState
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorFileNameSlotUiHandlers
@@ -104,10 +100,6 @@ import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorModeTra
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotDraftHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotListHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorTransientStateHandlers
-import com.dudoziworkshop.dzlog.feature.table.editor.removeColumn
-import com.dudoziworkshop.dzlog.feature.table.editor.removeColumnBySelection
-import com.dudoziworkshop.dzlog.feature.table.editor.removeRow
-import com.dudoziworkshop.dzlog.feature.table.editor.removeRowBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.resetColumnWeights
 import com.dudoziworkshop.dzlog.feature.table.editor.resetRowWeights
 import com.dudoziworkshop.dzlog.feature.table.editor.updateCell
@@ -397,17 +389,6 @@ fun TableEditorScreen(
         )
     }
 
-
-    fun applyStructureSlotDeletionResult(
-        base: TableTemplateState,
-        result: TableEditorStructureDeletionCoordinatorResult,
-    ): TableTemplateState {
-        var next = withUpdatedFileNameSlots(base, result.nextFileNameSlots)
-        next = withUpdatedPathSlots(next, result.nextPathSlots)
-        fileNameSlotsDirtySinceStructureChange = result.nextFileNameSlotsDirtySinceStructureChange
-        pathSlotsDirtySinceStructureChange = result.nextPathSlotsDirtySinceStructureChange
-        return next
-    }
 
     fun clearPathEditorTransientState(clearDraft: Boolean) {
         TableEditorTransientStateHandlers.clearPathEditorTransientState(
@@ -934,6 +915,30 @@ fun TableEditorScreen(
             undoRevision += 1
         }
         updateTemplateDraft(nextTemplate)
+    }
+
+    fun applyStructureActionResult(result: StructureActionResult) {
+        result.deletedSnapshotToPush?.let { snapshot ->
+            when (result.deletedSnapshotAxis) {
+                StructureRestoreAxis.ROW -> deletedRowsStack.add(snapshot)
+                StructureRestoreAxis.COL -> deletedColsStack.add(snapshot)
+                null -> Unit
+            }
+        }
+        when (result.consumedDeletedStackAxis) {
+            StructureRestoreAxis.ROW -> if (deletedRowsStack.isNotEmpty()) deletedRowsStack.removeAt(deletedRowsStack.lastIndex)
+            StructureRestoreAxis.COL -> if (deletedColsStack.isNotEmpty()) deletedColsStack.removeAt(deletedColsStack.lastIndex)
+            null -> Unit
+        }
+        applyTemplateWithUndo(result.nextTemplate)
+        fileNameSlotsDirtySinceStructureChange = result.nextFileNameSlotsDirtySinceStructureChange
+        pathSlotsDirtySinceStructureChange = result.nextPathSlotsDirtySinceStructureChange
+        structureSelectionRange = result.nextStructureSelectionRange
+        structureSelectedCellIds = result.nextStructureSelectedCellIds
+        selectedCellId = result.nextSelectedCellId
+        debugLastAction = result.actionLabel
+        latestStructureDeletionDebugInfo = result.deletionDebugInfo
+        latestStructureRestoreDebugInfo = result.restoreDebugInfo
     }
 
     fun applyStyleWithUndo(nextStyle: TableStyleState) {
@@ -1504,170 +1509,88 @@ fun TableEditorScreen(
                                 !inlineEdit.isEditing()
                             },
                             onAddRow = {
-                                val restored = deletedRowsStack.lastOrNull()
-                                val nextTemplate = if (restored != null) {
-                                    deletedRowsStack.removeAt(deletedRowsStack.lastIndex)
-                                    val restoreResult = TableEditorStructureRestoreCoordinator.restore(
-                                        TableEditorStructureRestoreCoordinatorInput(
-                                            currentTemplate = currentTemplate,
-                                            restoredSnapshot = restored,
-                                            currentFileNameSlots = fileNameSlotItems,
-                                            currentPathSlots = pathSlotItems,
-                                            fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
-                                            pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
-                                            restoreAxis = StructureRestoreAxis.ROW,
-                                            sanitizeTemplate = ::sanitizePathGroupAfterStructureChange,
-                                            applyFileNameSlots = ::withUpdatedFileNameSlots,
-                                            applyPathSlots = ::withUpdatedPathSlots,
-                                        )
+                                val result = TableEditorStructureActions.addOrRestore(
+                                    TableEditorStructureAddOrRestoreActionInput(
+                                        axis = StructureRestoreAxis.ROW,
+                                        isStructureEditMode = isStructureEditMode(),
+                                        structureSelectionRange = structureSelectionRange,
+                                        selectedCellId = selectedCellId,
+                                        currentTemplate = currentTemplate,
+                                        deletedRowsStack = deletedRowsStack,
+                                        deletedColsStack = deletedColsStack,
+                                        currentFileNameSlots = fileNameSlotItems,
+                                        currentPathSlots = pathSlotItems,
+                                        fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
+                                        pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
+                                        sanitizeTemplate = ::sanitizePathGroupAfterStructureChange,
+                                        applyFileNameSlots = ::withUpdatedFileNameSlots,
+                                        applyPathSlots = ::withUpdatedPathSlots,
                                     )
-                                    fileNameSlotsDirtySinceStructureChange = restoreResult.nextFileNameSlotsDirtySinceStructureChange
-                                    pathSlotsDirtySinceStructureChange = restoreResult.nextPathSlotsDirtySinceStructureChange
-                                    debugLastAction = "add_row_restore"
-                                    latestStructureDeletionDebugInfo = null
-                                    latestStructureRestoreDebugInfo = restoreResult.debugInfo
-                                    restoreResult.nextTemplate
-                                } else {
-                                    debugLastAction = "add_row_blank"
-                                    latestStructureRestoreDebugInfo = null
-                                    sanitizePathGroupAfterStructureChange(if (isStructureEditMode()) addRowBySelection(currentTemplate, structureSelectionRange) else addRow(currentTemplate))
-                                }
-                                applyTemplateWithUndo(nextTemplate)
-                                if (isStructureEditMode()) {
-                                    val maxRow = (nextTemplate.rows - 1).coerceAtLeast(0)
-                                    val maxCol = (nextTemplate.cols - 1).coerceAtLeast(0)
-                                    val range = structureSelectionRange
-                                    if (range != null) {
-                                        val bounded = TableSelectionRange(
-                                            minRow = range.minRow.coerceIn(0, maxRow),
-                                            maxRow = range.maxRow.coerceIn(0, maxRow),
-                                            minCol = range.minCol.coerceIn(0, maxCol),
-                                            maxCol = range.maxCol.coerceIn(0, maxCol),
-                                        )
-                                        structureSelectionRange = bounded
-                                        structureSelectedCellIds = nextTemplate.cells.filter { bounded.contains(it.rowIndex, it.colIndex) }.map { it.cellId }.toSet()
-                                    }
-                                }
+                                )
+                                applyStructureActionResult(result)
                             },
                             onRemoveRow = {
-                                val deletedRowRange = if (isStructureEditMode()) {
-                                    structureSelectionRange?.let { it.minRow..it.maxRow }
-                                } else {
-                                    val lastRowIndex = currentTemplate.rows - 1
-                                    lastRowIndex..lastRowIndex
-                                }
-                                val structureDeletionResult = TableEditorStructureRestoreCoordinator.buildDeletionPayload(
-                                    TableEditorStructureDeletionCoordinatorInput(
+                                val result = TableEditorStructureActions.remove(
+                                    TableEditorStructureRemoveActionInput(
+                                        axis = StructureRestoreAxis.ROW,
+                                        isStructureEditMode = isStructureEditMode(),
+                                        structureSelectionRange = structureSelectionRange,
+                                        selectedCellId = selectedCellId,
                                         currentTemplate = currentTemplate,
-                                        deleteAxis = StructureRestoreAxis.ROW,
-                                        deletedRange = deletedRowRange,
                                         currentFileNameSlots = fileNameSlotItems,
                                         currentPathSlots = pathSlotItems,
+                                        fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
+                                        pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
+                                        sanitizeTemplate = ::sanitizePathGroupAfterStructureChange,
+                                        applyFileNameSlots = ::withUpdatedFileNameSlots,
+                                        applyPathSlots = ::withUpdatedPathSlots,
                                         removeCellRefsFromFileNameSlots = ::removeCellRefsFromFileNameSlots,
                                         removeCellRefsFromPathSlots = ::removeCellRefsFromPathSlots,
-                                    )
+                                    ),
                                 )
-                                structureDeletionResult.deletedSnapshot?.let(deletedRowsStack::add)
-                                debugLastAction = "remove_row"
-                                latestStructureRestoreDebugInfo = null
-                                latestStructureDeletionDebugInfo = structureDeletionResult.debugInfo
-
-                                // 정책: 구조 삭제 + 슬롯 정리를 하나의 템플릿으로 순차 가공 후 단일 update로 반영한다.
-                                var nextTemplate = sanitizePathGroupAfterStructureChange(if (isStructureEditMode()) removeRowBySelection(currentTemplate, structureSelectionRange) else removeRow(currentTemplate))
-                                nextTemplate = applyStructureSlotDeletionResult(nextTemplate, structureDeletionResult)
-                                applyTemplateWithUndo(nextTemplate)
-                                if (isStructureEditMode()) {
-                                    structureSelectedCellIds = emptySet()
-                                    structureSelectionRange = null
-                                    selectedCellId = null
-                                }
-
-                                if (!isStructureEditMode() && nextTemplate.cells.none { it.cellId == selectedCellId }) {
-                                    selectedCellId = null
-                                }
+                                applyStructureActionResult(result)
                             },
                             onAddCol = {
-                                val restored = deletedColsStack.lastOrNull()
-                                val nextTemplate = if (restored != null) {
-                                    deletedColsStack.removeAt(deletedColsStack.lastIndex)
-                                    val restoreResult = TableEditorStructureRestoreCoordinator.restore(
-                                        TableEditorStructureRestoreCoordinatorInput(
-                                            currentTemplate = currentTemplate,
-                                            restoredSnapshot = restored,
-                                            currentFileNameSlots = fileNameSlotItems,
-                                            currentPathSlots = pathSlotItems,
-                                            fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
-                                            pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
-                                            restoreAxis = StructureRestoreAxis.COL,
-                                            sanitizeTemplate = ::sanitizePathGroupAfterStructureChange,
-                                            applyFileNameSlots = ::withUpdatedFileNameSlots,
-                                            applyPathSlots = ::withUpdatedPathSlots,
-                                        )
-                                    )
-                                    fileNameSlotsDirtySinceStructureChange = restoreResult.nextFileNameSlotsDirtySinceStructureChange
-                                    pathSlotsDirtySinceStructureChange = restoreResult.nextPathSlotsDirtySinceStructureChange
-                                    debugLastAction = "add_col_restore"
-                                    latestStructureDeletionDebugInfo = null
-                                    latestStructureRestoreDebugInfo = restoreResult.debugInfo
-                                    restoreResult.nextTemplate
-                                } else {
-                                    debugLastAction = "add_col_blank"
-                                    latestStructureRestoreDebugInfo = null
-                                    sanitizePathGroupAfterStructureChange(if (isStructureEditMode()) addColumnBySelection(currentTemplate, structureSelectionRange) else addColumn(currentTemplate))
-                                }
-                                applyTemplateWithUndo(nextTemplate)
-                                if (isStructureEditMode()) {
-                                    val maxRow = (nextTemplate.rows - 1).coerceAtLeast(0)
-                                    val maxCol = (nextTemplate.cols - 1).coerceAtLeast(0)
-                                    val range = structureSelectionRange
-                                    if (range != null) {
-                                        val bounded = TableSelectionRange(
-                                            minRow = range.minRow.coerceIn(0, maxRow),
-                                            maxRow = range.maxRow.coerceIn(0, maxRow),
-                                            minCol = range.minCol.coerceIn(0, maxCol),
-                                            maxCol = range.maxCol.coerceIn(0, maxCol),
-                                        )
-                                        structureSelectionRange = bounded
-                                        structureSelectedCellIds = nextTemplate.cells.filter { bounded.contains(it.rowIndex, it.colIndex) }.map { it.cellId }.toSet()
-                                    }
-                                }
-                            },
-                            onRemoveCol = {
-                                val deletedColRange = if (isStructureEditMode()) {
-                                    structureSelectionRange?.let { it.minCol..it.maxCol }
-                                } else {
-                                    val lastColIndex = currentTemplate.cols - 1
-                                    lastColIndex..lastColIndex
-                                }
-                                val structureDeletionResult = TableEditorStructureRestoreCoordinator.buildDeletionPayload(
-                                    TableEditorStructureDeletionCoordinatorInput(
+                                val result = TableEditorStructureActions.addOrRestore(
+                                    TableEditorStructureAddOrRestoreActionInput(
+                                        axis = StructureRestoreAxis.COL,
+                                        isStructureEditMode = isStructureEditMode(),
+                                        structureSelectionRange = structureSelectionRange,
+                                        selectedCellId = selectedCellId,
                                         currentTemplate = currentTemplate,
-                                        deleteAxis = StructureRestoreAxis.COL,
-                                        deletedRange = deletedColRange,
+                                        deletedRowsStack = deletedRowsStack,
+                                        deletedColsStack = deletedColsStack,
                                         currentFileNameSlots = fileNameSlotItems,
                                         currentPathSlots = pathSlotItems,
-                                        removeCellRefsFromFileNameSlots = ::removeCellRefsFromFileNameSlots,
-                                        removeCellRefsFromPathSlots = ::removeCellRefsFromPathSlots,
+                                        fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
+                                        pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
+                                        sanitizeTemplate = ::sanitizePathGroupAfterStructureChange,
+                                        applyFileNameSlots = ::withUpdatedFileNameSlots,
+                                        applyPathSlots = ::withUpdatedPathSlots,
                                     )
                                 )
-                                structureDeletionResult.deletedSnapshot?.let(deletedColsStack::add)
-                                debugLastAction = "remove_col"
-                                latestStructureRestoreDebugInfo = null
-                                latestStructureDeletionDebugInfo = structureDeletionResult.debugInfo
-
-                                // 정책: 구조 삭제 + 슬롯 정리를 하나의 템플릿으로 순차 가공 후 단일 update로 반영한다.
-                                var nextTemplate = sanitizePathGroupAfterStructureChange(if (isStructureEditMode()) removeColumnBySelection(currentTemplate, structureSelectionRange) else removeColumn(currentTemplate))
-                                nextTemplate = applyStructureSlotDeletionResult(nextTemplate, structureDeletionResult)
-                                applyTemplateWithUndo(nextTemplate)
-                                if (isStructureEditMode()) {
-                                    structureSelectedCellIds = emptySet()
-                                    structureSelectionRange = null
-                                    selectedCellId = null
-                                }
-
-                                if (!isStructureEditMode() && nextTemplate.cells.none { it.cellId == selectedCellId }) {
-                                    selectedCellId = null
-                                }
+                                applyStructureActionResult(result)
+                            },
+                            onRemoveCol = {
+                                val result = TableEditorStructureActions.remove(
+                                    TableEditorStructureRemoveActionInput(
+                                        axis = StructureRestoreAxis.COL,
+                                        isStructureEditMode = isStructureEditMode(),
+                                        structureSelectionRange = structureSelectionRange,
+                                        selectedCellId = selectedCellId,
+                                        currentTemplate = currentTemplate,
+                                        currentFileNameSlots = fileNameSlotItems,
+                                        currentPathSlots = pathSlotItems,
+                                        fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
+                                        pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
+                                        sanitizeTemplate = ::sanitizePathGroupAfterStructureChange,
+                                        applyFileNameSlots = ::withUpdatedFileNameSlots,
+                                        applyPathSlots = ::withUpdatedPathSlots,
+                                        removeCellRefsFromFileNameSlots = ::removeCellRefsFromFileNameSlots,
+                                        removeCellRefsFromPathSlots = ::removeCellRefsFromPathSlots,
+                                    ),
+                                )
+                                applyStructureActionResult(result)
                             },
                             onResetRowWeights = {
                                 applyTemplateWithUndo(resetRowWeights(currentTemplate))

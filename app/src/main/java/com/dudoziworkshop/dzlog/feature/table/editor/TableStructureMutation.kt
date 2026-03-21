@@ -27,13 +27,19 @@ fun addRow(templateState: TableTemplateState): TableTemplateState =
     addRowBySelection(templateState = templateState, selectionRange = null)
 
 fun removeRow(templateState: TableTemplateState): TableTemplateState =
-    removeRowBySelection(templateState = templateState, selectionRange = null)
+    removeRowsByRange(
+        templateState = templateState,
+        range = lastIndexRange(templateState.rows),
+    )
 
 fun addColumn(templateState: TableTemplateState): TableTemplateState =
     addColumnBySelection(templateState = templateState, selectionRange = null)
 
 fun removeColumn(templateState: TableTemplateState): TableTemplateState =
-    removeColumnBySelection(templateState = templateState, selectionRange = null)
+    removeColsByRange(
+        templateState = templateState,
+        range = lastIndexRange(templateState.cols),
+    )
 
 fun addRowBySelection(
     templateState: TableTemplateState,
@@ -103,31 +109,9 @@ fun removeRowBySelection(
     templateState: TableTemplateState,
     selectionRange: TableSelectionRange?,
 ): TableTemplateState {
-    if (templateState.rows <= TableEditorPolicy.MIN_ROWS) return templateState
-
-    val (removeStart, removeEnd) = if (selectionRange != null) {
-        selectionRange.minRow.coerceAtLeast(0) to selectionRange.maxRow.coerceAtMost(templateState.rows - 1)
-    } else {
-        val last = templateState.rows - 1
-        last to last
-    }
-    val removeCount = (removeEnd - removeStart + 1).coerceAtLeast(0)
-    val nextRows = (templateState.rows - removeCount).coerceAtLeast(TableEditorPolicy.MIN_ROWS)
-    val actualRemoveCount = templateState.rows - nextRows
-    val actualRemoveEnd = removeStart + actualRemoveCount - 1
-
-    val remainingCells = templateState.cells
-        .filterNot { it.rowIndex in removeStart..actualRemoveEnd }
-        .map { cell ->
-            if (cell.rowIndex > actualRemoveEnd) cell.copy(rowIndex = cell.rowIndex - actualRemoveCount) else cell
-        }
-
-    return templateState.copy(
-        rows = nextRows,
-        cells = remainingCells.sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex })),
-        rowWeights = removeRange(TableLayoutCalculator.resolveWeights(templateState.rowWeights, templateState.rows), removeStart, actualRemoveEnd),
-        fileNameSlotDrafts = sanitizeFileNameSlotDrafts(templateState.fileNameSlotDrafts, remainingCells),
-        pathSlotDrafts = sanitizePathSlotDrafts(templateState.pathSlotDrafts, remainingCells),
+    return removeRowsByRange(
+        templateState = templateState,
+        range = selectionRange?.let { it.minRow..it.maxRow } ?: lastIndexRange(templateState.rows),
     )
 }
 
@@ -135,29 +119,65 @@ fun removeColumnBySelection(
     templateState: TableTemplateState,
     selectionRange: TableSelectionRange?,
 ): TableTemplateState {
-    if (templateState.cols <= TableEditorPolicy.MIN_COLS) return templateState
+    return removeColsByRange(
+        templateState = templateState,
+        range = selectionRange?.let { it.minCol..it.maxCol } ?: lastIndexRange(templateState.cols),
+    )
+}
 
-    val (removeStart, removeEnd) = if (selectionRange != null) {
-        selectionRange.minCol.coerceAtLeast(0) to selectionRange.maxCol.coerceAtMost(templateState.cols - 1)
-    } else {
-        val last = templateState.cols - 1
-        last to last
-    }
-    val removeCount = (removeEnd - removeStart + 1).coerceAtLeast(0)
-    val nextCols = (templateState.cols - removeCount).coerceAtLeast(TableEditorPolicy.MIN_COLS)
-    val actualRemoveCount = templateState.cols - nextCols
-    val actualRemoveEnd = removeStart + actualRemoveCount - 1
+fun removeRowsByRange(
+    templateState: TableTemplateState,
+    range: IntRange,
+): TableTemplateState {
+    val normalizedRange = normalizeRowRemovalRange(templateState, range) ?: return templateState
 
     val remainingCells = templateState.cells
-        .filterNot { it.colIndex in removeStart..actualRemoveEnd }
+        .filterNot { it.rowIndex in normalizedRange }
         .map { cell ->
-            if (cell.colIndex > actualRemoveEnd) cell.copy(colIndex = cell.colIndex - actualRemoveCount) else cell
+            if (cell.rowIndex > normalizedRange.last) {
+                cell.copy(rowIndex = cell.rowIndex - normalizedRange.count())
+            } else {
+                cell
+            }
         }
 
     return templateState.copy(
-        cols = nextCols,
+        rows = templateState.rows - normalizedRange.count(),
         cells = remainingCells.sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex })),
-        colWeights = removeRange(TableLayoutCalculator.resolveWeights(templateState.colWeights, templateState.cols), removeStart, actualRemoveEnd),
+        rowWeights = removeRange(
+            TableLayoutCalculator.resolveWeights(templateState.rowWeights, templateState.rows),
+            normalizedRange.first,
+            normalizedRange.last,
+        ),
+        fileNameSlotDrafts = sanitizeFileNameSlotDrafts(templateState.fileNameSlotDrafts, remainingCells),
+        pathSlotDrafts = sanitizePathSlotDrafts(templateState.pathSlotDrafts, remainingCells),
+    )
+}
+
+fun removeColsByRange(
+    templateState: TableTemplateState,
+    range: IntRange,
+): TableTemplateState {
+    val normalizedRange = normalizeColRemovalRange(templateState, range) ?: return templateState
+
+    val remainingCells = templateState.cells
+        .filterNot { it.colIndex in normalizedRange }
+        .map { cell ->
+            if (cell.colIndex > normalizedRange.last) {
+                cell.copy(colIndex = cell.colIndex - normalizedRange.count())
+            } else {
+                cell
+            }
+        }
+
+    return templateState.copy(
+        cols = templateState.cols - normalizedRange.count(),
+        cells = remainingCells.sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex })),
+        colWeights = removeRange(
+            TableLayoutCalculator.resolveWeights(templateState.colWeights, templateState.cols),
+            normalizedRange.first,
+            normalizedRange.last,
+        ),
         fileNameSlotDrafts = sanitizeFileNameSlotDrafts(templateState.fileNameSlotDrafts, remainingCells),
         pathSlotDrafts = sanitizePathSlotDrafts(templateState.pathSlotDrafts, remainingCells),
     )
@@ -216,4 +236,46 @@ private fun sanitizeAndCompressSlotDrafts(
 private fun removeRange(weights: List<Float>, start: Int, end: Int): List<Float> {
     if (weights.isEmpty()) return weights
     return weights.filterIndexed { index, _ -> index !in start..end }
+}
+
+fun normalizeRowRemovalRange(
+    templateState: TableTemplateState,
+    range: IntRange,
+): IntRange? {
+    return normalizeRemovalRange(
+        requestedRange = range,
+        axisSize = templateState.rows,
+        minSize = TableEditorPolicy.MIN_ROWS,
+    )
+}
+
+fun normalizeColRemovalRange(
+    templateState: TableTemplateState,
+    range: IntRange,
+): IntRange? {
+    return normalizeRemovalRange(
+        requestedRange = range,
+        axisSize = templateState.cols,
+        minSize = TableEditorPolicy.MIN_COLS,
+    )
+}
+
+private fun normalizeRemovalRange(
+    requestedRange: IntRange,
+    axisSize: Int,
+    minSize: Int,
+): IntRange? {
+    if (axisSize <= minSize) return null
+    val boundedStart = requestedRange.first.coerceIn(0, axisSize - 1)
+    val boundedEnd = requestedRange.last.coerceIn(boundedStart, axisSize - 1)
+    val removableCount = (axisSize - minSize).coerceAtLeast(0)
+    val requestedCount = boundedEnd - boundedStart + 1
+    val actualCount = requestedCount.coerceAtMost(removableCount)
+    if (actualCount <= 0) return null
+    return boundedStart..(boundedStart + actualCount - 1)
+}
+
+private fun lastIndexRange(axisSize: Int): IntRange {
+    val lastIndex = (axisSize - 1).coerceAtLeast(0)
+    return lastIndex..lastIndex
 }
