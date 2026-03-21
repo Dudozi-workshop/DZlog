@@ -27,7 +27,7 @@ class TableEditorStructureActionsTest {
     }
 
     @Test
-    fun add_or_restore_with_row_stack_returns_restore_result() {
+    fun add_or_restore_with_row_stack_returns_restore_result_and_consumed_row_stack() {
         val base = defaultTableTemplateState()
         val deletedTemplate = addRow(base)
         val deletedSnapshot = DeletedStructureSnapshot(
@@ -43,15 +43,15 @@ class TableEditorStructureActionsTest {
         )
 
         assertEquals("add_row_restore", result.actionLabel)
-        assertEquals(StructureRestoreAxis.ROW, result.consumedDeletedStackAxis)
-        assertNull(result.deletedSnapshotToPush)
+        assertEquals(emptyList<DeletedStructureSnapshot>(), result.nextDeletedRowsStack)
+        assertTrue(result.nextDeletedColsStack.isEmpty())
         assertNull(result.deletionDebugInfo)
         assertNotNull(result.restoreDebugInfo)
         assertEquals(base.rows + 1, result.nextTemplate.rows)
     }
 
     @Test
-    fun add_or_restore_with_col_stack_returns_restore_result() {
+    fun add_or_restore_with_col_stack_returns_restore_result_and_consumed_col_stack() {
         val base = defaultTableTemplateState()
         val deletedTemplate = addColumn(base)
         val deletedSnapshot = DeletedStructureSnapshot(
@@ -67,27 +67,49 @@ class TableEditorStructureActionsTest {
         )
 
         assertEquals("add_col_restore", result.actionLabel)
-        assertEquals(StructureRestoreAxis.COL, result.consumedDeletedStackAxis)
-        assertNull(result.deletedSnapshotToPush)
+        assertTrue(result.nextDeletedRowsStack.isEmpty())
+        assertEquals(emptyList<DeletedStructureSnapshot>(), result.nextDeletedColsStack)
         assertNull(result.deletionDebugInfo)
         assertNotNull(result.restoreDebugInfo)
         assertEquals(base.cols + 1, result.nextTemplate.cols)
     }
 
     @Test
-    fun add_or_restore_without_stack_returns_blank_add_result() {
+    fun add_or_restore_consumes_only_target_axis_stack_and_keeps_other_axis_stack() {
         val base = defaultTableTemplateState()
+        val rowStack = listOf(DeletedStructureSnapshot(cells = base.cells.filter { it.rowIndex == 0 }))
+        val colStack = listOf(DeletedStructureSnapshot(cells = base.cells.filter { it.colIndex == 0 }))
 
         val result: StructureActionResult = TableEditorStructureActions.addOrRestore(
             addOrRestoreInput(
                 axis = StructureRestoreAxis.ROW,
                 currentTemplate = base,
+                deletedRowsStack = rowStack,
+                deletedColsStack = colStack,
+            )
+        )
+
+        assertEquals("add_row_restore", result.actionLabel)
+        assertEquals(emptyList<DeletedStructureSnapshot>(), result.nextDeletedRowsStack)
+        assertEquals(colStack, result.nextDeletedColsStack)
+    }
+
+    @Test
+    fun blank_add_keeps_stacks_unchanged_when_target_axis_stack_is_empty() {
+        val base = defaultTableTemplateState()
+        val colStack = listOf(DeletedStructureSnapshot(cells = base.cells.filter { it.colIndex == 0 }))
+
+        val result: StructureActionResult = TableEditorStructureActions.addOrRestore(
+            addOrRestoreInput(
+                axis = StructureRestoreAxis.ROW,
+                currentTemplate = base,
+                deletedColsStack = colStack,
             )
         )
 
         assertEquals("add_row_blank", result.actionLabel)
-        assertNull(result.consumedDeletedStackAxis)
-        assertNull(result.deletedSnapshotToPush)
+        assertTrue(result.nextDeletedRowsStack.isEmpty())
+        assertEquals(colStack, result.nextDeletedColsStack)
         assertNull(result.deletionDebugInfo)
         assertNull(result.restoreDebugInfo)
         assertEquals(base.rows + 1, result.nextTemplate.rows)
@@ -132,20 +154,22 @@ class TableEditorStructureActionsTest {
     }
 
     @Test
-    fun remove_uses_common_result_type_and_pushes_deleted_snapshot() {
+    fun remove_uses_common_result_type_and_appends_deleted_row_stack() {
         val template = addRow(defaultTableTemplateState())
+        val existingColStack = listOf(DeletedStructureSnapshot(cells = template.cells.filter { it.colIndex == 0 }))
 
         val result: StructureActionResult = TableEditorStructureActions.remove(
             removeInput(
                 axis = StructureRestoreAxis.ROW,
                 isStructureEditMode = true,
                 currentTemplate = template,
+                deletedColsStack = existingColStack,
             )
         )
 
         assertEquals("remove_row", result.actionLabel)
-        assertEquals(StructureRestoreAxis.ROW, result.deletedSnapshotAxis)
-        assertNotNull(result.deletedSnapshotToPush)
+        assertEquals(1, result.nextDeletedRowsStack.size)
+        assertEquals(existingColStack, result.nextDeletedColsStack)
         assertNotNull(result.deletionDebugInfo)
         assertNull(result.restoreDebugInfo)
         assertNull(result.nextStructureSelectionRange)
@@ -198,7 +222,7 @@ class TableEditorStructureActionsTest {
 
         assertEquals(1, result.nextTemplate.rows)
         assertEquals(0..0, result.deletionDebugInfo?.deletedRange)
-        assertEquals(template.cols, result.deletedSnapshotToPush?.cells?.size)
+        assertEquals(template.cols, result.nextDeletedRowsStack.lastOrNull()?.cells?.size)
     }
 
     private fun addOrRestoreInput(
@@ -208,19 +232,21 @@ class TableEditorStructureActionsTest {
         currentTemplate: TableTemplateState = defaultTableTemplateState(),
         deletedRowsStack: List<DeletedStructureSnapshot> = emptyList(),
         deletedColsStack: List<DeletedStructureSnapshot> = emptyList(),
-    ): TableEditorStructureAddOrRestoreActionInput {
-        return TableEditorStructureAddOrRestoreActionInput(
+    ): StructureAddOrRestoreInput {
+        return StructureAddOrRestoreInput(
             axis = axis,
-            isStructureEditMode = isStructureEditMode,
-            structureSelectionRange = structureSelectionRange,
-            selectedCellId = currentTemplate.cells.firstOrNull()?.cellId,
-            currentTemplate = currentTemplate,
-            deletedRowsStack = deletedRowsStack,
-            deletedColsStack = deletedColsStack,
-            currentFileNameSlots = emptyList(),
-            currentPathSlots = emptyList(),
-            fileNameSlotsDirtySinceStructureChange = false,
-            pathSlotsDirtySinceStructureChange = false,
+            editor = buildStructureEditorContext(
+                currentTemplate = currentTemplate,
+                currentFileNameSlots = emptyList(),
+                currentPathSlots = emptyList(),
+                fileNameSlotsDirtySinceStructureChange = false,
+                pathSlotsDirtySinceStructureChange = false,
+                deletedRowsStack = deletedRowsStack,
+                deletedColsStack = deletedColsStack,
+                isStructureEditMode = isStructureEditMode,
+                structureSelectionRange = structureSelectionRange,
+                selectedCellId = currentTemplate.cells.firstOrNull()?.cellId,
+            ),
             sanitizeTemplate = { it },
             applyFileNameSlots = { template, _ -> template },
             applyPathSlots = { template, _ -> template },
@@ -232,18 +258,24 @@ class TableEditorStructureActionsTest {
         isStructureEditMode: Boolean = false,
         structureSelectionRange: TableSelectionRange? = null,
         currentTemplate: TableTemplateState = defaultTableTemplateState(),
+        deletedRowsStack: List<DeletedStructureSnapshot> = emptyList(),
+        deletedColsStack: List<DeletedStructureSnapshot> = emptyList(),
         selectedCellId: String? = currentTemplate.cells.firstOrNull()?.cellId,
-    ): TableEditorStructureRemoveActionInput {
-        return TableEditorStructureRemoveActionInput(
+    ): StructureRemoveInput {
+        return StructureRemoveInput(
             axis = axis,
-            isStructureEditMode = isStructureEditMode,
-            structureSelectionRange = structureSelectionRange,
-            selectedCellId = selectedCellId,
-            currentTemplate = currentTemplate,
-            currentFileNameSlots = emptyList(),
-            currentPathSlots = emptyList(),
-            fileNameSlotsDirtySinceStructureChange = false,
-            pathSlotsDirtySinceStructureChange = false,
+            editor = buildStructureEditorContext(
+                currentTemplate = currentTemplate,
+                currentFileNameSlots = emptyList(),
+                currentPathSlots = emptyList(),
+                fileNameSlotsDirtySinceStructureChange = false,
+                pathSlotsDirtySinceStructureChange = false,
+                deletedRowsStack = deletedRowsStack,
+                deletedColsStack = deletedColsStack,
+                isStructureEditMode = isStructureEditMode,
+                structureSelectionRange = structureSelectionRange,
+                selectedCellId = selectedCellId,
+            ),
             sanitizeTemplate = { it },
             applyFileNameSlots = { template, _ -> template },
             applyPathSlots = { template, _ -> template },

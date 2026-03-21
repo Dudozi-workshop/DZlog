@@ -15,27 +15,19 @@ data class StructureActionResult(
     val nextTemplate: TableTemplateState,
     val nextFileNameSlotsDirtySinceStructureChange: Boolean,
     val nextPathSlotsDirtySinceStructureChange: Boolean,
+    val nextDeletedRowsStack: List<DeletedStructureSnapshot>,
+    val nextDeletedColsStack: List<DeletedStructureSnapshot>,
     val nextStructureSelectionRange: TableSelectionRange?,
     val nextStructureSelectedCellIds: Set<String>,
     val nextSelectedCellId: String?,
     val actionLabel: String,
     val deletionDebugInfo: TableEditorStructureDeletionDebugInfo?,
     val restoreDebugInfo: TableEditorStructureRestoreDebugInfo?,
-    val deletedSnapshotToPush: DeletedStructureSnapshot?,
-    val deletedSnapshotAxis: StructureRestoreAxis?,
-    val consumedDeletedStackAxis: StructureRestoreAxis?,
 )
 
-data class TableEditorStructureRemoveActionInput(
+data class StructureRemoveInput(
     val axis: StructureRestoreAxis,
-    val isStructureEditMode: Boolean,
-    val structureSelectionRange: TableSelectionRange?,
-    val selectedCellId: String?,
-    val currentTemplate: TableTemplateState,
-    val currentFileNameSlots: List<FileNameSlotUiItem?>,
-    val currentPathSlots: List<PathSlotUiItem?>,
-    val fileNameSlotsDirtySinceStructureChange: Boolean,
-    val pathSlotsDirtySinceStructureChange: Boolean,
+    val editor: StructureEditorContext,
     val sanitizeTemplate: (TableTemplateState) -> TableTemplateState,
     val applyFileNameSlots: (TableTemplateState, List<FileNameSlotUiItem?>) -> TableTemplateState,
     val applyPathSlots: (TableTemplateState, List<PathSlotUiItem?>) -> TableTemplateState,
@@ -43,18 +35,9 @@ data class TableEditorStructureRemoveActionInput(
     val removeCellRefsFromPathSlots: (List<PathSlotUiItem?>, Set<String>) -> List<PathSlotUiItem?>,
 )
 
-data class TableEditorStructureAddOrRestoreActionInput(
+data class StructureAddOrRestoreInput(
     val axis: StructureRestoreAxis,
-    val isStructureEditMode: Boolean,
-    val structureSelectionRange: TableSelectionRange?,
-    val selectedCellId: String?,
-    val currentTemplate: TableTemplateState,
-    val deletedRowsStack: List<DeletedStructureSnapshot>,
-    val deletedColsStack: List<DeletedStructureSnapshot>,
-    val currentFileNameSlots: List<FileNameSlotUiItem?>,
-    val currentPathSlots: List<PathSlotUiItem?>,
-    val fileNameSlotsDirtySinceStructureChange: Boolean,
-    val pathSlotsDirtySinceStructureChange: Boolean,
+    val editor: StructureEditorContext,
     val sanitizeTemplate: (TableTemplateState) -> TableTemplateState,
     val applyFileNameSlots: (TableTemplateState, List<FileNameSlotUiItem?>) -> TableTemplateState,
     val applyPathSlots: (TableTemplateState, List<PathSlotUiItem?>) -> TableTemplateState,
@@ -81,108 +64,110 @@ object TableEditorStructureActions {
         }
     }
 
-    fun addOrRestore(input: TableEditorStructureAddOrRestoreActionInput): StructureActionResult {
-        val restoredSnapshot = stackForAxis(input.axis, input.deletedRowsStack, input.deletedColsStack).lastOrNull()
+    fun addOrRestore(input: StructureAddOrRestoreInput): StructureActionResult {
+        val restoredSnapshot = lastDeletedSnapshotForAxis(input.axis, input.editor).lastOrNull()
         return if (restoredSnapshot != null) {
+            val nextStacks = consumeDeletedStackForRestore(
+                axis = input.axis,
+                deletedRowsStack = input.editor.deletedRowsStack,
+                deletedColsStack = input.editor.deletedColsStack,
+            )
             val restoreResult = TableEditorStructureRestoreCoordinator.restore(
                 TableEditorStructureRestoreCoordinatorInput(
-                    currentTemplate = input.currentTemplate,
+                    currentTemplate = input.editor.currentTemplate,
                     restoredSnapshot = restoredSnapshot,
-                    currentFileNameSlots = input.currentFileNameSlots,
-                    currentPathSlots = input.currentPathSlots,
-                    fileNameSlotsDirtySinceStructureChange = input.fileNameSlotsDirtySinceStructureChange,
-                    pathSlotsDirtySinceStructureChange = input.pathSlotsDirtySinceStructureChange,
+                    currentFileNameSlots = input.editor.currentFileNameSlots,
+                    currentPathSlots = input.editor.currentPathSlots,
+                    fileNameSlotsDirtySinceStructureChange = input.editor.fileNameSlotsDirtySinceStructureChange,
+                    pathSlotsDirtySinceStructureChange = input.editor.pathSlotsDirtySinceStructureChange,
                     restoreAxis = input.axis,
                     sanitizeTemplate = input.sanitizeTemplate,
                     applyFileNameSlots = input.applyFileNameSlots,
                     applyPathSlots = input.applyPathSlots,
                 )
             )
-            buildActionResult(
+            buildStructureActionResult(
+                editor = input.editor,
                 selectionState = resolveSelectionAfterAddOrRestore(
-                    isStructureEditMode = input.isStructureEditMode,
-                    currentSelectionRange = input.structureSelectionRange,
+                    isStructureEditMode = input.editor.isStructureEditMode,
+                    currentSelectionRange = input.editor.structureSelectionRange,
                     nextTemplate = restoreResult.nextTemplate,
                 ),
-                isStructureEditMode = input.isStructureEditMode,
-                selectedCellId = input.selectedCellId,
                 nextTemplate = restoreResult.nextTemplate,
                 nextFileNameSlotsDirtySinceStructureChange = restoreResult.nextFileNameSlotsDirtySinceStructureChange,
                 nextPathSlotsDirtySinceStructureChange = restoreResult.nextPathSlotsDirtySinceStructureChange,
+                nextDeletedRowsStack = nextStacks.first,
+                nextDeletedColsStack = nextStacks.second,
                 actionLabel = when (input.axis) {
                     StructureRestoreAxis.ROW -> "add_row_restore"
                     StructureRestoreAxis.COL -> "add_col_restore"
                 },
                 deletionDebugInfo = null,
                 restoreDebugInfo = restoreResult.debugInfo,
-                deletedSnapshotToPush = null,
-                deletedSnapshotAxis = null,
-                consumedDeletedStackAxis = input.axis,
             )
         } else {
             val nextTemplate = input.sanitizeTemplate(
                 when (input.axis) {
                     StructureRestoreAxis.ROW -> {
-                        if (input.isStructureEditMode) {
-                            addRowBySelection(input.currentTemplate, input.structureSelectionRange)
+                        if (input.editor.isStructureEditMode) {
+                            addRowBySelection(input.editor.currentTemplate, input.editor.structureSelectionRange)
                         } else {
-                            addRow(input.currentTemplate)
+                            addRow(input.editor.currentTemplate)
                         }
                     }
 
                     StructureRestoreAxis.COL -> {
-                        if (input.isStructureEditMode) {
-                            addColumnBySelection(input.currentTemplate, input.structureSelectionRange)
+                        if (input.editor.isStructureEditMode) {
+                            addColumnBySelection(input.editor.currentTemplate, input.editor.structureSelectionRange)
                         } else {
-                            addColumn(input.currentTemplate)
+                            addColumn(input.editor.currentTemplate)
                         }
                     }
                 }
             )
-            buildActionResult(
+            buildStructureActionResult(
+                editor = input.editor,
                 selectionState = resolveSelectionAfterAddOrRestore(
-                    isStructureEditMode = input.isStructureEditMode,
-                    currentSelectionRange = input.structureSelectionRange,
+                    isStructureEditMode = input.editor.isStructureEditMode,
+                    currentSelectionRange = input.editor.structureSelectionRange,
                     nextTemplate = nextTemplate,
                 ),
-                isStructureEditMode = input.isStructureEditMode,
-                selectedCellId = input.selectedCellId,
                 nextTemplate = nextTemplate,
-                nextFileNameSlotsDirtySinceStructureChange = input.fileNameSlotsDirtySinceStructureChange,
-                nextPathSlotsDirtySinceStructureChange = input.pathSlotsDirtySinceStructureChange,
+                nextFileNameSlotsDirtySinceStructureChange = input.editor.fileNameSlotsDirtySinceStructureChange,
+                nextPathSlotsDirtySinceStructureChange = input.editor.pathSlotsDirtySinceStructureChange,
+                nextDeletedRowsStack = input.editor.deletedRowsStack,
+                nextDeletedColsStack = input.editor.deletedColsStack,
                 actionLabel = when (input.axis) {
                     StructureRestoreAxis.ROW -> "add_row_blank"
                     StructureRestoreAxis.COL -> "add_col_blank"
                 },
                 deletionDebugInfo = null,
                 restoreDebugInfo = null,
-                deletedSnapshotToPush = null,
-                deletedSnapshotAxis = null,
-                consumedDeletedStackAxis = null,
             )
         }
     }
 
-    fun remove(input: TableEditorStructureRemoveActionInput): StructureActionResult {
+    fun remove(input: StructureRemoveInput): StructureActionResult {
         val requestedRange = resolveDeletionRange(
             axis = input.axis,
-            isStructureEditMode = input.isStructureEditMode,
-            structureSelectionRange = input.structureSelectionRange,
-            currentTemplate = input.currentTemplate,
+            isStructureEditMode = input.editor.isStructureEditMode,
+            structureSelectionRange = input.editor.structureSelectionRange,
+            currentTemplate = input.editor.currentTemplate,
         )
         val deletionRange = when (input.axis) {
-            StructureRestoreAxis.ROW -> normalizeRowRemovalRange(input.currentTemplate, requestedRange)
-            StructureRestoreAxis.COL -> normalizeColRemovalRange(input.currentTemplate, requestedRange)
+            StructureRestoreAxis.ROW -> normalizeRowRemovalRange(input.editor.currentTemplate, requestedRange)
+            StructureRestoreAxis.COL -> normalizeColRemovalRange(input.editor.currentTemplate, requestedRange)
         }
 
         if (deletionRange == null) {
-            return buildActionResult(
-                selectionState = resolveSelectionAfterRemove(),
-                isStructureEditMode = input.isStructureEditMode,
-                selectedCellId = input.selectedCellId,
-                nextTemplate = input.currentTemplate,
-                nextFileNameSlotsDirtySinceStructureChange = input.fileNameSlotsDirtySinceStructureChange,
-                nextPathSlotsDirtySinceStructureChange = input.pathSlotsDirtySinceStructureChange,
+            return buildStructureActionResult(
+                editor = input.editor,
+                selectionState = resolveSelectionAfterRemoveAttempt(),
+                nextTemplate = input.editor.currentTemplate,
+                nextFileNameSlotsDirtySinceStructureChange = input.editor.fileNameSlotsDirtySinceStructureChange,
+                nextPathSlotsDirtySinceStructureChange = input.editor.pathSlotsDirtySinceStructureChange,
+                nextDeletedRowsStack = input.editor.deletedRowsStack,
+                nextDeletedColsStack = input.editor.deletedColsStack,
                 actionLabel = actionLabelForRemove(input.axis),
                 deletionDebugInfo = TableEditorStructureDeletionDebugInfo(
                     axis = input.axis,
@@ -191,27 +176,24 @@ object TableEditorStructureActions {
                     hasSlotSnapshot = false,
                 ),
                 restoreDebugInfo = null,
-                deletedSnapshotToPush = null,
-                deletedSnapshotAxis = null,
-                consumedDeletedStackAxis = null,
             )
         }
 
         val deletionPayload = TableEditorStructureRestoreCoordinator.buildDeletionPayload(
             TableEditorStructureDeletionCoordinatorInput(
-                currentTemplate = input.currentTemplate,
+                currentTemplate = input.editor.currentTemplate,
                 deleteAxis = input.axis,
                 deletedRange = deletionRange,
-                currentFileNameSlots = input.currentFileNameSlots,
-                currentPathSlots = input.currentPathSlots,
+                currentFileNameSlots = input.editor.currentFileNameSlots,
+                currentPathSlots = input.editor.currentPathSlots,
                 removeCellRefsFromFileNameSlots = input.removeCellRefsFromFileNameSlots,
                 removeCellRefsFromPathSlots = input.removeCellRefsFromPathSlots,
             )
         )
 
         val removedTemplate = when (input.axis) {
-            StructureRestoreAxis.ROW -> removeRowsByRange(input.currentTemplate, deletionRange)
-            StructureRestoreAxis.COL -> removeColsByRange(input.currentTemplate, deletionRange)
+            StructureRestoreAxis.ROW -> removeRowsByRange(input.editor.currentTemplate, deletionRange)
+            StructureRestoreAxis.COL -> removeColsByRange(input.editor.currentTemplate, deletionRange)
         }
         val sanitizedTemplate = input.sanitizeTemplate(removedTemplate)
         val nextTemplate = applySlotsToTemplate(
@@ -221,54 +203,55 @@ object TableEditorStructureActions {
             applyFileNameSlots = input.applyFileNameSlots,
             applyPathSlots = input.applyPathSlots,
         )
+        val nextStacks = appendDeletedSnapshotAfterSuccessfulRemove(
+            axis = input.axis,
+            deletedSnapshot = deletionPayload.deletedSnapshot,
+            deletedRowsStack = input.editor.deletedRowsStack,
+            deletedColsStack = input.editor.deletedColsStack,
+        )
 
-        return buildActionResult(
-            selectionState = resolveSelectionAfterRemove(),
-            isStructureEditMode = input.isStructureEditMode,
-            selectedCellId = input.selectedCellId,
+        return buildStructureActionResult(
+            editor = input.editor,
+            selectionState = resolveSelectionAfterSuccessfulRemove(),
             nextTemplate = nextTemplate,
             nextFileNameSlotsDirtySinceStructureChange = deletionPayload.nextFileNameSlotsDirtySinceStructureChange,
             nextPathSlotsDirtySinceStructureChange = deletionPayload.nextPathSlotsDirtySinceStructureChange,
+            nextDeletedRowsStack = nextStacks.first,
+            nextDeletedColsStack = nextStacks.second,
             actionLabel = actionLabelForRemove(input.axis),
             deletionDebugInfo = deletionPayload.debugInfo,
             restoreDebugInfo = null,
-            deletedSnapshotToPush = deletionPayload.deletedSnapshot,
-            deletedSnapshotAxis = input.axis,
-            consumedDeletedStackAxis = null,
         )
     }
 
-    private fun buildActionResult(
+    private fun buildStructureActionResult(
+        editor: StructureEditorContext,
         selectionState: StructureSelectionState,
-        isStructureEditMode: Boolean,
-        selectedCellId: String?,
         nextTemplate: TableTemplateState,
         nextFileNameSlotsDirtySinceStructureChange: Boolean,
         nextPathSlotsDirtySinceStructureChange: Boolean,
+        nextDeletedRowsStack: List<DeletedStructureSnapshot>,
+        nextDeletedColsStack: List<DeletedStructureSnapshot>,
         actionLabel: String,
         deletionDebugInfo: TableEditorStructureDeletionDebugInfo?,
         restoreDebugInfo: TableEditorStructureRestoreDebugInfo?,
-        deletedSnapshotToPush: DeletedStructureSnapshot?,
-        deletedSnapshotAxis: StructureRestoreAxis?,
-        consumedDeletedStackAxis: StructureRestoreAxis?,
     ): StructureActionResult {
         return StructureActionResult(
             nextTemplate = nextTemplate,
             nextFileNameSlotsDirtySinceStructureChange = nextFileNameSlotsDirtySinceStructureChange,
             nextPathSlotsDirtySinceStructureChange = nextPathSlotsDirtySinceStructureChange,
+            nextDeletedRowsStack = nextDeletedRowsStack,
+            nextDeletedColsStack = nextDeletedColsStack,
             nextStructureSelectionRange = selectionState.range,
             nextStructureSelectedCellIds = selectionState.selectedCellIds,
             nextSelectedCellId = resolveNextSelectedCellId(
-                isStructureEditMode = isStructureEditMode,
-                selectedCellId = selectedCellId,
+                isStructureEditMode = editor.isStructureEditMode,
+                selectedCellId = editor.selectedCellId,
                 nextTemplate = nextTemplate,
             ),
             actionLabel = actionLabel,
             deletionDebugInfo = deletionDebugInfo,
             restoreDebugInfo = restoreDebugInfo,
-            deletedSnapshotToPush = deletedSnapshotToPush,
-            deletedSnapshotAxis = deletedSnapshotAxis,
-            consumedDeletedStackAxis = consumedDeletedStackAxis,
         )
     }
 
@@ -296,7 +279,15 @@ object TableEditorStructureActions {
         return StructureSelectionState(range = boundedRange, selectedCellIds = selectedCellIds)
     }
 
-    private fun resolveSelectionAfterRemove(): StructureSelectionState {
+    private fun resolveSelectionAfterRemoveAttempt(): StructureSelectionState {
+        return clearStructureSelection()
+    }
+
+    private fun resolveSelectionAfterSuccessfulRemove(): StructureSelectionState {
+        return clearStructureSelection()
+    }
+
+    private fun clearStructureSelection(): StructureSelectionState {
         return StructureSelectionState(
             range = null,
             selectedCellIds = emptySet(),
@@ -325,14 +316,43 @@ object TableEditorStructureActions {
         return nextTemplate
     }
 
-    private fun stackForAxis(
+    private fun lastDeletedSnapshotForAxis(
+        axis: StructureRestoreAxis,
+        editor: StructureEditorContext,
+    ): List<DeletedStructureSnapshot> {
+        return when (axis) {
+            StructureRestoreAxis.ROW -> editor.deletedRowsStack
+            StructureRestoreAxis.COL -> editor.deletedColsStack
+        }
+    }
+
+    private fun appendDeletedSnapshotAfterSuccessfulRemove(
+        axis: StructureRestoreAxis,
+        deletedSnapshot: DeletedStructureSnapshot?,
+        deletedRowsStack: List<DeletedStructureSnapshot>,
+        deletedColsStack: List<DeletedStructureSnapshot>,
+    ): Pair<List<DeletedStructureSnapshot>, List<DeletedStructureSnapshot>> {
+        return when (axis) {
+            StructureRestoreAxis.ROW -> {
+                val nextRowsStack = deletedSnapshot?.let { deletedRowsStack + it } ?: deletedRowsStack
+                nextRowsStack to deletedColsStack
+            }
+
+            StructureRestoreAxis.COL -> {
+                val nextColsStack = deletedSnapshot?.let { deletedColsStack + it } ?: deletedColsStack
+                deletedRowsStack to nextColsStack
+            }
+        }
+    }
+
+    private fun consumeDeletedStackForRestore(
         axis: StructureRestoreAxis,
         deletedRowsStack: List<DeletedStructureSnapshot>,
         deletedColsStack: List<DeletedStructureSnapshot>,
-    ): List<DeletedStructureSnapshot> {
+    ): Pair<List<DeletedStructureSnapshot>, List<DeletedStructureSnapshot>> {
         return when (axis) {
-            StructureRestoreAxis.ROW -> deletedRowsStack
-            StructureRestoreAxis.COL -> deletedColsStack
+            StructureRestoreAxis.ROW -> deletedRowsStack.dropLast(1) to deletedColsStack
+            StructureRestoreAxis.COL -> deletedRowsStack to deletedColsStack.dropLast(1)
         }
     }
 
