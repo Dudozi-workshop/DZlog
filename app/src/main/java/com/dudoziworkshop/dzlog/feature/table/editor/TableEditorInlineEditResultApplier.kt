@@ -50,11 +50,11 @@ object TableEditorInlineEditResultApplier {
         result.committedCounterSeed?.let { seed ->
             val cellId = result.committedCellId ?: return@let
             nextCounterUi = input.applyCommittedCounter(
-                templateState = result.nextTemplate ?: input.currentTemplate,
-                cellId = cellId,
-                seed = seed,
-                lowCounterWarningLatchedInSession = result.nextLowCounterWarningLatchedInSession,
-                counterUi = nextCounterUi,
+                result.nextTemplate ?: input.currentTemplate,
+                cellId,
+                seed,
+                result.nextLowCounterWarningLatchedInSession,
+                nextCounterUi,
             )
         }
         return nextCounterUi
