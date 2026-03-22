@@ -4,15 +4,12 @@ import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.feature.table.policy.evaluateCounterEditConflict
-import com.dudoziworkshop.dzlog.feature.table.policy.nextLowCounterWarningLatch
-import com.dudoziworkshop.dzlog.feature.table.policy.openCounterConflictDialog
-import com.dudoziworkshop.dzlog.feature.table.policy.parseNonNegativeInt
 import com.dudoziworkshop.dzlog.ui.table.editor.InlineEditState
 import com.dudoziworkshop.dzlog.ui.table.editor.clearInlineEditing
 
 object TableEditorInlineEditActions {
 
+    // 주요 정책: 첫 onValueChange 시점에만 undo snapshot을 1회 push하고, 값은 template에 즉시 반영한다.
     fun applyInlineValueChange(
         context: InlineEditSessionContext,
         nextValue: String,
@@ -41,7 +38,6 @@ object TableEditorInlineEditActions {
                 context = context,
                 editingCell = currentCell,
             ),
-            nextEditSessionSnapshotCellId = editingCellId,
             nextSelectedCellId = context.selectedCellId,
             templateApplyMode = if (shouldPushUndoSnapshot) {
                 InlineTemplateApplyMode.PUSH_UNDO_THEN_APPLY
@@ -54,6 +50,7 @@ object TableEditorInlineEditActions {
         )
     }
 
+    // 주요 정책: commitIfNeeded는 값 반영 본체가 아니라 세션 종료 / validation / conflict 처리를 담당한다.
     fun commitIfNeeded(context: InlineEditSessionContext): InlineEditActionResult {
         val id = context.inlineEdit.editingCellId ?: return noTemplateChange(
             context = context.copy(inlineSessionState = context.inlineSessionState.clearInlineSession()),
@@ -64,56 +61,49 @@ object TableEditorInlineEditActions {
 
         val cell = context.currentTemplate.cells.firstOrNull { it.cellId == id }
         if (cell != null && cell.dataType == TableCellDataType.COUNTER) {
-            val pendingValue = parseNonNegativeInt(context.inlineEdit.editingValue)
-            if (pendingValue == null) {
-                return noTemplateChange(
+            val counterCommit = TableEditorCounterInlineCommitResolver.resolve(
+                TableEditorCounterInlineCommitInput(
+                    cellId = id,
+                    editingValue = context.inlineEdit.editingValue,
+                    currentTemplate = context.currentTemplate,
+                    autoNextCounterValue = context.autoNextCounterValue,
+                    lowCounterWarningLatchedInSession = context.lowCounterWarningLatchedInSession,
+                    updateCell = context.updateCell,
+                )
+            )
+            return when (counterCommit.outcome) {
+                TableEditorCounterInlineCommitOutcome.BLOCKED_INVALID -> noTemplateChange(
                     context = context,
                     actionLabel = "commit_inline_blocked_invalid_counter",
                     wasBlocked = true,
                 )
-            }
-            val nextLowWarningLatch = nextLowCounterWarningLatch(
-                pendingCounterCommitValue = pendingValue,
-                streamNext = context.autoNextCounterValue,
-            )
-            val conflict = evaluateCounterEditConflict(
-                newValueText = context.inlineEdit.editingValue,
-                streamNext = context.autoNextCounterValue,
-                lowCounterWarningLatchedInSession = context.lowCounterWarningLatchedInSession,
-            )
-            if (conflict != null) {
-                return InlineEditActionResult(
+                TableEditorCounterInlineCommitOutcome.BLOCKED_CONFLICT -> InlineEditActionResult(
                     nextInlineEdit = context.inlineEdit,
                     nextTemplate = null,
                     nextInlineSessionState = context.inlineSessionState,
                     nextEditSessionOriginalCellState = context.editSessionOriginalCellState,
-                    nextEditSessionSnapshotCellId = context.editSessionSnapshotCellId,
                     nextSelectedCellId = context.selectedCellId,
                     templateApplyMode = InlineTemplateApplyMode.NONE,
                     actionLabel = "commit_inline_blocked_conflict",
                     wasBlocked = true,
-                    nextLowCounterWarningLatchedInSession = nextLowWarningLatch,
-                    openedCounterConflict = openCounterConflictDialog(
-                        editingCellId = id,
-                        conflict = conflict,
-                    ),
+                    nextLowCounterWarningLatchedInSession = counterCommit.nextLowCounterWarningLatchedInSession,
+                    openedCounterConflict = counterCommit.openedCounterConflict,
+                    committedCellId = id,
+                )
+                TableEditorCounterInlineCommitOutcome.COMMITTED -> InlineEditActionResult(
+                    nextInlineEdit = clearInlineEditing(context.inlineEdit),
+                    nextTemplate = counterCommit.nextTemplate,
+                    nextInlineSessionState = context.inlineSessionState.clearInlineSession(),
+                    nextEditSessionOriginalCellState = context.editSessionOriginalCellState,
+                    nextSelectedCellId = context.selectedCellId,
+                    templateApplyMode = InlineTemplateApplyMode.APPLY_DIRECTLY,
+                    actionLabel = "commit_inline_counter",
+                    wasBlocked = false,
+                    nextLowCounterWarningLatchedInSession = counterCommit.nextLowCounterWarningLatchedInSession,
+                    committedCounterSeed = counterCommit.committedCounterSeed,
                     committedCellId = id,
                 )
             }
-            return InlineEditActionResult(
-                nextInlineEdit = clearInlineEditing(context.inlineEdit),
-                nextTemplate = normalizeCounterValueIfNeeded(context.currentTemplate, id, pendingValue, context.updateCell),
-                nextInlineSessionState = context.inlineSessionState.clearInlineSession(),
-                nextEditSessionOriginalCellState = context.editSessionOriginalCellState,
-                nextEditSessionSnapshotCellId = context.editSessionSnapshotCellId,
-                nextSelectedCellId = context.selectedCellId,
-                templateApplyMode = InlineTemplateApplyMode.APPLY_DIRECTLY,
-                actionLabel = "commit_inline_counter",
-                wasBlocked = false,
-                nextLowCounterWarningLatchedInSession = nextLowWarningLatch,
-                committedCounterSeed = pendingValue.coerceAtLeast(1),
-                committedCellId = id,
-            )
         }
 
         return InlineEditActionResult(
@@ -121,7 +111,6 @@ object TableEditorInlineEditActions {
             nextTemplate = null,
             nextInlineSessionState = context.inlineSessionState.clearInlineSession(),
             nextEditSessionOriginalCellState = context.editSessionOriginalCellState,
-            nextEditSessionSnapshotCellId = context.editSessionSnapshotCellId,
             nextSelectedCellId = context.selectedCellId,
             templateApplyMode = InlineTemplateApplyMode.NONE,
             actionLabel = "commit_inline",
@@ -143,7 +132,6 @@ object TableEditorInlineEditActions {
                 sessionState = sessionStateForSelection(
                     template = context.currentTemplate,
                     selectedCellId = context.selectedCellId,
-                    currentSnapshotCellId = context.editSessionSnapshotCellId,
                     currentOriginalCellState = context.editSessionOriginalCellState,
                     shouldTrackSessionSnapshot = shouldTrackSessionSnapshot,
                 ),
@@ -158,7 +146,6 @@ object TableEditorInlineEditActions {
                 nextSelectedCellId = context.selectedCellId,
                 nextInlineSessionState = context.inlineSessionState,
                 nextEditSessionOriginalCellState = context.editSessionOriginalCellState,
-                nextEditSessionSnapshotCellId = context.editSessionSnapshotCellId,
                 wasBlocked = true,
             )
         }
@@ -167,7 +154,6 @@ object TableEditorInlineEditActions {
         val sessionState = sessionStateForSelection(
             template = templateAfterCommit,
             selectedCellId = requestedCellId,
-            currentSnapshotCellId = context.editSessionSnapshotCellId,
             currentOriginalCellState = context.editSessionOriginalCellState,
             shouldTrackSessionSnapshot = shouldTrackSessionSnapshot,
         )
@@ -175,74 +161,12 @@ object TableEditorInlineEditActions {
             nextSelectedCellId = requestedCellId,
             nextInlineSessionState = InlineEditSessionState(),
             nextEditSessionOriginalCellState = sessionState.originalCellState,
-            nextEditSessionSnapshotCellId = sessionState.snapshotCellId,
             actionLabel = "select_cell",
             wasBlocked = false,
         )
     }
 
-    fun requestSaveSelectedCell(
-        context: InlineEditSessionContext,
-        shouldTrackSessionSnapshot: Boolean,
-    ): InlineEditActionResult {
-        val commitResult = commitIfNeeded(context)
-        if (commitResult.wasBlocked) {
-            return commitResult.copy(
-                actionLabel = "save_selected_cell_blocked",
-                wasBlocked = true,
-            )
-        }
-        val sessionState = sessionStateForSelection(
-            template = commitResult.nextTemplate ?: context.currentTemplate,
-            selectedCellId = context.selectedCellId,
-            currentSnapshotCellId = null,
-            currentOriginalCellState = null,
-            shouldTrackSessionSnapshot = shouldTrackSessionSnapshot,
-        )
-        return commitResult.copy(
-            nextInlineSessionState = InlineEditSessionState(),
-            nextEditSessionOriginalCellState = sessionState.originalCellState,
-            nextEditSessionSnapshotCellId = sessionState.snapshotCellId,
-            nextSelectedCellId = context.selectedCellId,
-            actionLabel = "save_selected_cell",
-            wasBlocked = false,
-        )
-    }
-
-    fun requestRevertSelectedCell(
-        context: InlineEditSessionContext,
-        shouldTrackSessionSnapshot: Boolean,
-    ): InlineEditActionResult {
-        val snapshot = context.editSessionOriginalCellState
-        val selectedId = context.selectedCellId
-        if (snapshot == null || selectedId == null || snapshot.cellId != selectedId) {
-            return noTemplateChange(
-                context = context,
-                actionLabel = "revert_selected_cell_noop",
-            )
-        }
-        val revertedTemplate = context.updateCell(context.currentTemplate, snapshot.cellId) { snapshot }
-        val sessionState = sessionStateForSelection(
-            template = revertedTemplate,
-            selectedCellId = selectedId,
-            currentSnapshotCellId = null,
-            currentOriginalCellState = null,
-            shouldTrackSessionSnapshot = shouldTrackSessionSnapshot,
-        )
-        return InlineEditActionResult(
-            nextInlineEdit = clearInlineEditing(context.inlineEdit),
-            nextTemplate = revertedTemplate,
-            nextInlineSessionState = InlineEditSessionState(),
-            nextEditSessionOriginalCellState = sessionState.originalCellState,
-            nextEditSessionSnapshotCellId = sessionState.snapshotCellId,
-            nextSelectedCellId = selectedId,
-            templateApplyMode = InlineTemplateApplyMode.APPLY_DIRECTLY,
-            actionLabel = "revert_selected_cell",
-            wasBlocked = false,
-            nextLowCounterWarningLatchedInSession = context.lowCounterWarningLatchedInSession,
-        )
-    }
-
+    // 선택 셀 기준 원본 스냅샷은 CELL_EDIT 세션 동안만 추적하고, 다른 패널에서는 정리한다.
     fun syncSessionSnapshot(
         context: InlineEditSessionContext,
         shouldTrackSessionSnapshot: Boolean,
@@ -250,7 +174,6 @@ object TableEditorInlineEditActions {
         val sessionState = sessionStateForSelection(
             template = context.currentTemplate,
             selectedCellId = context.selectedCellId,
-            currentSnapshotCellId = context.editSessionSnapshotCellId,
             currentOriginalCellState = context.editSessionOriginalCellState,
             shouldTrackSessionSnapshot = shouldTrackSessionSnapshot,
         )
@@ -265,7 +188,6 @@ object TableEditorInlineEditActions {
         context: InlineEditSessionContext,
         sessionState: InlineEditSessionSnapshotState = InlineEditSessionSnapshotState(
             originalCellState = context.editSessionOriginalCellState,
-            snapshotCellId = context.editSessionSnapshotCellId,
         ),
         actionLabel: String,
         nextInlineEdit: InlineEditState = context.inlineEdit,
@@ -277,7 +199,6 @@ object TableEditorInlineEditActions {
             nextTemplate = null,
             nextInlineSessionState = nextInlineSessionState,
             nextEditSessionOriginalCellState = sessionState.originalCellState,
-            nextEditSessionSnapshotCellId = sessionState.snapshotCellId,
             nextSelectedCellId = context.selectedCellId,
             templateApplyMode = InlineTemplateApplyMode.NONE,
             actionLabel = actionLabel,
@@ -297,7 +218,7 @@ object TableEditorInlineEditActions {
                 typedValue = CellValue.Number(nextValue),
             )
             TableCellDataType.COUNTER -> {
-                val parsed = parseNonNegativeInt(nextValue)
+                val parsed = parseInlineCounterValue(nextValue)
                 if (parsed == null) {
                     cell.copy(rawText = nextValue)
                 } else {
@@ -311,25 +232,12 @@ object TableEditorInlineEditActions {
         }
     }
 
-    private fun normalizeCounterValueIfNeeded(
-        template: TableTemplateState,
-        cellId: String,
-        pendingValue: Int,
-        updateCell: (TableTemplateState, String, (TableCellState) -> TableCellState) -> TableTemplateState,
-    ): TableTemplateState {
-        return updateCell(template, cellId) { cell ->
-            cell.copy(
-                rawText = pendingValue.toString(),
-                typedValue = CellValue.CounterSeed(pendingValue.coerceAtLeast(0)),
-            )
-        }
-    }
 
     private fun resolveOriginalSnapshotForImmediateApply(
         context: InlineEditSessionContext,
         editingCell: TableCellState,
     ): TableCellState {
-        return if (context.editSessionSnapshotCellId == editingCell.cellId && context.editSessionOriginalCellState?.cellId == editingCell.cellId) {
+        return if (context.editSessionOriginalCellState?.cellId == editingCell.cellId) {
             context.editSessionOriginalCellState
         } else {
             editingCell.copy()
@@ -339,27 +247,23 @@ object TableEditorInlineEditActions {
     private fun sessionStateForSelection(
         template: TableTemplateState,
         selectedCellId: String?,
-        currentSnapshotCellId: String?,
         currentOriginalCellState: TableCellState?,
         shouldTrackSessionSnapshot: Boolean,
     ): InlineEditSessionSnapshotState {
         if (!shouldTrackSessionSnapshot || selectedCellId == null) {
-            return InlineEditSessionSnapshotState(originalCellState = null, snapshotCellId = null)
+            return InlineEditSessionSnapshotState(originalCellState = null)
         }
-        if (currentSnapshotCellId == selectedCellId && currentOriginalCellState?.cellId == selectedCellId) {
+        if (currentOriginalCellState?.cellId == selectedCellId) {
             return InlineEditSessionSnapshotState(
                 originalCellState = currentOriginalCellState,
-                snapshotCellId = currentSnapshotCellId,
             )
         }
         return InlineEditSessionSnapshotState(
             originalCellState = template.cells.firstOrNull { it.cellId == selectedCellId }?.copy(),
-            snapshotCellId = selectedCellId,
         )
     }
 }
 
 private data class InlineEditSessionSnapshotState(
     val originalCellState: TableCellState?,
-    val snapshotCellId: String?,
 )

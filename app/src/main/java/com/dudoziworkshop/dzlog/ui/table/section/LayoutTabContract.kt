@@ -139,7 +139,6 @@ data class LayoutTabActions(
     val onStartInlineEditing: (cellId: String, initialText: String) -> Unit,
     val onOpenFormatDialog: (cellId: String, type: TableCellDataType) -> Unit,
     val onEditingValueChange: (String) -> Unit,
-    val onCommitInline: () -> Unit,
     val onTryCommitInlineAndContinue: () -> Boolean,
     val onAddRow: () -> Unit,
     val onRemoveRow: () -> Unit,
@@ -174,7 +173,5 @@ data class LayoutTabActions(
     val onCommitRowWeightsDragEnd: (List<Float>) -> Unit,
     val onCommitColumnWeightsDragEnd: (List<Float>) -> Unit,
     val onOpenRotatingTemplateDialogForSelected: (String) -> Unit,
-    val onSaveSelectedCell: () -> Unit,
-    val onRevertSelectedCell: () -> Unit,
     val onOpenPlacementDialog: () -> Unit
 )

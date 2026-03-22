@@ -758,10 +758,10 @@ fun TableEditorScreen(
     }
 
     var inlineEdit by remember { mutableStateOf(InlineEditState()) }
-    // 주요 정책: inline 세션은 첫 입력 시점의 undo snapshot push 여부를 기준으로 관리한다.
+    // 주요 정책: inline 세션은 첫 onValueChange 시점의 undo snapshot push 여부를 기준으로 관리한다.
     var inlineEditSessionState by remember { mutableStateOf(InlineEditSessionState()) }
+    // 선택된 셀의 세션 시작 전 원본 스냅샷이다. 즉시 반영 이후에도 undo/세션 동기화 보조 정보로만 유지한다.
     var editSessionOriginalCellState by remember { mutableStateOf<TableCellState?>(null) }
-    var editSessionSnapshotCellId by remember { mutableStateOf<String?>(null) }
     var showUnsavedChangesDialog by remember { mutableStateOf(false) }
     val deletedRowsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
     val deletedColsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
@@ -796,7 +796,6 @@ fun TableEditorScreen(
             selectedCellId = selectedCellId,
             inlineSessionState = inlineEditSessionState,
             editSessionOriginalCellState = editSessionOriginalCellState,
-            editSessionSnapshotCellId = editSessionSnapshotCellId,
             autoNextCounterValue = counterUi.autoNextCounterValue,
             lowCounterWarningLatchedInSession = counterUi.lowCounterWarningLatchedInSession,
             updateCell = ::updateCell,
@@ -877,7 +876,6 @@ fun TableEditorScreen(
         inlineEdit = result.nextInlineEdit
         inlineEditSessionState = result.nextInlineSessionState
         editSessionOriginalCellState = result.nextEditSessionOriginalCellState
-        editSessionSnapshotCellId = result.nextEditSessionSnapshotCellId
         selectedCellId = result.nextSelectedCellId
         result.openedCounterConflict?.let {
             counterUi = updateCounterUiConflictDialogState(counterUi, it)
@@ -900,6 +898,7 @@ fun TableEditorScreen(
                 lowCounterWarningLatchedInSession = result.nextLowCounterWarningLatchedInSession,
             )
         } ?: result.nextTemplate?.let { nextTemplate ->
+            // `nextTemplate`는 이미 즉시 반영 결과이며, 여기서는 undo 적용 방식만 결정한다.
             when (result.templateApplyMode) {
                 InlineTemplateApplyMode.NONE -> Unit
                 InlineTemplateApplyMode.PUSH_UNDO_THEN_APPLY -> applyTemplateWithUndo(nextTemplate)
@@ -1093,24 +1092,6 @@ fun TableEditorScreen(
             structureSelectionRange = null
             selectedCellId = null
         }
-    }
-
-    fun requestSaveSelectedCell() {
-        applyInlineEditResult(
-            TableEditorInlineEditActions.requestSaveSelectedCell(
-                context = currentInlineEditSessionContext(),
-                shouldTrackSessionSnapshot = bottomPanelMode == BottomEditorPanelMode.CELL_EDIT,
-            )
-        )
-    }
-
-    fun requestRevertSelectedCell() {
-        applyInlineEditResult(
-            TableEditorInlineEditActions.requestRevertSelectedCell(
-                context = currentInlineEditSessionContext(),
-                shouldTrackSessionSnapshot = bottomPanelMode == BottomEditorPanelMode.CELL_EDIT,
-            )
-        )
     }
 
     val hasUnsavedChanges by remember(
@@ -1523,7 +1504,6 @@ fun TableEditorScreen(
                                     )
                                 )
                             },
-                            onCommitInline = ::commitInlineEditIfNeeded,
                             onTryCommitInlineAndContinue = {
                                 val result = TableEditorInlineEditActions.commitIfNeeded(currentInlineEditSessionContext())
                                 applyInlineEditResult(result)
@@ -1658,7 +1638,6 @@ fun TableEditorScreen(
                                 clearPathEditorTransientState(clearDraft = true)
                                 clearInlineEditingState()
                                 editSessionOriginalCellState = null
-                                editSessionSnapshotCellId = null
                                 deletedRowsStack.clear()
                                 deletedColsStack.clear()
                                 fileNameSlotsDirtySinceStructureChange = false
@@ -1825,8 +1804,6 @@ fun TableEditorScreen(
                                     showCellSettingsPanel = true
                                 }
                             },
-                            onSaveSelectedCell = ::requestSaveSelectedCell,
-                            onRevertSelectedCell = ::requestRevertSelectedCell,
                             onOpenPlacementDialog = { showPlacementDialog = true }
                         )
                     )

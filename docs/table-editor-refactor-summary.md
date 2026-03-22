@@ -1,4 +1,4 @@
-# Table Editor Refactor Summary (Step 1–2)
+# Table Editor Refactor Summary (Step 1–3)
 
 ## 1) Current SSOT / Layering
 
@@ -70,3 +70,19 @@
   - [ ] 삭제된 셀 참조가 슬롯에서 제거되는 동작 유지.
   - [ ] 모드/슬롯 전환 시 transient UI state(clearDraft 여부 포함) 동작 유지.
 
+
+
+## 5) Inline edit policy (latest)
+
+상세 기준 문서는 루트의 `table_editor_inline_policy.md`다.
+이 summary는 Screen 책임과 구조 관점에서 핵심만 요약한다.
+
+- 셀 편집 값의 SSOT는 `TableTemplateState`다.
+- `onEditingValueChange` → `TableEditorInlineEditActions.applyInlineValueChange(...)`가 값을 즉시 template에 반영한다.
+- `inlineEdit.editingValue`는 저장 전 데이터 본체가 아니라 CELL_EDIT 입력 UI 상태다.
+- undo snapshot은 셀 편집 세션당 1회만 생성하며, 세션 시작 기준은 첫 `onValueChange`다.
+- 현재 최소 inline 상태는 `inlineEdit`, `inlineEditSessionState`, `editSessionOriginalCellState` 세 가지다.
+- `commitIfNeeded(...)`는 값 반영 본체가 아니라 세션 종료 / validation / counter conflict 처리다.
+- counter 값 파싱 helper와 counter commit resolver는 분리하고, commit 시점의 검증 / conflict / normalize / latch 계산만 resolver가 담당한다.
+- CELL_EDIT 패널 하단 저장/되돌리기 버튼은 제거했고, 하단 액션은 메인 3버튼(저장 / 초기화 / 언두)으로 통일한다.
+- 초기화 의미는 화면 진입 시점 전체 복귀 + undo stack clear다.

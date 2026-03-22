@@ -97,9 +97,6 @@ internal fun BottomEditorPanel(
     onOpenRotatingTemplateDialogForSelected: (String) -> Unit,
     onStartInlineEditing: (cellId: String, initialText: String) -> Unit,
     onEditingValueChange: (String) -> Unit,
-    onCommitInline: () -> Unit,
-    onSaveSelectedCell: () -> Unit,
-    onRevertSelectedCell: () -> Unit,
     onSelectFileNameSlot: (Int) -> Unit,
     onFillEmptyFileNameSlot: (Int) -> Unit,
     onMoveSelectedFileNameSlotLeft: () -> Unit,
@@ -339,7 +336,7 @@ internal fun BottomEditorPanel(
                 }
             }
             BottomEditorPanelMode.CELL_EDIT -> {
-                // 주요 정책: CELL_EDIT는 "현재값+설정" 본문만 스크롤되고 저장/되돌리기는 하단 고정으로 유지한다.
+                // 주요 정책: CELL_EDIT는 값 입력과 설정만 제공하고, 저장/초기화/언두는 메인 3버튼으로 통일한다.
                 val cellEditBodyScrollState = rememberScrollState()
 
                 PanelHeader("셀 편집")
@@ -491,20 +488,6 @@ internal fun BottomEditorPanel(
                             showPathGroupSection = false,
                             compactForBottomPanel = true
                         )
-                    }
-                }
-
-                if (selectedCell != null) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(modifier = Modifier.weight(1f).height(42.dp), onClick = onRevertSelectedCell) {
-                            Text("되돌리기", style = DDZTypography.ButtonText)
-                        }
-                        Button(modifier = Modifier.weight(1f).height(42.dp), onClick = onSaveSelectedCell) {
-                            Text("저장", style = DDZTypography.ButtonText)
-                        }
                     }
                 }
             }
