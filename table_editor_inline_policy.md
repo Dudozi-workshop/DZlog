@@ -68,3 +68,9 @@ CELL_EDIT 패널 하단의 저장/되돌리기 버튼은 제거했다.
 
 `editSessionSnapshotCellId`는 별도 상태로 유지하지 않는다.
 셀 식별은 `editSessionOriginalCellState?.cellId`로 충분하며, 같은 정책을 더 적은 상태로 유지한다.
+
+
+## 9. Screen 책임 경계
+
+`TableEditorScreen`은 inline 상태 보관과 wiring에 집중한다.
+inline 결과 해석, template apply mode 적용, counter 후처리 경계는 feature/editor helper가 맡고, Screen은 적용 입력을 넘기고 반영 state를 받는 쪽에 가깝게 유지한다.

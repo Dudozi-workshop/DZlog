@@ -86,3 +86,4 @@
 - counter 값 파싱 helper와 counter commit resolver는 분리하고, commit 시점의 검증 / conflict / normalize / latch 계산만 resolver가 담당한다.
 - CELL_EDIT 패널 하단 저장/되돌리기 버튼은 제거했고, 하단 액션은 메인 3버튼(저장 / 초기화 / 언두)으로 통일한다.
 - 초기화 의미는 화면 진입 시점 전체 복귀 + undo stack clear다.
+- inline 결과 해석, template apply mode 적용, counter 후처리 경계는 feature/editor helper 쪽으로 더 정리해 Screen의 결과 해석 책임을 줄였다.

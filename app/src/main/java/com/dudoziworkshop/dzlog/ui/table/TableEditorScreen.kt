@@ -86,6 +86,8 @@ import com.dudoziworkshop.dzlog.feature.table.editor.StructureActionResult
 import com.dudoziworkshop.dzlog.feature.table.editor.StructureAddOrRestoreInput
 import com.dudoziworkshop.dzlog.feature.table.editor.StructureRemoveInput
 import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorInlineEditActions
+import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorInlineEditApplyInput
+import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorInlineEditResultApplier
 import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorStructureActions
 import com.dudoziworkshop.dzlog.feature.table.editor.TableUndoManager
 import com.dudoziworkshop.dzlog.feature.table.editor.buildStructureEditorContext
@@ -869,48 +871,68 @@ fun TableEditorScreen(
         updateTemplateDraft(nextTemplate)
     }
 
-    fun applyInlineEditResult(result: InlineEditActionResult) {
-        counterUi = counterUi.copy(
-            lowCounterWarningLatchedInSession = result.nextLowCounterWarningLatchedInSession,
+    fun applyCommittedInlineCounter(
+        templateState: TableTemplateState,
+        cellId: String,
+        seed: Int,
+        lowCounterWarningLatchedInSession: Boolean,
+        counterUiState: TableCounterUiState,
+    ): TableCounterUiState {
+        var appliedCounterUi = counterUiState
+        updateCounterCellAndPolicy(
+            templateState = templateState,
+            cellId = cellId,
+            seed = seed,
+            preserveManual = true,
+            persistToCounterPolicy = true,
+            counterRequest = counterRequest,
+            counterFacade = counterFacade,
+            counterUi = appliedCounterUi,
+            onTemplateChange = ::updateTemplateDraft,
+            setCounterUi = { appliedCounterUi = it },
+            updateCell = ::updateCell,
+            scope = scope,
+            lowCounterWarningLatchedInSession = lowCounterWarningLatchedInSession,
         )
-        inlineEdit = result.nextInlineEdit
-        inlineEditSessionState = result.nextInlineSessionState
-        editSessionOriginalCellState = result.nextEditSessionOriginalCellState
-        selectedCellId = result.nextSelectedCellId
-        result.openedCounterConflict?.let {
-            counterUi = updateCounterUiConflictDialogState(counterUi, it)
-        }
-        result.committedCounterSeed?.let { seed ->
-            val cellId = result.committedCellId ?: return@let
-            updateCounterCellAndPolicy(
-                templateState = result.nextTemplate ?: currentTemplate,
-                cellId = cellId,
-                seed = seed,
-                preserveManual = true,
-                persistToCounterPolicy = true,
-                counterRequest = counterRequest,
-                counterFacade = counterFacade,
-                counterUi = counterUi,
-                onTemplateChange = ::updateTemplateDraft,
-                setCounterUi = { counterUi = it },
-                updateCell = ::updateCell,
-                scope = scope,
-                lowCounterWarningLatchedInSession = result.nextLowCounterWarningLatchedInSession,
-            )
-        } ?: result.nextTemplate?.let { nextTemplate ->
-            // `nextTemplate`는 이미 즉시 반영 결과이며, 여기서는 undo 적용 방식만 결정한다.
-            when (result.templateApplyMode) {
-                InlineTemplateApplyMode.NONE -> Unit
-                InlineTemplateApplyMode.PUSH_UNDO_THEN_APPLY -> applyTemplateWithUndo(nextTemplate)
-                InlineTemplateApplyMode.APPLY_DIRECTLY -> updateTemplateDraft(nextTemplate)
-            }
-        }
+        return appliedCounterUi
     }
 
-    fun commitInlineEditIfNeeded() {
-        applyInlineEditResult(
-            TableEditorInlineEditActions.commitIfNeeded(currentInlineEditSessionContext())
+    fun buildInlineEditApplyInput(result: InlineEditActionResult): TableEditorInlineEditApplyInput {
+        return TableEditorInlineEditApplyInput(
+            result = result,
+            currentTemplate = currentTemplate,
+            currentCounterUi = counterUi,
+            applyTemplateWithUndo = ::applyTemplateWithUndo,
+            applyTemplateDirectly = ::updateTemplateDraft,
+            updateCounterConflictUi = ::updateCounterUiConflictDialogState,
+            applyCommittedCounter = ::applyCommittedInlineCounter,
         )
+    }
+
+    fun reflectInlineAppliedState(applied: com.dudoziworkshop.dzlog.feature.table.editor.TableEditorInlineEditAppliedState) {
+        inlineEdit = applied.nextInlineEdit
+        inlineEditSessionState = applied.nextInlineSessionState
+        editSessionOriginalCellState = applied.nextEditSessionOriginalCellState
+        selectedCellId = applied.nextSelectedCellId
+        counterUi = applied.nextCounterUi
+    }
+
+    fun applyInlineEditResult(result: InlineEditActionResult) {
+        reflectInlineAppliedState(
+            TableEditorInlineEditResultApplier.apply(buildInlineEditApplyInput(result))
+        )
+    }
+
+    fun runInlineAction(action: (InlineEditSessionContext) -> InlineEditActionResult): InlineEditActionResult {
+        val result = action(currentInlineEditSessionContext())
+        applyInlineEditResult(result)
+        return result
+    }
+
+    fun runInlineCommitAction(): InlineEditActionResult = runInlineAction(TableEditorInlineEditActions::commitIfNeeded)
+
+    fun commitInlineEditIfNeeded() {
+        runInlineCommitAction()
     }
 
 
@@ -924,12 +946,12 @@ fun TableEditorScreen(
     }
 
     LaunchedEffect(bottomPanelMode, selectedCellId, currentTemplate.cells) {
-        applyInlineEditResult(
+        runInlineAction { context ->
             TableEditorInlineEditActions.syncSessionSnapshot(
-                context = currentInlineEditSessionContext(),
+                context = context,
                 shouldTrackSessionSnapshot = bottomPanelMode == BottomEditorPanelMode.CELL_EDIT,
             )
-        )
+        }
     }
 
     fun applyStructureActionResult(result: StructureActionResult) {
@@ -1053,13 +1075,14 @@ fun TableEditorScreen(
 
     // 주요 정책: 셀 선택 전에는 inline 값을 항상 먼저 commit 시도해 유실을 막는다.
     fun requestSelectCell(cellId: String?) {
-        val result = TableEditorInlineEditActions.requestCellSelection(
-            context = currentInlineEditSessionContext(),
-            requestedCellId = cellId,
-            shouldTrackSessionSnapshot = bottomPanelMode == BottomEditorPanelMode.CELL_EDIT,
-            allowReselectCurrentCell = isStructureEditMode(),
-        )
-        applyInlineEditResult(result)
+        val result = runInlineAction { context ->
+            TableEditorInlineEditActions.requestCellSelection(
+                context = context,
+                requestedCellId = cellId,
+                shouldTrackSessionSnapshot = bottomPanelMode == BottomEditorPanelMode.CELL_EDIT,
+                allowReselectCurrentCell = isStructureEditMode(),
+            )
+        }
         if (result.wasBlocked) return
         if (isStructureEditMode()) {
             val selected = cellId?.let { setOf(it) } ?: emptySet()
@@ -1071,8 +1094,7 @@ fun TableEditorScreen(
     // 주요 정책: 패널 모드 변경 전에도 inline commit을 우선 보장한다.
     fun requestBottomPanelModeChange(nextMode: BottomEditorPanelMode) {
         if (bottomPanelMode == nextMode) return
-        val result = TableEditorInlineEditActions.commitIfNeeded(currentInlineEditSessionContext())
-        applyInlineEditResult(result)
+        val result = runInlineCommitAction()
         if (result.wasBlocked) return
 
         val wasStructureMode = isStructureEditMode()
@@ -1138,8 +1160,7 @@ fun TableEditorScreen(
 
     // Save/Reset/Back 동작은 editor 내부 local state를 기준으로 유지하되, 구현만 별도 helper로 분리한다.
     fun saveTemplate(exitAfterSave: Boolean = false) {
-        val inlineResult = TableEditorInlineEditActions.commitIfNeeded(currentInlineEditSessionContext())
-        applyInlineEditResult(inlineResult)
+        val inlineResult = runInlineCommitAction()
         if (inlineResult.wasBlocked) return
         isSavingTemplate = true
         val savePayload = editableTemplateState
@@ -1497,16 +1518,15 @@ fun TableEditorScreen(
                                 formatDialog = formatDialog.open(cellId, type)
                             },
                             onEditingValueChange = { nextValue ->
-                                applyInlineEditResult(
+                                runInlineAction { context ->
                                     TableEditorInlineEditActions.applyInlineValueChange(
-                                        context = currentInlineEditSessionContext(),
+                                        context = context,
                                         nextValue = nextValue,
                                     )
-                                )
+                                }
                             },
                             onTryCommitInlineAndContinue = {
-                                val result = TableEditorInlineEditActions.commitIfNeeded(currentInlineEditSessionContext())
-                                applyInlineEditResult(result)
+                                val result = runInlineCommitAction()
                                 !result.wasBlocked
                             },
                             onAddRow = {
