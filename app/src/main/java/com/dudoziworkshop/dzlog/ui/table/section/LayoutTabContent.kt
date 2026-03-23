@@ -126,7 +126,7 @@ fun LayoutTabContent(
                                         selected.dataType == com.dudoziworkshop.dzlog.domain.model.TableCellDataType.NUMBER ||
                                         selected.dataType == com.dudoziworkshop.dzlog.domain.model.TableCellDataType.COUNTER)
                             if (isPanelEditingTextCell) {
-                                // 주요 정책: 표 내부 인라인 에디터를 제거했으므로, 패널 draft(editingValue)를 표 렌더 텍스트에 즉시 반영한다.
+                                // 주요 정책: 표 내부 인라인 에디터를 제거했으므로, CELL_EDIT 입력 UI 상태(editingValue)를 표 렌더 텍스트에 즉시 반영한다.
                                 uiState.editingValue
                             } else {
                                 uiState.plan.resolvedCells.firstOrNull { it.id == cellId }?.resolvedText.orEmpty()
@@ -258,9 +258,6 @@ fun LayoutTabContent(
             onOpenRotatingTemplateDialogForSelected = actions.onOpenRotatingTemplateDialogForSelected,
             onStartInlineEditing = actions.onStartInlineEditing,
             onEditingValueChange = actions.onEditingValueChange,
-            onCommitInline = actions.onCommitInline,
-            onSaveSelectedCell = actions.onSaveSelectedCell,
-            onRevertSelectedCell = actions.onRevertSelectedCell,
             onSelectFileNameSlot = actions.onSelectFileNameSlot,
             onFillEmptyFileNameSlot = actions.onFillEmptyFileNameSlot,
             onMoveSelectedFileNameSlotLeft = actions.onMoveSelectedFileNameSlotLeft,

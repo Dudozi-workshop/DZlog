@@ -23,8 +23,7 @@ class TableEditorInlineEditActionsTest {
             selectedCellId = cell.cellId,
             inlineEdit = InlineEditState(
                 editingCellId = cell.cellId,
-                editingValue = cell.toEditableText(),
-                editingOriginalValue = cell.toEditableText(),
+                editingValue = cell.toEditableText()
             ),
         )
 
@@ -36,7 +35,7 @@ class TableEditorInlineEditActionsTest {
         assertEquals("a", result.nextTemplate?.cells?.first { it.cellId == cell.cellId }?.rawText)
         assertEquals("a", result.nextInlineEdit.editingValue)
         assertTrue(result.shouldApplyTemplateWithUndo)
-        assertFalse(result.shouldUpdateTemplateDraftDirectly)
+        assertFalse(result.shouldApplyTemplateDirectly)
         assertEquals(cell.cellId, result.nextInlineSessionState.activeCellId)
         assertTrue(result.nextInlineSessionState.hasPushedUndoSnapshot)
     }
@@ -52,15 +51,13 @@ class TableEditorInlineEditActionsTest {
             selectedCellId = cell.cellId,
             inlineEdit = InlineEditState(
                 editingCellId = cell.cellId,
-                editingValue = "a",
-                editingOriginalValue = cell.toEditableText(),
+                editingValue = "a"
             ),
             inlineSessionState = InlineEditSessionState(
                 activeCellId = cell.cellId,
                 hasPushedUndoSnapshot = true,
             ),
             editSessionOriginalCellState = cell.copy(),
-            editSessionSnapshotCellId = cell.cellId,
         )
 
         val result = TableEditorInlineEditActions.applyInlineValueChange(
@@ -70,7 +67,7 @@ class TableEditorInlineEditActionsTest {
 
         assertEquals("abc", result.nextTemplate?.cells?.first { it.cellId == cell.cellId }?.rawText)
         assertFalse(result.shouldApplyTemplateWithUndo)
-        assertTrue(result.shouldUpdateTemplateDraftDirectly)
+        assertTrue(result.shouldApplyTemplateDirectly)
         assertEquals(cell.cellId, result.nextInlineSessionState.activeCellId)
         assertTrue(result.nextInlineSessionState.hasPushedUndoSnapshot)
     }
@@ -88,15 +85,13 @@ class TableEditorInlineEditActionsTest {
             selectedCellId = sourceCell.cellId,
             inlineEdit = InlineEditState(
                 editingCellId = sourceCell.cellId,
-                editingValue = "edited",
-                editingOriginalValue = sourceCell.toEditableText(),
+                editingValue = "edited"
             ),
             inlineSessionState = InlineEditSessionState(
                 activeCellId = sourceCell.cellId,
                 hasPushedUndoSnapshot = true,
             ),
             editSessionOriginalCellState = sourceCell.copy(),
-            editSessionSnapshotCellId = sourceCell.cellId,
         )
 
         val result = TableEditorInlineEditActions.requestCellSelection(
@@ -125,8 +120,7 @@ class TableEditorInlineEditActionsTest {
             selectedCellId = cell.cellId,
             inlineEdit = InlineEditState(
                 editingCellId = cell.cellId,
-                editingValue = "edited",
-                editingOriginalValue = cell.toEditableText(),
+                editingValue = "edited"
             ),
             inlineSessionState = InlineEditSessionState(
                 activeCellId = cell.cellId,
@@ -152,15 +146,13 @@ class TableEditorInlineEditActionsTest {
             selectedCellId = sourceCell.cellId,
             inlineEdit = InlineEditState(
                 editingCellId = sourceCell.cellId,
-                editingValue = "not-a-number",
-                editingOriginalValue = "3",
+                editingValue = "not-a-number"
             ),
             inlineSessionState = InlineEditSessionState(
                 activeCellId = sourceCell.cellId,
                 hasPushedUndoSnapshot = true,
             ),
             editSessionOriginalCellState = sourceCell.copy(),
-            editSessionSnapshotCellId = sourceCell.cellId,
         )
 
         val result = TableEditorInlineEditActions.requestCellSelection(
@@ -177,73 +169,7 @@ class TableEditorInlineEditActionsTest {
         assertNull(result.nextTemplate)
     }
 
-    @Test
-    fun save_selected_cell_now_only_finishes_session_without_reapplying_text_value() {
-        val template = defaultTableTemplateState()
-        val cell = template.cells.first()
-        val editedTemplate = updateCell(template, cell.cellId) {
-            it.copy(rawText = "saved value", typedValue = CellValue.Text("saved value"))
-        }
-        val context = context(
-            currentTemplate = editedTemplate,
-            selectedCellId = cell.cellId,
-            inlineEdit = InlineEditState(
-                editingCellId = cell.cellId,
-                editingValue = "saved value",
-                editingOriginalValue = cell.toEditableText(),
-            ),
-            inlineSessionState = InlineEditSessionState(
-                activeCellId = cell.cellId,
-                hasPushedUndoSnapshot = true,
-            ),
-        )
 
-        val result = TableEditorInlineEditActions.requestSaveSelectedCell(
-            context = context,
-            shouldTrackSessionSnapshot = true,
-        )
-
-        assertNull(result.nextInlineEdit.editingCellId)
-        assertNull(result.nextInlineSessionState.activeCellId)
-        assertFalse(result.nextInlineSessionState.hasPushedUndoSnapshot)
-        assertEquals(cell.cellId, result.nextSelectedCellId)
-    }
-
-    @Test
-    fun revert_selected_cell_restores_original_snapshot_without_restarting_inline_session() {
-        val template = defaultTableTemplateState()
-        val cell = template.cells.first()
-        val editedTemplate = updateCell(template, cell.cellId) {
-            it.copy(rawText = "edited", typedValue = CellValue.Text("edited"))
-        }
-        val context = context(
-            currentTemplate = editedTemplate,
-            selectedCellId = cell.cellId,
-            inlineEdit = InlineEditState(
-                editingCellId = cell.cellId,
-                editingValue = "edited",
-                editingOriginalValue = cell.toEditableText(),
-            ),
-            inlineSessionState = InlineEditSessionState(
-                activeCellId = cell.cellId,
-                hasPushedUndoSnapshot = true,
-            ),
-            editSessionOriginalCellState = cell.copy(),
-            editSessionSnapshotCellId = cell.cellId,
-        )
-
-        val result = TableEditorInlineEditActions.requestRevertSelectedCell(
-            context = context,
-            shouldTrackSessionSnapshot = true,
-        )
-
-        val revertedCell = result.nextTemplate?.cells?.first { it.cellId == cell.cellId }
-        assertEquals(cell.rawText, revertedCell?.rawText)
-        assertEquals(cell.typedValue, revertedCell?.typedValue)
-        assertNull(result.nextInlineEdit.editingCellId)
-        assertNull(result.nextInlineSessionState.activeCellId)
-        assertFalse(result.nextInlineSessionState.hasPushedUndoSnapshot)
-    }
 
     @Test
     fun sync_session_snapshot_keeps_same_cell_snapshot_and_clears_when_tracking_is_disabled() {
@@ -253,7 +179,6 @@ class TableEditorInlineEditActionsTest {
             currentTemplate = template,
             selectedCellId = firstCell.cellId,
             editSessionOriginalCellState = firstCell.copy(rawText = "origin"),
-            editSessionSnapshotCellId = firstCell.cellId,
             inlineSessionState = InlineEditSessionState(
                 activeCellId = firstCell.cellId,
                 hasPushedUndoSnapshot = true,
@@ -270,9 +195,8 @@ class TableEditorInlineEditActionsTest {
         )
 
         assertEquals("origin", tracked.nextEditSessionOriginalCellState?.rawText)
-        assertEquals(firstCell.cellId, tracked.nextEditSessionSnapshotCellId)
+        assertEquals(firstCell.cellId, tracked.nextEditSessionOriginalCellState?.cellId)
         assertNull(cleared.nextEditSessionOriginalCellState)
-        assertNull(cleared.nextEditSessionSnapshotCellId)
     }
 
     private fun context(
@@ -281,7 +205,6 @@ class TableEditorInlineEditActionsTest {
         selectedCellId: String? = null,
         inlineSessionState: InlineEditSessionState = InlineEditSessionState(),
         editSessionOriginalCellState: TableCellState? = null,
-        editSessionSnapshotCellId: String? = null,
         autoNextCounterValue: Int = 10,
         lowCounterWarningLatchedInSession: Boolean = false,
     ): InlineEditSessionContext {
@@ -291,7 +214,6 @@ class TableEditorInlineEditActionsTest {
             selectedCellId = selectedCellId,
             inlineSessionState = inlineSessionState,
             editSessionOriginalCellState = editSessionOriginalCellState,
-            editSessionSnapshotCellId = editSessionSnapshotCellId,
             autoNextCounterValue = autoNextCounterValue,
             lowCounterWarningLatchedInSession = lowCounterWarningLatchedInSession,
             updateCell = ::updateCell,
