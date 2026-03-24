@@ -68,7 +68,6 @@ fun Modifier.dzScreen(): Modifier =
         .windowInsetsPadding(
             WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
         )
-        .padding(bottom = extraBottomPadding)
     }
 
 
@@ -88,8 +87,11 @@ fun DzScreenInsetDebugOverlay(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .padding(12.dp),
-        contentAlignment = Alignment.BottomEnd
+            .windowInsetsPadding(
+                WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+            )
+            .padding(8.dp),
+        contentAlignment = Alignment.TopEnd
     ) {
         Box(
             modifier = Modifier
