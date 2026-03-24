@@ -170,3 +170,21 @@
   - selected cell domain action: `TableEditorSelectedCellActionBinder` + `selectedCellActionBindings`
   - selection/focus action: `selectionActionBindings` + selection 관련 binder entrypoint
   - inline editing action: `inlineEditingActionBindings` + inline 관련 binder entrypoint
+
+## 6) Build recovery pass (compileDebugKotlin stabilization)
+
+- 이번 단계는 리팩터링 확장이 아니라 **빌드 복구 + wiring 보정**을 목표로 진행했다.
+- `TableEditorSelectedCounterResetCoordinator` 계열 선언을 internal로 통일해 internal type 노출 visibility 에러를 제거했다.
+- `withDataType` 확장을 Screen private/local scope에서 `feature/table/editor` 공용 top-level helper로 이동해 Screen/Binder가 동일 구현을 공유하도록 정리했다.
+- Screen에서 누락된 binding 생성(`selectionActionBindings`, `inlineEditingActionBindings`)을 복구해 binder/coordinator 연결 공백을 메웠다.
+- weight reset은 별도 helper 재도입 없이 `LayoutTabActions` wiring 람다에서 직접 `applyTemplateWithUndo(reset...)`로 복구해 동작 의미를 유지했다.
+
+## 7) Screen thinning pass (wrapper trim + role alignment)
+
+- `buildBottomPanelModeChangeInput(...)` 같은 얇은 input wrapper는 유지하지 않고, `requestBottomPanelModeChange(...)`에서 `TableEditorBottomPanelModeChangeInput(...)`를 직접 생성하는 흐름으로 정리했다.
+- bottom panel mode change 흐름은 `inline commit -> resolver.resolve(...) -> reflectBottomPanelModeChangedState(...)` 순서로 유지된다.
+- binder 축 이름/역할 가독성을 맞추기 위해 selection/focus + inline editing 축 binder 명을 `TableEditorSelectionInlineEditingActionBinder`로 정렬했다.
+- 역할 축은 아래 3개를 기준으로 유지한다.
+  - selected cell domain action: `TableEditorSelectedCellActionBinder` + `selectedCellActionBindings`
+  - selection/focus action: `selectionActionBindings` + selection 관련 binder entrypoint
+  - inline editing action: `inlineEditingActionBindings` + inline 관련 binder entrypoint

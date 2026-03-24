@@ -45,6 +45,7 @@ import com.dudoziworkshop.dzlog.ui.log.LogGridScreen
 import com.dudoziworkshop.dzlog.ui.log.LogViewerScreen
 import com.dudoziworkshop.dzlog.ui.log.ORIGINAL_PHOTOS_TITLE
 import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
+import com.dudoziworkshop.dzlog.ui.common.DzScreenInsetDebugOverlay
 import com.dudoziworkshop.dzlog.ui.table.detail.TableDetailRoute
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.flow.first
@@ -680,4 +681,6 @@ fun AppRoot() {
             }
         }
     }
+
+    DzScreenInsetDebugOverlay()
 }

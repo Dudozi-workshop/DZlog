@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.view.WindowCompat
 import com.dudoziworkshop.dzlog.ui.camera.VolumeKeyInputBus
 import com.dudoziworkshop.dzlog.ui.navigation.AppRoot
 import com.dudoziworkshop.dzlog.ui.theme.DDZTheme
@@ -17,6 +18,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             DDZTheme {
                 AppRoot()
