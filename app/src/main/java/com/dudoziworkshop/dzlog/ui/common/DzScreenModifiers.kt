@@ -4,7 +4,10 @@ import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateBottomPadding
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -31,8 +34,12 @@ fun Modifier.dzScreen(): Modifier =
         val density = LocalDensity.current
         val fallbackPx = with(density) { FallbackButtonNavBarHeight.roundToPx() }
         val resolvedNavBarHeightPx = context.resolveButtonNavBarHeightPx()
-        val unifiedBottomPadding = with(density) {
-            maxOf(resolvedNavBarHeightPx, fallbackPx).toDp()
+        val baselineBottomPadding = with(density) { maxOf(resolvedNavBarHeightPx, fallbackPx).toDp() }
+        val currentInsetBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val extraBottomPadding = if (baselineBottomPadding > currentInsetBottomPadding) {
+            baselineBottomPadding - currentInsetBottomPadding
+        } else {
+            0.dp
         }
         base
         .fillMaxSize()
@@ -40,7 +47,7 @@ fun Modifier.dzScreen(): Modifier =
         .windowInsetsPadding(
             WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
         )
-        .padding(bottom = unifiedBottomPadding)
+        .padding(bottom = extraBottomPadding)
     }
 
 
