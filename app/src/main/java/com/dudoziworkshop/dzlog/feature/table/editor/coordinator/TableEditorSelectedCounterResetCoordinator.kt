@@ -9,7 +9,7 @@ import com.dudoziworkshop.dzlog.feature.counter.table.restoreCounterCellToAutoNe
 import com.dudoziworkshop.dzlog.ui.table.editor.InlineEditState
 import kotlinx.coroutines.CoroutineScope
 
-data class TableEditorSelectedCounterResetInput(
+internal data class TableEditorSelectedCounterResetInput(
     val selectedCell: TableCellState?,
     val templateState: TableTemplateState,
     val counterRequest: com.dudoziworkshop.dzlog.feature.counter.core.CounterRequest,
@@ -22,14 +22,14 @@ data class TableEditorSelectedCounterResetInput(
     val scope: CoroutineScope,
 )
 
-data class TableEditorSelectedCounterResetResult(
+internal data class TableEditorSelectedCounterResetResult(
     val nextInlineEdit: InlineEditState,
     val toastMessage: String?,
 )
 
-object TableEditorSelectedCounterResetCoordinator {
+internal object TableEditorSelectedCounterResetCoordinator {
 
-    fun resetToAutoNext(input: TableEditorSelectedCounterResetInput): TableEditorSelectedCounterResetResult {
+    internal fun resetToAutoNext(input: TableEditorSelectedCounterResetInput): TableEditorSelectedCounterResetResult {
         val cell = input.selectedCell
             ?: return TableEditorSelectedCounterResetResult(
                 nextInlineEdit = input.inlineEdit,

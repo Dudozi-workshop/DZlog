@@ -1,10 +1,12 @@
 package com.dudoziworkshop.dzlog.ui.navigation
 
+import android.graphics.Color
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -18,8 +20,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.core.view.WindowInsetsControllerCompat
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ORIENTATION_MODE
@@ -121,6 +125,7 @@ fun AppRoot() {
     val tableTemplateState = tableTemplateViewModel.tableTemplateState
 
     val context = LocalContext.current
+    val view = LocalView.current
     val activity = context as? android.app.Activity
 
     val appSettings by AppSettingsStore.flow(context).collectAsState(
@@ -143,6 +148,20 @@ fun AppRoot() {
     var lastBackPressedMs by remember { mutableLongStateOf(0L) }
     var hasRestoredTemplate by remember { mutableStateOf(false) }
     val appScope = rememberCoroutineScope()
+
+    DisposableEffect(screen, view) {
+        val window = activity?.window ?: return@DisposableEffect onDispose { }
+        val insetsController = WindowInsetsControllerCompat(window, view)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+        insetsController.isAppearanceLightStatusBars = screen != AppScreen.CAMERA
+        insetsController.isAppearanceLightNavigationBars = screen != AppScreen.CAMERA
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            window.isStatusBarContrastEnforced = false
+            window.isNavigationBarContrastEnforced = false
+        }
+        onDispose { }
+    }
 
     LaunchedEffect(Unit) {
         orientationMode = try {

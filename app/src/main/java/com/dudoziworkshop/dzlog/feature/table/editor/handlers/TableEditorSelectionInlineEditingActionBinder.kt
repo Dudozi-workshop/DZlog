@@ -34,7 +34,7 @@ data class TableEditorInlineEditingActionBindings(
     val setShowCellSettingsPanel: (Boolean) -> Unit,
 )
 
-object TableEditorInlineSelectionActionBinder {
+object TableEditorSelectionInlineEditingActionBinder {
 
     fun requestSelectCell(bindings: TableEditorSelectionActionBindings, cellId: String?) {
         val result = bindings.runInlineAction { context ->

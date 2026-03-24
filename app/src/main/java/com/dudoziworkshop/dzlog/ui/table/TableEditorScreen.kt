@@ -49,14 +49,12 @@ import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
-import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.naming.resolveFileNameScopeTokensFromDrafts
 import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
@@ -105,7 +103,7 @@ import com.dudoziworkshop.dzlog.feature.table.editor.handlers.PathSlotEditorUiSt
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorBottomPanelModeChangeInput
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorFileNameSlotActionBindings
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorInlineEditingActionBindings
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorInlineSelectionActionBinder
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSelectionInlineEditingActionBinder
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSelectionActionBindings
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorPathSlotActionBindings
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSelectedCellActionBindings
@@ -429,22 +427,6 @@ fun TableEditorScreen(
         showPathManualInputEditor = result.showManualInputEditor
         pathManualInputDraft = result.manualInputDraft
     }
-
-    val fileNameSlotActionBindings = TableEditorFileNameSlotActionBindings(
-        currentState = ::currentFileNameSlotEditorState,
-        applyResult = ::applyFileNameSlotUiResult,
-        moveSlot = ::moveFileNameSlot,
-        removeSlotAt = ::removeFileNameSlotAt,
-        resolveCellLabel = ::resolveSelectedCellLabel,
-    )
-
-    val pathSlotActionBindings = TableEditorPathSlotActionBindings(
-        currentState = ::currentPathSlotEditorState,
-        applyResult = ::applyPathSlotUiResult,
-        moveSlot = ::movePathSlot,
-        removeSlotAt = ::removePathSlotAt,
-        resolveCellLabel = ::resolveSelectedCellLabel,
-    )
 
     // 탭1 스크롤 (분리)
 
@@ -822,6 +804,29 @@ fun TableEditorScreen(
         plan.resolvedCells.associate { it.id to it.resolvedText }
     }
 
+    fun resolveSelectedCellLabel(targetCellId: String): String {
+        return currentTemplate.cells.firstOrNull { it.cellId == targetCellId }?.let { cell ->
+            resolvedByCellId[cell.cellId]?.takeIf { it.isNotBlank() }
+                ?: "셀(${cell.rowIndex + 1},${cell.colIndex + 1})"
+        } ?: "셀"
+    }
+
+    val fileNameSlotActionBindings = TableEditorFileNameSlotActionBindings(
+        currentState = ::currentFileNameSlotEditorState,
+        applyResult = ::applyFileNameSlotUiResult,
+        moveSlot = ::moveFileNameSlot,
+        removeSlotAt = ::removeFileNameSlotAt,
+        resolveCellLabel = ::resolveSelectedCellLabel,
+    )
+
+    val pathSlotActionBindings = TableEditorPathSlotActionBindings(
+        currentState = ::currentPathSlotEditorState,
+        applyResult = ::applyPathSlotUiResult,
+        moveSlot = ::movePathSlot,
+        removeSlotAt = ::removePathSlotAt,
+        resolveCellLabel = ::resolveSelectedCellLabel,
+    )
+
     var watermarkUi by remember { mutableStateOf(TablePlacementState()) }
     var initialPlacementSnapshot by remember { mutableStateOf(TablePlacementState()) }
     var isWmRatioLocked by rememberSaveable { mutableStateOf(false) }
@@ -947,6 +952,27 @@ fun TableEditorScreen(
         updateTemplateDraft = ::updateTemplateDraft,
         showCellSettingsPanel = { showCellSettingsPanel = it },
         openRotatingPhraseTemplateDialog = ::openRotatingPhraseTemplateDialog,
+    )
+
+    val selectionActionBindings = TableEditorSelectionActionBindings(
+        currentTemplate = { currentTemplate },
+        currentBottomPanelMode = { bottomPanelMode },
+        isStructureEditMode = ::isStructureEditMode,
+        runInlineAction = ::runInlineAction,
+        setStructureSelectedCellIds = { structureSelectedCellIds = it },
+        setStructureSelectionRange = { structureSelectionRange = it },
+        setSelectedCellId = { selectedCellId = it },
+    )
+
+    val inlineEditingActionBindings = TableEditorInlineEditingActionBindings(
+        currentInlineEdit = { inlineEdit },
+        setInlineEdit = { inlineEdit = it },
+        currentFormatDialog = { formatDialog },
+        setFormatDialog = { formatDialog = it },
+        runInlineAction = ::runInlineAction,
+        runInlineCommitAction = ::runInlineCommitAction,
+        commitInlineEditIfNeeded = ::commitInlineEditIfNeeded,
+        setShowCellSettingsPanel = { showCellSettingsPanel = it },
     )
 
     LaunchedEffect(currentTemplate.cells, selectedCellId) {
@@ -1368,13 +1394,6 @@ fun TableEditorScreen(
         onCancel = { showUnsavedChangesDialog = false },
     )
 
-    fun resolveSelectedCellLabel(targetCellId: String): String {
-        return currentTemplate.cells.firstOrNull { it.cellId == targetCellId }?.let { cell ->
-            resolvedByCellId[cell.cellId]?.takeIf { it.isNotBlank() }
-                ?: "셀(${cell.rowIndex + 1},${cell.colIndex + 1})"
-        } ?: "셀"
-    }
-
     fun resetSelectedCounterSeed() {
         val result = TableEditorSelectedCounterResetCoordinator.resetToAutoNext(
             TableEditorSelectedCounterResetInput(
@@ -1398,10 +1417,10 @@ fun TableEditorScreen(
 
     fun buildLayoutTabActions(): LayoutTabActions = LayoutTabActions(
         onSelectCellId = { cellId ->
-            TableEditorInlineSelectionActionBinder.requestSelectCell(selectionActionBindings, cellId)
+            TableEditorSelectionInlineEditingActionBinder.requestSelectCell(selectionActionBindings, cellId)
         },
         onSelectStructureRange = { startId, endId ->
-            TableEditorInlineSelectionActionBinder.selectStructureRange(selectionActionBindings, startId, endId)
+            TableEditorSelectionInlineEditingActionBinder.selectStructureRange(selectionActionBindings, startId, endId)
         },
         onChangeBottomPanelMode = ::requestBottomPanelModeChange,
         onCloseBottomPanel = ::requestCloseBottomPanelToNone,
@@ -1467,29 +1486,35 @@ fun TableEditorScreen(
             TableEditorSlotActionBinder.bindSelectedPathSlotToCell(pathSlotActionBindings, cellId)
         },
         onStartInlineEditing = { cellId, value ->
-            TableEditorInlineSelectionActionBinder.startCellInlineEditing(inlineEditingActionBindings, cellId, value)
+            TableEditorSelectionInlineEditingActionBinder.startCellInlineEditing(inlineEditingActionBindings, cellId, value)
         },
         onOpenFormatDialog = { cellId, type ->
-            TableEditorInlineSelectionActionBinder.openCellFormatDialog(inlineEditingActionBindings, cellId, type)
+            TableEditorSelectionInlineEditingActionBinder.openCellFormatDialog(inlineEditingActionBindings, cellId, type)
         },
         onEditingValueChange = { nextValue ->
-            TableEditorInlineSelectionActionBinder.applyInlineEditingValue(inlineEditingActionBindings, nextValue)
+            TableEditorSelectionInlineEditingActionBinder.applyInlineEditingValue(inlineEditingActionBindings, nextValue)
         },
         onTryCommitInlineAndContinue = {
-            TableEditorInlineSelectionActionBinder.tryCommitInlineAndContinue(inlineEditingActionBindings)
+            TableEditorSelectionInlineEditingActionBinder.tryCommitInlineAndContinue(inlineEditingActionBindings)
         },
         onAddRow = { applyStructureAddOrRestore(StructureRestoreAxis.ROW) },
         onRemoveRow = { applyStructureRemove(StructureRestoreAxis.ROW) },
         onAddCol = { applyStructureAddOrRestore(StructureRestoreAxis.COL) },
         onRemoveCol = { applyStructureRemove(StructureRestoreAxis.COL) },
-        onResetRowWeights = ::resetRowWeightsWithUndo,
-        onResetColumnWeights = ::resetColumnWeightsWithUndo,
-        onResetAllWeights = ::resetAllWeightsWithUndo,
+        onResetRowWeights = {
+            applyTemplateWithUndo(resetRowWeights(currentTemplate))
+        },
+        onResetColumnWeights = {
+            applyTemplateWithUndo(resetColumnWeights(currentTemplate))
+        },
+        onResetAllWeights = {
+            applyTemplateWithUndo(resetColumnWeights(resetRowWeights(currentTemplate)))
+        },
         onUndo = ::applyUndo,
         onReset = ::resetEditorToInitialSnapshot,
         onSave = { saveTemplate(exitAfterSave = false) },
         onDismissSettingsPanel = {
-            TableEditorInlineSelectionActionBinder.dismissCellSettingsPanel(inlineEditingActionBindings)
+            TableEditorSelectionInlineEditingActionBinder.dismissCellSettingsPanel(inlineEditingActionBindings)
         },
         onToggleFileNameForSelected = { cellId, enabled ->
             TableEditorSlotActionBinder.toggleFileNameForSelectedCell(fileNameSlotActionBindings, cellId, enabled)
@@ -1639,68 +1664,5 @@ fun TableEditorScreen(
 
         }
 
-    }
-}
-
-/**
- * DataType 변경 시 공통 규칙(일관 UX)
- * - rawText는 절대 자동 변경하지 않는다 (사용자가 TEXT 편집할 때만 변경)
- * - TEXT/NUMBER로 전환 시 typedValue를 rawText 기반으로 동기화
- * - DATE/TIME은 captureNow 기준 자동 적용(typedValue=Auto)
- * - TIME은 옵션이 없으면 기본 옵션을 부여
- * - COUNTER는 seed가 없으면 1로 초기화
- */
-private fun TableCellState.withDataType(newType: TableCellDataType): TableCellState {
-    val next = when (newType) {
-        TableCellDataType.TEXT -> this.copy(
-            dataType = newType,
-            typedValue = CellValue.Text(this.rawText),
-            timeFormatOptions = null,
-            counterScopeMode = null,
-        )
-
-        TableCellDataType.NUMBER -> this.copy(
-            dataType = newType,
-            typedValue = CellValue.Number(this.rawText),
-            timeFormatOptions = null,
-            counterScopeMode = null,
-        )
-
-        TableCellDataType.DATE -> this.copy(
-            dataType = newType,
-            typedValue = CellValue.Auto,
-            timeFormatOptions = null,
-            counterScopeMode = CounterScopeMode.EXCLUDE,
-        )
-
-        TableCellDataType.TIME -> this.copy(
-            dataType = newType,
-            typedValue = CellValue.Auto,
-            timeFormatOptions = this.timeFormatOptions ?: TimeFormatOptions(),
-            counterScopeMode = CounterScopeMode.EXCLUDE,
-        )
-
-        TableCellDataType.COUNTER -> this.copy(
-            dataType = newType,
-            typedValue = (this.typedValue as? CellValue.CounterSeed) ?: CellValue.CounterSeed(1),
-            timeFormatOptions = null,
-            counterScopeMode = null,
-        )
-
-        TableCellDataType.ROTATING_TEXT -> this.copy(
-            dataType = newType,
-            typedValue = CellValue.Auto,
-            timeFormatOptions = null,
-            counterScopeMode = null,
-        )
-    }
-
-    return if (newType == TableCellDataType.ROTATING_TEXT) {
-        next
-    } else {
-        next.copy(
-            phraseSetId = null,
-            everyOverride = null
-        )
     }
 }
