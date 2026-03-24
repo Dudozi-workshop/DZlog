@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.ui.navigation
 
-import android.graphics.Color
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -19,6 +18,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.ViewModel
@@ -46,6 +46,7 @@ import com.dudoziworkshop.dzlog.ui.log.LogViewerScreen
 import com.dudoziworkshop.dzlog.ui.log.ORIGINAL_PHOTOS_TITLE
 import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
 import com.dudoziworkshop.dzlog.ui.table.detail.TableDetailRoute
+import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -152,8 +153,9 @@ fun AppRoot() {
     DisposableEffect(screen, view) {
         val window = activity?.window ?: return@DisposableEffect onDispose { }
         val insetsController = WindowInsetsControllerCompat(window, view)
-        window.statusBarColor = Color.TRANSPARENT
-        window.navigationBarColor = Color.TRANSPARENT
+        val appBackgroundColor = DDZColor.Background.toArgb()
+        window.statusBarColor = appBackgroundColor
+        window.navigationBarColor = appBackgroundColor
         insetsController.isAppearanceLightStatusBars = screen != AppScreen.CAMERA
         insetsController.isAppearanceLightNavigationBars = screen != AppScreen.CAMERA
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {

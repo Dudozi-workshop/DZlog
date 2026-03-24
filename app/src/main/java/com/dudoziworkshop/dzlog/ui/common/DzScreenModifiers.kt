@@ -1,28 +1,47 @@
 package com.dudoziworkshop.dzlog.ui.common
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+
+private val FallbackButtonNavBarHeight = 48.dp
+
+private fun Context.resolveButtonNavBarHeightPx(): Int {
+    val resourceId = resources.getIdentifier("navigation_bar_height", "dimen", "android")
+    if (resourceId <= 0) return 0
+    return resources.getDimensionPixelSize(resourceId)
+}
 
 @Composable
 fun Modifier.dzScreen(): Modifier =
-    this
+    this.let { base ->
+        val context = LocalContext.current
+        val density = LocalDensity.current
+        val fallbackPx = with(density) { FallbackButtonNavBarHeight.roundToPx() }
+        val resolvedNavBarHeightPx = context.resolveButtonNavBarHeightPx()
+        val unifiedBottomPadding = with(density) {
+            maxOf(resolvedNavBarHeightPx, fallbackPx).toDp()
+        }
+        base
         .fillMaxSize()
         .background(DDZColor.Background)
         .windowInsetsPadding(
             WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
         )
-        .windowInsetsPadding(
-            WindowInsets.navigationBarsIgnoringVisibility.only(WindowInsetsSides.Bottom)
-        )
+        .padding(bottom = unifiedBottomPadding)
+    }
 
 
 @Composable
