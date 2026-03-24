@@ -4,10 +4,8 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.DeletedStructureSnapshot
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.StructureRestoreAxis
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureDeletionCoordinatorInput
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureDeletionDebugInfo
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureRestoreCoordinator
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureRestoreCoordinatorInput
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureRestoreDebugInfo
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
 import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
 
@@ -21,8 +19,6 @@ data class StructureActionResult(
     val nextStructureSelectedCellIds: Set<String>,
     val nextSelectedCellId: String?,
     val actionLabel: String,
-    val deletionDebugInfo: TableEditorStructureDeletionDebugInfo?,
-    val restoreDebugInfo: TableEditorStructureRestoreDebugInfo?,
 )
 
 data class StructureRemoveInput(
@@ -102,8 +98,6 @@ object TableEditorStructureActions {
                     StructureRestoreAxis.ROW -> "add_row_restore"
                     StructureRestoreAxis.COL -> "add_col_restore"
                 },
-                deletionDebugInfo = null,
-                restoreDebugInfo = restoreResult.debugInfo,
             )
         } else {
             val nextTemplate = input.sanitizeTemplate(
@@ -141,8 +135,6 @@ object TableEditorStructureActions {
                     StructureRestoreAxis.ROW -> "add_row_blank"
                     StructureRestoreAxis.COL -> "add_col_blank"
                 },
-                deletionDebugInfo = null,
-                restoreDebugInfo = null,
             )
         }
     }
@@ -169,13 +161,6 @@ object TableEditorStructureActions {
                 nextDeletedRowsStack = input.editor.deletedRowsStack,
                 nextDeletedColsStack = input.editor.deletedColsStack,
                 actionLabel = actionLabelForRemove(input.axis),
-                deletionDebugInfo = TableEditorStructureDeletionDebugInfo(
-                    axis = input.axis,
-                    deletedRange = requestedRange,
-                    deletedCells = emptyList(),
-                    hasSlotSnapshot = false,
-                ),
-                restoreDebugInfo = null,
             )
         }
 
@@ -219,8 +204,6 @@ object TableEditorStructureActions {
             nextDeletedRowsStack = nextStacks.first,
             nextDeletedColsStack = nextStacks.second,
             actionLabel = actionLabelForRemove(input.axis),
-            deletionDebugInfo = deletionPayload.debugInfo,
-            restoreDebugInfo = null,
         )
     }
 
@@ -233,8 +216,6 @@ object TableEditorStructureActions {
         nextDeletedRowsStack: List<DeletedStructureSnapshot>,
         nextDeletedColsStack: List<DeletedStructureSnapshot>,
         actionLabel: String,
-        deletionDebugInfo: TableEditorStructureDeletionDebugInfo?,
-        restoreDebugInfo: TableEditorStructureRestoreDebugInfo?,
     ): StructureActionResult {
         return StructureActionResult(
             nextTemplate = nextTemplate,
@@ -250,8 +231,6 @@ object TableEditorStructureActions {
                 nextTemplate = nextTemplate,
             ),
             actionLabel = actionLabel,
-            deletionDebugInfo = deletionDebugInfo,
-            restoreDebugInfo = restoreDebugInfo,
         )
     }
 

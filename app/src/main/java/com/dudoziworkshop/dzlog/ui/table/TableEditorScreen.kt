@@ -6,7 +6,6 @@
 
 package com.dudoziworkshop.dzlog.ui.table
 
-import android.content.pm.ApplicationInfo
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,7 +69,6 @@ import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
 import com.dudoziworkshop.dzlog.feature.counter.table.TableCounterUiState
 import com.dudoziworkshop.dzlog.feature.counter.table.applyCounterConflictDialogEffect
 import com.dudoziworkshop.dzlog.feature.counter.table.buildFilenameScopeSignature
-import com.dudoziworkshop.dzlog.feature.counter.table.restoreCounterCellToAutoNext
 import com.dudoziworkshop.dzlog.feature.counter.table.syncCounterStateForScope
 import com.dudoziworkshop.dzlog.feature.counter.table.updateCounterCellAndPolicy
 import com.dudoziworkshop.dzlog.feature.counter.table.updateCounterUiConflictDialogState
@@ -86,25 +84,34 @@ import com.dudoziworkshop.dzlog.feature.table.editor.StructureActionResult
 import com.dudoziworkshop.dzlog.feature.table.editor.StructureAddOrRestoreInput
 import com.dudoziworkshop.dzlog.feature.table.editor.StructureRemoveInput
 import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorInlineEditActions
-import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorInlineEditApplyInput
-import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorInlineEditResultApplier
 import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorStructureActions
 import com.dudoziworkshop.dzlog.feature.table.editor.TableUndoManager
 import com.dudoziworkshop.dzlog.feature.table.editor.buildStructureEditorContext
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorExitCoordinator
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.DeletedStructureSnapshot
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveApplyInput
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveCoordinator
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorInlineActionBindings
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorInlineActionCoordinator
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveResult
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSelectedCounterResetCoordinator
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSelectedCounterResetInput
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveResultApplier
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.StructureRestoreAxis
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureDeletionDebugInfo
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureRestoreDebugInfo
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.FileNameSlotEditorUiResult
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.FileNameSlotEditorUiState
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorFileNameSlotUiHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.PathSlotEditorUiResult
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.PathSlotEditorUiState
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorPathSlotUiHandlers
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorModeTransitionHandlers
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorBottomPanelModeChangeInput
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorFileNameSlotActionBindings
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorInlineEditingActionBindings
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorInlineSelectionActionBinder
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSelectionActionBindings
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorPathSlotActionBindings
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSelectedCellActionBindings
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSelectedCellActionBinder
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotActionBinder
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorBottomPanelModeChangeResolver
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotDraftHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotListHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorTransientStateHandlers
@@ -121,10 +128,6 @@ import com.dudoziworkshop.dzlog.ui.common.dzScaffoldContent
 import com.dudoziworkshop.dzlog.ui.table.editor.InlineEditState
 import com.dudoziworkshop.dzlog.ui.table.editor.clearInlineEditing
 import com.dudoziworkshop.dzlog.ui.table.editor.isEditing
-import com.dudoziworkshop.dzlog.ui.table.editor.startInlineEditing
-import com.dudoziworkshop.dzlog.ui.table.debug.TableEditorDebugOverlay
-import com.dudoziworkshop.dzlog.ui.table.debug.TableEditorDebugOverlaySource
-import com.dudoziworkshop.dzlog.ui.table.debug.buildTableEditorDebugOverlayState
 import com.dudoziworkshop.dzlog.ui.table.format.TableFormatDialog
 import com.dudoziworkshop.dzlog.ui.table.format.TableFormatDialogState
 import com.dudoziworkshop.dzlog.ui.table.format.close
@@ -222,9 +225,6 @@ fun TableEditorScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val isDebugBuild = remember(context) {
-        (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-    }
 
     var showPlacementDialog by remember { mutableStateOf(false) }
 
@@ -429,6 +429,22 @@ fun TableEditorScreen(
         showPathManualInputEditor = result.showManualInputEditor
         pathManualInputDraft = result.manualInputDraft
     }
+
+    val fileNameSlotActionBindings = TableEditorFileNameSlotActionBindings(
+        currentState = ::currentFileNameSlotEditorState,
+        applyResult = ::applyFileNameSlotUiResult,
+        moveSlot = ::moveFileNameSlot,
+        removeSlotAt = ::removeFileNameSlotAt,
+        resolveCellLabel = ::resolveSelectedCellLabel,
+    )
+
+    val pathSlotActionBindings = TableEditorPathSlotActionBindings(
+        currentState = ::currentPathSlotEditorState,
+        applyResult = ::applyPathSlotUiResult,
+        moveSlot = ::movePathSlot,
+        removeSlotAt = ::removePathSlotAt,
+        resolveCellLabel = ::resolveSelectedCellLabel,
+    )
 
     // 탭1 스크롤 (분리)
 
@@ -767,10 +783,6 @@ fun TableEditorScreen(
     var showUnsavedChangesDialog by remember { mutableStateOf(false) }
     val deletedRowsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
     val deletedColsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
-    var debugOverlayVisible by rememberSaveable { mutableStateOf(false) }
-    var debugLastAction by rememberSaveable { mutableStateOf("init") }
-    var latestStructureDeletionDebugInfo by remember { mutableStateOf<TableEditorStructureDeletionDebugInfo?>(null) }
-    var latestStructureRestoreDebugInfo by remember { mutableStateOf<TableEditorStructureRestoreDebugInfo?>(null) }
 
     fun clearInlineEditingState() {
         inlineEdit = clearInlineEditing(inlineEdit)
@@ -871,7 +883,7 @@ fun TableEditorScreen(
         updateTemplateDraft(nextTemplate)
     }
 
-    fun applyCommittedInlineCounter(
+    fun applyCommittedInlineCounterUpdate(
         templateState: TableTemplateState,
         cellId: String,
         seed: Int,
@@ -897,19 +909,7 @@ fun TableEditorScreen(
         return appliedCounterUi
     }
 
-    fun buildInlineEditApplyInput(result: InlineEditActionResult): TableEditorInlineEditApplyInput {
-        return TableEditorInlineEditApplyInput(
-            result = result,
-            currentTemplate = currentTemplate,
-            currentCounterUi = counterUi,
-            applyTemplateWithUndo = ::applyTemplateWithUndo,
-            applyTemplateDirectly = ::updateTemplateDraft,
-            updateCounterConflictUi = ::updateCounterUiConflictDialogState,
-            applyCommittedCounter = ::applyCommittedInlineCounter,
-        )
-    }
-
-    fun reflectInlineAppliedState(applied: com.dudoziworkshop.dzlog.feature.table.editor.TableEditorInlineEditAppliedState) {
+    fun applyInlineAppliedState(applied: com.dudoziworkshop.dzlog.feature.table.editor.TableEditorInlineEditAppliedState) {
         inlineEdit = applied.nextInlineEdit
         inlineEditSessionState = applied.nextInlineSessionState
         editSessionOriginalCellState = applied.nextEditSessionOriginalCellState
@@ -917,26 +917,37 @@ fun TableEditorScreen(
         counterUi = applied.nextCounterUi
     }
 
-    fun applyInlineEditResult(result: InlineEditActionResult) {
-        reflectInlineAppliedState(
-            TableEditorInlineEditResultApplier.apply(buildInlineEditApplyInput(result))
-        )
-    }
+    val inlineActionBindings = TableEditorInlineActionBindings(
+        currentSessionContext = ::currentInlineEditSessionContext,
+        currentTemplate = { currentTemplate },
+        currentCounterUi = { counterUi },
+        applyTemplateWithUndo = ::applyTemplateWithUndo,
+        applyTemplateDirectly = ::updateTemplateDraft,
+        updateCounterConflictUi = ::updateCounterUiConflictDialogState,
+        applyCommittedCounter = ::applyCommittedInlineCounterUpdate,
+        reflectAppliedState = ::applyInlineAppliedState,
+    )
 
     fun runInlineAction(action: (InlineEditSessionContext) -> InlineEditActionResult): InlineEditActionResult {
-        val result = action(currentInlineEditSessionContext())
-        applyInlineEditResult(result)
-        return result
+        return TableEditorInlineActionCoordinator.runAction(inlineActionBindings, action)
     }
 
-    fun runInlineCommitAction(): InlineEditActionResult = runInlineAction(TableEditorInlineEditActions::commitIfNeeded)
+    fun runInlineCommitAction(): InlineEditActionResult =
+        TableEditorInlineActionCoordinator.runCommitAction(inlineActionBindings)
 
     fun commitInlineEditIfNeeded() {
         runInlineCommitAction()
     }
 
-
     val selectedCell = currentTemplate.cells.firstOrNull { it.cellId == selectedCellId }
+
+    val selectedCellActionBindings = TableEditorSelectedCellActionBindings(
+        currentTemplate = { currentTemplate },
+        currentSelectedCell = { selectedCell },
+        updateTemplateDraft = ::updateTemplateDraft,
+        showCellSettingsPanel = { showCellSettingsPanel = it },
+        openRotatingPhraseTemplateDialog = ::openRotatingPhraseTemplateDialog,
+    )
 
     LaunchedEffect(currentTemplate.cells, selectedCellId) {
         val hasSelectedCell = selectedCellId != null && currentTemplate.cells.any { it.cellId == selectedCellId }
@@ -965,9 +976,47 @@ fun TableEditorScreen(
         structureSelectionRange = result.nextStructureSelectionRange
         structureSelectedCellIds = result.nextStructureSelectedCellIds
         selectedCellId = result.nextSelectedCellId
-        debugLastAction = result.actionLabel
-        latestStructureDeletionDebugInfo = result.deletionDebugInfo
-        latestStructureRestoreDebugInfo = result.restoreDebugInfo
+    }
+
+    fun currentStructureEditorContext() = buildStructureEditorContext(
+        currentTemplate = currentTemplate,
+        currentFileNameSlots = fileNameSlotItems,
+        currentPathSlots = pathSlotItems,
+        fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
+        pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
+        deletedRowsStack = deletedRowsStack,
+        deletedColsStack = deletedColsStack,
+        isStructureEditMode = isStructureEditMode(),
+        structureSelectionRange = structureSelectionRange,
+        selectedCellId = selectedCellId,
+    )
+
+    fun applyStructureAddOrRestore(axis: StructureRestoreAxis) {
+        val result = TableEditorStructureActions.addOrRestore(
+            StructureAddOrRestoreInput(
+                axis = axis,
+                editor = currentStructureEditorContext(),
+                sanitizeTemplate = ::sanitizePathGroupAfterStructureChange,
+                applyFileNameSlots = ::withUpdatedFileNameSlots,
+                applyPathSlots = ::withUpdatedPathSlots,
+            )
+        )
+        applyStructureActionResult(result)
+    }
+
+    fun applyStructureRemove(axis: StructureRestoreAxis) {
+        val result = TableEditorStructureActions.remove(
+            StructureRemoveInput(
+                axis = axis,
+                editor = currentStructureEditorContext(),
+                sanitizeTemplate = ::sanitizePathGroupAfterStructureChange,
+                applyFileNameSlots = ::withUpdatedFileNameSlots,
+                applyPathSlots = ::withUpdatedPathSlots,
+                removeCellRefsFromFileNameSlots = ::removeCellRefsFromFileNameSlots,
+                removeCellRefsFromPathSlots = ::removeCellRefsFromPathSlots,
+            ),
+        )
+        applyStructureActionResult(result)
     }
 
     fun applyStyleWithUndo(nextStyle: TableStyleState) {
@@ -981,6 +1030,100 @@ fun TableEditorScreen(
             undoRevision += 1
         }
         tableStyleUi = nextStyle
+    }
+
+    fun applyTableStyleMutation(mutate: (TableStyleState) -> TableStyleState) {
+        applyStyleWithUndo(mutate(tableStyleUi))
+    }
+
+    fun updateWatermarkWidthRatio(width: Int) {
+        val normalized = width.coerceIn(10, 100)
+        if (!isWmRatioLocked) {
+            watermarkUi = watermarkUi.copy(wmWidthRatio = normalized)
+            return
+        }
+
+        val ratioLocked = resolveRatioLockedSizeFromWidth(
+            baseWidthRatio = watermarkUi.wmWidthRatio,
+            baseHeightRatio = watermarkUi.wmHeightRatio,
+            requestedWidthRatio = normalized,
+        )
+        watermarkUi = watermarkUi.copy(
+            wmWidthRatio = ratioLocked.widthRatio,
+            wmHeightRatio = ratioLocked.heightRatio,
+        )
+    }
+
+    fun updateWatermarkHeightRatio(height: Int) {
+        val normalized = height.coerceIn(10, 100)
+        if (!isWmRatioLocked) {
+            watermarkUi = watermarkUi.copy(wmHeightRatio = normalized)
+            return
+        }
+
+        val ratioLocked = resolveRatioLockedSizeFromHeight(
+            baseWidthRatio = watermarkUi.wmWidthRatio,
+            baseHeightRatio = watermarkUi.wmHeightRatio,
+            requestedHeightRatio = normalized,
+        )
+        watermarkUi = watermarkUi.copy(
+            wmWidthRatio = ratioLocked.widthRatio,
+            wmHeightRatio = ratioLocked.heightRatio,
+        )
+    }
+
+    fun resetEditorToInitialSnapshot() {
+        editableTemplateState = initialTemplateSnapshot
+        tableStyleUi = initialStyleSnapshot
+        selectedCellId = null
+        structureSelectedCellIds = emptySet()
+        structureSelectionRange = null
+        showCellSettingsPanel = false
+        bottomPanelMode = BottomEditorPanelMode.NONE
+        currentlySelectedFileNameSlot = null
+        currentlySelectedPathSlot = null
+        clearFileNameEditorTransientState(clearDraft = true)
+        clearPathEditorTransientState(clearDraft = true)
+        clearInlineEditingState()
+        editSessionOriginalCellState = null
+        deletedRowsStack.clear()
+        deletedColsStack.clear()
+        fileNameSlotsDirtySinceStructureChange = false
+        pathSlotsDirtySinceStructureChange = false
+        rowWeightsDragBaseTemplate = null
+        colWeightsDragBaseTemplate = null
+        undoManager.clear()
+        undoRevision += 1
+    }
+
+    fun startRowWeightDrag() {
+        rowWeightsDragBaseTemplate = editableTemplateState
+    }
+
+    fun startColumnWeightDrag() {
+        colWeightsDragBaseTemplate = editableTemplateState
+    }
+
+    fun finishRowWeightDrag() {
+        rowWeightsDragBaseTemplate = null
+    }
+
+    fun finishColumnWeightDrag() {
+        colWeightsDragBaseTemplate = null
+    }
+
+    fun commitRowWeightDrag(nextWeights: List<Float>) {
+        val baseTemplate = rowWeightsDragBaseTemplate ?: editableTemplateState
+        rowWeightsDragBaseTemplate = null
+        val nextTemplate = TableHandleOverlay.applyRowWeightDragEnd(baseTemplate, nextWeights)
+        applyTemplateDragCommitWithUndo(baseTemplate, nextTemplate)
+    }
+
+    fun commitColumnWeightDrag(nextWeights: List<Float>) {
+        val baseTemplate = colWeightsDragBaseTemplate ?: editableTemplateState
+        colWeightsDragBaseTemplate = null
+        val nextTemplate = TableHandleOverlay.applyColumnWeightDragEnd(baseTemplate, nextWeights)
+        applyTemplateDragCommitWithUndo(baseTemplate, nextTemplate)
     }
 
     LaunchedEffect(Unit) {
@@ -1073,47 +1216,37 @@ fun TableEditorScreen(
     )
 
 
-    // 주요 정책: 셀 선택 전에는 inline 값을 항상 먼저 commit 시도해 유실을 막는다.
-    fun requestSelectCell(cellId: String?) {
-        val result = runInlineAction { context ->
-            TableEditorInlineEditActions.requestCellSelection(
-                context = context,
-                requestedCellId = cellId,
-                shouldTrackSessionSnapshot = bottomPanelMode == BottomEditorPanelMode.CELL_EDIT,
-                allowReselectCurrentCell = isStructureEditMode(),
-            )
-        }
-        if (result.wasBlocked) return
-        if (isStructureEditMode()) {
-            val selected = cellId?.let { setOf(it) } ?: emptySet()
-            structureSelectedCellIds = selected
-            structureSelectionRange = TableSelectionResolver.rangeFromSelection(currentTemplate.cells, selected)
-            }
-    }
-
     // 주요 정책: 패널 모드 변경 전에도 inline commit을 우선 보장한다.
-    fun requestBottomPanelModeChange(nextMode: BottomEditorPanelMode) {
-        if (bottomPanelMode == nextMode) return
-        val result = runInlineCommitAction()
-        if (result.wasBlocked) return
-
-        val wasStructureMode = isStructureEditMode()
-        val effects = TableEditorModeTransitionHandlers.resolveEffects(
-            nextMode = nextMode,
-            wasStructureMode = wasStructureMode,
-        )
-        if (effects.clearFileNameTransientState) {
+    fun reflectBottomPanelModeChangedState(
+        changed: com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorBottomPanelModeChangedState,
+    ) {
+        if (!changed.shouldApply) return
+        if (changed.shouldClearFileNameTransientState) {
             clearFileNameEditorTransientState(clearDraft = true)
         }
-        if (effects.clearPathTransientState) {
+        if (changed.shouldClearPathTransientState) {
             clearPathEditorTransientState(clearDraft = true)
         }
-        bottomPanelMode = nextMode
-        if (effects.shouldResetStructureSelection) {
-            structureSelectedCellIds = emptySet()
+        bottomPanelMode = changed.nextBottomPanelMode
+        changed.nextStructureSelectedCellIds?.let { structureSelectedCellIds = it }
+        if (changed.nextStructureSelectionRangeCleared) {
             structureSelectionRange = null
-            selectedCellId = null
+            selectedCellId = changed.nextSelectedCellId
         }
+    }
+
+    fun requestBottomPanelModeChange(nextMode: BottomEditorPanelMode) {
+        if (bottomPanelMode == nextMode) return
+        val inlineCommitResult = runInlineCommitAction()
+        val changedState = TableEditorBottomPanelModeChangeResolver.resolve(
+            TableEditorBottomPanelModeChangeInput(
+                currentMode = bottomPanelMode,
+                nextMode = nextMode,
+                inlineCommitWasBlocked = inlineCommitResult.wasBlocked,
+                wasStructureMode = isStructureEditMode(),
+            )
+        )
+        reflectBottomPanelModeChangedState(changedState)
     }
 
     val hasUnsavedChanges by remember(
@@ -1138,27 +1271,32 @@ fun TableEditorScreen(
         derivedStateOf { undoManager.canUndo() }
     }
 
-    val debugOverlayState = buildTableEditorDebugOverlayState(
-        TableEditorDebugOverlaySource(
-            lastAction = debugLastAction,
-            currentMode = if (isStructureEditMode()) "STRUCTURE_EDIT" else "NORMAL",
-            bottomPanelMode = bottomPanelMode,
-            rows = currentTemplate.rows,
-            cols = currentTemplate.cols,
-            selectedCellId = selectedCellId,
-            selectedCell = selectedCell,
-            selectionRange = structureSelectionRange,
-            deletedRowsStackSize = deletedRowsStack.size,
-            deletedColsStackSize = deletedColsStack.size,
-            latestDeletionDebugInfo = latestStructureDeletionDebugInfo,
-            latestRestoreDebugInfo = latestStructureRestoreDebugInfo,
-            fileNameSlotsDirty = fileNameSlotsDirtySinceStructureChange,
-            pathSlotsDirty = pathSlotsDirtySinceStructureChange,
-            undoSummary = "canUndo=${isUndoAvailable}, revision=${undoRevision}",
-        )
-    )
-
     // Save/Reset/Back 동작은 editor 내부 local state를 기준으로 유지하되, 구현만 별도 helper로 분리한다.
+    fun applySaveAppliedState(applied: com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveAppliedState) {
+        applied.nextPlacement?.let { watermarkUi = it }
+        applied.nextInitialTemplateSnapshot?.let { initialTemplateSnapshot = it }
+        applied.nextInitialStyleSnapshot?.let { initialStyleSnapshot = it }
+        applied.nextInitialPlacementSnapshot?.let { initialPlacementSnapshot = it }
+        rowWeightsDragBaseTemplate = applied.nextRowWeightsDragBaseTemplate
+        colWeightsDragBaseTemplate = applied.nextColWeightsDragBaseTemplate
+        if (applied.shouldClearUndo) {
+            undoManager.clear()
+        }
+        undoRevision = applied.nextUndoRevision
+        isSavingTemplate = applied.nextIsSavingTemplate
+        Toast.makeText(
+            context,
+            applied.toastMessage,
+            if (applied.isLongToast) Toast.LENGTH_LONG else Toast.LENGTH_SHORT,
+        ).show()
+        if (applied.shouldNotifyTemplateChange) {
+            onTemplateChange(initialTemplateSnapshot)
+        }
+        if (applied.shouldExitAfterSave) {
+            onBack()
+        }
+    }
+
     fun saveTemplate(exitAfterSave: Boolean = false) {
         val inlineResult = runInlineCommitAction()
         if (inlineResult.wasBlocked) return
@@ -1166,40 +1304,23 @@ fun TableEditorScreen(
         val savePayload = editableTemplateState
         val stylePayload = tableStyleUi
         scope.launch {
-            when (val result = TableEditorSaveCoordinator.persist(
+            val result = TableEditorSaveCoordinator.persist(
                 context = context,
                 templatePayload = savePayload,
                 stylePayload = stylePayload,
                 placementPayload = watermarkUi,
                 rollbackTemplate = initialTemplateSnapshot,
-            )) {
-                is TableEditorSaveResult.Failure -> {
-                    Toast.makeText(
-                        context,
-                        result.message,
-                        if (result.isLongToast) Toast.LENGTH_LONG else Toast.LENGTH_SHORT,
-                    ).show()
-                    isSavingTemplate = false
-                    return@launch
-                }
-
-                is TableEditorSaveResult.Success -> {
-                    watermarkUi = result.savedPlacement
-                    initialTemplateSnapshot = savePayload
-                    initialStyleSnapshot = stylePayload
-                    initialPlacementSnapshot = result.savedPlacement
-                    rowWeightsDragBaseTemplate = null
-                    colWeightsDragBaseTemplate = null
-                    undoManager.clear()
-                    undoRevision += 1
-                    Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
-                    onTemplateChange(savePayload)
-                    isSavingTemplate = false
-                    if (exitAfterSave) {
-                        onBack()
-                    }
-                }
-            }
+            )
+            val appliedState = TableEditorSaveResultApplier.apply(
+                TableEditorSaveApplyInput(
+                    result = result,
+                    savePayload = savePayload,
+                    stylePayload = stylePayload,
+                    exitAfterSave = exitAfterSave,
+                    currentUndoRevision = undoRevision,
+                )
+            )
+            applySaveAppliedState(appliedState)
         }
     }
 
@@ -1245,6 +1366,166 @@ fun TableEditorScreen(
             onBack()
         },
         onCancel = { showUnsavedChangesDialog = false },
+    )
+
+    fun resolveSelectedCellLabel(targetCellId: String): String {
+        return currentTemplate.cells.firstOrNull { it.cellId == targetCellId }?.let { cell ->
+            resolvedByCellId[cell.cellId]?.takeIf { it.isNotBlank() }
+                ?: "셀(${cell.rowIndex + 1},${cell.colIndex + 1})"
+        } ?: "셀"
+    }
+
+    fun resetSelectedCounterSeed() {
+        val result = TableEditorSelectedCounterResetCoordinator.resetToAutoNext(
+            TableEditorSelectedCounterResetInput(
+                selectedCell = selectedCell,
+                templateState = currentTemplate,
+                counterRequest = counterRequest,
+                counterFacade = counterFacade,
+                counterUi = counterUi,
+                inlineEdit = inlineEdit,
+                onTemplateChange = ::updateTemplateDraft,
+                setCounterUi = { counterUi = it },
+                updateCell = ::updateCell,
+                scope = scope,
+            )
+        )
+        inlineEdit = result.nextInlineEdit
+        result.toastMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun buildLayoutTabActions(): LayoutTabActions = LayoutTabActions(
+        onSelectCellId = { cellId ->
+            TableEditorInlineSelectionActionBinder.requestSelectCell(selectionActionBindings, cellId)
+        },
+        onSelectStructureRange = { startId, endId ->
+            TableEditorInlineSelectionActionBinder.selectStructureRange(selectionActionBindings, startId, endId)
+        },
+        onChangeBottomPanelMode = ::requestBottomPanelModeChange,
+        onCloseBottomPanel = ::requestCloseBottomPanelToNone,
+        onShowCellSettingsPanel = { showCellSettingsPanel = it },
+        onSelectFileNameSlot = { slotIndex ->
+            TableEditorSlotActionBinder.selectFileNameSlot(fileNameSlotActionBindings, slotIndex)
+        },
+        onFillEmptyFileNameSlot = { slotIndex ->
+            TableEditorSlotActionBinder.fillEmptyFileNameSlot(fileNameSlotActionBindings, slotIndex)
+        },
+        onMoveSelectedFileNameSlotLeft = {
+            TableEditorSlotActionBinder.moveSelectedFileNameSlotLeft(fileNameSlotActionBindings)
+        },
+        onMoveSelectedFileNameSlotRight = {
+            TableEditorSlotActionBinder.moveSelectedFileNameSlotRight(fileNameSlotActionBindings)
+        },
+        onDeleteSelectedFileNameSlot = {
+            TableEditorSlotActionBinder.deleteSelectedFileNameSlot(fileNameSlotActionBindings)
+        },
+        onStartFileNameCellPick = {
+            TableEditorSlotActionBinder.startFileNameCellPick(fileNameSlotActionBindings)
+        },
+        onStartManualInputEditor = {
+            TableEditorSlotActionBinder.startFileNameManualInput(fileNameSlotActionBindings)
+        },
+        onManualInputDraftChange = { draft ->
+            TableEditorSlotActionBinder.updateFileNameManualInputDraft(fileNameSlotActionBindings, draft)
+        },
+        onApplyManualInput = {
+            TableEditorSlotActionBinder.applyFileNameManualInput(fileNameSlotActionBindings)
+        },
+        onBindSelectedSlotToCell = { cellId ->
+            TableEditorSlotActionBinder.bindSelectedFileNameSlotToCell(fileNameSlotActionBindings, cellId)
+        },
+        onSelectPathSlot = { slotIndex ->
+            TableEditorSlotActionBinder.selectPathSlot(pathSlotActionBindings, slotIndex)
+        },
+        onFillEmptyPathSlot = { slotIndex ->
+            TableEditorSlotActionBinder.fillEmptyPathSlot(pathSlotActionBindings, slotIndex)
+        },
+        onMoveSelectedPathSlotLeft = {
+            TableEditorSlotActionBinder.moveSelectedPathSlotLeft(pathSlotActionBindings)
+        },
+        onMoveSelectedPathSlotRight = {
+            TableEditorSlotActionBinder.moveSelectedPathSlotRight(pathSlotActionBindings)
+        },
+        onDeleteSelectedPathSlot = {
+            TableEditorSlotActionBinder.deleteSelectedPathSlot(pathSlotActionBindings)
+        },
+        onStartPathCellPick = {
+            TableEditorSlotActionBinder.startPathCellPick(pathSlotActionBindings)
+        },
+        onStartPathManualInputEditor = {
+            TableEditorSlotActionBinder.startPathManualInput(pathSlotActionBindings)
+        },
+        onPathManualInputDraftChange = { draft ->
+            TableEditorSlotActionBinder.updatePathManualInputDraft(pathSlotActionBindings, draft)
+        },
+        onApplyPathManualInput = {
+            TableEditorSlotActionBinder.applyPathManualInput(pathSlotActionBindings)
+        },
+        onBindSelectedPathSlotToCell = { cellId ->
+            TableEditorSlotActionBinder.bindSelectedPathSlotToCell(pathSlotActionBindings, cellId)
+        },
+        onStartInlineEditing = { cellId, value ->
+            TableEditorInlineSelectionActionBinder.startCellInlineEditing(inlineEditingActionBindings, cellId, value)
+        },
+        onOpenFormatDialog = { cellId, type ->
+            TableEditorInlineSelectionActionBinder.openCellFormatDialog(inlineEditingActionBindings, cellId, type)
+        },
+        onEditingValueChange = { nextValue ->
+            TableEditorInlineSelectionActionBinder.applyInlineEditingValue(inlineEditingActionBindings, nextValue)
+        },
+        onTryCommitInlineAndContinue = {
+            TableEditorInlineSelectionActionBinder.tryCommitInlineAndContinue(inlineEditingActionBindings)
+        },
+        onAddRow = { applyStructureAddOrRestore(StructureRestoreAxis.ROW) },
+        onRemoveRow = { applyStructureRemove(StructureRestoreAxis.ROW) },
+        onAddCol = { applyStructureAddOrRestore(StructureRestoreAxis.COL) },
+        onRemoveCol = { applyStructureRemove(StructureRestoreAxis.COL) },
+        onResetRowWeights = ::resetRowWeightsWithUndo,
+        onResetColumnWeights = ::resetColumnWeightsWithUndo,
+        onResetAllWeights = ::resetAllWeightsWithUndo,
+        onUndo = ::applyUndo,
+        onReset = ::resetEditorToInitialSnapshot,
+        onSave = { saveTemplate(exitAfterSave = false) },
+        onDismissSettingsPanel = {
+            TableEditorInlineSelectionActionBinder.dismissCellSettingsPanel(inlineEditingActionBindings)
+        },
+        onToggleFileNameForSelected = { cellId, enabled ->
+            TableEditorSlotActionBinder.toggleFileNameForSelectedCell(fileNameSlotActionBindings, cellId, enabled)
+        },
+        onReorderFileNameSlots = { fromIndex, toIndex ->
+            TableEditorSlotActionBinder.reorderFileNameSlots(fileNameSlotActionBindings, fromIndex, toIndex)
+        },
+        onPathGroupActionForSelected = { action ->
+            TableEditorSelectedCellActionBinder.applyPathGroupActionForSelected(selectedCellActionBindings, action)
+        },
+        onSetDataTypeForSelected = { type ->
+            TableEditorSelectedCellActionBinder.setDataTypeForSelected(selectedCellActionBindings, type)
+        },
+        onSetCounterScopeModeForSelected = { mode ->
+            TableEditorSelectedCellActionBinder.setCounterScopeModeForSelected(selectedCellActionBindings, mode)
+        },
+        onResetCounterSeedForSelected = ::resetSelectedCounterSeed,
+        onSetBgStyle = { bgStyle -> applyTableStyleMutation { it.copy(bgStyle = bgStyle.coerceIn(0, 2)) } },
+        onSetGridEnabled = { enabled -> applyTableStyleMutation { it.copy(gridEnabled = enabled) } },
+        onSetTextColorMode = { mode -> applyTableStyleMutation { it.copy(textColorMode = mode.coerceIn(0, 1)) } },
+        onSetManualTextColor = { color -> applyTableStyleMutation { it.copy(manualTextColor = color.coerceIn(0, 1)) } },
+        onSetValueScale = { scale -> applyTableStyleMutation { it.copy(valueScale = scale.coerceIn(60, 160)) } },
+        onSetTextAlign = { align -> applyTableStyleMutation { it.copy(textAlign = align.coerceIn(0, 2)) } },
+        onSetWmRatioLocked = { locked -> isWmRatioLocked = locked },
+        onSetWmWidthRatio = ::updateWatermarkWidthRatio,
+        onSetWmHeightRatio = ::updateWatermarkHeightRatio,
+        onStartRowWeightsDrag = ::startRowWeightDrag,
+        onStartColumnWeightsDrag = ::startColumnWeightDrag,
+        onFinishRowWeightsDrag = ::finishRowWeightDrag,
+        onFinishColumnWeightsDrag = ::finishColumnWeightDrag,
+        onCommitRowWeightsDragEnd = ::commitRowWeightDrag,
+        onCommitColumnWeightsDragEnd = ::commitColumnWeightDrag,
+        onOpenRotatingTemplateDialogForSelected = { cellId ->
+            TableEditorSelectedCellActionBinder.openRotatingTemplateDialogForSelected(selectedCellActionBindings, cellId)
+        },
+        onOpenPlacementDialog = { showPlacementDialog = true }
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -1331,501 +1612,7 @@ fun TableEditorScreen(
                             structureSelectedCellIds = structureSelectedCellIds,
                             isUndoAvailable = isUndoAvailable,
                         ),
-                        actions = LayoutTabActions(
-                            onSelectCellId = ::requestSelectCell,
-                            onSelectStructureRange = { startId, endId ->
-                                if (!isStructureEditMode()) return@LayoutTabActions
-                                val result = TableSelectionResolver.selectByDrag(currentTemplate.cells, startId, endId)
-                                if (result.range != null) {
-                                    structureSelectedCellIds = result.selectedCellIds
-                                    structureSelectionRange = result.range
-                                    selectedCellId = result.lastSelectedCellId
-                                                            }
-                            },
-                            onChangeBottomPanelMode = ::requestBottomPanelModeChange,
-                            onCloseBottomPanel = ::requestCloseBottomPanelToNone,
-                            onShowCellSettingsPanel = { showCellSettingsPanel = it },
-                            onSelectFileNameSlot = { slotIndex ->
-                                applyFileNameSlotUiResult(
-                                    TableEditorFileNameSlotUiHandlers.selectSlot(
-                                        state = currentFileNameSlotEditorState(),
-                                        slotIndex = slotIndex,
-                                    )
-                                )
-                            },
-                            onFillEmptyFileNameSlot = { slotIndex ->
-                                applyFileNameSlotUiResult(
-                                    TableEditorFileNameSlotUiHandlers.fillEmptySlot(
-                                        state = currentFileNameSlotEditorState(),
-                                        requestedSlotIndex = slotIndex,
-                                    )
-                                )
-                            },
-                            onMoveSelectedFileNameSlotLeft = {
-                                applyFileNameSlotUiResult(
-                                    TableEditorFileNameSlotUiHandlers.moveSelectedLeft(
-                                        state = currentFileNameSlotEditorState(),
-                                        moveSlot = ::moveFileNameSlot,
-                                    )
-                                )
-                            },
-                            onMoveSelectedFileNameSlotRight = {
-                                applyFileNameSlotUiResult(
-                                    TableEditorFileNameSlotUiHandlers.moveSelectedRight(
-                                        state = currentFileNameSlotEditorState(),
-                                        moveSlot = ::moveFileNameSlot,
-                                    )
-                                )
-                            },
-                            onDeleteSelectedFileNameSlot = {
-                                applyFileNameSlotUiResult(
-                                    TableEditorFileNameSlotUiHandlers.deleteSelectedSlot(
-                                        state = currentFileNameSlotEditorState(),
-                                        removeSlotAt = ::removeFileNameSlotAt,
-                                    )
-                                )
-                            },
-                            onStartFileNameCellPick = {
-                                applyFileNameSlotUiResult(
-                                    TableEditorFileNameSlotUiHandlers.startCellPick(
-                                        state = currentFileNameSlotEditorState(),
-                                    )
-                                )
-                            },
-                            onStartManualInputEditor = {
-                                applyFileNameSlotUiResult(
-                                    TableEditorFileNameSlotUiHandlers.startManualInput(
-                                        state = currentFileNameSlotEditorState(),
-                                    )
-                                )
-                            },
-                            onManualInputDraftChange = {
-                                applyFileNameSlotUiResult(
-                                    TableEditorFileNameSlotUiHandlers.updateManualInputDraft(
-                                        state = currentFileNameSlotEditorState(),
-                                        draft = it,
-                                    )
-                                )
-                            },
-                            onApplyManualInput = {
-                                applyFileNameSlotUiResult(
-                                    TableEditorFileNameSlotUiHandlers.applyManualInput(
-                                        state = currentFileNameSlotEditorState(),
-                                    )
-                                )
-                            },
-                            onBindSelectedSlotToCell = { cellId ->
-                                applyFileNameSlotUiResult(
-                                    TableEditorFileNameSlotUiHandlers.bindSelectedSlotToCell(
-                                        state = currentFileNameSlotEditorState(),
-                                        cellId = cellId,
-                                        resolveCellLabel = { targetCellId ->
-                                            currentTemplate.cells.firstOrNull { it.cellId == targetCellId }?.let { cell ->
-                                                resolvedByCellId[cell.cellId]?.takeIf { it.isNotBlank() }
-                                                    ?: "셀(${cell.rowIndex + 1},${cell.colIndex + 1})"
-                                            } ?: "셀"
-                                        },
-                                    )
-                                )
-                            },
-                            onSelectPathSlot = { slotIndex ->
-                                applyPathSlotUiResult(
-                                    TableEditorPathSlotUiHandlers.selectSlot(
-                                        state = currentPathSlotEditorState(),
-                                        slotIndex = slotIndex,
-                                    )
-                                )
-                            },
-                            onFillEmptyPathSlot = { slotIndex ->
-                                applyPathSlotUiResult(
-                                    TableEditorPathSlotUiHandlers.fillEmptySlot(
-                                        state = currentPathSlotEditorState(),
-                                        requestedSlotIndex = slotIndex,
-                                    )
-                                )
-                            },
-                            onMoveSelectedPathSlotLeft = {
-                                applyPathSlotUiResult(
-                                    TableEditorPathSlotUiHandlers.moveSelectedLeft(
-                                        state = currentPathSlotEditorState(),
-                                        moveSlot = ::movePathSlot,
-                                    )
-                                )
-                            },
-                            onMoveSelectedPathSlotRight = {
-                                applyPathSlotUiResult(
-                                    TableEditorPathSlotUiHandlers.moveSelectedRight(
-                                        state = currentPathSlotEditorState(),
-                                        moveSlot = ::movePathSlot,
-                                    )
-                                )
-                            },
-                            onDeleteSelectedPathSlot = {
-                                applyPathSlotUiResult(
-                                    TableEditorPathSlotUiHandlers.deleteSelectedSlot(
-                                        state = currentPathSlotEditorState(),
-                                        removeSlotAt = ::removePathSlotAt,
-                                    )
-                                )
-                            },
-                            onStartPathCellPick = {
-                                applyPathSlotUiResult(
-                                    TableEditorPathSlotUiHandlers.startCellPick(
-                                        state = currentPathSlotEditorState(),
-                                    )
-                                )
-                            },
-                            onStartPathManualInputEditor = {
-                                applyPathSlotUiResult(
-                                    TableEditorPathSlotUiHandlers.startManualInput(
-                                        state = currentPathSlotEditorState(),
-                                    )
-                                )
-                            },
-                            onPathManualInputDraftChange = {
-                                applyPathSlotUiResult(
-                                    TableEditorPathSlotUiHandlers.updateManualInputDraft(
-                                        state = currentPathSlotEditorState(),
-                                        draft = it,
-                                    )
-                                )
-                            },
-                            onApplyPathManualInput = {
-                                applyPathSlotUiResult(
-                                    TableEditorPathSlotUiHandlers.applyManualInput(
-                                        state = currentPathSlotEditorState(),
-                                    )
-                                )
-                            },
-                            onBindSelectedPathSlotToCell = { cellId ->
-                                applyPathSlotUiResult(
-                                    TableEditorPathSlotUiHandlers.bindSelectedSlotToCell(
-                                        state = currentPathSlotEditorState(),
-                                        cellId = cellId,
-                                        resolveCellLabel = { targetCellId ->
-                                            currentTemplate.cells.firstOrNull { it.cellId == targetCellId }?.let { cell ->
-                                                resolvedByCellId[cell.cellId]?.takeIf { it.isNotBlank() }
-                                                    ?: "셀(${cell.rowIndex + 1},${cell.colIndex + 1})"
-                                            } ?: "셀"
-                                        },
-                                    )
-                                )
-                            },
-                            onStartInlineEditing = { cellId, value ->
-                                inlineEdit = startInlineEditing(inlineEdit, cellId, value)
-                            },
-                            onOpenFormatDialog = { cellId, type ->
-                                formatDialog = formatDialog.open(cellId, type)
-                            },
-                            onEditingValueChange = { nextValue ->
-                                runInlineAction { context ->
-                                    TableEditorInlineEditActions.applyInlineValueChange(
-                                        context = context,
-                                        nextValue = nextValue,
-                                    )
-                                }
-                            },
-                            onTryCommitInlineAndContinue = {
-                                val result = runInlineCommitAction()
-                                !result.wasBlocked
-                            },
-                            onAddRow = {
-                                val result = TableEditorStructureActions.addOrRestore(
-                                    StructureAddOrRestoreInput(
-                                        axis = StructureRestoreAxis.ROW,
-                                        editor = buildStructureEditorContext(
-                                            currentTemplate = currentTemplate,
-                                            currentFileNameSlots = fileNameSlotItems,
-                                            currentPathSlots = pathSlotItems,
-                                            fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
-                                            pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
-                                            deletedRowsStack = deletedRowsStack,
-                                            deletedColsStack = deletedColsStack,
-                                            isStructureEditMode = isStructureEditMode(),
-                                            structureSelectionRange = structureSelectionRange,
-                                            selectedCellId = selectedCellId,
-                                        ),
-                                        sanitizeTemplate = ::sanitizePathGroupAfterStructureChange,
-                                        applyFileNameSlots = ::withUpdatedFileNameSlots,
-                                        applyPathSlots = ::withUpdatedPathSlots,
-                                    )
-                                )
-                                applyStructureActionResult(result)
-                            },
-                            onRemoveRow = {
-                                val result = TableEditorStructureActions.remove(
-                                    StructureRemoveInput(
-                                        axis = StructureRestoreAxis.ROW,
-                                        editor = buildStructureEditorContext(
-                                            currentTemplate = currentTemplate,
-                                            currentFileNameSlots = fileNameSlotItems,
-                                            currentPathSlots = pathSlotItems,
-                                            fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
-                                            pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
-                                            deletedRowsStack = deletedRowsStack,
-                                            deletedColsStack = deletedColsStack,
-                                            isStructureEditMode = isStructureEditMode(),
-                                            structureSelectionRange = structureSelectionRange,
-                                            selectedCellId = selectedCellId,
-                                        ),
-                                        sanitizeTemplate = ::sanitizePathGroupAfterStructureChange,
-                                        applyFileNameSlots = ::withUpdatedFileNameSlots,
-                                        applyPathSlots = ::withUpdatedPathSlots,
-                                        removeCellRefsFromFileNameSlots = ::removeCellRefsFromFileNameSlots,
-                                        removeCellRefsFromPathSlots = ::removeCellRefsFromPathSlots,
-                                    ),
-                                )
-                                applyStructureActionResult(result)
-                            },
-                            onAddCol = {
-                                val result = TableEditorStructureActions.addOrRestore(
-                                    StructureAddOrRestoreInput(
-                                        axis = StructureRestoreAxis.COL,
-                                        editor = buildStructureEditorContext(
-                                            currentTemplate = currentTemplate,
-                                            currentFileNameSlots = fileNameSlotItems,
-                                            currentPathSlots = pathSlotItems,
-                                            fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
-                                            pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
-                                            deletedRowsStack = deletedRowsStack,
-                                            deletedColsStack = deletedColsStack,
-                                            isStructureEditMode = isStructureEditMode(),
-                                            structureSelectionRange = structureSelectionRange,
-                                            selectedCellId = selectedCellId,
-                                        ),
-                                        sanitizeTemplate = ::sanitizePathGroupAfterStructureChange,
-                                        applyFileNameSlots = ::withUpdatedFileNameSlots,
-                                        applyPathSlots = ::withUpdatedPathSlots,
-                                    )
-                                )
-                                applyStructureActionResult(result)
-                            },
-                            onRemoveCol = {
-                                val result = TableEditorStructureActions.remove(
-                                    StructureRemoveInput(
-                                        axis = StructureRestoreAxis.COL,
-                                        editor = buildStructureEditorContext(
-                                            currentTemplate = currentTemplate,
-                                            currentFileNameSlots = fileNameSlotItems,
-                                            currentPathSlots = pathSlotItems,
-                                            fileNameSlotsDirtySinceStructureChange = fileNameSlotsDirtySinceStructureChange,
-                                            pathSlotsDirtySinceStructureChange = pathSlotsDirtySinceStructureChange,
-                                            deletedRowsStack = deletedRowsStack,
-                                            deletedColsStack = deletedColsStack,
-                                            isStructureEditMode = isStructureEditMode(),
-                                            structureSelectionRange = structureSelectionRange,
-                                            selectedCellId = selectedCellId,
-                                        ),
-                                        sanitizeTemplate = ::sanitizePathGroupAfterStructureChange,
-                                        applyFileNameSlots = ::withUpdatedFileNameSlots,
-                                        applyPathSlots = ::withUpdatedPathSlots,
-                                        removeCellRefsFromFileNameSlots = ::removeCellRefsFromFileNameSlots,
-                                        removeCellRefsFromPathSlots = ::removeCellRefsFromPathSlots,
-                                    ),
-                                )
-                                applyStructureActionResult(result)
-                            },
-                            onResetRowWeights = {
-                                applyTemplateWithUndo(resetRowWeights(currentTemplate))
-                            },
-                            onResetColumnWeights = {
-                                applyTemplateWithUndo(resetColumnWeights(currentTemplate))
-                            },
-                            onResetAllWeights = {
-                                applyTemplateWithUndo(resetColumnWeights(resetRowWeights(currentTemplate)))
-                            },
-                            onUndo = {
-                                debugLastAction = "undo"
-                                latestStructureRestoreDebugInfo = null
-                                latestStructureDeletionDebugInfo = null
-                                applyUndo()
-                            },
-                            onReset = {
-                                debugLastAction = "reset"
-                                latestStructureRestoreDebugInfo = null
-                                latestStructureDeletionDebugInfo = null
-                                // 정책 변경: 초기화는 기본 템플릿이 아니라 "화면 진입 시점(initialTemplateSnapshot)" 복원이다.
-                                editableTemplateState = initialTemplateSnapshot
-                                tableStyleUi = initialStyleSnapshot
-                                selectedCellId = null
-                                structureSelectedCellIds = emptySet()
-                                structureSelectionRange = null
-                                showCellSettingsPanel = false
-                                bottomPanelMode = BottomEditorPanelMode.NONE
-                                currentlySelectedFileNameSlot = null
-                                currentlySelectedPathSlot = null
-                                clearFileNameEditorTransientState(clearDraft = true)
-                                clearPathEditorTransientState(clearDraft = true)
-                                clearInlineEditingState()
-                                editSessionOriginalCellState = null
-                                deletedRowsStack.clear()
-                                deletedColsStack.clear()
-                                fileNameSlotsDirtySinceStructureChange = false
-                                pathSlotsDirtySinceStructureChange = false
-                                rowWeightsDragBaseTemplate = null
-                                colWeightsDragBaseTemplate = null
-                                undoManager.clear()
-                                undoRevision += 1
-                            },
-                            onSave = { saveTemplate(exitAfterSave = false) },
-                            onDismissSettingsPanel = {
-                                commitInlineEditIfNeeded()
-                                showCellSettingsPanel = false
-                            },
-                            onToggleFileNameForSelected = { cellId, enabled ->
-                                applyFileNameSlotUiResult(
-                                    TableEditorFileNameSlotUiHandlers.toggleSelectedCell(
-                                        state = currentFileNameSlotEditorState(),
-                                        cellId = cellId,
-                                        enabled = enabled,
-                                    )
-                                )
-                            },
-                            onReorderFileNameSlots = { fromIndex, toIndex ->
-                                applyFileNameSlotUiResult(
-                                    TableEditorFileNameSlotUiHandlers.reorderSlots(
-                                        state = currentFileNameSlotEditorState(),
-                                        fromIndex = fromIndex,
-                                        toIndex = toIndex,
-                                    )
-                                )
-                            },
-                            onPathGroupActionForSelected = { action ->
-                                selectedCell?.let { cell ->
-                                    val updated = applyPathGroupAction(
-                                        state = currentTemplate,
-                                        targetCellId = cell.cellId,
-                                        action = action
-                                    )
-                                    updateTemplateDraft(updated)
-                                }
-                            },
-                            onSetDataTypeForSelected = { type ->
-                                selectedCell?.let { cell ->
-                                    val updated = updateCell(currentTemplate, cell.cellId) { c ->
-                                        c.withDataType(type)
-                                    }
-                                    updateTemplateDraft(updated)
-                                }
-                            },
-                            onSetCounterScopeModeForSelected = { mode ->
-                                selectedCell?.let { cell ->
-                                    if (cell.dataType != TableCellDataType.DATE && cell.dataType != TableCellDataType.TIME) return@let
-                                    val updated = updateCell(currentTemplate, cell.cellId) { c ->
-                                        c.copy(counterScopeMode = mode)
-                                    }
-                                    updateTemplateDraft(updated)
-                                }
-                            },
-                            onResetCounterSeedForSelected = {
-                                selectedCell?.let { cell ->
-                                    if (cell.dataType != TableCellDataType.COUNTER) return@let
-                                    val syncedCounterText = counterUi.autoNextCounterValue.toString()
-                                    restoreCounterCellToAutoNext(
-                                        templateState = currentTemplate,
-                                        cellId = cell.cellId,
-                                        counterRequest = counterRequest,
-                                        counterFacade = counterFacade,
-                                        counterUi = counterUi,
-                                        onTemplateChange = ::updateTemplateDraft,
-                                        setCounterUi = { counterUi = it },
-                                        updateCell = ::updateCell,
-                                        scope = scope
-                                    )
-                                    // 주요 정책: COUNTER 동기화 직후 편집 draft가 남아 UI를 덮지 않도록 즉시 동기화한다.
-                                    if (inlineEdit.editingCellId == cell.cellId) {
-                                        inlineEdit = inlineEdit.copy(editingValue = syncedCounterText)
-                                    }
-                                    Toast.makeText(context, "카운터를 자동 기준으로 초기화했습니다.", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            onSetBgStyle = { bgStyle ->
-                                applyStyleWithUndo(tableStyleUi.copy(bgStyle = bgStyle.coerceIn(0, 2)))
-                            },
-                            onSetGridEnabled = { enabled ->
-                                applyStyleWithUndo(tableStyleUi.copy(gridEnabled = enabled))
-                            },
-                            onSetTextColorMode = { mode ->
-                                applyStyleWithUndo(tableStyleUi.copy(textColorMode = mode.coerceIn(0, 1)))
-                            },
-                            onSetManualTextColor = { color ->
-                                applyStyleWithUndo(tableStyleUi.copy(manualTextColor = color.coerceIn(0, 1)))
-                            },
-                            onSetValueScale = { scale ->
-                                applyStyleWithUndo(tableStyleUi.copy(valueScale = scale.coerceIn(60, 160)))
-                            },
-                            onSetTextAlign = { align ->
-                                applyStyleWithUndo(tableStyleUi.copy(textAlign = align.coerceIn(0, 2)))
-                            },
-                            onSetWmRatioLocked = { locked ->
-                                isWmRatioLocked = locked
-                            },
-                            onSetWmWidthRatio = { width ->
-                                val normalized = width.coerceIn(10, 100)
-                                if (!isWmRatioLocked) {
-                                    watermarkUi = watermarkUi.copy(wmWidthRatio = normalized)
-                                } else {
-                                    val ratioLocked = resolveRatioLockedSizeFromWidth(
-                                        baseWidthRatio = watermarkUi.wmWidthRatio,
-                                        baseHeightRatio = watermarkUi.wmHeightRatio,
-                                        requestedWidthRatio = normalized,
-                                    )
-                                    watermarkUi = watermarkUi.copy(
-                                        wmWidthRatio = ratioLocked.widthRatio,
-                                        wmHeightRatio = ratioLocked.heightRatio,
-                                    )
-                                }
-                            },
-                            onSetWmHeightRatio = { height ->
-                                val normalized = height.coerceIn(10, 100)
-                                if (!isWmRatioLocked) {
-                                    watermarkUi = watermarkUi.copy(wmHeightRatio = normalized)
-                                } else {
-                                    val ratioLocked = resolveRatioLockedSizeFromHeight(
-                                        baseWidthRatio = watermarkUi.wmWidthRatio,
-                                        baseHeightRatio = watermarkUi.wmHeightRatio,
-                                        requestedHeightRatio = normalized,
-                                    )
-                                    watermarkUi = watermarkUi.copy(
-                                        wmWidthRatio = ratioLocked.widthRatio,
-                                        wmHeightRatio = ratioLocked.heightRatio,
-                                    )
-                                }
-                            },
-                            onStartRowWeightsDrag = {
-                                rowWeightsDragBaseTemplate = editableTemplateState
-                            },
-                            onStartColumnWeightsDrag = {
-                                colWeightsDragBaseTemplate = editableTemplateState
-                            },
-                            onFinishRowWeightsDrag = {
-                                rowWeightsDragBaseTemplate = null
-                            },
-                            onFinishColumnWeightsDrag = {
-                                colWeightsDragBaseTemplate = null
-                            },
-                            onCommitRowWeightsDragEnd = { nextWeights ->
-                                val baseTemplate = rowWeightsDragBaseTemplate ?: editableTemplateState
-                                rowWeightsDragBaseTemplate = null
-                                val nextTemplate = TableHandleOverlay.applyRowWeightDragEnd(baseTemplate, nextWeights)
-                                applyTemplateDragCommitWithUndo(baseTemplate, nextTemplate)
-                            },
-                            onCommitColumnWeightsDragEnd = { nextWeights ->
-                                val baseTemplate = colWeightsDragBaseTemplate ?: editableTemplateState
-                                colWeightsDragBaseTemplate = null
-                                val nextTemplate = TableHandleOverlay.applyColumnWeightDragEnd(baseTemplate, nextWeights)
-                                applyTemplateDragCommitWithUndo(baseTemplate, nextTemplate)
-                            },
-                            onOpenRotatingTemplateDialogForSelected = { cellId ->
-                                val cell = currentTemplate.cells.firstOrNull { it.cellId == cellId }
-                                if (cell != null && cell.dataType == TableCellDataType.ROTATING_TEXT) {
-                                    openRotatingPhraseTemplateDialog(cell.cellId)
-                                } else {
-                                    showCellSettingsPanel = true
-                                }
-                            },
-                            onOpenPlacementDialog = { showPlacementDialog = true }
-                        )
+                        actions = buildLayoutTabActions()
                     )
 
             PlacementDialogHost(
@@ -1852,16 +1639,6 @@ fun TableEditorScreen(
 
         }
 
-        if (isDebugBuild) {
-            TableEditorDebugOverlay(
-                visible = debugOverlayVisible,
-                state = debugOverlayState,
-                onToggle = { debugOverlayVisible = !debugOverlayVisible },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 80.dp, end = 12.dp)
-            )
-        }
     }
 }
 

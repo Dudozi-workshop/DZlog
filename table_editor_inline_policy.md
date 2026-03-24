@@ -72,5 +72,11 @@ CELL_EDIT 패널 하단의 저장/되돌리기 버튼은 제거했다.
 
 ## 9. Screen 책임 경계
 
-`TableEditorScreen`은 inline 상태 보관과 wiring에 집중한다.
-inline 결과 해석, template apply mode 적용, counter 후처리 경계는 feature/editor helper가 맡고, Screen은 적용 입력을 넘기고 반영 state를 받는 쪽에 가깝게 유지한다.
+`TableEditorScreen`은 inline 상태 보관, 현재 context 추출, 외부 의존성 브리지, applied state 반영에 집중한다.
+inline 결과 해석, counter conflict / committed counter 적용, template apply mode 분기는 feature/editor helper가 맡고, Screen은 helper 호출을 조율하는 쪽에 가깝게 유지한다.
+save 쪽의 얇은 `buildSaveApplyInput(...)` wrapper는 제거했고, inline 쪽도 별도 `buildInlineEditApplyInput(...)` helper 없이 `TableEditorInlineActionCoordinator`가 `TableEditorInlineEditApplyInput(...)`를 직접 조립한다.
+Screen은 inline binding/context 제공과 applied state 반영에 집중하며, 현재 binding이 묶는 외부 의존성은 아래와 같다.
+- `applyTemplateWithUndo`
+- `updateTemplateDraft`
+- counter conflict UI update
+- committed counter 반영 bridge

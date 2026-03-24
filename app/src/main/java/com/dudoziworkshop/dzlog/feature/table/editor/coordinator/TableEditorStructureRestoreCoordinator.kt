@@ -29,20 +29,12 @@ data class TableEditorStructureDeletionCoordinatorInput(
     val removeCellRefsFromPathSlots: (List<PathSlotUiItem?>, Set<String>) -> List<PathSlotUiItem?>,
 )
 
-data class TableEditorStructureDeletionDebugInfo(
-    val axis: StructureRestoreAxis,
-    val deletedRange: IntRange?,
-    val deletedCells: List<TableCellState>,
-    val hasSlotSnapshot: Boolean,
-)
-
 data class TableEditorStructureDeletionCoordinatorResult(
     val deletedSnapshot: DeletedStructureSnapshot?,
     val nextFileNameSlots: List<FileNameSlotUiItem?>,
     val nextPathSlots: List<PathSlotUiItem?>,
     val nextFileNameSlotsDirtySinceStructureChange: Boolean,
     val nextPathSlotsDirtySinceStructureChange: Boolean,
-    val debugInfo: TableEditorStructureDeletionDebugInfo,
 )
 
 data class TableEditorStructureRestoreCoordinatorInput(
@@ -58,21 +50,10 @@ data class TableEditorStructureRestoreCoordinatorInput(
     val applyPathSlots: (TableTemplateState, List<PathSlotUiItem?>) -> TableTemplateState,
 )
 
-data class TableEditorStructureRestoreDebugInfo(
-    val axis: StructureRestoreAxis,
-    val targetIndex: Int,
-    val deletedSnapshotCells: List<TableCellState>,
-    val reindexedRestoredCells: List<TableCellState>,
-    val mergedAxisCells: List<TableCellState>,
-    val sanitizedAxisCells: List<TableCellState>,
-    val hasSlotSnapshot: Boolean,
-)
-
 data class TableEditorStructureRestoreCoordinatorResult(
     val nextTemplate: TableTemplateState,
     val nextFileNameSlotsDirtySinceStructureChange: Boolean,
     val nextPathSlotsDirtySinceStructureChange: Boolean,
-    val debugInfo: TableEditorStructureRestoreDebugInfo,
 )
 
 object TableEditorStructureRestoreCoordinator {
@@ -121,12 +102,6 @@ object TableEditorStructureRestoreCoordinator {
             nextPathSlots = slotDeletionResult.nextPathSlots,
             nextFileNameSlotsDirtySinceStructureChange = slotDeletionResult.nextFileNameSlotsDirtySinceStructureChange,
             nextPathSlotsDirtySinceStructureChange = slotDeletionResult.nextPathSlotsDirtySinceStructureChange,
-            debugInfo = TableEditorStructureDeletionDebugInfo(
-                axis = input.deleteAxis,
-                deletedRange = input.deletedRange,
-                deletedCells = deletedCells,
-                hasSlotSnapshot = slotDeletionResult.snapshotToStore != null,
-            ),
         )
     }
 
@@ -223,29 +198,8 @@ object TableEditorStructureRestoreCoordinator {
         return insertedTemplate.copy(cells = mergedCells)
     }
 
-    private fun extractAxisCells(
-        template: TableTemplateState,
-        restoreAxis: StructureRestoreAxis,
-        axisIndex: Int,
-    ): List<TableCellState> {
-        return template.cells.filter { cell ->
-            when (restoreAxis) {
-                StructureRestoreAxis.ROW -> cell.rowIndex == axisIndex
-                StructureRestoreAxis.COL -> cell.colIndex == axisIndex
-            }
-        }.sortedWith(
-            when (restoreAxis) {
-                StructureRestoreAxis.ROW -> compareBy<TableCellState> { it.colIndex }
-                StructureRestoreAxis.COL -> compareBy<TableCellState> { it.rowIndex }
-            }
-        )
-    }
-
     private fun applyRestoredSlotSnapshotIfNeeded(
-        templateWithRestoredCells: TableTemplateState,
         sanitizedTemplate: TableTemplateState,
-        restoredCellPayload: List<TableCellState>,
-        restoredReindexedCells: List<TableCellState>,
         input: TableEditorStructureRestoreCoordinatorInput,
     ): TableEditorStructureRestoreCoordinatorResult {
         var nextTemplate = sanitizedTemplate
@@ -266,34 +220,12 @@ object TableEditorStructureRestoreCoordinator {
             nextTemplate = input.applyPathSlots(nextTemplate, slotRestoreResult.nextPathSlots)
         }
 
-        val targetIndex = when (input.restoreAxis) {
-            StructureRestoreAxis.ROW -> sanitizedTemplate.rows - 1
-            StructureRestoreAxis.COL -> sanitizedTemplate.cols - 1
-        }
-
         return TableEditorStructureRestoreCoordinatorResult(
             nextTemplate = nextTemplate,
             nextFileNameSlotsDirtySinceStructureChange = slotRestoreResult?.nextFileNameSlotsDirtySinceStructureChange
                 ?: input.fileNameSlotsDirtySinceStructureChange,
             nextPathSlotsDirtySinceStructureChange = slotRestoreResult?.nextPathSlotsDirtySinceStructureChange
                 ?: input.pathSlotsDirtySinceStructureChange,
-            debugInfo = TableEditorStructureRestoreDebugInfo(
-                axis = input.restoreAxis,
-                targetIndex = targetIndex,
-                deletedSnapshotCells = restoredCellPayload,
-                reindexedRestoredCells = restoredReindexedCells,
-                mergedAxisCells = extractAxisCells(
-                    template = templateWithRestoredCells,
-                    restoreAxis = input.restoreAxis,
-                    axisIndex = targetIndex,
-                ),
-                sanitizedAxisCells = extractAxisCells(
-                    template = sanitizedTemplate,
-                    restoreAxis = input.restoreAxis,
-                    axisIndex = targetIndex,
-                ),
-                hasSlotSnapshot = input.restoredSnapshot.slotSnapshot != null,
-            ),
         )
     }
 
@@ -316,10 +248,7 @@ object TableEditorStructureRestoreCoordinator {
         val sanitizedTemplate = input.sanitizeTemplate(templateWithRestoredCells)
 
         return applyRestoredSlotSnapshotIfNeeded(
-            templateWithRestoredCells = templateWithRestoredCells,
             sanitizedTemplate = sanitizedTemplate,
-            restoredCellPayload = restoredCellPayload,
-            restoredReindexedCells = restoredReindexedCells,
             input = input,
         )
     }

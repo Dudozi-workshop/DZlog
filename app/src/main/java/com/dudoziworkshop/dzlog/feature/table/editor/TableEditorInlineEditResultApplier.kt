@@ -28,8 +28,8 @@ object TableEditorInlineEditResultApplier {
 
     fun apply(input: TableEditorInlineEditApplyInput): TableEditorInlineEditAppliedState {
         val result = input.result
-        val nextCounterUi = applyCounterSideEffects(input)
-        applyTemplateSideEffects(input)
+        val nextCounterUi = applyCounterSideEffects(input, result)
+        applyTemplateSideEffects(input, result)
         return TableEditorInlineEditAppliedState(
             nextInlineEdit = result.nextInlineEdit,
             nextInlineSessionState = result.nextInlineSessionState,
@@ -39,29 +39,47 @@ object TableEditorInlineEditResultApplier {
         )
     }
 
-    private fun applyCounterSideEffects(input: TableEditorInlineEditApplyInput): TableCounterUiState {
-        val result = input.result
+    private fun applyCounterSideEffects(
+        input: TableEditorInlineEditApplyInput,
+        result: InlineEditActionResult,
+    ): TableCounterUiState {
         var nextCounterUi = input.currentCounterUi.copy(
             lowCounterWarningLatchedInSession = result.nextLowCounterWarningLatchedInSession,
         )
-        result.openedCounterConflict?.let {
-            nextCounterUi = input.updateCounterConflictUi(nextCounterUi, it)
-        }
-        result.committedCounterSeed?.let { seed ->
-            val cellId = result.committedCellId ?: return@let
-            nextCounterUi = input.applyCommittedCounter(
-                result.nextTemplate ?: input.currentTemplate,
-                cellId,
-                seed,
-                result.nextLowCounterWarningLatchedInSession,
-                nextCounterUi,
-            )
-        }
+        nextCounterUi = applyOpenedCounterConflict(input, result, nextCounterUi)
+        nextCounterUi = applyCommittedCounter(input, result, nextCounterUi)
         return nextCounterUi
     }
 
-    private fun applyTemplateSideEffects(input: TableEditorInlineEditApplyInput) {
-        val result = input.result
+    private fun applyOpenedCounterConflict(
+        input: TableEditorInlineEditApplyInput,
+        result: InlineEditActionResult,
+        counterUi: TableCounterUiState,
+    ): TableCounterUiState {
+        val openedCounterConflict = result.openedCounterConflict ?: return counterUi
+        return input.updateCounterConflictUi(counterUi, openedCounterConflict)
+    }
+
+    private fun applyCommittedCounter(
+        input: TableEditorInlineEditApplyInput,
+        result: InlineEditActionResult,
+        counterUi: TableCounterUiState,
+    ): TableCounterUiState {
+        val seed = result.committedCounterSeed ?: return counterUi
+        val cellId = result.committedCellId ?: return counterUi
+        return input.applyCommittedCounter(
+            result.nextTemplate ?: input.currentTemplate,
+            cellId,
+            seed,
+            result.nextLowCounterWarningLatchedInSession,
+            counterUi,
+        )
+    }
+
+    private fun applyTemplateSideEffects(
+        input: TableEditorInlineEditApplyInput,
+        result: InlineEditActionResult,
+    ) {
         if (result.committedCounterSeed != null) return
         val nextTemplate = result.nextTemplate ?: return
         when (result.templateApplyMode) {

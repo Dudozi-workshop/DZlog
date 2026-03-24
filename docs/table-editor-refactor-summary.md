@@ -34,15 +34,19 @@
 정책/판단 로직은 아래와 같이 외부로 이동했습니다.
 
 - Save 트랜잭션 정책: `TableEditorSaveCoordinator`
+- Save 성공/실패 후 상태 반영 규칙: `TableEditorSaveResultApplier`
+- save 쪽의 얇은 `buildSaveApplyInput(...)` wrapper는 제거했고, 호출부에서 `TableEditorSaveApplyInput(...)`를 직접 구성한다.
 - Unsaved back-press 판단: `TableEditorExitCoordinator`
 - 모드 전환 시 transient/selection 정리: `TableEditorModeTransitionHandlers`
+- bottom panel mode change 결과 해석/반영 규칙: `TableEditorBottomPanelModeChangeResolver`
 - 파일명/경로 슬롯 list 조작/정리: `TableEditorSlotListHandlers`
 - 슬롯 draft → 도메인 draft 반영: `TableEditorSlotDraftHandlers`
 
 ## 3) Next steps (recommended order)
 
 1. **LayoutTabActions 정리 (Phase 2 계속)**  
-   - 파일명/경로 슬롯 관련 액션을 `TableEditorSlotUiHandlers`(가칭)로 묶어,
+   - 우선 Screen 본문에 직접 펼쳐진 `LayoutTabActions(...)` 초대형 람다 블록을 builder/helper 호출 형태로 접어, 본문에서 wiring 밀도를 낮춘다.
+   - 이후 파일명/경로 슬롯 관련 액션을 `TableEditorSlotUiHandlers`(가칭)로 묶어,
      - 입력: 현재 `templateState` + relevant UI state + 액션 타입
      - 출력: next `templateState` + 필요한 transient/selection 변경
    - Screen은 handler 호출 + state apply만 남김.
@@ -86,4 +90,11 @@
 - counter 값 파싱 helper와 counter commit resolver는 분리하고, commit 시점의 검증 / conflict / normalize / latch 계산만 resolver가 담당한다.
 - CELL_EDIT 패널 하단 저장/되돌리기 버튼은 제거했고, 하단 액션은 메인 3버튼(저장 / 초기화 / 언두)으로 통일한다.
 - 초기화 의미는 화면 진입 시점 전체 복귀 + undo stack clear다.
-- inline 결과 해석, template apply mode 적용, counter 후처리 경계는 feature/editor helper 쪽으로 더 정리해 Screen의 결과 해석 책임을 줄였다.
+- inline 결과 해석, counter conflict / committed counter 적용, template apply mode 분기는 feature/editor helper가 담당하고, Screen은 현재 state/context 브리지와 applied state 반영 쪽으로 더 얇게 유지한다.
+- inline 입력 조립은 이제 `TableEditorInlineActionCoordinator` 안에서 `TableEditorInlineEditApplyInput(...)`를 직접 구성한다.
+- Screen은 별도 `buildInlineEditApplyInput(...)` helper를 유지하지 않고, 현재 context/binding 제공과 applied state 반영에 집중한다.
+- inline binding이 묶는 외부 의존성은 다음과 같다.
+  - undo 기반 template apply (`applyTemplateWithUndo`)
+  - direct template apply (`updateTemplateDraft`)
+  - counter conflict UI update
+  - committed counter 반영 bridge
