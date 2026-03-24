@@ -21,14 +21,16 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -63,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -223,53 +226,60 @@ fun LogViewerScreen(
             visible = uiVisible,
             enter = fadeIn(),
             exit = fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
         ) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color(0xAA000000))
+                        )
+                    )
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(
+                            WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
+                        )
+                    )
+                    .padding(bottom = 8.dp)
             ) {
-                // 정책 변경: 액션바를 필름스트립 위에 배치해 시각적 계층을 명확히 유지한다.
-                ViewerBottomPill(
-                    onFavorite = {
-                        val item = currentItem ?: return@ViewerBottomPill
-                        scope.launch {
-                            favoritesRepository.toggleFavorite(item)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    ViewerBottomPill(
+                        onFavorite = {
+                            val item = currentItem ?: return@ViewerBottomPill
+                            scope.launch {
+                                favoritesRepository.toggleFavorite(item)
+                            }
+                        },
+                        isFavorite = currentItem?.id?.let(favoriteIds::contains) == true,
+                        onInfo = {
+                            if (currentItem != null) showInfoSheet = true
+                        },
+                        onDelete = {
+                            val item = currentItem ?: return@ViewerBottomPill
+                            startDeleteRequest(listOf(item.uri))
                         }
-                    },
-                    isFavorite = currentItem?.id?.let(favoriteIds::contains) == true,
-                    onInfo = {
-                        if (currentItem != null) showInfoSheet = true
-                    },
-                    onDelete = {
-                        val item = currentItem ?: return@ViewerBottomPill
-                        startDeleteRequest(listOf(item.uri))
-                    }
-                )
+                    )
 
-                ThumbnailFilmstrip(
-                    items = items,
-                    currentPage = pagerState.currentPage,
-                    favoriteIds = favoriteIds,
-                    listState = filmstripListState,
-                    onThumbnailClick = { index ->
-                        scope.launch {
-                            pagerState.animateScrollToPage(index)
-                            filmstripListState.animateScrollToItem(index)
+                    ThumbnailFilmstrip(
+                        items = items,
+                        currentPage = pagerState.currentPage,
+                        favoriteIds = favoriteIds,
+                        listState = filmstripListState,
+                        onThumbnailClick = { index ->
+                            scope.launch {
+                                pagerState.animateScrollToPage(index)
+                                filmstripListState.animateScrollToItem(index)
+                            }
                         }
-                    }
-                )
-
-                // 정책 변경: 네비게이션 바 inset은 하단 마지막 spacer에만 적용해
-                // 전체 그룹이 위로 뜨는 현상을 방지한다.
-                Spacer(
-                    modifier = Modifier
-                        .height(2.dp)
-                        .navigationBarsPadding()
-                )
+                    )
+                }
             }
         }
     }
@@ -294,14 +304,21 @@ private fun ViewerTopOverlay(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0x66000000))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color(0x99000000), Color.Transparent)
+                )
+            )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                // 정책 변경: 배경은 status bar까지 덮고 실제 컨텐츠만 status bar inset을 적용한다.
-                .statusBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(
+                        WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                    )
+                )
+                .padding(start = 12.dp, end = 76.dp, top = 6.dp, bottom = 6.dp),
             contentAlignment = Alignment.Center
         ) {
             IconButton(
