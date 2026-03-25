@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -71,6 +72,7 @@ import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraViewModel
 import com.dudoziworkshop.dzlog.ui.camera.state.computeCameraDerivedState
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
+import com.dudoziworkshop.dzlog.ui.common.rememberThreeButtonNavEquivalentBottomPadding
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
@@ -168,6 +170,7 @@ fun CameraPreview(
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     var zoomPanelExpanded by remember { mutableStateOf(false) }
     val ui = cameraViewModel.ui
+    val threeButtonEquivalentBottomPadding = rememberThreeButtonNavEquivalentBottomPadding()
     val layout = rememberCameraLayoutState(usableVerticalMargin = USABLE_VERTICAL_MARGIN)
 
     val tableResolver = remember { TableResolver() }
@@ -368,7 +371,9 @@ fun CameraPreview(
                 )
 
                 Box(
-                    modifier = Modifier.align(Alignment.BottomCenter)
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = threeButtonEquivalentBottomPadding)
                 ) {
                     CameraBottomControls(
                         scope = scope,

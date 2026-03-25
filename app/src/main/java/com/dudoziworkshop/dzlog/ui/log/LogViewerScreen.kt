@@ -301,43 +301,42 @@ private fun ViewerTopOverlay(
     onBack: () -> Unit,
     onShare: () -> Unit,
 ) {
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0x99000000), Color.Transparent)
+            .windowInsetsPadding(
+                WindowInsets.safeDrawing.only(
+                    WindowInsetsSides.Top + WindowInsetsSides.Horizontal
                 )
             )
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(
-                        WindowInsetsSides.Top + WindowInsetsSides.Horizontal
-                    )
-                )
-                .padding(start = 12.dp, end = 76.dp, top = 6.dp, bottom = 6.dp),
-            contentAlignment = Alignment.Center
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.CenterStart
         ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.align(Alignment.CenterStart)
-            ) {
+            IconButton(onClick = onBack) {
                 Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
             }
-
+        }
+        Box(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
                 text = "DZLOG VIEWER",
                 color = Color.White,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
-
+        }
+        Box(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.CenterEnd
+        ) {
             IconButton(
                 onClick = onShare,
-                modifier = Modifier.align(Alignment.CenterEnd),
                 enabled = current != null
             ) {
                 Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White)

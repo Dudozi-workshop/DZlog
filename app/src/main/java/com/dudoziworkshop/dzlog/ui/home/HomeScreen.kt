@@ -66,6 +66,7 @@ import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
 import com.dudoziworkshop.dzlog.domain.preview.buildPreview
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
+import com.dudoziworkshop.dzlog.ui.common.rememberThreeButtonNavEquivalentBottomPadding
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZCard
@@ -226,6 +227,7 @@ fun HomeScreen(
         modifier = Modifier
             .dzScreen()
     ) {
+        val threeButtonEquivalentBottomPadding = rememberThreeButtonNavEquivalentBottomPadding()
         val screenWidth = maxWidth
         val screenHeight = maxHeight
 
@@ -235,7 +237,7 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = pad, end = pad, bottom = pad)
+                .padding(start = pad, end = pad, bottom = pad + threeButtonEquivalentBottomPadding)
         ) {
             Column(
                 modifier = Modifier

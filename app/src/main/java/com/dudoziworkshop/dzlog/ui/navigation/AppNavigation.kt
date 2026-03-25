@@ -2,9 +2,11 @@ package com.dudoziworkshop.dzlog.ui.navigation
 
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -48,7 +50,6 @@ import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
 import com.dudoziworkshop.dzlog.ui.table.detail.TableDetailRoute
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-
 
 enum class AppScreen {
     HOME,
@@ -154,9 +155,10 @@ fun AppRoot() {
         val insetsController = WindowInsetsControllerCompat(window, view)
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
-        insetsController.isAppearanceLightStatusBars = screen != AppScreen.CAMERA
-        insetsController.isAppearanceLightNavigationBars = screen != AppScreen.CAMERA
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        val darkSurfaceScreen = screen == AppScreen.CAMERA || screen == AppScreen.ALBUM_VIEWER
+        insetsController.isAppearanceLightStatusBars = !darkSurfaceScreen
+        insetsController.isAppearanceLightNavigationBars = !darkSurfaceScreen
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isStatusBarContrastEnforced = false
             window.isNavigationBarContrastEnforced = false
         }
@@ -436,57 +438,60 @@ fun AppRoot() {
         }
     }
 
-    if (keepCameraAliveBehindAlbum) {
-        Box(modifier = Modifier.alpha(0f)) {
-            CameraScreen(
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        if (keepCameraAliveBehindAlbum) {
+            Box(modifier = Modifier.alpha(0f)) {
+                CameraScreen(
+                    tableTemplateState = tableTemplateState,
+                    onTemplateChange = ::updateTemplateState,
+                    onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
+                    onOpenAlbum = ::openAlbumRoot,
+                    onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
+                    sessionCaptureStack = cameraSessionCaptureStack
+                )
+            }
+        }
+
+        when (screen) {
+            AppScreen.HOME -> HomeScreen(
                 tableTemplateState = tableTemplateState,
-                onTemplateChange = ::updateTemplateState,
+                onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
+                onStartCamera = { navigateTo(AppScreen.CAMERA) },
                 onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
                 onOpenAlbum = ::openAlbumRoot,
-                onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
-                sessionCaptureStack = cameraSessionCaptureStack
+                onOpenRecentCaptureGrid = ::openRecentCaptureGrid
             )
-        }
-    }
 
-    when (screen) {
-        AppScreen.HOME -> HomeScreen(
-            tableTemplateState = tableTemplateState,
-            onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
-            onStartCamera = { navigateTo(AppScreen.CAMERA) },
-            onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
-            onOpenAlbum = ::openAlbumRoot,
-            onOpenRecentCaptureGrid = ::openRecentCaptureGrid
-        )
+            AppScreen.CAMERA -> {
+                CameraScreen(
+                    tableTemplateState = tableTemplateState,
+                    onTemplateChange = ::updateTemplateState,
+                    onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
+                    onOpenAlbum = ::openAlbumRoot,
+                    onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
+                    sessionCaptureStack = cameraSessionCaptureStack
+                )
+            }
 
-        AppScreen.CAMERA -> {
-            CameraScreen(
-                tableTemplateState = tableTemplateState,
-                onTemplateChange = ::updateTemplateState,
-                onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
-                onOpenAlbum = ::openAlbumRoot,
-                onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
-                sessionCaptureStack = cameraSessionCaptureStack
+            AppScreen.TABLE_EDITOR -> {
+                TableDetailRoute(
+                    templateState = tableTemplateState,
+                    onTemplateChange = ::updateTemplateState,
+                    onBack = { screen = previousScreen }
+                )
+            }
+
+            AppScreen.SETTINGS -> SettingsScreen(
+                onBack = { screen = AppScreen.HOME },
+                onOpenCredits = { navigateTo(AppScreen.CREDITS) }
             )
-        }
-
-
-        AppScreen.TABLE_EDITOR -> {
-            TableDetailRoute(
-                templateState = tableTemplateState,
-                onTemplateChange = ::updateTemplateState,
-                onBack = { screen = previousScreen }
+            AppScreen.CREDITS -> CreditsScreen(
+                onBack = { screen = AppScreen.SETTINGS }
             )
-        }
-
-        AppScreen.SETTINGS -> SettingsScreen(
-            onBack = { screen = AppScreen.HOME },
-            onOpenCredits = { navigateTo(AppScreen.CREDITS) }
-        )
-        AppScreen.CREDITS -> CreditsScreen(
-            onBack = { screen = AppScreen.SETTINGS }
-        )
-        AppScreen.ALBUM_G1 -> {
+            AppScreen.ALBUM_G1 -> {
             fun openGridByCounts(
                 title: String,
                 waterRel: String,
@@ -560,7 +565,7 @@ fun AppRoot() {
             )
         }
 
-        AppScreen.ALBUM_G2 -> {
+            AppScreen.ALBUM_G2 -> {
             val g1 = albumLocation?.g1
             if (g1 == null) {
                 screen = AppScreen.ALBUM_G1
@@ -598,7 +603,7 @@ fun AppRoot() {
             }
         }
         // 📸 앨범 내 사진 목록 화면
-        AppScreen.ALBUM_GRID -> {
+            AppScreen.ALBUM_GRID -> {
             val location = requireValidAlbumLocationOrFallback()
             if (location != null) {
                 LogGridScreen(
@@ -650,7 +655,7 @@ fun AppRoot() {
         }
 
 // 📷 앨범 내 개별 사진 뷰어 화면
-        AppScreen.ALBUM_VIEWER -> {
+            AppScreen.ALBUM_VIEWER -> {
             val location = requireValidAlbumLocationOrFallback()
             if (location != null) {
                 LogViewerScreen(
@@ -676,7 +681,7 @@ fun AppRoot() {
                     }
                 )
             }
+            }
         }
     }
-
 }
