@@ -165,3 +165,20 @@ Screen은 inline binding/context 제공과 applied state 반영에 집중하며,
   - selected cell domain action: selected cell binder + `selectedCellActionBindings`
   - selection/focus action: `selectionActionBindings`
   - inline editing action: `inlineEditingActionBindings`
+
+## 10. Build recovery note (2026-03-24)
+
+- 이번 변경은 리팩터링 확장 단계가 아니라 compileDebugKotlin 복구를 위한 연결 보정 단계다.
+- Screen private/local 구현을 외부 binder가 직접 참조하지 않도록 `withDataType`를 공용 top-level helper로 정리했다.
+- 얇은 신규 helper 추가보다 기존 binder/coordinator wiring 복구를 우선했다.
+- weight reset은 별도 wrapper/helper를 재도입하지 않고 Screen action wiring에서 직접 복구하는 방식을 사용했다.
+
+## 11. Screen thinning note (wrapper trim + action-axis naming)
+
+- bottom panel mode 변경은 별도 build wrapper 없이 `requestBottomPanelModeChange(...)`에서 resolver input을 직접 구성한다.
+- Screen은 상태 소유/브리지/reflect 책임을 유지하고, 판단은 resolver/binder에 둔다.
+- 액션 축 명확화를 위해 selection+inline 편집 binder 명을 `TableEditorSelectionInlineEditingActionBinder`로 맞췄다.
+- 현재 축 구분:
+  - selected cell domain action: selected cell binder + `selectedCellActionBindings`
+  - selection/focus action: `selectionActionBindings`
+  - inline editing action: `inlineEditingActionBindings`
