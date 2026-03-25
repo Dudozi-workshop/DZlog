@@ -231,13 +231,18 @@ fun HomeScreen(
         val screenWidth = maxWidth
         val screenHeight = maxHeight
 
-        val pad = clampDp(screenWidth * 0.045f, 12.dp, 20.dp)
+        val horizontalPad = clampDp(screenWidth * 0.045f, 12.dp, 20.dp)
+        val homeBottomGap = clampDp(screenHeight * 0.004f, 0.dp, 8.dp)
         val gap = clampDp(screenHeight * 0.012f, 6.dp, 14.dp)
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = pad, end = pad, bottom = pad + threeButtonEquivalentBottomPadding)
+                .padding(
+                    start = horizontalPad,
+                    end = horizontalPad,
+                    bottom = homeBottomGap + threeButtonEquivalentBottomPadding
+                )
         ) {
             Column(
                 modifier = Modifier
