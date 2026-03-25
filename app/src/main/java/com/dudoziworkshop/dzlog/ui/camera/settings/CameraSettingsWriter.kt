@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.ui.camera.settings
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_GRID_ON
+import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_FLASH_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SAVE_MODE
@@ -20,6 +21,7 @@ import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
 
 internal class CameraSettingsWriter(
     private val context: Context,
@@ -52,6 +54,10 @@ internal class CameraSettingsWriter(
         context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = zoomTenths }
     }
 
+    suspend fun setFlashMode(mode: CameraFlashMode) {
+        context.dataStore.edit { it[KEY_CAMERA_FLASH_MODE] = mode.toPrefValue() }
+    }
+
     suspend fun setWmRotationCwDeg(rotationCwDeg: Int) {
         context.dataStore.edit { it[KEY_WM_ROTATION_CW_90] = if (rotationCwDeg == 90) 90 else 0 }
     }
@@ -81,3 +87,8 @@ internal class CameraSettingsWriter(
     }
 }
 
+private fun CameraFlashMode.toPrefValue(): Int = when (this) {
+    CameraFlashMode.OFF -> 0
+    CameraFlashMode.AUTO -> 1
+    CameraFlashMode.ON -> 2
+}

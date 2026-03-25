@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.ui.camera.state
 
 import android.net.Uri
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +29,7 @@ internal class CameraPrefsState {
     var counterDigits by mutableIntStateOf(COUNTER_DIGITS_DEFAULT)
     var showGrid by mutableStateOf(false)
     var zoomRatioTenths by mutableIntStateOf(10)
+    var flashMode by mutableStateOf(CameraFlashMode.OFF)
 
     var showWmPreview by mutableStateOf(true)
     var wmTableAnchor by mutableStateOf(WatermarkTableAnchor.BOTTOM_RIGHT)
@@ -74,6 +76,28 @@ internal class CameraUiState {
     val capture: CaptureUiState = CaptureUiState()
     val counter: CounterScopeState = CounterScopeState()
 
+    var showToolMenu by mutableStateOf(false)
+    var selectedTool by mutableStateOf<CameraOverlayTool?>(null)
+    var isToolPanelExpanded by mutableStateOf(false)
+    var isPinchZoomActive by mutableStateOf(false)
+    var focusUiValue by mutableFloatStateOf(0.5f)
+
     var showWizard by mutableStateOf(false)
+
+    fun dismissToolOverlays() {
+        showToolMenu = false
+        isToolPanelExpanded = false
+    }
 }
 
+internal enum class CameraOverlayTool {
+    ZOOM,
+    FOCUS,
+    FLASH,
+}
+
+internal enum class CameraFlashMode {
+    OFF,
+    AUTO,
+    ON,
+}

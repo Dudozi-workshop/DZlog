@@ -38,6 +38,7 @@ val KEY_COUNTER_MANUAL_NEXT_OVERRIDES_V1 = stringPreferencesKey("counter_manual_
 val KEY_CONTINUOUS_PREVIEW_MODE = intPreferencesKey("continuous_preview_mode")
 val KEY_CAMERA_GRID_ON = booleanPreferencesKey("camera_grid_on")
 val KEY_CAMERA_ZOOM_TENTHS = intPreferencesKey("camera_zoom_tenths")
+val KEY_CAMERA_FLASH_MODE = intPreferencesKey("camera_flash_mode")
 val KEY_INCLUDE_PATH_IN_COUNTER_SCOPE = booleanPreferencesKey("include_path_in_counter_scope")
 val KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE = booleanPreferencesKey("include_filename_in_counter_scope")
 val KEY_TOAST_ENABLED = booleanPreferencesKey("toast_enabled")

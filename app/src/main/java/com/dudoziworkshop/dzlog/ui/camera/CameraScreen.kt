@@ -70,6 +70,7 @@ import com.dudoziworkshop.dzlog.ui.camera.preview.buildWatermarkConfig
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsOverlayPanel
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraViewModel
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
 import com.dudoziworkshop.dzlog.ui.camera.state.computeCameraDerivedState
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.common.rememberThreeButtonNavEquivalentBottomPadding
@@ -168,7 +169,6 @@ fun CameraPreview(
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
-    var zoomPanelExpanded by remember { mutableStateOf(false) }
     val ui = cameraViewModel.ui
     val threeButtonEquivalentBottomPadding = rememberThreeButtonNavEquivalentBottomPadding()
     val layout = rememberCameraLayoutState(usableVerticalMargin = USABLE_VERTICAL_MARGIN)
@@ -305,13 +305,22 @@ fun CameraPreview(
     CameraVolumeKeyEffect(
         volumeKeyAction = appSettings.volumeKeyAction,
         onCapture = {
-            zoomPanelExpanded = false
+            ui.dismissToolOverlays()
             triggerCapture()
         },
         onZoomDelta = { deltaTenths ->
             commitZoomTenths(ui.prefs.zoomRatioTenths + deltaTenths)
         }
     )
+
+    LaunchedEffect(boundImageCapture, ui.prefs.flashMode) {
+        val capture = boundImageCapture ?: return@LaunchedEffect
+        capture.flashMode = when (ui.prefs.flashMode) {
+            CameraFlashMode.OFF -> ImageCapture.FLASH_MODE_OFF
+            CameraFlashMode.AUTO -> ImageCapture.FLASH_MODE_AUTO
+            CameraFlashMode.ON -> ImageCapture.FLASH_MODE_ON
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -325,11 +334,11 @@ fun CameraPreview(
             CameraTopBar(
                 topDisplayName = topDisplayName,
                 onOpenTableEditor = {
-                    zoomPanelExpanded = false
+                    ui.dismissToolOverlays()
                     onOpenTableEditor()
                 },
                 onOpenSettings = {
-                    zoomPanelExpanded = false
+                    ui.dismissToolOverlays()
                     ui.showWizard = true
                 },
             )
@@ -356,7 +365,10 @@ fun CameraPreview(
                     safeTopY = layout.safeTopY,
                     safeBottomY = layout.safeBottomY,
                     usableVerticalMarginPx = layout.usableVerticalMarginPx,
-                    onOpenTableEditor = onOpenTableEditor,
+                    onOpenTableEditor = {
+                        ui.dismissToolOverlays()
+                        onOpenTableEditor()
+                    },
                 )
 
                 CameraPreviewArea(
@@ -386,10 +398,11 @@ fun CameraPreview(
                         sessionCaptureStack = sessionCaptureStack,
                         undoPending = (undoDeleteController.pendingUris != null),
                         onUndoDelete = { uris -> undoDeleteController.delete(uris) },
-                        onTriggerCapture = { triggerCapture() },
+                        onTriggerCapture = {
+                            ui.dismissToolOverlays()
+                            triggerCapture()
+                        },
                         onShutterButtonTopYChange = { layout.onShutterButtonTopYChange(it) },
-                        zoomPanelExpanded = zoomPanelExpanded,
-                        onZoomPanelExpandedChange = { zoomPanelExpanded = it },
                     )
                 }
             }

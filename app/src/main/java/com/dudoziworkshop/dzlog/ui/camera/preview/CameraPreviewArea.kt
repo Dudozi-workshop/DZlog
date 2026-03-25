@@ -284,6 +284,7 @@ internal fun CameraPreviewArea(
                 onWatermarkBoundsOffset10000Preview = args.onWatermarkBoundsOffset10000Preview,
                 onWatermarkOffsetRatioPreview = args.onWatermarkOffsetRatioPreview,
                 onMaxZoomTenthsChange = args.onMaxZoomTenthsChange,
+                onPinchZoomActiveChange = args.onPinchZoomActiveChange,
                 onRequestedZoomTenthsCommit = args.onRequestedZoomTenthsCommit,
                 onActualZoomTenthsChange = args.onActualZoomTenthsChange,
             )
@@ -461,4 +462,3 @@ internal fun resolveZoomBounds(minSupported: Float, maxSupported: Float): Pair<F
     val clampedMin = max(1f, minSupported).coerceAtMost(clampedMax)
     return clampedMin to clampedMax
 }
-

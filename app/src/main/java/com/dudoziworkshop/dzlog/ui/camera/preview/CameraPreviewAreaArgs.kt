@@ -69,6 +69,7 @@ internal data class CameraPreviewAreaArgs(
     val onActualZoomTenthsChange: (Int) -> Unit,
     val onRequestedZoomTenthsCommit: (Int) -> Unit,
     val onMaxZoomTenthsChange: (Int) -> Unit,
+    val onPinchZoomActiveChange: (Boolean) -> Unit,
     val shutterButtonTopY: Float?,
     val safeTopY: Float?,
     val safeBottomY: Float?,

@@ -9,6 +9,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.data.counter.clampCounterDigits
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_GRID_ON
+import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_FLASH_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
@@ -38,6 +39,7 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraUiState
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
 import kotlin.math.roundToInt
 
 @Composable
@@ -101,6 +103,7 @@ internal fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.showWmPreview = (prefs[KEY_SHOW_WM_PREVIEW] ?: 1) == 1
         ui.prefs.showGrid = prefs[KEY_CAMERA_GRID_ON] ?: false
         ui.prefs.zoomRatioTenths = (prefs[KEY_CAMERA_ZOOM_TENTHS] ?: 10).coerceIn(10, 100)
+        ui.prefs.flashMode = (prefs[KEY_CAMERA_FLASH_MODE] ?: 0).toCameraFlashMode()
         ui.capture.actualZoomTenths = ui.prefs.zoomRatioTenths
         ui.capture.maxZoomTenths = maxOf(ui.capture.maxZoomTenths, 20)
     } catch (_: Exception) {
@@ -112,6 +115,7 @@ internal fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.showWmPreview = true
         ui.prefs.showGrid = false
         ui.prefs.zoomRatioTenths = 10
+        ui.prefs.flashMode = CameraFlashMode.OFF
         ui.capture.actualZoomTenths = 10
         ui.capture.maxZoomTenths = 20
         ui.prefs.wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
@@ -132,3 +136,8 @@ internal fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
     }
 }
 
+private fun Int.toCameraFlashMode(): CameraFlashMode = when (this) {
+    1 -> CameraFlashMode.AUTO
+    2 -> CameraFlashMode.ON
+    else -> CameraFlashMode.OFF
+}

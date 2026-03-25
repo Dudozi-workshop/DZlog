@@ -63,6 +63,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
     onWatermarkBoundsOffset10000Preview: (Int, Int) -> Unit,
     onWatermarkOffsetRatioPreview: (Int, Int) -> Unit,
     onMaxZoomTenthsChange: (Int) -> Unit,
+    onPinchZoomActiveChange: (Boolean) -> Unit,
     onRequestedZoomTenthsCommit: (Int) -> Unit,
     onActualZoomTenthsChange: (Int) -> Unit,
 ): Modifier = this
@@ -119,6 +120,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
         val pinchScaleDeadZone = 0.01f
         awaitEachGesture {
             val activeCamera = boundCamera ?: return@awaitEachGesture
+            var pinchActiveNotified = false
             val firstDown = awaitFirstDown(requireUnconsumed = false)
             var localDragEnabled = isWatermarkArmed && watermarkBoundsRect != null && watermarkRawRect != null &&
                 watermarkBoundsRect.contains(firstDown.position.x, firstDown.position.y)
@@ -167,6 +169,10 @@ internal fun Modifier.cameraPreviewGestureModifier(
                     }
                     val zoom = event.calculateZoom()
                     if (abs(zoom - 1f) >= pinchScaleDeadZone) {
+                        if (!pinchActiveNotified) {
+                            pinchActiveNotified = true
+                            onPinchZoomActiveChange(true)
+                        }
                         val centroid = event.calculateCentroid(useCurrent = true)
                         if (shouldHandlePreviewPinch(
                                 centroidX = centroid.x,
@@ -267,6 +273,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
             onDragAccumDxChange(0f)
             onDragAccumDyChange(0f)
             onDragStartedAfterSlopChange(false)
+            if (pinchActiveNotified) onPinchZoomActiveChange(false)
         }
     }
 

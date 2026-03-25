@@ -155,7 +155,7 @@ fun AppRoot() {
         val insetsController = WindowInsetsControllerCompat(window, view)
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
-        val darkSurfaceScreen = screen == AppScreen.CAMERA || screen == AppScreen.ALBUM_VIEWER
+        val darkSurfaceScreen = screen == AppScreen.ALBUM_VIEWER
         insetsController.isAppearanceLightStatusBars = !darkSurfaceScreen
         insetsController.isAppearanceLightNavigationBars = !darkSurfaceScreen
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

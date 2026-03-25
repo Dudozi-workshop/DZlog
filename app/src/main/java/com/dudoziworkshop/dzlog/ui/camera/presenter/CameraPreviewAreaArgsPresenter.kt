@@ -107,6 +107,7 @@ internal fun rememberCameraPreviewAreaArgs(
                 scope.launch { settingsWriter.setZoomTenths(normalized) }
             },
             onMaxZoomTenthsChange = { ui.capture.maxZoomTenths = it.coerceAtLeast(10) },
+            onPinchZoomActiveChange = { ui.isPinchZoomActive = it },
             shutterButtonTopY = shutterButtonTopY,
             safeTopY = safeTopY,
             safeBottomY = safeBottomY,
@@ -202,4 +203,3 @@ private fun commitBoundsOffset10000(
     ui.prefs.wmOffsetYRatio = ny
     scope.launch { settingsWriter.setWmCustomBoundsOffset10000(nx10000, ny10000) }
 }
-
