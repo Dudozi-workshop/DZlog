@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -58,8 +60,13 @@ internal fun CameraFocusControlSection(
 
 @Composable
 internal fun CameraFocusCompactSection(
+    mode: CameraFocusMode,
     onClick: () -> Unit,
 ) {
+    val statusLabel = when (mode) {
+        CameraFocusMode.AUTO -> "자동"
+        CameraFocusMode.MANUAL -> "수동"
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -72,9 +79,10 @@ internal fun CameraFocusCompactSection(
             imageVector = Icons.Default.CenterFocusStrong,
             contentDescription = "초점",
             tint = DDZColor.SageDarkStrong,
+            modifier = Modifier.size(14.dp),
         )
         Text(
-            text = "초점",
+            text = statusLabel,
             style = DDZTypography.Caption,
             color = DDZColor.SageDarkStrong,
             modifier = Modifier.padding(start = 4.dp)

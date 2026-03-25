@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.FlashAuto
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
-import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 @Composable
 internal fun CameraFlashControlSection(
@@ -83,22 +81,14 @@ private fun FlashModeChip(
         modifier = Modifier
             .background(background, RoundedCornerShape(DDZLayout.Radius.Full))
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = DDZColor.SageDarkStrong,
-                modifier = Modifier.size(14.dp)
-            )
-            Text(
-                text = label,
-                style = DDZTypography.Caption,
-                color = DDZColor.SageDarkStrong,
-                modifier = Modifier.padding(start = 4.dp)
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = DDZColor.SageDarkStrong,
+            modifier = Modifier.size(16.dp)
+        )
     }
 }

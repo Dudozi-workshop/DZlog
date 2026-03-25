@@ -54,7 +54,7 @@ internal fun buildCameraTriggerCapture(
     if (boundImageCapture == null || ui.capture.capturedUri != null || ui.capture.isCapturing) return@trigger
     // counter 미동기화(null) 상태에서는 최종 preview가 없으므로 캡처를 시작하지 않는다.
     val capturePreview = finalCapturePreview ?: return@trigger
-    // 플래시는 OFF/AUTO/ON 촬영 모드 기준으로 ImageCapture에 반영한다. (TORCH 상시점등 사용 금지)
+    // 촬영 직전 한 번 더 반영해 capture 시점 flash mode 불일치를 방지한다. (TORCH 상시점등 사용 금지)
     boundImageCapture.flashMode = ui.prefs.flashMode.toImageCaptureFlashMode()
 
     // 정책 변경: 촬영 피드백은 저장 완료가 아니라 촬영 트리거(버튼/음량키) 시점에 즉시 제공한다.

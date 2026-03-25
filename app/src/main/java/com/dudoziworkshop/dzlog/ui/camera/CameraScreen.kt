@@ -315,6 +315,7 @@ fun CameraPreview(
 
     LaunchedEffect(boundImageCapture, ui.prefs.flashMode) {
         val capture = boundImageCapture ?: return@LaunchedEffect
+        // 바인딩된 ImageCapture 인스턴스가 교체되어도 선택된 flash mode를 즉시 유지한다.
         capture.flashMode = when (ui.prefs.flashMode) {
             CameraFlashMode.OFF -> ImageCapture.FLASH_MODE_OFF
             CameraFlashMode.AUTO -> ImageCapture.FLASH_MODE_AUTO

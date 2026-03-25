@@ -80,6 +80,7 @@ internal class CameraUiState {
     var selectedTool by mutableStateOf<CameraOverlayTool?>(null)
     var isToolPanelExpanded by mutableStateOf(false)
     var isPinchZoomActive by mutableStateOf(false)
+    var focusMode by mutableStateOf(CameraFocusMode.AUTO)
     var focusUiValue by mutableFloatStateOf(0.5f)
 
     var showWizard by mutableStateOf(false)
@@ -100,4 +101,9 @@ internal enum class CameraFlashMode {
     OFF,
     AUTO,
     ON,
+}
+
+internal enum class CameraFocusMode {
+    AUTO,
+    MANUAL,
 }

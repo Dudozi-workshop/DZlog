@@ -39,6 +39,7 @@ import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraOverlayTool
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraUiState
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
@@ -125,6 +126,7 @@ internal fun CameraBottomControls(
             zoomRatioTenths = ui.capture.actualZoomTenths,
             maxZoomTenths = ui.capture.maxZoomTenths,
             flashMode = ui.prefs.flashMode,
+            focusMode = ui.focusMode,
             focusUiValue = ui.focusUiValue,
             bottomOffset = with(density) { bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing },
             onSelectTool = { selectedTool ->
@@ -138,7 +140,10 @@ internal fun CameraBottomControls(
                 ui.prefs.zoomRatioTenths = normalized
                 scope.launch { settingsWriter.setZoomTenths(normalized) }
             },
-            onFocusUiValueChange = { ui.focusUiValue = it },
+            onFocusUiValueChange = {
+                ui.focusUiValue = it
+                ui.focusMode = CameraFocusMode.MANUAL
+            },
             onFlashModeChange = { mode ->
                 ui.prefs.flashMode = mode
                 scope.launch { settingsWriter.setFlashMode(mode) }
@@ -218,7 +223,10 @@ private fun BoxScope.CameraBottomBarRow(
             }
 
             Box(modifier = Modifier.weight(23f), contentAlignment = Alignment.Center) {
-                WatermarkRotateButton(onClick = onRotateClick)
+                WatermarkRotateButton(
+                    onClick = onRotateClick,
+                    active = (ui.prefs.wmRotationCwDeg == 90)
+                )
             }
 
             Box(modifier = Modifier.weight(15f), contentAlignment = Alignment.Center) {
@@ -247,6 +255,7 @@ private fun BoxScope.CameraToolOverlayPanel(
     zoomRatioTenths: Int,
     maxZoomTenths: Int,
     flashMode: CameraFlashMode,
+    focusMode: CameraFocusMode,
     focusUiValue: Float,
     bottomOffset: androidx.compose.ui.unit.Dp,
     onSelectTool: (CameraOverlayTool) -> Unit,
@@ -264,7 +273,13 @@ private fun BoxScope.CameraToolOverlayPanel(
         contentAlignment = Alignment.BottomCenter
     ) {
         when {
-            showToolMenu -> CameraToolMenuSection(onSelectTool = onSelectTool)
+            showToolMenu -> CameraToolMenuSection(
+                selectedTool = selectedTool,
+                zoomRatioTenths = zoomRatioTenths,
+                flashMode = flashMode,
+                focusMode = focusMode,
+                onSelectTool = onSelectTool
+            )
             compactTool == CameraOverlayTool.ZOOM && !isToolPanelExpanded -> CameraZoomCompactSection(
                 zoomRatioTenths = zoomRatioTenths,
                 onClick = onOpenSelectedToolPanel
@@ -274,6 +289,7 @@ private fun BoxScope.CameraToolOverlayPanel(
                 onClick = onOpenSelectedToolPanel
             )
             compactTool == CameraOverlayTool.FOCUS && !isToolPanelExpanded -> CameraFocusCompactSection(
+                mode = focusMode,
                 onClick = onOpenSelectedToolPanel
             )
             selectedTool == CameraOverlayTool.ZOOM && isToolPanelExpanded && !isPinchZoomActive -> ZoomControlSection(
@@ -354,13 +370,19 @@ private fun CameraControlButton(
 @Composable
 private fun WatermarkRotateButton(
     onClick: () -> Unit,
+    active: Boolean,
     modifier: Modifier = Modifier
 ) {
-    CameraControlButton(onClick = onClick, modifier = modifier) {
+    CameraControlButton(
+        onClick = onClick,
+        modifier = modifier,
+        backgroundColor = if (active) DDZColor.SageLight.copy(alpha = 0.82f) else Color.Transparent,
+        borderColor = if (active) DDZColor.SageDarkStrong else DDZColor.SageBorder,
+    ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.RotateRight,
             contentDescription = "워터마크 90도 회전",
-            tint = DDZColor.SageDarkStrong
+            tint = if (active) DDZColor.SageDarkStrong else DDZColor.SageDark
         )
     }
 }
