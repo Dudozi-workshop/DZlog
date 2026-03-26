@@ -140,6 +140,9 @@ internal fun CameraBottomControls(
                 ui.prefs.zoomRatioTenths = normalized
                 scope.launch { settingsWriter.setZoomTenths(normalized) }
             },
+            onFocusModeChange = { mode ->
+                ui.focusMode = mode
+            },
             onFocusUiValueChange = {
                 ui.focusUiValue = it
                 ui.focusMode = CameraFocusMode.MANUAL
@@ -262,6 +265,7 @@ private fun BoxScope.CameraToolOverlayPanel(
     onSelectTool: (CameraOverlayTool) -> Unit,
     onOpenSelectedToolPanel: () -> Unit,
     onZoomTenthsChange: (Int) -> Unit,
+    onFocusModeChange: (CameraFocusMode) -> Unit,
     onFocusUiValueChange: (Float) -> Unit,
     onFlashModeChange: (CameraFlashMode) -> Unit,
     hapticEnabled: Boolean,
@@ -303,7 +307,9 @@ private fun BoxScope.CameraToolOverlayPanel(
                 onZoomTenthsChange = onZoomTenthsChange
             )
             selectedTool == CameraOverlayTool.FOCUS && isToolPanelExpanded && !isPinchZoomActive -> CameraFocusControlSection(
+                mode = focusMode,
                 focusUiValue = focusUiValue,
+                onModeChange = onFocusModeChange,
                 onValueChange = onFocusUiValueChange
             )
             selectedTool == CameraOverlayTool.FLASH && isToolPanelExpanded && !isPinchZoomActive -> CameraFlashControlSection(
