@@ -309,6 +309,7 @@ private fun BoxScope.CameraToolOverlayPanel(
             selectedTool == CameraOverlayTool.FOCUS && isToolPanelExpanded && !isPinchZoomActive -> CameraFocusControlSection(
                 mode = focusMode,
                 focusUiValue = focusUiValue,
+                hapticEnabled = hapticEnabled,
                 onModeChange = onFocusModeChange,
                 onValueChange = onFocusUiValueChange
             )

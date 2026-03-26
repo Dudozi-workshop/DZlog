@@ -251,6 +251,7 @@ internal fun CameraPreviewArea(
                 boundCamera = boundCamera,
                 captureRect = captureRect,
                 tapFocusUi = tapFocusUi,
+                focusMode = args.focusMode,
                 suppressWatermarkTapUntilMs = suppressWatermarkTapUntilMs,
                 watermarkBoundsRect = watermarkBoundsRect,
                 watermarkRawRect = watermarkRawRect,

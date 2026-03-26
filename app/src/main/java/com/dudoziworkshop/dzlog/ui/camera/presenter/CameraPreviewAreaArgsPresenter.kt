@@ -59,6 +59,7 @@ internal fun rememberCameraPreviewAreaArgs(
         ui.prefs.showGrid,
         ui.prefs.zoomRatioTenths,
         ui.capture.maxZoomTenths,
+        ui.focusMode,
         ui.prefs.wmTableAnchor,
         ui.prefs.wmTableWidthRatio,
         ui.prefs.wmTableHeightRatio,
@@ -100,6 +101,7 @@ internal fun rememberCameraPreviewAreaArgs(
             showGrid = ui.prefs.showGrid,
             zoomRatioTenths = ui.prefs.zoomRatioTenths,
             maxZoomTenths = ui.capture.maxZoomTenths,
+            focusMode = ui.focusMode,
             onActualZoomTenthsChange = { ui.capture.actualZoomTenths = it },
             onRequestedZoomTenthsCommit = { next ->
                 val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))

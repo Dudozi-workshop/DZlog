@@ -16,6 +16,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChanged
 import com.dudoziworkshop.dzlog.ui.camera.controller.startTapToFocus
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -30,6 +31,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
     boundCamera: Camera?,
     captureRect: RectF,
     tapFocusUi: TapFocusUiState?,
+    focusMode: CameraFocusMode,
     suppressWatermarkTapUntilMs: Long,
     watermarkBoundsRect: RectF?,
     watermarkRawRect: RectF?,
@@ -67,7 +69,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
     onRequestedZoomTenthsCommit: (Int) -> Unit,
     onActualZoomTenthsChange: (Int) -> Unit,
 ): Modifier = this
-    .pointerInput(boundCamera, captureRect, tapFocusUi) {
+    .pointerInput(boundCamera, captureRect, tapFocusUi, focusMode) {
         detectTapGestures { offset ->
             if (SystemClock.uptimeMillis() < suppressWatermarkTapUntilMs) return@detectTapGestures
             if (watermarkBoundsRect?.contains(offset.x, offset.y) == true) {
@@ -86,6 +88,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
                 onWatermarkArmedChange(false)
                 return@detectTapGestures
             }
+            if (focusMode == CameraFocusMode.MANUAL) return@detectTapGestures
             val activeCamera = boundCamera ?: return@detectTapGestures
             if (!captureRect.contains(offset.x, offset.y)) return@detectTapGestures
 

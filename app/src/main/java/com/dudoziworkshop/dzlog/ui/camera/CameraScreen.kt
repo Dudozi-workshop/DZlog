@@ -63,6 +63,7 @@ import com.dudoziworkshop.dzlog.ui.camera.effects.CameraPrefsEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraVolumeKeyEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.rememberLatestImageController
 import com.dudoziworkshop.dzlog.ui.camera.effects.rememberUndoDeleteController
+import com.dudoziworkshop.dzlog.ui.camera.interop.applyFocusModeToBoundCamera
 import com.dudoziworkshop.dzlog.ui.camera.presenter.rememberCameraLayoutState
 import com.dudoziworkshop.dzlog.ui.camera.presenter.rememberCameraPreviewAreaArgs
 import com.dudoziworkshop.dzlog.ui.camera.preview.CameraPreviewArea
@@ -321,6 +322,16 @@ fun CameraPreview(
             CameraFlashMode.AUTO -> ImageCapture.FLASH_MODE_AUTO
             CameraFlashMode.ON -> ImageCapture.FLASH_MODE_ON
         }
+    }
+
+
+    LaunchedEffect(boundCamera, ui.focusMode, ui.focusUiValue) {
+        val activeCamera = boundCamera ?: return@LaunchedEffect
+        applyFocusModeToBoundCamera(
+            camera = activeCamera,
+            mode = ui.focusMode,
+            focusUiValue = ui.focusUiValue,
+        )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
