@@ -5,7 +5,8 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
@@ -22,7 +23,9 @@ private val EMPHASIZED_TICKS = setOf(10, 20, 40, 60, 80, 100)
 internal fun ZoomTickBar(
     zoomTenths: Int,
     maxZoomTenths: Int,
+    hapticEnabled: Boolean,
     onZoomTenthsChange: (Int) -> Unit,
+    onStepHaptic: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -34,29 +37,52 @@ internal fun ZoomTickBar(
     val normalizedMaxTenths = maxZoomTenths.coerceIn(MIN_ZOOM_TENTHS, MAX_ZOOM_TENTHS)
     val normalizedTenths = zoomTenths.coerceIn(MIN_ZOOM_TENTHS, normalizedMaxTenths)
 
-    val updateFromDeltaTenths = remember(normalizedTenths, normalizedMaxTenths, onZoomTenthsChange) {
-        { deltaTenths: Float ->
-            val mapped = (normalizedTenths + deltaTenths)
-                .roundToInt()
-                .coerceIn(MIN_ZOOM_TENTHS, normalizedMaxTenths)
-            onZoomTenthsChange(mapped)
-        }
-    }
+    val latestZoomTenths by rememberUpdatedState(normalizedTenths)
+    val latestHapticEnabled by rememberUpdatedState(hapticEnabled)
+    val latestOnZoomTenthsChange by rememberUpdatedState(onZoomTenthsChange)
+    val latestOnStepHaptic by rememberUpdatedState(onStepHaptic)
 
     Canvas(
         modifier = modifier
             .height(44.dp)
-            .pointerInput(normalizedTenths, normalizedMaxTenths) {
+            .pointerInput(normalizedMaxTenths) {
                 detectTapGestures { offset ->
                     val centerX = size.width / 2f
                     val deltaTenths = (offset.x - centerX) / tickSpacingPx
-                    updateFromDeltaTenths(deltaTenths)
+                    val mapped = (latestZoomTenths + deltaTenths)
+                        .roundToInt()
+                        .coerceIn(MIN_ZOOM_TENTHS, normalizedMaxTenths)
+                    latestOnZoomTenthsChange(mapped)
                 }
             }
-            .pointerInput(normalizedTenths, normalizedMaxTenths) {
-                detectDragGestures { change, dragAmount ->
-                    val deltaTenths = dragAmount.x / tickSpacingPx
-                    updateFromDeltaTenths(deltaTenths)
+            .pointerInput(normalizedMaxTenths) {
+                var dragStartZoomTenths = MIN_ZOOM_TENTHS
+                var accumulatedDragPx = 0f
+                var lastHapticTenths = MIN_ZOOM_TENTHS
+
+                detectDragGestures(
+                    onDragStart = {
+                        dragStartZoomTenths = latestZoomTenths
+                        accumulatedDragPx = 0f
+                        lastHapticTenths = latestZoomTenths
+                    },
+                    onDragCancel = {
+                        accumulatedDragPx = 0f
+                    },
+                    onDragEnd = {
+                        accumulatedDragPx = 0f
+                    }
+                ) { change, dragAmount ->
+                    accumulatedDragPx -= dragAmount.x
+                    val deltaTenths = accumulatedDragPx / tickSpacingPx
+                    val mapped = (dragStartZoomTenths + deltaTenths)
+                        .roundToInt()
+                        .coerceIn(MIN_ZOOM_TENTHS, normalizedMaxTenths)
+                    latestOnZoomTenthsChange(mapped)
+                    if (latestHapticEnabled && mapped != lastHapticTenths) {
+                        latestOnStepHaptic()
+                        lastHapticTenths = mapped
+                    }
                     change.consume()
                 }
             }

@@ -68,6 +68,7 @@ internal fun CameraBottomControls(
     onUndoDelete: (targetUris: List<Uri>) -> Unit,
     onTriggerCapture: () -> Unit,
     onShutterButtonTopYChange: (Float?) -> Unit,
+    hapticEnabled: Boolean,
 ) {
     val density = LocalDensity.current
     var bottomBarHeightPx by remember { mutableIntStateOf(0) }
@@ -147,6 +148,7 @@ internal fun CameraBottomControls(
                 ui.prefs.flashMode = mode
                 scope.launch { settingsWriter.setFlashMode(mode) }
             },
+            hapticEnabled = hapticEnabled,
         )
     }
 }
@@ -262,6 +264,7 @@ private fun BoxScope.CameraToolOverlayPanel(
     onZoomTenthsChange: (Int) -> Unit,
     onFocusUiValueChange: (Float) -> Unit,
     onFlashModeChange: (CameraFlashMode) -> Unit,
+    hapticEnabled: Boolean,
 ) {
     if (!showToolMenu && compactTool == null) return
 
@@ -295,6 +298,7 @@ private fun BoxScope.CameraToolOverlayPanel(
                 zoomRatioTenths = zoomRatioTenths,
                 maxZoomTenths = maxZoomTenths,
                 expanded = true,
+                hapticEnabled = hapticEnabled,
                 onToggleExpanded = {},
                 onZoomTenthsChange = onZoomTenthsChange
             )
@@ -375,13 +379,13 @@ private fun WatermarkRotateButton(
     CameraControlButton(
         onClick = onClick,
         modifier = modifier,
-        backgroundColor = if (active) DDZColor.SageLight.copy(alpha = 0.82f) else Color.Transparent,
-        borderColor = if (active) DDZColor.SageDarkStrong else DDZColor.SageBorder,
+        backgroundColor = if (active) DDZColor.SagePrimary else Color.Transparent,
+        borderColor = if (active) DDZColor.SagePrimary else DDZColor.SageBorder,
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.RotateRight,
             contentDescription = "워터마크 90도 회전",
-            tint = if (active) DDZColor.SageDarkStrong else DDZColor.SageDark
+            tint = if (active) Color.White else DDZColor.SageDark
         )
     }
 }

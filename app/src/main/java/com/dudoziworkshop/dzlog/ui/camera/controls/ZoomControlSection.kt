@@ -15,6 +15,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -30,9 +32,11 @@ internal fun ZoomControlSection(
     zoomRatioTenths: Int,
     maxZoomTenths: Int,
     expanded: Boolean,
+    hapticEnabled: Boolean,
     onToggleExpanded: () -> Unit,
     onZoomTenthsChange: (Int) -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     val normalizedMaxTenths = maxZoomTenths.coerceIn(10, 100)
     val normalizedTenths = zoomRatioTenths.coerceIn(10, normalizedMaxTenths)
     val zoomLabel = formatZoomActualLabel(normalizedTenths)
@@ -62,7 +66,9 @@ internal fun ZoomControlSection(
             ZoomTickBar(
                 zoomTenths = normalizedTenths,
                 maxZoomTenths = normalizedMaxTenths,
+                hapticEnabled = hapticEnabled,
                 onZoomTenthsChange = onZoomTenthsChange,
+                onStepHaptic = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) },
                 modifier = Modifier.fillMaxWidth(0.76f)
             )
 
@@ -93,7 +99,10 @@ internal fun ZoomControlSection(
                         modifier = Modifier
                             .background(color = presetBackground, shape = CHIP_SHAPE)
                             .border(1.dp, presetBorder, CHIP_SHAPE)
-                            .clickable { onZoomTenthsChange(actualPreset) }
+                            .clickable {
+                                if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onZoomTenthsChange(actualPreset)
+                            }
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(

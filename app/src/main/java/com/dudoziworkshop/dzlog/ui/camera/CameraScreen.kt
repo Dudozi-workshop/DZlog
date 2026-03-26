@@ -404,6 +404,7 @@ fun CameraPreview(
                             triggerCapture()
                         },
                         onShutterButtonTopYChange = { layout.onShutterButtonTopYChange(it) },
+                        hapticEnabled = appSettings.hapticEnabled,
                     )
                 }
             }
