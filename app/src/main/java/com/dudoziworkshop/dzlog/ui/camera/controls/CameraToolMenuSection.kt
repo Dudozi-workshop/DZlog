@@ -39,7 +39,7 @@ internal fun CameraToolMenuSection(
     focusMode: CameraFocusMode,
     onSelectTool: (CameraOverlayTool) -> Unit,
 ) {
-    val zoomLabel = "${(zoomRatioTenths.coerceIn(10, 100) / 10)}x"
+    val zoomLabel = formatZoomMenuBucketLabel(zoomRatioTenths)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),

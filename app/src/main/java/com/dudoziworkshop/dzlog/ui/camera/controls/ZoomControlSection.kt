@@ -10,10 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,8 +20,6 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import java.util.Locale
-import kotlin.math.roundToInt
 
 // 2단계 라운딩 토큰: 줌 칩/프리셋은 pill 계열로 Full 고정한다.
 private val CHIP_SHAPE = RoundedCornerShape(DDZLayout.Radius.Full)
@@ -38,9 +33,9 @@ internal fun ZoomControlSection(
     onToggleExpanded: () -> Unit,
     onZoomTenthsChange: (Int) -> Unit
 ) {
-    val normalizedMaxTenths = maxZoomTenths.coerceAtLeast(10)
+    val normalizedMaxTenths = maxZoomTenths.coerceIn(10, 100)
     val normalizedTenths = zoomRatioTenths.coerceIn(10, normalizedMaxTenths)
-    val zoomLabel = String.format(Locale.US, "%.1fx", normalizedTenths / 10f)
+    val zoomLabel = formatZoomActualLabel(normalizedTenths)
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -64,20 +59,11 @@ internal fun ZoomControlSection(
         }
 
         if (expanded) {
-            Slider(
-                modifier = Modifier.width(200.dp),
-                value = normalizedTenths / 10f,
-                onValueChange = {
-                    val stepped = (it * 10f).roundToInt().coerceIn(10, normalizedMaxTenths)
-                    onZoomTenthsChange(stepped)
-                },
-                valueRange = 1f..(normalizedMaxTenths / 10f),
-                steps = (normalizedMaxTenths - 10).coerceAtLeast(1) - 1,
-                colors = SliderDefaults.colors(
-                    thumbColor = DDZColor.SageDarkStrong,
-                    activeTrackColor = DDZColor.SagePrimary,
-                    inactiveTrackColor = DDZColor.Card.copy(alpha = 0.95f)
-                )
+            ZoomTickBar(
+                zoomTenths = normalizedTenths,
+                maxZoomTenths = normalizedMaxTenths,
+                onZoomTenthsChange = onZoomTenthsChange,
+                modifier = Modifier.fillMaxWidth(0.76f)
             )
 
             // 정책 유지: 프리셋은 빠른 이동용이며, 지원 최대 줌을 넘는 경우 가능한 범위로 자동 보정한다.
@@ -111,7 +97,7 @@ internal fun ZoomControlSection(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = presetLabel(presetTenths),
+                            text = formatZoomActualLabel(presetTenths),
                             style = DDZTypography.Caption,
                             color = presetText
                         )
@@ -120,11 +106,4 @@ internal fun ZoomControlSection(
             }
         }
     }
-}
-
-private fun presetLabel(presetTenths: Int): String = when (presetTenths) {
-    10 -> "1x"
-    20 -> "2x"
-    40 -> "4x"
-    else -> "10x"
 }

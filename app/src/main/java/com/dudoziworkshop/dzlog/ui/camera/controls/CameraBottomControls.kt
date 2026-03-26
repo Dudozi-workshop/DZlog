@@ -50,7 +50,6 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 private val BottomControlsHorizontalPadding = 12.dp
 private val ToolOverlayBottomSpacing = 10.dp
@@ -316,7 +315,7 @@ private fun CameraZoomCompactSection(
     zoomRatioTenths: Int,
     onClick: () -> Unit,
 ) {
-    val zoomLabel = String.format(Locale.US, "%.1fx", zoomRatioTenths.coerceAtLeast(10) / 10f)
+    val zoomLabel = formatZoomActualLabel(zoomRatioTenths)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
