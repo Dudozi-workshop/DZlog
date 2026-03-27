@@ -19,6 +19,7 @@ import kotlin.math.roundToInt
 private const val FOCUS_STEP_COUNT = 100
 private const val FOCUS_HAPTIC_STEP_INTERVAL = 4
 private const val FOCUS_HAPTIC_MIN_DRAG_DELTA = 0.02f
+private const val FOCUS_MINOR_RENDER_INTERVAL = 2
 private val FOCUS_EMPHASIZED_STEPS = (0..FOCUS_STEP_COUNT step 10).toSet()
 
 @Composable
@@ -31,7 +32,7 @@ internal fun FocusTickBar(
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
-    val tickSpacingPx = with(density) { 7.dp.toPx() }
+    val tickSpacingPx = with(density) { 9.dp.toPx() }
     val tickHeightPx = with(density) { 18.dp.toPx() }
     val pointerHeightPx = with(density) { 30.dp.toPx() }
 
@@ -104,6 +105,7 @@ internal fun FocusTickBar(
         val verticalCenter = size.height / 2f
 
         for (step in 0..FOCUS_STEP_COUNT) {
+            if (step % FOCUS_MINOR_RENDER_INTERVAL != 0) continue
             val x = centerX + (step - normalizedStep) * tickSpacingPx
             if (x < 0f || x > size.width) continue
 
