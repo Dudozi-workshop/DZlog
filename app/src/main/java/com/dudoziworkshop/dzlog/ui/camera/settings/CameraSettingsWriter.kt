@@ -5,6 +5,9 @@ import androidx.datastore.preferences.core.edit
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_GRID_ON
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_FLASH_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_ENABLED
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_X_RATIO
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_Y_RATIO
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SAVE_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
@@ -56,6 +59,17 @@ internal class CameraSettingsWriter(
 
     suspend fun setFlashMode(mode: CameraFlashMode) {
         context.dataStore.edit { it[KEY_CAMERA_FLASH_MODE] = mode.toPrefValue() }
+    }
+
+    suspend fun setAssistShutterEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_ASSIST_SHUTTER_ENABLED] = enabled }
+    }
+
+    suspend fun setAssistShutterPositionRatio(xRatio: Float, yRatio: Float) {
+        context.dataStore.edit {
+            it[KEY_ASSIST_SHUTTER_X_RATIO] = xRatio
+            it[KEY_ASSIST_SHUTTER_Y_RATIO] = yRatio
+        }
     }
 
     suspend fun setWmRotationCwDeg(rotationCwDeg: Int) {

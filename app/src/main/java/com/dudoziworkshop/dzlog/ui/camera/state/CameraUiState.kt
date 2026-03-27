@@ -30,6 +30,9 @@ internal class CameraPrefsState {
     var showGrid by mutableStateOf(false)
     var zoomRatioTenths by mutableIntStateOf(10)
     var flashMode by mutableStateOf(CameraFlashMode.OFF)
+    var assistShutterEnabled by mutableStateOf(false)
+    var assistShutterXRatio by mutableStateOf(0.82f)
+    var assistShutterYRatio by mutableStateOf(0.62f)
 
     var showWmPreview by mutableStateOf(true)
     var wmTableAnchor by mutableStateOf(WatermarkTableAnchor.BOTTOM_RIGHT)

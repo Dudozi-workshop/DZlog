@@ -151,6 +151,12 @@ internal fun CameraBottomControls(
                 ui.prefs.flashMode = mode
                 scope.launch { settingsWriter.setFlashMode(mode) }
             },
+            assistShutterEnabled = ui.prefs.assistShutterEnabled,
+            onToggleAssistShutter = {
+                val next = !ui.prefs.assistShutterEnabled
+                ui.prefs.assistShutterEnabled = next
+                scope.launch { settingsWriter.setAssistShutterEnabled(next) }
+            },
             hapticEnabled = hapticEnabled,
         )
     }
@@ -268,6 +274,8 @@ private fun BoxScope.CameraToolOverlayPanel(
     onFocusModeChange: (CameraFocusMode) -> Unit,
     onFocusUiValueChange: (Float) -> Unit,
     onFlashModeChange: (CameraFlashMode) -> Unit,
+    assistShutterEnabled: Boolean,
+    onToggleAssistShutter: () -> Unit,
     hapticEnabled: Boolean,
 ) {
     if (!showToolMenu && compactTool == null) return
@@ -284,7 +292,9 @@ private fun BoxScope.CameraToolOverlayPanel(
                 zoomRatioTenths = zoomRatioTenths,
                 flashMode = flashMode,
                 focusMode = focusMode,
-                onSelectTool = onSelectTool
+                assistShutterEnabled = assistShutterEnabled,
+                onSelectTool = onSelectTool,
+                onToggleAssistShutter = onToggleAssistShutter,
             )
             compactTool == CameraOverlayTool.ZOOM && !isToolPanelExpanded -> CameraZoomCompactSection(
                 zoomRatioTenths = zoomRatioTenths,

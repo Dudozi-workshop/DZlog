@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.data.preferences
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -48,6 +49,9 @@ val KEY_CAPTURE_SOUND_ENABLED = booleanPreferencesKey("capture_sound_enabled")
 val KEY_VOLUME_KEY_ACTION = intPreferencesKey("volume_key_action")
 val KEY_BLANK_WARNING_ENABLED = booleanPreferencesKey("blank_warning_enabled")
 val KEY_CAPTURE_QUALITY_MODE = stringPreferencesKey("capture_quality_mode")
+val KEY_ASSIST_SHUTTER_ENABLED = booleanPreferencesKey("assist_shutter_enabled")
+val KEY_ASSIST_SHUTTER_X_RATIO = floatPreferencesKey("assist_shutter_x_ratio")
+val KEY_ASSIST_SHUTTER_Y_RATIO = floatPreferencesKey("assist_shutter_y_ratio")
 
 
 enum class OrientationMode(val v: Int) {

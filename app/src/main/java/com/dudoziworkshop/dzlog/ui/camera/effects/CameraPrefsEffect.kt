@@ -11,6 +11,9 @@ import com.dudoziworkshop.dzlog.data.counter.clampCounterDigits
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_GRID_ON
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_FLASH_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_ENABLED
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_X_RATIO
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_Y_RATIO
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
@@ -104,6 +107,9 @@ internal fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.showGrid = prefs[KEY_CAMERA_GRID_ON] ?: false
         ui.prefs.zoomRatioTenths = (prefs[KEY_CAMERA_ZOOM_TENTHS] ?: 10).coerceIn(10, 100)
         ui.prefs.flashMode = (prefs[KEY_CAMERA_FLASH_MODE] ?: 0).toCameraFlashMode()
+        ui.prefs.assistShutterEnabled = prefs[KEY_ASSIST_SHUTTER_ENABLED] ?: false
+        ui.prefs.assistShutterXRatio = (prefs[KEY_ASSIST_SHUTTER_X_RATIO] ?: 0.82f)
+        ui.prefs.assistShutterYRatio = (prefs[KEY_ASSIST_SHUTTER_Y_RATIO] ?: 0.62f)
         ui.capture.actualZoomTenths = ui.prefs.zoomRatioTenths
         ui.capture.maxZoomTenths = maxOf(ui.capture.maxZoomTenths, 20)
     } catch (_: Exception) {
@@ -116,6 +122,9 @@ internal fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.showGrid = false
         ui.prefs.zoomRatioTenths = 10
         ui.prefs.flashMode = CameraFlashMode.OFF
+        ui.prefs.assistShutterEnabled = false
+        ui.prefs.assistShutterXRatio = 0.82f
+        ui.prefs.assistShutterYRatio = 0.62f
         ui.capture.actualZoomTenths = 10
         ui.capture.maxZoomTenths = 20
         ui.prefs.wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT

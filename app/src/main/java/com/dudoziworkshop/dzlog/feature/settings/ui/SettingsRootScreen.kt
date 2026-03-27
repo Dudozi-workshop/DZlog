@@ -114,6 +114,15 @@ private val SETTINGS_COUNTER_ITEMS = listOf(
     )
 )
 
+private val SETTINGS_CAPTURE_ASSIST_ITEMS = listOf(
+    ToggleUiItem(
+        key = ToggleKey.ASSIST_SHUTTER,
+        icon = Icons.Default.CheckCircle,
+        title = "플로팅 보조 셔터",
+        description = "촬영 화면에 드래그 가능한 보조 셔터 버튼을 표시해요."
+    )
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsRootScreen(
@@ -297,6 +306,21 @@ fun SettingsRootScreen(
                 }
             }
 
+            SectionBlock(title = "촬영 보조") {
+                SETTINGS_CAPTURE_ASSIST_ITEMS.forEach { item ->
+                    val checked = resolveToggleChecked(settings, item.key)
+                    ToggleCardRow(
+                        item = item,
+                        checked = checked,
+                        onToggle = {
+                            scope.launch {
+                                applySettingsAction(context, resolveToggleAction(item.key, !checked))
+                            }
+                        }
+                    )
+                }
+            }
+
             SectionBlock(title = "카운터 설정") {
                 SETTINGS_COUNTER_ITEMS.forEach { item ->
                     val checked = resolveToggleChecked(settings, item.key)
@@ -428,6 +452,7 @@ private data class QualityUiItem(
 private enum class ToggleKey {
     CAPTURE_HAPTIC,
     CAPTURE_SOUND,
+    ASSIST_SHUTTER,
     INCLUDE_PATH,
     INCLUDE_FILENAME,
 }
@@ -442,6 +467,7 @@ private data class ToggleUiItem(
 private fun resolveToggleChecked(settings: AppSettings, key: ToggleKey): Boolean = when (key) {
     ToggleKey.CAPTURE_HAPTIC -> settings.captureHapticEnabled
     ToggleKey.CAPTURE_SOUND -> settings.captureSoundEnabled
+    ToggleKey.ASSIST_SHUTTER -> settings.assistShutterEnabled
     ToggleKey.INCLUDE_PATH -> settings.includePathInCounterScope
     ToggleKey.INCLUDE_FILENAME -> settings.includeFilenameInCounterScope
 }
@@ -449,6 +475,7 @@ private fun resolveToggleChecked(settings: AppSettings, key: ToggleKey): Boolean
 private fun resolveToggleAction(key: ToggleKey, enabled: Boolean): SettingsAction = when (key) {
     ToggleKey.CAPTURE_HAPTIC -> SettingsAction.CaptureHapticEnabledChanged(enabled)
     ToggleKey.CAPTURE_SOUND -> SettingsAction.CaptureSoundEnabledChanged(enabled)
+    ToggleKey.ASSIST_SHUTTER -> SettingsAction.AssistShutterEnabledChanged(enabled)
     ToggleKey.INCLUDE_PATH -> SettingsAction.IncludePathInCounterScopeChanged(enabled)
     ToggleKey.INCLUDE_FILENAME -> SettingsAction.IncludeFilenameInCounterScopeChanged(enabled)
 }

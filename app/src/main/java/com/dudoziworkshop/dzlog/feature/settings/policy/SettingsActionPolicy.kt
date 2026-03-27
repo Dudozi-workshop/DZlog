@@ -19,6 +19,7 @@ sealed interface SettingsAction {
     data class CaptureSoundEnabledChanged(val enabled: Boolean) : SettingsAction
     data class VolumeKeyActionChanged(val action: VolumeKeyAction) : SettingsAction
     data class BlankWarningEnabledChanged(val enabled: Boolean) : SettingsAction
+    data class AssistShutterEnabledChanged(val enabled: Boolean) : SettingsAction
 }
 
 suspend fun applySettingsAction(context: Context, action: SettingsAction): String? {
@@ -35,5 +36,6 @@ suspend fun applySettingsAction(context: Context, action: SettingsAction): Strin
         is SettingsAction.CaptureSoundEnabledChanged -> updateCaptureSoundEnabled(context, action.enabled)
         is SettingsAction.VolumeKeyActionChanged -> updateVolumeKeyAction(context, action.action)
         is SettingsAction.BlankWarningEnabledChanged -> updateBlankWarningEnabled(context, action.enabled)
+        is SettingsAction.AssistShutterEnabledChanged -> updateAssistShutterEnabled(context, action.enabled)
     }
 }

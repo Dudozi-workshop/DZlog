@@ -67,3 +67,9 @@ suspend fun updateVolumeKeyAction(context: Context, action: VolumeKeyAction): St
     AppSettingsStore.setVolumeKeyAction(context, action)
     return "음량키 동작: ${action.label}"
 }
+
+suspend fun updateAssistShutterEnabled(context: Context, enabled: Boolean): String {
+    AppSettingsStore.setAssistShutterEnabled(context, enabled)
+    return "보조 셔터: ${if (enabled) "ON" else "OFF"}"
+}
+

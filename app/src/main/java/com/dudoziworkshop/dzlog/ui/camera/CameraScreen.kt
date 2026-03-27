@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -57,6 +58,7 @@ import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
 import com.dudoziworkshop.dzlog.ui.camera.controls.buildCameraTriggerCapture
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraBottomControls
+import com.dudoziworkshop.dzlog.ui.camera.controls.FloatingAssistShutterButton
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTopBar
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraNowTickEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraPrefsEffect
@@ -418,6 +420,29 @@ fun CameraPreview(
                         hapticEnabled = appSettings.hapticEnabled,
                     )
                 }
+
+                FloatingAssistShutterButton(
+                    enabled = ui.prefs.assistShutterEnabled,
+                    xRatio = ui.prefs.assistShutterXRatio,
+                    yRatio = ui.prefs.assistShutterYRatio,
+                    onPositionRatioChange = { xRatio, yRatio ->
+                        ui.prefs.assistShutterXRatio = xRatio
+                        ui.prefs.assistShutterYRatio = yRatio
+                        scope.launch {
+                            settingsWriter.setAssistShutterPositionRatio(
+                                xRatio = xRatio,
+                                yRatio = yRatio
+                            )
+                        }
+                    },
+                    onTapCapture = {
+                        ui.dismissToolOverlays()
+                        triggerCapture()
+                    },
+                    modifier = Modifier
+                        .matchParentSize()
+                        .zIndex(80f)
+                )
             }
         }
 

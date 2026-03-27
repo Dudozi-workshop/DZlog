@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.FlashAuto
 import androidx.compose.material.icons.filled.FlashOff
@@ -37,7 +38,9 @@ internal fun CameraToolMenuSection(
     zoomRatioTenths: Int,
     flashMode: CameraFlashMode,
     focusMode: CameraFocusMode,
+    assistShutterEnabled: Boolean,
     onSelectTool: (CameraOverlayTool) -> Unit,
+    onToggleAssistShutter: () -> Unit,
 ) {
     val zoomLabel = formatZoomMenuBucketLabel(zoomRatioTenths)
     Row(
@@ -74,6 +77,16 @@ internal fun CameraToolMenuSection(
             Icon(
                 imageVector = flashMode.toToolMenuIcon(),
                 contentDescription = "플래시",
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        ToolMenuChip(
+            selected = assistShutterEnabled,
+            onClick = onToggleAssistShutter
+        ) {
+            Icon(
+                imageVector = Icons.Default.CameraAlt,
+                contentDescription = if (assistShutterEnabled) "보조 셔터 끄기" else "보조 셔터 켜기",
                 modifier = Modifier.size(16.dp),
             )
         }

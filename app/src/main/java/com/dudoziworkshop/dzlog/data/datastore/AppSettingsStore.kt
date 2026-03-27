@@ -4,6 +4,9 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import com.dudoziworkshop.dzlog.data.preferences.KEY_BLANK_WARNING_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAPTURE_HAPTIC_ENABLED
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_ENABLED
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_X_RATIO
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_Y_RATIO
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAPTURE_SOUND_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
@@ -35,6 +38,9 @@ data class AppSettings(
     val captureSoundEnabled: Boolean = true,
     val volumeKeyAction: VolumeKeyAction = VolumeKeyAction.NONE,
     val blankWarningEnabled: Boolean,
+    val assistShutterEnabled: Boolean = false,
+    val assistShutterXRatio: Float = 0.82f,
+    val assistShutterYRatio: Float = 0.62f,
 )
 
 object AppSettingsStore {
@@ -54,6 +60,9 @@ object AppSettingsStore {
                 captureSoundEnabled = prefs[KEY_CAPTURE_SOUND_ENABLED] ?: true,
                 volumeKeyAction = VolumeKeyAction.from(prefs[KEY_VOLUME_KEY_ACTION] ?: VolumeKeyAction.NONE.v),
                 blankWarningEnabled = prefs[KEY_BLANK_WARNING_ENABLED] ?: true,
+                assistShutterEnabled = prefs[KEY_ASSIST_SHUTTER_ENABLED] ?: false,
+                assistShutterXRatio = prefs[KEY_ASSIST_SHUTTER_X_RATIO] ?: 0.82f,
+                assistShutterYRatio = prefs[KEY_ASSIST_SHUTTER_Y_RATIO] ?: 0.62f,
             )
         }
 
@@ -103,5 +112,9 @@ object AppSettingsStore {
 
     suspend fun setBlankWarningEnabled(context: Context, enabled: Boolean) {
         context.dataStore.edit { it[KEY_BLANK_WARNING_ENABLED] = enabled }
+    }
+
+    suspend fun setAssistShutterEnabled(context: Context, enabled: Boolean) {
+        context.dataStore.edit { it[KEY_ASSIST_SHUTTER_ENABLED] = enabled }
     }
 }
