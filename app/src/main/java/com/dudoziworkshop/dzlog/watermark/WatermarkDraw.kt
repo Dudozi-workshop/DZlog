@@ -414,7 +414,7 @@ private fun ellipsizeToWidth(text: String, paint: Paint, maxWidthPx: Float): Str
 
     var end = text.length
     while (end > 0) {
-        val candidate = text.substring(0, end) + ellipsis
+        val candidate = text.take(end) + ellipsis
         if (paint.measureText(candidate) <= maxWidthPx) return candidate
         end--
     }

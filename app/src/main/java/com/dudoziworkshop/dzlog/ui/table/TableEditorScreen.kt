@@ -123,7 +123,7 @@ import com.dudoziworkshop.dzlog.ui.table.editor.clearInlineEditing
 import com.dudoziworkshop.dzlog.ui.table.editor.isEditing
 import com.dudoziworkshop.dzlog.ui.table.format.TableFormatDialog
 import com.dudoziworkshop.dzlog.ui.table.format.TableFormatDialogState
-import com.dudoziworkshop.dzlog.ui.table.format.close
+import com.dudoziworkshop.dzlog.ui.table.format.closeTableFormatDialog
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseUiState
 import com.dudoziworkshop.dzlog.ui.table.section.BottomEditorPanelMode
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameFormatType
@@ -1214,7 +1214,7 @@ fun TableEditorScreen(
         state = formatDialog,
         templateState = currentTemplate,
         onTemplateChange = ::updateTemplateDraft,
-        onClose = { formatDialog = formatDialog.close() },
+        onClose = { formatDialog = closeTableFormatDialog() },
         dateFormatOptions = dateFormatOptions
     )
 

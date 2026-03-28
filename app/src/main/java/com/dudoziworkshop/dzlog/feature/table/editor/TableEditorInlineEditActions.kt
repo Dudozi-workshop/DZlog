@@ -53,10 +53,10 @@ object TableEditorInlineEditActions {
     // 주요 정책: commitIfNeeded는 값 반영 본체가 아니라 세션 종료 / validation / conflict 처리를 담당한다.
     fun commitIfNeeded(context: InlineEditSessionContext): InlineEditActionResult {
         val id = context.inlineEdit.editingCellId ?: return noTemplateChange(
-            context = context.copy(inlineSessionState = context.inlineSessionState.clearInlineSession()),
+            context = context.copy(inlineSessionState = clearInlineSession()),
             actionLabel = "commit_inline_noop",
             nextInlineEdit = context.inlineEdit,
-            nextInlineSessionState = context.inlineSessionState.clearInlineSession(),
+            nextInlineSessionState = clearInlineSession(),
         )
 
         val cell = context.currentTemplate.cells.firstOrNull { it.cellId == id }
@@ -93,7 +93,7 @@ object TableEditorInlineEditActions {
                 TableEditorCounterInlineCommitOutcome.COMMITTED -> InlineEditActionResult(
                     nextInlineEdit = clearInlineEditing(context.inlineEdit),
                     nextTemplate = counterCommit.nextTemplate,
-                    nextInlineSessionState = context.inlineSessionState.clearInlineSession(),
+                    nextInlineSessionState = clearInlineSession(),
                     nextEditSessionOriginalCellState = context.editSessionOriginalCellState,
                     nextSelectedCellId = context.selectedCellId,
                     templateApplyMode = InlineTemplateApplyMode.APPLY_DIRECTLY,
@@ -109,7 +109,7 @@ object TableEditorInlineEditActions {
         return InlineEditActionResult(
             nextInlineEdit = clearInlineEditing(context.inlineEdit),
             nextTemplate = null,
-            nextInlineSessionState = context.inlineSessionState.clearInlineSession(),
+            nextInlineSessionState = clearInlineSession(),
             nextEditSessionOriginalCellState = context.editSessionOriginalCellState,
             nextSelectedCellId = context.selectedCellId,
             templateApplyMode = InlineTemplateApplyMode.NONE,

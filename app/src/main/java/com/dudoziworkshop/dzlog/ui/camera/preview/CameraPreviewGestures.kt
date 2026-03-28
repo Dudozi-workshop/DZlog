@@ -122,7 +122,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
             val activeCamera = boundCamera ?: return@awaitEachGesture
             var pinchActiveNotified = false
             val firstDown = awaitFirstDown(requireUnconsumed = false)
-            var localDragEnabled = isWatermarkArmed && watermarkBoundsRect != null && watermarkRawRect != null &&
+            val localDragEnabled = isWatermarkArmed && watermarkBoundsRect != null && watermarkRawRect != null &&
                 watermarkBoundsRect.contains(firstDown.position.x, firstDown.position.y)
             var localDragStartLeftPx = dragStartLeftPx
             var localDragStartTopPx = dragStartTopPx
@@ -140,9 +140,6 @@ internal fun Modifier.cameraPreviewGestureModifier(
                 localDragStartTopPx = br.top - captureRect.top
                 localDragTableWidthPx = br.width()
                 localDragTableHeightPx = br.height()
-                localDragAccumDx = 0f
-                localDragAccumDy = 0f
-                localDragStartedAfterSlop = false
                 localDragPreviewOffsetPx = Offset(localDragStartLeftPx, localDragStartTopPx)
                 onDragStartLeftPxChange(localDragStartLeftPx)
                 onDragStartTopPxChange(localDragStartTopPx)
@@ -291,7 +288,7 @@ private fun shouldHandlePreviewPinch(
     centroidY: Float,
     captureRect: RectF
 ): Boolean {
-    if (captureRect.width() <= 0f || captureRect.height() <= 0f) return false
-    if (!captureRect.contains(centroidX, centroidY)) return false
-    return true
+    return captureRect.width() > 0f &&
+        captureRect.height() > 0f &&
+        captureRect.contains(centroidX, centroidY)
 }

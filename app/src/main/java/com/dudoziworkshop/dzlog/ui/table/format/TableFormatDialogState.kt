@@ -11,5 +11,5 @@ data class TableFormatDialogState(
 fun TableFormatDialogState.open(cellId: String, type: TableCellDataType) =
     copy(isVisible = true, targetCellId = cellId, targetType = type)
 
-fun TableFormatDialogState.close() =
+fun closeTableFormatDialog() =
     TableFormatDialogState()

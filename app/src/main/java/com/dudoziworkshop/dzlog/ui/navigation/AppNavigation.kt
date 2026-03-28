@@ -100,7 +100,6 @@ class TableTemplateViewModel : ViewModel() {
 
 }
 
-@Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 @Composable
 fun AppRoot() {
     var screen by remember { mutableStateOf(AppScreen.HOME) }
@@ -222,12 +221,11 @@ fun AppRoot() {
         }
     }
 
-    fun isAlbumScreen(target: AppScreen): Boolean {
-        return target == AppScreen.ALBUM_G1 ||
+    fun isAlbumScreen(target: AppScreen): Boolean =
+        target == AppScreen.ALBUM_G1 ||
             target == AppScreen.ALBUM_G2 ||
             target == AppScreen.ALBUM_GRID ||
             target == AppScreen.ALBUM_VIEWER
-    }
 
     fun navigateTo(target: AppScreen) {
         if (screen == AppScreen.CAMERA && target != AppScreen.CAMERA && !isAlbumScreen(target)) {
@@ -371,7 +369,7 @@ fun AppRoot() {
                 !isOriginalLikeLabel
         }
 
-        return if (g2LabelToShow != null) "$g1 / $g2LabelToShow" else g1
+        return g2LabelToShow?.let { "$g1 / $it" } ?: g1
     }
 
     fun handleAlbumGridBack() {

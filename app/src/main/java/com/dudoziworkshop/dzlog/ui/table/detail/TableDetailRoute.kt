@@ -1,7 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.detail
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 
 @Composable
@@ -10,15 +9,9 @@ fun TableDetailRoute(
     onTemplateChange: (TableTemplateState) -> Unit,
     onBack: () -> Unit,
 ) {
-    val viewModel = rememberTableDetailViewModel(templateState)
-    val viewState by viewModel.viewState
-
     TableDetailScreen(
         templateState = templateState,
         onTemplateChange = onTemplateChange,
         onBack = onBack,
-        detailViewState = viewState,
-        onDetailAction = viewModel::dispatch,
-        onSyncTemplateToDetail = viewModel::applyTemplateFromUi,
     )
 }

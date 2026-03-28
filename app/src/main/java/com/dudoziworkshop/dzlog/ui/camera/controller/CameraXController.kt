@@ -13,7 +13,6 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import java.util.concurrent.TimeUnit
 
@@ -26,7 +25,6 @@ internal fun bindCamera(
     context: Context,
     lifecycleOwner: LifecycleOwner,
     previewView: PreviewView,
-    aspect: CaptureAspect,
     photoQualityMode: PhotoQualityMode,
     onBound: (imageCapture: ImageCapture?, camera: Camera?) -> Unit
 ) {

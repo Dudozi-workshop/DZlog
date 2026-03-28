@@ -26,7 +26,7 @@ fun buildTwoPartTitle(
     }
 
     val rawLen = p1.length + sepLen + p2.length
-    if (rawLen <= totalBudget) return p1 + sep + p2
+    if (rawLen <= totalBudget) return "$p1$sep$p2"
 
     if (p1.length > bothLongFixed && p2.length > bothLongFixed) {
         val avail = (totalBudget - sepLen).coerceAtLeast(2)
@@ -39,7 +39,7 @@ fun buildTwoPartTitle(
         if (remainingForP2 <= 0) {
             return ellipsizePrefix(p1, maxOf(1, totalBudget - ellLen))
         }
-        if (p2.length <= remainingForP2) return p1 + sep + p2
+        if (p2.length <= remainingForP2) return "$p1$sep$p2"
         val p2Limit = maxOf(1, remainingForP2 - ellLen)
         return p1 + sep + ellipsizePrefix(p2, p2Limit)
     }
@@ -48,7 +48,7 @@ fun buildTwoPartTitle(
     if (remainingForP1 <= 0) {
         return ellipsizePrefix(p2, maxOf(1, totalBudget - ellLen))
     }
-    if (p1.length <= remainingForP1) return p1 + sep + p2
+    if (p1.length <= remainingForP1) return "$p1$sep$p2"
     val p1Limit = maxOf(1, remainingForP1 - ellLen)
     return ellipsizePrefix(p1, p1Limit) + sep + p2
 }
@@ -59,7 +59,7 @@ private val TRAILING_DIGITS_REGEX = Regex("(\\d+)$")
 private fun stripExtension(fileName: String): String {
     val t = fileName.trim()
     val idx = t.lastIndexOf('.')
-    return if (idx > 0) t.substring(0, idx) else t
+    return if (idx > 0) t.take(idx) else t
 }
 
 private fun charUnit(ch: Char): Double {

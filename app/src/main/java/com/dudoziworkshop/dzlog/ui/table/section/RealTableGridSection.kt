@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.table.section
 
 import android.graphics.RectF
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -13,15 +14,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -36,19 +37,18 @@ import androidx.compose.ui.zIndex
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.model.derivePathSlotIndexByCellId
-import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
-import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadgesOverlay
-import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
-import com.dudoziworkshop.dzlog.feature.table.render.computeDesignPreviewFitShape
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.dudoziworkshop.dzlog.feature.table.render.computeDesignPreviewFitShape
+import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadgesOverlay
+import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
 private val STRUCTURE_PREVIEW_WORKING_INSET_DP = 10.dp
 private val STRUCTURE_HANDLE_GAP_DP = 4.dp
@@ -198,7 +198,7 @@ fun RealTableGridSection(
         val colOffsets = remember(colSizes) { cumulativeOffsets(colSizes) }
 
         // 실제 프리뷰와 동일한 표 렌더 코어를 Layout 편집영역에도 재사용.
-        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
             if (tableWidthPx <= 0f || tableHeightPx <= 0f) return@Canvas
 
             // drawWatermarkTableOnCanvas는 bounds.width를 base로 table 크기를 계산한다.
@@ -526,7 +526,6 @@ fun RealTableGridSection(
                     .padding(horizontal = 6.dp, vertical = 4.dp)
             ) {
                 CellHeaderBadgesOverlay(
-                    cell = cell,
                     fileNameSlotIndex = nameIdx,
                     pathSlotIndex = pathIdx,
                     modifier = Modifier

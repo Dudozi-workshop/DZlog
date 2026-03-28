@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
@@ -11,7 +12,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.RoundedCornerShape
 
 val LocalDDZColor = staticCompositionLocalOf { DDZColor }
 val LocalDDZTypography = staticCompositionLocalOf { DDZTypography }
@@ -77,7 +77,6 @@ private val DDZShapes = Shapes(
     large = RoundedCornerShape(24.dp)
 )
 
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun DDZTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
