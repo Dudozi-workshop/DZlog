@@ -17,14 +17,14 @@ internal fun computeAnchoredCaptureRect(
         return FramingResult(captureRect = empty, anchorY = 0f)
     }
 
-    val anchorY = contentRect.centerY()
+    val centerY = contentRect.centerY()
     val targetRect = fitInsideRect(
         contentRect = contentRect,
         targetAspectRatio = captureAspectRatio,
-        centerY = anchorY
+        centerY = centerY
     )
 
-    return FramingResult(captureRect = targetRect, anchorY = anchorY)
+    return FramingResult(captureRect = targetRect, anchorY = centerY)
 }
 
 private fun fitInsideRect(

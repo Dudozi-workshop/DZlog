@@ -1,8 +1,8 @@
 package com.dudoziworkshop.dzlog.feature.table.editor
 
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
-import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -25,12 +25,6 @@ fun updateCell(
 
 fun addRow(templateState: TableTemplateState): TableTemplateState =
     addRowBySelection(templateState = templateState, selectionRange = null)
-
-fun removeRow(templateState: TableTemplateState): TableTemplateState =
-    removeRowsByRange(
-        templateState = templateState,
-        range = lastIndexRange(templateState.rows),
-    )
 
 fun addColumn(templateState: TableTemplateState): TableTemplateState =
     addColumnBySelection(templateState = templateState, selectionRange = null)
@@ -194,9 +188,6 @@ fun resetRowWeights(templateState: TableTemplateState): TableTemplateState {
 fun resetColumnWeights(templateState: TableTemplateState): TableTemplateState {
     return templateState.copy(colWeights = List(templateState.cols.coerceAtLeast(1)) { 1f })
 }
-
-fun distributeRowWeightsEvenly(templateState: TableTemplateState): TableTemplateState = resetRowWeights(templateState)
-fun distributeColumnWeightsEvenly(templateState: TableTemplateState): TableTemplateState = resetColumnWeights(templateState)
 
 private fun sanitizeFileNameSlotDrafts(
     drafts: List<TableEditorSlotDraft?>,

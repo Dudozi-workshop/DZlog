@@ -1182,9 +1182,12 @@ fun TableEditorScreen(
             title = { Text("카운터 충돌 경고", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary) },
             text = {
                 Text(
-                    text = "중복된 카운터가 발생할 수 있습니다. 계속 진행하시겠습니까?\n\n" +
-                        "입력값: ${counterUi.counterConflictDialogState.pendingCounterCommitValue}\n" +
-                        "현재 스트림 next: ${counterUi.counterConflictDialogState.pendingCounterStreamNextValue}",
+                    text = """
+                        중복된 카운터가 발생할 수 있습니다. 계속 진행하시겠습니까?
+
+                        입력값: ${counterUi.counterConflictDialogState.pendingCounterCommitValue}
+                        현재 스트림 next: ${counterUi.counterConflictDialogState.pendingCounterStreamNextValue}
+                    """.trimIndent(),
                     style = DDZTypography.Body,
                     color = DDZColor.TextPrimary
                 )

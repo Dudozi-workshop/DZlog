@@ -12,17 +12,9 @@ object DDZLayout {
 
     object Spacing {
         val XS = 4.dp
-        val SM = 8.dp
-        val MD = 12.dp
-        val LG = 16.dp
-        val XL = 24.dp
-        val XXL = 32.dp
     }
 
     object Icon {
-        val Small = 16.dp
-        val Medium = 20.dp
-        val Large = 24.dp
         val Touch = 32.dp
     }
 

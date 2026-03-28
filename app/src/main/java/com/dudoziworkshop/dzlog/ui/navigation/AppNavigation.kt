@@ -23,9 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.core.view.WindowInsetsControllerCompat
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ORIENTATION_MODE
@@ -50,6 +50,8 @@ import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
 import com.dudoziworkshop.dzlog.ui.table.detail.TableDetailRoute
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
+private const val BACK_PRESS_EXIT_INTERVAL_MS = 1_500L
 
 enum class AppScreen {
     HOME,
@@ -211,14 +213,14 @@ fun AppRoot() {
 
 
     LaunchedEffect(orientationMode) {
-        val a = activity ?: return@LaunchedEffect
-        a.requestedOrientation = when (orientationMode) {
+        val requestedOrientation = when (orientationMode) {
             OrientationMode.PORTRAIT_LOCK ->
                 android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
             OrientationMode.AUTO_ROTATE ->
                 android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
+        activity?.requestedOrientation = requestedOrientation
     }
 
     fun isAlbumScreen(target: AppScreen): Boolean =
@@ -251,6 +253,14 @@ fun AppRoot() {
             viewerEntrySource == ViewerEntrySource.CAMERA_RECENT -> AppScreen.CAMERA
             gridEntrySource == GridEntrySource.HOME_RECENT -> AppScreen.HOME
             else -> albumGridEntryScreen
+        }
+    }
+
+    fun resolveViewerBackTarget(): AppScreen {
+        return if (viewerEntrySource == ViewerEntrySource.CAMERA_RECENT) {
+            AppScreen.CAMERA
+        } else {
+            AppScreen.ALBUM_GRID
         }
     }
 
@@ -412,7 +422,7 @@ fun AppRoot() {
         when (screen) {
             AppScreen.HOME -> {
                 val now = System.currentTimeMillis()
-                if (now - lastBackPressedMs < 1500L) {
+                if (now - lastBackPressedMs < BACK_PRESS_EXIT_INTERVAL_MS) {
                     activity?.finish()
                 } else {
                     lastBackPressedMs = now
@@ -430,7 +440,7 @@ fun AppRoot() {
             AppScreen.ALBUM_GRID -> {
                 handleAlbumGridBack()
             }
-            AppScreen.ALBUM_VIEWER -> screen = if (viewerEntrySource == ViewerEntrySource.CAMERA_RECENT) AppScreen.CAMERA else AppScreen.ALBUM_GRID
+            AppScreen.ALBUM_VIEWER -> screen = resolveViewerBackTarget()
             AppScreen.ALBUM_G1 -> screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
             AppScreen.ALBUM_G2 -> screen = AppScreen.ALBUM_G1
         }
@@ -661,21 +671,13 @@ fun AppRoot() {
                     items = gridItems,
                     startIndex = viewerStartIndex,
                     onBack = {
-                        screen = if (viewerEntrySource == ViewerEntrySource.CAMERA_RECENT) {
-                            AppScreen.CAMERA
-                        } else {
-                            AppScreen.ALBUM_GRID
-                        }
+                        screen = resolveViewerBackTarget()
                     },
                     onItemsReloaded = { gridItems = it },
                     onRequestCloseViewer = {
                         isSelectionMode = false
                         selectedIds = emptySet()
-                        screen = if (viewerEntrySource == ViewerEntrySource.CAMERA_RECENT) {
-                            AppScreen.CAMERA
-                        } else {
-                            AppScreen.ALBUM_GRID
-                        }
+                        screen = resolveViewerBackTarget()
                     }
                 )
             }

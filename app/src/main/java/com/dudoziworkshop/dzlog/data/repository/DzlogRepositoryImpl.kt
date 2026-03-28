@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
 import com.dudoziworkshop.dzlog.data.log.LogEntity
 import com.dudoziworkshop.dzlog.data.log.LogRepository
@@ -263,7 +264,7 @@ class DzlogRepositoryImpl(
         val scale = maxLongEdge.toFloat() / longEdge.toFloat()
         val targetWidth = (width * scale).toInt().coerceAtLeast(1)
         val targetHeight = (height * scale).toInt().coerceAtLeast(1)
-        return Bitmap.createScaledBitmap(source, targetWidth, targetHeight, true)
+        return source.scale(width = targetWidth, height = targetHeight, filter = true)
     }
 
     private fun cropToAspect(source: Bitmap, request: CaptureRequest): Bitmap {

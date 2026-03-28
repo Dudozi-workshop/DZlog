@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.feature.table.render
 
-import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import kotlin.math.max
 import kotlin.math.min
 
@@ -15,8 +14,6 @@ private const val DESIGN_PREVIEW_MAX_FILL_RATIO = 98
 object TableLayoutCalculator {
     const val DEFAULT_WIDTH_RATIO = 100
     const val DEFAULT_HEIGHT_RATIO = 50
-
-    val defaultAspectRatio: Float = DEFAULT_WIDTH_RATIO / DEFAULT_HEIGHT_RATIO.toFloat()
 
     fun resolveWeights(weights: List<Float>?, count: Int): List<Float> {
         if (count <= 0) return emptyList()
@@ -34,50 +31,6 @@ object TableLayoutCalculator {
         }
         return sizes
     }
-}
-
-/**
- * 셀 내부 분배(행/열 + weights) 기반 aspect 계산.
- *
- * 주의: 이 값은 표 "외곽 박스 비율" SSOT가 아니다.
- * - 외곽 비율은 wmWidthRatio:wmHeightRatio 로만 계산한다.
- * - 이 함수는 셀 내부 체감 분배/shape 해석용으로만 사용한다.
- */
-fun computeCellDistributionAspectRatio(rows: Int, cols: Int, rowWeights: List<Float>?, colWeights: List<Float>?): Float {
-    val safeCols = cols.coerceAtLeast(1)
-    val safeRows = rows.coerceAtLeast(1)
-    val col = TableLayoutCalculator.resolveWeights(colWeights, safeCols).sum().coerceAtLeast(0.0001f)
-    val row = TableLayoutCalculator.resolveWeights(rowWeights, safeRows).sum().coerceAtLeast(0.0001f)
-    return (col / row).coerceIn(0.2f, 5f)
-}
-
-fun computeCellDistributionAspectRatio(templateState: TableTemplateState): Float = computeCellDistributionAspectRatio(
-    rows = templateState.rows,
-    cols = templateState.cols,
-    rowWeights = templateState.rowWeights,
-    colWeights = templateState.colWeights,
-)
-
-fun computeShapeLockedRatios(
-    contentAspectRatio: Float,
-    maxWidthRatio: Int,
-    maxHeightRatio: Int,
-    minWidthRatio: Int = 10,
-    minHeightRatio: Int = 10,
-    hardMaxRatio: Int = 100,
-): TableShapeRatios {
-    val safeAspect = contentAspectRatio.coerceAtLeast(0.0001f)
-    val safeMaxWidth = max(maxWidthRatio, minWidthRatio).coerceIn(minWidthRatio, hardMaxRatio)
-    val safeMaxHeight = max(maxHeightRatio, minHeightRatio).coerceIn(minHeightRatio, hardMaxRatio)
-
-    val widthFromHeight = safeMaxHeight * safeAspect
-    val resolvedWidth = min(safeMaxWidth.toFloat(), widthFromHeight)
-    val resolvedHeight = resolvedWidth / safeAspect
-
-    return TableShapeRatios(
-        tableWidthRatio = resolvedWidth.toInt().coerceIn(minWidthRatio, safeMaxWidth),
-        tableHeightRatio = resolvedHeight.toInt().coerceIn(minHeightRatio, safeMaxHeight),
-    )
 }
 
 /**

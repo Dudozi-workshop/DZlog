@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import androidx.core.graphics.withClip
 import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
@@ -68,17 +69,16 @@ fun computeWatermarkTableRect(
     offsetYRatio: Int,
     tableHeightRatio: Int,
     tableWidthRatio: Int
-): RectF {
-    val layout = computeWatermarkTableLayout(
+): RectF = RectF(
+    computeWatermarkTableLayout(
         bounds = bounds,
         anchor = anchor,
         offsetXRatio = offsetXRatio,
         offsetYRatio = offsetYRatio,
         tableHeightRatio = tableHeightRatio,
         tableWidthRatio = tableWidthRatio
-    )
-    return RectF(layout.rect)
-}
+    ).rect
+)
 
 fun computeWatermarkTableLayoutPx(
     bounds: RectF,
@@ -363,10 +363,9 @@ private fun drawCellValueText(
         textAlign = textAlign,
     )
 
-    canvas.save()
-    canvas.clipRect(cellRect)
-    canvas.drawText(drawText, drawX, centerY, paint)
-    canvas.restore()
+    canvas.withClip(cellRect) {
+        drawText(drawText, drawX, centerY, paint)
+    }
     paint.color = originalColor
 }
 

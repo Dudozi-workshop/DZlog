@@ -56,9 +56,9 @@ internal fun ZoomTickBar(
                 }
             }
             .pointerInput(normalizedMaxTenths) {
-                var dragStartZoomTenths = MIN_ZOOM_TENTHS
+                var dragStartZoomTenths = latestZoomTenths
                 var accumulatedDragPx = 0f
-                var lastHapticTenths = MIN_ZOOM_TENTHS
+                var lastHapticTenths = latestZoomTenths
 
                 detectDragGestures(
                     onDragStart = {

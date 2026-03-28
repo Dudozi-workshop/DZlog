@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.feature.table.editor
 import com.dudoziworkshop.dzlog.data.template.defaultTableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.table.policy.TableEditorPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -28,13 +29,18 @@ class TableStructureMutationTest {
         val shiftedCellId = cellAt(base, row = 0, col = 2).cellId
 
         val next = addColumnBySelection(base, selected)
-        assertEquals(base.cols + 1, next.cols)
+        val expectedCols = if (base.cols < TableEditorPolicy.MAX_COLS) base.cols + 1 else base.cols
+        assertEquals(expectedCols, next.cols)
         assertRectangularInvariant(next)
-        assertEquals(unchangedCellId, cellAt(next, row = 0, col = 1).cellId)
-        assertEquals("", cellAt(next, row = 0, col = 2).rawText)
-        assertEquals(shiftedCellId, cellAt(next, row = 0, col = 3).cellId)
-        assertEquals(base.cells.map { it.cellId }.toSet().size + base.rows, next.cells.map { it.cellId }.toSet().size)
-        assertTrue(base.cells.all { old -> next.cells.count { it.cellId == old.cellId } == 1 })
+        if (expectedCols == base.cols) {
+            assertEquals(base, next)
+        } else {
+            assertEquals(unchangedCellId, cellAt(next, row = 0, col = 1).cellId)
+            assertEquals("", cellAt(next, row = 0, col = 2).rawText)
+            assertEquals(shiftedCellId, cellAt(next, row = 0, col = 3).cellId)
+            assertEquals(base.cells.map { it.cellId }.toSet().size + base.rows, next.cells.map { it.cellId }.toSet().size)
+            assertTrue(base.cells.all { old -> next.cells.count { it.cellId == old.cellId } == 1 })
+        }
     }
 
     @Test

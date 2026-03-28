@@ -34,14 +34,10 @@ internal fun rememberCameraLayoutState(
     val safeTopInsetPx = with(density) { safeDrawingPadding.calculateTopPadding().toPx() }
     val safeBottomInsetPx = with(density) { safeDrawingPadding.calculateBottomPadding().toPx() }
 
-    val safeTopY = safeTopInsetPx.takeIf { it > 0f }
-    val safeBottomY = (cameraRootHeightPx - safeBottomInsetPx).takeIf { cameraRootHeightPx > 0f }
-    val usableVerticalMarginPx = with(density) { usableVerticalMargin.toPx() }
-
     return CameraLayoutState(
-        safeTopY = safeTopY,
-        safeBottomY = safeBottomY,
-        usableVerticalMarginPx = usableVerticalMarginPx,
+        safeTopY = safeTopInsetPx.takeIf { it > 0f },
+        safeBottomY = (cameraRootHeightPx - safeBottomInsetPx).takeIf { cameraRootHeightPx > 0f },
+        usableVerticalMarginPx = with(density) { usableVerticalMargin.toPx() },
         cameraRootHeightPx = cameraRootHeightPx,
         shutterButtonTopY = shutterButtonTopY,
         onCameraRootHeightPxChange = { cameraRootHeightPx = it },

@@ -60,9 +60,9 @@ internal fun FocusTickBar(
                 }
             }
             .pointerInput(Unit, enabled) {
-                var dragStartStep = 0
+                var dragStartStep = latestStep
                 var accumulatedDragPx = 0f
-                var lastHapticStep = 0
+                var lastHapticStep = latestStep
 
                 detectDragGestures(
                     onDragStart = {

@@ -65,7 +65,6 @@ class TableCounterHandlersTest {
         val request = tableRequest()
 
         var templateState = counterTemplate(seed = 1)
-        var counterUi = TableCounterUiState()
 
         updateCounterCellAndPolicy(
             templateState = templateState,
@@ -75,9 +74,9 @@ class TableCounterHandlersTest {
             persistToCounterPolicy = true,
             counterRequest = request,
             counterFacade = facade,
-            counterUi = counterUi,
+            counterUi = TableCounterUiState(),
             onTemplateChange = { templateState = it },
-            setCounterUi = { counterUi = it },
+            setCounterUi = {},
             updateCell = ::updateCounterCell,
             scope = this,
         )
@@ -115,7 +114,6 @@ class TableCounterHandlersTest {
         val request = tableRequest()
 
         var templateState = counterTemplate(seed = 1)
-        var counterUi = TableCounterUiState()
 
         applyCounterConflictDialogEffect(
             effect = TableCounterConflictDialogEffect.ApplyManualSeed(
@@ -125,9 +123,9 @@ class TableCounterHandlersTest {
             templateState = templateState,
             counterRequest = request,
             counterFacade = facade,
-            counterUi = counterUi,
+            counterUi = TableCounterUiState(),
             onTemplateChange = { templateState = it },
-            setCounterUi = { counterUi = it },
+            setCounterUi = {},
             updateCell = ::updateCounterCell,
             scope = this,
         )

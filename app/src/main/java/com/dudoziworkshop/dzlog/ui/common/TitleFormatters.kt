@@ -4,7 +4,7 @@ private fun ellipsizePrefix(text: String, maxChars: Int): String {
     val t = text.trim()
     if (t.length <= maxChars) return t
     if (maxChars <= 0) return "…"
-    return t.take(maxChars) + "…"
+    return "${t.take(maxChars)}…"
 }
 
 fun buildTwoPartTitle(
@@ -31,7 +31,7 @@ fun buildTwoPartTitle(
     if (p1.length > bothLongFixed && p2.length > bothLongFixed) {
         val avail = (totalBudget - sepLen).coerceAtLeast(2)
         val each = maxOf(1, minOf(bothLongFixed, (avail / 2) - ellLen))
-        return ellipsizePrefix(p1, each) + sep + ellipsizePrefix(p2, each)
+        return "${ellipsizePrefix(p1, each)}$sep${ellipsizePrefix(p2, each)}"
     }
 
     if (p1.length <= p2.length) {
@@ -41,7 +41,7 @@ fun buildTwoPartTitle(
         }
         if (p2.length <= remainingForP2) return "$p1$sep$p2"
         val p2Limit = maxOf(1, remainingForP2 - ellLen)
-        return p1 + sep + ellipsizePrefix(p2, p2Limit)
+        return "$p1$sep${ellipsizePrefix(p2, p2Limit)}"
     }
 
     val remainingForP1 = totalBudget - sepLen - p2.length
@@ -50,7 +50,7 @@ fun buildTwoPartTitle(
     }
     if (p1.length <= remainingForP1) return "$p1$sep$p2"
     val p1Limit = maxOf(1, remainingForP1 - ellLen)
-    return ellipsizePrefix(p1, p1Limit) + sep + p2
+    return "${ellipsizePrefix(p1, p1Limit)}$sep$p2"
 }
 
 
@@ -96,7 +96,7 @@ private fun ellipsizeByUnitsPrefix(s: String, unitLimit: Double): String {
         acc += add
     }
     if (sb.isEmpty()) return "…"
-    return sb.toString() + "…"
+    return "${sb}…"
 }
 
 data class FileNameDisplayParts(
@@ -153,54 +153,4 @@ fun splitFileNameForDisplay(fileName: String): FileNameDisplayParts {
     }.joinToString("_")
 
     return FileNameDisplayParts(prefixText = prefixText, counter = counter)
-}
-
-fun buildSavePathTitle(
-    prefix: String,
-    g1: String,
-    g2: String?,
-    sep: String = "/",
-    onePartLimitUnits: Double = 10.0,
-    twoPartBaseUnits: Double = 5.0,
-): String {
-    val fixedPrefix = prefix.trim()
-    val a = g1.trim()
-    val b = g2?.trim().orEmpty()
-
-    if (a.isBlank() && b.isBlank()) return fixedPrefix
-
-    val onePartLimit = maxOf(1, onePartLimitUnits.toInt())
-    val baseEach = maxOf(1, twoPartBaseUnits.toInt())
-    val total = baseEach * 2
-
-    if (b.isBlank()) {
-        val aText = if (a.length <= onePartLimit) a else ellipsizePrefix(a, onePartLimit)
-        return if (aText.isBlank()) fixedPrefix else "$fixedPrefix$sep$aText"
-    }
-
-    val aText: String
-    val bText: String
-
-    if (a.length > baseEach && b.length > baseEach) {
-        aText = ellipsizePrefix(a, baseEach)
-        bText = ellipsizePrefix(b, baseEach)
-    } else if (a.length <= b.length) {
-        aText = if (a.length <= total) a else ellipsizePrefix(a, maxOf(1, total - 1))
-        val remainingForB = total - aText.length
-        bText = if (b.length <= remainingForB) {
-            b
-        } else {
-            ellipsizePrefix(b, maxOf(1, remainingForB - 1))
-        }
-    } else {
-        bText = if (b.length <= total) b else ellipsizePrefix(b, maxOf(1, total - 1))
-        val remainingForA = total - bText.length
-        aText = if (a.length <= remainingForA) {
-            a
-        } else {
-            ellipsizePrefix(a, maxOf(1, remainingForA - 1))
-        }
-    }
-
-    return "$fixedPrefix$sep$aText$sep$bText"
 }

@@ -64,29 +64,6 @@ internal fun computeCaptureAreaRect(
     usableRect: RectF = contentRect
 ): RectF = computeAnchoredCaptureRect(usableRect, captureAspectRatio).captureRect
 
-internal fun resolveUsableRect(
-    contentRect: RectF,
-    settingsButtonBottomY: Float?,
-    shutterButtonTopY: Float?,
-    safeTopY: Float?,
-    safeBottomY: Float?,
-    verticalMarginPx: Float
-): RectF {
-    if (contentRect.width() <= 0f || contentRect.height() <= 0f) return RectF(contentRect)
-
-    val (top, bottom) = resolveUsableVerticalBounds(
-        contentTop = contentRect.top,
-        contentBottom = contentRect.bottom,
-        settingsButtonBottomY = settingsButtonBottomY,
-        shutterButtonTopY = shutterButtonTopY,
-        safeTopY = safeTopY,
-        safeBottomY = safeBottomY,
-        verticalMarginPx = verticalMarginPx
-    )
-
-    return RectF(contentRect.left, top, contentRect.right, bottom)
-}
-
 internal fun resolveUsableVerticalBounds(
     contentTop: Float,
     contentBottom: Float,
@@ -120,13 +97,6 @@ internal fun resolveUsableVerticalBounds(
     val center = ((resolvedTop + resolvedBottom) / 2f).coerceIn(contentTop, contentBottom)
     val minTop = (center - 0.5f).coerceIn(contentTop, contentBottom - 1f)
     return minTop to (minTop + 1f)
-}
-
-internal fun computeUsableVerticalRatios(contentRect: RectF, usableRect: RectF): Pair<Float, Float> {
-    val height = contentRect.height().coerceAtLeast(1f)
-    val topRatio = ((usableRect.top - contentRect.top) / height).coerceIn(0f, 1f)
-    val bottomRatio = ((usableRect.bottom - contentRect.top) / height).coerceIn(0f, 1f)
-    return topRatio to bottomRatio
 }
 
 internal fun resolvePreviewContentRect(

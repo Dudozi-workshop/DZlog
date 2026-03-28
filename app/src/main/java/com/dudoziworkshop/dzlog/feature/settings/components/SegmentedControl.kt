@@ -86,30 +86,6 @@ private val DefaultSegmentedControlStyle = SegmentedControlStyle(
     dividerColor = DDZColor.Border
 )
 
-// 촬영 설정 패널 compact 톤 유지용 스타일
-private val CompactSegmentedControlStyle = SegmentedControlStyle(
-    groupShape = RoundedCornerShape(DDZLayout.Radius.Small),
-    itemShape = RoundedCornerShape(DDZLayout.Radius.Small),
-    widthFraction = 0.95f,
-    outerHorizontalPadding = 0.dp,
-    innerHorizontalPadding = 0.dp,
-    innerVerticalPadding = 0.dp,
-    itemSpacing = 0.dp,
-    // 촬영설정 패널 compact 높이 기준을 DDZLayout.Control.Compact로 통일한다.
-    fixedHeight = DDZLayout.Control.Compact,
-    minItemHeight = DDZLayout.Control.Compact,
-    itemHorizontalPadding = 6.dp,
-    itemVerticalPadding = 0.dp,
-    textStyle = DDZTypography.SegmentCompact,
-    selectedTextColor = DDZColor.SageDark,
-    unselectedTextColor = DDZColor.Primary,
-    selectedContainerColor = DDZColor.SageLight.copy(alpha = 0.45f),
-    unselectedContainerColor = DDZColor.Surface,
-    borderColor = DDZColor.Border,
-    showDivider = true,
-    dividerColor = DDZColor.Border
-)
-
 // 빠른 설정 영역 전용 미세 보정 스타일
 private val QuickSettingsSegmentedControlStyle = SegmentedControlStyle(
     groupShape = RoundedCornerShape(DDZLayout.Radius.Small),
@@ -158,7 +134,6 @@ private val CameraPanelSegmentedControlStyle = SegmentedControlStyle(
 
 object SegmentedControlStyles {
     val Default: SegmentedControlStyle = DefaultSegmentedControlStyle
-    val Compact: SegmentedControlStyle = CompactSegmentedControlStyle
     val QuickSettings: SegmentedControlStyle = QuickSettingsSegmentedControlStyle
     val CameraPanel: SegmentedControlStyle = CameraPanelSegmentedControlStyle
 }
