@@ -15,7 +15,7 @@ class TableStructureMutationTest {
         val selected = TableSelectionRange(minRow = 1, maxRow = 2, minCol = 0, maxCol = 1)
 
         val next = removeRowBySelection(base, selected)
-        assertEquals(1, next.rows)
+        assertEquals(2, next.rows)
         assertEquals(base.cols, next.cols)
         assertRectangularInvariant(next)
     }

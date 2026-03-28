@@ -53,9 +53,6 @@ internal fun Modifier.cameraPreviewGestureModifier(
     onDragTableWidthPxChange: (Float) -> Unit,
     onDragTableHeightPxChange: (Float) -> Unit,
     onDragPreviewOffsetPxChange: (Offset?) -> Unit,
-    onDragAccumDxChange: (Float) -> Unit,
-    onDragAccumDyChange: (Float) -> Unit,
-    onDragStartedAfterSlopChange: (Boolean) -> Unit,
     onSuppressWatermarkTapUntilMsChange: (Long) -> Unit,
     onPreviewBoundsOffsetX10000Change: (Int) -> Unit,
     onPreviewBoundsOffsetY10000Change: (Int) -> Unit,
@@ -151,9 +148,6 @@ internal fun Modifier.cameraPreviewGestureModifier(
                 onDragStartTopPxChange(localDragStartTopPx)
                 onDragTableWidthPxChange(localDragTableWidthPx)
                 onDragTableHeightPxChange(localDragTableHeightPx)
-                onDragAccumDxChange(localDragAccumDx)
-                onDragAccumDyChange(localDragAccumDy)
-                onDragStartedAfterSlopChange(false)
                 onDragPreviewOffsetPxChange(localDragPreviewOffsetPx)
                 onMarkWatermarkInteraction()
             }
@@ -211,13 +205,10 @@ internal fun Modifier.cameraPreviewGestureModifier(
                 val delta = change.positionChange()
                 localDragAccumDx += delta.x
                 localDragAccumDy += delta.y
-                onDragAccumDxChange(localDragAccumDx)
-                onDragAccumDyChange(localDragAccumDy)
                 if (!localDragStartedAfterSlop) {
                     val moved = hypot(localDragAccumDx.toDouble(), localDragAccumDy.toDouble()).toFloat()
                     if (moved < dragTouchSlop) continue
                     localDragStartedAfterSlop = true
-                    onDragStartedAfterSlopChange(true)
                     onWatermarkDragActiveChange(true)
                 }
                 if (change.positionChanged()) change.consume()
@@ -273,9 +264,6 @@ internal fun Modifier.cameraPreviewGestureModifier(
             onDragPreviewOffsetPxChange(null)
             onDragTableWidthPxChange(0f)
             onDragTableHeightPxChange(0f)
-            onDragAccumDxChange(0f)
-            onDragAccumDyChange(0f)
-            onDragStartedAfterSlopChange(false)
             if (pinchActiveNotified) onPinchZoomActiveChange(false)
         }
     }

@@ -4,7 +4,6 @@ package com.dudoziworkshop.dzlog.ui.camera.preview
 
 import android.graphics.RectF
 import android.os.SystemClock
-import androidx.compose.ui.unit.dp
 import android.util.Log
 import android.view.View
 import androidx.camera.core.Camera
@@ -22,6 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,13 +34,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Observer
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
-import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePathFromSlotDrafts
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
+import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePathFromSlotDrafts
 import com.dudoziworkshop.dzlog.domain.naming.resolveGroupValue
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
@@ -48,7 +52,6 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.delay
 import kotlin.math.max
 import kotlin.math.roundToInt
-import androidx.compose.ui.unit.IntOffset
 
 /**
  * CameraPreviewArea
@@ -85,29 +88,26 @@ internal fun CameraPreviewArea(
         }
 
         var captureRect by remember { mutableStateOf(RectF(0f, 0f, 0f, 0f)) }
-        var previewBoxWidthPx by remember { mutableStateOf(0f) }
-        var previewBoxHeightPx by remember { mutableStateOf(0f) }
-        var usableTopRatio by remember { mutableStateOf(0f) }
-        var usableBottomRatio by remember { mutableStateOf(1f) }
+        var previewBoxWidthPx by remember { mutableFloatStateOf(0f) }
+        var previewBoxHeightPx by remember { mutableFloatStateOf(0f) }
+        var usableTopRatio by remember { mutableFloatStateOf(0f) }
+        var usableBottomRatio by remember { mutableFloatStateOf(1f) }
         var watermarkBoundsRect by remember { mutableStateOf<RectF?>(null) }
         var watermarkRawRect by remember { mutableStateOf<RectF?>(null) }
         var watermarkDragActive by remember { mutableStateOf(false) }
-        var suppressWatermarkTapUntilMs by remember { mutableStateOf(0L) }
+        var suppressWatermarkTapUntilMs by remember { mutableLongStateOf(0L) }
         var isWatermarkArmed by remember { mutableStateOf(false) }
-        var previewBoundsOffsetX10000 by remember { mutableStateOf(args.watermarkUi.boundsOffsetX10000.coerceIn(0, 10000)) }
-        var previewBoundsOffsetY10000 by remember { mutableStateOf(args.watermarkUi.boundsOffsetY10000.coerceIn(0, 10000)) }
-        var previewOffsetX by remember { mutableStateOf((previewBoundsOffsetX10000 / 100f).roundToInt().coerceIn(0, 100)) }
-        var previewOffsetY by remember { mutableStateOf((previewBoundsOffsetY10000 / 100f).roundToInt().coerceIn(0, 100)) }
+        var previewBoundsOffsetX10000 by remember { mutableIntStateOf(args.watermarkUi.boundsOffsetX10000.coerceIn(0, 10000)) }
+        var previewBoundsOffsetY10000 by remember { mutableIntStateOf(args.watermarkUi.boundsOffsetY10000.coerceIn(0, 10000)) }
+        var previewOffsetX by remember { mutableIntStateOf((previewBoundsOffsetX10000 / 100f).roundToInt().coerceIn(0, 100)) }
+        var previewOffsetY by remember { mutableIntStateOf((previewBoundsOffsetY10000 / 100f).roundToInt().coerceIn(0, 100)) }
         var dragPreviewOffsetPx by remember { mutableStateOf<Offset?>(null) }
-        var dragStartLeftPx by remember { mutableStateOf(0f) }
-        var dragStartTopPx by remember { mutableStateOf(0f) }
-        var dragTableWidthPx by remember { mutableStateOf(0f) }
-        var dragTableHeightPx by remember { mutableStateOf(0f) }
+        var dragStartLeftPx by remember { mutableFloatStateOf(0f) }
+        var dragStartTopPx by remember { mutableFloatStateOf(0f) }
+        var dragTableWidthPx by remember { mutableFloatStateOf(0f) }
+        var dragTableHeightPx by remember { mutableFloatStateOf(0f) }
         var pendingLocalOffsetSync by remember { mutableStateOf(false) }
-        var dragAccumDx by remember { mutableStateOf(0f) }
-        var dragAccumDy by remember { mutableStateOf(0f) }
-        var dragStartedAfterSlop by remember { mutableStateOf(false) }
-        var watermarkLastInteractionMs by remember { mutableStateOf(0L) }
+        var watermarkLastInteractionMs by remember { mutableLongStateOf(0L) }
         val dragTouchSlop = LocalViewConfiguration.current.touchSlop
 
         fun commitWatermarkOffsetIfNeeded() {
@@ -273,9 +273,6 @@ internal fun CameraPreviewArea(
                 onDragTableWidthPxChange = { dragTableWidthPx = it },
                 onDragTableHeightPxChange = { dragTableHeightPx = it },
                 onDragPreviewOffsetPxChange = { dragPreviewOffsetPx = it },
-                onDragAccumDxChange = { dragAccumDx = it },
-                onDragAccumDyChange = { dragAccumDy = it },
-                onDragStartedAfterSlopChange = { dragStartedAfterSlop = it },
                 onSuppressWatermarkTapUntilMsChange = { suppressWatermarkTapUntilMs = it },
                 onPreviewBoundsOffsetX10000Change = { previewBoundsOffsetX10000 = it },
                 onPreviewBoundsOffsetY10000Change = { previewBoundsOffsetY10000 = it },

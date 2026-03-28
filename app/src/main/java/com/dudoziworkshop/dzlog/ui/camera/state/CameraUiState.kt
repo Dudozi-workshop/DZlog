@@ -2,8 +2,8 @@ package com.dudoziworkshop.dzlog.ui.camera.state
 
 import android.net.Uri
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -31,8 +31,8 @@ internal class CameraPrefsState {
     var zoomRatioTenths by mutableIntStateOf(10)
     var flashMode by mutableStateOf(CameraFlashMode.OFF)
     var assistShutterEnabled by mutableStateOf(false)
-    var assistShutterXRatio by mutableStateOf(0.82f)
-    var assistShutterYRatio by mutableStateOf(0.62f)
+    var assistShutterXRatio by mutableFloatStateOf(0.82f)
+    var assistShutterYRatio by mutableFloatStateOf(0.62f)
 
     var showWmPreview by mutableStateOf(true)
     var wmTableAnchor by mutableStateOf(WatermarkTableAnchor.BOTTOM_RIGHT)
@@ -63,8 +63,8 @@ internal class CaptureUiState {
     var now by mutableStateOf(Date())
     var actualZoomTenths by mutableIntStateOf(10)
     var maxZoomTenths by mutableIntStateOf(20)
-    var usableTopRatio by mutableStateOf(0f)
-    var usableBottomRatio by mutableStateOf(1f)
+    var usableTopRatio by mutableFloatStateOf(0f)
+    var usableBottomRatio by mutableFloatStateOf(1f)
 }
 
 @Stable

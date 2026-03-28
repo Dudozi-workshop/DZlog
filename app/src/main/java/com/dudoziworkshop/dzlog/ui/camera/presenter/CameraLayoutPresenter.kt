@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -25,7 +26,7 @@ internal data class CameraLayoutState(
 internal fun rememberCameraLayoutState(
     usableVerticalMargin: Dp,
 ): CameraLayoutState {
-    var cameraRootHeightPx by remember { mutableStateOf(0f) }
+    var cameraRootHeightPx by remember { mutableFloatStateOf(0f) }
     var shutterButtonTopY by remember { mutableStateOf<Float?>(null) }
 
     val density = LocalDensity.current
@@ -47,4 +48,3 @@ internal fun rememberCameraLayoutState(
         onShutterButtonTopYChange = { shutterButtonTopY = it },
     )
 }
-

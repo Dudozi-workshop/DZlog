@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +23,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.delay
+
+private data class LazyListIndicatorMetrics(
+    val canScroll: Boolean,
+    val thumbHeightPx: Float,
+    val thumbOffsetPx: Float,
+)
 
 @Composable
 fun LazyListScrollIndicator(
@@ -45,29 +52,53 @@ fun LazyListScrollIndicator(
         }
     }
 
-    val layoutInfo = listState.layoutInfo
-    val visibleItems = layoutInfo.visibleItemsInfo
-    val canScroll = layoutInfo.totalItemsCount > visibleItems.size
+    val metrics by remember(listState) {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val visibleItems = layoutInfo.visibleItemsInfo
+            if (visibleItems.isEmpty()) {
+                return@derivedStateOf LazyListIndicatorMetrics(
+                    canScroll = false,
+                    thumbHeightPx = 0f,
+                    thumbOffsetPx = 0f,
+                )
+            }
+            val canScroll = layoutInfo.totalItemsCount > visibleItems.size
+            if (!canScroll || layoutInfo.totalItemsCount <= 0) {
+                return@derivedStateOf LazyListIndicatorMetrics(
+                    canScroll = false,
+                    thumbHeightPx = 0f,
+                    thumbOffsetPx = 0f,
+                )
+            }
+            val viewportHeightPx = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).coerceAtLeast(1)
+            val avgItemHeightPx = visibleItems.map { it.size }.average().toFloat().takeIf { it > 0f } ?: 1f
+            val totalContentHeightPx = (avgItemHeightPx * layoutInfo.totalItemsCount).coerceAtLeast(viewportHeightPx.toFloat())
+            val thumbHeightPx = ((viewportHeightPx.toFloat() / totalContentHeightPx) * viewportHeightPx)
+                .coerceIn(24f, viewportHeightPx.toFloat())
+            val firstVisible = visibleItems.first()
+            val scrollOffsetPx = (firstVisible.index * avgItemHeightPx) - firstVisible.offset
+            val maxScrollPx = (totalContentHeightPx - viewportHeightPx).coerceAtLeast(1f)
+            val thumbOffsetPx = ((scrollOffsetPx / maxScrollPx) * (viewportHeightPx - thumbHeightPx))
+                .coerceIn(0f, (viewportHeightPx - thumbHeightPx).coerceAtLeast(0f))
 
-    if (showScrollIndicator && canScroll && layoutInfo.totalItemsCount > 0 && visibleItems.isNotEmpty()) {
+            LazyListIndicatorMetrics(
+                canScroll = true,
+                thumbHeightPx = thumbHeightPx,
+                thumbOffsetPx = thumbOffsetPx,
+            )
+        }
+    }
+
+    if (showScrollIndicator && metrics.canScroll) {
         val density = LocalDensity.current
-        val viewportHeightPx = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).coerceAtLeast(1)
-        val avgItemHeightPx = visibleItems.map { it.size }.average().toFloat().takeIf { it > 0f } ?: 1f
-        val totalContentHeightPx = (avgItemHeightPx * layoutInfo.totalItemsCount).coerceAtLeast(viewportHeightPx.toFloat())
-        val thumbHeightPx = ((viewportHeightPx.toFloat() / totalContentHeightPx) * viewportHeightPx)
-            .coerceIn(24f, viewportHeightPx.toFloat())
-        val firstVisible = visibleItems.first()
-        val scrollOffsetPx = (firstVisible.index * avgItemHeightPx) - firstVisible.offset
-        val maxScrollPx = (totalContentHeightPx - viewportHeightPx).coerceAtLeast(1f)
-        val thumbOffsetPx = ((scrollOffsetPx / maxScrollPx) * (viewportHeightPx - thumbHeightPx))
-            .coerceIn(0f, (viewportHeightPx - thumbHeightPx).coerceAtLeast(0f))
 
         Box(
             modifier = modifier
                 .padding(end = 1.dp)
                 .width(widthDp)
-                .height(with(density) { thumbHeightPx.toDp() })
-                .offset(y = with(density) { thumbOffsetPx.toDp() })
+                .height(with(density) { metrics.thumbHeightPx.toDp() })
+                .offset(y = with(density) { metrics.thumbOffsetPx.toDp() })
                 .alpha(indicatorAlpha)
                 .background(DDZColor.TextMuted.copy(alpha = 0.5f), RoundedCornerShape(99.dp))
         )
