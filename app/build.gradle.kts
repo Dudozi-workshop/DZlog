@@ -1,4 +1,5 @@
 import com.android.build.api.dsl.ApplicationExtension
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 
@@ -48,8 +49,17 @@ extensions.configure<ApplicationExtension> {
 }
 
 extensions.configure<KotlinAndroidProjectExtension> {
+    // Build JDK baseline: 21 (toolchain), while emitted bytecode target remains JVM 17.
+    jvmToolchain(21)
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
+java {
+    toolchain {
+        // Java/KSP tool execution uses JDK 21 for consistent local/CI behavior.
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 

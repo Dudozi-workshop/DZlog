@@ -33,10 +33,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
@@ -73,11 +71,9 @@ import com.dudoziworkshop.dzlog.feature.counter.table.updateCounterUiConflictDia
 import com.dudoziworkshop.dzlog.feature.counter.table.updateCounterUiScopeFlags
 import com.dudoziworkshop.dzlog.feature.table.editor.TableHandleOverlay
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
-import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionResolver
 import com.dudoziworkshop.dzlog.feature.table.editor.InlineEditActionResult
 import com.dudoziworkshop.dzlog.feature.table.editor.InlineEditSessionContext
 import com.dudoziworkshop.dzlog.feature.table.editor.InlineEditSessionState
-import com.dudoziworkshop.dzlog.feature.table.editor.InlineTemplateApplyMode
 import com.dudoziworkshop.dzlog.feature.table.editor.StructureActionResult
 import com.dudoziworkshop.dzlog.feature.table.editor.StructureAddOrRestoreInput
 import com.dudoziworkshop.dzlog.feature.table.editor.StructureRemoveInput
@@ -91,7 +87,6 @@ import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSave
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveCoordinator
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorInlineActionBindings
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorInlineActionCoordinator
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveResult
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSelectedCounterResetCoordinator
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSelectedCounterResetInput
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveResultApplier
@@ -129,7 +124,6 @@ import com.dudoziworkshop.dzlog.ui.table.editor.isEditing
 import com.dudoziworkshop.dzlog.ui.table.format.TableFormatDialog
 import com.dudoziworkshop.dzlog.ui.table.format.TableFormatDialogState
 import com.dudoziworkshop.dzlog.ui.table.format.close
-import com.dudoziworkshop.dzlog.ui.table.format.open
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseUiState
 import com.dudoziworkshop.dzlog.ui.table.section.BottomEditorPanelMode
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameFormatType
@@ -504,7 +498,6 @@ fun TableEditorScreen(
     var scopeInputTick by remember { mutableIntStateOf(0) }
     var scopeKeySnapshot by remember { mutableStateOf<String?>(null) }
     var lastFilenameScopeSignature by remember { mutableStateOf<String?>(null) }
-    var lastPathScopeSignature by remember { mutableStateOf<String?>(null) }
     val hasTemplateCells = currentTemplate.cells.isNotEmpty()
 
     var previewNow by remember { mutableStateOf(Date()) }
@@ -637,16 +630,11 @@ fun TableEditorScreen(
 
     LaunchedEffect(filenameScopeSignature, pathScopeSignature) {
         val filenameChanged = filenameScopeSignature != lastFilenameScopeSignature
-        val pathChanged = pathScopeSignature != lastPathScopeSignature
         if (filenameChanged) {
             lastFilenameScopeSignature = filenameScopeSignature
         }
-        if (pathChanged) {
-            lastPathScopeSignature = pathScopeSignature
-        }
-        if (filenameChanged || pathChanged) {
-            scopeInputTick += 1
-        }
+        // 키가 바뀔 때만 Effect가 재실행되므로 tick은 항상 1회 증가시킨다.
+        scopeInputTick += 1
     }
 
     val isManualCounterModeDisplay by remember(
@@ -750,10 +738,16 @@ fun TableEditorScreen(
             updateCell = ::updateCell
         )
         counterUi = syncResult.counterUi
-        lastScopeSnapshot = syncResult.nextScopeSnapshot
+        if (lastScopeSnapshot != syncResult.nextScopeSnapshot) {
+            lastScopeSnapshot = syncResult.nextScopeSnapshot
+        }
         lastFilenameScopeSignature = syncResult.nextFilenameScopeSignature
-        lastProcessedResumeTick = resumeTick
-        lastProcessedScopeInputTick = scopeInputTick
+        if (lastProcessedResumeTick != resumeTick) {
+            lastProcessedResumeTick = resumeTick
+        }
+        if (lastProcessedScopeInputTick != scopeInputTick) {
+            lastProcessedScopeInputTick = scopeInputTick
+        }
         syncResult.updatedTemplateState?.let(::updateTemplateDraft)
     }
 
@@ -1116,8 +1110,12 @@ fun TableEditorScreen(
         deletedColsStack.clear()
         fileNameSlotsDirtySinceStructureChange = false
         pathSlotsDirtySinceStructureChange = false
-        rowWeightsDragBaseTemplate = null
-        colWeightsDragBaseTemplate = null
+        if (rowWeightsDragBaseTemplate != null) {
+            rowWeightsDragBaseTemplate = null
+        }
+        if (colWeightsDragBaseTemplate != null) {
+            colWeightsDragBaseTemplate = null
+        }
         undoManager.clear()
         undoRevision += 1
     }
@@ -1131,23 +1129,25 @@ fun TableEditorScreen(
     }
 
     fun finishRowWeightDrag() {
-        rowWeightsDragBaseTemplate = null
+        if (rowWeightsDragBaseTemplate != null) {
+            rowWeightsDragBaseTemplate = null
+        }
     }
 
     fun finishColumnWeightDrag() {
-        colWeightsDragBaseTemplate = null
+        if (colWeightsDragBaseTemplate != null) {
+            colWeightsDragBaseTemplate = null
+        }
     }
 
     fun commitRowWeightDrag(nextWeights: List<Float>) {
         val baseTemplate = rowWeightsDragBaseTemplate ?: editableTemplateState
-        rowWeightsDragBaseTemplate = null
         val nextTemplate = TableHandleOverlay.applyRowWeightDragEnd(baseTemplate, nextWeights)
         applyTemplateDragCommitWithUndo(baseTemplate, nextTemplate)
     }
 
     fun commitColumnWeightDrag(nextWeights: List<Float>) {
         val baseTemplate = colWeightsDragBaseTemplate ?: editableTemplateState
-        colWeightsDragBaseTemplate = null
         val nextTemplate = TableHandleOverlay.applyColumnWeightDragEnd(baseTemplate, nextWeights)
         applyTemplateDragCommitWithUndo(baseTemplate, nextTemplate)
     }
@@ -1378,20 +1378,26 @@ fun TableEditorScreen(
         )
     }
 
+    fun dismissUnsavedChangesDialog() {
+        if (showUnsavedChangesDialog) {
+            showUnsavedChangesDialog = false
+        }
+    }
+
     TableEditorUnsavedChangesHost(
         showUnsavedChangesDialog = showUnsavedChangesDialog,
         onRequestNavigateBack = ::requestNavigateBack,
         onSaveAndExit = {
-            showUnsavedChangesDialog = false
+            dismissUnsavedChangesDialog()
             saveTemplate(exitAfterSave = true)
         },
         onDiscardAndExit = {
-            showUnsavedChangesDialog = false
+            dismissUnsavedChangesDialog()
             undoManager.clear()
             undoRevision += 1
             onBack()
         },
-        onCancel = { showUnsavedChangesDialog = false },
+        onCancel = ::dismissUnsavedChangesDialog,
     )
 
     fun resetSelectedCounterSeed() {

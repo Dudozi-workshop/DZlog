@@ -45,6 +45,7 @@ fun addRowBySelection(
     templateState: TableTemplateState,
     selectionRange: TableSelectionRange?,
 ): TableTemplateState {
+    if (hasMergedCells(templateState)) return templateState
     if (templateState.rows >= TableEditorPolicy.MAX_ROWS) return templateState
 
     val insertAt = (selectionRange?.maxRow?.plus(1) ?: templateState.rows).coerceIn(0, templateState.rows)
@@ -77,6 +78,7 @@ fun addColumnBySelection(
     templateState: TableTemplateState,
     selectionRange: TableSelectionRange?,
 ): TableTemplateState {
+    if (hasMergedCells(templateState)) return templateState
     if (templateState.cols >= TableEditorPolicy.MAX_COLS) return templateState
 
     val insertAt = (selectionRange?.maxCol?.plus(1) ?: templateState.cols).coerceIn(0, templateState.cols)
@@ -129,6 +131,7 @@ fun removeRowsByRange(
     templateState: TableTemplateState,
     range: IntRange,
 ): TableTemplateState {
+    if (hasMergedCells(templateState)) return templateState
     val normalizedRange = normalizeRowRemovalRange(templateState, range) ?: return templateState
 
     val remainingCells = templateState.cells
@@ -158,6 +161,7 @@ fun removeColsByRange(
     templateState: TableTemplateState,
     range: IntRange,
 ): TableTemplateState {
+    if (hasMergedCells(templateState)) return templateState
     val normalizedRange = normalizeColRemovalRange(templateState, range) ?: return templateState
 
     val remainingCells = templateState.cells
@@ -236,6 +240,10 @@ private fun sanitizeAndCompressSlotDrafts(
 private fun removeRange(weights: List<Float>, start: Int, end: Int): List<Float> {
     if (weights.isEmpty()) return weights
     return weights.filterIndexed { index, _ -> index !in start..end }
+}
+
+private fun hasMergedCells(templateState: TableTemplateState): Boolean {
+    return templateState.cells.any { it.rowSpan > 1 || it.colSpan > 1 }
 }
 
 fun normalizeRowRemovalRange(

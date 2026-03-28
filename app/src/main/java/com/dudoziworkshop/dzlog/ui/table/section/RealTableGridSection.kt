@@ -499,7 +499,6 @@ fun RealTableGridSection(
             val cellY = tableTopPx + rowOffsets[cell.rowIndex]
             val cellW = colSizes[cell.colIndex]
             val cellH = rowSizes[cell.rowIndex]
-            val isEditingCell = cell.cellId == editingCellId
             val nameIdx = deriveFileNameCellSlotsFromDrafts(templateState.fileNameSlotDrafts).indexOf(cell.cellId).takeIf { it >= 0 }
             val pathIdx = derivePathSlotIndexByCellId(templateState.pathSlotDrafts, cell.cellId)
 
