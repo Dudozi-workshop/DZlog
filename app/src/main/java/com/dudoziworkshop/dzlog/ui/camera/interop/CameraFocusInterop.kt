@@ -9,7 +9,7 @@ import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
 
-@OptIn(ExperimentalCamera2Interop::class)
+@ExperimentalCamera2Interop
 internal fun applyFocusModeToBoundCamera(
     camera: Camera,
     mode: CameraFocusMode,
@@ -37,7 +37,7 @@ internal fun applyFocusModeToBoundCamera(
     runCatching { camera2Control.setCaptureRequestOptions(options) }
 }
 
-@OptIn(ExperimentalCamera2Interop::class)
+@ExperimentalCamera2Interop
 private fun resolveMinimumFocusDistance(camera: Camera): Float? {
     val camera2Info = runCatching { Camera2CameraInfo.from(camera.cameraInfo) }.getOrNull() ?: return null
     return runCatching {

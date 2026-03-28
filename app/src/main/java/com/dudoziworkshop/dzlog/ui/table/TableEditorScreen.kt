@@ -35,8 +35,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.data.counter.clampCounterDigits
@@ -69,8 +69,6 @@ import com.dudoziworkshop.dzlog.feature.counter.table.syncCounterStateForScope
 import com.dudoziworkshop.dzlog.feature.counter.table.updateCounterCellAndPolicy
 import com.dudoziworkshop.dzlog.feature.counter.table.updateCounterUiConflictDialogState
 import com.dudoziworkshop.dzlog.feature.counter.table.updateCounterUiScopeFlags
-import com.dudoziworkshop.dzlog.feature.table.editor.TableHandleOverlay
-import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
 import com.dudoziworkshop.dzlog.feature.table.editor.InlineEditActionResult
 import com.dudoziworkshop.dzlog.feature.table.editor.InlineEditSessionContext
 import com.dudoziworkshop.dzlog.feature.table.editor.InlineEditSessionState
@@ -79,32 +77,34 @@ import com.dudoziworkshop.dzlog.feature.table.editor.StructureAddOrRestoreInput
 import com.dudoziworkshop.dzlog.feature.table.editor.StructureRemoveInput
 import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorInlineEditActions
 import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorStructureActions
+import com.dudoziworkshop.dzlog.feature.table.editor.TableHandleOverlay
+import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
 import com.dudoziworkshop.dzlog.feature.table.editor.TableUndoManager
 import com.dudoziworkshop.dzlog.feature.table.editor.buildStructureEditorContext
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorExitCoordinator
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.DeletedStructureSnapshot
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveApplyInput
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveCoordinator
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.StructureRestoreAxis
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorExitCoordinator
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorInlineActionBindings
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorInlineActionCoordinator
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveApplyInput
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveCoordinator
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveResultApplier
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSelectedCounterResetCoordinator
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSelectedCounterResetInput
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveResultApplier
-import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.StructureRestoreAxis
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.FileNameSlotEditorUiResult
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.FileNameSlotEditorUiState
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.PathSlotEditorUiResult
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.PathSlotEditorUiState
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorBottomPanelModeChangeInput
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorBottomPanelModeChangeResolver
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorFileNameSlotActionBindings
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorInlineEditingActionBindings
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSelectionInlineEditingActionBinder
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSelectionActionBindings
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorPathSlotActionBindings
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSelectedCellActionBindings
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSelectedCellActionBinder
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSelectedCellActionBindings
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSelectionActionBindings
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSelectionInlineEditingActionBinder
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotActionBinder
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorBottomPanelModeChangeResolver
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotDraftHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotListHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorTransientStateHandlers
@@ -738,16 +738,10 @@ fun TableEditorScreen(
             updateCell = ::updateCell
         )
         counterUi = syncResult.counterUi
-        if (lastScopeSnapshot != syncResult.nextScopeSnapshot) {
-            lastScopeSnapshot = syncResult.nextScopeSnapshot
-        }
+        lastScopeSnapshot = syncResult.nextScopeSnapshot
         lastFilenameScopeSignature = syncResult.nextFilenameScopeSignature
-        if (lastProcessedResumeTick != resumeTick) {
-            lastProcessedResumeTick = resumeTick
-        }
-        if (lastProcessedScopeInputTick != scopeInputTick) {
-            lastProcessedScopeInputTick = scopeInputTick
-        }
+        lastProcessedResumeTick = resumeTick
+        lastProcessedScopeInputTick = scopeInputTick
         syncResult.updatedTemplateState?.let(::updateTemplateDraft)
     }
 
@@ -1110,12 +1104,8 @@ fun TableEditorScreen(
         deletedColsStack.clear()
         fileNameSlotsDirtySinceStructureChange = false
         pathSlotsDirtySinceStructureChange = false
-        if (rowWeightsDragBaseTemplate != null) {
-            rowWeightsDragBaseTemplate = null
-        }
-        if (colWeightsDragBaseTemplate != null) {
-            colWeightsDragBaseTemplate = null
-        }
+        rowWeightsDragBaseTemplate = null
+        colWeightsDragBaseTemplate = null
         undoManager.clear()
         undoRevision += 1
     }
@@ -1129,15 +1119,11 @@ fun TableEditorScreen(
     }
 
     fun finishRowWeightDrag() {
-        if (rowWeightsDragBaseTemplate != null) {
-            rowWeightsDragBaseTemplate = null
-        }
+        rowWeightsDragBaseTemplate = null
     }
 
     fun finishColumnWeightDrag() {
-        if (colWeightsDragBaseTemplate != null) {
-            colWeightsDragBaseTemplate = null
-        }
+        colWeightsDragBaseTemplate = null
     }
 
     fun commitRowWeightDrag(nextWeights: List<Float>) {

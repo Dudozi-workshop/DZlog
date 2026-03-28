@@ -10,6 +10,7 @@ import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
@@ -56,10 +57,10 @@ import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
-import com.dudoziworkshop.dzlog.ui.camera.controls.buildCameraTriggerCapture
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraBottomControls
-import com.dudoziworkshop.dzlog.ui.camera.controls.FloatingAssistShutterButton
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTopBar
+import com.dudoziworkshop.dzlog.ui.camera.controls.FloatingAssistShutterButton
+import com.dudoziworkshop.dzlog.ui.camera.controls.buildCameraTriggerCapture
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraNowTickEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraPrefsEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraVolumeKeyEffect
@@ -72,8 +73,8 @@ import com.dudoziworkshop.dzlog.ui.camera.preview.CameraPreviewArea
 import com.dudoziworkshop.dzlog.ui.camera.preview.buildWatermarkConfig
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsOverlayPanel
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
-import com.dudoziworkshop.dzlog.ui.camera.state.CameraViewModel
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraViewModel
 import com.dudoziworkshop.dzlog.ui.camera.state.computeCameraDerivedState
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.common.rememberThreeButtonNavEquivalentBottomPadding
@@ -131,6 +132,7 @@ fun CameraScreen(
 }
 
 @SuppressLint("AutoboxingStateCreation")
+@OptIn(ExperimentalCamera2Interop::class)
 @Composable
 fun CameraPreview(
     tableTemplateState: TableTemplateState,
