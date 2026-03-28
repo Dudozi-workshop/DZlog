@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.ChevronRight
@@ -56,6 +57,7 @@ import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControl
+import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControlStyles
 import com.dudoziworkshop.dzlog.feature.settings.policy.SettingsAction
 import com.dudoziworkshop.dzlog.feature.settings.policy.applySettingsAction
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -117,9 +119,9 @@ private val SETTINGS_COUNTER_ITEMS = listOf(
 private val SETTINGS_CAPTURE_ASSIST_ITEMS = listOf(
     ToggleUiItem(
         key = ToggleKey.ASSIST_SHUTTER,
-        icon = Icons.Default.CheckCircle,
+        icon = Icons.Default.CameraAlt,
         title = "플로팅 보조 셔터",
-        description = "촬영 화면에 드래그 가능한 보조 셔터 버튼을 표시해요."
+        description = "촬영 화면에 보조 셔터 버튼을 표시해요."
     )
 )
 
@@ -204,6 +206,7 @@ fun SettingsRootScreen(
                             SaveMode.WATERMARK_ONLY -> 1
                             SaveMode.BOTH -> 2
                         },
+                        style = SegmentedControlStyles.QuickSettings,
                         onSelect = { idx ->
                             // 저장 대상 변경 즉시 반영 + 재진입 복원은 기존 액션 파이프라인을 그대로 사용.
                             val mode = when (idx) {
@@ -224,6 +227,7 @@ fun SettingsRootScreen(
                             VolumeKeyAction.CAPTURE -> 1
                             VolumeKeyAction.ZOOM -> 2
                         },
+                        style = SegmentedControlStyles.QuickSettings,
                         onSelect = { idx ->
                             val action = when (idx) {
                                 1 -> VolumeKeyAction.CAPTURE
@@ -245,6 +249,7 @@ fun SettingsRootScreen(
                             ContinuousPreviewMode.SHORT -> 1
                             ContinuousPreviewMode.HOLD -> 2
                         },
+                        style = SegmentedControlStyles.QuickSettings,
                         onSelect = { idx ->
                             val mode = when (idx) {
                                 0 -> ContinuousPreviewMode.OFF
@@ -265,6 +270,7 @@ fun SettingsRootScreen(
                             3 -> 2
                             else -> 3
                         },
+                        style = SegmentedControlStyles.QuickSettings,
                         onSelect = { idx ->
                             val padding = when (idx) {
                                 0 -> 0

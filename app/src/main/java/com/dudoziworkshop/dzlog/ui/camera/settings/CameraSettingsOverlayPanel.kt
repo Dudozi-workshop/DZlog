@@ -203,6 +203,6 @@ private fun CompactSegments(options: List<SegmentedControlOption>) {
     // 3단계 정책: 촬영설정 패널도 공통 SegmentedControl 렌더러를 사용해 중복 UI를 제거한다.
     SegmentedControl(
         options = options,
-        style = SegmentedControlStyles.Compact
+        style = SegmentedControlStyles.CameraPanel
     )
 }

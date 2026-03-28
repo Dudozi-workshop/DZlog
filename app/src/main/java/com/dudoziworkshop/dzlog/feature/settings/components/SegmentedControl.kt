@@ -110,9 +110,57 @@ private val CompactSegmentedControlStyle = SegmentedControlStyle(
     dividerColor = DDZColor.Border
 )
 
+// 빠른 설정 영역 전용 미세 보정 스타일
+private val QuickSettingsSegmentedControlStyle = SegmentedControlStyle(
+    groupShape = RoundedCornerShape(DDZLayout.Radius.Small),
+    itemShape = RoundedCornerShape(DDZLayout.Radius.Small),
+    widthFraction = 1f,
+    outerHorizontalPadding = 0.dp,
+    innerHorizontalPadding = 3.dp,
+    innerVerticalPadding = 3.dp,
+    itemSpacing = 3.dp,
+    fixedHeight = 40.dp,
+    minItemHeight = 40.dp,
+    itemHorizontalPadding = 10.dp,
+    itemVerticalPadding = 5.dp,
+    textStyle = DDZTypography.Caption,
+    selectedTextColor = DDZColor.SageDarkStrong,
+    unselectedTextColor = DDZColor.TextMuted,
+    selectedContainerColor = DDZColor.SageLight.copy(alpha = 0.42f),
+    unselectedContainerColor = DDZColor.Surface,
+    borderColor = DDZColor.Border,
+    showDivider = false,
+    dividerColor = DDZColor.Border
+)
+
+// 촬영 설정 패널 전용 정돈형 compact 스타일
+private val CameraPanelSegmentedControlStyle = SegmentedControlStyle(
+    groupShape = RoundedCornerShape(DDZLayout.Radius.Small),
+    itemShape = RoundedCornerShape(DDZLayout.Radius.Small),
+    widthFraction = 0.95f,
+    outerHorizontalPadding = 0.dp,
+    innerHorizontalPadding = 2.dp,
+    innerVerticalPadding = 2.dp,
+    itemSpacing = 2.dp,
+    fixedHeight = DDZLayout.Control.Compact,
+    minItemHeight = DDZLayout.Control.Compact,
+    itemHorizontalPadding = 6.dp,
+    itemVerticalPadding = 2.dp,
+    textStyle = DDZTypography.Caption,
+    selectedTextColor = DDZColor.SageDarkStrong,
+    unselectedTextColor = DDZColor.TextMuted,
+    selectedContainerColor = DDZColor.SageLight.copy(alpha = 0.42f),
+    unselectedContainerColor = DDZColor.Surface,
+    borderColor = DDZColor.Border,
+    showDivider = false,
+    dividerColor = DDZColor.Border
+)
+
 object SegmentedControlStyles {
     val Default: SegmentedControlStyle = DefaultSegmentedControlStyle
     val Compact: SegmentedControlStyle = CompactSegmentedControlStyle
+    val QuickSettings: SegmentedControlStyle = QuickSettingsSegmentedControlStyle
+    val CameraPanel: SegmentedControlStyle = CameraPanelSegmentedControlStyle
 }
 
 @Composable

@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
@@ -91,6 +92,11 @@ internal fun FloatingAssistShutterButton(
                         .size(ASSIST_SHUTTER_BUTTON_SIZE)
                         .background(
                             color = DDZColor.Surface,
+                            shape = CircleShape,
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = DDZColor.SageDarkStrong,
                             shape = CircleShape,
                         )
                         .pointerInput(containerWidthPx, containerHeightPx) {
