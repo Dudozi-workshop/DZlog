@@ -8,8 +8,8 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 @Composable
 fun EmptyHint(
-    text: String = "항목을 추가해주세요.",
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    text: String = "항목을 추가해주세요."
 ) {
     Text(
         text = text,
