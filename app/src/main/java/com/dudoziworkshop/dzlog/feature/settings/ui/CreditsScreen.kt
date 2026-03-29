@@ -79,7 +79,7 @@ fun CreditsScreen(
                     icon = Icons.Default.Favorite,
                     title = "특별한 감사"
                 ) {
-                    Chips(names = specialThanks)
+                    Chips()
                 }
 
                 CreditsSectionCard(
@@ -215,13 +215,13 @@ private fun CreditsSectionCard(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Chips(names: List<String>) {
+private fun Chips() {
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        names.forEach { name ->
+        specialThanks.forEach { name ->
             Surface(
                 shape = RoundedCornerShape(50.dp),
                 color = DDZColor.Background,

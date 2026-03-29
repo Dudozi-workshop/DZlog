@@ -18,8 +18,6 @@ class NamePathBuildersCounterPaddingTest {
             id = "cell-1",
             type = TableCellDataType.TEXT,
             text = "SITE",
-            row = 0,
-            col = 0,
         )
 
         val name = buildDisplayNameFromSlotDrafts(
@@ -46,8 +44,6 @@ class NamePathBuildersCounterPaddingTest {
             id = "cell-1",
             type = TableCellDataType.TEXT,
             text = "SITE",
-            row = 0,
-            col = 0,
         )
 
         val name = buildDisplayNameFromSlotDrafts(
@@ -90,8 +86,6 @@ class NamePathBuildersCounterPaddingTest {
             id = "rot-1",
             type = TableCellDataType.ROTATING_TEXT,
             text = "PHRASE",
-            row = 0,
-            col = 0,
         )
 
         val name = buildDisplayNameFromSlotDrafts(
@@ -133,12 +127,10 @@ class NamePathBuildersCounterPaddingTest {
         id: String,
         type: TableCellDataType,
         text: String,
-        row: Int,
-        col: Int,
     ): ResolvedCell {
         val raw = TableCellState(
-            rowIndex = row,
-            colIndex = col,
+            rowIndex = 0,
+            colIndex = 0,
             rawText = text,
             dataType = type,
             groupLevel = GroupLevel.NONE,

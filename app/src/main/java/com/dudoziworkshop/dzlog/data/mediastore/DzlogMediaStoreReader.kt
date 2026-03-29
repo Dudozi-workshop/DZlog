@@ -15,6 +15,7 @@ import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 class DzlogMediaStoreReader(
     private val contentResolver: ContentResolver
 ) {
+    private val sortOrderDateAddedDesc = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
     data class G1Node(
         val name: String,
@@ -232,8 +233,7 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATE_ADDED
         )
-        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
-        return queryImages(where, projection, sortOrder)
+        return queryImages(where, projection)
     }
 
     /**
@@ -250,19 +250,17 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATE_ADDED
         )
-        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
-        return queryImages(where, projection, sortOrder)
+        return queryImages(where, projection)
     }
 
     private fun queryImages(
         where: MediaStoreQueryPolicy.WhereClause,
         projection: Array<String>,
-        sortOrder: String,
     ): List<MediaImageItem> {
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val out = mutableListOf<MediaImageItem>()
 
-        contentResolver.query(uri, projection, where.selection, where.selectionArgs, sortOrder)?.use { c ->
+        contentResolver.query(uri, projection, where.selection, where.selectionArgs, sortOrderDateAddedDesc)?.use { c ->
             val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val nameIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
             val relIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
@@ -302,9 +300,7 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.DATE_ADDED
         )
         val where = MediaStoreQueryPolicy.whereRelativePathLike(dzlogBaseLike)
-        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
-
-        contentResolver.query(uri, projection, where.selection, where.selectionArgs, sortOrder)?.use { c ->
+        contentResolver.query(uri, projection, where.selection, where.selectionArgs, sortOrderDateAddedDesc)?.use { c ->
             if (!c.moveToFirst()) return null
             val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val nameIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
@@ -349,9 +345,7 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATE_ADDED
         )
-        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
-
-        contentResolver.query(uri, projection, where.selection, where.selectionArgs, sortOrder)?.use { c ->
+        contentResolver.query(uri, projection, where.selection, where.selectionArgs, sortOrderDateAddedDesc)?.use { c ->
             if (!c.moveToFirst()) return null
             val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val nameIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)

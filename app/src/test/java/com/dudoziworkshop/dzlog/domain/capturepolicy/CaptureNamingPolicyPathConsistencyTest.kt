@@ -76,8 +76,8 @@ class CaptureNamingPolicyPathConsistencyTest {
 
     @Test
     fun `group level differences do not change relativePath when path slots are same`() {
-        val none = resolvedTextCell("c1", "unused", GroupLevel.NONE)
-        val g2 = resolvedTextCell("c1", "unused", GroupLevel.G2)
+        val none = resolvedTextCell(GroupLevel.NONE)
+        val g2 = resolvedTextCell(GroupLevel.G2)
 
         val withNone = CaptureNamingPolicy.buildForCaptureWithCounter(
             captureContext = baseContext(resolvedCells = listOf(none)),
@@ -92,7 +92,7 @@ class CaptureNamingPolicyPathConsistencyTest {
     }
 
     private fun baseContext(
-        resolvedCells: List<ResolvedCell> = listOf(resolvedTextCell("c1", "unused", GroupLevel.NONE)),
+        resolvedCells: List<ResolvedCell> = listOf(resolvedTextCell(GroupLevel.NONE)),
         pathSlotDrafts: List<TableEditorSlotDraft?> = listOf(
             TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
             TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "B"),
@@ -113,7 +113,9 @@ class CaptureNamingPolicyPathConsistencyTest {
         )
     }
 
-    private fun resolvedTextCell(id: String, text: String, groupLevel: GroupLevel): ResolvedCell {
+    private fun resolvedTextCell(groupLevel: GroupLevel): ResolvedCell {
+        val id = "c1"
+        val text = "unused"
         val raw = TableCellState(
             rowIndex = 0,
             colIndex = 0,

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -56,8 +55,6 @@ data class SegmentedControlStyle(
     val selectedContainerColor: androidx.compose.ui.graphics.Color,
     val unselectedContainerColor: androidx.compose.ui.graphics.Color,
     val borderColor: androidx.compose.ui.graphics.Color,
-    val showDivider: Boolean,
-    val dividerColor: androidx.compose.ui.graphics.Color
 )
 
 private const val SegmentGroupBorderAlpha = 0.45f
@@ -82,8 +79,6 @@ private val DefaultSegmentedControlStyle = SegmentedControlStyle(
     selectedContainerColor = DDZColor.SageLight.copy(alpha = SegmentSelectedContainerAlpha),
     unselectedContainerColor = DDZColor.Surface.copy(alpha = 0f),
     borderColor = DDZColor.Border.copy(alpha = SegmentGroupBorderAlpha),
-    showDivider = false,
-    dividerColor = DDZColor.Border
 )
 
 // 빠른 설정 영역 전용 미세 보정 스타일
@@ -105,8 +100,6 @@ private val QuickSettingsSegmentedControlStyle = SegmentedControlStyle(
     selectedContainerColor = DDZColor.SageLight.copy(alpha = 0.42f),
     unselectedContainerColor = DDZColor.Surface,
     borderColor = DDZColor.Border,
-    showDivider = false,
-    dividerColor = DDZColor.Border
 )
 
 // 촬영 설정 패널 전용 정돈형 compact 스타일
@@ -128,8 +121,6 @@ private val CameraPanelSegmentedControlStyle = SegmentedControlStyle(
     selectedContainerColor = DDZColor.SageLight.copy(alpha = 0.42f),
     unselectedContainerColor = DDZColor.Surface,
     borderColor = DDZColor.Border,
-    showDivider = false,
-    dividerColor = DDZColor.Border
 )
 
 object SegmentedControlStyles {
@@ -220,15 +211,6 @@ fun SegmentedControl(
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                if (style.showDivider && index != options.lastIndex) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(1.dp)
-                            .background(style.dividerColor)
                     )
                 }
             }

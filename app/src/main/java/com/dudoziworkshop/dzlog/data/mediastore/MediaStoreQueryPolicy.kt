@@ -4,6 +4,10 @@ import android.os.Build
 import android.provider.MediaStore
 
 internal object MediaStoreQueryPolicy {
+    private val EXACT_RELATIVE_PATH_BASE_SELECTION =
+        "(${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
+    private val RELATIVE_PATH_LIKE_BASE_SELECTION =
+        "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
 
     internal data class WhereClause(
         val selection: String,
@@ -30,7 +34,7 @@ internal object MediaStoreQueryPolicy {
     ): WhereClause {
         val (withSlash, withoutSlash) = normalizeRelativePathVariants(relativePath)
         return WhereClause(
-            selection = exactRelativePathBaseSelection() + if (includeTrashed) "" else notTrashedClause(),
+            selection = EXACT_RELATIVE_PATH_BASE_SELECTION + if (includeTrashed) "" else notTrashedClause(),
             selectionArgs = arrayOf(withSlash, withoutSlash)
         )
     }
@@ -40,18 +44,9 @@ internal object MediaStoreQueryPolicy {
         includeTrashed: Boolean = false
     ): WhereClause {
         return WhereClause(
-            selection = relativePathLikeBaseSelection() + if (includeTrashed) "" else notTrashedClause(),
+            selection = RELATIVE_PATH_LIKE_BASE_SELECTION + if (includeTrashed) "" else notTrashedClause(),
             selectionArgs = arrayOf(likePattern)
         )
-    }
-
-    @Suppress("SameReturnValue", "SameReturnValue")
-    private fun exactRelativePathBaseSelection(): String {
-        return "(${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
-    }
-
-    private fun relativePathLikeBaseSelection(): String {
-        return "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
     }
 
     private fun notTrashedClause(): String {

@@ -25,8 +25,8 @@ class TableStructureMutationTest {
     fun add_column_by_selection_inserts_after_selected_right_edge() {
         val base = removeColumn(defaultTableTemplateState())
         val selected = TableSelectionRange(minRow = 0, maxRow = 1, minCol = 1, maxCol = 1)
-        val unchangedCellId = cellAt(base, row = 0, col = 1).cellId
-        val shiftedCellId = cellAt(base, row = 0, col = 2).cellId
+        val unchangedCellId = cellAtFirstRow(base, col = 1).cellId
+        val shiftedCellId = cellAtFirstRow(base, col = 2).cellId
 
         val next = addColumnBySelection(base, selected)
         val expectedCols = if (base.cols < TableEditorPolicy.MAX_COLS) base.cols + 1 else base.cols
@@ -35,9 +35,9 @@ class TableStructureMutationTest {
         if (expectedCols == base.cols) {
             assertEquals(base, next)
         } else {
-            assertEquals(unchangedCellId, cellAt(next, row = 0, col = 1).cellId)
-            assertEquals("", cellAt(next, row = 0, col = 2).rawText)
-            assertEquals(shiftedCellId, cellAt(next, row = 0, col = 3).cellId)
+            assertEquals(unchangedCellId, cellAtFirstRow(next, col = 1).cellId)
+            assertEquals("", cellAtFirstRow(next, col = 2).rawText)
+            assertEquals(shiftedCellId, cellAtFirstRow(next, col = 3).cellId)
             assertEquals(base.cells.map { it.cellId }.toSet().size + base.rows, next.cells.map { it.cellId }.toSet().size)
             assertTrue(base.cells.all { old -> next.cells.count { it.cellId == old.cellId } == 1 })
         }
@@ -90,8 +90,8 @@ class TableStructureMutationTest {
         assertRectangularInvariant(addNext)
     }
 
-    private fun cellAt(template: TableTemplateState, row: Int, col: Int): TableCellState {
-        return template.cells.first { it.rowIndex == row && it.colIndex == col }
+    private fun cellAtFirstRow(template: TableTemplateState, col: Int): TableCellState {
+        return template.cells.first { it.rowIndex == 0 && it.colIndex == col }
     }
 
     private fun assertRectangularInvariant(template: TableTemplateState) {
