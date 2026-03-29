@@ -108,7 +108,6 @@ class CaptureNamingPolicyPathConsistencyTest {
             counterDigits = 2,
             dateFormat = "yyyyMMdd",
             timeFormat = "HHmm",
-            includePathInCounterScope = true,
             includeFilenameInCounterScope = true,
             saveMode = saveMode,
         )

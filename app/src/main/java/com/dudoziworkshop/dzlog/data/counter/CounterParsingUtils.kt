@@ -14,15 +14,13 @@ fun clampCounterDigits(v: Int) = v.coerceIn(0, 6)
 private fun parseCounter(
     displayName: String,
     fileNamePrefix: String,
-    counterDigits: Int,
     fnDelim: String
-): Int? = parseCounterForPolicy(displayName, fileNamePrefix, counterDigits, fnDelim)
+): Int? = parseCounterForPolicy(displayName, fileNamePrefix, fnDelim)
 
 
 internal fun parseCounterForPolicy(
     displayName: String,
     fileNamePrefix: String,
-    counterDigits: Int,
     fnDelim: String
 ): Int? {
     // Phase 0 note:
@@ -102,7 +100,7 @@ fun scanUsedCounters(
                     )
                     sampleCount += 1
                 }
-                parseCounter(name, fileNamePrefix, counterDigits, fnDelim)?.let(out::add)
+                parseCounter(name, fileNamePrefix, fnDelim)?.let(out::add)
             }
         }
         Log.d(
@@ -130,7 +128,7 @@ fun scanUsedCounters(
                 )
                 sampleCount += 1
             }
-            parseCounter(name, fileNamePrefix, counterDigits, fnDelim)?.let(out::add)
+            parseCounter(name, fileNamePrefix, fnDelim)?.let(out::add)
         }
     }
     Log.d(

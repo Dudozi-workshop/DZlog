@@ -227,6 +227,12 @@ internal fun BottomEditorPanel(
                         OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetRowWeights) { Text("행 균등 분배") }
                         OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetColumnWeights) { Text("열 균등 분배") }
                     }
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onResetAllWeights
+                    ) {
+                        Text("전체 균등 분배")
+                    }
 
                     HorizontalDivider(color = DDZColor.Border.copy(alpha = 0.75f), thickness = 1.dp)
 

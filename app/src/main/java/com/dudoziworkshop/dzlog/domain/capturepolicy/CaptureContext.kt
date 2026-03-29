@@ -1,8 +1,8 @@
 package com.dudoziworkshop.dzlog.domain.capturepolicy
 
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
-import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
@@ -28,7 +28,6 @@ internal data class CaptureContext(
     val counterDigits: Int,
     val dateFormat: String,
     val timeFormat: String,
-    val includePathInCounterScope: Boolean,
     val includeFilenameInCounterScope: Boolean,
     val saveMode: SaveMode,
     val dateScopeValues: List<String> = emptyList(),

@@ -11,7 +11,6 @@ class CounterParsingTest {
         val result = parseNextCounterFromDisplayName(
             latestDisplayName = "AAA_BBB_0007.jpg",
             fileNamePrefix = "AAA_BBB",
-            counterDigits = 4,
             fnDelim = "_"
         )
 
@@ -24,7 +23,6 @@ class CounterParsingTest {
         val result = parseNextCounterFromDisplayName(
             latestDisplayName = "invalid_name.jpg",
             fileNamePrefix = "AAA_BBB",
-            counterDigits = 4,
             fnDelim = "_"
         )
 
@@ -37,7 +35,6 @@ class CounterParsingTest {
         val result = parseNextCounterFromDisplayName(
             latestDisplayName = null,
             fileNamePrefix = "*",
-            counterDigits = 0,
             fnDelim = "_"
         )
 

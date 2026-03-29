@@ -10,7 +10,6 @@ internal data class ParsedCounterSeed(
 internal fun parseNextCounterFromDisplayName(
     latestDisplayName: String?,
     fileNamePrefix: String,
-    counterDigits: Int,
     fnDelim: String
 ): ParsedCounterSeed {
     val latestCounter = latestDisplayName
@@ -18,7 +17,6 @@ internal fun parseNextCounterFromDisplayName(
             parseCounterForPolicy(
                 displayName = it,
                 fileNamePrefix = fileNamePrefix,
-                counterDigits = counterDigits,
                 fnDelim = fnDelim
             )
         }

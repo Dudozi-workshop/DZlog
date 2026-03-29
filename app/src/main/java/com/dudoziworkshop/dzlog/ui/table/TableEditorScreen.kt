@@ -1503,6 +1503,7 @@ fun TableEditorScreen(
             applyTemplateWithUndo(resetColumnWeights(currentTemplate))
         },
         onResetAllWeights = {
+            // 행/열 리셋을 한 번의 액션으로 묶어 단일 undo 스냅샷으로 처리한다.
             applyTemplateWithUndo(resetColumnWeights(resetRowWeights(currentTemplate)))
         },
         onUndo = ::applyUndo,

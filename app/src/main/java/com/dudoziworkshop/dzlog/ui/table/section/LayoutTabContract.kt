@@ -146,6 +146,7 @@ data class LayoutTabActions(
     val onRemoveCol: () -> Unit,
     val onResetRowWeights: () -> Unit,
     val onResetColumnWeights: () -> Unit,
+    // 행/열 가중치 리셋을 단일 UI 액션으로 수행(undo 1회 기준).
     val onResetAllWeights: () -> Unit,
     val onUndo: () -> Unit,
     val onReset: () -> Unit,

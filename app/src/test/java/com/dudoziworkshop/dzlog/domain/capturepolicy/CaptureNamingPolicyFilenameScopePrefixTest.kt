@@ -154,7 +154,6 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
                 counterDigits = 2,
                 dateFormat = "yyyyMMdd",
                 timeFormat = "HH:mm:ss",
-                includePathInCounterScope = true,
                 includeFilenameInCounterScope = true,
                 dateScopeValues = emptyList(),
                 timeScopeValues = emptyList(),
@@ -184,7 +183,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             rawText = text,
             dataType = TableCellDataType.ROTATING_TEXT,
             groupLevel = GroupLevel.NONE,
-                        cellId = id,
+            cellId = id,
         )
         return ResolvedCell(id, raw.dataType, raw, text, isEmpty = text.isBlank())
     }

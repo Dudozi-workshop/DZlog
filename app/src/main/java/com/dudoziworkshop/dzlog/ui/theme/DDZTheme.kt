@@ -80,11 +80,8 @@ private val DDZShapes = Shapes(
 @Composable
 fun DDZTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // 정책: dynamic color는 어떤 OS/기기에서도 비활성화 고정
-    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    // dynamicColor 파라미터는 호환용으로 유지하되, 실제 적용은 하지 않는다.
     val colorScheme = if (darkTheme) DDZDarkColorScheme else DDZLightColorScheme
 
     MaterialTheme(
