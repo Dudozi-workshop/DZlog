@@ -72,8 +72,8 @@ internal fun FocusTickBar(
                             lastHapticStep = latestStep
                         }
                     },
-                    onDragCancel = { accumulatedDragPx = 0f },
-                    onDragEnd = { accumulatedDragPx = 0f }
+                    onDragCancel = { },
+                    onDragEnd = { }
                 ) { change, dragAmount ->
                     if (!latestEnabled) {
                         change.consume()

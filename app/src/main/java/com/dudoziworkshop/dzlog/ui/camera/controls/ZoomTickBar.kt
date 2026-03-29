@@ -66,12 +66,8 @@ internal fun ZoomTickBar(
                         accumulatedDragPx = 0f
                         lastHapticTenths = latestZoomTenths
                     },
-                    onDragCancel = {
-                        accumulatedDragPx = 0f
-                    },
-                    onDragEnd = {
-                        accumulatedDragPx = 0f
-                    }
+                    onDragCancel = { },
+                    onDragEnd = { }
                 ) { change, dragAmount ->
                     accumulatedDragPx -= dragAmount.x
                     val deltaTenths = accumulatedDragPx / tickSpacingPx
