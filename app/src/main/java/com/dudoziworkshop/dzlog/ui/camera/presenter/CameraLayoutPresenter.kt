@@ -1,3 +1,9 @@
+@file:Suppress("SameParameterValue", "SameParameterValue", "SameParameterValue",
+    "SameParameterValue", "SameParameterValue", "SameParameterValue", "SameParameterValue",
+    "SameParameterValue", "SameParameterValue", "SameParameterValue", "SameParameterValue",
+    "SameParameterValue"
+)
+
 package com.dudoziworkshop.dzlog.ui.camera.presenter
 
 import androidx.compose.foundation.layout.WindowInsets

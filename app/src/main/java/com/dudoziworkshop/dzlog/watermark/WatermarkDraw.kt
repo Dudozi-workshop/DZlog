@@ -34,14 +34,13 @@ fun computeWatermarkTableLayout(
     tableHeightRatio: Int,
     tableWidthRatio: Int
 ): WatermarkTableLayout {
-    val w = bounds.width()
-    val h = bounds.height()
-    val base = w
-    val tableW = base * (tableWidthRatio.coerceIn(10, 100) / 100f)
-    val tableH = base * (tableHeightRatio.coerceIn(10, 100) / 100f)
+    val boundsWidth = bounds.width()
+    val boundsHeight = bounds.height()
+    val tableW = boundsWidth * (tableWidthRatio.coerceIn(10, 100) / 100f)
+    val tableH = boundsWidth * (tableHeightRatio.coerceIn(10, 100) / 100f)
 
-    val maxX = (w - tableW).coerceAtLeast(0f)
-    val maxY = (h - tableH).coerceAtLeast(0f)
+    val maxX = (boundsWidth - tableW).coerceAtLeast(0f)
+    val maxY = (boundsHeight - tableH).coerceAtLeast(0f)
 
     val left = bounds.left + when (anchor) {
         WatermarkTableAnchor.TOP_LEFT,
@@ -88,14 +87,13 @@ fun computeWatermarkTableLayoutPx(
     tableHeightRatio: Int,
     tableWidthRatio: Int
 ): WatermarkTableLayout {
-    val w = bounds.width()
-    val h = bounds.height()
-    val base = w
-    val tableW = base * (tableWidthRatio.coerceIn(10, 100) / 100f)
-    val tableH = base * (tableHeightRatio.coerceIn(10, 100) / 100f)
+    val boundsWidth = bounds.width()
+    val boundsHeight = bounds.height()
+    val tableW = boundsWidth * (tableWidthRatio.coerceIn(10, 100) / 100f)
+    val tableH = boundsWidth * (tableHeightRatio.coerceIn(10, 100) / 100f)
 
-    val maxX = (w - tableW).coerceAtLeast(0f)
-    val maxY = (h - tableH).coerceAtLeast(0f)
+    val maxX = (boundsWidth - tableW).coerceAtLeast(0f)
+    val maxY = (boundsHeight - tableH).coerceAtLeast(0f)
 
     val left = bounds.left + when (anchor) {
         WatermarkTableAnchor.TOP_LEFT,
@@ -207,10 +205,8 @@ fun computeWatermarkBoundsRect(rawRect: RectF, rotationCwDeg: Int): RectF {
 
     val cx = rawRect.centerX()
     val cy = rawRect.centerY()
-    val w = rawRect.width()
-    val h = rawRect.height()
-    val newW = h
-    val newH = w
+    val newW = rawRect.height()
+    val newH = rawRect.width()
     return RectF(cx - newW / 2f, cy - newH / 2f, cx + newW / 2f, cy + newH / 2f)
 }
 
@@ -459,9 +455,7 @@ fun drawWatermarkTableFromResolvedCells(
     val out = src.copy(Bitmap.Config.ARGB_8888, true)
     val canvas = Canvas(out)
 
-    val w = out.width.toFloat()
-    val h = out.height.toFloat()
-    val imageBounds = RectF(0f, 0f, w, h)
+    val imageBounds = RectF(0f, 0f, out.width.toFloat(), out.height.toFloat())
     val layout = computeWatermarkTableLayout(
         bounds = imageBounds,
         anchor = anchor,

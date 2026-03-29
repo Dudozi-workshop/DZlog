@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.section
 
+import android.annotation.SuppressLint
 import android.graphics.RectF
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -61,6 +62,7 @@ private val STRUCTURE_HANDLE_GAP_DP = 4.dp
  * - 현재 표 영역 박스는 유지하고, 박스 안에서 실제 표 비율을 contain-fit으로 최대 표시한다.
  * - 편집 UX는 "셀 탭/더블탭 -> CELL_EDIT 패널 편집"으로 단일화하고, 표 내부 인라인 입력창은 사용하지 않는다.
  */
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RealTableGridSection(
@@ -247,11 +249,10 @@ fun RealTableGridSection(
                 activeRowBoundary?.let { boundary ->
                     if (boundary in 1 until rows) {
                         val topRowIndex = boundary - 1
-                        val bottomRowIndex = boundary
                         val topY = tableTopPx + rowOffsets[topRowIndex]
                         val topH = rowSizes[topRowIndex]
-                        val bottomY = tableTopPx + rowOffsets[bottomRowIndex]
-                        val bottomH = rowSizes[bottomRowIndex]
+                        val bottomY = tableTopPx + rowOffsets[boundary]
+                        val bottomH = rowSizes[boundary]
                         drawRect(
                             color = DDZColor.Primary.copy(alpha = 0.10f),
                             topLeft = Offset(tableLeftPx, topY),
@@ -274,11 +275,10 @@ fun RealTableGridSection(
                 activeColBoundary?.let { boundary ->
                     if (boundary in 1 until cols) {
                         val leftColIndex = boundary - 1
-                        val rightColIndex = boundary
                         val leftX = tableLeftPx + colOffsets[leftColIndex]
                         val leftW = colSizes[leftColIndex]
-                        val rightX = tableLeftPx + colOffsets[rightColIndex]
-                        val rightW = colSizes[rightColIndex]
+                        val rightX = tableLeftPx + colOffsets[boundary]
+                        val rightW = colSizes[boundary]
                         drawRect(
                             color = DDZColor.Primary.copy(alpha = 0.10f),
                             topLeft = Offset(leftX, tableTopPx),
@@ -311,18 +311,16 @@ fun RealTableGridSection(
                 val selected = templateState.cells.firstOrNull { it.cellId == selectedId } ?: return@forEach
                 val l = tableLeftPx + colOffsets[selected.colIndex]
                 val t = tableTopPx + rowOffsets[selected.rowIndex]
-                val w = colSizes[selected.colIndex]
-                val h = rowSizes[selected.rowIndex]
                 drawRect(
                     color = if (isStructureMode) selectedFillColor.copy(alpha = 0.14f) else selectedFillColor,
                     topLeft = Offset(l, t),
-                    size = androidx.compose.ui.geometry.Size(w, h)
+                    size = androidx.compose.ui.geometry.Size(colSizes[selected.colIndex], rowSizes[selected.rowIndex])
                 )
                 val selectionStrokeWidth = if (selected.cellId == editingCellId) 4f else 3f
                 drawRect(
                     color = selectedBorderColor,
                     topLeft = Offset(l, t),
-                    size = androidx.compose.ui.geometry.Size(w, h),
+                    size = androidx.compose.ui.geometry.Size(colSizes[selected.colIndex], rowSizes[selected.rowIndex]),
                     style = androidx.compose.ui.graphics.drawscope.Stroke(width = selectionStrokeWidth)
                 )
             }
@@ -627,9 +625,8 @@ private fun applyBoundaryDragPreviewFromStart(
 ): List<Float> {
     if (boundaryIndex !in 1 until startWeights.size) return startWeights
     val leftIndex = boundaryIndex - 1
-    val rightIndex = boundaryIndex
     val leftSize = startSegmentSizesPx.getOrNull(leftIndex) ?: return startWeights
-    val rightSize = startSegmentSizesPx.getOrNull(rightIndex) ?: return startWeights
+    val rightSize = startSegmentSizesPx.getOrNull(boundaryIndex) ?: return startWeights
 
     val boundedDelta = accumulatedDeltaPx
         .coerceAtMost(rightSize - minSegmentPx)
@@ -639,13 +636,13 @@ private fun applyBoundaryDragPreviewFromStart(
     if (pairSize <= 0f) return startWeights
 
     val nextLeftSize = (leftSize + boundedDelta).coerceAtLeast(minSegmentPx)
-    val pairWeight = (startWeights[leftIndex] + startWeights[rightIndex]).coerceAtLeast(0.0001f)
+    val pairWeight = (startWeights[leftIndex] + startWeights[boundaryIndex]).coerceAtLeast(0.0001f)
     val nextLeftWeight = pairWeight * (nextLeftSize / pairSize)
     val nextRightWeight = (pairWeight - nextLeftWeight).coerceAtLeast(0.0001f)
 
     return startWeights.toMutableList().apply {
         this[leftIndex] = nextLeftWeight
-        this[rightIndex] = nextRightWeight
+        this[boundaryIndex] = nextRightWeight
     }
 }
 

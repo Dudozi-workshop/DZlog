@@ -5,6 +5,10 @@
 
 @file:OptIn(ExperimentalCamera2Interop::class)
 
+@file:OptIn(ExperimentalCamera2Interop::class)
+
+@file:OptIn(ExperimentalCamera2Interop::class)
+
 package com.dudoziworkshop.dzlog.ui.camera
 
 import android.Manifest
@@ -133,6 +137,7 @@ fun CameraScreen(
     }
 }
 
+@androidx.annotation.OptIn(ExperimentalCamera2Interop::class)
 @SuppressLint("AutoboxingStateCreation")
 @OptIn(ExperimentalCamera2Interop::class)
 @Composable

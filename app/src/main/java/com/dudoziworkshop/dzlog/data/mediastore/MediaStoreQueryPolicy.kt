@@ -45,6 +45,7 @@ internal object MediaStoreQueryPolicy {
         )
     }
 
+    @Suppress("SameReturnValue", "SameReturnValue")
     private fun exactRelativePathBaseSelection(): String {
         return "(${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
     }

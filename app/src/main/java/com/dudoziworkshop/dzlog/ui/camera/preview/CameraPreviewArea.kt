@@ -2,9 +2,9 @@
 
 package com.dudoziworkshop.dzlog.ui.camera.preview
 
+import android.annotation.SuppressLint
 import android.graphics.RectF
 import android.os.SystemClock
-import androidx.compose.ui.unit.dp
 import android.util.Log
 import android.view.View
 import androidx.camera.core.Camera
@@ -35,13 +35,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Observer
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
-import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePathFromSlotDrafts
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
+import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePathFromSlotDrafts
 import com.dudoziworkshop.dzlog.domain.naming.resolveGroupValue
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
@@ -51,11 +53,11 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.delay
 import kotlin.math.max
 import kotlin.math.roundToInt
-import androidx.compose.ui.unit.IntOffset
 
 /**
  * CameraPreviewArea
  */
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 internal fun CameraPreviewArea(
     args: CameraPreviewAreaArgs,

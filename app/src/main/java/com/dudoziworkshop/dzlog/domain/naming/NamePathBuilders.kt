@@ -7,7 +7,6 @@ import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
-import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import java.text.SimpleDateFormat
@@ -33,17 +32,6 @@ fun sanitizeFilePart(input: String): String {
 private fun sanitizeGroupPathSegment(input: String): String =
     sanitizeFilePart(input).replace('/', '_').replace('\\', '_').trim()
 
-@JvmName("resolveGroupValueFromStates")
-fun resolveGroupValue(cells: List<TableCellState>, level: GroupLevel): String {
-    return cells
-        .asSequence()
-        .filter { it.groupLevel == level }
-        .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
-        .map { sanitizeGroupPathSegment(it.rawText) }
-        .firstOrNull { it.isNotBlank() }
-        .orEmpty()
-}
-
 fun resolveGroupValue(resolvedCells: List<ResolvedCell>, level: GroupLevel): String {
     return resolvedCells
         .asSequence()
@@ -52,13 +40,6 @@ fun resolveGroupValue(resolvedCells: List<ResolvedCell>, level: GroupLevel): Str
         .map { sanitizeGroupPathSegment(it.resolvedText) }
         .firstOrNull { it.isNotBlank() }
         .orEmpty()
-}
-
-@Suppress("unused")
-fun buildGalleryRelativePath(cells: List<TableCellState>): String {
-    val g1 = resolveGroupValue(cells, GroupLevel.G1)
-    val g2 = resolveGroupValue(cells, GroupLevel.G2)
-    return buildGalleryRelativePath(g1, g2)
 }
 
 fun buildGalleryRelativePath(group1: String, group2: String): String {

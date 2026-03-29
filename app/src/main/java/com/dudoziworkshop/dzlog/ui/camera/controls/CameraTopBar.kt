@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +30,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 // 2단계 라운딩 토큰: 카메라 상/하단의 자주 노출되는 소형 컨트롤은 Small로 통일한다.
 private val CameraCompactControlShape = RoundedCornerShape(DDZLayout.Radius.Small)
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun CameraTopBar(
     topDisplayName: String,
