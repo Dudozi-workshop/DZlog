@@ -5,7 +5,6 @@
 
 package com.dudoziworkshop.dzlog.ui.log
 
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -377,7 +376,6 @@ private fun ViewerBottomPill(
     }
 }
 
-@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 private fun ThumbnailFilmstrip(
     items: List<MediaImageItem>,

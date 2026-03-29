@@ -1,7 +1,6 @@
 @file:Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
 
 package com.dudoziworkshop.dzlog.ui.home
-import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -95,7 +94,6 @@ private fun clampDp(value: Dp, min: Dp, max: Dp): Dp {
     }
 }
 
-@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun HomeScreen(
     tableTemplateState: TableTemplateState,

@@ -237,8 +237,10 @@ fun AppRoot() {
         screen = target
     }
 
-    fun resetGridUiState() {
-        gridItems = emptyList()
+    fun resetGridUiState(clearGridItems: Boolean = true) {
+        if (clearGridItems) {
+            gridItems = emptyList()
+        }
         isSelectionMode = false
         selectedIds = emptySet()
     }
@@ -273,10 +275,10 @@ fun AppRoot() {
         return location
     }
 
-    fun openWaterGrid(location: AlbumLocation) {
+    fun openWaterGrid(location: AlbumLocation, clearGridItems: Boolean = true) {
         albumLocation = location
         clearOriginalContext()
-        resetGridUiState()
+        resetGridUiState(clearGridItems = clearGridItems)
     }
 
     // 원본 진입은 이 함수로만 처리해 "진입 문맥(부모)"을 단일 경로로 보존한다.
@@ -331,9 +333,8 @@ fun AppRoot() {
 
         if (screen == AppScreen.CAMERA) {
             // 정책: Camera recent는 Grid를 거치지 않고 Viewer로 직행한다.
-            openWaterGrid(location)
+            openWaterGrid(location, clearGridItems = false)
             viewerEntrySource = ViewerEntrySource.CAMERA_RECENT
-            gridEntrySource = GridEntrySource.NORMAL
             albumEntryScreen = AppScreen.CAMERA
             val reloaded = runCatching {
                 DzlogMediaStoreReader(context.contentResolver).loadImages(location.relativePath)

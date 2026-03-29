@@ -300,7 +300,6 @@ fun RotatingPhraseSetEditDialog(
             confirmButton = {
                 TextButton(onClick = {
                     onDeleteSet(phraseSet.id)
-                    showDeleteConfirm = false
                 }) {
                     Text("삭제", style = DDZTypography.ButtonText)
                 }

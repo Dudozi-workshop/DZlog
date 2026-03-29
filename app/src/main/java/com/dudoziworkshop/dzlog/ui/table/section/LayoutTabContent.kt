@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.ui.table.section
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -38,7 +37,6 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 private val BottomBarReserveHeight = 160.dp
 
-@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun LayoutTabContent(
     uiState: LayoutTabUiState,

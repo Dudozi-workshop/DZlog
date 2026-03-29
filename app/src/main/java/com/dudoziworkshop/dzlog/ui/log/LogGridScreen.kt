@@ -2,7 +2,6 @@
 
 package com.dudoziworkshop.dzlog.ui.log
 
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.database.ContentObserver
 import android.os.Handler
@@ -81,7 +80,6 @@ import kotlin.math.floor
  * - 탭: 뷰어로 이동
  * - 길게누르기: 다중 선택 모드 진입
  */
-@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun LogGridScreen(
     headerTitle: String,

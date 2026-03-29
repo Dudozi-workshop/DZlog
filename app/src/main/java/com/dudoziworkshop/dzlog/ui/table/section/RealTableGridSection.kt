@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.ui.table.section
 
-import android.annotation.SuppressLint
 import android.graphics.RectF
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -62,7 +61,6 @@ private val STRUCTURE_HANDLE_GAP_DP = 4.dp
  * - 현재 표 영역 박스는 유지하고, 박스 안에서 실제 표 비율을 contain-fit으로 최대 표시한다.
  * - 편집 UX는 "셀 탭/더블탭 -> CELL_EDIT 패널 편집"으로 단일화하고, 표 내부 인라인 입력창은 사용하지 않는다.
  */
-@SuppressLint("UnusedBoxWithConstraintsScope")
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RealTableGridSection(

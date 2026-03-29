@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.ui.common
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.widthIn
@@ -15,7 +14,6 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun CounterAwareFileNameText(
     fileName: String,

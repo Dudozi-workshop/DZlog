@@ -2,7 +2,6 @@
 
 package com.dudoziworkshop.dzlog.ui.camera.preview
 
-import android.annotation.SuppressLint
 import android.graphics.RectF
 import android.os.SystemClock
 import android.util.Log
@@ -57,7 +56,6 @@ import kotlin.math.roundToInt
 /**
  * CameraPreviewArea
  */
-@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 internal fun CameraPreviewArea(
     args: CameraPreviewAreaArgs,
