@@ -30,9 +30,12 @@ internal fun rememberCameraLayoutState(
     var shutterButtonTopY by remember { mutableStateOf<Float?>(null) }
 
     val density = LocalDensity.current
-    val safeDrawingPadding = WindowInsets.safeDrawing.asPaddingValues()
-    val safeTopInsetPx = with(density) { safeDrawingPadding.calculateTopPadding().toPx() }
-    val safeBottomInsetPx = with(density) { safeDrawingPadding.calculateBottomPadding().toPx() }
+    val safeTopInsetPx = with(density) {
+        WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding().toPx()
+    }
+    val safeBottomInsetPx = with(density) {
+        WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding().toPx()
+    }
 
     return CameraLayoutState(
         safeTopY = safeTopInsetPx.takeIf { it > 0f },

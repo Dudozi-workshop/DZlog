@@ -368,8 +368,7 @@ fun LogGridScreen(
                                     if (isSelectionMode) {
                                         onToggleSelection(item.id)
                                     } else {
-                                        val originalIndex = indexById[item.id] ?: 0
-                                        onOpenViewer(originalIndex)
+                                        onOpenViewer(indexById[item.id] ?: 0)
                                     }
                                 },
                                 onLongClick = { onEnterSelectionWith(item.id) }

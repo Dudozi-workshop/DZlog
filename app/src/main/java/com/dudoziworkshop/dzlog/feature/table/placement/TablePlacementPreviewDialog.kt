@@ -124,8 +124,6 @@ fun CameraLikeWatermarkPlacementPreview(
                 if (dragActive) {
                     val ratioX = if (dragMaxXPx <= 0f) 0 else ((dragLeftPx / dragMaxXPx) * 100f).roundToInt().coerceIn(0, 100)
                     val ratioY = if (dragMaxYPx <= 0f) 0 else ((dragTopPx / dragMaxYPx) * 100f).roundToInt().coerceIn(0, 100)
-                    dragOffsetXRatio = ratioX
-                    dragOffsetYRatio = ratioY
                     onDragCommit(ratioX, ratioY)
                     overrideReleaseTick += 1
                 }

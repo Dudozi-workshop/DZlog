@@ -56,23 +56,28 @@ internal fun ZoomTickBar(
                 }
             }
             .pointerInput(normalizedMaxTenths) {
-                var dragStartZoomTenths: Int? = null
-                var dragStartX: Float? = null
-                var lastHapticTenths: Int? = null
+                var dragStartZoomTenths = latestZoomTenths
+                var dragStartX = 0f
+                var hasDragStart = false
+                var lastHapticTenths = latestZoomTenths
 
                 detectDragGestures(
                     onDragStart = { startOffset ->
                         dragStartZoomTenths = latestZoomTenths
                         dragStartX = startOffset.x
-                    }
+                        hasDragStart = true
+                        lastHapticTenths = latestZoomTenths
+                    },
+                    onDragEnd = { hasDragStart = false },
+                    onDragCancel = { hasDragStart = false },
                 ) { change, _ ->
-                    val startX = dragStartX ?: change.position.x
+                    val startX = if (hasDragStart) dragStartX else change.position.x
                     val deltaTenths = (startX - change.position.x) / tickSpacingPx
-                    val mapped = ((dragStartZoomTenths ?: latestZoomTenths) + deltaTenths)
+                    val mapped = (dragStartZoomTenths + deltaTenths)
                         .roundToInt()
                         .coerceIn(MIN_ZOOM_TENTHS, normalizedMaxTenths)
                     latestOnZoomTenthsChange(mapped)
-                    val previousHapticTenths = lastHapticTenths ?: latestZoomTenths
+                    val previousHapticTenths = lastHapticTenths
                     if (latestHapticEnabled && mapped != previousHapticTenths) {
                         latestOnStepHaptic()
                         lastHapticTenths = mapped

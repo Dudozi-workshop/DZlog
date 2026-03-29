@@ -140,10 +140,9 @@ fun LogViewerScreen(
 
     LaunchedEffect(items.size) {
         if (items.isEmpty()) return@LaunchedEffect
-        val max = (items.size - 1).coerceAtLeast(0)
-        val clamped = pagerState.currentPage.coerceIn(0, max)
-        if (clamped != pagerState.currentPage) {
-            pagerState.scrollToPage(clamped)
+        val targetPage = pagerState.currentPage.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+        if (targetPage != pagerState.currentPage) {
+            pagerState.scrollToPage(targetPage)
         }
     }
 

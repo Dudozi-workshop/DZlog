@@ -1,7 +1,6 @@
 @file:OptIn(
     androidx.compose.foundation.ExperimentalFoundationApi::class,
     androidx.compose.foundation.layout.ExperimentalLayoutApi::class,
-    androidx.camera.camera2.interop.ExperimentalCamera2Interop::class,
 )
 
 package com.dudoziworkshop.dzlog.ui.camera
@@ -11,6 +10,7 @@ import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
@@ -132,6 +132,7 @@ fun CameraScreen(
 }
 
 @SuppressLint("AutoboxingStateCreation")
+@OptIn(ExperimentalCamera2Interop::class)
 @Composable
 fun CameraPreview(
     tableTemplateState: TableTemplateState,

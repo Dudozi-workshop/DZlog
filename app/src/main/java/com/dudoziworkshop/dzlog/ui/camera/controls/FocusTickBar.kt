@@ -60,31 +60,36 @@ internal fun FocusTickBar(
                 }
             }
             .pointerInput(Unit, enabled) {
-                var dragStartStep: Int? = null
-                var dragStartX: Float? = null
-                var lastHapticStep: Int? = null
+                var dragStartStep = latestStep
+                var dragStartX = 0f
+                var hasDragStart = false
+                var lastHapticStep = latestStep
 
                 detectDragGestures(
                     onDragStart = { startOffset ->
                         if (latestEnabled) {
                             dragStartStep = latestStep
                             dragStartX = startOffset.x
+                            hasDragStart = true
+                            lastHapticStep = latestStep
                         }
-                    }
+                    },
+                    onDragEnd = { hasDragStart = false },
+                    onDragCancel = { hasDragStart = false },
                 ) { change, _ ->
                     if (!latestEnabled) {
                         change.consume()
                         return@detectDragGestures
                     }
 
-                    val startX = dragStartX ?: change.position.x
+                    val startX = if (hasDragStart) dragStartX else change.position.x
                     val deltaStep = (startX - change.position.x) / tickSpacingPx
-                    val mapped = ((dragStartStep ?: latestStep) + deltaStep)
+                    val mapped = (dragStartStep + deltaStep)
                         .roundToInt()
                         .coerceIn(0, FOCUS_STEP_COUNT)
                     latestOnValueChange(mapped / FOCUS_STEP_COUNT.toFloat())
 
-                    val previousHapticStep = lastHapticStep ?: latestStep
+                    val previousHapticStep = lastHapticStep
                     val valueDelta = abs(mapped - previousHapticStep) / FOCUS_STEP_COUNT.toFloat()
                     if (
                         latestHapticEnabled &&

@@ -77,6 +77,10 @@ fun TablePlacementPreviewDialog(
         draftRotation = if (entryPlacement.rotationCwDeg == 90) 90 else 0
         draftScale = entryPlacement.wmWidthRatio.toFloat() / shapeWidthBase.toFloat() * 100f
     }
+    fun updateDraftOffset(offsetX: Int, offsetY: Int) {
+        draftOffsetX = offsetX.coerceIn(0, 100)
+        draftOffsetY = offsetY.coerceIn(0, 100)
+    }
 
     val ratioLockedScaleRange = resolveRatioLockedScaleRange(
         baseWidthRatio = shapeWidthBase,
@@ -134,14 +138,8 @@ fun TablePlacementPreviewDialog(
                     manualTextColor = wmManualTextColor,
                     textAlign = wmTextAlign,
                     drawGrid = wmGridEnabled,
-                    onDragPreview = { offsetX, offsetY ->
-                        draftOffsetX = offsetX.coerceIn(0, 100)
-                        draftOffsetY = offsetY.coerceIn(0, 100)
-                    },
-                    onDragCommit = { offsetX, offsetY ->
-                        draftOffsetX = offsetX.coerceIn(0, 100)
-                        draftOffsetY = offsetY.coerceIn(0, 100)
-                    },
+                    onDragPreview = ::updateDraftOffset,
+                    onDragCommit = ::updateDraftOffset,
                     modifier = Modifier.clipToBounds()
                 )
             }

@@ -213,14 +213,13 @@ fun AppRoot() {
 
 
     LaunchedEffect(orientationMode) {
-        val requestedOrientation = when (orientationMode) {
+        activity?.requestedOrientation = when (orientationMode) {
             OrientationMode.PORTRAIT_LOCK ->
                 android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
             OrientationMode.AUTO_ROTATE ->
                 android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
-        activity?.requestedOrientation = requestedOrientation
     }
 
     fun isAlbumScreen(target: AppScreen): Boolean =
