@@ -507,6 +507,13 @@ fun AppRoot() {
                 waterCount: Int,
                 originalCount: Int,
             ) {
+                fun openAlbumGridFromG1() {
+                    albumGridEntryScreen = AppScreen.ALBUM_G1
+                    gridEntrySource = GridEntrySource.NORMAL
+                    viewerEntrySource = ViewerEntrySource.GRID
+                    screen = AppScreen.ALBUM_GRID
+                }
+
                 when {
                     waterCount > 0 -> {
                         val location = AlbumLocation(
@@ -516,10 +523,7 @@ fun AppRoot() {
                             originalLinkPath = originalRel
                         )
                         openWaterGrid(location)
-                        albumGridEntryScreen = AppScreen.ALBUM_G1
-                        gridEntrySource = GridEntrySource.NORMAL
-                        viewerEntrySource = ViewerEntrySource.GRID
-                        screen = AppScreen.ALBUM_GRID
+                        openAlbumGridFromG1()
                     }
 
                     originalCount > 0 -> {
@@ -536,10 +540,7 @@ fun AppRoot() {
                             originalPath = originalRel,
                             returnLocationIfWater = null
                         )
-                        albumGridEntryScreen = AppScreen.ALBUM_G1
-                        gridEntrySource = GridEntrySource.NORMAL
-                        viewerEntrySource = ViewerEntrySource.GRID
-                        screen = AppScreen.ALBUM_GRID
+                        openAlbumGridFromG1()
                     }
 
                     else -> {

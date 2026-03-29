@@ -65,10 +65,7 @@ fun RotatingPhraseSetEditDialog(
             itemIds.removeAt(itemIds.lastIndex)
         }
 
-        val idx = editingItemIndex
-        if (idx != null && idx !in phraseSet.items.indices) {
-            editingItemIndex = null
-        }
+        editingItemIndex = editingItemIndex?.takeIf { it in phraseSet.items.indices }
     }
 
     val lazyListState = rememberLazyListState()

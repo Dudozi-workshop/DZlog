@@ -1,10 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.table.detail
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.TableHandleOverlay
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
@@ -224,14 +221,4 @@ class TableDetailViewModel(
 private enum class SelectionPolicy {
     KEEP_AFTER_ADD,
     CLEAR_AFTER_DELETE,
-}
-
-
-@Composable
-fun rememberTableDetailViewModel(initialTemplate: TableTemplateState): TableDetailViewModel {
-    val viewModel = remember { TableDetailViewModel(initialTemplate) }
-    LaunchedEffect(initialTemplate) {
-        viewModel.applyTemplateFromUi(initialTemplate, isActionCommit = false)
-    }
-    return viewModel
 }

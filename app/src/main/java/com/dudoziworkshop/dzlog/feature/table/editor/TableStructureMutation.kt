@@ -63,7 +63,7 @@ fun addRowBySelection(
 
     return templateState.copy(
         rows = templateState.rows + 1,
-        cells = (shifted + newCells).sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex })),
+        cells = (shifted + newCells).sortedWith(compareBy({ it.rowIndex }, { it.colIndex })),
         rowWeights = nextWeights,
     )
 }
@@ -96,7 +96,7 @@ fun addColumnBySelection(
 
     return templateState.copy(
         cols = templateState.cols + 1,
-        cells = (shifted + newCells).sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex })),
+        cells = (shifted + newCells).sortedWith(compareBy({ it.rowIndex }, { it.colIndex })),
         colWeights = nextWeights,
     )
 }
@@ -140,7 +140,7 @@ fun removeRowsByRange(
 
     return templateState.copy(
         rows = templateState.rows - normalizedRange.count(),
-        cells = remainingCells.sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex })),
+        cells = remainingCells.sortedWith(compareBy({ it.rowIndex }, { it.colIndex })),
         rowWeights = removeRange(
             TableLayoutCalculator.resolveWeights(templateState.rowWeights, templateState.rows),
             normalizedRange.first,
@@ -170,7 +170,7 @@ fun removeColsByRange(
 
     return templateState.copy(
         cols = templateState.cols - normalizedRange.count(),
-        cells = remainingCells.sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex })),
+        cells = remainingCells.sortedWith(compareBy({ it.rowIndex }, { it.colIndex })),
         colWeights = removeRange(
             TableLayoutCalculator.resolveWeights(templateState.colWeights, templateState.cols),
             normalizedRange.first,
@@ -270,7 +270,7 @@ private fun normalizeRemovalRange(
     val removableCount = (axisSize - minSize).coerceAtLeast(0)
     val requestedCount = boundedEnd - boundedStart + 1
     val actualCount = requestedCount.coerceAtMost(removableCount)
-    if (actualCount <= 0) return null
+    if (actualCount == 0) return null
     return boundedStart..(boundedStart + actualCount - 1)
 }
 

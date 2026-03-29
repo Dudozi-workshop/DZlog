@@ -56,6 +56,5 @@ private fun fitInsideRect(
     )
     val top = clampedCenter - targetHeight / 2f
 
-    val bottom = top + targetHeight
-    return RectF(left, top, right, bottom)
+    return RectF(left, top, right, top + targetHeight)
 }

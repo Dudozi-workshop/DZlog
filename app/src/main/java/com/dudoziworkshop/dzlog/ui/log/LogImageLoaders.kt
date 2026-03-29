@@ -37,7 +37,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 
@@ -293,8 +292,4 @@ fun DzFullImage(
         }
     }
 
-    val painterState = painter.state
-    if (painterState is AsyncImagePainter.State.Error) {
-        // no-op: 기존 화면 정책 유지(에러 UI 미노출)
-    }
 }

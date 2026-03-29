@@ -90,7 +90,7 @@ fun RealTableGridSection(
     onSelectRange: (String, String) -> Unit,
 ) {
     val orderedCells = remember(templateState.cells) {
-        templateState.cells.sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex }))
+        templateState.cells.sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
     }
     data class CellRenderEntry(
         val cell: TableCellState,
@@ -625,7 +625,7 @@ private fun applyBoundaryDragPreviewFromStart(
     startSegmentSizesPx: List<Float>,
     minSegmentPx: Float,
 ): List<Float> {
-    if (boundaryIndex <= 0 || boundaryIndex >= startWeights.size) return startWeights
+    if (boundaryIndex !in 1 until startWeights.size) return startWeights
     val leftIndex = boundaryIndex - 1
     val rightIndex = boundaryIndex
     val leftSize = startSegmentSizesPx.getOrNull(leftIndex) ?: return startWeights

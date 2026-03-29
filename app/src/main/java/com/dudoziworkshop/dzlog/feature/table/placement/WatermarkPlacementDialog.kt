@@ -165,10 +165,9 @@ fun TablePlacementPreviewDialog(
                     modifier = Modifier.weight(1f)
                 )
 
-                val selectedIndex = aspectOptions.indexOf(draftCaptureAspect).coerceAtLeast(0)
                 DDZSegmentedControl(
                     options = listOf("1:1", "3:4", "9:16"),
-                    selectedIndex = selectedIndex,
+                    selectedIndex = aspectOptions.indexOf(draftCaptureAspect).coerceAtLeast(0),
                     onSelect = { index -> draftCaptureAspect = aspectOptions[index] },
                     modifier = Modifier
                         .width(160.dp)

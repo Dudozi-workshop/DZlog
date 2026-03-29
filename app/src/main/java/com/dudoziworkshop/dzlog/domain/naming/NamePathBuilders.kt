@@ -1,13 +1,13 @@
 package com.dudoziworkshop.dzlog.domain.naming
 
 import com.dudoziworkshop.dzlog.domain.counter.resolveRotatingCounterStreamIdentity
+import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
-import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
-import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import java.text.SimpleDateFormat
@@ -38,7 +38,7 @@ fun resolveGroupValue(cells: List<TableCellState>, level: GroupLevel): String {
     return cells
         .asSequence()
         .filter { it.groupLevel == level }
-        .sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
+        .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
         .map { sanitizeGroupPathSegment(it.rawText) }
         .firstOrNull { it.isNotBlank() }
         .orEmpty()
@@ -48,7 +48,7 @@ fun resolveGroupValue(resolvedCells: List<ResolvedCell>, level: GroupLevel): Str
     return resolvedCells
         .asSequence()
         .filter { (it.raw?.groupLevel ?: GroupLevel.NONE) == level }
-        .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
+        .sortedWith(compareBy({ it.raw?.rowIndex ?: 0 }, { it.raw?.colIndex ?: 0 }))
         .map { sanitizeGroupPathSegment(it.resolvedText) }
         .firstOrNull { it.isNotBlank() }
         .orEmpty()
@@ -79,7 +79,7 @@ private fun resolveRotatingTextToken(resolvedCells: List<ResolvedCell>): String 
     return resolvedCells
         .asSequence()
         .filter { it.type == TableCellDataType.ROTATING_TEXT }
-        .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
+        .sortedWith(compareBy({ it.raw?.rowIndex ?: 0 }, { it.raw?.colIndex ?: 0 }))
         .map { it.resolvedText.trim() }
         .firstOrNull { it.isNotBlank() }
         .orEmpty()
