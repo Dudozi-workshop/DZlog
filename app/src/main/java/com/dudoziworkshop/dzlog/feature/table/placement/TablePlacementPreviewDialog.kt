@@ -243,14 +243,12 @@ private fun computeContentRect(boxWidth: Float, boxHeight: Float, aspectRatio: F
     }
     val boxRatio = boxWidth / boxHeight
     return if (aspectRatio > boxRatio) {
-        val contentWidth = boxWidth
         val contentHeight = boxWidth / aspectRatio
         val topOffset = (boxHeight - contentHeight) / 2f
-        RectF(0f, topOffset, contentWidth, topOffset + contentHeight)
+        RectF(0f, topOffset, boxWidth, topOffset + contentHeight)
     } else {
-        val contentHeight = boxHeight
         val contentWidth = boxHeight * aspectRatio
         val leftOffset = (boxWidth - contentWidth) / 2f
-        RectF(leftOffset, 0f, leftOffset + contentWidth, contentHeight)
+        RectF(leftOffset, 0f, leftOffset + contentWidth, boxHeight)
     }
 }

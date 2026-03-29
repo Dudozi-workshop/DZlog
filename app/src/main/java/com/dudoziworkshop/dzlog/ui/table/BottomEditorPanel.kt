@@ -494,10 +494,13 @@ internal fun BottomEditorPanel(
 
             BottomEditorPanelMode.FILENAME_EDIT -> {
                 val normalizedSlots = List(3) { index -> fileNameSlotItems.getOrNull(index) }
-                val selectedSlotIsFilled = selectedFileNameSlot?.let { normalizedSlots.getOrNull(it) != null } == true
-                val canMoveLeft = selectedFileNameSlot?.let { selectedSlotIsFilled && normalizedSlots.getOrNull(it - 1) != null } == true
-                val canMoveRight = selectedFileNameSlot?.let { selectedSlotIsFilled && normalizedSlots.getOrNull(it + 1) != null } == true
-                val canDelete = selectedSlotIsFilled
+                val canMoveLeft = selectedFileNameSlot?.let {
+                    normalizedSlots.getOrNull(it) != null && normalizedSlots.getOrNull(it - 1) != null
+                } == true
+                val canMoveRight = selectedFileNameSlot?.let {
+                    normalizedSlots.getOrNull(it) != null && normalizedSlots.getOrNull(it + 1) != null
+                } == true
+                val canDelete = selectedFileNameSlot?.let { normalizedSlots.getOrNull(it) != null } == true
 
                 val fileNamePanelScrollState = rememberScrollState()
                 PanelHeader("파일명 구성 편집")
@@ -578,10 +581,13 @@ internal fun BottomEditorPanel(
 
             BottomEditorPanelMode.PATH_EDIT -> {
                 val normalizedSlots = List(2) { index -> pathSlotItems.getOrNull(index) }
-                val selectedPathFilled = selectedPathSlot?.let { normalizedSlots.getOrNull(it) != null } == true
-                val canMoveLeft = selectedPathSlot?.let { selectedPathFilled && normalizedSlots.getOrNull(it - 1) != null } == true
-                val canMoveRight = selectedPathSlot?.let { selectedPathFilled && normalizedSlots.getOrNull(it + 1) != null } == true
-                val canDelete = selectedPathFilled
+                val canMoveLeft = selectedPathSlot?.let {
+                    normalizedSlots.getOrNull(it) != null && normalizedSlots.getOrNull(it - 1) != null
+                } == true
+                val canMoveRight = selectedPathSlot?.let {
+                    normalizedSlots.getOrNull(it) != null && normalizedSlots.getOrNull(it + 1) != null
+                } == true
+                val canDelete = selectedPathSlot?.let { normalizedSlots.getOrNull(it) != null } == true
                 val hasSelectedSlot = selectedPathSlot != null
 
                 val pathPanelScrollState = rememberScrollState()
