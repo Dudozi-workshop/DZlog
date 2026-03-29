@@ -26,6 +26,7 @@ data class TableEditorSnapshot(
     val style: TableStyleState,
 )
 
+@Suppress("unused")
 class TableDetailViewModel(
     initialTemplate: TableTemplateState,
 ) {

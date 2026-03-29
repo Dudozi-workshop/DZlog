@@ -38,13 +38,9 @@ private fun fitInsideRect(
     val contentAspect = contentWidth / contentHeight
 
     val (targetWidth, targetHeight) = if (contentAspect > safeAspect) {
-        val h = contentHeight
-        val w = h * safeAspect
-        w to h
+        (contentHeight * safeAspect) to contentHeight
     } else {
-        val w = contentWidth
-        val h = w / safeAspect
-        w to h
+        contentWidth to (contentWidth / safeAspect)
     }
 
     val left = contentRect.left + (contentWidth - targetWidth) / 2f

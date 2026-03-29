@@ -54,6 +54,7 @@ fun resolveGroupValue(resolvedCells: List<ResolvedCell>, level: GroupLevel): Str
         .orEmpty()
 }
 
+@Suppress("unused")
 fun buildGalleryRelativePath(cells: List<TableCellState>): String {
     val g1 = resolveGroupValue(cells, GroupLevel.G1)
     val g2 = resolveGroupValue(cells, GroupLevel.G2)

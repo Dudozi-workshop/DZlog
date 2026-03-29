@@ -9,13 +9,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
@@ -30,7 +31,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,8 +40,8 @@ import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
-import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
+import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.naming.resolveFileNameDraftToken
 import com.dudoziworkshop.dzlog.domain.naming.resolvePathDraftToken
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
@@ -50,9 +50,9 @@ import com.dudoziworkshop.dzlog.ui.table.section.FileNameFormatType
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
 import com.dudoziworkshop.dzlog.ui.table.section.PathFormatType
 import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
-import java.util.Date
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import java.util.Date
 
 @Composable
 internal fun BottomEditorPanel(
@@ -494,10 +494,13 @@ internal fun BottomEditorPanel(
 
             BottomEditorPanelMode.FILENAME_EDIT -> {
                 val normalizedSlots = List(3) { index -> fileNameSlotItems.getOrNull(index) }
-                val selectedSlotIsFilled = selectedFileNameSlot?.let { normalizedSlots.getOrNull(it) != null } == true
-                val canMoveLeft = selectedFileNameSlot?.let { selectedSlotIsFilled && normalizedSlots.getOrNull(it - 1) != null } == true
-                val canMoveRight = selectedFileNameSlot?.let { selectedSlotIsFilled && normalizedSlots.getOrNull(it + 1) != null } == true
-                val canDelete = selectedSlotIsFilled
+                val canMoveLeft = selectedFileNameSlot?.let {
+                    normalizedSlots.getOrNull(it) != null && normalizedSlots.getOrNull(it - 1) != null
+                } == true
+                val canMoveRight = selectedFileNameSlot?.let {
+                    normalizedSlots.getOrNull(it) != null && normalizedSlots.getOrNull(it + 1) != null
+                } == true
+                val canDelete = selectedFileNameSlot?.let { normalizedSlots.getOrNull(it) != null } == true
 
                 val fileNamePanelScrollState = rememberScrollState()
                 PanelHeader("파일명 구성 편집")
@@ -578,10 +581,13 @@ internal fun BottomEditorPanel(
 
             BottomEditorPanelMode.PATH_EDIT -> {
                 val normalizedSlots = List(2) { index -> pathSlotItems.getOrNull(index) }
-                val selectedPathFilled = selectedPathSlot?.let { normalizedSlots.getOrNull(it) != null } == true
-                val canMoveLeft = selectedPathSlot?.let { selectedPathFilled && normalizedSlots.getOrNull(it - 1) != null } == true
-                val canMoveRight = selectedPathSlot?.let { selectedPathFilled && normalizedSlots.getOrNull(it + 1) != null } == true
-                val canDelete = selectedPathFilled
+                val canMoveLeft = selectedPathSlot?.let {
+                    normalizedSlots.getOrNull(it) != null && normalizedSlots.getOrNull(it - 1) != null
+                } == true
+                val canMoveRight = selectedPathSlot?.let {
+                    normalizedSlots.getOrNull(it) != null && normalizedSlots.getOrNull(it + 1) != null
+                } == true
+                val canDelete = selectedPathSlot?.let { normalizedSlots.getOrNull(it) != null } == true
                 val hasSelectedSlot = selectedPathSlot != null
 
                 val pathPanelScrollState = rememberScrollState()

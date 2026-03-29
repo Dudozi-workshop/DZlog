@@ -60,7 +60,7 @@ internal fun FocusTickBar(
                 }
             }
             .pointerInput(Unit, enabled) {
-                var dragStartStep = latestStep
+                var dragStartStep: Int? = null
                 var accumulatedDragPx = 0f
                 var lastHapticStep = latestStep
 
@@ -82,7 +82,7 @@ internal fun FocusTickBar(
 
                     accumulatedDragPx -= dragAmount.x
                     val deltaStep = accumulatedDragPx / tickSpacingPx
-                    val mapped = (dragStartStep + deltaStep)
+                    val mapped = ((dragStartStep ?: latestStep) + deltaStep)
                         .roundToInt()
                         .coerceIn(0, FOCUS_STEP_COUNT)
                     latestOnValueChange(mapped / FOCUS_STEP_COUNT.toFloat())

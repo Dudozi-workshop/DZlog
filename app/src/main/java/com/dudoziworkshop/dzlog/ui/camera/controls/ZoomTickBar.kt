@@ -56,7 +56,7 @@ internal fun ZoomTickBar(
                 }
             }
             .pointerInput(normalizedMaxTenths) {
-                var dragStartZoomTenths = latestZoomTenths
+                var dragStartZoomTenths: Int? = null
                 var accumulatedDragPx = 0f
                 var lastHapticTenths = latestZoomTenths
 
@@ -75,7 +75,7 @@ internal fun ZoomTickBar(
                 ) { change, dragAmount ->
                     accumulatedDragPx -= dragAmount.x
                     val deltaTenths = accumulatedDragPx / tickSpacingPx
-                    val mapped = (dragStartZoomTenths + deltaTenths)
+                    val mapped = ((dragStartZoomTenths ?: latestZoomTenths) + deltaTenths)
                         .roundToInt()
                         .coerceIn(MIN_ZOOM_TENTHS, normalizedMaxTenths)
                     latestOnZoomTenthsChange(mapped)

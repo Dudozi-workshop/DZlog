@@ -8,9 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -23,13 +23,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
-import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableRect
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import com.dudoziworkshop.dzlog.feature.table.render.buildCameraPreviewPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.computeRatioOnlyTableShape
+import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableRect
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
@@ -243,14 +243,12 @@ private fun computeContentRect(boxWidth: Float, boxHeight: Float, aspectRatio: F
     }
     val boxRatio = boxWidth / boxHeight
     return if (aspectRatio > boxRatio) {
-        val contentWidth = boxWidth
         val contentHeight = boxWidth / aspectRatio
         val topOffset = (boxHeight - contentHeight) / 2f
-        RectF(0f, topOffset, contentWidth, topOffset + contentHeight)
+        RectF(0f, topOffset, boxWidth, topOffset + contentHeight)
     } else {
-        val contentHeight = boxHeight
         val contentWidth = boxHeight * aspectRatio
         val leftOffset = (boxWidth - contentWidth) / 2f
-        RectF(leftOffset, 0f, leftOffset + contentWidth, contentHeight)
+        RectF(leftOffset, 0f, leftOffset + contentWidth, boxHeight)
     }
 }

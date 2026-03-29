@@ -3,6 +3,8 @@
     androidx.compose.foundation.layout.ExperimentalLayoutApi::class
 )
 
+@file:OptIn(ExperimentalCamera2Interop::class)
+
 package com.dudoziworkshop.dzlog.ui.camera
 
 import android.Manifest
