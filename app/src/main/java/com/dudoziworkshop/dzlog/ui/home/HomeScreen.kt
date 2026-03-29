@@ -228,8 +228,8 @@ fun HomeScreen(
             .dzScreen()
     ) {
         val threeButtonEquivalentBottomPadding = rememberThreeButtonNavEquivalentBottomPadding()
-        val screenWidth = maxWidth
-        val screenHeight = maxHeight
+        val screenWidth = this@BoxWithConstraints.maxWidth
+        val screenHeight = this@BoxWithConstraints.maxHeight
 
         val horizontalPad = clampDp(screenWidth * 0.045f, 12.dp, 20.dp)
         val homeBottomGap = clampDp(screenHeight * 0.004f, 0.dp, 8.dp)

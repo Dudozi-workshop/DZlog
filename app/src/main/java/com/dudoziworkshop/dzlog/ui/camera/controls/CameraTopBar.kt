@@ -46,7 +46,7 @@ fun CameraTopBar(
         val topBarMinHeight = 28.dp + DDZSpacing.itemGap
         // 토큰 정책: 반복되는 32dp 터치 영역은 DDZLayout.Icon.Touch로 고정한다.
         val settingsButtonReservedWidth = DDZLayout.Icon.Touch + (DDZSpacing.cardPadding * 2)
-        val filenameMaxWidth = (maxWidth - settingsButtonReservedWidth - DDZSpacing.itemGap)
+        val filenameMaxWidth = (this@BoxWithConstraints.maxWidth - settingsButtonReservedWidth - DDZSpacing.itemGap)
             .coerceAtLeast(0.dp)
 
         Box(

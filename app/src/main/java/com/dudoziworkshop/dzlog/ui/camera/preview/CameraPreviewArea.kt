@@ -382,8 +382,8 @@ internal fun CameraPreviewArea(
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val density = LocalDensity.current
-            val widthPx = with(density) { maxWidth.toPx() }
-            val parentHeightPx = with(density) { maxHeight.toPx() }
+            val widthPx = with(density) { this@BoxWithConstraints.maxWidth.toPx() }
+            val parentHeightPx = with(density) { this@BoxWithConstraints.maxHeight.toPx() }
             val previewBoxLayout = calculatePreviewBoxLayout(
                 parentWidthPx = widthPx,
                 parentHeightPx = parentHeightPx,

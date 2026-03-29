@@ -266,7 +266,7 @@ fun LogGridScreen(
                         val textStyle = DDZTypography.ScreenTitle
                         val fontSizeSp = if (textStyle.fontSize.value > 0f) textStyle.fontSize.value else 20f
                         val avgCharDp = (fontSizeSp * 0.55f * density.fontScale).dp
-                        val availDp = maxWidth.coerceAtLeast(0.dp)
+                        val availDp = this@BoxWithConstraints.maxWidth.coerceAtLeast(0.dp)
                         val rawBudget = if (avgCharDp.value > 0f) floor(availDp.value / avgCharDp.value).toInt() else 8
                         val totalBudget = (rawBudget - 4).coerceIn(8, 16)
                         val displayTitle = buildTwoPartTitle(

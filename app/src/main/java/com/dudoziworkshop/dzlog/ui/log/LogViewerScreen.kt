@@ -385,7 +385,7 @@ private fun ThumbnailFilmstrip(
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val thumbSize = 60.dp
-        val sidePadding = ((maxWidth - thumbSize) / 2).coerceAtLeast(0.dp)
+        val sidePadding = ((this@BoxWithConstraints.maxWidth - thumbSize) / 2).coerceAtLeast(0.dp)
 
         LazyRow(
             state = listState,

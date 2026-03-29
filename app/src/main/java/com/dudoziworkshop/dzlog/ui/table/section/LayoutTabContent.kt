@@ -48,7 +48,7 @@ fun LayoutTabContent(
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val density = LocalDensity.current
         var previewBottomPx by remember { mutableFloatStateOf(0f) }
-        val screenHeightPx = with(density) { maxHeight.toPx() }
+        val screenHeightPx = with(density) { this@BoxWithConstraints.maxHeight.toPx() }
         val panelTopSpacingPx = with(density) { 8.dp.toPx() }
         val panelAvailableHeightDp = with(density) {
             // 정책 변경: 고정 380dp 제한을 제거하고, 표 프리뷰 하단 기준 남은 높이를 패널 최대 높이로 사용한다.

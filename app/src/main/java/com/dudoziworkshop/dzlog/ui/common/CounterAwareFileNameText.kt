@@ -44,7 +44,7 @@ fun CounterAwareFileNameText(
             style = style,
         ).size.width
         val counterWidth = (counterWidthPx / density.density).dp
-        val prefixMaxWidth = (maxWidth - counterWidth).coerceAtLeast(0.dp)
+        val prefixMaxWidth = (this@BoxWithConstraints.maxWidth - counterWidth).coerceAtLeast(0.dp)
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(

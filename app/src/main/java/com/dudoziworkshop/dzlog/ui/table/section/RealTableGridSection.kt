@@ -137,8 +137,8 @@ fun RealTableGridSection(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val density = LocalDensity.current
-        val areaWidthPx = with(density) { maxWidth.toPx() }
-        val areaHeightPx = with(density) { maxHeight.toPx() }
+        val areaWidthPx = with(density) { this@BoxWithConstraints.maxWidth.toPx() }
+        val areaHeightPx = with(density) { this@BoxWithConstraints.maxHeight.toPx() }
         val workingInsetPx = with(density) { STRUCTURE_PREVIEW_WORKING_INSET_DP.toPx() }
         val workingLeftPx = workingInsetPx.coerceAtMost(areaWidthPx / 2f)
         val workingTopPx = workingInsetPx.coerceAtMost(areaHeightPx / 2f)
