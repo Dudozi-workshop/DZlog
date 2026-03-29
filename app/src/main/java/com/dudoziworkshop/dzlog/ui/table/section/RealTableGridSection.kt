@@ -665,12 +665,12 @@ private fun cellIdFromOffset(
     val maxY = rowOffsets.last()
     val adjustedX = when {
         clampToBounds -> localX.coerceIn(0f, maxX)
-        localX < 0f || localX > maxX -> return null
+        localX !in 0f..maxX -> return null
         else -> localX
     }
     val adjustedY = when {
         clampToBounds -> localY.coerceIn(0f, maxY)
-        localY < 0f || localY > maxY -> return null
+        localY !in 0f..maxY -> return null
         else -> localY
     }
 
@@ -682,7 +682,7 @@ private fun cellIdFromOffset(
 private fun findIndexByOffsets(value: Float, offsets: List<Float>): Int? {
     if (offsets.size < 2) return null
     val lastBoundary = offsets.last()
-    if (value < 0f || value > lastBoundary) return null
+    if (value !in 0f..lastBoundary) return null
     if (value == lastBoundary) return offsets.lastIndex - 1
     return (0 until offsets.lastIndex).firstOrNull { idx ->
         value >= offsets[idx] && value < offsets[idx + 1]

@@ -4,12 +4,12 @@ import android.os.Build
 import android.provider.MediaStore
 
 internal object MediaStoreQueryPolicy {
-    private val EXACT_RELATIVE_PATH_BASE_SELECTION =
+    private const val EXACT_RELATIVE_PATH_BASE_SELECTION =
         "(${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
-    private val RELATIVE_PATH_LIKE_BASE_SELECTION =
+    private const val RELATIVE_PATH_LIKE_BASE_SELECTION =
         "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
 
-    internal data class WhereClause(
+    internal class WhereClause(
         val selection: String,
         val selectionArgs: Array<String>
     )

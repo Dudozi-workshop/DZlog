@@ -10,14 +10,6 @@ internal data class ScopedCounter(
     val captureStreamKey: CaptureStreamKey
 )
 
-internal fun buildStreamKey(counterScope: CounterScope, scanPrefix: String): CaptureStreamKey {
-    return CaptureStreamKey(
-        relativePathKey = counterScope.relativePathKey,
-        prefix = counterScope.streamPrefix,
-        scanPrefix = scanPrefix,
-    )
-}
-
 internal fun buildScopedCounter(
     counterScope: CounterScope,
     includePathInScope: Boolean,

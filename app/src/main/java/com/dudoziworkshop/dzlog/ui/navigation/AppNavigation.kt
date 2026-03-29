@@ -241,7 +241,6 @@ fun AppRoot() {
         gridItems = emptyList()
         isSelectionMode = false
         selectedIds = emptySet()
-        viewerStartIndex = 0
     }
 
     fun clearOriginalContext() {
@@ -355,7 +354,6 @@ fun AppRoot() {
                 returnLocationIfWater = null
             )
         }
-        viewerStartIndex = startIndex
         albumGridEntryScreen = AppScreen.ALBUM_G2
         albumEntryScreen = screen
         // 정책: Home recent에서 진입한 Grid만 별도 출처로 기록해 back target을 Home으로 고정한다.
@@ -408,10 +406,10 @@ fun AppRoot() {
             return
         }
 
-        if (gridEntrySource == GridEntrySource.HOME_RECENT) {
-            screen = AppScreen.HOME
+        screen = if (gridEntrySource == GridEntrySource.HOME_RECENT) {
+            AppScreen.HOME
         } else {
-            screen = albumGridEntryScreen
+            albumGridEntryScreen
         }
     }
 

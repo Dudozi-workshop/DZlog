@@ -107,7 +107,7 @@ fun removeRowBySelection(
 ): TableTemplateState {
     return removeRowsByRange(
         templateState = templateState,
-        range = selectionRange?.let { it.minRow..it.maxRow } ?: lastIndexRange(templateState.rows),
+        range = selectionRange?.let { it.minRow..<(it.maxRow + 1) } ?: lastIndexRange(templateState.rows),
     )
 }
 
@@ -117,7 +117,7 @@ fun removeColumnBySelection(
 ): TableTemplateState {
     return removeColsByRange(
         templateState = templateState,
-        range = selectionRange?.let { it.minCol..it.maxCol } ?: lastIndexRange(templateState.cols),
+        range = selectionRange?.let { it.minCol..<(it.maxCol + 1) } ?: lastIndexRange(templateState.cols),
     )
 }
 
@@ -230,7 +230,7 @@ private fun sanitizeAndCompressSlotDrafts(
 
 private fun removeRange(weights: List<Float>, start: Int, end: Int): List<Float> {
     if (weights.isEmpty()) return weights
-    return weights.filterIndexed { index, _ -> index !in start..end }
+    return weights.filterIndexed { index, _ -> index !in start..<(end + 1) }
 }
 
 private fun hasMergedCells(templateState: TableTemplateState): Boolean {
@@ -271,10 +271,10 @@ private fun normalizeRemovalRange(
     val requestedCount = boundedEnd - boundedStart + 1
     val actualCount = requestedCount.coerceAtMost(removableCount)
     if (actualCount == 0) return null
-    return boundedStart..(boundedStart + actualCount - 1)
+    return boundedStart..<(boundedStart + actualCount)
 }
 
 private fun lastIndexRange(axisSize: Int): IntRange {
     val lastIndex = (axisSize - 1).coerceAtLeast(0)
-    return lastIndex..lastIndex
+    return lastIndex..<(lastIndex + 1)
 }

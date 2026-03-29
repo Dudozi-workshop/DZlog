@@ -62,7 +62,7 @@ internal fun FocusTickBar(
             .pointerInput(Unit, enabled) {
                 var dragStartStep: Int? = null
                 var accumulatedDragPx = 0f
-                var lastHapticStep = latestStep
+                var lastHapticStep: Int? = null
 
                 detectDragGestures(
                     onDragStart = {
@@ -87,10 +87,11 @@ internal fun FocusTickBar(
                         .coerceIn(0, FOCUS_STEP_COUNT)
                     latestOnValueChange(mapped / FOCUS_STEP_COUNT.toFloat())
 
-                    val valueDelta = abs(mapped - lastHapticStep) / FOCUS_STEP_COUNT.toFloat()
+                    val previousHapticStep = lastHapticStep ?: latestStep
+                    val valueDelta = abs(mapped - previousHapticStep) / FOCUS_STEP_COUNT.toFloat()
                     if (
                         latestHapticEnabled &&
-                        mapped != lastHapticStep &&
+                        mapped != previousHapticStep &&
                         mapped % FOCUS_HAPTIC_STEP_INTERVAL == 0 &&
                         valueDelta >= FOCUS_HAPTIC_MIN_DRAG_DELTA
                     ) {
