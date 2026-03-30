@@ -60,6 +60,7 @@ import com.dudoziworkshop.dzlog.ui.camera.controls.CameraBottomControls
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTopBar
 import com.dudoziworkshop.dzlog.ui.camera.controls.FloatingAssistShutterButton
 import com.dudoziworkshop.dzlog.ui.camera.controls.buildCameraTriggerCapture
+import com.dudoziworkshop.dzlog.ui.camera.controls.isCaptureReady
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraNowTickEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraPrefsEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraVolumeKeyEffect
@@ -397,6 +398,13 @@ fun CameraPreview(
                     onTapFocusUiChange = { ui.capture.tapFocusUi = it }
                 )
 
+                val canTriggerCapture = isCaptureReady(
+                    boundImageCaptureAvailable = (boundImageCapture != null),
+                    capturedUri = ui.capture.capturedUri,
+                    isCapturing = ui.capture.isCapturing,
+                    scopeNextCounter = ui.counter.scopeNextCounter,
+                )
+
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -406,7 +414,7 @@ fun CameraPreview(
                         scope = scope,
                         ui = ui,
                         settingsWriter = settingsWriter,
-                        boundImageCaptureAvailable = (boundImageCapture != null),
+                        captureReady = canTriggerCapture,
                         latestImage = latestImage,
                         onOpenAlbum = onOpenAlbum,
                         onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
@@ -423,7 +431,7 @@ fun CameraPreview(
                 }
 
                 FloatingAssistShutterButton(
-                    enabled = ui.prefs.assistShutterEnabled,
+                    enabled = ui.prefs.assistShutterEnabled && canTriggerCapture,
                     xRatio = ui.prefs.assistShutterXRatio,
                     yRatio = ui.prefs.assistShutterYRatio,
                     onPositionRatioChange = { xRatio, yRatio ->
@@ -437,6 +445,7 @@ fun CameraPreview(
                         }
                     },
                     onTapCapture = {
+                        if (!canTriggerCapture) return@FloatingAssistShutterButton
                         ui.dismissToolOverlays()
                         triggerCapture()
                     },

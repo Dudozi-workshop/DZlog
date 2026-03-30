@@ -129,7 +129,7 @@ fun LogViewerScreen(
     val pagerState = rememberPagerState(initialPage = safeStart, pageCount = { items.size })
 
     var uiVisible by remember { mutableStateOf(false) }
-    var showInfoSheet by remember { mutableStateOf(false) }
+    var infoSheetItem by remember { mutableStateOf<MediaImageItem?>(null) }
     var isCurrentImageZoomed by remember { mutableStateOf(false) }
 
     LaunchedEffect(safeStart) {
@@ -257,7 +257,7 @@ fun LogViewerScreen(
                         },
                         isFavorite = currentItem?.id?.let(favoriteIds::contains) == true,
                         onInfo = {
-                            if (currentItem != null) showInfoSheet = true
+                            if (currentItem != null) infoSheetItem = currentItem
                         },
                         onDelete = {
                             val item = currentItem ?: return@ViewerBottomPill
@@ -282,13 +282,14 @@ fun LogViewerScreen(
         }
     }
 
-    if (showInfoSheet && currentItem != null) {
+    val sheetItem = infoSheetItem
+    if (sheetItem != null) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
-            onDismissRequest = { showInfoSheet = false },
+            onDismissRequest = { infoSheetItem = null },
             sheetState = sheetState,
         ) {
-            InfoSheetContent(item = currentItem)
+            InfoSheetContent(item = sheetItem)
         }
     }
 }

@@ -274,6 +274,7 @@ fun TableEditorScreen(
     }
 
     var selectedCellId by remember { mutableStateOf<String?>(null) }
+    var didInitializeDetailPanel by remember { mutableStateOf(false) }
     var structureSelectedCellIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var structureSelectionRange by remember { mutableStateOf<TableSelectionRange?>(null) }
     // ✅ 탭0: 셀 설정 패널 표시 여부
@@ -962,6 +963,27 @@ fun TableEditorScreen(
         setShowCellSettingsPanel = { showCellSettingsPanel = it },
     )
 
+    fun firstCellIdOrNull(): String? {
+        return currentTemplate.cells
+            .minWithOrNull(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
+            ?.cellId
+    }
+
+    fun ensureSelectedCellForCellEdit() {
+        if (selectedCellId != null) return
+        selectedCellId = firstCellIdOrNull()
+    }
+
+    LaunchedEffect(currentTemplate.cells, didInitializeDetailPanel) {
+        if (!didInitializeDetailPanel && currentTemplate.cells.isNotEmpty()) {
+            // 현재 화면 구조에서 "표 상세설정 패널 진입" 시점은 화면 첫 로드와 동일하므로,
+            // 최초 1회만 CELL_EDIT + 첫 셀 자동 선택을 적용한다.
+            ensureSelectedCellForCellEdit()
+            bottomPanelMode = BottomEditorPanelMode.CELL_EDIT
+            didInitializeDetailPanel = true
+        }
+    }
+
     LaunchedEffect(currentTemplate.cells, selectedCellId) {
         val hasSelectedCell = selectedCellId != null && currentTemplate.cells.any { it.cellId == selectedCellId }
         if (!hasSelectedCell) {
@@ -1250,6 +1272,9 @@ fun TableEditorScreen(
     }
 
     fun requestBottomPanelModeChange(nextMode: BottomEditorPanelMode) {
+        if (nextMode == BottomEditorPanelMode.CELL_EDIT) {
+            ensureSelectedCellForCellEdit()
+        }
         if (bottomPanelMode == nextMode) return
         val inlineCommitResult = runInlineCommitAction()
         val changedState = TableEditorBottomPanelModeChangeResolver.resolve(

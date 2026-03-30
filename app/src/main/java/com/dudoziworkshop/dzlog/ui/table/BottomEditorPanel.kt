@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +20,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.filled.ViewColumn
+import androidx.compose.material.icons.filled.ViewStream
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -30,7 +39,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -145,6 +153,7 @@ internal fun BottomEditorPanel(
     onSetWmRatioLocked: (Boolean) -> Unit,
     onSetWmWidthRatio: (Int) -> Unit,
     onSetWmHeightRatio: (Int) -> Unit,
+    onOpenCellMode: () -> Unit,
     onOpenStructureMode: () -> Unit,
     onOpenStyleMode: () -> Unit,
 ) {
@@ -168,16 +177,73 @@ internal fun BottomEditorPanel(
     }
 
     @Composable
-    fun ModeHeader(title: String) {
+    fun TableDetailTabHeader() {
+        val tabs = listOf(
+            BottomEditorPanelMode.CELL_EDIT to "셀 상세설정",
+            BottomEditorPanelMode.STRUCTURE_EDIT to "구조설정",
+            BottomEditorPanelMode.STYLE_EDIT to "서식설정",
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            TextButton(onClick = onClosePanel) { Text("뒤로", style = DDZTypography.Caption, color = DDZColor.Primary) }
-            Spacer(Modifier.weight(1f))
-            Text(title, style = DDZTypography.Body, color = DDZColor.TextPrimary)
-            Spacer(Modifier.weight(1f))
-            Spacer(Modifier.width(48.dp))
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                tabs.forEach { (mode, label) ->
+                    val isSelected = panelMode == mode
+                    val bgColor = if (isSelected) DDZColor.Primary.copy(alpha = 0.22f) else DDZColor.Card.copy(alpha = 0.78f)
+                    val borderColor = if (isSelected) DDZColor.Primary else DDZColor.Border
+                    Text(
+                        text = label,
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(bgColor, RoundedCornerShape(10.dp))
+                            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+                            .clickable {
+                                when (mode) {
+                                    BottomEditorPanelMode.CELL_EDIT -> onOpenCellMode()
+                                    BottomEditorPanelMode.STRUCTURE_EDIT -> onOpenStructureMode()
+                                    BottomEditorPanelMode.STYLE_EDIT -> onOpenStyleMode()
+                                    else -> Unit
+                                }
+                            }
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                        style = DDZTypography.Caption,
+                        color = if (isSelected) DDZColor.Primary else DDZColor.TextMuted
+                    )
+                }
+            }
+            IconButton(onClick = onClosePanel, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "패널 닫기",
+                    tint = DDZColor.TextMuted,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+
+    @Composable
+    fun CompactIconAction(
+        label: String,
+        icon: androidx.compose.ui.graphics.vector.ImageVector,
+        enabled: Boolean = true,
+        onClick: () -> Unit
+    ) {
+        OutlinedButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(icon, contentDescription = label, modifier = Modifier.size(16.dp))
+                Text(label, style = DDZTypography.Caption, maxLines = 1)
+            }
         }
     }
 
@@ -194,21 +260,10 @@ internal fun BottomEditorPanel(
         Spacer(Modifier.size(2.dp))
 
         when (panelMode) {
-            BottomEditorPanelMode.NONE -> {
-                Text("셀을 눌러 값을 편집하세요.", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                Spacer(Modifier.size(2.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onOpenStructureMode) {
-                        Text("구조 설정", style = DDZTypography.ButtonText)
-                    }
-                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onOpenStyleMode) {
-                        Text("서식 설정", style = DDZTypography.ButtonText)
-                    }
-                }
-            }
+            BottomEditorPanelMode.NONE -> Unit
             BottomEditorPanelMode.STRUCTURE_EDIT -> {
                 val modeScroll = rememberScrollState()
-                ModeHeader("구조 설정")
+                TableDetailTabHeader()
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -218,20 +273,15 @@ internal fun BottomEditorPanel(
                 ) {
                     Spacer(Modifier.size(2.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(modifier = Modifier.weight(1f), onClick = onAddRow) { Text("행+") }
-                        Button(modifier = Modifier.weight(1f), onClick = onRemoveRow, enabled = rows > 1) { Text("행-") }
-                        Button(modifier = Modifier.weight(1f), onClick = onAddCol) { Text("열+") }
-                        Button(modifier = Modifier.weight(1f), onClick = onRemoveCol, enabled = cols > 1) { Text("열-") }
+                        CompactIconAction(label = "행 추가", icon = Icons.Filled.ViewStream, onClick = onAddRow)
+                        CompactIconAction(label = "행 삭제", icon = Icons.Filled.Remove, enabled = rows > 1, onClick = onRemoveRow)
+                        CompactIconAction(label = "열 추가", icon = Icons.Filled.ViewColumn, onClick = onAddCol)
+                        CompactIconAction(label = "열 삭제", icon = Icons.Filled.Remove, enabled = cols > 1, onClick = onRemoveCol)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetRowWeights) { Text("행 균등 분배") }
-                        OutlinedButton(modifier = Modifier.weight(1f), onClick = onResetColumnWeights) { Text("열 균등 분배") }
-                    }
-                    OutlinedButton(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onResetAllWeights
-                    ) {
-                        Text("전체 균등 분배")
+                        CompactIconAction(label = "행 균등", icon = Icons.Filled.SwapVert, onClick = onResetRowWeights)
+                        CompactIconAction(label = "열 균등", icon = Icons.Filled.SwapHoriz, onClick = onResetColumnWeights)
+                        CompactIconAction(label = "전체 균등", icon = Icons.Filled.Refresh, onClick = onResetAllWeights)
                     }
 
                     HorizontalDivider(color = DDZColor.Border.copy(alpha = 0.75f), thickness = 1.dp)
@@ -300,7 +350,7 @@ internal fun BottomEditorPanel(
             }
             BottomEditorPanelMode.STYLE_EDIT -> {
                 val modeScroll = rememberScrollState()
-                ModeHeader("서식 설정")
+                TableDetailTabHeader()
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -345,7 +395,7 @@ internal fun BottomEditorPanel(
                 // 주요 정책: CELL_EDIT는 값 입력과 설정만 제공하고, 저장/초기화/언두는 메인 3버튼으로 통일한다.
                 val cellEditBodyScrollState = rememberScrollState()
 
-                PanelHeader("셀 편집")
+                TableDetailTabHeader()
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -674,8 +724,7 @@ internal fun BottomEditorPanel(
         }
 
         val showCommonBottomActions =
-            panelMode == BottomEditorPanelMode.NONE ||
-                panelMode == BottomEditorPanelMode.STRUCTURE_EDIT ||
+            panelMode == BottomEditorPanelMode.STRUCTURE_EDIT ||
                 panelMode == BottomEditorPanelMode.STYLE_EDIT
 
         if (showCommonBottomActions) {
@@ -684,20 +733,21 @@ internal fun BottomEditorPanel(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(modifier = Modifier.weight(1f), onClick = onSave, enabled = !isSaving) {
+                CompactIconAction(label = "저장", icon = Icons.Filled.Save, enabled = !isSaving, onClick = onSave)
+                CompactIconAction(label = "초기화", icon = Icons.Filled.Refresh, onClick = onReset)
+                CompactIconAction(label = "Undo", icon = Icons.Filled.Undo, enabled = isUndoAvailable, onClick = onUndo)
+            }
+            if (isSaving) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     if (isSaving) {
                         CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
-                        Text("저장 중...", style = DDZTypography.ButtonText)
-                    } else {
-                        Text("저장", style = DDZTypography.ButtonText)
+                        Text("저장 중...", style = DDZTypography.Caption)
                     }
-                }
-                Button(modifier = Modifier.weight(1f), onClick = onReset) {
-                    Text("초기화", style = DDZTypography.ButtonText)
-                }
-                OutlinedButton(modifier = Modifier.weight(1f), onClick = onUndo, enabled = isUndoAvailable) {
-                    Text("Undo", style = DDZTypography.ButtonText)
                 }
             }
         }

@@ -69,7 +69,6 @@ import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -110,7 +109,7 @@ fun LogGridScreen(
     var originalLatestUri by remember { mutableStateOf<String?>(null) }
 
     val scope = rememberCoroutineScope()
-    var reloadJob by remember { mutableStateOf<Job?>(null) }
+    var reloadRequestToken by remember { mutableIntStateOf(0) }
     var favoriteOnly by rememberSaveable { mutableStateOf(false) }
 
     val displayItems = remember(items, favoriteIds, favoriteOnly) {
@@ -127,22 +126,23 @@ fun LogGridScreen(
 
     fun reloadImages() {
         // ✅ MediaStore 변경 이벤트가 연속으로 들어올 수 있어 디바운스 처리
-        reloadJob?.cancel()
-        reloadJob = scope.launch {
-            isLoading = true
-            try {
-                // 스캔/메타 변경 이벤트가 연속으로 들어올 때 재조회 폭주 체감 줄이기
-                delay(500)
-                val loaded = withContext(Dispatchers.IO) {
-                    reader.loadImages(relativePath)
-                }
-                onItemsLoaded(loaded)
-                error = null
-            } catch (t: Throwable) {
-                error = t.message ?: "불러오기 실패"
-            } finally {
-                isLoading = false
+        reloadRequestToken += 1
+    }
+
+    LaunchedEffect(relativePath, reloadRequestToken) {
+        isLoading = true
+        try {
+            // 스캔/메타 변경 이벤트가 연속으로 들어올 때 재조회 폭주 체감 줄이기
+            delay(500)
+            val loaded = withContext(Dispatchers.IO) {
+                reader.loadImages(relativePath)
             }
+            onItemsLoaded(loaded)
+            error = null
+        } catch (t: Throwable) {
+            error = t.message ?: "불러오기 실패"
+        } finally {
+            isLoading = false
         }
     }
 
@@ -172,8 +172,6 @@ fun LogGridScreen(
     LaunchedEffect(relativePath) {
         reloadImages()
     }
-
-
 
     suspend fun reloadOriginalCard() {
         if (originalRelativePath.isNullOrBlank()) {

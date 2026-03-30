@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
@@ -22,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -37,8 +37,8 @@ internal fun CameraFocusControlSection(
     onValueChange: (Float) -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
-    val sliderEnabled = mode == CameraFocusMode.MANUAL
     val normalizedFocusValue = focusUiValue.coerceIn(0f, 1f)
+    val isManual = mode == CameraFocusMode.MANUAL
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -46,33 +46,39 @@ internal fun CameraFocusControlSection(
         modifier = Modifier
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        FocusModeSegmentedControl(
-            mode = mode,
-            onModeChange = onModeChange,
-        )
-
-        FocusTickBar(
-            value = normalizedFocusValue,
-            enabled = sliderEnabled,
-            hapticEnabled = hapticEnabled,
-            onValueChange = onValueChange,
-            onStepHaptic = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) },
-            modifier = Modifier.height(44.dp)
-        )
-
-        Box(
-            modifier = Modifier
-                .defaultMinSize(minWidth = DDZLayout.Control.Standard, minHeight = DDZLayout.Control.Standard)
-                .background(DDZColor.Surface.copy(alpha = 0.9f), RoundedCornerShape(DDZLayout.Radius.Full))
-                .padding(horizontal = 10.dp, vertical = 4.dp),
-            contentAlignment = Alignment.Center
-        ) {
+        if (isManual) {
             Text(
                 text = formatFocusUiValue(normalizedFocusValue),
-                style = DDZTypography.Caption,
-                color = DDZColor.SageDarkStrong
+                style = DDZTypography.Body,
+                color = DDZColor.TextStrong,
             )
+
+            Box(
+                modifier = Modifier
+                    .background(DDZColor.PrimaryDark.copy(alpha = 0.28f), RoundedCornerShape(8.dp))
+                    .border(1.dp, DDZColor.Border.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
+                    .padding(vertical = 5.dp)
+            ) {
+                FocusTickBar(
+                    value = normalizedFocusValue,
+                    enabled = true,
+                    hapticEnabled = hapticEnabled,
+                    onValueChange = onValueChange,
+                    onStepHaptic = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) },
+                    modifier = Modifier.height(44.dp)
+                )
+            }
         }
+
+        FocusModeInlineControl(
+            mode = mode,
+            onToggleMode = {
+                onModeChange(
+                    if (mode == CameraFocusMode.AUTO) CameraFocusMode.MANUAL
+                    else CameraFocusMode.AUTO
+                )
+            },
+        )
     }
 }
 
@@ -109,48 +115,51 @@ internal fun CameraFocusCompactSection(
 }
 
 @Composable
-private fun FocusModeSegmentedControl(
+private fun FocusModeInlineControl(
     mode: CameraFocusMode,
-    onModeChange: (CameraFocusMode) -> Unit,
+    onToggleMode: () -> Unit,
 ) {
     Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
-            .background(DDZColor.Card.copy(alpha = 0.95f), RoundedCornerShape(DDZLayout.Radius.Full))
-            .padding(horizontal = 3.dp, vertical = 3.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+            .background(DDZColor.Surface.copy(alpha = 0.95f), RoundedCornerShape(DDZLayout.Radius.Full))
+            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(DDZLayout.Radius.Full))
+            .clickable(onClick = onToggleMode)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
-        FocusModeSegmentButton(
+        Icon(
+            imageVector = Icons.Default.CenterFocusStrong,
+            contentDescription = "초점 모드",
+            tint = DDZColor.SageDarkStrong,
+            modifier = Modifier.size(14.dp),
+        )
+
+        FocusModeInlineItem(
             label = "자동",
             selected = mode == CameraFocusMode.AUTO,
-            onClick = { onModeChange(CameraFocusMode.AUTO) }
         )
-        FocusModeSegmentButton(
+        FocusModeInlineItem(
             label = "수동",
             selected = mode == CameraFocusMode.MANUAL,
-            onClick = { onModeChange(CameraFocusMode.MANUAL) }
         )
     }
 }
 
 @Composable
-private fun FocusModeSegmentButton(
+private fun FocusModeInlineItem(
     label: String,
     selected: Boolean,
-    onClick: () -> Unit,
 ) {
-    val background = if (selected) DDZColor.SageLight.copy(alpha = 0.82f) else Color.Transparent
-    Box(
-        contentAlignment = Alignment.Center,
+    val background = if (selected) DDZColor.SageLight.copy(alpha = 0.92f) else Color.Transparent
+    Text(
+        text = label,
+        style = DDZTypography.Caption.copy(
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+        ),
+        color = DDZColor.SageDarkStrong,
         modifier = Modifier
-            .height(32.dp)
             .background(background, RoundedCornerShape(DDZLayout.Radius.Full))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp)
-    ) {
-        Text(
-            text = label,
-            style = DDZTypography.Caption,
-            color = DDZColor.SageDarkStrong
-        )
-    }
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+    )
 }

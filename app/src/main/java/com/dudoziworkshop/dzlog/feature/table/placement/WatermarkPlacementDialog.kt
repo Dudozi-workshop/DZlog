@@ -93,7 +93,6 @@ fun TablePlacementPreviewDialog(
     )
     val previewWidthRatio = ratioLockedSize.widthRatio
     val previewHeightRatio = ratioLockedSize.heightRatio
-    val clampedScale = ratioLockedSize.scalePercent
 
     Dialog(onDismissRequest = onClose) {
         Column(
@@ -193,7 +192,7 @@ fun TablePlacementPreviewDialog(
             ) {
                 Text("표 크기", color = DDZColor.Card, style = DDZTypography.Caption)
                 Slider(
-                    value = clampedScale,
+                    value = draftScale.coerceIn(ratioLockedScaleRange.minScalePercent, ratioLockedScaleRange.maxScalePercent),
                     onValueChange = { requested ->
                         draftScale = resolveRatioLockedSizeFromScale(
                             baseWidthRatio = shapeWidthBase,

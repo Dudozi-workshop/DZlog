@@ -25,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,8 +32,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
@@ -54,12 +54,24 @@ import kotlinx.coroutines.launch
 private val BottomControlsHorizontalPadding = 12.dp
 private val ToolOverlayBottomSpacing = 10.dp
 
+internal fun isCaptureReady(
+    boundImageCaptureAvailable: Boolean,
+    capturedUri: Uri?,
+    isCapturing: Boolean,
+    scopeNextCounter: Int?,
+): Boolean {
+    return boundImageCaptureAvailable &&
+        capturedUri == null &&
+        !isCapturing &&
+        scopeNextCounter != null
+}
+
 @Composable
 internal fun CameraBottomControls(
     scope: CoroutineScope,
     ui: CameraUiState,
     settingsWriter: CameraSettingsWriter,
-    boundImageCaptureAvailable: Boolean,
+    captureReady: Boolean,
     latestImage: MediaImageItem?,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
@@ -79,11 +91,7 @@ internal fun CameraBottomControls(
     val compactTool = if (ui.isPinchZoomActive) CameraOverlayTool.ZOOM else selectedTool
     val showDismissLayer = showToolMenu || isToolPanelExpanded
 
-    val enabledNow =
-        (boundImageCaptureAvailable &&
-            ui.capture.capturedUri == null &&
-            !ui.capture.isCapturing &&
-            ui.counter.scopeNextCounter != null)
+    val enabledNow = captureReady
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (showDismissLayer) {

@@ -16,6 +16,6 @@ object DDZTypography {
     val SegmentSmall = TextStyle(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium)
 
     // Compact camera-overlay typography (촬영설정 패널 공용)
-    val OverlayTitleCompact = Body.copy(fontSize = 11.sp, lineHeight = 13.sp, fontWeight = FontWeight.Medium)
-    val SectionLabelCompact = Caption.copy(fontSize = 9.sp, lineHeight = 11.sp)
+    val OverlayTitleCompact = Body.copy(fontSize = 14.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold)
+    val SectionLabelCompact = Caption.copy(fontSize = 12.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium)
 }

@@ -220,13 +220,14 @@ fun LayoutTabContent(
             }
         }
 
-        BottomEditorPanel(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .heightIn(max = panelAvailableHeightDp)
-                .padding(horizontal = 16.dp)
-                .padding(top = 8.dp),
-            panelMode = uiState.bottomPanelMode,
+        if (uiState.bottomPanelMode != BottomEditorPanelMode.NONE) {
+            BottomEditorPanel(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .heightIn(max = panelAvailableHeightDp)
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 8.dp),
+                panelMode = uiState.bottomPanelMode,
             rows = uiState.templateState.rows,
             cols = uiState.templateState.cols,
             isSaving = uiState.isSavingTemplate,
@@ -311,12 +312,14 @@ fun LayoutTabContent(
             wmManualTextColor = uiState.wmManualTextColor,
             wmValueScale = uiState.wmValueScale,
             wmTextAlign = uiState.wmTextAlign,
-            wmWidthRatio = uiState.wmWidthRatio,
-            wmHeightRatio = uiState.wmHeightRatio,
-            isWmRatioLocked = uiState.isWmRatioLocked,
-            onOpenStructureMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STRUCTURE_EDIT) },
-            onOpenStyleMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STYLE_EDIT) },
-        )
+                wmWidthRatio = uiState.wmWidthRatio,
+                wmHeightRatio = uiState.wmHeightRatio,
+                isWmRatioLocked = uiState.isWmRatioLocked,
+                onOpenCellMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT) },
+                onOpenStructureMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STRUCTURE_EDIT) },
+                onOpenStyleMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STYLE_EDIT) },
+            )
+        }
 
         if (uiState.showCellSettingsPanel && uiState.selectedCell != null && uiState.editingCellId == null && uiState.bottomPanelMode != BottomEditorPanelMode.CELL_EDIT) {
             Box(

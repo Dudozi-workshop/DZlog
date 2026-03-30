@@ -72,8 +72,6 @@ fun CameraLikeWatermarkPlacementPreview(
     var dragActive by remember { mutableStateOf(false) }
     var dragLeftPx by remember { mutableFloatStateOf(0f) }
     var dragTopPx by remember { mutableFloatStateOf(0f) }
-    var dragMaxXPx by remember { mutableFloatStateOf(0f) }
-    var dragMaxYPx by remember { mutableFloatStateOf(0f) }
     var hasOverride by remember { mutableStateOf(false) }
     var overrideReleaseTick by remember { mutableIntStateOf(0) }
 
@@ -94,6 +92,9 @@ fun CameraLikeWatermarkPlacementPreview(
     }
 
     val dragModifier = Modifier.pointerInput(captureAspect, cameraPreviewShape.tableWidthRatio, cameraPreviewShape.tableHeightRatio) {
+        // 제스처 사이클 내부에서만 쓰이는 clamp 한계값은 로컬 변수로 유지한다.
+        var dragMaxXPx = 0f
+        var dragMaxYPx = 0f
         detectDragGestures(
             onDragStart = { start ->
                 val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
