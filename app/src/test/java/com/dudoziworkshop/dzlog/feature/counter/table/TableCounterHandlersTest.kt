@@ -28,7 +28,7 @@ class TableCounterHandlersTest {
         val facade = CounterFacade(context)
         val request = tableRequest()
 
-        var templateState = counterTemplate(seed = 1)
+        var templateState = counterTemplate()
         var counterUi = TableCounterUiState()
 
         updateCounterCellAndPolicy(
@@ -64,7 +64,7 @@ class TableCounterHandlersTest {
         val facade = CounterFacade(context)
         val request = tableRequest()
 
-        val templateState = counterTemplate(seed = 1)
+        val templateState = counterTemplate()
 
         updateCounterCellAndPolicy(
             templateState = templateState,
@@ -113,7 +113,7 @@ class TableCounterHandlersTest {
         val facade = CounterFacade(context)
         val request = tableRequest()
 
-        val templateState = counterTemplate(seed = 1)
+        val templateState = counterTemplate()
 
         applyCounterConflictDialogEffect(
             effect = TableCounterConflictDialogEffect.ApplyManualSeed(
@@ -146,7 +146,8 @@ class TableCounterHandlersTest {
         tableTemplateId = "table-handler-template",
     )
 
-    private fun counterTemplate(seed: Int): TableTemplateState {
+    private fun counterTemplate(): TableTemplateState {
+        val seed = 1
         val counterCell = TableCellState(
             rowIndex = 0,
             colIndex = 0,

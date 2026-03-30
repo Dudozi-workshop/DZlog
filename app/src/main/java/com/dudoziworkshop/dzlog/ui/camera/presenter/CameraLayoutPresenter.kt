@@ -10,7 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 
 internal data class CameraLayoutState(
     val safeTopY: Float?,
@@ -23,9 +23,7 @@ internal data class CameraLayoutState(
 )
 
 @Composable
-internal fun rememberCameraLayoutState(
-    usableVerticalMargin: Dp,
-): CameraLayoutState {
+internal fun rememberCameraLayoutState(): CameraLayoutState {
     var cameraRootHeightPx by remember { mutableFloatStateOf(0f) }
     var shutterButtonTopY by remember { mutableStateOf<Float?>(null) }
 
@@ -40,7 +38,7 @@ internal fun rememberCameraLayoutState(
     return CameraLayoutState(
         safeTopY = safeTopInsetPx.takeIf { it > 0f },
         safeBottomY = (cameraRootHeightPx - safeBottomInsetPx).takeIf { cameraRootHeightPx > 0f },
-        usableVerticalMarginPx = with(density) { usableVerticalMargin.toPx() },
+        usableVerticalMarginPx = with(density) { 10.dp.toPx() },
         cameraRootHeightPx = cameraRootHeightPx,
         shutterButtonTopY = shutterButtonTopY,
         onCameraRootHeightPxChange = { cameraRootHeightPx = it },

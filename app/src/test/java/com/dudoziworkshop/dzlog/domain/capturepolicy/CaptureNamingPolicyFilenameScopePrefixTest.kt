@@ -68,7 +68,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
     @Test
     fun `manual value and slot order change scoped counter key`() {
         val first = buildResult(
-            resolvedCells = listOf(resolvedText("CELL")),
+            resolvedCells = listOf(resolvedText()),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "CELL", label = "셀", cellId = "c1"),
                 TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
@@ -76,7 +76,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             ),
         )
         val swapped = buildResult(
-            resolvedCells = listOf(resolvedText("CELL")),
+            resolvedCells = listOf(resolvedText()),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
                 TableEditorSlotDraft(kind = "CELL", label = "셀", cellId = "c1"),
@@ -84,7 +84,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             ),
         )
         val changedManual = buildResult(
-            resolvedCells = listOf(resolvedText("CELL")),
+            resolvedCells = listOf(resolvedText()),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "CELL", label = "셀", cellId = "c1"),
                 TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "B"),
@@ -98,7 +98,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
 
     @Test
     fun `date time include exclude affects scoped counter key`() {
-        val date = resolvedDate(CounterScopeMode.INCLUDE)
+        val date = resolvedDate()
         val timeInclude = resolvedTime(CounterScopeMode.INCLUDE)
         val timeExclude = resolvedTime(CounterScopeMode.EXCLUDE)
 
@@ -164,8 +164,9 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
         )
     }
 
-    private fun resolvedText(text: String): ResolvedCell {
+    private fun resolvedText(): ResolvedCell {
         val id = "c1"
+        val text = "CELL"
         val raw = TableCellState(
             rowIndex = 0,
             colIndex = 0,
@@ -190,7 +191,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
         return ResolvedCell(id, raw.dataType, raw, text, isEmpty = text.isBlank())
     }
 
-    private fun resolvedDate(mode: CounterScopeMode): ResolvedCell {
+    private fun resolvedDate(): ResolvedCell {
         val id = "d1"
         val text = "20260101"
         val raw = TableCellState(
@@ -199,7 +200,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             rawText = text,
             dataType = TableCellDataType.DATE,
             groupLevel = GroupLevel.NONE,
-            counterScopeMode = mode,
+            counterScopeMode = CounterScopeMode.INCLUDE,
             cellId = id,
         )
         return ResolvedCell(id, raw.dataType, raw, text, isEmpty = text.isBlank())

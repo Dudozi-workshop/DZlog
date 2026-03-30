@@ -36,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -83,8 +82,6 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-
-private val USABLE_VERTICAL_MARGIN = 10.dp
 
 @Composable
 fun CameraScreen(
@@ -178,7 +175,7 @@ fun CameraPreview(
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
     val threeButtonEquivalentBottomPadding = rememberThreeButtonNavEquivalentBottomPadding()
-    val layout = rememberCameraLayoutState(usableVerticalMargin = USABLE_VERTICAL_MARGIN)
+    val layout = rememberCameraLayoutState()
 
     val tableResolver = remember { TableResolver() }
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
