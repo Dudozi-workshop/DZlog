@@ -136,8 +136,8 @@ internal fun FocusDetailExtraSection(
     Box(
         modifier = Modifier
             .defaultMinSize(minWidth = DDZLayout.Control.Standard, minHeight = DDZLayout.Control.Standard)
-            .background(DDZColor.Primary.copy(alpha = 0.50f), RoundedCornerShape(DDZLayout.Radius.Full))
-            .border(1.dp, DDZColor.Primary.copy(alpha = 0.66f), RoundedCornerShape(DDZLayout.Radius.Full))
+            .background(DDZColor.Surface.copy(alpha = 0.96f), RoundedCornerShape(DDZLayout.Radius.Full))
+            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(DDZLayout.Radius.Full))
             .padding(horizontal = 10.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -151,7 +151,8 @@ internal fun FocusDetailExtraSection(
     Box(
         modifier = Modifier
             .fillMaxWidth(0.78f)
-            .background(DDZColor.Primary.copy(alpha = 0.50f), RoundedCornerShape(DDZLayout.Radius.Medium))
+            .background(DDZColor.Surface.copy(alpha = 0.96f), RoundedCornerShape(DDZLayout.Radius.Medium))
+            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(DDZLayout.Radius.Medium))
             .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
         FocusTickBar(
@@ -176,9 +177,8 @@ private fun FocusModeLabel(
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .height(32.dp)
             .background(background, RoundedCornerShape(DDZLayout.Radius.Full))
-            .padding(horizontal = 14.dp)
+            .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
         Text(
             text = label,

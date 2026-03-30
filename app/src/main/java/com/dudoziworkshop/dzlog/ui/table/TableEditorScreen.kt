@@ -1283,6 +1283,7 @@ fun TableEditorScreen(
                 nextMode = nextMode,
                 inlineCommitWasBlocked = inlineCommitResult.wasBlocked,
                 wasStructureMode = isStructureEditMode(),
+                currentSelectedCellId = selectedCellId,
             )
         )
         reflectBottomPanelModeChangedState(changedState)

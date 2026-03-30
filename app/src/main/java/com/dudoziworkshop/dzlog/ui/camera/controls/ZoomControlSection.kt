@@ -100,13 +100,13 @@ internal fun ZoomDetailExtraSection(
             val presetBorder: Color
             val presetText: Color
             if (selected) {
-                presetBackground = DDZColor.Primary.copy(alpha = 0.56f)
-                presetBorder = DDZColor.Primary.copy(alpha = 0.74f)
-                presetText = DDZColor.PrimaryElevated
+                presetBackground = DDZColor.SageLight.copy(alpha = 0.92f)
+                presetBorder = DDZColor.SageBorder
+                presetText = DDZColor.SageDarkStrong
             } else {
-                presetBackground = DDZColor.Primary.copy(alpha = 0.48f)
-                presetBorder = DDZColor.Primary.copy(alpha = 0.66f)
-                presetText = DDZColor.PrimaryElevated
+                presetBackground = DDZColor.Surface.copy(alpha = 0.96f)
+                presetBorder = DDZColor.SageBorder
+                presetText = DDZColor.TextStrong
             }
 
             Box(
@@ -131,7 +131,8 @@ internal fun ZoomDetailExtraSection(
     Box(
         modifier = Modifier
             .fillMaxWidth(0.78f)
-            .background(DDZColor.Primary.copy(alpha = 0.56f), RoundedCornerShape(DDZLayout.Radius.Medium))
+            .background(DDZColor.Surface.copy(alpha = 0.96f), RoundedCornerShape(DDZLayout.Radius.Medium))
+            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(DDZLayout.Radius.Medium))
             .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
         ZoomTickBar(

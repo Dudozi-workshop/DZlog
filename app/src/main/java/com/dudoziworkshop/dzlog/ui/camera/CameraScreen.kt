@@ -398,18 +398,17 @@ fun CameraPreview(
                     onTapFocusUiChange = { ui.capture.tapFocusUi = it }
                 )
 
-                val canTriggerCapture = isCaptureReady(
-                    boundImageCaptureAvailable = (boundImageCapture != null),
-                    capturedUri = ui.capture.capturedUri,
-                    isCapturing = ui.capture.isCapturing,
-                    scopeNextCounter = ui.counter.scopeNextCounter,
-                )
-
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = threeButtonEquivalentBottomPadding)
                 ) {
+                    val canTriggerCapture = isCaptureReady(
+                        scopeNextCounter = ui.counter.scopeNextCounter,
+                        capturedUri = ui.capture.capturedUri,
+                        isCapturing = ui.capture.isCapturing,
+                        boundImageCaptureAvailable = (boundImageCapture != null),
+                    )
                     CameraBottomControls(
                         scope = scope,
                         ui = ui,
@@ -431,7 +430,7 @@ fun CameraPreview(
                 }
 
                 FloatingAssistShutterButton(
-                    enabled = ui.prefs.assistShutterEnabled && canTriggerCapture,
+                    enabled = ui.prefs.assistShutterEnabled,
                     xRatio = ui.prefs.assistShutterXRatio,
                     yRatio = ui.prefs.assistShutterYRatio,
                     onPositionRatioChange = { xRatio, yRatio ->
@@ -445,7 +444,6 @@ fun CameraPreview(
                         }
                     },
                     onTapCapture = {
-                        if (!canTriggerCapture) return@FloatingAssistShutterButton
                         ui.dismissToolOverlays()
                         triggerCapture()
                     },

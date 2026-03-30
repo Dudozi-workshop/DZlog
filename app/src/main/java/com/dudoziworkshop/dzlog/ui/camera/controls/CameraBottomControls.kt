@@ -53,15 +53,17 @@ private val BottomControlsHorizontalPadding = 12.dp
 private val ToolOverlayBottomSpacing = 10.dp
 
 internal fun isCaptureReady(
-    boundImageCaptureAvailable: Boolean,
+    scopeNextCounter: Int?,
     capturedUri: Uri?,
     isCapturing: Boolean,
-    scopeNextCounter: Int?,
+    boundImageCaptureAvailable: Boolean,
 ): Boolean {
-    return boundImageCaptureAvailable &&
-        capturedUri == null &&
-        !isCapturing &&
-        scopeNextCounter != null
+    return (
+        boundImageCaptureAvailable &&
+            capturedUri == null &&
+            !isCapturing &&
+            scopeNextCounter != null
+        )
 }
 
 @Composable
@@ -89,8 +91,6 @@ internal fun CameraBottomControls(
     val compactTool = if (ui.isPinchZoomActive) CameraOverlayTool.ZOOM else selectedTool
     val showDismissLayer = showToolMenu || isToolPanelExpanded
 
-    val enabledNow = captureReady
-
     Box(modifier = Modifier.fillMaxSize()) {
         if (showDismissLayer) {
             Box(
@@ -106,7 +106,7 @@ internal fun CameraBottomControls(
         CameraBottomBarRow(
             ui = ui,
             latestImage = latestImage,
-            enabledNow = enabledNow,
+            enabledNow = captureReady,
             sessionCaptureStack = sessionCaptureStack,
             undoPending = undoPending,
             onOpenAlbum = onOpenAlbum,
