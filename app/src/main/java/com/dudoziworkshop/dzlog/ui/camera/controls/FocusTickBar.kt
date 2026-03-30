@@ -22,6 +22,12 @@ private const val FOCUS_HAPTIC_MIN_DRAG_DELTA = 0.02f
 private const val FOCUS_MINOR_RENDER_INTERVAL = 2
 private val FOCUS_EMPHASIZED_STEPS = (0..FOCUS_STEP_COUNT step 10).toSet()
 
+private data class FocusDragSession(
+    val startStep: Int,
+    val startX: Float,
+    val lastHapticStep: Int,
+)
+
 @Composable
 internal fun FocusTickBar(
     value: Float,
@@ -60,36 +66,39 @@ internal fun FocusTickBar(
                 }
             }
             .pointerInput(Unit, enabled) {
-                var dragStartStep = latestStep
-                var dragStartX = 0f
-                var hasDragStart = false
-                var lastHapticStep = latestStep
+                var dragSession: FocusDragSession? = null
 
                 detectDragGestures(
                     onDragStart = { startOffset ->
                         if (latestEnabled) {
-                            dragStartStep = latestStep
-                            dragStartX = startOffset.x
-                            hasDragStart = true
-                            lastHapticStep = latestStep
+                            dragSession = FocusDragSession(
+                                startStep = latestStep,
+                                startX = startOffset.x,
+                                lastHapticStep = latestStep,
+                            )
                         }
                     },
-                    onDragEnd = { hasDragStart = false },
-                    onDragCancel = { hasDragStart = false },
+                    onDragEnd = { dragSession = null },
+                    onDragCancel = { dragSession = null },
                 ) { change, _ ->
                     if (!latestEnabled) {
                         change.consume()
                         return@detectDragGestures
                     }
 
-                    val startX = if (hasDragStart) dragStartX else change.position.x
-                    val deltaStep = (startX - change.position.x) / tickSpacingPx
-                    val mapped = (dragStartStep + deltaStep)
+                    val session = dragSession ?: FocusDragSession(
+                        startStep = latestStep,
+                        startX = change.position.x,
+                        lastHapticStep = latestStep,
+                    ).also { dragSession = it }
+
+                    val deltaStep = (session.startX - change.position.x) / tickSpacingPx
+                    val mapped = (session.startStep + deltaStep)
                         .roundToInt()
                         .coerceIn(0, FOCUS_STEP_COUNT)
                     latestOnValueChange(mapped / FOCUS_STEP_COUNT.toFloat())
 
-                    val previousHapticStep = lastHapticStep
+                    val previousHapticStep = session.lastHapticStep
                     val valueDelta = abs(mapped - previousHapticStep) / FOCUS_STEP_COUNT.toFloat()
                     if (
                         latestHapticEnabled &&
@@ -98,7 +107,7 @@ internal fun FocusTickBar(
                         valueDelta >= FOCUS_HAPTIC_MIN_DRAG_DELTA
                     ) {
                         latestOnStepHaptic()
-                        lastHapticStep = mapped
+                        dragSession = session.copy(lastHapticStep = mapped)
                     }
                     change.consume()
                 }

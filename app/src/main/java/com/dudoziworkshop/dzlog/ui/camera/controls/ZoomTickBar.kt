@@ -19,6 +19,12 @@ private const val MIN_ZOOM_TENTHS = 10
 private const val MAX_ZOOM_TENTHS = 100
 private val EMPHASIZED_TICKS = setOf(10, 20, 40, 60, 80, 100)
 
+private data class ZoomDragSession(
+    val startZoomTenths: Int,
+    val startX: Float,
+    val lastHapticTenths: Int,
+)
+
 @Composable
 internal fun ZoomTickBar(
     zoomTenths: Int,
@@ -56,31 +62,34 @@ internal fun ZoomTickBar(
                 }
             }
             .pointerInput(normalizedMaxTenths) {
-                var dragStartZoomTenths = latestZoomTenths
-                var dragStartX = 0f
-                var hasDragStart = false
-                var lastHapticTenths = latestZoomTenths
+                var dragSession: ZoomDragSession? = null
 
                 detectDragGestures(
                     onDragStart = { startOffset ->
-                        dragStartZoomTenths = latestZoomTenths
-                        dragStartX = startOffset.x
-                        hasDragStart = true
-                        lastHapticTenths = latestZoomTenths
+                        dragSession = ZoomDragSession(
+                            startZoomTenths = latestZoomTenths,
+                            startX = startOffset.x,
+                            lastHapticTenths = latestZoomTenths,
+                        )
                     },
-                    onDragEnd = { hasDragStart = false },
-                    onDragCancel = { hasDragStart = false },
+                    onDragEnd = { dragSession = null },
+                    onDragCancel = { dragSession = null },
                 ) { change, _ ->
-                    val startX = if (hasDragStart) dragStartX else change.position.x
-                    val deltaTenths = (startX - change.position.x) / tickSpacingPx
-                    val mapped = (dragStartZoomTenths + deltaTenths)
+                    val session = dragSession ?: ZoomDragSession(
+                        startZoomTenths = latestZoomTenths,
+                        startX = change.position.x,
+                        lastHapticTenths = latestZoomTenths,
+                    ).also { dragSession = it }
+
+                    val deltaTenths = (session.startX - change.position.x) / tickSpacingPx
+                    val mapped = (session.startZoomTenths + deltaTenths)
                         .roundToInt()
                         .coerceIn(MIN_ZOOM_TENTHS, normalizedMaxTenths)
                     latestOnZoomTenthsChange(mapped)
-                    val previousHapticTenths = lastHapticTenths
+                    val previousHapticTenths = session.lastHapticTenths
                     if (latestHapticEnabled && mapped != previousHapticTenths) {
                         latestOnStepHaptic()
-                        lastHapticTenths = mapped
+                        dragSession = session.copy(lastHapticTenths = mapped)
                     }
                     change.consume()
                 }

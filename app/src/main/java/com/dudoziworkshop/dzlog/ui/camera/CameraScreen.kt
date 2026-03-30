@@ -131,6 +131,8 @@ fun CameraScreen(
     }
 }
 
+@Suppress("OPT_IN_ARGUMENT_IS_NOT_MARKER")
+@androidx.annotation.OptIn(ExperimentalCamera2Interop::class)
 @SuppressLint("AutoboxingStateCreation")
 @OptIn(ExperimentalCamera2Interop::class)
 @Composable
