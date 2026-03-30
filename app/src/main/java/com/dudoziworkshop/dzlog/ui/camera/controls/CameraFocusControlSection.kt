@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -32,72 +33,84 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 internal fun CameraFocusControlSection(
     mode: CameraFocusMode,
     focusUiValue: Float,
+    expanded: Boolean,
     hapticEnabled: Boolean,
+    onToggleExpanded: () -> Unit,
     onModeChange: (CameraFocusMode) -> Unit,
     onValueChange: (Float) -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
+    val sliderEnabled = mode == CameraFocusMode.MANUAL
     val normalizedFocusValue = focusUiValue.coerceIn(0f, 1f)
-    val isManual = mode == CameraFocusMode.MANUAL
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        if (isManual) {
-            Text(
-                text = formatFocusUiValue(normalizedFocusValue),
-                style = DDZTypography.Body,
-                color = DDZColor.TextStrong,
+        if (expanded) {
+            FocusDetailExtraSection(
+                normalizedFocusValue = normalizedFocusValue,
+                sliderEnabled = sliderEnabled,
+                hapticEnabled = hapticEnabled,
+                onValueChange = onValueChange,
+                onStepHaptic = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) },
             )
-
-            Box(
-                modifier = Modifier
-                    .background(DDZColor.PrimaryDark.copy(alpha = 0.28f), RoundedCornerShape(8.dp))
-                    .border(1.dp, DDZColor.Border.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
-                    .padding(vertical = 5.dp)
-            ) {
-                FocusTickBar(
-                    value = normalizedFocusValue,
-                    enabled = true,
-                    hapticEnabled = hapticEnabled,
-                    onValueChange = onValueChange,
-                    onStepHaptic = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) },
-                    modifier = Modifier.height(44.dp)
-                )
-            }
         }
 
-        FocusModeInlineControl(
+        FocusQuickPanelCore(
             mode = mode,
-            onToggleMode = {
-                onModeChange(
-                    if (mode == CameraFocusMode.AUTO) CameraFocusMode.MANUAL
-                    else CameraFocusMode.AUTO
-                )
-            },
+            expanded = expanded,
+            onToggleExpanded = onToggleExpanded,
+            onModeChange = onModeChange,
         )
     }
 }
 
 @Composable
-internal fun CameraFocusCompactSection(
+internal fun FocusQuickPanelCore(
     mode: CameraFocusMode,
-    onClick: () -> Unit,
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onModeChange: (CameraFocusMode) -> Unit,
 ) {
-    val statusLabel = when (mode) {
-        CameraFocusMode.AUTO -> "자동"
-        CameraFocusMode.MANUAL -> "수동"
+    if (!expanded) {
+        val modeLabel = if (mode == CameraFocusMode.AUTO) "자동" else "수동"
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .background(DDZColor.Surface.copy(alpha = 0.95f), RoundedCornerShape(DDZLayout.Radius.Full))
+                .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(DDZLayout.Radius.Full))
+                .clickable(onClick = onToggleExpanded)
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.CenterFocusStrong,
+                contentDescription = "초점",
+                tint = DDZColor.SageDarkStrong,
+                modifier = Modifier.size(14.dp),
+            )
+            Text(
+                text = modeLabel,
+                style = DDZTypography.Caption,
+                color = DDZColor.SageDarkStrong
+            )
+        }
+        return
     }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
             .background(DDZColor.Surface.copy(alpha = 0.95f), RoundedCornerShape(DDZLayout.Radius.Full))
             .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(DDZLayout.Radius.Full))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .clickable {
+                val toggled = if (mode == CameraFocusMode.AUTO) CameraFocusMode.MANUAL else CameraFocusMode.AUTO
+                onModeChange(toggled)
+            }
+            .padding(horizontal = 6.dp, vertical = 4.dp)
     ) {
         Icon(
             imageVector = Icons.Default.CenterFocusStrong,
@@ -105,61 +118,72 @@ internal fun CameraFocusCompactSection(
             tint = DDZColor.SageDarkStrong,
             modifier = Modifier.size(14.dp),
         )
-        Text(
-            text = statusLabel,
-            style = DDZTypography.Caption,
-            color = DDZColor.SageDarkStrong,
-            modifier = Modifier.padding(start = 4.dp)
-        )
+        FocusModeLabel(label = "자동", selected = mode == CameraFocusMode.AUTO)
+        FocusModeLabel(label = "수동", selected = mode == CameraFocusMode.MANUAL)
     }
 }
 
 @Composable
-private fun FocusModeInlineControl(
-    mode: CameraFocusMode,
-    onToggleMode: () -> Unit,
+internal fun FocusDetailExtraSection(
+    normalizedFocusValue: Float,
+    sliderEnabled: Boolean,
+    hapticEnabled: Boolean,
+    onValueChange: (Float) -> Unit,
+    onStepHaptic: () -> Unit,
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier
-            .background(DDZColor.Surface.copy(alpha = 0.95f), RoundedCornerShape(DDZLayout.Radius.Full))
-            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(DDZLayout.Radius.Full))
-            .clickable(onClick = onToggleMode)
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-    ) {
-        Icon(
-            imageVector = Icons.Default.CenterFocusStrong,
-            contentDescription = "초점 모드",
-            tint = DDZColor.SageDarkStrong,
-            modifier = Modifier.size(14.dp),
-        )
+    if (!sliderEnabled) return
 
-        FocusModeInlineItem(
-            label = "자동",
-            selected = mode == CameraFocusMode.AUTO,
+    Box(
+        modifier = Modifier
+            .defaultMinSize(minWidth = DDZLayout.Control.Standard, minHeight = DDZLayout.Control.Standard)
+            .background(DDZColor.Primary.copy(alpha = 0.50f), RoundedCornerShape(DDZLayout.Radius.Full))
+            .border(1.dp, DDZColor.Primary.copy(alpha = 0.66f), RoundedCornerShape(DDZLayout.Radius.Full))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = formatFocusUiValue(normalizedFocusValue),
+            style = DDZTypography.Caption,
+            color = DDZColor.SageDarkStrong
         )
-        FocusModeInlineItem(
-            label = "수동",
-            selected = mode == CameraFocusMode.MANUAL,
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth(0.78f)
+            .background(DDZColor.Primary.copy(alpha = 0.50f), RoundedCornerShape(DDZLayout.Radius.Medium))
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        FocusTickBar(
+            value = normalizedFocusValue,
+            enabled = sliderEnabled,
+            hapticEnabled = hapticEnabled,
+            onValueChange = onValueChange,
+            onStepHaptic = onStepHaptic,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
         )
     }
 }
 
 @Composable
-private fun FocusModeInlineItem(
+private fun FocusModeLabel(
     label: String,
     selected: Boolean,
 ) {
-    val background = if (selected) DDZColor.SageLight.copy(alpha = 0.92f) else Color.Transparent
-    Text(
-        text = label,
-        style = DDZTypography.Caption.copy(
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-        ),
-        color = DDZColor.SageDarkStrong,
+    val background = if (selected) DDZColor.SageLight.copy(alpha = 0.90f) else Color.Transparent
+    Box(
+        contentAlignment = Alignment.Center,
         modifier = Modifier
+            .height(32.dp)
             .background(background, RoundedCornerShape(DDZLayout.Radius.Full))
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-    )
+            .padding(horizontal = 14.dp)
+    ) {
+        Text(
+            text = label,
+            style = DDZTypography.Caption,
+            color = DDZColor.SageDarkStrong
+        )
+    }
 }

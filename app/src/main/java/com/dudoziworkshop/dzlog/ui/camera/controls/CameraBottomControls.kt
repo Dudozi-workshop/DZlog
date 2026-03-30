@@ -20,7 +20,6 @@ import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -47,7 +46,6 @@ import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
-import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -304,17 +302,26 @@ private fun BoxScope.CameraToolOverlayPanel(
                 onSelectTool = onSelectTool,
                 onToggleAssistShutter = onToggleAssistShutter,
             )
-            compactTool == CameraOverlayTool.ZOOM && !isToolPanelExpanded -> CameraZoomCompactSection(
+            compactTool == CameraOverlayTool.ZOOM && !isToolPanelExpanded -> ZoomControlSection(
                 zoomRatioTenths = zoomRatioTenths,
-                onClick = onOpenSelectedToolPanel
+                maxZoomTenths = maxZoomTenths,
+                expanded = false,
+                hapticEnabled = hapticEnabled,
+                onToggleExpanded = onOpenSelectedToolPanel,
+                onZoomTenthsChange = onZoomTenthsChange
             )
             compactTool == CameraOverlayTool.FLASH && !isToolPanelExpanded -> CameraFlashCompactSection(
                 mode = flashMode,
                 onClick = onOpenSelectedToolPanel
             )
-            compactTool == CameraOverlayTool.FOCUS && !isToolPanelExpanded -> CameraFocusCompactSection(
+            compactTool == CameraOverlayTool.FOCUS && !isToolPanelExpanded -> CameraFocusControlSection(
                 mode = focusMode,
-                onClick = onOpenSelectedToolPanel
+                focusUiValue = focusUiValue,
+                expanded = false,
+                hapticEnabled = hapticEnabled,
+                onToggleExpanded = onOpenSelectedToolPanel,
+                onModeChange = onFocusModeChange,
+                onValueChange = onFocusUiValueChange
             )
             selectedTool == CameraOverlayTool.ZOOM && isToolPanelExpanded && !isPinchZoomActive -> ZoomControlSection(
                 zoomRatioTenths = zoomRatioTenths,
@@ -327,7 +334,9 @@ private fun BoxScope.CameraToolOverlayPanel(
             selectedTool == CameraOverlayTool.FOCUS && isToolPanelExpanded && !isPinchZoomActive -> CameraFocusControlSection(
                 mode = focusMode,
                 focusUiValue = focusUiValue,
+                expanded = true,
                 hapticEnabled = hapticEnabled,
+                onToggleExpanded = {},
                 onModeChange = onFocusModeChange,
                 onValueChange = onFocusUiValueChange
             )
@@ -336,24 +345,6 @@ private fun BoxScope.CameraToolOverlayPanel(
                 onModeChange = onFlashModeChange
             )
         }
-    }
-}
-
-@Composable
-private fun CameraZoomCompactSection(
-    zoomRatioTenths: Int,
-    onClick: () -> Unit,
-) {
-    val zoomLabel = formatZoomActualLabel(zoomRatioTenths)
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .background(DDZColor.Surface.copy(alpha = 0.95f), RoundedCornerShape(DDZLayout.Radius.Full))
-            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(DDZLayout.Radius.Full))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-    ) {
-        Text(text = zoomLabel, color = DDZColor.TextStrong, style = DDZTypography.Caption)
     }
 }
 

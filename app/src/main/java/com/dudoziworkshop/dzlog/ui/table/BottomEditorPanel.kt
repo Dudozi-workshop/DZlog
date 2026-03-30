@@ -12,20 +12,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.ViewColumn
 import androidx.compose.material.icons.filled.ViewStream
 import androidx.compose.material3.Button
@@ -229,6 +228,7 @@ internal fun BottomEditorPanel(
 
     @Composable
     fun CompactIconAction(
+        modifier: Modifier = Modifier,
         label: String,
         icon: androidx.compose.ui.graphics.vector.ImageVector,
         enabled: Boolean = true,
@@ -237,7 +237,7 @@ internal fun BottomEditorPanel(
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
-            modifier = Modifier.weight(1f),
+            modifier = modifier,
             shape = RoundedCornerShape(10.dp)
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -273,15 +273,15 @@ internal fun BottomEditorPanel(
                 ) {
                     Spacer(Modifier.size(2.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CompactIconAction(label = "행 추가", icon = Icons.Filled.ViewStream, onClick = onAddRow)
-                        CompactIconAction(label = "행 삭제", icon = Icons.Filled.Remove, enabled = rows > 1, onClick = onRemoveRow)
-                        CompactIconAction(label = "열 추가", icon = Icons.Filled.ViewColumn, onClick = onAddCol)
-                        CompactIconAction(label = "열 삭제", icon = Icons.Filled.Remove, enabled = cols > 1, onClick = onRemoveCol)
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "행 추가", icon = Icons.Filled.ViewStream, onClick = onAddRow)
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "행 삭제", icon = Icons.Filled.Remove, enabled = rows > 1, onClick = onRemoveRow)
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "열 추가", icon = Icons.Filled.ViewColumn, onClick = onAddCol)
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "열 삭제", icon = Icons.Filled.Remove, enabled = cols > 1, onClick = onRemoveCol)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CompactIconAction(label = "행 균등", icon = Icons.Filled.SwapVert, onClick = onResetRowWeights)
-                        CompactIconAction(label = "열 균등", icon = Icons.Filled.SwapHoriz, onClick = onResetColumnWeights)
-                        CompactIconAction(label = "전체 균등", icon = Icons.Filled.Refresh, onClick = onResetAllWeights)
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "행 균등", icon = Icons.Filled.SwapVert, onClick = onResetRowWeights)
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "열 균등", icon = Icons.Filled.SwapHoriz, onClick = onResetColumnWeights)
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "전체 균등", icon = Icons.Filled.Refresh, onClick = onResetAllWeights)
                     }
 
                     HorizontalDivider(color = DDZColor.Border.copy(alpha = 0.75f), thickness = 1.dp)
@@ -733,9 +733,9 @@ internal fun BottomEditorPanel(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                CompactIconAction(label = "저장", icon = Icons.Filled.Save, enabled = !isSaving, onClick = onSave)
-                CompactIconAction(label = "초기화", icon = Icons.Filled.Refresh, onClick = onReset)
-                CompactIconAction(label = "Undo", icon = Icons.Filled.Undo, enabled = isUndoAvailable, onClick = onUndo)
+                CompactIconAction(modifier = Modifier.weight(1f), label = "저장", icon = Icons.Filled.Save, enabled = !isSaving, onClick = onSave)
+                CompactIconAction(modifier = Modifier.weight(1f), label = "초기화", icon = Icons.Filled.Refresh, onClick = onReset)
+                CompactIconAction(modifier = Modifier.weight(1f), label = "Undo", icon = Icons.AutoMirrored.Filled.Undo, enabled = isUndoAvailable, onClick = onUndo)
             }
             if (isSaving) {
                 Row(
@@ -743,11 +743,9 @@ internal fun BottomEditorPanel(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (isSaving) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
-                        Text("저장 중...", style = DDZTypography.Caption)
-                    }
+                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("저장 중...", style = DDZTypography.Caption)
                 }
             }
         }

@@ -25,14 +25,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 // 2단계 라운딩 토큰: 줌 칩/프리셋은 pill 계열로 Full 고정한다.
 private val CHIP_SHAPE = RoundedCornerShape(DDZLayout.Radius.Full)
-private val BASE_PRESET_VALUES_TENTHS = listOf(10, 20, 40)
-
-private fun buildVisiblePresetTenths(normalizedMaxTenths: Int): List<Int> {
-    return (BASE_PRESET_VALUES_TENTHS + normalizedMaxTenths)
-        .filter { it <= normalizedMaxTenths }
-        .distinct()
-        .sorted()
-}
+private val PRESET_VALUES_TENTHS = listOf(10, 20, 40, 100)
 
 @Composable
 internal fun ZoomControlSection(
@@ -46,84 +39,73 @@ internal fun ZoomControlSection(
     val haptic = LocalHapticFeedback.current
     val normalizedMaxTenths = maxZoomTenths.coerceIn(10, 100)
     val normalizedTenths = zoomRatioTenths.coerceIn(10, normalizedMaxTenths)
-    val zoomLabel = formatZoomActualLabel(normalizedTenths)
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
-            .background(DDZColor.Card.copy(alpha = 0f), RoundedCornerShape(DDZLayout.Radius.Medium))
-            .padding(horizontal = 10.dp, vertical = 8.dp)
+        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
         if (expanded) {
-            ZoomPresetShortcutRow(
-                normalizedTenths = normalizedTenths,
-                presetTenthsList = buildVisiblePresetTenths(normalizedMaxTenths),
-                hapticEnabled = hapticEnabled,
-                onStepHaptic = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) },
-                onZoomTenthsChange = onZoomTenthsChange,
-            )
-
-            ZoomTickBar(
+            ZoomDetailExtraSection(
                 zoomTenths = normalizedTenths,
                 maxZoomTenths = normalizedMaxTenths,
                 hapticEnabled = hapticEnabled,
                 onZoomTenthsChange = onZoomTenthsChange,
                 onStepHaptic = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) },
-                modifier = Modifier.fillMaxWidth(0.76f)
             )
         }
 
-        ZoomCompactValueChip(
-            zoomLabel = zoomLabel,
-            onClick = onToggleExpanded,
+        ZoomQuickPanelCore(
+            zoomTenths = normalizedTenths,
+            onToggleExpanded = onToggleExpanded,
         )
     }
 }
 
 @Composable
-private fun ZoomCompactValueChip(
-    zoomLabel: String,
-    onClick: () -> Unit,
+internal fun ZoomQuickPanelCore(
+    zoomTenths: Int,
+    onToggleExpanded: () -> Unit,
 ) {
     Box(
         modifier = Modifier
             .defaultMinSize(minWidth = DDZLayout.Control.Standard, minHeight = DDZLayout.Control.Standard)
             .background(DDZColor.Surface.copy(alpha = 0.95f), CHIP_SHAPE)
             .border(1.dp, DDZColor.SageBorder, CHIP_SHAPE)
-            .clickable(onClick = onClick)
+            .clickable(onClick = onToggleExpanded)
             .padding(horizontal = 8.dp, vertical = 5.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = zoomLabel, color = DDZColor.TextStrong, style = DDZTypography.Caption)
+        Text(text = formatZoomActualLabel(zoomTenths), color = DDZColor.TextStrong, style = DDZTypography.Caption)
     }
 }
 
 @Composable
-private fun ZoomPresetShortcutRow(
-    normalizedTenths: Int,
-    presetTenthsList: List<Int>,
+internal fun ZoomDetailExtraSection(
+    zoomTenths: Int,
+    maxZoomTenths: Int,
     hapticEnabled: Boolean,
-    onStepHaptic: () -> Unit,
     onZoomTenthsChange: (Int) -> Unit,
+    onStepHaptic: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        presetTenthsList.forEach { presetTenths ->
-            val selected = normalizedTenths == presetTenths
+        PRESET_VALUES_TENTHS.forEach { presetTenths ->
+            val actualPreset = presetTenths.coerceIn(10, maxZoomTenths)
+            val selected = zoomTenths == actualPreset
             val presetBackground: Color
             val presetBorder: Color
             val presetText: Color
             if (selected) {
-                presetBackground = DDZColor.SageLight.copy(alpha = 0.82f)
-                presetBorder = DDZColor.SageDarkStrong
-                presetText = DDZColor.SageDarkStrong
+                presetBackground = DDZColor.Primary.copy(alpha = 0.56f)
+                presetBorder = DDZColor.Primary.copy(alpha = 0.74f)
+                presetText = DDZColor.PrimaryElevated
             } else {
-                presetBackground = DDZColor.Primary.copy(alpha = 0.14f)
-                presetBorder = DDZColor.Primary.copy(alpha = 0.30f)
+                presetBackground = DDZColor.Primary.copy(alpha = 0.48f)
+                presetBorder = DDZColor.Primary.copy(alpha = 0.66f)
                 presetText = DDZColor.PrimaryElevated
             }
 
@@ -133,7 +115,7 @@ private fun ZoomPresetShortcutRow(
                     .border(1.dp, presetBorder, CHIP_SHAPE)
                     .clickable {
                         if (hapticEnabled) onStepHaptic()
-                        onZoomTenthsChange(presetTenths)
+                        onZoomTenthsChange(actualPreset)
                     }
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
@@ -144,5 +126,21 @@ private fun ZoomPresetShortcutRow(
                 )
             }
         }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth(0.78f)
+            .background(DDZColor.Primary.copy(alpha = 0.56f), RoundedCornerShape(DDZLayout.Radius.Medium))
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        ZoomTickBar(
+            zoomTenths = zoomTenths,
+            maxZoomTenths = maxZoomTenths,
+            hapticEnabled = hapticEnabled,
+            onZoomTenthsChange = onZoomTenthsChange,
+            onStepHaptic = onStepHaptic,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
