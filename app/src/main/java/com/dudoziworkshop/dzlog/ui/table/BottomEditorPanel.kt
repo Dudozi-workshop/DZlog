@@ -21,12 +21,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.ViewColumn
 import androidx.compose.material.icons.filled.ViewStream
 import androidx.compose.material3.Button
@@ -130,12 +127,9 @@ internal fun BottomEditorPanel(
     onApplyPathManualInput: () -> Unit,
     onClosePanel: () -> Unit,
     onAddRow: () -> Unit,
-    onRemoveRow: () -> Unit,
     onAddCol: () -> Unit,
-    onRemoveCol: () -> Unit,
-    onResetRowWeights: () -> Unit,
-    onResetColumnWeights: () -> Unit,
-    onResetAllWeights: () -> Unit,
+    onMergeSelection: () -> Unit,
+    onDeleteSelection: () -> Unit,
     onUndo: () -> Unit,
     isUndoAvailable: Boolean,
     onReset: () -> Unit,
@@ -153,11 +147,7 @@ internal fun BottomEditorPanel(
     wmValueScale: Int,
     wmTextAlign: Int,
     wmWidthRatio: Int,
-    wmHeightRatio: Int,
-    isWmRatioLocked: Boolean,
-    onSetWmRatioLocked: (Boolean) -> Unit,
     onSetWmWidthRatio: (Int) -> Unit,
-    onSetWmHeightRatio: (Int) -> Unit,
     onOpenCellMode: () -> Unit,
     onOpenStructureMode: () -> Unit,
     onOpenStyleMode: () -> Unit,
@@ -278,43 +268,7 @@ internal fun BottomEditorPanel(
     }
 
     @Composable
-    fun CompactBinaryAction(
-        modifier: Modifier = Modifier,
-        label: String,
-        value: Boolean,
-        onClick: () -> Unit
-    ) {
-        Row(
-            modifier = modifier
-                .clip(BottomEditorToolShape)
-                .background(if (value) DDZColor.Primary.copy(alpha = 0.16f) else DDZColor.Card.copy(alpha = 0.5f), BottomEditorToolShape)
-                .clickable(onClick = onClick)
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Icon(
-                imageVector = if (value) Icons.Filled.Check else Icons.Filled.Remove,
-                contentDescription = label,
-                tint = if (value) DDZColor.PrimaryDark else DDZColor.TextMuted,
-                modifier = Modifier.size(14.dp)
-            )
-            Text(label, style = DDZTypography.Caption, color = if (value) DDZColor.PrimaryDark else DDZColor.TextMuted)
-        }
-    }
-
-    @Composable
-    fun RatioLockTool() {
-        CompactBinaryAction(
-            modifier = Modifier,
-            label = "비율 고정",
-            value = isWmRatioLocked,
-            onClick = { onSetWmRatioLocked(!isWmRatioLocked) }
-        )
-    }
-
-    @Composable
-    fun RatioSliderRow(label: String, value: Int, onValueChange: (Int) -> Unit) {
+    fun TableScaleSliderRow(label: String, value: Int, onValueChange: (Int) -> Unit) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -367,15 +321,10 @@ internal fun BottomEditorPanel(
                 ) {
                     Spacer(Modifier.size(1.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CompactIconAction(modifier = Modifier.weight(1f), label = "행 추가", icon = Icons.Filled.ViewStream, onClick = onAddRow)
-                        CompactIconAction(modifier = Modifier.weight(1f), label = "행 삭제", icon = Icons.Filled.Remove, enabled = rows > 1, onClick = onRemoveRow)
-                        CompactIconAction(modifier = Modifier.weight(1f), label = "열 추가", icon = Icons.Filled.ViewColumn, onClick = onAddCol)
-                        CompactIconAction(modifier = Modifier.weight(1f), label = "열 삭제", icon = Icons.Filled.Remove, enabled = cols > 1, onClick = onRemoveCol)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CompactIconAction(modifier = Modifier.weight(1f), label = "행 균등", icon = Icons.Filled.SwapVert, onClick = onResetRowWeights)
-                        CompactIconAction(modifier = Modifier.weight(1f), label = "열 균등", icon = Icons.Filled.SwapHoriz, onClick = onResetColumnWeights)
-                        CompactIconAction(modifier = Modifier.weight(1f), label = "전체 균등", icon = Icons.Filled.Refresh, onClick = onResetAllWeights)
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "행+", icon = Icons.Filled.ViewStream, onClick = onAddRow)
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "열+", icon = Icons.Filled.ViewColumn, onClick = onAddCol)
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "병합", icon = Icons.Filled.Refresh, onClick = onMergeSelection)
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "삭제", icon = Icons.Filled.Remove, onClick = onDeleteSelection)
                     }
 
                     HorizontalDivider(color = DDZColor.Border.copy(alpha = 0.75f), thickness = 1.dp)
@@ -386,10 +335,8 @@ internal fun BottomEditorPanel(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text("표 크기", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                        RatioLockTool()
                     }
-                    RatioSliderRow(label = "가로", value = wmWidthRatio, onValueChange = onSetWmWidthRatio)
-                    RatioSliderRow(label = "세로", value = wmHeightRatio, onValueChange = onSetWmHeightRatio)
+                    TableScaleSliderRow(label = "크기", value = wmWidthRatio, onValueChange = onSetWmWidthRatio)
                 }
             }
             BottomEditorPanelMode.STYLE_EDIT -> {

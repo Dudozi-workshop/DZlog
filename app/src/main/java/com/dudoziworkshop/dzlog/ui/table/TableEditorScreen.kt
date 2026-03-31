@@ -30,7 +30,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -76,8 +75,8 @@ import com.dudoziworkshop.dzlog.feature.table.editor.StructureAddOrRestoreInput
 import com.dudoziworkshop.dzlog.feature.table.editor.StructureRemoveInput
 import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorInlineEditActions
 import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorStructureActions
-import com.dudoziworkshop.dzlog.feature.table.editor.TableHandleOverlay
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
+import com.dudoziworkshop.dzlog.feature.table.editor.TableStructureRangeActions
 import com.dudoziworkshop.dzlog.feature.table.editor.TableUndoManager
 import com.dudoziworkshop.dzlog.feature.table.editor.buildStructureEditorContext
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.DeletedStructureSnapshot
@@ -107,13 +106,9 @@ import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotAct
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotDraftHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotListHandlers
 import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorTransientStateHandlers
-import com.dudoziworkshop.dzlog.feature.table.editor.resetColumnWeights
-import com.dudoziworkshop.dzlog.feature.table.editor.resetRowWeights
 import com.dudoziworkshop.dzlog.feature.table.editor.updateCell
 import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
-import com.dudoziworkshop.dzlog.feature.table.placement.resolveRatioLockedSizeFromHeight
-import com.dudoziworkshop.dzlog.feature.table.placement.resolveRatioLockedSizeFromWidth
 import com.dudoziworkshop.dzlog.feature.table.policy.confirmCounterConflictDialog
 import com.dudoziworkshop.dzlog.feature.table.policy.dismissCounterConflictDialog
 import com.dudoziworkshop.dzlog.ui.common.dzScaffoldContent
@@ -817,13 +812,10 @@ fun TableEditorScreen(
 
     var watermarkUi by remember { mutableStateOf(TablePlacementState()) }
     var initialPlacementSnapshot by remember { mutableStateOf(TablePlacementState()) }
-    var isWmRatioLocked by rememberSaveable { mutableStateOf(false) }
     var tableStyleUi by remember { mutableStateOf(TableStyleState()) }
     var initialStyleSnapshot by remember { mutableStateOf(TableStyleState()) }
     val undoManager = remember { TableUndoManager<TableEditorUndoSnapshot>() }
     var undoRevision by remember { mutableIntStateOf(0) }
-    var rowWeightsDragBaseTemplate by remember { mutableStateOf<TableTemplateState?>(null) }
-    var colWeightsDragBaseTemplate by remember { mutableStateOf<TableTemplateState?>(null) }
 
     fun currentUndoSnapshot(): TableEditorUndoSnapshot {
         return buildTableEditorUndoSnapshot(
@@ -836,8 +828,6 @@ fun TableEditorScreen(
     }
 
     fun applyUndo() {
-        rowWeightsDragBaseTemplate = null
-        colWeightsDragBaseTemplate = null
         val restored = undoTableEditorSnapshot(
             undoManager = undoManager,
             currentSnapshot = currentUndoSnapshot(),
@@ -848,18 +838,6 @@ fun TableEditorScreen(
         selectedCellId = restored.selectedCellId
         structureSelectedCellIds = restored.structureSelectedCellIds
         structureSelectionRange = restored.structureSelectionRange
-        undoRevision += 1
-    }
-
-    fun applyTemplateDragCommitWithUndo(baseTemplate: TableTemplateState, nextTemplate: TableTemplateState) {
-        val pushed = pushTemplateDragCommitUndoSnapshot(
-            undoManager = undoManager,
-            currentSnapshot = currentUndoSnapshot(),
-            baseTemplate = baseTemplate,
-            nextTemplate = nextTemplate,
-        )
-        if (!pushed) return
-        updateTemplateDraft(nextTemplate)
         undoRevision += 1
     }
 
@@ -874,6 +852,20 @@ fun TableEditorScreen(
             undoRevision += 1
         }
         updateTemplateDraft(nextTemplate)
+    }
+
+    fun syncStructureSelection(range: TableSelectionRange?) {
+        structureSelectionRange = range
+        if (range == null) {
+            structureSelectedCellIds = emptySet()
+            return
+        }
+        structureSelectedCellIds = TableStructureRangeActions.interactiveRootCellsInRange(
+            cells = currentTemplate.cells,
+            range = range,
+        )
+            .map { it.cellId }
+            .toSet()
     }
 
     fun applyCommittedInlineCounterUpdate(
@@ -1072,39 +1064,7 @@ fun TableEditorScreen(
     }
 
     fun updateWatermarkWidthRatio(width: Int) {
-        val normalized = width.coerceIn(10, 100)
-        if (!isWmRatioLocked) {
-            watermarkUi = watermarkUi.copy(wmWidthRatio = normalized)
-            return
-        }
-
-        val ratioLocked = resolveRatioLockedSizeFromWidth(
-            baseWidthRatio = watermarkUi.wmWidthRatio,
-            baseHeightRatio = watermarkUi.wmHeightRatio,
-            requestedWidthRatio = normalized,
-        )
-        watermarkUi = watermarkUi.copy(
-            wmWidthRatio = ratioLocked.widthRatio,
-            wmHeightRatio = ratioLocked.heightRatio,
-        )
-    }
-
-    fun updateWatermarkHeightRatio(height: Int) {
-        val normalized = height.coerceIn(10, 100)
-        if (!isWmRatioLocked) {
-            watermarkUi = watermarkUi.copy(wmHeightRatio = normalized)
-            return
-        }
-
-        val ratioLocked = resolveRatioLockedSizeFromHeight(
-            baseWidthRatio = watermarkUi.wmWidthRatio,
-            baseHeightRatio = watermarkUi.wmHeightRatio,
-            requestedHeightRatio = normalized,
-        )
-        watermarkUi = watermarkUi.copy(
-            wmWidthRatio = ratioLocked.widthRatio,
-            wmHeightRatio = ratioLocked.heightRatio,
-        )
+        watermarkUi = watermarkUi.copy(wmWidthRatio = width.coerceIn(10, 100))
     }
 
     fun resetEditorToInitialSnapshot() {
@@ -1125,38 +1085,8 @@ fun TableEditorScreen(
         deletedColsStack.clear()
         fileNameSlotsDirtySinceStructureChange = false
         pathSlotsDirtySinceStructureChange = false
-        rowWeightsDragBaseTemplate = null
-        colWeightsDragBaseTemplate = null
         undoManager.clear()
         undoRevision += 1
-    }
-
-    fun startRowWeightDrag() {
-        rowWeightsDragBaseTemplate = editableTemplateState
-    }
-
-    fun startColumnWeightDrag() {
-        colWeightsDragBaseTemplate = editableTemplateState
-    }
-
-    fun finishRowWeightDrag() {
-        rowWeightsDragBaseTemplate = null
-    }
-
-    fun finishColumnWeightDrag() {
-        colWeightsDragBaseTemplate = null
-    }
-
-    fun commitRowWeightDrag(nextWeights: List<Float>) {
-        val baseTemplate = rowWeightsDragBaseTemplate ?: editableTemplateState
-        val nextTemplate = TableHandleOverlay.applyRowWeightDragEnd(baseTemplate, nextWeights)
-        applyTemplateDragCommitWithUndo(baseTemplate, nextTemplate)
-    }
-
-    fun commitColumnWeightDrag(nextWeights: List<Float>) {
-        val baseTemplate = colWeightsDragBaseTemplate ?: editableTemplateState
-        val nextTemplate = TableHandleOverlay.applyColumnWeightDragEnd(baseTemplate, nextWeights)
-        applyTemplateDragCommitWithUndo(baseTemplate, nextTemplate)
     }
 
     LaunchedEffect(Unit) {
@@ -1317,8 +1247,6 @@ fun TableEditorScreen(
         applied.nextInitialTemplateSnapshot?.let { initialTemplateSnapshot = it }
         applied.nextInitialStyleSnapshot?.let { initialStyleSnapshot = it }
         applied.nextInitialPlacementSnapshot?.let { initialPlacementSnapshot = it }
-        rowWeightsDragBaseTemplate = applied.nextRowWeightsDragBaseTemplate
-        colWeightsDragBaseTemplate = applied.nextColWeightsDragBaseTemplate
         if (applied.shouldClearUndo) {
             undoManager.clear()
         }
@@ -1518,18 +1446,23 @@ fun TableEditorScreen(
             TableEditorSelectionInlineEditingActionBinder.tryCommitInlineAndContinue(inlineEditingActionBindings)
         },
         onAddRow = { applyStructureAddOrRestore(StructureRestoreAxis.ROW) },
-        onRemoveRow = { applyStructureRemove(StructureRestoreAxis.ROW) },
         onAddCol = { applyStructureAddOrRestore(StructureRestoreAxis.COL) },
-        onRemoveCol = { applyStructureRemove(StructureRestoreAxis.COL) },
-        onResetRowWeights = {
-            applyTemplateWithUndo(resetRowWeights(currentTemplate))
+        onMergeSelection = merge@{
+            val range = structureSelectionRange ?: return@merge
+            val expanded = TableStructureRangeActions.expandRangeToMergedBlocks(currentTemplate.cells, range)
+            val mergedTemplate = TableStructureRangeActions.mergeSelection(currentTemplate, expanded)
+            applyTemplateWithUndo(mergedTemplate)
+            val mergedRoot = mergedTemplate.cells.firstOrNull { it.rowIndex == expanded.minRow && it.colIndex == expanded.minCol }
+            structureSelectionRange = null
+            structureSelectedCellIds = mergedRoot?.let { setOf(it.cellId) } ?: emptySet()
         },
-        onResetColumnWeights = {
-            applyTemplateWithUndo(resetColumnWeights(currentTemplate))
-        },
-        onResetAllWeights = {
-            // 행/열 리셋을 한 번의 액션으로 묶어 단일 undo 스냅샷으로 처리한다.
-            applyTemplateWithUndo(resetColumnWeights(resetRowWeights(currentTemplate)))
+        onDeleteSelection = delete@{
+            val range = structureSelectionRange ?: return@delete
+            val expanded = TableStructureRangeActions.expandRangeToMergedBlocks(currentTemplate.cells, range)
+            val deletedTemplate = TableStructureRangeActions.deleteSelectionWithAbsorb(currentTemplate, expanded)
+            applyTemplateWithUndo(deletedTemplate)
+            structureSelectionRange = null
+            structureSelectedCellIds = emptySet()
         },
         onUndo = ::applyUndo,
         onReset = ::resetEditorToInitialSnapshot,
@@ -1559,15 +1492,7 @@ fun TableEditorScreen(
         onSetManualTextColor = { color -> applyTableStyleMutation { it.copy(manualTextColor = color.coerceIn(0, 1)) } },
         onSetValueScale = { scale -> applyTableStyleMutation { it.copy(valueScale = scale.coerceIn(60, 160)) } },
         onSetTextAlign = { align -> applyTableStyleMutation { it.copy(textAlign = align.coerceIn(0, 2)) } },
-        onSetWmRatioLocked = { locked -> isWmRatioLocked = locked },
         onSetWmWidthRatio = ::updateWatermarkWidthRatio,
-        onSetWmHeightRatio = ::updateWatermarkHeightRatio,
-        onStartRowWeightsDrag = ::startRowWeightDrag,
-        onStartColumnWeightsDrag = ::startColumnWeightDrag,
-        onFinishRowWeightsDrag = ::finishRowWeightDrag,
-        onFinishColumnWeightsDrag = ::finishColumnWeightDrag,
-        onCommitRowWeightsDragEnd = ::commitRowWeightDrag,
-        onCommitColumnWeightsDragEnd = ::commitColumnWeightDrag,
         onOpenRotatingTemplateDialogForSelected = { cellId ->
             TableEditorSelectedCellActionBinder.openRotatingTemplateDialogForSelected(selectedCellActionBindings, cellId)
         },
@@ -1646,8 +1571,6 @@ fun TableEditorScreen(
                             phraseSets = currentTemplate.phraseSets,
                             captureAspect = watermarkUi.captureAspect,
                             wmWidthRatio = watermarkUi.wmWidthRatio,
-                            wmHeightRatio = watermarkUi.wmHeightRatio,
-                            isWmRatioLocked = isWmRatioLocked,
                             wmBgStyle = tableStyleUi.bgStyle,
                             wmBgAlpha = tableStyleUi.bgAlpha,
                             wmGridEnabled = tableStyleUi.gridEnabled,
@@ -1672,7 +1595,7 @@ fun TableEditorScreen(
                         wmOffsetXRatio = applied.wmOffsetXRatio.coerceIn(0, 100),
                         wmOffsetYRatio = applied.wmOffsetYRatio.coerceIn(0, 100),
                         wmWidthRatio = applied.wmWidthRatio.coerceIn(10, 100),
-                        wmHeightRatio = applied.wmHeightRatio.coerceIn(10, 100),
+                        wmHeightRatio = applied.wmWidthRatio.coerceIn(10, 100),
                         rotationCwDeg = if (applied.rotationCwDeg == 90) 90 else 0,
                         captureAspect = applied.captureAspect,
                         keepAspectRatio = true,

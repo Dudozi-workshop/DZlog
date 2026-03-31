@@ -36,6 +36,7 @@ import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
 import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControl
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import kotlin.math.roundToInt
 
 @Composable
 fun TablePlacementPreviewDialog(
@@ -58,7 +59,6 @@ fun TablePlacementPreviewDialog(
 
     val entryPlacement = remember(placementState) { placementState.copy(keepAspectRatio = true) }
     val shapeWidthBase = remember(entryPlacement.wmWidthRatio) { entryPlacement.wmWidthRatio.coerceAtLeast(10) }
-    val shapeHeightBase = remember(entryPlacement.wmHeightRatio) { entryPlacement.wmHeightRatio.coerceAtLeast(10) }
 
     var draftCaptureAspect by remember(entryPlacement.captureAspect) { mutableStateOf(entryPlacement.captureAspect) }
     var draftOffsetX by remember(entryPlacement.wmOffsetXRatio) { mutableIntStateOf(entryPlacement.wmOffsetXRatio.coerceIn(0, 100)) }
@@ -82,17 +82,10 @@ fun TablePlacementPreviewDialog(
         draftOffsetY = offsetY.coerceIn(0, 100)
     }
 
-    val ratioLockedScaleRange = resolveRatioLockedScaleRange(
-        baseWidthRatio = shapeWidthBase,
-        baseHeightRatio = shapeHeightBase,
-    )
-    val ratioLockedSize = resolveRatioLockedSizeFromScale(
-        baseWidthRatio = shapeWidthBase,
-        baseHeightRatio = shapeHeightBase,
-        requestedScalePercent = draftScale,
-    )
-    val previewWidthRatio = ratioLockedSize.widthRatio
-    val previewHeightRatio = ratioLockedSize.heightRatio
+    val minScalePercent = ((10f / shapeWidthBase) * 100f).coerceAtLeast(10f)
+    val maxScalePercent = ((100f / shapeWidthBase) * 100f).coerceAtMost(300f)
+    val previewWidthRatio = (shapeWidthBase * (draftScale / 100f)).roundToInt().coerceIn(10, 100)
+    val previewHeightRatio = previewWidthRatio
 
     Dialog(onDismissRequest = onClose) {
         Column(
@@ -192,15 +185,9 @@ fun TablePlacementPreviewDialog(
             ) {
                 Text("표 크기", color = DDZColor.Card, style = DDZTypography.Caption)
                 Slider(
-                    value = draftScale.coerceIn(ratioLockedScaleRange.minScalePercent, ratioLockedScaleRange.maxScalePercent),
-                    onValueChange = { requested ->
-                        draftScale = resolveRatioLockedSizeFromScale(
-                            baseWidthRatio = shapeWidthBase,
-                            baseHeightRatio = shapeHeightBase,
-                            requestedScalePercent = requested,
-                        ).scalePercent
-                    },
-                    valueRange = ratioLockedScaleRange.minScalePercent..ratioLockedScaleRange.maxScalePercent
+                    value = draftScale.coerceIn(minScalePercent, maxScalePercent),
+                    onValueChange = { requested -> draftScale = requested.coerceIn(minScalePercent, maxScalePercent) },
+                    valueRange = minScalePercent..maxScalePercent
                 )
             }
 

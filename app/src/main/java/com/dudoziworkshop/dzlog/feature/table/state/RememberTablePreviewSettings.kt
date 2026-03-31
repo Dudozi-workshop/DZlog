@@ -8,7 +8,6 @@ import androidx.compose.ui.platform.LocalContext
 import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_DETAIL_GRID_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BG_ALPHA
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
-import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_ALIGN
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TEXT_COLOR_MANUAL
@@ -60,7 +59,7 @@ fun rememberTablePreviewSettings(): TablePreviewSettingsState {
             // 주요 정책: 홈 표 프리뷰 grid는 표 상세설정 전용 키만 사용한다. (촬영 워터마크 grid와 분리)
             val gridEnabled = prefs[KEY_TABLE_DETAIL_GRID_ENABLED] ?: true
             val wmWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(10, 100)
-            val wmHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 100)
+            val wmHeightRatio = wmWidthRatio
             TablePreviewSettingsState(
                 wmBgStyle = bgStyle,
                 wmBgAlpha = bgAlpha,
