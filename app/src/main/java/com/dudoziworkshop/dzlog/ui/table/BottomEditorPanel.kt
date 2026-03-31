@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,7 +20,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
@@ -31,8 +33,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
@@ -42,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
@@ -64,6 +65,7 @@ import java.util.Date
 
 private val BottomEditorTabShape = RoundedCornerShape(10.dp)
 private val BottomEditorSlotShape = RoundedCornerShape(12.dp)
+private val BottomEditorToolShape = RoundedCornerShape(10.dp)
 
 @Composable
 internal fun BottomEditorPanel(
@@ -162,21 +164,7 @@ internal fun BottomEditorPanel(
 ) {
     @Composable
     fun PanelHeader(title: String) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(title, style = DDZTypography.Body, color = DDZColor.TextPrimary)
-            IconButton(onClick = onClosePanel, modifier = Modifier.size(28.dp)) {
-                Icon(
-                    imageVector = Icons.Filled.Close,
-                    contentDescription = "패널 닫기",
-                    tint = DDZColor.TextMuted,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
+        Text(title, style = DDZTypography.Body, color = DDZColor.TextPrimary)
     }
 
     @Composable
@@ -189,44 +177,33 @@ internal fun BottomEditorPanel(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                tabs.forEach { (mode, label) ->
-                    val isSelected = panelMode == mode
-                    val bgColor = if (isSelected) DDZColor.Primary.copy(alpha = 0.22f) else DDZColor.Card.copy(alpha = 0.78f)
-                    val borderColor = if (isSelected) DDZColor.Primary else DDZColor.Border
+            tabs.forEach { (mode, label) ->
+                val isSelected = panelMode == mode
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(BottomEditorTabShape)
+                        .background(if (isSelected) DDZColor.Primary.copy(alpha = 0.10f) else Color.Transparent, BottomEditorTabShape)
+                        .clickable {
+                            when (mode) {
+                                BottomEditorPanelMode.CELL_EDIT -> onOpenCellMode()
+                                BottomEditorPanelMode.STRUCTURE_EDIT -> onOpenStructureMode()
+                                BottomEditorPanelMode.STYLE_EDIT -> onOpenStyleMode()
+                                else -> Unit
+                            }
+                        }
+                        .heightIn(min = 30.dp)
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
                         text = label,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(BottomEditorTabShape)
-                            .background(bgColor, BottomEditorTabShape)
-                            .border(1.dp, borderColor, BottomEditorTabShape)
-                            .clickable {
-                                when (mode) {
-                                    BottomEditorPanelMode.CELL_EDIT -> onOpenCellMode()
-                                    BottomEditorPanelMode.STRUCTURE_EDIT -> onOpenStructureMode()
-                                    BottomEditorPanelMode.STYLE_EDIT -> onOpenStyleMode()
-                                    else -> Unit
-                                }
-                            }
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
                         style = DDZTypography.Caption,
-                        color = if (isSelected) DDZColor.Primary else DDZColor.TextMuted
+                        color = if (isSelected) DDZColor.PrimaryDark else DDZColor.TextMuted
                     )
                 }
-            }
-            IconButton(onClick = onClosePanel, modifier = Modifier.size(28.dp)) {
-                Icon(
-                    imageVector = Icons.Filled.Close,
-                    contentDescription = "패널 닫기",
-                    tint = DDZColor.TextMuted,
-                    modifier = Modifier.size(18.dp)
-                )
             }
         }
     }
@@ -237,18 +214,130 @@ internal fun BottomEditorPanel(
         label: String,
         icon: androidx.compose.ui.graphics.vector.ImageVector,
         enabled: Boolean = true,
+        selected: Boolean = false,
+        compact: Boolean = false,
         onClick: () -> Unit
     ) {
-        OutlinedButton(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = modifier,
-            shape = RoundedCornerShape(10.dp)
+        Column(
+            modifier = modifier
+                .clip(BottomEditorToolShape)
+                .background(
+                    if (selected) DDZColor.Primary.copy(alpha = 0.2f) else DDZColor.Card.copy(alpha = if (enabled) 0.55f else 0.35f),
+                    BottomEditorToolShape
+                )
+                .clickable(enabled = enabled, onClick = onClick)
+                .heightIn(min = if (compact) 36.dp else 42.dp)
+                .padding(horizontal = if (compact) 6.dp else 8.dp, vertical = if (compact) 5.dp else 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 4.dp)
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(icon, contentDescription = label, modifier = Modifier.size(16.dp))
-                Text(label, style = DDZTypography.Caption, maxLines = 1)
-            }
+            Icon(
+                icon,
+                contentDescription = label,
+                modifier = Modifier.size(if (compact) 14.dp else 16.dp),
+                tint = when {
+                    !enabled -> DDZColor.TextMuted.copy(alpha = 0.5f)
+                    selected -> DDZColor.PrimaryDark
+                    else -> DDZColor.TextPrimary
+                }
+            )
+            Text(
+                label,
+                style = DDZTypography.Caption,
+                color = when {
+                    !enabled -> DDZColor.TextMuted.copy(alpha = 0.6f)
+                    selected -> DDZColor.PrimaryDark
+                    else -> DDZColor.TextMuted
+                },
+                maxLines = 1
+            )
+        }
+    }
+
+    @Composable
+    fun CompactTextAction(
+        modifier: Modifier = Modifier,
+        label: String,
+        selected: Boolean,
+        onClick: () -> Unit,
+    ) {
+        Box(
+            modifier = modifier
+                .clip(BottomEditorToolShape)
+                .background(if (selected) DDZColor.Primary.copy(alpha = 0.18f) else DDZColor.Card.copy(alpha = 0.5f), BottomEditorToolShape)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 8.dp, vertical = 9.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                style = DDZTypography.Caption,
+                color = if (selected) DDZColor.PrimaryDark else DDZColor.TextMuted
+            )
+        }
+    }
+
+    @Composable
+    fun CompactBinaryAction(
+        modifier: Modifier = Modifier,
+        label: String,
+        value: Boolean,
+        onClick: () -> Unit
+    ) {
+        Row(
+            modifier = modifier
+                .clip(BottomEditorToolShape)
+                .background(if (value) DDZColor.Primary.copy(alpha = 0.16f) else DDZColor.Card.copy(alpha = 0.5f), BottomEditorToolShape)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                imageVector = if (value) Icons.Filled.Check else Icons.Filled.Remove,
+                contentDescription = label,
+                tint = if (value) DDZColor.PrimaryDark else DDZColor.TextMuted,
+                modifier = Modifier.size(14.dp)
+            )
+            Text(label, style = DDZTypography.Caption, color = if (value) DDZColor.PrimaryDark else DDZColor.TextMuted)
+        }
+    }
+
+    @Composable
+    fun RatioLockTool() {
+        CompactBinaryAction(
+            modifier = Modifier,
+            label = "비율 고정",
+            value = isWmRatioLocked,
+            onClick = { onSetWmRatioLocked(!isWmRatioLocked) }
+        )
+    }
+
+    @Composable
+    fun RatioSliderRow(label: String, value: Int, onValueChange: (Int) -> Unit) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                label,
+                modifier = Modifier.width(24.dp),
+                style = DDZTypography.Caption,
+                color = DDZColor.TextMuted
+            )
+            Slider(
+                modifier = Modifier.weight(1f),
+                value = value.toFloat(),
+                onValueChange = { onValueChange(it.toInt().coerceIn(10, 100)) },
+                valueRange = 10f..100f
+            )
+            Text(
+                "${value}%",
+                modifier = Modifier.width(38.dp),
+                style = DDZTypography.Caption,
+                color = DDZColor.TextMuted
+            )
         }
     }
 
@@ -274,9 +363,9 @@ internal fun BottomEditorPanel(
                         .fillMaxWidth()
                         .weight(1f, fill = false)
                         .verticalScroll(modeScroll),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Spacer(Modifier.size(2.dp))
+                    Spacer(Modifier.size(1.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         CompactIconAction(modifier = Modifier.weight(1f), label = "행 추가", icon = Icons.Filled.ViewStream, onClick = onAddRow)
                         CompactIconAction(modifier = Modifier.weight(1f), label = "행 삭제", icon = Icons.Filled.Remove, enabled = rows > 1, onClick = onRemoveRow)
@@ -293,64 +382,14 @@ internal fun BottomEditorPanel(
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text("표 크기", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                        Spacer(Modifier.weight(1f))
-                        if (isWmRatioLocked) {
-                            Button(
-                                onClick = { onSetWmRatioLocked(false) },
-                                modifier = Modifier.height(32.dp)
-                            ) {
-                                Text("비율고정", style = DDZTypography.Caption)
-                            }
-                        } else {
-                            OutlinedButton(
-                                onClick = { onSetWmRatioLocked(true) },
-                                modifier = Modifier.height(32.dp)
-                            ) {
-                                Text("비율고정", style = DDZTypography.Caption)
-                            }
-                        }
+                        RatioLockTool()
                     }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            "가로(${wmWidthRatio}%)",
-                            modifier = Modifier.width(74.dp),
-                            style = DDZTypography.Caption,
-                            color = DDZColor.TextPrimary
-                        )
-                        Slider(
-                            modifier = Modifier.weight(1f),
-                            value = wmWidthRatio.toFloat(),
-                            onValueChange = { onSetWmWidthRatio(it.toInt().coerceIn(10, 100)) },
-                            valueRange = 10f..100f
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            "세로(${wmHeightRatio}%)",
-                            modifier = Modifier.width(74.dp),
-                            style = DDZTypography.Caption,
-                            color = DDZColor.TextPrimary
-                        )
-                        Slider(
-                            modifier = Modifier.weight(1f),
-                            value = wmHeightRatio.toFloat(),
-                            onValueChange = { onSetWmHeightRatio(it.toInt().coerceIn(10, 100)) },
-                            valueRange = 10f..100f
-                        )
-                    }
+                    RatioSliderRow(label = "가로", value = wmWidthRatio, onValueChange = onSetWmWidthRatio)
+                    RatioSliderRow(label = "세로", value = wmHeightRatio, onValueChange = onSetWmHeightRatio)
                 }
             }
             BottomEditorPanelMode.STYLE_EDIT -> {
@@ -364,11 +403,11 @@ internal fun BottomEditorPanel(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Spacer(Modifier.size(2.dp))
-                    Text("배경 스타일 (현재: ${if (wmBgStyle == 0) "블랙" else if (wmBgStyle == 1) "화이트" else "투명"})", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    Text("배경 스타일", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetBgStyle(0) }) { Text("블랙") }
-                        OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetBgStyle(1) }) { Text("화이트") }
-                        OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetBgStyle(2) }) { Text("투명") }
+                        CompactTextAction(modifier = Modifier.weight(1f), label = "블랙", selected = wmBgStyle == 0, onClick = { onSetBgStyle(0) })
+                        CompactTextAction(modifier = Modifier.weight(1f), label = "화이트", selected = wmBgStyle == 1, onClick = { onSetBgStyle(1) })
+                        CompactTextAction(modifier = Modifier.weight(1f), label = "투명", selected = wmBgStyle == 2, onClick = { onSetBgStyle(2) })
                     }
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("그리드", style = DDZTypography.Body, color = DDZColor.TextPrimary)
@@ -376,23 +415,26 @@ internal fun BottomEditorPanel(
                     }
                     Text("글씨 색", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetTextColorMode(0) }) { Text("자동") }
-                        OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetTextColorMode(1) }) { Text("수동") }
+                        CompactTextAction(modifier = Modifier.weight(1f), label = "자동", selected = wmTextColorMode == 0, onClick = { onSetTextColorMode(0) })
+                        CompactTextAction(modifier = Modifier.weight(1f), label = "수동", selected = wmTextColorMode == 1, onClick = { onSetTextColorMode(1) })
                         if (wmTextColorMode == 1) {
-                            OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetManualTextColor(if (wmManualTextColor == 0) 1 else 0) }) {
-                                Text(if (wmManualTextColor == 0) "흰색" else "검정")
-                            }
+                            CompactTextAction(
+                                modifier = Modifier.weight(1f),
+                                label = if (wmManualTextColor == 0) "흰색" else "검정",
+                                selected = true,
+                                onClick = { onSetManualTextColor(if (wmManualTextColor == 0) 1 else 0) }
+                            )
                         }
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetValueScale((wmValueScale - 10).coerceAtLeast(60)) }) { Text("글씨 -") }
-                        OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetValueScale((wmValueScale + 10).coerceAtMost(160)) }) { Text("글씨 +") }
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "글씨 -", icon = Icons.Filled.Remove, onClick = { onSetValueScale((wmValueScale - 10).coerceAtLeast(60)) })
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "글씨 +", icon = Icons.Filled.Add, onClick = { onSetValueScale((wmValueScale + 10).coerceAtMost(160)) })
                     }
-                    Text("정렬 (현재: ${if (wmTextAlign == 0) "좌" else if (wmTextAlign == 1) "중" else "우"})", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    Text("정렬", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetTextAlign(0) }) { Text("좌") }
-                        OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetTextAlign(1) }) { Text("중") }
-                        OutlinedButton(modifier = Modifier.weight(1f), onClick = { onSetTextAlign(2) }) { Text("우") }
+                        CompactTextAction(modifier = Modifier.weight(1f), label = "좌", selected = wmTextAlign == 0, onClick = { onSetTextAlign(0) })
+                        CompactTextAction(modifier = Modifier.weight(1f), label = "중", selected = wmTextAlign == 1, onClick = { onSetTextAlign(1) })
+                        CompactTextAction(modifier = Modifier.weight(1f), label = "우", selected = wmTextAlign == 2, onClick = { onSetTextAlign(2) })
                     }
                 }
             }
@@ -462,15 +504,17 @@ internal fun BottomEditorPanel(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Button(
-                                        modifier = Modifier.width(56.dp).height(42.dp),
+                                    CompactIconAction(
+                                        modifier = Modifier.width(56.dp),
+                                        label = "-",
+                                        icon = Icons.Filled.Remove,
                                         onClick = {
                                             if (editingCellId != selectedCell.cellId) {
                                                 onStartInlineEditing(selectedCell.cellId, parsedCounter.toString())
                                             }
                                             onEditingValueChange((parsedCounter - 1).coerceAtLeast(1).toString())
                                         }
-                                    ) { Text("-") }
+                                    )
 
                                     OutlinedTextField(
                                         modifier = Modifier.weight(1f).height(46.dp),
@@ -498,15 +542,17 @@ internal fun BottomEditorPanel(
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                                     )
 
-                                    Button(
-                                        modifier = Modifier.width(56.dp).height(42.dp),
+                                    CompactIconAction(
+                                        modifier = Modifier.width(56.dp),
+                                        label = "+",
+                                        icon = Icons.Filled.Add,
                                         onClick = {
                                             if (editingCellId != selectedCell.cellId) {
                                                 onStartInlineEditing(selectedCell.cellId, parsedCounter.toString())
                                             }
                                             onEditingValueChange((parsedCounter + 1).toString())
                                         }
-                                    ) { Text("+") }
+                                    )
                                 }
                             }
 
@@ -738,11 +784,11 @@ internal fun BottomEditorPanel(
             HorizontalDivider(color = DDZColor.Border.copy(alpha = 0.75f), thickness = 1.dp)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                CompactIconAction(modifier = Modifier.weight(1f), label = "저장", icon = Icons.Filled.Save, enabled = !isSaving, onClick = onSave)
-                CompactIconAction(modifier = Modifier.weight(1f), label = "초기화", icon = Icons.Filled.Refresh, onClick = onReset)
-                CompactIconAction(modifier = Modifier.weight(1f), label = "Undo", icon = Icons.AutoMirrored.Filled.Undo, enabled = isUndoAvailable, onClick = onUndo)
+                CompactIconAction(modifier = Modifier.weight(1f), label = "저장", icon = Icons.Filled.Save, enabled = !isSaving, compact = true, onClick = onSave)
+                CompactIconAction(modifier = Modifier.weight(1f), label = "초기화", icon = Icons.Filled.Refresh, compact = true, onClick = onReset)
+                CompactIconAction(modifier = Modifier.weight(1f), label = "Undo", icon = Icons.AutoMirrored.Filled.Undo, enabled = isUndoAvailable, compact = true, onClick = onUndo)
             }
             if (isSaving) {
                 Row(
