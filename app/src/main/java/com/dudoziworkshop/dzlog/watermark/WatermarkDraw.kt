@@ -12,7 +12,7 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
-import kotlin.math.abs
+import com.dudoziworkshop.dzlog.feature.table.render.computeRenderGridGeometry
 
 private const val BG_STYLE_BLACK = 0
 private const val BG_STYLE_WHITE = 1
@@ -259,28 +259,6 @@ private fun drawGridLines(
     }
 }
 
-private fun resolveWeightsOrOnes(weights: List<Float>?, n: Int): List<Float> {
-    if (n <= 0) return emptyList()
-    if (weights == null || weights.size != n) return List(n) { 1f }
-    return weights.map { it.coerceAtLeast(0f) }
-}
-
-private fun computeSizes(total: Float, weights: List<Float>): List<Float> {
-    val n = weights.size.coerceAtLeast(1)
-    val sum = weights.sum()
-    if (abs(sum) < 1e-6f) {
-        val each = total / n
-        val sizes = MutableList(n) { each }
-        val diff = total - sizes.sum()
-        sizes[n - 1] = sizes[n - 1] + diff
-        return sizes
-    }
-    val sizes = MutableList(n) { idx -> total * (weights[idx] / sum) }
-    val diff = total - sizes.sum()
-    sizes[n - 1] = sizes[n - 1] + diff
-    return sizes
-}
-
 
 /**
  * 표 전체 공통 텍스트 기준 크기 계산.
@@ -416,15 +394,11 @@ private fun ellipsizeToWidth(text: String, paint: Paint, maxWidthPx: Float): Str
     return ellipsis
 }
 
-private fun computeOffsets(sizes: List<Float>): List<Float> {
-    val offsets = ArrayList<Float>(sizes.size + 1)
-    var acc = 0f
-    offsets.add(0f)
-    for (s in sizes) {
-        acc += s
-        offsets.add(acc)
+private fun sizesFromEdges(edges: List<Float>): List<Float> {
+    if (edges.size < 2) return emptyList()
+    return (0 until edges.lastIndex).map { index ->
+        edges[index + 1] - edges[index]
     }
-    return offsets
 }
 
 fun drawWatermarkTableFromResolvedCells(
@@ -501,10 +475,18 @@ fun drawWatermarkTableFromResolvedCells(
     val safeRows = rows.coerceAtLeast(1)
     val safeCols = cols.coerceAtLeast(1)
 
-    val rowHeights = computeSizes(tableH, resolveWeightsOrOnes(rowWeights, safeRows))
-    val colWidths = computeSizes(tableW, resolveWeightsOrOnes(colWeights, safeCols))
-    val rowOffsets = computeOffsets(rowHeights)
-    val colOffsets = computeOffsets(colWidths)
+    val grid = computeRenderGridGeometry(
+        rows = safeRows,
+        cols = safeCols,
+        rowWeights = rowWeights,
+        colWeights = colWeights,
+        tableWidthPx = tableW,
+        tableHeightPx = tableH,
+    )
+    val rowOffsets = grid.rowEdges
+    val colOffsets = grid.colEdges
+    val rowHeights = sizesFromEdges(rowOffsets)
+    val colWidths = sizesFromEdges(colOffsets)
 
     if (drawGrid) {
         drawGridLines(canvas, left, top, tableW, tableH, rowOffsets, colOffsets, bgStyle)
@@ -626,10 +608,18 @@ fun drawWatermarkTableOnCanvas(
     val safeRows = rows.coerceAtLeast(1)
     val safeCols = cols.coerceAtLeast(1)
 
-    val rowHeights = computeSizes(tableH, resolveWeightsOrOnes(rowWeights, safeRows))
-    val colWidths = computeSizes(tableW, resolveWeightsOrOnes(colWeights, safeCols))
-    val rowOffsets = computeOffsets(rowHeights)
-    val colOffsets = computeOffsets(colWidths)
+    val grid = computeRenderGridGeometry(
+        rows = safeRows,
+        cols = safeCols,
+        rowWeights = rowWeights,
+        colWeights = colWeights,
+        tableWidthPx = tableW,
+        tableHeightPx = tableH,
+    )
+    val rowOffsets = grid.rowEdges
+    val colOffsets = grid.colEdges
+    val rowHeights = sizesFromEdges(rowOffsets)
+    val colWidths = sizesFromEdges(colOffsets)
 
     if (drawGrid) {
         drawGridLines(canvas, left, top, tableW, tableH, rowOffsets, colOffsets, bgStyle)
@@ -680,4 +670,77 @@ fun drawWatermarkTableOnCanvas(
     }
 
     if (shouldRotate) canvas.restore()
+}
+
+fun drawWatermarkTableOnCanvasWithResolvedGeometry(
+    canvas: Canvas,
+    tableRect: RectF,
+    rowEdges: List<Float>,
+    colEdges: List<Float>,
+    cells: List<WatermarkCell>,
+    rows: Int,
+    cols: Int,
+    bgAlpha: Int,
+    valueScale: Int,
+    textColorMode: Int = WatermarkTextColorMode.AUTO,
+    manualTextColor: Int = WatermarkManualTextColor.BLACK,
+    textAlign: Int = WatermarkTextAlign.LEFT,
+    bgStyle: Int = BG_STYLE_BLACK,
+    drawGrid: Boolean = true,
+    placeholderCellIndexes: Set<Int> = emptySet(),
+    placeholderTextColorArgb: Int? = null,
+) {
+    val safeRows = rows.coerceAtLeast(1)
+    val safeCols = cols.coerceAtLeast(1)
+    if (rowEdges.size < safeRows + 1 || colEdges.size < safeCols + 1) return
+
+    val tableW = tableRect.width()
+    val tableH = tableRect.height()
+    val left = tableRect.left
+    val top = tableRect.top
+
+    drawBackgroundRect(canvas, left, top, tableW, tableH, bgAlpha, bgStyle)
+
+    if (drawGrid) {
+        drawGridLines(canvas, left, top, tableW, tableH, rowEdges, colEdges, bgStyle)
+    }
+
+    val rowHeights = sizesFromEdges(rowEdges)
+    val colWidths = sizesFromEdges(colEdges)
+    val commonScaledTextSize = applyValueScaleFactor(
+        baseTextSize = computeBaseTextSizeFromRenderedTable(
+            tableWidth = tableW,
+            tableHeight = tableH,
+            rows = safeRows,
+            cols = safeCols,
+        ),
+        valueScale = valueScale,
+    )
+    val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = resolveValueTextColor(bgStyle, textColorMode, manualTextColor)
+        typeface = Typeface.DEFAULT_BOLD
+        textSize = commonScaledTextSize
+    }
+    val cellTextPadding = resolveCellTextPadding(tableH)
+
+    for (r in 0 until safeRows) {
+        for (c in 0 until safeCols) {
+            val idx = r * safeCols + c
+            if (idx !in cells.indices) continue
+            val x = left + colEdges[c]
+            val y = top + rowEdges[r]
+            val cellRect = RectF(x, y, x + colWidths[c], y + rowHeights[r])
+            drawCellValueText(
+                canvas = canvas,
+                paint = valuePaint,
+                cellRect = cellRect,
+                cellText = cells[idx].valueText,
+                textAlign = textAlign,
+                commonScaledTextSize = commonScaledTextSize,
+                cellTextPadding = cellTextPadding,
+                isPlaceholder = idx in placeholderCellIndexes,
+                placeholderTextColorArgb = placeholderTextColorArgb,
+            )
+        }
+    }
 }

@@ -137,9 +137,13 @@ class TableStructureRangeActionsTest {
     }
 
     private fun template3x3(): TableTemplateState {
+        return template(rows = 3, cols = 3)
+    }
+
+    private fun template(rows: Int, cols: Int): TableTemplateState {
         val cells = buildList {
-            for (row in 0 until 3) {
-                for (col in 0 until 3) {
+            for (row in 0 until rows) {
+                for (col in 0 until cols) {
                     add(
                         TableCellState(
                             rowIndex = row,
@@ -150,7 +154,7 @@ class TableStructureRangeActionsTest {
                 }
             }
         }
-        return TableTemplateState(rows = 3, cols = 3, cells = cells)
+        return TableTemplateState(rows = rows, cols = cols, cells = cells)
     }
 
     private fun cellAt(cells: List<TableCellState>, row: Int, col: Int): TableCellState {

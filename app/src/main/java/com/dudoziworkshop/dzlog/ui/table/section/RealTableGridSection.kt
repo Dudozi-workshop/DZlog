@@ -29,28 +29,35 @@ import androidx.compose.ui.zIndex
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.model.derivePathSlotIndexByCellId
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.feature.table.editor.TableStructureRangeActions
 import com.dudoziworkshop.dzlog.feature.table.render.ContentDrivenLayoutCell
+import com.dudoziworkshop.dzlog.feature.table.render.RenderRootCell
+import com.dudoziworkshop.dzlog.feature.table.render.RenderRootRect
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
-import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
+import com.dudoziworkshop.dzlog.feature.table.render.buildRenderedTableScene
 import com.dudoziworkshop.dzlog.feature.table.render.computeContentDrivenLayout
-import com.dudoziworkshop.dzlog.feature.table.render.spanSize
 import com.dudoziworkshop.dzlog.feature.table.render.toRelativeWeights
 import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadgesOverlay
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
 private val STRUCTURE_PREVIEW_WORKING_INSET_DP = 10.dp
+private const val DEBUG_ROOT_HIT_RECTS = false
 
 private data class CellRenderEntry(
     val cell: TableCellState,
     val displayText: String,
     val isPlaceholder: Boolean,
+)
+
+private data class TablePreviewGeometry(
+    val tableRect: RectF,
+    val rowSizes: List<Float>,
+    val colSizes: List<Float>,
 )
 
 /**
@@ -94,6 +101,7 @@ fun RealTableGridSection(
         }
     }
     val rootCells = remember(templateState.cells) { TableStructureRangeActions.rootCells(templateState.cells) }
+    val rootCellById = remember(rootCells) { rootCells.associateBy { it.cellId } }
     val placeholderCellIndexes = remember(cellRenderEntries) {
         buildSet {
             cellRenderEntries.forEachIndexed { index, entry ->
@@ -162,34 +170,49 @@ fun RealTableGridSection(
             )
         }
 
-        val tableWidthPx = (layout.contentWidthPx * layout.scale).coerceAtMost(workingWidthPx)
-        val tableHeightPx = (layout.contentHeightPx * layout.scale).coerceAtMost(workingHeightPx)
-        val tableLeftPx = (workingLeftPx + (workingWidthPx - tableWidthPx) / 2f).coerceAtLeast(0f)
-        val tableTopPx = (workingTopPx + (workingHeightPx - tableHeightPx) / 2f).coerceAtLeast(0f)
-        val rowSizes = remember(layout, tableHeightPx) { layout.rowHeightsPx.map { it * layout.scale } }
-        val colSizes = remember(layout, tableWidthPx) { layout.colWidthsPx.map { it * layout.scale } }
-        val rowOffsets = remember(rowSizes) { cumulativeOffsets(rowSizes) }
-        val colOffsets = remember(colSizes) { cumulativeOffsets(colSizes) }
-        val rowWeights = remember(rowSizes) { toRelativeWeights(rowSizes) }
-        val colWeights = remember(colSizes) { toRelativeWeights(colSizes) }
+        val geometry = remember(layout, workingLeftPx, workingTopPx, workingWidthPx, workingHeightPx) {
+            buildPreviewGeometry(
+                layout = layout,
+                workingLeftPx = workingLeftPx,
+                workingTopPx = workingTopPx,
+                workingWidthPx = workingWidthPx,
+                workingHeightPx = workingHeightPx,
+            )
+        }
+        val rowWeights = remember(geometry.rowSizes) { toRelativeWeights(geometry.rowSizes) }
+        val colWeights = remember(geometry.colSizes) { toRelativeWeights(geometry.colSizes) }
+        val renderBounds = geometry.tableRect
+        val sceneRootCells = remember(rootCells) {
+            rootCells.map { cell ->
+                RenderRootCell(
+                    cellId = cell.cellId,
+                    rowIndex = cell.rowIndex,
+                    colIndex = cell.colIndex,
+                    rowSpan = cell.rowSpan,
+                    colSpan = cell.colSpan,
+                )
+            }
+        }
+        val renderedScene = remember(rows, cols, rowWeights, colWeights, renderBounds, sceneRootCells) {
+            buildRenderedTableScene(
+                tableRect = renderBounds,
+                rows = rows,
+                cols = cols,
+                rowWeights = rowWeights,
+                colWeights = colWeights,
+                rootCells = sceneRootCells,
+            )
+        }
+        val rootHitRects = renderedScene.rootRects
 
         // 실제 프리뷰와 동일한 표 렌더 코어를 Layout 편집영역에도 재사용.
         Canvas(modifier = Modifier.fillMaxSize()) {
-            if (tableWidthPx <= 0f || tableHeightPx <= 0f) return@Canvas
-
-            // drawWatermarkTableOnCanvas는 bounds.width를 base로 table 크기를 계산한다.
-            // 따라서 width 기준 base만 역산하고, 목표 높이는 실제 fit 높이(tableHeightPx)를 직접 사용한다.
-            val bounds = RectF(
-                tableLeftPx,
-                tableTopPx,
-                tableLeftPx + tableWidthPx,
-                tableTopPx + tableHeightPx
-            )
+            if (renderBounds.width() <= 0f || renderBounds.height() <= 0f) return@Canvas
 
             drawIntoCanvas { canvas ->
-                TableRenderAdapter.draw(
+                TableRenderAdapter.drawScene(
                     canvas = canvas.nativeCanvas,
-                    bounds = bounds,
+                    scene = renderedScene,
                     payload = TableRenderPayload(
                         rows = rows,
                         cols = cols,
@@ -208,36 +231,28 @@ fun RealTableGridSection(
                         drawGrid = wmGridEnabled,
                         placeholderTextColorArgb = placeholderTextColorArgb,
                     ),
-                    placement = TableRenderPlacement(
-                        anchor = WatermarkTableAnchor.TOP_LEFT,
-                        offsetXRatio = 0,
-                        offsetYRatio = 0,
-                        tableHeightRatio = 100,
-                        tableWidthRatio = 100,
-                    ),
                 )
             }
 
             // 편집 화면 선택 강조:
             // - 테이블 테마(밝음/어두움)에 맞춰 fill/border 색을 분기해 가독성을 유지한다.
-            val effectiveSelectionIds = if (isStructureMode && structureSelectedCellIds.isNotEmpty()) {
-                structureSelectedCellIds
-            } else {
-                selectedCellId?.let { setOf(it) } ?: emptySet()
-            }
-            effectiveSelectionIds.forEach { selectedId ->
-                val selected = templateState.cells.firstOrNull { it.cellId == selectedId } ?: return@forEach
-                val root = TableStructureRangeActions.resolveRootCell(templateState.cells, selected)
-                val l = tableLeftPx + colOffsets[root.colIndex]
-                val t = tableTopPx + rowOffsets[root.rowIndex]
-                val spanW = spanSize(root.colIndex, root.colSpan, colSizes)
-                val spanH = spanSize(root.rowIndex, root.rowSpan, rowSizes)
+                val effectiveSelectionIds = if (isStructureMode && structureSelectedCellIds.isNotEmpty()) {
+                    structureSelectedCellIds
+                } else {
+                    selectedCellId?.let { setOf(it) } ?: emptySet()
+                }
+                effectiveSelectionIds.forEach { selectedId ->
+                    val rect = rootHitRects.firstOrNull { it.cellId == selectedId } ?: return@forEach
+                    val l = renderedScene.tableRect.left + rect.left
+                    val t = renderedScene.tableRect.top + rect.top
+                val spanW = rect.right - rect.left
+                val spanH = rect.bottom - rect.top
                 drawRect(
                     color = if (isStructureMode) selectedFillColor.copy(alpha = 0.14f) else selectedFillColor,
                     topLeft = Offset(l, t),
                     size = androidx.compose.ui.geometry.Size(spanW, spanH)
                 )
-                val selectionStrokeWidth = if (selected.cellId == editingCellId) 4f else 3f
+                val selectionStrokeWidth = if (selectedId == editingCellId) 4f else 3f
                 drawRect(
                     color = selectedBorderColor,
                     topLeft = Offset(l, t),
@@ -245,15 +260,28 @@ fun RealTableGridSection(
                     style = androidx.compose.ui.graphics.drawscope.Stroke(width = selectionStrokeWidth)
                 )
             }
+
+                if (isStructureMode && DEBUG_ROOT_HIT_RECTS) {
+                    rootHitRects.forEach { rect ->
+                        drawRect(
+                            color = Color.Red.copy(alpha = 0.75f),
+                            topLeft = Offset(renderedScene.tableRect.left + rect.left, renderedScene.tableRect.top + rect.top),
+                        size = androidx.compose.ui.geometry.Size(
+                            rect.right - rect.left,
+                            rect.bottom - rect.top,
+                        ),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
+                    )
+                }
+            }
         }
 
-        rootCells.forEach { cell ->
-            if (cell.rowIndex !in 0 until rows || cell.colIndex !in 0 until cols) return@forEach
-
-            val cellX = tableLeftPx + colOffsets[cell.colIndex]
-            val cellY = tableTopPx + rowOffsets[cell.rowIndex]
-            val cellW = spanSize(cell.colIndex, cell.colSpan, colSizes)
-            val cellH = spanSize(cell.rowIndex, cell.rowSpan, rowSizes)
+        rootHitRects.forEach { rect ->
+            val cell = rootCellById[rect.cellId] ?: return@forEach
+            val cellX = renderedScene.tableRect.left + rect.left
+            val cellY = renderedScene.tableRect.top + rect.top
+            val cellW = rect.right - rect.left
+            val cellH = rect.bottom - rect.top
             val nameIdx = deriveFileNameCellSlotsFromDrafts(templateState.fileNameSlotDrafts).indexOf(cell.cellId).takeIf { it >= 0 }
             val pathIdx = derivePathSlotIndexByCellId(templateState.pathSlotDrafts, cell.cellId)
 
@@ -294,31 +322,27 @@ fun RealTableGridSection(
             Box(
                 modifier = Modifier
                     .offset(
-                        x = with(density) { tableLeftPx.toDp() },
-                        y = with(density) { tableTopPx.toDp() }
+                        x = with(density) { renderedScene.tableRect.left.toDp() },
+                        y = with(density) { renderedScene.tableRect.top.toDp() }
                     )
-                    .width(with(density) { tableWidthPx.toDp() })
-                    .height(with(density) { tableHeightPx.toDp() })
+                    .width(with(density) { renderedScene.tableRect.width().toDp() })
+                    .height(with(density) { renderedScene.tableRect.height().toDp() })
                     .zIndex(2f)
-                    .pointerInput(rows, cols, rowOffsets, colOffsets) {
+                    .pointerInput(rows, cols, rootHitRects, renderedScene.tableRect) {
                         detectTapGestures { offset ->
-                            cellIdFromOffset(
-                                cells = templateState.cells,
-                                colOffsets = colOffsets,
-                                rowOffsets = rowOffsets,
+                            hitTestRootCellId(
+                                rootRects = rootHitRects,
                                 localX = offset.x,
                                 localY = offset.y,
-                                )?.let(onSelectCell)
+                            )?.let(onSelectCell)
                         }
                     }
-                    .pointerInput(rows, cols, rowOffsets, colOffsets) {
+                    .pointerInput(rows, cols, rootHitRects) {
                         var startCellId: String? = null
                         detectDragGestures(
                             onDragStart = { offset ->
-                                startCellId = cellIdFromOffset(
-                                    cells = templateState.cells,
-                                    colOffsets = colOffsets,
-                                    rowOffsets = rowOffsets,
+                                startCellId = hitTestRootCellId(
+                                    rootRects = rootHitRects,
                                     localX = offset.x,
                                     localY = offset.y,
                                 )
@@ -327,10 +351,8 @@ fun RealTableGridSection(
                             onDrag = { change, _ ->
                                 change.consume()
                                 val start = startCellId ?: return@detectDragGestures
-                                val end = cellIdFromOffset(
-                                    cells = templateState.cells,
-                                    colOffsets = colOffsets,
-                                    rowOffsets = rowOffsets,
+                                val end = hitTestRootCellId(
+                                    rootRects = rootHitRects,
                                     localX = change.position.x,
                                     localY = change.position.y,
                                     clampToBounds = true,
@@ -344,12 +366,63 @@ fun RealTableGridSection(
     }
 }
 
-private fun cumulativeOffsets(sizes: List<Float>): List<Float> {
-    val offsets = MutableList(sizes.size + 1) { 0f }
-    for (idx in sizes.indices) {
-        offsets[idx + 1] = offsets[idx] + sizes[idx]
+private fun buildPreviewGeometry(
+    layout: com.dudoziworkshop.dzlog.feature.table.render.ContentDrivenLayout,
+    workingLeftPx: Float,
+    workingTopPx: Float,
+    workingWidthPx: Float,
+    workingHeightPx: Float,
+): TablePreviewGeometry {
+    val rawWidth = (layout.contentWidthPx * layout.scale).coerceAtLeast(0f)
+    val rawHeight = (layout.contentHeightPx * layout.scale).coerceAtLeast(0f)
+    val widthFit = if (rawWidth > 0f) (workingWidthPx / rawWidth) else 1f
+    val heightFit = if (rawHeight > 0f) (workingHeightPx / rawHeight) else 1f
+    val fitScale = minOf(1f, widthFit, heightFit).coerceAtLeast(0f)
+    val effectiveScale = layout.scale * fitScale
+
+    val rowSizes = layout.rowHeightsPx.map { it * effectiveScale }
+    val colSizes = layout.colWidthsPx.map { it * effectiveScale }
+    val tableWidthPx = colSizes.sum().coerceAtMost(workingWidthPx).coerceAtLeast(0f)
+    val tableHeightPx = rowSizes.sum().coerceAtMost(workingHeightPx).coerceAtLeast(0f)
+    val tableLeftPx = (workingLeftPx + (workingWidthPx - tableWidthPx) / 2f).coerceAtLeast(0f)
+    val tableTopPx = (workingTopPx + (workingHeightPx - tableHeightPx) / 2f).coerceAtLeast(0f)
+
+    return TablePreviewGeometry(
+        tableRect = RectF(
+            tableLeftPx,
+            tableTopPx,
+            tableLeftPx + tableWidthPx,
+            tableTopPx + tableHeightPx,
+        ),
+        rowSizes = rowSizes,
+        colSizes = colSizes,
+    )
+}
+
+private fun hitTestRootCellId(
+    rootRects: List<RenderRootRect>,
+    localX: Float,
+    localY: Float,
+    clampToBounds: Boolean = false,
+): String? {
+    if (rootRects.isEmpty()) return null
+    val maxRight = rootRects.maxOf { it.right }
+    val maxBottom = rootRects.maxOf { it.bottom }
+    val x = when {
+        clampToBounds -> localX.coerceIn(0f, maxRight)
+        localX !in 0f..maxRight -> return null
+        else -> localX
     }
-    return offsets
+    val y = when {
+        clampToBounds -> localY.coerceIn(0f, maxBottom)
+        localY !in 0f..maxBottom -> return null
+        else -> localY
+    }
+    return rootRects.firstOrNull { rect ->
+        val containsX = if (x == maxRight) x >= rect.left && x <= rect.right else x >= rect.left && x < rect.right
+        val containsY = if (y == maxBottom) y >= rect.top && y <= rect.bottom else y >= rect.top && y < rect.bottom
+        containsX && containsY
+    }?.cellId
 }
 
 private fun dataTypeLabelKo(dataType: TableCellDataType): String =
@@ -361,41 +434,3 @@ private fun dataTypeLabelKo(dataType: TableCellDataType): String =
         TableCellDataType.TIME -> "시간"
         TableCellDataType.ROTATING_TEXT -> "순환텍스트"
     }
-
-private fun cellIdFromOffset(
-    cells: List<TableCellState>,
-    colOffsets: List<Float>,
-    rowOffsets: List<Float>,
-    localX: Float,
-    localY: Float,
-    clampToBounds: Boolean = false,
-): String? {
-    if (colOffsets.size < 2 || rowOffsets.size < 2) return null
-    val maxX = colOffsets.last()
-    val maxY = rowOffsets.last()
-    val adjustedX = when {
-        clampToBounds -> localX.coerceIn(0f, maxX)
-        localX !in 0f..maxX -> return null
-        else -> localX
-    }
-    val adjustedY = when {
-        clampToBounds -> localY.coerceIn(0f, maxY)
-        localY !in 0f..maxY -> return null
-        else -> localY
-    }
-
-    val colIndex = findIndexByOffsets(adjustedX, colOffsets) ?: return null
-    val rowIndex = findIndexByOffsets(adjustedY, rowOffsets) ?: return null
-    val tapped = cells.firstOrNull { it.rowIndex == rowIndex && it.colIndex == colIndex } ?: return null
-    return TableStructureRangeActions.resolveRootCell(cells, tapped).cellId
-}
-
-private fun findIndexByOffsets(value: Float, offsets: List<Float>): Int? {
-    if (offsets.size < 2) return null
-    val lastBoundary = offsets.last()
-    if (value !in 0f..lastBoundary) return null
-    if (value == lastBoundary) return offsets.lastIndex - 1
-    return (0 until offsets.lastIndex).firstOrNull { idx ->
-        value >= offsets[idx] && value < offsets[idx + 1]
-    }
-}
