@@ -24,14 +24,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Hd
+import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Vibration
-import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -46,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,6 +65,9 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.launch
+
+private val SettingsCardShape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+private val SettingsOptionShape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
 
 private val SETTINGS_QUALITY_ITEMS = listOf(
     QualityUiItem(
@@ -378,7 +382,7 @@ private fun SectionBlock(
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            shape = SettingsCardShape,
             color = DDZColor.Card,
             border = BorderStroke(1.dp, DDZColor.Border)
         ) {
@@ -399,8 +403,9 @@ private fun CreditsEntryRow(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(SettingsCardShape)
             .clickable(onClick = onClick),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        shape = SettingsCardShape,
         color = DDZColor.Card,
         border = BorderStroke(1.dp, DDZColor.Border)
     ) {
@@ -498,8 +503,9 @@ private fun QualityOptionRow(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(SettingsOptionShape)
             .clickable(onClick = onClick),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+        shape = SettingsOptionShape,
         color = selectedBg,
         border = BorderStroke(1.dp, borderColor)
     ) {
@@ -565,8 +571,9 @@ private fun ToggleCardRow(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(SettingsOptionShape)
             .clickable(onClick = onToggle),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+        shape = SettingsOptionShape,
         color = selectedBg,
         border = BorderStroke(1.dp, borderColor)
     ) {

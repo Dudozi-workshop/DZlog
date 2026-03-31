@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -70,6 +71,7 @@ internal fun ZoomQuickPanelCore(
     Box(
         modifier = Modifier
             .defaultMinSize(minWidth = DDZLayout.Control.Standard, minHeight = DDZLayout.Control.Standard)
+            .clip(CHIP_SHAPE)
             .background(DDZColor.Surface.copy(alpha = 0.95f), CHIP_SHAPE)
             .border(1.dp, DDZColor.SageBorder, CHIP_SHAPE)
             .clickable(onClick = onToggleExpanded)
@@ -111,6 +113,7 @@ internal fun ZoomDetailExtraSection(
 
             Box(
                 modifier = Modifier
+                    .clip(CHIP_SHAPE)
                     .background(color = presetBackground, shape = CHIP_SHAPE)
                     .border(1.dp, presetBorder, CHIP_SHAPE)
                     .clickable {

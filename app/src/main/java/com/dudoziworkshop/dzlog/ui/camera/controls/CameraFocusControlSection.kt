@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -28,6 +29,8 @@ import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+
+private val FocusChipShape = RoundedCornerShape(DDZLayout.Radius.Full)
 
 @Composable
 internal fun CameraFocusControlSection(
@@ -80,8 +83,9 @@ internal fun FocusQuickPanelCore(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier
-                .background(DDZColor.Surface.copy(alpha = 0.95f), RoundedCornerShape(DDZLayout.Radius.Full))
-                .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(DDZLayout.Radius.Full))
+                .clip(FocusChipShape)
+                .background(DDZColor.Surface.copy(alpha = 0.95f), FocusChipShape)
+                .border(1.dp, DDZColor.SageBorder, FocusChipShape)
                 .clickable(onClick = onToggleExpanded)
                 .padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
@@ -104,8 +108,9 @@ internal fun FocusQuickPanelCore(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
-            .background(DDZColor.Surface.copy(alpha = 0.95f), RoundedCornerShape(DDZLayout.Radius.Full))
-            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(DDZLayout.Radius.Full))
+            .clip(FocusChipShape)
+            .background(DDZColor.Surface.copy(alpha = 0.95f), FocusChipShape)
+            .border(1.dp, DDZColor.SageBorder, FocusChipShape)
             .clickable {
                 val toggled = if (mode == CameraFocusMode.AUTO) CameraFocusMode.MANUAL else CameraFocusMode.AUTO
                 onModeChange(toggled)
@@ -136,8 +141,9 @@ internal fun FocusDetailExtraSection(
     Box(
         modifier = Modifier
             .defaultMinSize(minWidth = DDZLayout.Control.Standard, minHeight = DDZLayout.Control.Standard)
-            .background(DDZColor.Surface.copy(alpha = 0.96f), RoundedCornerShape(DDZLayout.Radius.Full))
-            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(DDZLayout.Radius.Full))
+            .clip(FocusChipShape)
+            .background(DDZColor.Surface.copy(alpha = 0.96f), FocusChipShape)
+            .border(1.dp, DDZColor.SageBorder, FocusChipShape)
             .padding(horizontal = 10.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -177,7 +183,8 @@ private fun FocusModeLabel(
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .background(background, RoundedCornerShape(DDZLayout.Radius.Full))
+            .clip(FocusChipShape)
+            .background(background, FocusChipShape)
             .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
         Text(

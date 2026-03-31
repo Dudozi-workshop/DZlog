@@ -41,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
@@ -60,6 +61,9 @@ import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import java.util.Date
+
+private val BottomEditorTabShape = RoundedCornerShape(10.dp)
+private val BottomEditorSlotShape = RoundedCornerShape(12.dp)
 
 @Composable
 internal fun BottomEditorPanel(
@@ -199,8 +203,9 @@ internal fun BottomEditorPanel(
                         text = label,
                         modifier = Modifier
                             .weight(1f)
-                            .background(bgColor, RoundedCornerShape(10.dp))
-                            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+                            .clip(BottomEditorTabShape)
+                            .background(bgColor, BottomEditorTabShape)
+                            .border(1.dp, borderColor, BottomEditorTabShape)
                             .clickable {
                                 when (mode) {
                                     BottomEditorPanelMode.CELL_EDIT -> onOpenCellMode()
@@ -574,8 +579,9 @@ internal fun BottomEditorPanel(
                         val resolvedValue = fileNameSimpleValue(slot, resolvedByCellId, resolvedCells, previewNow, dateFormat, timeFormat)
                         Box(
                             modifier = Modifier.weight(1f)
-                                .background(if (isSelected) DDZColor.PrimaryDark.copy(alpha = 0.20f) else DDZColor.Card.copy(alpha = 0.75f), RoundedCornerShape(12.dp))
-                                .border(1.dp, if (isSelected) DDZColor.Primary else DDZColor.Border, RoundedCornerShape(12.dp))
+                                .clip(BottomEditorSlotShape)
+                                .background(if (isSelected) DDZColor.PrimaryDark.copy(alpha = 0.20f) else DDZColor.Card.copy(alpha = 0.75f), BottomEditorSlotShape)
+                                .border(1.dp, if (isSelected) DDZColor.Primary else DDZColor.Border, BottomEditorSlotShape)
                                 .clickable {
                                     onSelectFileNameSlot(index)
                                     if (slot == null) onFillEmptyFileNameSlot(index)
@@ -662,8 +668,9 @@ internal fun BottomEditorPanel(
                         val resolvedValue = pathSimpleValue(slot, resolvedByCellId, resolvedCells, previewNow, dateFormat, timeFormat)
                         Box(
                             modifier = Modifier.weight(1f)
-                                .background(if (isSelected) DDZColor.PrimaryDark.copy(alpha = 0.20f) else DDZColor.Card.copy(alpha = 0.75f), RoundedCornerShape(12.dp))
-                                .border(1.dp, if (isSelected) DDZColor.Primary else DDZColor.Border, RoundedCornerShape(12.dp))
+                                .clip(BottomEditorSlotShape)
+                                .background(if (isSelected) DDZColor.PrimaryDark.copy(alpha = 0.20f) else DDZColor.Card.copy(alpha = 0.75f), BottomEditorSlotShape)
+                                .border(1.dp, if (isSelected) DDZColor.Primary else DDZColor.Border, BottomEditorSlotShape)
                                 .clickable {
                                     onSelectPathSlot(index)
                                     if (slot == null) onFillEmptyPathSlot(index)
