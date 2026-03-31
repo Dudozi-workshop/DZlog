@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +47,23 @@ fun LayoutTabContent(
     val isInlineEditing = uiState.editingCellId != null
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        LaunchedEffect(uiState.bottomPanelMode, uiState.selectedCellId, uiState.templateState.cells) {
+            val isTableDetailMode =
+                uiState.bottomPanelMode == BottomEditorPanelMode.CELL_EDIT ||
+                    uiState.bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT ||
+                    uiState.bottomPanelMode == BottomEditorPanelMode.STYLE_EDIT
+            if (!isTableDetailMode || uiState.selectedCellId != null) return@LaunchedEffect
+            val firstCellId = uiState.templateState.cells
+                .minWithOrNull(
+                    compareBy<com.dudoziworkshop.dzlog.domain.model.TableCellState> { it.rowIndex }
+                        .thenBy { it.colIndex }
+                )
+                ?.cellId
+            if (firstCellId != null) {
+                actions.onSelectCellId(firstCellId)
+            }
+        }
+
         val density = LocalDensity.current
         var previewBottomPx by remember { mutableFloatStateOf(0f) }
         val screenHeightPx = with(density) { this@BoxWithConstraints.maxHeight.toPx() }
