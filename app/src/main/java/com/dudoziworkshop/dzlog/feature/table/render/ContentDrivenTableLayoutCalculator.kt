@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.feature.table.render
 
 import android.text.TextPaint
+import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 
 data class ContentDrivenLayoutCell(
     val rowIndex: Int,
@@ -17,6 +18,11 @@ data class ContentDrivenLayout(
     val contentWidthPx: Float,
     val contentHeightPx: Float,
     val scale: Float,
+)
+
+data class ResolvedRenderLayout(
+    val finalRowWeights: List<Float>,
+    val finalColWeights: List<Float>,
 )
 
 fun computeContentDrivenLayout(
@@ -75,4 +81,57 @@ fun spanSize(start: Int, span: Int, sizes: List<Float>): Float {
     return (start until (start + span))
         .sumOf { index -> sizes.getOrNull(index)?.toDouble() ?: 0.0 }
         .toFloat()
+}
+
+fun computeResolvedRenderLayout(
+    cells: List<WatermarkBuilder.WatermarkCell>,
+    rows: Int,
+    cols: Int,
+    valueScale: Int,
+    baseScaleRatio: Int = 100,
+    rootCells: List<RenderRootCell>? = null,
+): ResolvedRenderLayout {
+    val safeRows = rows.coerceAtLeast(1)
+    val safeCols = cols.coerceAtLeast(1)
+    val cellsByIndex = cells.withIndex().associate { it.index to it.value }
+    val rootByKey = rootCells?.associateBy { it.rowIndex to it.colIndex } ?: emptyMap()
+    val coveredKeys = buildSet {
+        rootCells?.forEach { root ->
+            for (row in root.rowIndex until (root.rowIndex + root.rowSpan).coerceAtMost(safeRows)) {
+                for (col in root.colIndex until (root.colIndex + root.colSpan).coerceAtMost(safeCols)) {
+                    if (row == root.rowIndex && col == root.colIndex) continue
+                    add(row to col)
+                }
+            }
+        }
+    }
+    val layoutCells = buildList(safeRows * safeCols) {
+        for (row in 0 until safeRows) {
+            for (col in 0 until safeCols) {
+                val idx = row * safeCols + col
+                val root = rootByKey[row to col]
+                add(
+                    ContentDrivenLayoutCell(
+                        rowIndex = row,
+                        colIndex = col,
+                        rowSpan = root?.rowSpan ?: 1,
+                        colSpan = root?.colSpan ?: 1,
+                        displayText = cellsByIndex[idx]?.valueText.orEmpty(),
+                        isCovered = (row to col) in coveredKeys,
+                    )
+                )
+            }
+        }
+    }
+    val layout = computeContentDrivenLayout(
+        cells = layoutCells,
+        rows = safeRows,
+        cols = safeCols,
+        baseScaleRatio = baseScaleRatio,
+        valueScale = valueScale,
+    )
+    return ResolvedRenderLayout(
+        finalRowWeights = toRelativeWeights(layout.rowHeightsPx),
+        finalColWeights = toRelativeWeights(layout.colWidthsPx),
+    )
 }

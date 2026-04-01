@@ -14,6 +14,7 @@ fun renderWatermarkForRequest(
     return renderer.renderTable(
         originalBmp = originalBmp,
         cells = cells,
+        templateCells = request.tableTemplate.cells,
         rows = request.tableTemplate.rows,
         cols = request.tableTemplate.cols,
         anchor = wm.anchor,

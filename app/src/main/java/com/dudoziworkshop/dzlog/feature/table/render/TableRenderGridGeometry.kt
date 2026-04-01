@@ -157,6 +157,33 @@ fun buildRenderedTableScene(
     )
 }
 
+fun buildRenderedTableSceneFromPlacement(
+    bounds: RectF,
+    placement: TableRenderPlacement,
+    rows: Int,
+    cols: Int,
+    rowWeights: List<Float>?,
+    colWeights: List<Float>?,
+    rootCells: List<RenderRootCell> = emptyList(),
+): RenderedTableScene {
+    val geometry = computeRenderedTableGeometry(
+        bounds = bounds,
+        placement = placement,
+        rows = rows.coerceAtLeast(1),
+        cols = cols.coerceAtLeast(1),
+        rowWeights = rowWeights,
+        colWeights = colWeights,
+    )
+    return buildRenderedTableScene(
+        tableRect = geometry.tableRect,
+        rows = rows,
+        cols = cols,
+        rowWeights = rowWeights,
+        colWeights = colWeights,
+        rootCells = rootCells,
+    )
+}
+
 fun computeRenderGridGeometry(
     rows: Int,
     cols: Int,

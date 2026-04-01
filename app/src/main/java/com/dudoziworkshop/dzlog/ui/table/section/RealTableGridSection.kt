@@ -34,11 +34,11 @@ import com.dudoziworkshop.dzlog.domain.model.derivePathSlotIndexByCellId
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.feature.table.editor.TableStructureRangeActions
 import com.dudoziworkshop.dzlog.feature.table.render.ContentDrivenLayoutCell
-import com.dudoziworkshop.dzlog.feature.table.render.RenderRootCell
 import com.dudoziworkshop.dzlog.feature.table.render.RenderRootRect
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
+import com.dudoziworkshop.dzlog.feature.table.render.buildRenderRootCells
 import com.dudoziworkshop.dzlog.feature.table.render.buildRenderedTableScene
 import com.dudoziworkshop.dzlog.feature.table.render.computeContentDrivenLayout
 import com.dudoziworkshop.dzlog.feature.table.render.toRelativeWeights
@@ -182,17 +182,7 @@ fun RealTableGridSection(
         val rowWeights = remember(geometry.rowSizes) { toRelativeWeights(geometry.rowSizes) }
         val colWeights = remember(geometry.colSizes) { toRelativeWeights(geometry.colSizes) }
         val renderBounds = geometry.tableRect
-        val sceneRootCells = remember(rootCells) {
-            rootCells.map { cell ->
-                RenderRootCell(
-                    cellId = cell.cellId,
-                    rowIndex = cell.rowIndex,
-                    colIndex = cell.colIndex,
-                    rowSpan = cell.rowSpan,
-                    colSpan = cell.colSpan,
-                )
-            }
-        }
+        val sceneRootCells = remember(templateState.cells) { buildRenderRootCells(templateState.cells) }
         val renderedScene = remember(rows, cols, rowWeights, colWeights, renderBounds, sceneRootCells) {
             buildRenderedTableScene(
                 tableRect = renderBounds,

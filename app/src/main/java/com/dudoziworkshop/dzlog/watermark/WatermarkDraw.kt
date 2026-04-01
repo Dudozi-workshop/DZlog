@@ -687,6 +687,7 @@ fun drawWatermarkTableOnCanvasWithResolvedGeometry(
     textAlign: Int = WatermarkTextAlign.LEFT,
     bgStyle: Int = BG_STYLE_BLACK,
     drawGrid: Boolean = true,
+    rotationCwDeg: Int = 0,
     placeholderCellIndexes: Set<Int> = emptySet(),
     placeholderTextColorArgb: Int? = null,
 ) {
@@ -698,6 +699,12 @@ fun drawWatermarkTableOnCanvasWithResolvedGeometry(
     val tableH = tableRect.height()
     val left = tableRect.left
     val top = tableRect.top
+
+    val shouldRotate = (rotationCwDeg % 360 + 360) % 360 == 90
+    if (shouldRotate) {
+        canvas.save()
+        canvas.rotate(90f, left + tableW / 2f, top + tableH / 2f)
+    }
 
     drawBackgroundRect(canvas, left, top, tableW, tableH, bgAlpha, bgStyle)
 
@@ -743,4 +750,5 @@ fun drawWatermarkTableOnCanvasWithResolvedGeometry(
             )
         }
     }
+    if (shouldRotate) canvas.restore()
 }

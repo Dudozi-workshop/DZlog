@@ -5,26 +5,29 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
+import com.dudoziworkshop.dzlog.feature.table.render.buildCameraPreviewPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.buildRenderRootCells
+import com.dudoziworkshop.dzlog.feature.table.render.buildRenderedTableSceneFromPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.computeRatioOnlyTableShape
+import com.dudoziworkshop.dzlog.feature.table.render.computeResolvedRenderLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.watermark.boundsRectFromOffset
 import com.dudoziworkshop.dzlog.watermark.computeBoundsSize
 import com.dudoziworkshop.dzlog.watermark.computeWatermarkBoundsRect
 import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableLayout
 import com.dudoziworkshop.dzlog.watermark.rawRectFromBounds
-import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
-import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
-import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
-import com.dudoziworkshop.dzlog.feature.table.render.buildCameraPreviewPlacement
-import com.dudoziworkshop.dzlog.feature.table.render.computeRatioOnlyTableShape
 
 /**
  * [WatermarkPreviewOverlay]
@@ -100,6 +103,15 @@ fun WatermarkPreviewOverlay(
     }
 
     val cells = request.watermarkCells
+    val rootCells = buildRenderRootCells(request.tableTemplate.cells)
+    val resolvedLayout = computeResolvedRenderLayout(
+        cells = cells,
+        rows = request.tableTemplate.rows,
+        cols = request.tableTemplate.cols,
+        valueScale = request.watermark.valueScale,
+        baseScaleRatio = cameraPreviewShape.tableWidthRatio,
+        rootCells = rootCells,
+    )
 
     Canvas(
         modifier = Modifier
@@ -107,14 +119,32 @@ fun WatermarkPreviewOverlay(
             .zIndex(1f)
     ) {
         drawIntoCanvas { canvas ->
-            TableRenderAdapter.draw(
-                canvas = canvas.nativeCanvas,
+            val placement = buildCameraPreviewPlacement(
+                anchor = request.watermark.anchor,
+                offsetXRatio = request.watermark.offsetXRatio,
+                offsetYRatio = request.watermark.offsetYRatio,
+                tableWidthRatio = cameraPreviewShape.tableWidthRatio,
+                tableHeightRatio = cameraPreviewShape.tableHeightRatio,
+                overrideOffsetLeftPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawLeftPx else null,
+                overrideOffsetTopPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawTopPx else null,
+                rotationCwDeg = request.watermark.rotationCwDeg,
+            )
+            val scene = buildRenderedTableSceneFromPlacement(
                 bounds = previewContentRect,
+                placement = placement,
+                rows = request.tableTemplate.rows,
+                cols = request.tableTemplate.cols,
+                rowWeights = resolvedLayout.finalRowWeights,
+                colWeights = resolvedLayout.finalColWeights,
+            )
+            TableRenderAdapter.drawScene(
+                canvas = canvas.nativeCanvas,
+                scene = scene,
                 payload = TableRenderPayload(
                     rows = request.tableTemplate.rows,
                     cols = request.tableTemplate.cols,
-                    rowWeights = request.tableTemplate.rowWeights,
-                    colWeights = request.tableTemplate.colWeights,
+                    rowWeights = resolvedLayout.finalRowWeights,
+                    colWeights = resolvedLayout.finalColWeights,
                     cells = cells,
                 ),
                 style = TableRenderStyle(
@@ -126,16 +156,7 @@ fun WatermarkPreviewOverlay(
                     textAlign = request.watermark.textAlign,
                     drawGrid = request.watermark.gridEnabled,
                 ),
-                placement = buildCameraPreviewPlacement(
-                    anchor = request.watermark.anchor,
-                    offsetXRatio = request.watermark.offsetXRatio,
-                    offsetYRatio = request.watermark.offsetYRatio,
-                    tableWidthRatio = cameraPreviewShape.tableWidthRatio,
-                    tableHeightRatio = cameraPreviewShape.tableHeightRatio,
-                    overrideOffsetLeftPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawLeftPx else null,
-                    overrideOffsetTopPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawTopPx else null,
-                    rotationCwDeg = request.watermark.rotationCwDeg,
-                ),
+                rotationCwDeg = request.watermark.rotationCwDeg,
             )
         }
 

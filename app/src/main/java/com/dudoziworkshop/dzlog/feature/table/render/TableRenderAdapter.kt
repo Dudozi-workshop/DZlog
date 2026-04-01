@@ -127,6 +127,7 @@ object TableRenderAdapter {
         scene: RenderedTableScene,
         payload: TableRenderPayload,
         style: TableRenderStyle,
+        rotationCwDeg: Int = 0,
     ) {
         drawWatermarkTableOnCanvasWithResolvedGeometry(
             canvas = canvas,
@@ -143,6 +144,7 @@ object TableRenderAdapter {
             textAlign = style.textAlign,
             bgStyle = style.bgStyle.coerceIn(0, 2),
             drawGrid = style.drawGrid,
+            rotationCwDeg = rotationCwDeg,
             placeholderCellIndexes = payload.placeholderCellIndexes,
             placeholderTextColorArgb = style.placeholderTextColorArgb,
         )

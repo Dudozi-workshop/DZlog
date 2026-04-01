@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.watermark
 
 import android.graphics.Bitmap
+import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 
@@ -8,6 +9,7 @@ interface WatermarkRenderer {
     fun renderTable(
         originalBmp: Bitmap,
         cells: List<WatermarkCell>,
+        templateCells: List<TableCellState>,
         rows: Int,
         cols: Int,
         anchor: WatermarkTableAnchor,

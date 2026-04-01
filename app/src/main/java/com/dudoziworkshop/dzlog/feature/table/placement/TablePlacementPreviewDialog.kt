@@ -21,13 +21,17 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
+import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import com.dudoziworkshop.dzlog.feature.table.render.buildCameraPreviewPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.buildRenderRootCells
+import com.dudoziworkshop.dzlog.feature.table.render.buildRenderedTableSceneFromPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.computeRatioOnlyTableShape
+import com.dudoziworkshop.dzlog.feature.table.render.computeResolvedRenderLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableRect
 import kotlinx.coroutines.delay
@@ -38,8 +42,7 @@ fun CameraLikeWatermarkPlacementPreview(
     captureAspect: CaptureAspect,
     rows: Int,
     cols: Int,
-    rowWeights: List<Float>?,
-    colWeights: List<Float>?,
+    templateCells: List<TableCellState>,
     watermarkCells: List<WatermarkBuilder.WatermarkCell>,
     offsetXRatio: Int,
     offsetYRatio: Int,
@@ -58,7 +61,7 @@ fun CameraLikeWatermarkPlacementPreview(
     modifier: Modifier = Modifier
 ) {
     // Camera Preview 정책: 외곽 비율(표 자체 속성)과 위치/회전(촬영 배치 속성)을 분리한다.
-    val cameraPreviewShape = remember(rows, cols, rowWeights, colWeights, tableWidthRatio, tableHeightRatio) {
+    val cameraPreviewShape = remember(rows, cols, tableWidthRatio, tableHeightRatio) {
         computeRatioOnlyTableShape(
             tableWidthRatio = tableWidthRatio,
             tableHeightRatio = tableHeightRatio,
@@ -192,14 +195,41 @@ fun CameraLikeWatermarkPlacementPreview(
             drawRect(DDZColor.Surface.copy(alpha = 0.13f), Offset(contentRect.left, contentRect.centerY() - 0.5f), Size(contentRect.width(), 1f))
 
             drawIntoCanvas { canvas ->
-                TableRenderAdapter.draw(
-                    canvas = canvas.nativeCanvas,
+                val rootCells = buildRenderRootCells(templateCells)
+                val resolvedLayout = computeResolvedRenderLayout(
+                    cells = watermarkCells,
+                    rows = rows,
+                    cols = cols,
+                    valueScale = valueScale,
+                    baseScaleRatio = cameraPreviewShape.tableWidthRatio,
+                    rootCells = rootCells,
+                )
+                val placement = buildCameraPreviewPlacement(
+                    anchor = WatermarkTableAnchor.CUSTOM,
+                    offsetXRatio = dragOffsetXRatio,
+                    offsetYRatio = dragOffsetYRatio,
+                    tableWidthRatio = cameraPreviewShape.tableWidthRatio,
+                    tableHeightRatio = cameraPreviewShape.tableHeightRatio,
+                    rotationCwDeg = if (rotationCwDeg == 90) 90 else 0,
+                    overrideOffsetLeftPx = if (hasOverride) dragLeftPx else null,
+                    overrideOffsetTopPx = if (hasOverride) dragTopPx else null,
+                )
+                val scene = buildRenderedTableSceneFromPlacement(
                     bounds = contentRect,
+                    placement = placement,
+                    rows = rows,
+                    cols = cols,
+                    rowWeights = resolvedLayout.finalRowWeights,
+                    colWeights = resolvedLayout.finalColWeights,
+                )
+                TableRenderAdapter.drawScene(
+                    canvas = canvas.nativeCanvas,
+                    scene = scene,
                     payload = TableRenderPayload(
                         rows = rows,
                         cols = cols,
-                        rowWeights = rowWeights,
-                        colWeights = colWeights,
+                        rowWeights = resolvedLayout.finalRowWeights,
+                        colWeights = resolvedLayout.finalColWeights,
                         cells = watermarkCells,
                     ),
                     style = TableRenderStyle(
@@ -211,16 +241,7 @@ fun CameraLikeWatermarkPlacementPreview(
                         textAlign = textAlign,
                         drawGrid = drawGrid,
                     ),
-                    placement = buildCameraPreviewPlacement(
-                        anchor = WatermarkTableAnchor.CUSTOM,
-                        offsetXRatio = dragOffsetXRatio,
-                        offsetYRatio = dragOffsetYRatio,
-                        tableWidthRatio = cameraPreviewShape.tableWidthRatio,
-                        tableHeightRatio = cameraPreviewShape.tableHeightRatio,
-                        rotationCwDeg = if (rotationCwDeg == 90) 90 else 0,
-                        overrideOffsetLeftPx = if (hasOverride) dragLeftPx else null,
-                        overrideOffsetTopPx = if (hasOverride) dragTopPx else null,
-                    ),
+                    rotationCwDeg = if (rotationCwDeg == 90) 90 else 0,
                 )
             }
 
