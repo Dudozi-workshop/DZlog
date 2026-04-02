@@ -29,8 +29,6 @@ fun renderWatermarkForRequest(
         textColorMode = wm.textColorMode,
         manualTextColor = wm.manualTextColor,
         textAlign = wm.textAlign,
-        rowWeights = request.tableTemplate.rowWeights,
-        colWeights = request.tableTemplate.colWeights,
         bgStyle = wm.bgStyle,
         drawGrid = wm.gridEnabled,
         rotationCwDeg = wm.rotationCwDeg

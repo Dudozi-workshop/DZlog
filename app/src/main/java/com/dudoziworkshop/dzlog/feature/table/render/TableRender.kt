@@ -68,7 +68,6 @@ fun TableRender(
     }
 
     val cells = remember(plan.resolvedCells) { WatermarkBuilder.buildTableCells(plan.resolvedCells) }
-    val rootCells = remember(templateState.cells) { buildRenderRootCells(templateState.cells) }
     Box(modifier = modifier.background(bgColor)) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawIntoCanvas { canvas ->
@@ -85,30 +84,24 @@ fun TableRender(
                     tableWidthRatio = ratio.tableWidthRatio,
                     tableHeightRatio = ratio.tableHeightRatio,
                 )
-                val resolvedLayout = computeResolvedRenderLayout(
+                val rendered = buildContentDrivenRenderedSceneFromPlacement(
+                    bounds = bounds,
+                    placement = placement,
                     cells = cells,
+                    templateCells = templateState.cells,
                     rows = templateState.rows,
                     cols = templateState.cols,
                     valueScale = valueScale,
                     baseScaleRatio = ratio.tableWidthRatio,
-                    rootCells = rootCells,
-                )
-                val scene = buildRenderedTableSceneFromPlacement(
-                    bounds = bounds,
-                    placement = placement,
-                    rows = templateState.rows,
-                    cols = templateState.cols,
-                    rowWeights = resolvedLayout.finalRowWeights,
-                    colWeights = resolvedLayout.finalColWeights,
                 )
                 TableRenderAdapter.drawScene(
                     canvas = canvas.nativeCanvas,
-                    scene = scene,
+                    scene = rendered.scene,
                     payload = TableRenderPayload(
                         rows = templateState.rows,
                         cols = templateState.cols,
-                        rowWeights = resolvedLayout.finalRowWeights,
-                        colWeights = resolvedLayout.finalColWeights,
+                        rowWeights = rendered.resolvedLayout.finalRowWeights,
+                        colWeights = rendered.resolvedLayout.finalColWeights,
                         cells = cells,
                     ),
                     style = TableRenderStyle(

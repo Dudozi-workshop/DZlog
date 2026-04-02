@@ -1,6 +1,8 @@
 package com.dudoziworkshop.dzlog.feature.table.render
 
+import android.graphics.RectF
 import android.text.TextPaint
+import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 
 data class ContentDrivenLayoutCell(
@@ -17,12 +19,23 @@ data class ContentDrivenLayout(
     val rowHeightsPx: List<Float>,
     val contentWidthPx: Float,
     val contentHeightPx: Float,
-    val scale: Float,
 )
 
 data class ResolvedRenderLayout(
+    val intrinsicColWidthsPx: List<Float>,
+    val intrinsicRowHeightsPx: List<Float>,
+    val intrinsicTableWidthPx: Float,
+    val intrinsicTableHeightPx: Float,
+    val fitScale: Float,
+    val scaledColWidthsPx: List<Float>,
+    val scaledRowHeightsPx: List<Float>,
     val finalRowWeights: List<Float>,
     val finalColWeights: List<Float>,
+)
+
+data class ContentDrivenRenderedScene(
+    val scene: RenderedTableScene,
+    val resolvedLayout: ResolvedRenderLayout,
 )
 
 fun computeContentDrivenLayout(
@@ -59,15 +72,11 @@ fun computeContentDrivenLayout(
     val contentHeight = rowHeights.sum().coerceAtLeast(1f)
     val baseWidth = (baseScaleRatio.coerceIn(10, 100) / 100f) * (cols * minColWidth)
     val effectiveWidth = maxOf(contentWidth, baseWidth)
-    val maxDisplayWidth = 100f * minColWidth
-    val scale = if (effectiveWidth > maxDisplayWidth) maxDisplayWidth / effectiveWidth else 1f
-
     return ContentDrivenLayout(
         colWidthsPx = colWidths,
         rowHeightsPx = rowHeights,
         contentWidthPx = effectiveWidth,
         contentHeightPx = contentHeight,
-        scale = scale,
     )
 }
 
@@ -90,6 +99,8 @@ fun computeResolvedRenderLayout(
     valueScale: Int,
     baseScaleRatio: Int = 100,
     rootCells: List<RenderRootCell>? = null,
+    maxWidthPx: Float? = null,
+    maxHeightPx: Float? = null,
 ): ResolvedRenderLayout {
     val safeRows = rows.coerceAtLeast(1)
     val safeCols = cols.coerceAtLeast(1)
@@ -130,8 +141,76 @@ fun computeResolvedRenderLayout(
         baseScaleRatio = baseScaleRatio,
         valueScale = valueScale,
     )
+    val baseIntrinsicColWidths = layout.colWidthsPx
+    val intrinsicWidthFromCols = baseIntrinsicColWidths.sum().coerceAtLeast(1f)
+    val widthUpscale = (layout.contentWidthPx / intrinsicWidthFromCols).coerceAtLeast(1f)
+    val intrinsicColWidths = baseIntrinsicColWidths.map { it * widthUpscale }
+    val intrinsicRowHeights = layout.rowHeightsPx
+    val intrinsicTableWidth = intrinsicColWidths.sum().coerceAtLeast(1f)
+    val intrinsicTableHeight = intrinsicRowHeights.sum().coerceAtLeast(1f)
+    val widthFit = maxWidthPx?.takeIf { it > 0f }?.let { (it / intrinsicTableWidth).coerceAtMost(1f) } ?: 1f
+    val heightFit = maxHeightPx?.takeIf { it > 0f }?.let { (it / intrinsicTableHeight).coerceAtMost(1f) } ?: 1f
+    val fitScale = minOf(widthFit, heightFit).coerceAtMost(1f).coerceAtLeast(0.01f)
+    val scaledColWidths = intrinsicColWidths.map { it * fitScale }
+    val scaledRowHeights = intrinsicRowHeights.map { it * fitScale }
     return ResolvedRenderLayout(
-        finalRowWeights = toRelativeWeights(layout.rowHeightsPx),
-        finalColWeights = toRelativeWeights(layout.colWidthsPx),
+        intrinsicColWidthsPx = intrinsicColWidths,
+        intrinsicRowHeightsPx = intrinsicRowHeights,
+        intrinsicTableWidthPx = intrinsicTableWidth,
+        intrinsicTableHeightPx = intrinsicTableHeight,
+        fitScale = fitScale,
+        scaledColWidthsPx = scaledColWidths,
+        scaledRowHeightsPx = scaledRowHeights,
+        finalRowWeights = toRelativeWeights(scaledRowHeights),
+        finalColWeights = toRelativeWeights(scaledColWidths),
+    )
+}
+
+fun buildContentDrivenRenderedSceneFromPlacement(
+    bounds: RectF,
+    placement: TableRenderPlacement,
+    cells: List<WatermarkBuilder.WatermarkCell>,
+    templateCells: List<TableCellState>,
+    rows: Int,
+    cols: Int,
+    valueScale: Int,
+    baseScaleRatio: Int,
+): ContentDrivenRenderedScene {
+    val rootCells = buildRenderRootCells(templateCells)
+    val viewportTableRect = computeRenderedTableGeometry(
+        bounds = bounds,
+        placement = placement,
+        rows = rows.coerceAtLeast(1),
+        cols = cols.coerceAtLeast(1),
+        rowWeights = null,
+        colWeights = null,
+    ).tableRect
+    val resolvedLayout = computeResolvedRenderLayout(
+        cells = cells,
+        rows = rows,
+        cols = cols,
+        valueScale = valueScale,
+        baseScaleRatio = baseScaleRatio,
+        rootCells = rootCells,
+        maxWidthPx = viewportTableRect.width(),
+        maxHeightPx = viewportTableRect.height(),
+    )
+    val finalTableRect = RectF(
+        viewportTableRect.centerX() - (resolvedLayout.scaledColWidthsPx.sum() / 2f),
+        viewportTableRect.centerY() - (resolvedLayout.scaledRowHeightsPx.sum() / 2f),
+        viewportTableRect.centerX() + (resolvedLayout.scaledColWidthsPx.sum() / 2f),
+        viewportTableRect.centerY() + (resolvedLayout.scaledRowHeightsPx.sum() / 2f),
+    )
+    val scene = buildRenderedTableScene(
+        tableRect = finalTableRect,
+        rows = rows,
+        cols = cols,
+        rowWeights = resolvedLayout.finalRowWeights,
+        colWeights = resolvedLayout.finalColWeights,
+        rootCells = rootCells,
+    )
+    return ContentDrivenRenderedScene(
+        scene = scene,
+        resolvedLayout = resolvedLayout,
     )
 }

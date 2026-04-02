@@ -313,11 +313,7 @@ private fun drawCellValueText(
     isPlaceholder: Boolean = false,
     placeholderTextColorArgb: Int? = null,
 ) {
-    paint.textSize = applyCellSafeTextCap(
-        scaledTextSize = commonScaledTextSize,
-        actualCellWidth = cellRect.width(),
-        actualCellHeight = cellRect.height(),
-    )
+    paint.textSize = commonScaledTextSize
 
     val originalColor = paint.color
     if (isPlaceholder) {
@@ -326,8 +322,7 @@ private fun drawCellValueText(
 
     val fm = paint.fontMetrics
     val centerY = cellRect.top + cellRect.height() / 2f - (fm.ascent + fm.descent) / 2
-    val availableWidth = (cellRect.width() - (cellTextPadding * 2f)).coerceAtLeast(0f)
-    val drawText = ellipsizeToWidth(cellText, paint, availableWidth)
+    val drawText = cellText
     val drawX = resolveTextDrawX(
         cellLeft = cellRect.left,
         cellWidth = cellRect.width(),
@@ -373,25 +368,6 @@ private fun resolveTextDrawX(
         WatermarkTextAlign.RIGHT -> rightTextX - textWidth
         else -> leftTextX
     }
-}
-
-
-private fun ellipsizeToWidth(text: String, paint: Paint, maxWidthPx: Float): String {
-    if (text.isEmpty()) return text
-    if (maxWidthPx <= 0f) return ""
-    if (paint.measureText(text) <= maxWidthPx) return text
-
-    val ellipsis = "…"
-    val ellipsisWidth = paint.measureText(ellipsis)
-    if (ellipsisWidth > maxWidthPx) return ellipsis
-
-    var end = text.length
-    while (end > 0) {
-        val candidate = text.take(end) + ellipsis
-        if (paint.measureText(candidate) <= maxWidthPx) return candidate
-        end--
-    }
-    return ellipsis
 }
 
 private fun sizesFromEdges(edges: List<Float>): List<Float> {

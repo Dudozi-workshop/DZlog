@@ -18,10 +18,8 @@ import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import com.dudoziworkshop.dzlog.feature.table.render.buildCameraPreviewPlacement
-import com.dudoziworkshop.dzlog.feature.table.render.buildRenderRootCells
-import com.dudoziworkshop.dzlog.feature.table.render.buildRenderedTableSceneFromPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.buildContentDrivenRenderedSceneFromPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.computeRatioOnlyTableShape
-import com.dudoziworkshop.dzlog.feature.table.render.computeResolvedRenderLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.watermark.boundsRectFromOffset
 import com.dudoziworkshop.dzlog.watermark.computeBoundsSize
@@ -103,16 +101,6 @@ fun WatermarkPreviewOverlay(
     }
 
     val cells = request.watermarkCells
-    val rootCells = buildRenderRootCells(request.tableTemplate.cells)
-    val resolvedLayout = computeResolvedRenderLayout(
-        cells = cells,
-        rows = request.tableTemplate.rows,
-        cols = request.tableTemplate.cols,
-        valueScale = request.watermark.valueScale,
-        baseScaleRatio = cameraPreviewShape.tableWidthRatio,
-        rootCells = rootCells,
-    )
-
     Canvas(
         modifier = Modifier
             .fillMaxSize()
@@ -129,22 +117,24 @@ fun WatermarkPreviewOverlay(
                 overrideOffsetTopPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawTopPx else null,
                 rotationCwDeg = request.watermark.rotationCwDeg,
             )
-            val scene = buildRenderedTableSceneFromPlacement(
+            val rendered = buildContentDrivenRenderedSceneFromPlacement(
                 bounds = previewContentRect,
                 placement = placement,
+                cells = cells,
+                templateCells = request.tableTemplate.cells,
                 rows = request.tableTemplate.rows,
                 cols = request.tableTemplate.cols,
-                rowWeights = resolvedLayout.finalRowWeights,
-                colWeights = resolvedLayout.finalColWeights,
+                valueScale = request.watermark.valueScale,
+                baseScaleRatio = cameraPreviewShape.tableWidthRatio,
             )
             TableRenderAdapter.drawScene(
                 canvas = canvas.nativeCanvas,
-                scene = scene,
+                scene = rendered.scene,
                 payload = TableRenderPayload(
                     rows = request.tableTemplate.rows,
                     cols = request.tableTemplate.cols,
-                    rowWeights = resolvedLayout.finalRowWeights,
-                    colWeights = resolvedLayout.finalColWeights,
+                    rowWeights = rendered.resolvedLayout.finalRowWeights,
+                    colWeights = rendered.resolvedLayout.finalColWeights,
                     cells = cells,
                 ),
                 style = TableRenderStyle(
@@ -158,15 +148,15 @@ fun WatermarkPreviewOverlay(
                 ),
                 rotationCwDeg = request.watermark.rotationCwDeg,
             )
-        }
-
-        if (isArmed) {
-            drawRect(
-                color = DDZColor.Surface.copy(alpha = 0.85f),
-                topLeft = Offset(boundsRect.left, boundsRect.top),
-                size = androidx.compose.ui.geometry.Size(boundsRect.width(), boundsRect.height()),
-                style = Stroke(width = 2.dp.toPx())
-            )
+            val finalTableRect = rendered.scene.tableRect
+            if (isArmed) {
+                drawRect(
+                    color = DDZColor.Surface.copy(alpha = 0.85f),
+                    topLeft = Offset(finalTableRect.left, finalTableRect.top),
+                    size = androidx.compose.ui.geometry.Size(finalTableRect.width(), finalTableRect.height()),
+                    style = Stroke(width = 2.dp.toPx())
+                )
+            }
         }
     }
 }

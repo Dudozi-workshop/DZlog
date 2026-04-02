@@ -24,8 +24,6 @@ interface WatermarkRenderer {
         textColorMode: Int,
         manualTextColor: Int,
         textAlign: Int,
-        rowWeights: List<Float>? = null,
-        colWeights: List<Float>? = null,
         bgStyle: Int = 0,
         drawGrid: Boolean = true,
         rotationCwDeg: Int = 0

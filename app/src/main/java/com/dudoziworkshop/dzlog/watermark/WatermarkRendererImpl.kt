@@ -7,9 +7,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
-import com.dudoziworkshop.dzlog.feature.table.render.buildRenderRootCells
-import com.dudoziworkshop.dzlog.feature.table.render.buildRenderedTableSceneFromPlacement
-import com.dudoziworkshop.dzlog.feature.table.render.computeResolvedRenderLayout
+import com.dudoziworkshop.dzlog.feature.table.render.buildContentDrivenRenderedSceneFromPlacement
 
 class WatermarkRendererImpl : WatermarkRenderer {
     override fun renderTable(
@@ -30,8 +28,6 @@ class WatermarkRendererImpl : WatermarkRenderer {
         textColorMode: Int,
         manualTextColor: Int,
         textAlign: Int,
-        rowWeights: List<Float>?,
-        colWeights: List<Float>?,
         bgStyle: Int,
         drawGrid: Boolean,
         rotationCwDeg: Int
@@ -78,27 +74,21 @@ class WatermarkRendererImpl : WatermarkRenderer {
             )
         }
 
-        val resolvedLayout = computeResolvedRenderLayout(
+        val rendered = buildContentDrivenRenderedSceneFromPlacement(
+            bounds = imageBounds,
+            placement = placement,
             cells = cells,
+            templateCells = templateCells,
             rows = rows,
             cols = cols,
             valueScale = valueScale,
             baseScaleRatio = tableWidthRatio,
-            rootCells = buildRenderRootCells(templateCells),
-        )
-        val scene = buildRenderedTableSceneFromPlacement(
-            bounds = imageBounds,
-            placement = placement,
-            rows = rows,
-            cols = cols,
-            rowWeights = resolvedLayout.finalRowWeights,
-            colWeights = resolvedLayout.finalColWeights,
         )
         drawWatermarkTableOnCanvasWithResolvedGeometry(
             canvas = canvas,
-            tableRect = scene.tableRect,
-            rowEdges = scene.geometry.grid.rowEdges,
-            colEdges = scene.geometry.grid.colEdges,
+            tableRect = rendered.scene.tableRect,
+            rowEdges = rendered.scene.geometry.grid.rowEdges,
+            colEdges = rendered.scene.geometry.grid.colEdges,
             cells = cells,
             rows = rows,
             cols = cols,

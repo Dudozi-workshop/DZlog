@@ -28,10 +28,8 @@ import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import com.dudoziworkshop.dzlog.feature.table.render.buildCameraPreviewPlacement
-import com.dudoziworkshop.dzlog.feature.table.render.buildRenderRootCells
-import com.dudoziworkshop.dzlog.feature.table.render.buildRenderedTableSceneFromPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.buildContentDrivenRenderedSceneFromPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.computeRatioOnlyTableShape
-import com.dudoziworkshop.dzlog.feature.table.render.computeResolvedRenderLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableRect
 import kotlinx.coroutines.delay
@@ -195,15 +193,6 @@ fun CameraLikeWatermarkPlacementPreview(
             drawRect(DDZColor.Surface.copy(alpha = 0.13f), Offset(contentRect.left, contentRect.centerY() - 0.5f), Size(contentRect.width(), 1f))
 
             drawIntoCanvas { canvas ->
-                val rootCells = buildRenderRootCells(templateCells)
-                val resolvedLayout = computeResolvedRenderLayout(
-                    cells = watermarkCells,
-                    rows = rows,
-                    cols = cols,
-                    valueScale = valueScale,
-                    baseScaleRatio = cameraPreviewShape.tableWidthRatio,
-                    rootCells = rootCells,
-                )
                 val placement = buildCameraPreviewPlacement(
                     anchor = WatermarkTableAnchor.CUSTOM,
                     offsetXRatio = dragOffsetXRatio,
@@ -214,22 +203,24 @@ fun CameraLikeWatermarkPlacementPreview(
                     overrideOffsetLeftPx = if (hasOverride) dragLeftPx else null,
                     overrideOffsetTopPx = if (hasOverride) dragTopPx else null,
                 )
-                val scene = buildRenderedTableSceneFromPlacement(
+                val rendered = buildContentDrivenRenderedSceneFromPlacement(
                     bounds = contentRect,
                     placement = placement,
+                    cells = watermarkCells,
+                    templateCells = templateCells,
                     rows = rows,
                     cols = cols,
-                    rowWeights = resolvedLayout.finalRowWeights,
-                    colWeights = resolvedLayout.finalColWeights,
+                    valueScale = valueScale,
+                    baseScaleRatio = cameraPreviewShape.tableWidthRatio,
                 )
                 TableRenderAdapter.drawScene(
                     canvas = canvas.nativeCanvas,
-                    scene = scene,
+                    scene = rendered.scene,
                     payload = TableRenderPayload(
                         rows = rows,
                         cols = cols,
-                        rowWeights = resolvedLayout.finalRowWeights,
-                        colWeights = resolvedLayout.finalColWeights,
+                        rowWeights = rendered.resolvedLayout.finalRowWeights,
+                        colWeights = rendered.resolvedLayout.finalColWeights,
                         cells = watermarkCells,
                     ),
                     style = TableRenderStyle(

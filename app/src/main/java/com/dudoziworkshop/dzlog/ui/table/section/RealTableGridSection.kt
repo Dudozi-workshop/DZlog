@@ -33,15 +33,13 @@ import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.model.derivePathSlotIndexByCellId
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.feature.table.editor.TableStructureRangeActions
-import com.dudoziworkshop.dzlog.feature.table.render.ContentDrivenLayoutCell
 import com.dudoziworkshop.dzlog.feature.table.render.RenderRootRect
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
-import com.dudoziworkshop.dzlog.feature.table.render.buildRenderRootCells
-import com.dudoziworkshop.dzlog.feature.table.render.buildRenderedTableScene
-import com.dudoziworkshop.dzlog.feature.table.render.computeContentDrivenLayout
-import com.dudoziworkshop.dzlog.feature.table.render.toRelativeWeights
+import com.dudoziworkshop.dzlog.feature.table.render.buildContentDrivenRenderedSceneFromPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.buildDesignPreviewPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.computeDesignPreviewFitShape
 import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadgesOverlay
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
@@ -52,12 +50,6 @@ private data class CellRenderEntry(
     val cell: TableCellState,
     val displayText: String,
     val isPlaceholder: Boolean,
-)
-
-private data class TablePreviewGeometry(
-    val tableRect: RectF,
-    val rowSizes: List<Float>,
-    val colSizes: List<Float>,
 )
 
 /**
@@ -143,56 +135,43 @@ fun RealTableGridSection(
         val workingHeightPx = (areaHeightPx - (workingTopPx * 2f)).coerceAtLeast(0f)
         val rows = templateState.rows.coerceAtLeast(1)
         val cols = templateState.cols.coerceAtLeast(1)
-        val resolvedStructureCellsById = remember(templateState.cells) {
-            TableStructureRangeActions.resolveStructureCells(templateState.cells)
-                .associateBy { it.cellId }
+        val renderBounds = remember(workingLeftPx, workingTopPx, workingWidthPx, workingHeightPx) {
+            RectF(
+                workingLeftPx,
+                workingTopPx,
+                workingLeftPx + workingWidthPx,
+                workingTopPx + workingHeightPx,
+            )
         }
-        val layoutCells = remember(cellRenderEntries, resolvedStructureCellsById) {
-            cellRenderEntries.map { entry ->
-                val resolved = resolvedStructureCellsById[entry.cell.cellId]
-                ContentDrivenLayoutCell(
-                    rowIndex = resolved?.rootRowIndex ?: entry.cell.rowIndex,
-                    colIndex = resolved?.rootColIndex ?: entry.cell.colIndex,
-                    rowSpan = resolved?.rootRowSpan ?: entry.cell.rowSpan,
-                    colSpan = resolved?.rootColSpan ?: entry.cell.colSpan,
-                    displayText = entry.displayText,
-                    isCovered = resolved?.isCovered == true,
-                )
-            }
-        }
-        val layout = remember(layoutCells, wmWidthRatio, wmValueScale, rows, cols) {
-            computeContentDrivenLayout(
-                cells = layoutCells,
+        val previewRatio = remember(renderBounds, rows, cols, wmWidthRatio) {
+            computeDesignPreviewFitShape(
+                boundsWidth = renderBounds.width(),
+                boundsHeight = renderBounds.height(),
+                tableWidthRatio = wmWidthRatio,
+                tableHeightRatio = wmWidthRatio,
                 rows = rows,
                 cols = cols,
-                baseScaleRatio = wmWidthRatio.coerceIn(10, 100),
+            )
+        }
+        val placement = remember(previewRatio) {
+            buildDesignPreviewPlacement(
+                tableWidthRatio = previewRatio.tableWidthRatio,
+                tableHeightRatio = previewRatio.tableHeightRatio,
+            )
+        }
+        val rendered = remember(renderBounds, placement, resolvedCells, rows, cols, wmValueScale, previewRatio.tableWidthRatio, templateState.cells) {
+            buildContentDrivenRenderedSceneFromPlacement(
+                bounds = renderBounds,
+                placement = placement,
+                cells = resolvedCells,
+                templateCells = templateState.cells,
+                rows = rows,
+                cols = cols,
                 valueScale = wmValueScale,
+                baseScaleRatio = previewRatio.tableWidthRatio,
             )
         }
-
-        val geometry = remember(layout, workingLeftPx, workingTopPx, workingWidthPx, workingHeightPx) {
-            buildPreviewGeometry(
-                layout = layout,
-                workingLeftPx = workingLeftPx,
-                workingTopPx = workingTopPx,
-                workingWidthPx = workingWidthPx,
-                workingHeightPx = workingHeightPx,
-            )
-        }
-        val rowWeights = remember(geometry.rowSizes) { toRelativeWeights(geometry.rowSizes) }
-        val colWeights = remember(geometry.colSizes) { toRelativeWeights(geometry.colSizes) }
-        val renderBounds = geometry.tableRect
-        val sceneRootCells = remember(templateState.cells) { buildRenderRootCells(templateState.cells) }
-        val renderedScene = remember(rows, cols, rowWeights, colWeights, renderBounds, sceneRootCells) {
-            buildRenderedTableScene(
-                tableRect = renderBounds,
-                rows = rows,
-                cols = cols,
-                rowWeights = rowWeights,
-                colWeights = colWeights,
-                rootCells = sceneRootCells,
-            )
-        }
+        val renderedScene = rendered.scene
         val rootHitRects = renderedScene.rootRects
 
         // 실제 프리뷰와 동일한 표 렌더 코어를 Layout 편집영역에도 재사용.
@@ -206,8 +185,8 @@ fun RealTableGridSection(
                     payload = TableRenderPayload(
                         rows = rows,
                         cols = cols,
-                        rowWeights = rowWeights,
-                        colWeights = colWeights,
+                        rowWeights = rendered.resolvedLayout.finalRowWeights,
+                        colWeights = rendered.resolvedLayout.finalColWeights,
                         cells = resolvedCells,
                         placeholderCellIndexes = placeholderCellIndexes,
                     ),
@@ -354,39 +333,6 @@ fun RealTableGridSection(
             )
         }
     }
-}
-
-private fun buildPreviewGeometry(
-    layout: com.dudoziworkshop.dzlog.feature.table.render.ContentDrivenLayout,
-    workingLeftPx: Float,
-    workingTopPx: Float,
-    workingWidthPx: Float,
-    workingHeightPx: Float,
-): TablePreviewGeometry {
-    val rawWidth = (layout.contentWidthPx * layout.scale).coerceAtLeast(0f)
-    val rawHeight = (layout.contentHeightPx * layout.scale).coerceAtLeast(0f)
-    val widthFit = if (rawWidth > 0f) (workingWidthPx / rawWidth) else 1f
-    val heightFit = if (rawHeight > 0f) (workingHeightPx / rawHeight) else 1f
-    val fitScale = minOf(1f, widthFit, heightFit).coerceAtLeast(0f)
-    val effectiveScale = layout.scale * fitScale
-
-    val rowSizes = layout.rowHeightsPx.map { it * effectiveScale }
-    val colSizes = layout.colWidthsPx.map { it * effectiveScale }
-    val tableWidthPx = colSizes.sum().coerceAtMost(workingWidthPx).coerceAtLeast(0f)
-    val tableHeightPx = rowSizes.sum().coerceAtMost(workingHeightPx).coerceAtLeast(0f)
-    val tableLeftPx = (workingLeftPx + (workingWidthPx - tableWidthPx) / 2f).coerceAtLeast(0f)
-    val tableTopPx = (workingTopPx + (workingHeightPx - tableHeightPx) / 2f).coerceAtLeast(0f)
-
-    return TablePreviewGeometry(
-        tableRect = RectF(
-            tableLeftPx,
-            tableTopPx,
-            tableLeftPx + tableWidthPx,
-            tableTopPx + tableHeightPx,
-        ),
-        rowSizes = rowSizes,
-        colSizes = colSizes,
-    )
 }
 
 private fun hitTestRootCellId(
