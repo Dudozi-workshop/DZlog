@@ -180,9 +180,18 @@ object TableEditorStructureActions {
             structureSelectionRange = input.editor.structureSelectionRange,
             currentTemplate = input.editor.currentTemplate,
         )
+        val mergedSafeRange = when (input.axis) {
+            StructureRestoreAxis.ROW ->
+                expandRowRemovalRangeForMergedCells(input.editor.currentTemplate, requestedRange)
+            StructureRestoreAxis.COL ->
+                expandColRemovalRangeForMergedCells(input.editor.currentTemplate, requestedRange)
+        }
         val deletionRange = when (input.axis) {
-            StructureRestoreAxis.ROW -> normalizeRowRemovalRange(input.editor.currentTemplate, requestedRange)
-            StructureRestoreAxis.COL -> normalizeColRemovalRange(input.editor.currentTemplate, requestedRange)
+            StructureRestoreAxis.ROW -> normalizeRowRemovalRange(input.editor.currentTemplate, mergedSafeRange)
+            StructureRestoreAxis.COL -> normalizeColRemovalRange(input.editor.currentTemplate, mergedSafeRange)
+        }?.takeIf { normalized ->
+            mergedSafeRange == requestedRange ||
+                (normalized.first == mergedSafeRange.first && normalized.last == mergedSafeRange.last)
         }
 
         if (deletionRange == null) {
