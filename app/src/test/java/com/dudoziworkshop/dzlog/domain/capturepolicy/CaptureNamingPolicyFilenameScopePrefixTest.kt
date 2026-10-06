@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.domain.capturepolicy
 import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -149,7 +150,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
                 resolvedCells = resolvedCells,
                 captureNow = Date(0),
                 fileNameSlotDrafts = fileNameSlotDrafts,
-                pathSlotDrafts = listOf(null, null),
+                pathSlotDrafts = List(PATH_SLOT_COUNT) { null },
                 fnDelim = "_",
                 counterDigits = 2,
                 dateFormat = "yyyyMMdd",
