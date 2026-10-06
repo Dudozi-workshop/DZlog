@@ -1042,8 +1042,8 @@ fun TableEditorScreen(
         selectedCellId = selectedCellId,
     )
 
-    fun applyStructureAddOrRestore(axis: StructureRestoreAxis) {
-        val result = TableEditorStructureActions.addOrRestore(
+    fun applyStructureAdd(axis: StructureRestoreAxis) {
+        val result = TableEditorStructureActions.addBlank(
             StructureAddOrRestoreInput(
                 axis = axis,
                 editor = currentStructureEditorContext(),
@@ -1566,8 +1566,8 @@ fun TableEditorScreen(
         onTryCommitInlineAndContinue = {
             TableEditorSelectionInlineEditingActionBinder.tryCommitInlineAndContinue(inlineEditingActionBindings)
         },
-        onAddRow = { applyStructureAddOrRestore(StructureRestoreAxis.ROW) },
-        onAddCol = { applyStructureAddOrRestore(StructureRestoreAxis.COL) },
+        onAddRow = { applyStructureAdd(StructureRestoreAxis.ROW) },
+        onAddCol = { applyStructureAdd(StructureRestoreAxis.COL) },
         onMergeSelection = merge@{
             val singleSelectedId = structureSelectedCellIds.singleOrNull()
             val singleSelectedCell = singleSelectedId?.let { id ->
