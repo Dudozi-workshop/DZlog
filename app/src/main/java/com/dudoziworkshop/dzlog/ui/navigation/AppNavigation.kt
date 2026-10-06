@@ -207,6 +207,8 @@ fun AppRoot() {
 
     var lastBackPressedMs by remember { mutableLongStateOf(0L) }
     var hasRestoredTemplate by remember { mutableStateOf(false) }
+    var pendingNewTemplateId by remember { mutableStateOf<String?>(null) }
+    var pendingNewTemplatePreviousActiveId by remember { mutableStateOf<String?>(null) }
     val appScope = rememberCoroutineScope()
 
     DisposableEffect(screen, view) {
@@ -267,6 +269,10 @@ fun AppRoot() {
 
     fun updateTemplateState(updated: TableTemplateState) {
         tableTemplateViewModel.updateStateOnly(updated)
+        if (pendingNewTemplateId == tableTemplateViewModel.activeTemplateId) {
+            pendingNewTemplateId = null
+            pendingNewTemplatePreviousActiveId = null
+        }
         if (!hasRestoredTemplate) return
         appScope.launch {
             val style = loadTableStyleState(context)
@@ -294,22 +300,31 @@ fun AppRoot() {
     }
 
     fun createNewTemplate() {
-        val item = createSavedTableTemplate(
-            name = nextNewTemplateName(tableTemplateViewModel.templates),
-            templateState = newBlankTableTemplateState(),
-            styleState = TableStyleState(),
-        )
-        val next = listOf(item) + tableTemplateViewModel.templates
         appScope.launch {
-            persistTableTemplateCatalog(
-                context = context,
-                items = next,
-                activeTemplateId = item.id,
+            val previousActiveId = tableTemplateViewModel.activeTemplateId
+            val item = createSavedTableTemplate(
+                name = nextNewTemplateName(tableTemplateViewModel.templates),
+                templateState = newBlankTableTemplateState(),
+                styleState = loadTableStyleState(context),
             )
+            val next = listOf(item) + tableTemplateViewModel.templates
+            pendingNewTemplateId = item.id
+            pendingNewTemplatePreviousActiveId = previousActiveId
             tableTemplateViewModel.setCatalog(next, item.id)
             previousScreen = AppScreen.TABLE_TEMPLATES
             screen = AppScreen.TABLE_EDITOR
         }
+    }
+
+    fun discardPendingNewTemplate() {
+        val pendingId = pendingNewTemplateId ?: return
+        val next = tableTemplateViewModel.templates.filterNot { it.id == pendingId }
+        val restoredActiveId = pendingNewTemplatePreviousActiveId
+            ?.takeIf { previousId -> next.any { it.id == previousId } }
+            ?: next.firstOrNull()?.id
+        tableTemplateViewModel.setCatalog(next, restoredActiveId)
+        pendingNewTemplateId = null
+        pendingNewTemplatePreviousActiveId = null
     }
 
     fun renameTemplate(templateId: String, newName: String) {
@@ -647,7 +662,9 @@ fun AppRoot() {
                         .firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }
                         ?.name
                         .orEmpty(),
+                    isUnsavedNewTemplate = pendingNewTemplateId == tableTemplateViewModel.activeTemplateId,
                     onTemplateChange = ::updateTemplateState,
+                    onDiscardUnsavedNewTemplate = ::discardPendingNewTemplate,
                     onBack = { screen = previousScreen }
                 )
             }
