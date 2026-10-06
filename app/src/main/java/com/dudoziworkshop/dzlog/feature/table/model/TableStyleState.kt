@@ -6,6 +6,6 @@ data class TableStyleState(
     val textColorMode: Int = 0,
     val manualTextColor: Int = 1,
     val valueScale: Int = 100,
-    val textAlign: Int = 0,
+    val textAlign: Int = 1,
     val bgAlpha: Int = 80,
 )
