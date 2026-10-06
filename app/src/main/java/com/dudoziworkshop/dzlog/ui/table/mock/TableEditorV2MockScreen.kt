@@ -84,6 +84,7 @@ fun TableEditorV2MockScreen(
     var selectedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var mode by remember { mutableStateOf(MockMode.EDIT) }
     var showStyle by remember { mutableStateOf(false) }
+    var showSaveRules by remember { mutableStateOf(false) }
     var darkTable by remember { mutableStateOf(false) }
     var gridEnabled by remember { mutableStateOf(true) }
     var fontScale by remember { mutableFloatStateOf(1f) }
@@ -127,7 +128,7 @@ fun TableEditorV2MockScreen(
                         mode = MockMode.LAYOUT
                     },
                     onStyle = { showStyle = true },
-                    onSave = { },
+                    onSaveRules = { showSaveRules = true },
                 )
             }
         }
@@ -243,6 +244,12 @@ fun TableEditorV2MockScreen(
         }
     }
 }
+
+    if (showSaveRules) {
+        MockSaveRulesSheet(
+            onDismiss = { showSaveRules = false },
+        )
+    }
 
 @Composable
 private fun MockTableCanvas(
@@ -437,7 +444,7 @@ private fun MockLayoutPanel(
 private fun MockBottomBar(
     onLayout: () -> Unit,
     onStyle: () -> Unit,
-    onSave: () -> Unit,
+    onSaveRules: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -446,9 +453,6 @@ private fun MockBottomBar(
             .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        OutlinedButton(modifier = Modifier.weight(1f), onClick = { }) {
-            Icon(Icons.Filled.Undo, contentDescription = null)
-        }
         OutlinedButton(modifier = Modifier.weight(1f), onClick = onLayout) {
             Icon(Icons.Filled.GridView, contentDescription = null)
             Text(" 레이아웃")
@@ -457,13 +461,128 @@ private fun MockBottomBar(
             Icon(Icons.Filled.Palette, contentDescription = null)
             Text(" 스타일")
         }
-        Button(
-            modifier = Modifier.weight(1f),
-            onClick = onSave,
-            colors = ButtonDefaults.buttonColors(containerColor = DDZColor.Primary),
-        ) {
+        OutlinedButton(modifier = Modifier.weight(1f), onClick = onSaveRules) {
             Icon(Icons.Filled.Save, contentDescription = null)
-            Text(" 저장")
+            Text(" 저장 규칙")
+        }
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MockSaveRulesSheet(
+    onDismiss: () -> Unit,
+) {
+    var path1 by remember { mutableStateOf("Draper") }
+    var path2 by remember { mutableStateOf("처리구 A") }
+    var path3 by remember { mutableStateOf("2026.10.06") }
+    var showAdvanced by remember { mutableStateOf(false) }
+    var includePathInScope by remember { mutableStateOf(true) }
+    var includeFilenameInScope by remember { mutableStateOf(true) }
+
+    val pathPreview = listOf(path1, path2, path3)
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .joinToString(" / ")
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text("저장 규칙", fontWeight = FontWeight.Bold)
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("파일명", color = DDZColor.TextMuted)
+                Text("Draper_20261006_0012.jpg", fontWeight = FontWeight.Bold)
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("저장경로", color = DDZColor.TextMuted)
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    value = path1,
+                    onValueChange = { path1 = it },
+                    label = { Text("1단계") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    value = path2,
+                    onValueChange = { path2 = it },
+                    label = { Text("2단계") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    value = path3,
+                    onValueChange = { path3 = it },
+                    label = { Text("3단계") },
+                    singleLine = true,
+                )
+                Text(
+                    text = if (pathPreview.isBlank()) "Pictures/DZlog/" else "Pictures/DZlog/$pathPreview/",
+                    color = DDZColor.TextMuted,
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column {
+                    Text("자동번호", color = DDZColor.TextMuted)
+                    Text("다음 번호 0012", fontWeight = FontWeight.Bold)
+                }
+            }
+
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { showAdvanced = !showAdvanced },
+            ) {
+                Text(if (showAdvanced) "고급 설정 접기" else "고급 설정")
+            }
+
+            if (showAdvanced) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("자동번호 범위", color = DDZColor.TextMuted)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("저장경로 변경 시 번호 분리")
+                        Switch(
+                            checked = includePathInScope,
+                            onCheckedChange = { includePathInScope = it },
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("파일명 구성 변경 시 번호 분리")
+                        Switch(
+                            checked = includeFilenameInScope,
+                            onCheckedChange = { includeFilenameInScope = it },
+                        )
+                    }
+                }
+            }
+
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                onClick = onDismiss,
+            ) {
+                Text("적용")
+            }
         }
     }
 }
