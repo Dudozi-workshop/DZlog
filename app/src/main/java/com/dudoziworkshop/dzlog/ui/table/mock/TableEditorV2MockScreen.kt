@@ -96,6 +96,7 @@ fun TableEditorV2MockScreen(
     var darkTable by remember { mutableStateOf(false) }
     var gridEnabled by remember { mutableStateOf(true) }
     var fontScale by remember { mutableFloatStateOf(1f) }
+    var textAlignIndex by remember { mutableIntStateOf(1) }
 
     Scaffold(
         containerColor = Color(0xFFF7F7FA),
@@ -233,15 +234,43 @@ fun TableEditorV2MockScreen(
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 Text("표 스타일", fontWeight = FontWeight.Bold)
+
+                Text("배경", color = DDZColor.TextMuted)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    listOf(false to "밝게", true to "어둡게").forEachIndexed { index, item ->
+                    listOf("밝게", "어둡게", "투명").forEachIndexed { index, label ->
                         SegmentedButton(
-                            selected = darkTable == item.first,
-                            onClick = { darkTable = item.first },
-                            shape = SegmentedButtonDefaults.itemShape(index, 2)
-                        ) { Text(item.second) }
+                            selected = when (index) {
+                                0 -> !darkTable
+                                1 -> darkTable
+                                else -> false
+                            },
+                            onClick = {
+                                if (index == 0) darkTable = false
+                                if (index == 1) darkTable = true
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(index, 3)
+                        ) { Text(label) }
                     }
                 }
+
+                Text("글자 크기", color = DDZColor.TextMuted)
+                Slider(
+                    value = fontScale,
+                    onValueChange = { fontScale = it },
+                    valueRange = 0.8f..1.4f,
+                )
+
+                Text("정렬", color = DDZColor.TextMuted)
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    listOf("왼쪽", "가운데", "오른쪽").forEachIndexed { index, label ->
+                        SegmentedButton(
+                            selected = textAlignIndex == index,
+                            onClick = { textAlignIndex = index },
+                            shape = SegmentedButtonDefaults.itemShape(index, 3)
+                        ) { Text(label) }
+                    }
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -250,6 +279,11 @@ fun TableEditorV2MockScreen(
                     Text("테두리 표시")
                     Switch(checked = gridEnabled, onCheckedChange = { gridEnabled = it })
                 }
+
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { },
+                ) { Text("더보기") }
                 Button(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -259,13 +293,13 @@ fun TableEditorV2MockScreen(
             }
         }
     }
-}
 
     if (showSaveRules) {
         MockSaveRulesSheet(
             onDismiss = { showSaveRules = false },
         )
     }
+}
 
 @Composable
 private fun MockTableCanvas(
