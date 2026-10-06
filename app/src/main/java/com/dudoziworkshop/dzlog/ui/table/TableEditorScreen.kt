@@ -22,6 +22,8 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -425,6 +427,7 @@ fun TableEditorScreen(
     // 탭1 스크롤 (분리)
 
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     var isSavingTemplate by remember { mutableStateOf(false) }
 
     var formatDialog by remember { mutableStateOf(TableFormatDialogState()) }
@@ -1276,11 +1279,9 @@ fun TableEditorScreen(
         }
         undoRevision = applied.nextUndoRevision
         isSavingTemplate = applied.nextIsSavingTemplate
-        Toast.makeText(
-            context,
-            applied.toastMessage,
-            if (applied.isLongToast) Toast.LENGTH_LONG else Toast.LENGTH_SHORT,
-        ).show()
+        scope.launch {
+            snackbarHostState.showSnackbar(applied.toastMessage)
+        }
         if (applied.shouldNotifyTemplateChange) {
             onTemplateChange(initialTemplateSnapshot)
         }
@@ -1653,6 +1654,7 @@ fun TableEditorScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
         containerColor = DDZColor.Background,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 modifier = Modifier,
