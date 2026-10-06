@@ -48,6 +48,7 @@ import com.dudoziworkshop.dzlog.ui.log.LogViewerScreen
 import com.dudoziworkshop.dzlog.ui.log.ORIGINAL_PHOTOS_TITLE
 import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
 import com.dudoziworkshop.dzlog.ui.table.detail.TableDetailRoute
+import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2MockScreen
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -57,6 +58,7 @@ enum class AppScreen {
     HOME,
     CAMERA,
     TABLE_EDITOR,
+    TABLE_EDITOR_V2_MOCK,
     SETTINGS,
     CREDITS,
     ALBUM_G1,
@@ -433,6 +435,7 @@ fun AppRoot() {
             AppScreen.SETTINGS -> screen = AppScreen.HOME
             AppScreen.CREDITS -> screen = AppScreen.SETTINGS
             AppScreen.TABLE_EDITOR -> screen = previousScreen
+            AppScreen.TABLE_EDITOR_V2_MOCK -> screen = previousScreen
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
 
             AppScreen.ALBUM_GRID -> {
@@ -467,6 +470,7 @@ fun AppRoot() {
                 onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
                 onStartCamera = { navigateTo(AppScreen.CAMERA) },
                 onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
+                onOpenTableEditorV2Mock = { navigateTo(AppScreen.TABLE_EDITOR_V2_MOCK) },
                 onOpenAlbum = ::openAlbumRoot,
                 onOpenRecentCaptureGrid = ::openRecentCaptureGrid
             )
@@ -488,6 +492,10 @@ fun AppRoot() {
                     onTemplateChange = ::updateTemplateState,
                     onBack = { screen = previousScreen }
                 )
+            }
+
+            AppScreen.TABLE_EDITOR_V2_MOCK -> {
+                TableEditorV2MockScreen(onBack = { screen = previousScreen })
             }
 
             AppScreen.SETTINGS -> SettingsScreen(
