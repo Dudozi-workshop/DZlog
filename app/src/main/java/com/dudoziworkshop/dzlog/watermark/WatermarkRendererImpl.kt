@@ -16,6 +16,8 @@ class WatermarkRendererImpl : WatermarkRenderer {
         templateCells: List<TableCellState>,
         rows: Int,
         cols: Int,
+        rowWeights: List<Float>?,
+        colWeights: List<Float>?,
         anchor: WatermarkTableAnchor,
         offsetXRatio: Int,
         offsetYRatio: Int,
@@ -83,6 +85,8 @@ class WatermarkRendererImpl : WatermarkRenderer {
             cols = cols,
             valueScale = valueScale,
             baseScaleRatio = tableWidthRatio,
+            rowWeights = rowWeights,
+            colWeights = colWeights,
         )
         drawWatermarkTableOnCanvasWithResolvedGeometry(
             canvas = canvas,
