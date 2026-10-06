@@ -158,42 +158,23 @@ internal fun BottomEditorPanel(
     }
 
     @Composable
-    fun TableDetailTabHeader() {
-        val tabs = listOf(
-            BottomEditorPanelMode.CELL_EDIT to "셀 상세설정",
-            BottomEditorPanelMode.STRUCTURE_EDIT to "구조설정",
-            BottomEditorPanelMode.STYLE_EDIT to "서식설정",
-        )
+    fun PanelTitleRow(title: String, showClose: Boolean = true) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            tabs.forEach { (mode, label) ->
-                val isSelected = panelMode == mode
-                Box(
+            Text(title, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+            if (showClose) {
+                Text(
+                    text = "닫기",
+                    style = DDZTypography.Caption,
+                    color = DDZColor.Primary,
                     modifier = Modifier
-                        .weight(1f)
-                        .clip(BottomEditorTabShape)
-                        .background(if (isSelected) DDZColor.Primary.copy(alpha = 0.10f) else Color.Transparent, BottomEditorTabShape)
-                        .clickable {
-                            when (mode) {
-                                BottomEditorPanelMode.CELL_EDIT -> onOpenCellMode()
-                                BottomEditorPanelMode.STRUCTURE_EDIT -> onOpenStructureMode()
-                                BottomEditorPanelMode.STYLE_EDIT -> onOpenStyleMode()
-                                else -> Unit
-                            }
-                        }
-                        .heightIn(min = 30.dp)
-                        .padding(horizontal = 6.dp, vertical = 3.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = label,
-                        style = DDZTypography.Caption,
-                        color = if (isSelected) DDZColor.PrimaryDark else DDZColor.TextMuted
-                    )
-                }
+                        .clip(BottomEditorToolShape)
+                        .clickable(onClick = onClosePanel)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                )
             }
         }
     }
@@ -311,7 +292,7 @@ internal fun BottomEditorPanel(
             BottomEditorPanelMode.NONE -> Unit
             BottomEditorPanelMode.STRUCTURE_EDIT -> {
                 val modeScroll = rememberScrollState()
-                TableDetailTabHeader()
+                PanelTitleRow("레이아웃", showClose = false)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -331,7 +312,7 @@ internal fun BottomEditorPanel(
             }
             BottomEditorPanelMode.STYLE_EDIT -> {
                 val modeScroll = rememberScrollState()
-                TableDetailTabHeader()
+                PanelTitleRow("표 스타일")
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -366,7 +347,7 @@ internal fun BottomEditorPanel(
                 // 주요 정책: CELL_EDIT는 값 입력과 설정만 제공하고, 저장/초기화/언두는 메인 3버튼으로 통일한다.
                 val cellEditBodyScrollState = rememberScrollState()
 
-                TableDetailTabHeader()
+                PanelTitleRow("선택한 셀")
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
