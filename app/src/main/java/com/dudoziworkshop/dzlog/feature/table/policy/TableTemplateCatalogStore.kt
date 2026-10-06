@@ -26,21 +26,23 @@ suspend fun loadOrMigrateTableTemplateCatalog(context: Context): TableTemplateCa
     val prefs = context.dataStore.data.first()
     val catalogJson = prefs[KEY_TABLE_TEMPLATES_JSON]
     if (catalogJson != null) {
-        val parsedCatalog = savedTableTemplatesFromJson(catalogJson).orEmpty()
-        if (parsedCatalog.isEmpty()) {
+        val parsedCatalog = savedTableTemplatesFromJson(catalogJson)
+        if (parsedCatalog != null) {
+            if (parsedCatalog.isEmpty()) {
+                return TableTemplateCatalogSnapshot(
+                    items = emptyList(),
+                    activeTemplateId = null,
+                )
+            }
+            val requestedActive = prefs[KEY_ACTIVE_TABLE_TEMPLATE_ID]
+            val activeId = requestedActive
+                ?.takeIf { id -> parsedCatalog.any { it.id == id } }
+                ?: parsedCatalog.maxByOrNull { it.modifiedAt }!!.id
             return TableTemplateCatalogSnapshot(
-                items = emptyList(),
-                activeTemplateId = null,
+                items = parsedCatalog.sortedByDescending { it.modifiedAt },
+                activeTemplateId = activeId,
             )
         }
-        val requestedActive = prefs[KEY_ACTIVE_TABLE_TEMPLATE_ID]
-        val activeId = requestedActive
-            ?.takeIf { id -> parsedCatalog.any { it.id == id } }
-            ?: parsedCatalog.maxByOrNull { it.modifiedAt }!!.id
-        return TableTemplateCatalogSnapshot(
-            items = parsedCatalog.sortedByDescending { it.modifiedAt },
-            activeTemplateId = activeId,
-        )
     }
 
     val legacyTemplate = prefs[KEY_TABLE_TEMPLATE_JSON]
