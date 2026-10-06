@@ -6,7 +6,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 @Composable
 fun TableDetailRoute(
     templateState: TableTemplateState,
-    templateName: String,
+    templateName: String = "",
     onTemplateChange: (TableTemplateState) -> Unit,
     onBack: () -> Unit,
 ) {
