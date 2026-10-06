@@ -1568,6 +1568,28 @@ fun TableEditorScreen(
         onAddRow = { applyStructureAddOrRestore(StructureRestoreAxis.ROW) },
         onAddCol = { applyStructureAddOrRestore(StructureRestoreAxis.COL) },
         onMergeSelection = merge@{
+            val singleSelectedId = structureSelectedCellIds.singleOrNull()
+            val singleSelectedCell = singleSelectedId?.let { id ->
+                currentTemplate.cells.firstOrNull { it.cellId == id }
+            }
+            if (singleSelectedCell != null &&
+                (singleSelectedCell.rowSpan > 1 || singleSelectedCell.colSpan > 1)
+            ) {
+                val unmerged = TableStructureRangeActions.unmergeRoot(
+                    templateState = currentTemplate,
+                    rootCellId = singleSelectedCell.cellId,
+                )
+                applyTemplateWithUndo(unmerged)
+                structureSelectionRange = TableSelectionRange(
+                    minRow = singleSelectedCell.rowIndex,
+                    maxRow = singleSelectedCell.rowIndex,
+                    minCol = singleSelectedCell.colIndex,
+                    maxCol = singleSelectedCell.colIndex,
+                )
+                structureSelectedCellIds = setOf(singleSelectedCell.cellId)
+                return@merge
+            }
+
             val range = structureSelectionRange ?: return@merge
             val expanded = TableStructureRangeActions.expandRangeToMergedBlocks(currentTemplate.cells, range)
             if (expanded != range || range.rowCount * range.colCount < 2) return@merge
