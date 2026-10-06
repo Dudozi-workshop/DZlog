@@ -2,7 +2,7 @@ package com.dudoziworkshop.dzlog.feature.table.editor
 
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
-import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -204,9 +204,10 @@ private fun sanitizePathSlotDrafts(
     drafts: List<TableEditorSlotDraft?>,
     remainingCells: List<TableCellState>
 ): List<TableEditorSlotDraft?> {
+    val targetCount = maxOf(drafts.size, PATH_SLOT_UI_MAX_COUNT)
     return sanitizeAndCompressSlotDrafts(
         drafts = drafts,
-        slotCount = PATH_SLOT_COUNT,
+        slotCount = targetCount,
         remainingCells = remainingCells
     )
 }
