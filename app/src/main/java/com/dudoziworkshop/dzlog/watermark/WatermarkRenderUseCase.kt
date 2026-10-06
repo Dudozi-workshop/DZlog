@@ -17,6 +17,8 @@ fun renderWatermarkForRequest(
         templateCells = request.tableTemplate.cells,
         rows = request.tableTemplate.rows,
         cols = request.tableTemplate.cols,
+        rowWeights = request.tableTemplate.rowWeights,
+        colWeights = request.tableTemplate.colWeights,
         anchor = wm.anchor,
         offsetXRatio = wm.offsetXRatio,
         offsetYRatio = wm.offsetYRatio,
