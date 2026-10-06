@@ -161,6 +161,34 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
     }.getOrNull()
 }
 
+fun newBlankTableTemplateState(
+    rows: Int = 3,
+    cols: Int = 2,
+): TableTemplateState {
+    val safeRows = rows.coerceAtLeast(1)
+    val safeCols = cols.coerceAtLeast(1)
+    val cells = buildList {
+        for (row in 0 until safeRows) {
+            for (col in 0 until safeCols) {
+                add(
+                    TableCellState(
+                        rowIndex = row,
+                        colIndex = col,
+                        kind = TableCellKind.INPUT,
+                        rawText = "",
+                        typedValue = CellValue.Text(""),
+                    )
+                )
+            }
+        }
+    }
+    return TableTemplateState(
+        rows = safeRows,
+        cols = safeCols,
+        cells = cells,
+    )
+}
+
 fun defaultTableTemplateState(): TableTemplateState {
     val rows = 2
     val cols = 4
