@@ -380,41 +380,52 @@ internal fun CellSettingsBottomPanel(
 
             if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
                 val formatLabel = if (cell.dataType == TableCellDataType.DATE) "날짜 형식" else "시간 형식"
-                val effectiveCounterScopeMode = if (isCounterScopeDialogOpen) {
-                    pendingCounterScopeMode
-                } else {
-                    cell.counterScopeMode ?: CounterScopeMode.EXCLUDE
-                }
-                val scopeLabel = when (effectiveCounterScopeMode) {
-                    CounterScopeMode.EXCLUDE -> "스코프: 제외"
-                    CounterScopeMode.INCLUDE -> "스코프: 포함"
-                }
 
                 SectionCaption("형식 설정")
                 Spacer(Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                if (compactForBottomPanel) {
                     Button(
-                        modifier = Modifier.weight(1f).height(buttonHeight),
+                        modifier = Modifier.fillMaxWidth().height(buttonHeight),
                         onClick = { onOpenFormatDialog(cell.cellId, cell.dataType) }
                     ) {
                         Text(formatLabel, style = DDZTypography.ButtonText)
                     }
-                    Button(
-                        modifier = Modifier.weight(1f).height(buttonHeight),
-                        onClick = {
-                            pendingCounterScopeMode = cell.counterScopeMode ?: CounterScopeMode.EXCLUDE
-                            isCounterScopeDialogOpen = true
-                        }
+                } else {
+                    val effectiveCounterScopeMode = if (isCounterScopeDialogOpen) {
+                        pendingCounterScopeMode
+                    } else {
+                        cell.counterScopeMode ?: CounterScopeMode.EXCLUDE
+                    }
+                    val scopeLabel = when (effectiveCounterScopeMode) {
+                        CounterScopeMode.EXCLUDE -> "스코프: 제외"
+                        CounterScopeMode.INCLUDE -> "스코프: 포함"
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(scopeLabel, style = DDZTypography.ButtonText)
+                        Button(
+                            modifier = Modifier.weight(1f).height(buttonHeight),
+                            onClick = { onOpenFormatDialog(cell.cellId, cell.dataType) }
+                        ) {
+                            Text(formatLabel, style = DDZTypography.ButtonText)
+                        }
+                        Button(
+                            modifier = Modifier.weight(1f).height(buttonHeight),
+                            onClick = {
+                                pendingCounterScopeMode = cell.counterScopeMode ?: CounterScopeMode.EXCLUDE
+                                isCounterScopeDialogOpen = true
+                            }
+                        ) {
+                            Text(scopeLabel, style = DDZTypography.ButtonText)
+                        }
                     }
                 }
             }
 
-            if (isCounterScopeDialogOpen && (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME)) {
+            if (!compactForBottomPanel && isCounterScopeDialogOpen &&
+                (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME)
+            ) {
                 AlertDialog(
                     containerColor = DDZColor.Surface,
                     onDismissRequest = { isCounterScopeDialogOpen = false },
@@ -487,7 +498,10 @@ internal fun CellSettingsBottomPanel(
                         .height(buttonHeight),
                     onClick = onOpenRotatingTemplateDialog
                 ) {
-                    Text("템플릿 설정", style = DDZTypography.ButtonText)
+                    Text(
+                        if (cell.phraseSetId == null) "문구 세트 선택" else "문구 세트",
+                        style = DDZTypography.ButtonText
+                    )
                 }
             }
 
