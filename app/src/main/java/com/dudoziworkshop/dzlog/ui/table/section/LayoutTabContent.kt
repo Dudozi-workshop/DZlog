@@ -324,6 +324,12 @@ fun LayoutTabContent(
             wmValueScale = uiState.wmValueScale,
             wmTextAlign = uiState.wmTextAlign,
                 wmWidthRatio = uiState.wmWidthRatio,
+                structureSelectedCount = uiState.structureSelectedCellIds.size,
+                isMergedSelection = uiState.structureSelectedCellIds.singleOrNull()?.let { selectedId ->
+                    uiState.templateState.cells.firstOrNull { it.cellId == selectedId }?.let { cell ->
+                        cell.rowSpan > 1 || cell.colSpan > 1
+                    }
+                } == true,
                 onOpenCellMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT) },
                 onOpenStructureMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STRUCTURE_EDIT) },
                 onOpenStyleMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STYLE_EDIT) },
