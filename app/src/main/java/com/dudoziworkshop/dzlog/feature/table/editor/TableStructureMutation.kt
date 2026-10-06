@@ -39,10 +39,11 @@ fun addRowBySelection(
     templateState: TableTemplateState,
     selectionRange: TableSelectionRange?,
 ): TableTemplateState {
-    if (hasMergedCells(templateState)) return templateState
     if (templateState.rows >= TableEditorPolicy.MAX_ROWS) return templateState
 
-    val insertAt = (selectionRange?.maxRow?.plus(1) ?: templateState.rows).coerceIn(0, templateState.rows)
+    val requestedInsertAt = (selectionRange?.maxRow?.plus(1) ?: templateState.rows)
+        .coerceIn(0, templateState.rows)
+    val insertAt = resolveSafeRowInsertIndex(templateState, requestedInsertAt)
     val shifted = templateState.cells.map { cell ->
         if (cell.rowIndex >= insertAt) cell.copy(rowIndex = cell.rowIndex + 1) else cell
     }
@@ -72,10 +73,11 @@ fun addColumnBySelection(
     templateState: TableTemplateState,
     selectionRange: TableSelectionRange?,
 ): TableTemplateState {
-    if (hasMergedCells(templateState)) return templateState
     if (templateState.cols >= TableEditorPolicy.MAX_COLS) return templateState
 
-    val insertAt = (selectionRange?.maxCol?.plus(1) ?: templateState.cols).coerceIn(0, templateState.cols)
+    val requestedInsertAt = (selectionRange?.maxCol?.plus(1) ?: templateState.cols)
+        .coerceIn(0, templateState.cols)
+    val insertAt = resolveSafeColInsertIndex(templateState, requestedInsertAt)
     val shifted = templateState.cells.map { cell ->
         if (cell.colIndex >= insertAt) cell.copy(colIndex = cell.colIndex + 1) else cell
     }
@@ -125,8 +127,11 @@ fun removeRowsByRange(
     templateState: TableTemplateState,
     range: IntRange,
 ): TableTemplateState {
-    if (hasMergedCells(templateState)) return templateState
-    val normalizedRange = normalizeRowRemovalRange(templateState, range) ?: return templateState
+    val expandedRange = expandRowRemovalRangeForMergedCells(templateState, range)
+    val normalizedRange = normalizeRowRemovalRange(templateState, expandedRange) ?: return templateState
+    if (expandedRange != range &&
+        (normalizedRange.first != expandedRange.first || normalizedRange.last != expandedRange.last)
+    ) return templateState
 
     val remainingCells = templateState.cells
         .filterNot { it.rowIndex in normalizedRange }
@@ -155,8 +160,11 @@ fun removeColsByRange(
     templateState: TableTemplateState,
     range: IntRange,
 ): TableTemplateState {
-    if (hasMergedCells(templateState)) return templateState
-    val normalizedRange = normalizeColRemovalRange(templateState, range) ?: return templateState
+    val expandedRange = expandColRemovalRangeForMergedCells(templateState, range)
+    val normalizedRange = normalizeColRemovalRange(templateState, expandedRange) ?: return templateState
+    if (expandedRange != range &&
+        (normalizedRange.first != expandedRange.first || normalizedRange.last != expandedRange.last)
+    ) return templateState
 
     val remainingCells = templateState.cells
         .filterNot { it.colIndex in normalizedRange }
@@ -234,7 +242,107 @@ private fun removeRange(weights: List<Float>, start: Int, end: Int): List<Float>
     return weights.filterIndexed { index, _ -> index !in start..<(end + 1) }
 }
 
-private fun hasMergedCells(templateState: TableTemplateState): Boolean {
+private fun resolveSafeRowInsertIndex(
+    templateState: TableTemplateState,
+    requestedIndex: Int,
+): Int {
+    var resolved = requestedIndex.coerceIn(0, templateState.rows)
+    var changed: Boolean
+    do {
+        changed = false
+        templateState.cells
+            .filter { it.rowSpan > 1 }
+            .forEach { cell ->
+                val start = cell.rowIndex
+                val endExclusive = cell.rowIndex + cell.rowSpan
+                if (resolved > start && resolved < endExclusive) {
+                    resolved = endExclusive.coerceAtMost(templateState.rows)
+                    changed = true
+                }
+            }
+    } while (changed)
+    return resolved
+}
+
+fun resolveSafeColInsertIndex(
+    templateState: TableTemplateState,
+    requestedIndex: Int,
+): Int {
+    var resolved = requestedIndex.coerceIn(0, templateState.cols)
+    var changed: Boolean
+    do {
+        changed = false
+        templateState.cells
+            .filter { it.colSpan > 1 }
+            .forEach { cell ->
+                val start = cell.colIndex
+                val endExclusive = cell.colIndex + cell.colSpan
+                if (resolved > start && resolved < endExclusive) {
+                    resolved = endExclusive.coerceAtMost(templateState.cols)
+                    changed = true
+                }
+            }
+    } while (changed)
+    return resolved
+}
+
+fun expandRowRemovalRangeForMergedCells(
+    templateState: TableTemplateState,
+    requestedRange: IntRange,
+): IntRange {
+    var start = requestedRange.first.coerceIn(0, (templateState.rows - 1).coerceAtLeast(0))
+    var end = requestedRange.last.coerceIn(start, (templateState.rows - 1).coerceAtLeast(start))
+    var changed: Boolean
+    do {
+        changed = false
+        templateState.cells
+            .filter { it.rowSpan > 1 }
+            .forEach { cell ->
+                val cellStart = cell.rowIndex
+                val cellEnd = cell.rowIndex + cell.rowSpan - 1
+                if (!(end < cellStart || start > cellEnd)) {
+                    val nextStart = minOf(start, cellStart)
+                    val nextEnd = maxOf(end, cellEnd)
+                    if (nextStart != start || nextEnd != end) {
+                        start = nextStart
+                        end = nextEnd
+                        changed = true
+                    }
+                }
+            }
+    } while (changed)
+    return start..end
+}
+
+fun expandColRemovalRangeForMergedCells(
+    templateState: TableTemplateState,
+    requestedRange: IntRange,
+): IntRange {
+    var start = requestedRange.first.coerceIn(0, (templateState.cols - 1).coerceAtLeast(0))
+    var end = requestedRange.last.coerceIn(start, (templateState.cols - 1).coerceAtLeast(start))
+    var changed: Boolean
+    do {
+        changed = false
+        templateState.cells
+            .filter { it.colSpan > 1 }
+            .forEach { cell ->
+                val cellStart = cell.colIndex
+                val cellEnd = cell.colIndex + cell.colSpan - 1
+                if (!(end < cellStart || start > cellEnd)) {
+                    val nextStart = minOf(start, cellStart)
+                    val nextEnd = maxOf(end, cellEnd)
+                    if (nextStart != start || nextEnd != end) {
+                        start = nextStart
+                        end = nextEnd
+                        changed = true
+                    }
+                }
+            }
+    } while (changed)
+    return start..end
+}
+
+fun hasMergedCells(templateState: TableTemplateState): Boolean {
     return templateState.cells.any { it.rowSpan > 1 || it.colSpan > 1 }
 }
 
