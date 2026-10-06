@@ -35,7 +35,7 @@ internal fun UnsavedChangesDialog(
         text = { Text("변경사항을 저장하시겠습니까?", style = DDZTypography.Body, color = DDZColor.TextPrimary) },
         confirmButton = {
             TextButton(onClick = onSave) { Text("저장", style = DDZTypography.ButtonText, color = DDZColor.Primary) }
-            TextButton(onClick = onDiscard) { Text("저장안함", style = DDZTypography.ButtonText, color = DDZColor.Primary) }
+            TextButton(onClick = onDiscard) { Text("저장 안 함", style = DDZTypography.ButtonText, color = DDZColor.Primary) }
             TextButton(onClick = onCancel) { Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary) }
         },
         dismissButton = {}
