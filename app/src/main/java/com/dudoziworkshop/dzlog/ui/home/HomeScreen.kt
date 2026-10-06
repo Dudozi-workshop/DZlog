@@ -100,6 +100,7 @@ fun HomeScreen(
     onOpenSettings: () -> Unit,
     onStartCamera: () -> Unit,
     onOpenTableEditor: () -> Unit,
+    onOpenTableEditorV2Mock: () -> Unit,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit
 ) {
@@ -453,11 +454,27 @@ fun HomeScreen(
                             .fillMaxHeight()
                             .padding(horizontal = 2.dp)
                     ) {
-                        Text(
-                            text = "표 상세설정",
-                            style = DDZTypography.HomeSectionLabel.copy(fontWeight = FontWeight.Normal),
-                            color = DDZColor.TextPrimary
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "표 상세설정",
+                                style = DDZTypography.HomeSectionLabel.copy(fontWeight = FontWeight.Normal),
+                                color = DDZColor.TextPrimary
+                            )
+                            Text(
+                                text = "V2 목업",
+                                style = DDZTypography.Caption,
+                                color = DDZColor.Primary,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(DDZColor.Primary.copy(alpha = 0.08f))
+                                    .clickable(onClick = onOpenTableEditorV2Mock)
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                            )
+                        }
                         Spacer(Modifier.height(8.dp))
                         // 주요 정책: 표 상세설정은 기존 평평한 프리뷰 구조를 유지한다.
                         Box(
