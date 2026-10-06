@@ -1629,7 +1629,14 @@ fun TableEditorScreen(
             TableEditorSelectedCellActionBinder.setCounterScopeModeForSelected(selectedCellActionBindings, mode)
         },
         onResetCounterSeedForSelected = ::resetSelectedCounterSeed,
-        onSetBgStyle = { bgStyle -> applyTableStyleMutation { it.copy(bgStyle = bgStyle.coerceIn(0, 2)) } },
+        onSetBgStyle = { bgStyle ->
+            applyTableStyleMutation {
+                it.copy(
+                    bgStyle = bgStyle.coerceIn(0, 2),
+                    textColorMode = 0,
+                )
+            }
+        },
         onSetBgAlpha = { alpha -> applyTableStyleMutation { it.copy(bgAlpha = alpha.coerceIn(0, 255)) } },
         onSetGridEnabled = { enabled -> applyTableStyleMutation { it.copy(gridEnabled = enabled) } },
         onSetTextColorMode = { mode -> applyTableStyleMutation { it.copy(textColorMode = mode.coerceIn(0, 1)) } },
