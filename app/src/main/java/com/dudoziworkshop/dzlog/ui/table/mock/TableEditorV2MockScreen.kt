@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,7 +56,14 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
 private enum class MockMode { EDIT, LAYOUT }
-private enum class MockCellType(val label: String) { TEXT("텍스트"), NUMBER("숫자"), COUNTER("자동번호") }
+private enum class MockCellType(val label: String) {
+    TEXT("텍스트"),
+    NUMBER("숫자"),
+    COUNTER("자동번호"),
+    DATE("날짜"),
+    TIME("시간"),
+    ROTATING_TEXT("순환문구"),
+}
 
 private data class MockCell(
     val id: Int,
@@ -72,7 +80,7 @@ fun TableEditorV2MockScreen(
         mutableStateListOf(
             MockCell(0, "Draper"),
             MockCell(1, "0012", MockCellType.COUNTER),
-            MockCell(2, "2026.10.06"),
+            MockCell(2, "2026.10.06", MockCellType.DATE),
             MockCell(3, "천안"),
             MockCell(4, "처리구 A"),
             MockCell(5, "반복 1"),
@@ -106,7 +114,7 @@ fun TableEditorV2MockScreen(
                 },
                 title = {
                     Text(
-                        if (mode == MockMode.LAYOUT) "레이아웃 편집" else "표 편집 · V2 목업",
+                        if (mode == MockMode.LAYOUT) "레이아웃 편집" else "표 편집",
                         fontWeight = FontWeight.Bold,
                     )
                 },
@@ -116,6 +124,16 @@ fun TableEditorV2MockScreen(
                             mode = MockMode.EDIT
                             selectedIds = emptySet()
                         }) { Text("완료") }
+                    } else {
+                        IconButton(onClick = { }) {
+                            Icon(Icons.Filled.Undo, contentDescription = "실행 취소")
+                        }
+                        IconButton(onClick = { }) {
+                            Icon(Icons.Filled.Redo, contentDescription = "다시 실행")
+                        }
+                        IconButton(onClick = { }) {
+                            Icon(Icons.Filled.Save, contentDescription = "저장")
+                        }
                     }
                 }
             )
@@ -169,9 +187,7 @@ fun TableEditorV2MockScreen(
 
             if (mode == MockMode.EDIT) {
                 val selected = selectedId?.let { id -> cells.firstOrNull { it.id == id } }
-                if (selected == null) {
-                    MockStartHint()
-                } else {
+                if (selected != null) {
                     MockCellEditor(
                         cell = selected,
                         onValueChange = { next ->
@@ -316,20 +332,6 @@ private fun MockTableCanvas(
     }
 }
 
-@Composable
-private fun MockStartHint() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Text("표를 눌러 바로 수정", fontWeight = FontWeight.Bold)
-        Text("셀을 선택하면 필요한 설정만 아래에 나타납니다.", color = DDZColor.TextMuted)
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MockCellEditor(
@@ -338,52 +340,131 @@ private fun MockCellEditor(
     onTypeChange: (MockCellType) -> Unit,
     onClose: () -> Unit,
 ) {
+    var showTypePicker by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.White)
             .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
-                Text("선택한 셀", color = DDZColor.TextMuted)
+            Text("선택한 셀", fontWeight = FontWeight.Bold)
+            Text(
+                "×",
+                modifier = Modifier
+                    .clickable(onClick = onClose)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                color = DDZColor.TextMuted,
+            )
+        }
+
+        when (cell.type) {
+            MockCellType.TEXT,
+            MockCellType.NUMBER -> {
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    value = cell.value,
+                    onValueChange = onValueChange,
+                    label = { Text("값") },
+                    singleLine = true,
+                )
+            }
+
+            MockCellType.COUNTER -> {
                 Text(cell.value, fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("다음 번호", color = DDZColor.TextMuted)
+                    Text("0013")
+                }
             }
-            OutlinedButton(onClick = onClose) { Text("닫기") }
+
+            MockCellType.DATE -> {
+                Text(cell.value.ifBlank { "2026.10.06" }, fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("날짜 형식", color = DDZColor.TextMuted)
+                    Text("2026.10.06  ›")
+                }
+            }
+
+            MockCellType.TIME -> {
+                Text(cell.value.ifBlank { "22:04" }, fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("시간 형식", color = DDZColor.TextMuted)
+                    Text("22:04  ›")
+                }
+            }
+
+            MockCellType.ROTATING_TEXT -> {
+                Text(cell.value.ifBlank { "Draper" }, fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("문구 세트", color = DDZColor.TextMuted)
+                    Text("품종  ›")
+                }
+            }
         }
 
-        OutlinedTextField(
+        OutlinedButton(
             modifier = Modifier.fillMaxWidth(),
-            value = cell.value,
-            onValueChange = onValueChange,
-            label = { Text("값") },
-            singleLine = true,
-        )
-
-        Text("셀 종류", color = DDZColor.TextMuted)
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            MockCellType.entries.forEachIndexed { index, type ->
-                SegmentedButton(
-                    selected = cell.type == type,
-                    onClick = { onTypeChange(type) },
-                    shape = SegmentedButtonDefaults.itemShape(index, MockCellType.entries.size),
-                ) { Text(type.label) }
-            }
-        }
-
-        if (cell.type == MockCellType.COUNTER) {
+            onClick = { showTypePicker = true },
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("자동 증가")
-                Switch(checked = true, onCheckedChange = { })
+                Text("셀 종류")
+                Text(cell.type.label + "  ›")
+            }
+        }
+    }
+
+    if (showTypePicker) {
+        ModalBottomSheet(onDismissRequest = { showTypePicker = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("셀에 무엇을 표시할까요?", fontWeight = FontWeight.Bold)
+                MockCellType.entries.chunked(2).forEach { row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        row.forEach { type ->
+                            OutlinedButton(
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    onTypeChange(type)
+                                    showTypePicker = false
+                                },
+                            ) {
+                                Text(
+                                    if (type == cell.type) type.label + " ✓" else type.label
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
             }
         }
     }
