@@ -4,7 +4,7 @@ import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
-import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.HourSystem
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
@@ -48,6 +48,14 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                     formatType = obj.optString("formatType").takeUnless { it.isBlank() || it == "null" }
                 )
             }
+        }
+
+        fun parseVariableEditorSlotDrafts(key: String, minSlotCount: Int): List<TableEditorSlotDraft?> {
+            val arr = root.optJSONArray(key) ?: JSONArray()
+            return parseEditorSlotDrafts(
+                key = key,
+                slotCount = maxOf(arr.length(), minSlotCount),
+            )
         }
 
 
@@ -138,7 +146,7 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
             }
         }
         val fileNameSlotDrafts = parseEditorSlotDrafts("fileNameSlotDrafts", FILE_NAME_SLOT_COUNT)
-        val pathSlotDrafts = parseEditorSlotDrafts("pathSlotDrafts", PATH_SLOT_COUNT)
+        val pathSlotDrafts = parseVariableEditorSlotDrafts("pathSlotDrafts", PATH_SLOT_UI_MAX_COUNT)
 
         TableTemplateState(
             rows = rows,
@@ -256,9 +264,10 @@ fun TableTemplateState.toJsonString(): String {
     }
 
 
-    fun slotDraftsToJson(drafts: List<TableEditorSlotDraft?>, slotCount: Int): JSONArray {
+    fun slotDraftsToJson(drafts: List<TableEditorSlotDraft?>, slotCount: Int? = null): JSONArray {
         val arr = JSONArray()
-        drafts.take(slotCount).forEach { slot ->
+        val source = slotCount?.let { drafts.take(it) } ?: drafts
+        source.forEach { slot ->
             if (slot == null) {
                 arr.put(JSONObject.NULL)
             } else {
@@ -275,7 +284,7 @@ fun TableTemplateState.toJsonString(): String {
     }
 
     root.put("fileNameSlotDrafts", slotDraftsToJson(fileNameSlotDrafts, FILE_NAME_SLOT_COUNT))
-    root.put("pathSlotDrafts", slotDraftsToJson(pathSlotDrafts, PATH_SLOT_COUNT))
+    root.put("pathSlotDrafts", slotDraftsToJson(pathSlotDrafts))
 
     if (phraseSets.isNotEmpty()) {
         val phraseSetsJson = JSONArray()
