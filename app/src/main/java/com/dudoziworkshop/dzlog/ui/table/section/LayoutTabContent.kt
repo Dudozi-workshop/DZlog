@@ -15,8 +15,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,10 +29,8 @@ import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import com.dudoziworkshop.dzlog.ui.common.DDZSectionHeader
 import com.dudoziworkshop.dzlog.ui.table.BottomEditorPanel
 import com.dudoziworkshop.dzlog.ui.table.CellSettingsBottomPanel
-import com.dudoziworkshop.dzlog.ui.table.CompactPathHeader
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
@@ -89,38 +87,14 @@ fun LayoutTabContent(
             modifier = contentColumnModifier
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                CompactPathHeader(
-                    savePath = uiState.savePathPreview,
-                    fileName = uiState.filenamePreview,
-                    fileNameRightLabel = uiState.counterModeLabel,
-                    onClickFileNamePreview = {
-                        if (uiState.bottomPanelMode == BottomEditorPanelMode.FILENAME_EDIT) {
-                            actions.onCloseBottomPanel()
-                        } else {
-                            actions.onChangeBottomPanelMode(BottomEditorPanelMode.FILENAME_EDIT)
-                        }
-                    },
-                    onClickSavePathPreview = {
-                        if (uiState.bottomPanelMode == BottomEditorPanelMode.PATH_EDIT) {
-                            actions.onCloseBottomPanel()
-                        } else {
-                            actions.onChangeBottomPanelMode(BottomEditorPanelMode.PATH_EDIT)
-                        }
-                    }
-                )
-
-                Spacer(Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    DDZSectionHeader(title = "셀 구성")
-                    TextButton(onClick = actions.onOpenPlacementDialog) {
-                        Text("미리보기", style = DDZTypography.Caption, color = DDZColor.Primary)
-                    }
+                if (uiState.bottomPanelMode == BottomEditorPanelMode.NONE) {
+                    Text(
+                        text = "수정할 셀을 눌러보세요",
+                        style = DDZTypography.Caption,
+                        color = DDZColor.TextMuted,
+                    )
+                    Spacer(Modifier.height(10.dp))
                 }
-                Spacer(Modifier.height(6.dp))
 
                 Box(
                     modifier = Modifier
@@ -228,6 +202,35 @@ fun LayoutTabContent(
                         .fillMaxWidth()
                         .weight(1f)
                 )
+            }
+        }
+
+        if (uiState.bottomPanelMode == BottomEditorPanelMode.NONE) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STRUCTURE_EDIT) },
+                ) {
+                    Text("레이아웃")
+                }
+                Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STYLE_EDIT) },
+                ) {
+                    Text("스타일")
+                }
+                Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.FILENAME_EDIT) },
+                ) {
+                    Text("저장 규칙")
+                }
             }
         }
 
