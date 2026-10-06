@@ -193,6 +193,8 @@ fun LayoutTabContent(
                             actions.onShowCellSettingsPanel(false)
                         },
                         onSelectRange = actions.onSelectStructureRange,
+                        onCommitRowWeights = actions.onCommitRowWeights,
+                        onCommitColumnWeights = actions.onCommitColumnWeights,
                     )
                 }
 
