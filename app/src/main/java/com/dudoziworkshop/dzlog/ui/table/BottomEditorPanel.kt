@@ -36,7 +36,11 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -391,10 +395,20 @@ internal fun BottomEditorPanel(
                         when (selectedCell.dataType) {
                             TableCellDataType.TEXT,
                             TableCellDataType.NUMBER -> {
+                                val focusRequester = androidx.compose.runtime.remember(
+                                    selectedCell.cellId,
+                                    selectedCell.dataType,
+                                ) { FocusRequester() }
+                                val keyboardController = LocalSoftwareKeyboardController.current
+                                LaunchedEffect(selectedCell.cellId, selectedCell.dataType) {
+                                    focusRequester.requestFocus()
+                                    keyboardController?.show()
+                                }
                                 OutlinedTextField(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(46.dp),
+                                        .height(46.dp)
+                                        .focusRequester(focusRequester),
                                     value = topValue,
                                     onValueChange = { next ->
                                         if (editingCellId != selectedCell.cellId) {
