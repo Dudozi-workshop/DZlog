@@ -33,6 +33,8 @@ val KEY_WM_ROTATION_CW_90 = intPreferencesKey("wm_rotation_cw_90")
 val KEY_WM_GRID_ENABLED = booleanPreferencesKey("wm_grid_enabled")
 val KEY_TABLE_DETAIL_GRID_ENABLED = booleanPreferencesKey("table_detail_grid_enabled")
 val KEY_TABLE_TEMPLATE_JSON = stringPreferencesKey("table_template_json")
+val KEY_TABLE_TEMPLATES_JSON = stringPreferencesKey("table_templates_json_v1")
+val KEY_ACTIVE_TABLE_TEMPLATE_ID = stringPreferencesKey("active_table_template_id_v1")
 
 val KEY_COUNTER_MANUAL_NEXT_OVERRIDES_V1 = stringPreferencesKey("counter_manual_next_overrides_v1")
 
