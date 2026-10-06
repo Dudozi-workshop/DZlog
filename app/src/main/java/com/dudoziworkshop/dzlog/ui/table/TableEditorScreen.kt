@@ -1507,6 +1507,7 @@ fun TableEditorScreen(
         },
         onResetCounterSeedForSelected = ::resetSelectedCounterSeed,
         onSetBgStyle = { bgStyle -> applyTableStyleMutation { it.copy(bgStyle = bgStyle.coerceIn(0, 2)) } },
+        onSetBgAlpha = { alpha -> applyTableStyleMutation { it.copy(bgAlpha = alpha.coerceIn(0, 255)) } },
         onSetGridEnabled = { enabled -> applyTableStyleMutation { it.copy(gridEnabled = enabled) } },
         onSetTextColorMode = { mode -> applyTableStyleMutation { it.copy(textColorMode = mode.coerceIn(0, 1)) } },
         onSetManualTextColor = { color -> applyTableStyleMutation { it.copy(manualTextColor = color.coerceIn(0, 1)) } },
