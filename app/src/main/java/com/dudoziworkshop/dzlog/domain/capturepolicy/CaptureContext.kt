@@ -1,7 +1,6 @@
 package com.dudoziworkshop.dzlog.domain.capturepolicy
 
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
-import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
@@ -41,9 +40,6 @@ internal data class CaptureContext(
     init {
         require(fileNameSlotDrafts.size == FILE_NAME_SLOT_COUNT) {
             "fileNameSlotDrafts must have exactly $FILE_NAME_SLOT_COUNT entries."
-        }
-        require(pathSlotDrafts.size == PATH_SLOT_COUNT) {
-            "pathSlotDrafts must have exactly $PATH_SLOT_COUNT entries."
         }
     }
 }
