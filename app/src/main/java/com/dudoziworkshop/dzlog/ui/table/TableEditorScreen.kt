@@ -213,6 +213,7 @@ private fun buildPathDraftSlots(template: TableTemplateState): List<PathSlotUiIt
 // 실제 동작 흐름은 유지한다.
 fun TableEditorScreen(
     templateState: TableTemplateState,
+    templateName: String = "",
     onTemplateChange: (TableTemplateState) -> Unit,
     onBack: () -> Unit
 ) {
@@ -1659,11 +1660,23 @@ fun TableEditorScreen(
             CenterAlignedTopAppBar(
                 modifier = Modifier,
                 title = {
-                    Text(
-                        if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) "레이아웃 편집" else "표 편집",
-                        style = DDZTypography.ScreenTitle,
-                        color = DDZColor.Primary
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) "레이아웃 편집" else "표 편집",
+                            style = DDZTypography.ScreenTitle,
+                            color = DDZColor.Primary
+                        )
+                        if (bottomPanelMode != BottomEditorPanelMode.STRUCTURE_EDIT && templateName.isNotBlank()) {
+                            Text(
+                                text = templateName,
+                                style = DDZTypography.Caption,
+                                color = DDZColor.TextMuted,
+                                maxLines = 1,
+                            )
+                        }
+                    }
                 },
                 navigationIcon = {
                     IconButton(
