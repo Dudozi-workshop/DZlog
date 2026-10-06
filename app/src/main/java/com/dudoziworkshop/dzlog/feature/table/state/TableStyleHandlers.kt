@@ -31,7 +31,7 @@ suspend fun loadTableStyleState(context: Context): TableStyleState {
             WatermarkManualTextColor.WHITE,
             WatermarkManualTextColor.BLACK,
         ),
-        textAlign = (prefs[KEY_WM_TEXT_ALIGN] ?: WatermarkTextAlign.LEFT).coerceIn(
+        textAlign = (prefs[KEY_WM_TEXT_ALIGN] ?: WatermarkTextAlign.CENTER).coerceIn(
             WatermarkTextAlign.LEFT,
             WatermarkTextAlign.RIGHT,
         ),
