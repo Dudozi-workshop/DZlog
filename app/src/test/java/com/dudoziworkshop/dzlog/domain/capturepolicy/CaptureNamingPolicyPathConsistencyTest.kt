@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.domain.capturepolicy
 
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterScopeParts
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -31,6 +32,7 @@ class CaptureNamingPolicyPathConsistencyTest {
                 pathSlotDrafts = listOf(
                     TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
                     TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "B"),
+                    null,
                 )
             ),
             usedCounter = 1,
@@ -40,6 +42,7 @@ class CaptureNamingPolicyPathConsistencyTest {
                 pathSlotDrafts = listOf(
                     TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "B"),
                     TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
+                    null,
                 )
             ),
             usedCounter = 1,
@@ -96,6 +99,7 @@ class CaptureNamingPolicyPathConsistencyTest {
         pathSlotDrafts: List<TableEditorSlotDraft?> = listOf(
             TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
             TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "B"),
+            null,
         ),
         saveMode: SaveMode = SaveMode.WATERMARK_ONLY,
     ): CaptureContext {
