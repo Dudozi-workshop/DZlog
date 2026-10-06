@@ -126,6 +126,8 @@ fun WatermarkPreviewOverlay(
                 cols = request.tableTemplate.cols,
                 valueScale = request.watermark.valueScale,
                 baseScaleRatio = cameraPreviewShape.tableWidthRatio,
+                rowWeights = request.tableTemplate.rowWeights,
+                colWeights = request.tableTemplate.colWeights,
             )
             TableRenderAdapter.drawScene(
                 canvas = canvas.nativeCanvas,
