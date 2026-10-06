@@ -99,6 +99,8 @@ fun computeResolvedRenderLayout(
     valueScale: Int,
     baseScaleRatio: Int = 100,
     rootCells: List<RenderRootCell>? = null,
+    rowWeights: List<Float>? = null,
+    colWeights: List<Float>? = null,
     maxWidthPx: Float? = null,
     maxHeightPx: Float? = null,
 ): ResolvedRenderLayout {
@@ -144,8 +146,14 @@ fun computeResolvedRenderLayout(
     val baseIntrinsicColWidths = layout.colWidthsPx
     val intrinsicWidthFromCols = baseIntrinsicColWidths.sum().coerceAtLeast(1f)
     val widthUpscale = (layout.contentWidthPx / intrinsicWidthFromCols).coerceAtLeast(1f)
-    val intrinsicColWidths = baseIntrinsicColWidths.map { it * widthUpscale }
-    val intrinsicRowHeights = layout.rowHeightsPx
+    val resolvedRowScales = TableLayoutCalculator.resolveWeights(rowWeights, safeRows)
+    val resolvedColScales = TableLayoutCalculator.resolveWeights(colWeights, safeCols)
+    val intrinsicColWidths = baseIntrinsicColWidths.mapIndexed { index, width ->
+        width * widthUpscale * resolvedColScales[index]
+    }
+    val intrinsicRowHeights = layout.rowHeightsPx.mapIndexed { index, height ->
+        height * resolvedRowScales[index]
+    }
     val intrinsicTableWidth = intrinsicColWidths.sum().coerceAtLeast(1f)
     val intrinsicTableHeight = intrinsicRowHeights.sum().coerceAtLeast(1f)
     val widthFit = maxWidthPx?.takeIf { it > 0f }?.let { (it / intrinsicTableWidth).coerceAtMost(1f) } ?: 1f
@@ -175,6 +183,8 @@ fun buildContentDrivenRenderedSceneFromPlacement(
     cols: Int,
     valueScale: Int,
     baseScaleRatio: Int,
+    rowWeights: List<Float>? = null,
+    colWeights: List<Float>? = null,
 ): ContentDrivenRenderedScene {
     val rootCells = buildRenderRootCells(templateCells)
     val viewportTableRect = computeRenderedTableGeometry(
@@ -192,6 +202,8 @@ fun buildContentDrivenRenderedSceneFromPlacement(
         valueScale = valueScale,
         baseScaleRatio = baseScaleRatio,
         rootCells = rootCells,
+        rowWeights = rowWeights,
+        colWeights = colWeights,
         maxWidthPx = viewportTableRect.width(),
         maxHeightPx = viewportTableRect.height(),
     )
