@@ -160,6 +160,8 @@ data class LayoutTabActions(
     val onSetValueScale: (Int) -> Unit,
     val onSetTextAlign: (Int) -> Unit,
     val onSetWmWidthRatio: (Int) -> Unit,
+    val onCommitRowWeights: (List<Float>) -> Unit,
+    val onCommitColumnWeights: (List<Float>) -> Unit,
     val onOpenRotatingTemplateDialogForSelected: (String) -> Unit,
     val onOpenPlacementDialog: () -> Unit
 )
