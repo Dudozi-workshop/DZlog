@@ -210,25 +210,49 @@ fun RealTableGridSection(
                 } else {
                     selectedCellId?.let { setOf(it) } ?: emptySet()
                 }
-                effectiveSelectionIds.forEach { selectedId ->
-                    val rect = rootHitRects.firstOrNull { it.cellId == selectedId } ?: return@forEach
+                val selectedRects = effectiveSelectionIds.mapNotNull { selectedId ->
+                    rootHitRects.firstOrNull { it.cellId == selectedId }
+                }
+
+                selectedRects.forEach { rect ->
                     val l = renderedScene.tableRect.left + rect.left
                     val t = renderedScene.tableRect.top + rect.top
-                val spanW = rect.right - rect.left
-                val spanH = rect.bottom - rect.top
-                drawRect(
-                    color = if (isStructureMode) selectedFillColor.copy(alpha = 0.14f) else selectedFillColor,
-                    topLeft = Offset(l, t),
-                    size = androidx.compose.ui.geometry.Size(spanW, spanH)
-                )
-                val selectionStrokeWidth = if (selectedId == editingCellId) 4f else 3f
-                drawRect(
-                    color = selectedBorderColor,
-                    topLeft = Offset(l, t),
-                    size = androidx.compose.ui.geometry.Size(spanW, spanH),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = selectionStrokeWidth)
-                )
-            }
+                    val spanW = rect.right - rect.left
+                    val spanH = rect.bottom - rect.top
+                    drawRect(
+                        color = if (isStructureMode) selectedFillColor.copy(alpha = 0.14f) else selectedFillColor,
+                        topLeft = Offset(l, t),
+                        size = androidx.compose.ui.geometry.Size(spanW, spanH)
+                    )
+                    if (!isStructureMode) {
+                        val selectionStrokeWidth = if (rect.cellId == editingCellId) 4f else 3f
+                        drawRect(
+                            color = selectedBorderColor,
+                            topLeft = Offset(l, t),
+                            size = androidx.compose.ui.geometry.Size(spanW, spanH),
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = selectionStrokeWidth)
+                        )
+                    }
+                }
+
+                if (isStructureMode && selectedRects.isNotEmpty()) {
+                    val left = selectedRects.minOf { it.left }
+                    val top = selectedRects.minOf { it.top }
+                    val right = selectedRects.maxOf { it.right }
+                    val bottom = selectedRects.maxOf { it.bottom }
+                    drawRect(
+                        color = selectedBorderColor,
+                        topLeft = Offset(
+                            renderedScene.tableRect.left + left,
+                            renderedScene.tableRect.top + top,
+                        ),
+                        size = androidx.compose.ui.geometry.Size(
+                            right - left,
+                            bottom - top,
+                        ),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f),
+                    )
+                }
 
                 if (isStructureMode && DEBUG_ROOT_HIT_RECTS) {
                     rootHitRects.forEach { rect ->
