@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -749,6 +751,8 @@ fun TableEditorScreen(
     // 선택된 셀의 세션 시작 전 원본 스냅샷이다. 즉시 반영 이후에도 undo/세션 동기화 보조 정보로만 유지한다.
     var editSessionOriginalCellState by remember { mutableStateOf<TableCellState?>(null) }
     var showUnsavedChangesDialog by remember { mutableStateOf(false) }
+    var showStructureDeleteSheet by remember { mutableStateOf(false) }
+    var pendingMergeRange by remember { mutableStateOf<TableSelectionRange?>(null) }
     val deletedRowsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
     val deletedColsStack = remember { mutableStateListOf<DeletedStructureSnapshot>() }
 
@@ -1362,6 +1366,102 @@ fun TableEditorScreen(
         onCancel = ::dismissUnsavedChangesDialog,
     )
 
+    fun performMergeSelection(range: TableSelectionRange) {
+        val expanded = TableStructureRangeActions.expandRangeToMergedBlocks(currentTemplate.cells, range)
+        if (expanded != range) return
+        val mergedTemplate = TableStructureRangeActions.mergeSelection(currentTemplate, range)
+        applyTemplateWithUndo(mergedTemplate)
+        val mergedRoot = mergedTemplate.cells.firstOrNull {
+            it.rowIndex == range.minRow && it.colIndex == range.minCol
+        }
+        structureSelectionRange = null
+        structureSelectedCellIds = mergedRoot?.let { setOf(it.cellId) } ?: emptySet()
+    }
+
+    if (pendingMergeRange != null) {
+        AlertDialog(
+            containerColor = DDZColor.Surface,
+            onDismissRequest = { pendingMergeRange = null },
+            title = {
+                Text(
+                    "셀을 병합할까요?",
+                    style = DDZTypography.CardTitle,
+                    color = DDZColor.TextPrimary,
+                )
+            },
+            text = {
+                Text(
+                    "병합하면 왼쪽 위 셀의 값만 유지됩니다.",
+                    style = DDZTypography.Body,
+                    color = DDZColor.TextPrimary,
+                )
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingMergeRange = null }) {
+                    Text("취소")
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingMergeRange?.let(::performMergeSelection)
+                        pendingMergeRange = null
+                    }
+                ) {
+                    Text("병합")
+                }
+            },
+        )
+    }
+
+    if (showStructureDeleteSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showStructureDeleteSheet = false },
+            containerColor = DDZColor.Surface,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 24.dp),
+            ) {
+                Text(
+                    "삭제",
+                    style = DDZTypography.CardTitle,
+                    color = DDZColor.TextPrimary,
+                )
+                Button(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    onClick = {
+                        showStructureDeleteSheet = false
+                        applyStructureRemove(StructureRestoreAxis.ROW)
+                    },
+                ) {
+                    Text("행 삭제")
+                }
+                Button(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    onClick = {
+                        showStructureDeleteSheet = false
+                        applyStructureRemove(StructureRestoreAxis.COL)
+                    },
+                ) {
+                    Text("열 삭제")
+                }
+                TextButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { showStructureDeleteSheet = false },
+                ) {
+                    Text("취소")
+                }
+            }
+        }
+    }
+
     fun resetSelectedCounterSeed() {
         val result = TableEditorSelectedCounterResetCoordinator.resetToAutoNext(
             TableEditorSelectedCounterResetInput(
@@ -1470,19 +1570,20 @@ fun TableEditorScreen(
         onMergeSelection = merge@{
             val range = structureSelectionRange ?: return@merge
             val expanded = TableStructureRangeActions.expandRangeToMergedBlocks(currentTemplate.cells, range)
-            val mergedTemplate = TableStructureRangeActions.mergeSelection(currentTemplate, expanded)
-            applyTemplateWithUndo(mergedTemplate)
-            val mergedRoot = mergedTemplate.cells.firstOrNull { it.rowIndex == expanded.minRow && it.colIndex == expanded.minCol }
-            structureSelectionRange = null
-            structureSelectedCellIds = mergedRoot?.let { setOf(it.cellId) } ?: emptySet()
+            if (expanded != range || range.rowCount * range.colCount < 2) return@merge
+            val populatedCount = currentTemplate.cells.count { cell ->
+                range.contains(cell.rowIndex, cell.colIndex) &&
+                    resolvedByCellId[cell.cellId].orEmpty().isNotBlank()
+            }
+            if (populatedCount > 1) {
+                pendingMergeRange = range
+            } else {
+                performMergeSelection(range)
+            }
         },
         onDeleteSelection = delete@{
-            val range = structureSelectionRange ?: return@delete
-            val expanded = TableStructureRangeActions.expandRangeToMergedBlocks(currentTemplate.cells, range)
-            val deletedTemplate = TableStructureRangeActions.deleteSelectionWithAbsorb(currentTemplate, expanded)
-            applyTemplateWithUndo(deletedTemplate)
-            structureSelectionRange = null
-            structureSelectedCellIds = emptySet()
+            if (structureSelectionRange == null) return@delete
+            showStructureDeleteSheet = true
         },
         onUndo = ::applyUndo,
         onReset = ::resetEditorToInitialSnapshot,
