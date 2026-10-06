@@ -234,38 +234,119 @@ fun AppRoot() {
 
     LaunchedEffect(Unit) {
         runCatching {
-            val prefs = context.dataStore.data.first()
-            val json = prefs[KEY_TABLE_TEMPLATE_JSON]
-            if (!json.isNullOrBlank()) {
-                val loaded = tableTemplateStateFromJson(json)
-                if (loaded != null) {
-                    tableTemplateViewModel.update(loaded)
-                } else {
-                    val reset = defaultTableTemplateState()
-                    tableTemplateViewModel.update(reset)
-                    saveTableTemplate(context, reset)
-                    Toast.makeText(
-                        context,
-                        "저장된 템플릿을 불러올 수 없어 기본값으로 초기화했습니다.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
+            val catalog = loadOrMigrateTableTemplateCatalog(context)
+            tableTemplateViewModel.restoreCatalog(
+                items = catalog.items,
+                activeId = catalog.activeTemplateId,
+            )
         }.onFailure {
-            val reset = defaultTableTemplateState()
-            tableTemplateViewModel.update(reset)
-            runCatching { saveTableTemplate(context, reset) }
+            tableTemplateViewModel.restoreCatalog(
+                items = emptyList(),
+                activeId = null,
+            )
+            Toast.makeText(
+                context,
+                "저장된 템플릿을 불러오지 못했습니다.",
+                Toast.LENGTH_LONG,
+            ).show()
         }
         hasRestoredTemplate = true
     }
 
-
-    fun updateTemplateState(updated: TableTemplateState) {
-        tableTemplateViewModel.update(updated)
+    fun persistCurrentCatalog() {
         if (!hasRestoredTemplate) return
         appScope.launch {
-            saveTableTemplate(context, updated)
+            persistTableTemplateCatalog(
+                context = context,
+                items = tableTemplateViewModel.templates,
+                activeTemplateId = tableTemplateViewModel.activeTemplateId,
+            )
         }
+    }
+
+    fun updateTemplateState(updated: TableTemplateState) {
+        tableTemplateViewModel.updateStateOnly(updated)
+        if (!hasRestoredTemplate) return
+        appScope.launch {
+            val style = loadTableStyleState(context)
+            tableTemplateViewModel.updateActive(updated, style)
+            persistTableTemplateCatalog(
+                context = context,
+                items = tableTemplateViewModel.templates,
+                activeTemplateId = tableTemplateViewModel.activeTemplateId,
+            )
+        }
+    }
+
+    fun openSavedTemplate(templateId: String) {
+        val target = tableTemplateViewModel.templates.firstOrNull { it.id == templateId } ?: return
+        appScope.launch {
+            activateSavedTableTemplate(
+                context = context,
+                items = tableTemplateViewModel.templates,
+                activeTemplateId = target.id,
+            )
+            tableTemplateViewModel.activate(target.id)
+            previousScreen = AppScreen.TABLE_TEMPLATES
+            screen = AppScreen.TABLE_EDITOR
+        }
+    }
+
+    fun createNewTemplate() {
+        val item = createSavedTableTemplate(
+            name = nextNewTemplateName(tableTemplateViewModel.templates),
+            templateState = newBlankTableTemplateState(),
+            styleState = TableStyleState(),
+        )
+        val next = listOf(item) + tableTemplateViewModel.templates
+        appScope.launch {
+            persistTableTemplateCatalog(
+                context = context,
+                items = next,
+                activeTemplateId = item.id,
+            )
+            tableTemplateViewModel.setCatalog(next, item.id)
+            previousScreen = AppScreen.TABLE_TEMPLATES
+            screen = AppScreen.TABLE_EDITOR
+        }
+    }
+
+    fun renameTemplate(templateId: String, newName: String) {
+        val normalized = newName.trim()
+        if (normalized.isBlank()) return
+        val next = tableTemplateViewModel.templates.map { item ->
+            if (item.id == templateId) {
+                item.copy(name = normalized, modifiedAt = System.currentTimeMillis())
+            } else {
+                item
+            }
+        }
+        tableTemplateViewModel.setCatalog(next, tableTemplateViewModel.activeTemplateId)
+        persistCurrentCatalog()
+    }
+
+    fun duplicateTemplate(templateId: String) {
+        val source = tableTemplateViewModel.templates.firstOrNull { it.id == templateId } ?: return
+        val copy = createSavedTableTemplate(
+            name = duplicateTemplateName(source.name, tableTemplateViewModel.templates),
+            templateState = source.templateState,
+            styleState = source.styleState,
+        )
+        val next = listOf(copy) + tableTemplateViewModel.templates
+        tableTemplateViewModel.setCatalog(next, tableTemplateViewModel.activeTemplateId)
+        persistCurrentCatalog()
+    }
+
+    fun deleteTemplate(templateId: String) {
+        val next = tableTemplateViewModel.templates.filterNot { it.id == templateId }
+        val nextActiveId = when {
+            tableTemplateViewModel.activeTemplateId != templateId ->
+                tableTemplateViewModel.activeTemplateId
+            next.isNotEmpty() -> next.first().id
+            else -> null
+        }
+        tableTemplateViewModel.setCatalog(next, nextActiveId)
+        persistCurrentCatalog()
     }
 
 
