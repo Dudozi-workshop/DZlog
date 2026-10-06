@@ -139,6 +139,44 @@ object TableEditorStructureActions {
         }
     }
 
+    fun addBlank(input: StructureAddOrRestoreInput): StructureActionResult {
+        val nextTemplate = input.sanitizeTemplate(
+            when (input.axis) {
+                StructureRestoreAxis.ROW -> {
+                    if (input.editor.isStructureEditMode) {
+                        addRowBySelection(input.editor.currentTemplate, input.editor.structureSelectionRange)
+                    } else {
+                        addRow(input.editor.currentTemplate)
+                    }
+                }
+                StructureRestoreAxis.COL -> {
+                    if (input.editor.isStructureEditMode) {
+                        addColumnBySelection(input.editor.currentTemplate, input.editor.structureSelectionRange)
+                    } else {
+                        addColumn(input.editor.currentTemplate)
+                    }
+                }
+            }
+        )
+        return buildStructureActionResult(
+            editor = input.editor,
+            selectionState = resolveSelectionAfterAddOrRestore(
+                isStructureEditMode = input.editor.isStructureEditMode,
+                currentSelectionRange = input.editor.structureSelectionRange,
+                nextTemplate = nextTemplate,
+            ),
+            nextTemplate = nextTemplate,
+            nextFileNameSlotsDirtySinceStructureChange = input.editor.fileNameSlotsDirtySinceStructureChange,
+            nextPathSlotsDirtySinceStructureChange = input.editor.pathSlotsDirtySinceStructureChange,
+            nextDeletedRowsStack = emptyList(),
+            nextDeletedColsStack = emptyList(),
+            actionLabel = when (input.axis) {
+                StructureRestoreAxis.ROW -> "add_row_blank"
+                StructureRestoreAxis.COL -> "add_col_blank"
+            },
+        )
+    }
+
     fun remove(input: StructureRemoveInput): StructureActionResult {
         val requestedRange = resolveDeletionRange(
             axis = input.axis,
