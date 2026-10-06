@@ -1527,13 +1527,21 @@ fun TableEditorScreen(
                 modifier = Modifier,
                 title = {
                     Text(
-                        "표 편집",
+                        if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) "레이아웃 편집" else "표 편집",
                         style = DDZTypography.ScreenTitle,
                         color = DDZColor.Primary
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { requestNavigateBack() }) {
+                    IconButton(
+                        onClick = {
+                            if (bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT) {
+                                requestBottomPanelModeChange(BottomEditorPanelMode.NONE)
+                            } else {
+                                requestNavigateBack()
+                            }
+                        }
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "뒤로가기",
