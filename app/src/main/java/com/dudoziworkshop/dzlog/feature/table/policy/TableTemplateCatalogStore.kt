@@ -19,18 +19,20 @@ import kotlinx.coroutines.flow.first
 
 data class TableTemplateCatalogSnapshot(
     val items: List<SavedTableTemplate>,
-    val activeTemplateId: String,
+    val activeTemplateId: String?,
 )
 
 suspend fun loadOrMigrateTableTemplateCatalog(context: Context): TableTemplateCatalogSnapshot {
     val prefs = context.dataStore.data.first()
     val catalogJson = prefs[KEY_TABLE_TEMPLATES_JSON]
-    val parsedCatalog = catalogJson
-        ?.takeIf { it.isNotBlank() }
-        ?.let(::savedTableTemplatesFromJson)
-        .orEmpty()
-
-    if (parsedCatalog.isNotEmpty()) {
+    if (catalogJson != null) {
+        val parsedCatalog = savedTableTemplatesFromJson(catalogJson).orEmpty()
+        if (parsedCatalog.isEmpty()) {
+            return TableTemplateCatalogSnapshot(
+                items = emptyList(),
+                activeTemplateId = null,
+            )
+        }
         val requestedActive = prefs[KEY_ACTIVE_TABLE_TEMPLATE_ID]
         val activeId = requestedActive
             ?.takeIf { id -> parsedCatalog.any { it.id == id } }
@@ -65,20 +67,26 @@ suspend fun loadOrMigrateTableTemplateCatalog(context: Context): TableTemplateCa
 suspend fun persistTableTemplateCatalog(
     context: Context,
     items: List<SavedTableTemplate>,
-    activeTemplateId: String,
+    activeTemplateId: String?,
 ) {
     val normalized = items.sortedByDescending { it.modifiedAt }
     val active = normalized.firstOrNull { it.id == activeTemplateId }
         ?: normalized.firstOrNull()
-        ?: return
 
     context.dataStore.edit { prefs ->
         prefs[KEY_TABLE_TEMPLATES_JSON] = savedTableTemplatesToJson(normalized)
-        prefs[KEY_ACTIVE_TABLE_TEMPLATE_ID] = active.id
-        // Legacy/current-active key remains synchronized for camera/save compatibility.
-        prefs[KEY_TABLE_TEMPLATE_JSON] = active.templateState.toJsonString()
+        if (active == null) {
+            prefs.remove(KEY_ACTIVE_TABLE_TEMPLATE_ID)
+            prefs.remove(KEY_TABLE_TEMPLATE_JSON)
+        } else {
+            prefs[KEY_ACTIVE_TABLE_TEMPLATE_ID] = active.id
+            // Legacy/current-active key remains synchronized for camera/save compatibility.
+            prefs[KEY_TABLE_TEMPLATE_JSON] = active.templateState.toJsonString()
+        }
     }
-    persistTableStyleState(context, active.styleState)
+    if (active != null) {
+        persistTableStyleState(context, active.styleState)
+    }
 }
 
 suspend fun activateSavedTableTemplate(
