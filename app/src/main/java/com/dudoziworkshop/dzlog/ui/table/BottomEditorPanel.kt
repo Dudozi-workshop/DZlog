@@ -150,6 +150,8 @@ internal fun BottomEditorPanel(
     wmTextAlign: Int,
     wmWidthRatio: Int,
     onSetWmWidthRatio: (Int) -> Unit,
+    structureSelectedCount: Int,
+    isMergedSelection: Boolean,
     onOpenCellMode: () -> Unit,
     onOpenStructureMode: () -> Unit,
     onOpenStyleMode: () -> Unit,
@@ -304,10 +306,22 @@ internal fun BottomEditorPanel(
                 ) {
                     Spacer(Modifier.size(1.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CompactIconAction(modifier = Modifier.weight(1f), label = "행+", icon = Icons.Filled.ViewStream, onClick = onAddRow)
-                        CompactIconAction(modifier = Modifier.weight(1f), label = "열+", icon = Icons.Filled.ViewColumn, onClick = onAddCol)
-                        CompactIconAction(modifier = Modifier.weight(1f), label = "병합", icon = Icons.Filled.Refresh, onClick = onMergeSelection)
-                        CompactIconAction(modifier = Modifier.weight(1f), label = "삭제", icon = Icons.Filled.Remove, onClick = onDeleteSelection)
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "+ 행", icon = Icons.Filled.ViewStream, onClick = onAddRow)
+                        CompactIconAction(modifier = Modifier.weight(1f), label = "+ 열", icon = Icons.Filled.ViewColumn, onClick = onAddCol)
+                        CompactIconAction(
+                            modifier = Modifier.weight(1f),
+                            label = if (isMergedSelection) "병합 해제" else "병합",
+                            icon = Icons.Filled.Refresh,
+                            enabled = isMergedSelection || structureSelectedCount >= 2,
+                            onClick = onMergeSelection,
+                        )
+                        CompactIconAction(
+                            modifier = Modifier.weight(1f),
+                            label = "삭제",
+                            icon = Icons.Filled.Remove,
+                            enabled = structureSelectedCount >= 1,
+                            onClick = onDeleteSelection,
+                        )
                     }
 
                 }
