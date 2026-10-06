@@ -153,6 +153,7 @@ data class LayoutTabActions(
     val onSetCounterScopeModeForSelected: (CounterScopeMode) -> Unit,
     val onResetCounterSeedForSelected: () -> Unit,
     val onSetBgStyle: (Int) -> Unit,
+    val onSetBgAlpha: (Int) -> Unit,
     val onSetGridEnabled: (Boolean) -> Unit,
     val onSetTextColorMode: (Int) -> Unit,
     val onSetManualTextColor: (Int) -> Unit,
