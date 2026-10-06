@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.feature.table.editor
 
+import com.dudoziworkshop.dzlog.domain.model.CellValue
+import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 
@@ -49,12 +51,40 @@ object TableStructureRangeActions {
                     rowSpan = range.rowCount,
                     colSpan = range.colCount,
                 )
-                range.contains(cell.rowIndex, cell.colIndex) -> cell.copy(rowSpan = 1, colSpan = 1)
+                range.contains(cell.rowIndex, cell.colIndex) -> cell.copy(
+                    rawText = "",
+                    typedValue = CellValue.Auto,
+                    timeFormatOptions = null,
+                    rowSpan = 1,
+                    colSpan = 1,
+                    dataType = TableCellDataType.TEXT,
+                    phraseSetId = null,
+                    everyOverride = null,
+                    formatPattern = "",
+                    counterScopeMode = null,
+                )
                 else -> cell
             }
         }
         val nextResolution = resolveStructure(nextCells)
         return templateState.copy(cells = sanitizeCoveredCells(nextCells, nextResolution))
+    }
+
+    fun unmergeRoot(
+        templateState: TableTemplateState,
+        rootCellId: String,
+    ): TableTemplateState {
+        val root = templateState.cells.firstOrNull { it.cellId == rootCellId } ?: return templateState
+        if (root.rowSpan <= 1 && root.colSpan <= 1) return templateState
+        return templateState.copy(
+            cells = templateState.cells.map { cell ->
+                if (cell.cellId == rootCellId) {
+                    cell.copy(rowSpan = 1, colSpan = 1)
+                } else {
+                    cell
+                }
+            }
+        )
     }
 
     fun deleteSelectionWithAbsorb(
