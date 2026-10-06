@@ -1646,6 +1646,12 @@ fun TableEditorScreen(
         onSetValueScale = { scale -> applyTableStyleMutation { it.copy(valueScale = scale.coerceIn(60, 160)) } },
         onSetTextAlign = { align -> applyTableStyleMutation { it.copy(textAlign = align.coerceIn(0, 2)) } },
         onSetWmWidthRatio = ::updateWatermarkWidthRatio,
+        onCommitRowWeights = { weights ->
+            applyTemplateWithUndo(currentTemplate.copy(rowWeights = weights))
+        },
+        onCommitColumnWeights = { weights ->
+            applyTemplateWithUndo(currentTemplate.copy(colWeights = weights))
+        },
         onOpenRotatingTemplateDialogForSelected = { cellId ->
             TableEditorSelectedCellActionBinder.openRotatingTemplateDialogForSelected(selectedCellActionBindings, cellId)
         },
