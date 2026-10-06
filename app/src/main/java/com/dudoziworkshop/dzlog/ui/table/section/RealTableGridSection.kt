@@ -382,7 +382,7 @@ fun RealTableGridSection(
                         .width(with(density) { renderedScene.tableRect.width().toDp() })
                         .height(boundaryHitSize)
                         .zIndex(3f)
-                        .pointerInput(boundary, previewRowWeights, renderedScene.tableRect) {
+                        .pointerInput(boundary, templateState.rowWeights) {
                             var startWeights = emptyList<Float>()
                             var startSizePx = 1f
                             var accumulatedDelta = 0f
@@ -432,7 +432,7 @@ fun RealTableGridSection(
                         .width(boundaryHitSize)
                         .height(with(density) { renderedScene.tableRect.height().toDp() })
                         .zIndex(3f)
-                        .pointerInput(boundary, previewColWeights, renderedScene.tableRect) {
+                        .pointerInput(boundary, templateState.colWeights) {
                             var startWeights = emptyList<Float>()
                             var startSizePx = 1f
                             var accumulatedDelta = 0f
