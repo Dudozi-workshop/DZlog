@@ -135,12 +135,14 @@ internal fun BottomEditorPanel(
     onReset: () -> Unit,
     onSave: () -> Unit,
     onSetBgStyle: (Int) -> Unit,
+    onSetBgAlpha: (Int) -> Unit,
     onSetGridEnabled: (Boolean) -> Unit,
     onSetTextColorMode: (Int) -> Unit,
     onSetManualTextColor: (Int) -> Unit,
     onSetValueScale: (Int) -> Unit,
     onSetTextAlign: (Int) -> Unit,
     wmBgStyle: Int,
+    wmBgAlpha: Int,
     wmGridEnabled: Boolean,
     wmTextColorMode: Int,
     wmManualTextColor: Int,
@@ -323,9 +325,17 @@ internal fun BottomEditorPanel(
                     Spacer(Modifier.size(2.dp))
                     Text("배경 스타일", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CompactTextAction(modifier = Modifier.weight(1f), label = "블랙", selected = wmBgStyle == 0, onClick = { onSetBgStyle(0) })
-                        CompactTextAction(modifier = Modifier.weight(1f), label = "화이트", selected = wmBgStyle == 1, onClick = { onSetBgStyle(1) })
+                        CompactTextAction(modifier = Modifier.weight(1f), label = "어둡게", selected = wmBgStyle == 0, onClick = { onSetBgStyle(0) })
+                        CompactTextAction(modifier = Modifier.weight(1f), label = "밝게", selected = wmBgStyle == 1, onClick = { onSetBgStyle(1) })
                         CompactTextAction(modifier = Modifier.weight(1f), label = "투명", selected = wmBgStyle == 2, onClick = { onSetBgStyle(2) })
+                    }
+                    if (wmBgStyle == 2) {
+                        Text("투명도", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                        Slider(
+                            value = wmBgAlpha.toFloat(),
+                            onValueChange = { onSetBgAlpha(it.toInt().coerceIn(0, 255)) },
+                            valueRange = 0f..255f,
+                        )
                     }
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("그리드", style = DDZTypography.Body, color = DDZColor.TextPrimary)
