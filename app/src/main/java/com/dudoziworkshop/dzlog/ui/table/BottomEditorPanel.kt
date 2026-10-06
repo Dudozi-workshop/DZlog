@@ -327,16 +327,6 @@ internal fun BottomEditorPanel(
                         CompactIconAction(modifier = Modifier.weight(1f), label = "삭제", icon = Icons.Filled.Remove, onClick = onDeleteSelection)
                     }
 
-                    HorizontalDivider(color = DDZColor.Border.copy(alpha = 0.75f), thickness = 1.dp)
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("표 크기", style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                    }
-                    TableScaleSliderRow(label = "크기", value = wmWidthRatio, onValueChange = onSetWmWidthRatio)
                 }
             }
             BottomEditorPanelMode.STYLE_EDIT -> {
@@ -359,19 +349,6 @@ internal fun BottomEditorPanel(
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("그리드", style = DDZTypography.Body, color = DDZColor.TextPrimary)
                         Switch(checked = wmGridEnabled, onCheckedChange = onSetGridEnabled)
-                    }
-                    Text("글씨 색", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CompactTextAction(modifier = Modifier.weight(1f), label = "자동", selected = wmTextColorMode == 0, onClick = { onSetTextColorMode(0) })
-                        CompactTextAction(modifier = Modifier.weight(1f), label = "수동", selected = wmTextColorMode == 1, onClick = { onSetTextColorMode(1) })
-                        if (wmTextColorMode == 1) {
-                            CompactTextAction(
-                                modifier = Modifier.weight(1f),
-                                label = if (wmManualTextColor == 0) "흰색" else "검정",
-                                selected = true,
-                                onClick = { onSetManualTextColor(if (wmManualTextColor == 0) 1 else 0) }
-                            )
-                        }
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         CompactIconAction(modifier = Modifier.weight(1f), label = "글씨 -", icon = Icons.Filled.Remove, onClick = { onSetValueScale((wmValueScale - 10).coerceAtLeast(60)) })
@@ -723,32 +700,6 @@ internal fun BottomEditorPanel(
             }
         }
 
-        val showCommonBottomActions =
-            panelMode == BottomEditorPanelMode.STRUCTURE_EDIT ||
-                panelMode == BottomEditorPanelMode.STYLE_EDIT
-
-        if (showCommonBottomActions) {
-            HorizontalDivider(color = DDZColor.Border.copy(alpha = 0.75f), thickness = 1.dp)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                CompactIconAction(modifier = Modifier.weight(1f), label = "저장", icon = Icons.Filled.Save, enabled = !isSaving, compact = true, onClick = onSave)
-                CompactIconAction(modifier = Modifier.weight(1f), label = "초기화", icon = Icons.Filled.Refresh, compact = true, onClick = onReset)
-                CompactIconAction(modifier = Modifier.weight(1f), label = "Undo", icon = Icons.AutoMirrored.Filled.Undo, enabled = isUndoAvailable, compact = true, onClick = onUndo)
-            }
-            if (isSaving) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(8.dp))
-                    Text("저장 중...", style = DDZTypography.Caption)
-                }
-            }
-        }
     }
 }
 
