@@ -6,11 +6,13 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 @Composable
 fun TableDetailRoute(
     templateState: TableTemplateState,
+    templateName: String,
     onTemplateChange: (TableTemplateState) -> Unit,
     onBack: () -> Unit,
 ) {
     TableDetailScreen(
         templateState = templateState,
+        templateName = templateName,
         onTemplateChange = onTemplateChange,
         onBack = onBack,
     )
