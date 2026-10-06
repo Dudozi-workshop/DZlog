@@ -214,7 +214,9 @@ private fun buildPathDraftSlots(template: TableTemplateState): List<PathSlotUiIt
 fun TableEditorScreen(
     templateState: TableTemplateState,
     templateName: String = "",
+    isUnsavedNewTemplate: Boolean = false,
     onTemplateChange: (TableTemplateState) -> Unit,
+    onDiscardUnsavedNewTemplate: () -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1251,10 +1253,12 @@ fun TableEditorScreen(
         initialStyleSnapshot,
         inlineEdit,
         manualInputDraft,
-        pathManualInputDraft
+        pathManualInputDraft,
+        isUnsavedNewTemplate
     ) {
         derivedStateOf {
-            currentTemplate != initialTemplateSnapshot ||
+            isUnsavedNewTemplate ||
+                currentTemplate != initialTemplateSnapshot ||
                 tableStyleUi != initialStyleSnapshot ||
                 watermarkUi != initialPlacementSnapshot ||
                 inlineEdit.isEditing() ||
@@ -1363,6 +1367,9 @@ fun TableEditorScreen(
             dismissUnsavedChangesDialog()
             undoManager.clear()
             undoRevision += 1
+            if (isUnsavedNewTemplate) {
+                onDiscardUnsavedNewTemplate()
+            }
             onBack()
         },
         onCancel = ::dismissUnsavedChangesDialog,
