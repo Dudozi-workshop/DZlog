@@ -7,7 +7,7 @@ import com.dudoziworkshop.dzlog.ui.table.TableEditorScreen
 @Composable
 fun TableDetailScreen(
     templateState: TableTemplateState,
-    templateName: String,
+    templateName: String = "",
     onTemplateChange: (TableTemplateState) -> Unit,
     onBack: () -> Unit,
 ) {
