@@ -32,13 +32,22 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_ORIENTATION_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
 import com.dudoziworkshop.dzlog.data.preferences.OrientationMode
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
+import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
+import com.dudoziworkshop.dzlog.data.template.createSavedTableTemplate
 import com.dudoziworkshop.dzlog.data.template.defaultTableTemplateState
-import com.dudoziworkshop.dzlog.data.template.tableTemplateStateFromJson
+import com.dudoziworkshop.dzlog.data.template.duplicateTemplateName
+import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
+import com.dudoziworkshop.dzlog.data.template.nextNewTemplateName
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.settings.ui.CreditsScreen
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
+import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
+import com.dudoziworkshop.dzlog.feature.table.policy.activateSavedTableTemplate
+import com.dudoziworkshop.dzlog.feature.table.policy.loadOrMigrateTableTemplateCatalog
+import com.dudoziworkshop.dzlog.feature.table.policy.persistTableTemplateCatalog
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
+import com.dudoziworkshop.dzlog.feature.table.state.loadTableStyleState
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
 import com.dudoziworkshop.dzlog.ui.log.LogG1Screen
@@ -49,6 +58,7 @@ import com.dudoziworkshop.dzlog.ui.log.ORIGINAL_PHOTOS_TITLE
 import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
 import com.dudoziworkshop.dzlog.ui.table.detail.TableDetailRoute
 import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2MockScreen
+import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateListScreen
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -57,6 +67,7 @@ private const val BACK_PRESS_EXIT_INTERVAL_MS = 1_500L
 enum class AppScreen {
     HOME,
     CAMERA,
+    TABLE_TEMPLATES,
     TABLE_EDITOR,
     TABLE_EDITOR_V2_MOCK,
     SETTINGS,
@@ -98,10 +109,54 @@ class TableTemplateViewModel : ViewModel() {
     var tableTemplateState by mutableStateOf(defaultTableTemplateState())
         private set
 
-    fun update(state: TableTemplateState) {
+    var templates by mutableStateOf<List<SavedTableTemplate>>(emptyList())
+        private set
+
+    var activeTemplateId by mutableStateOf<String?>(null)
+        private set
+
+    fun restoreCatalog(items: List<SavedTableTemplate>, activeId: String?) {
+        templates = items.sortedByDescending { it.modifiedAt }
+        activeTemplateId = activeId?.takeIf { id -> templates.any { it.id == id } }
+        tableTemplateState = templates.firstOrNull { it.id == activeTemplateId }?.templateState
+            ?: templates.firstOrNull()?.templateState
+            ?: newBlankTableTemplateState()
+    }
+
+    fun updateStateOnly(state: TableTemplateState) {
         tableTemplateState = state
     }
 
+    fun setCatalog(items: List<SavedTableTemplate>, activeId: String?) {
+        templates = items.sortedByDescending { it.modifiedAt }
+        activeTemplateId = activeId?.takeIf { id -> templates.any { it.id == id } }
+        tableTemplateState = templates.firstOrNull { it.id == activeTemplateId }?.templateState
+            ?: templates.firstOrNull()?.templateState
+            ?: newBlankTableTemplateState()
+    }
+
+    fun activate(id: String) {
+        val target = templates.firstOrNull { it.id == id } ?: return
+        activeTemplateId = target.id
+        tableTemplateState = target.templateState
+    }
+
+    fun updateActive(state: TableTemplateState, style: TableStyleState) {
+        val id = activeTemplateId
+        tableTemplateState = state
+        if (id == null) return
+        templates = templates.map { item ->
+            if (item.id == id) {
+                item.copy(
+                    templateState = state,
+                    styleState = style,
+                    modifiedAt = System.currentTimeMillis(),
+                )
+            } else {
+                item
+            }
+        }.sortedByDescending { it.modifiedAt }
+    }
 }
 
 @Composable
