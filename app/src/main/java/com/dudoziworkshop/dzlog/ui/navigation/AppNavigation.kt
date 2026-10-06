@@ -570,6 +570,7 @@ fun AppRoot() {
 
             AppScreen.SETTINGS -> screen = AppScreen.HOME
             AppScreen.CREDITS -> screen = AppScreen.SETTINGS
+            AppScreen.TABLE_TEMPLATES -> screen = previousScreen
             AppScreen.TABLE_EDITOR -> screen = previousScreen
             AppScreen.TABLE_EDITOR_V2_MOCK -> screen = previousScreen
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
@@ -592,7 +593,7 @@ fun AppRoot() {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
-                    onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
+                    onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
                     sessionCaptureStack = cameraSessionCaptureStack
@@ -605,7 +606,7 @@ fun AppRoot() {
                 tableTemplateState = tableTemplateState,
                 onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
                 onStartCamera = { navigateTo(AppScreen.CAMERA) },
-                onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
+                onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
                 onOpenTableEditorV2Mock = { navigateTo(AppScreen.TABLE_EDITOR_V2_MOCK) },
                 onOpenAlbum = ::openAlbumRoot,
                 onOpenRecentCaptureGrid = ::openRecentCaptureGrid
@@ -615,16 +616,33 @@ fun AppRoot() {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
-                    onOpenTableEditor = { navigateTo(AppScreen.TABLE_EDITOR) },
+                    onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
                     sessionCaptureStack = cameraSessionCaptureStack
                 )
             }
 
+            AppScreen.TABLE_TEMPLATES -> {
+                TableTemplateListScreen(
+                    templates = tableTemplateViewModel.templates,
+                    activeTemplateId = tableTemplateViewModel.activeTemplateId,
+                    onBack = { screen = previousScreen },
+                    onOpenTemplate = ::openSavedTemplate,
+                    onCreateTemplate = ::createNewTemplate,
+                    onRenameTemplate = ::renameTemplate,
+                    onDuplicateTemplate = ::duplicateTemplate,
+                    onDeleteTemplate = ::deleteTemplate,
+                )
+            }
+
             AppScreen.TABLE_EDITOR -> {
                 TableDetailRoute(
                     templateState = tableTemplateState,
+                    templateName = tableTemplateViewModel.templates
+                        .firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }
+                        ?.name
+                        .orEmpty(),
                     onTemplateChange = ::updateTemplateState,
                     onBack = { screen = previousScreen }
                 )
