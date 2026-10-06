@@ -160,11 +160,7 @@ object TableEditorStructureActions {
         )
         return buildStructureActionResult(
             editor = input.editor,
-            selectionState = resolveSelectionAfterAddOrRestore(
-                isStructureEditMode = input.editor.isStructureEditMode,
-                currentSelectionRange = input.editor.structureSelectionRange,
-                nextTemplate = nextTemplate,
-            ),
+            selectionState = clearStructureSelection(),
             nextTemplate = nextTemplate,
             nextFileNameSlotsDirtySinceStructureChange = input.editor.fileNameSlotsDirtySinceStructureChange,
             nextPathSlotsDirtySinceStructureChange = input.editor.pathSlotsDirtySinceStructureChange,
