@@ -49,3 +49,12 @@ internal fun undoTableEditorSnapshot(
     val restored = undoManager.undo(currentSnapshot)
     return restored.takeUnless { it == currentSnapshot }
 }
+
+
+internal fun redoTableEditorSnapshot(
+    undoManager: TableUndoManager<TableEditorUndoSnapshot>,
+    currentSnapshot: TableEditorUndoSnapshot,
+): TableEditorUndoSnapshot? {
+    val restored = undoManager.redo(currentSnapshot)
+    return restored.takeUnless { it == currentSnapshot }
+}
