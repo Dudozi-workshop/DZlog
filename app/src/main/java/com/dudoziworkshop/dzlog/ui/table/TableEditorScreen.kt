@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Redo
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Icon
@@ -841,6 +844,20 @@ fun TableEditorScreen(
         undoRevision += 1
     }
 
+    fun applyRedo() {
+        val restored = redoTableEditorSnapshot(
+            undoManager = undoManager,
+            currentSnapshot = currentUndoSnapshot(),
+        ) ?: return
+        editableTemplateState = restored.templateState
+        tableStyleUi = restored.styleState
+        inlineEditSessionState = InlineEditSessionState()
+        selectedCellId = restored.selectedCellId
+        structureSelectedCellIds = restored.structureSelectedCellIds
+        structureSelectionRange = restored.structureSelectionRange
+        undoRevision += 1
+    }
+
     fun applyTemplateWithUndo(nextTemplate: TableTemplateState) {
         if (nextTemplate == currentTemplate) return
         val pushed = pushUndoSnapshotBeforeChange(
@@ -1240,6 +1257,9 @@ fun TableEditorScreen(
     val isUndoAvailable by remember(undoRevision) {
         derivedStateOf { undoManager.canUndo() }
     }
+    val isRedoAvailable by remember(undoRevision) {
+        derivedStateOf { undoManager.canRedo() }
+    }
 
     // Save/Reset/Back 동작은 editor 내부 local state를 기준으로 유지하되, 구현만 별도 helper로 분리한다.
     fun applySaveAppliedState(applied: com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorSaveAppliedState) {
@@ -1507,7 +1527,7 @@ fun TableEditorScreen(
                 modifier = Modifier,
                 title = {
                     Text(
-                        "표 상세설정",
+                        "표 편집",
                         style = DDZTypography.ScreenTitle,
                         color = DDZColor.Primary
                     )
@@ -1521,10 +1541,40 @@ fun TableEditorScreen(
                         )
                     }
                 },
+                actions = {
+                    IconButton(
+                        onClick = ::applyUndo,
+                        enabled = isUndoAvailable,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Undo,
+                            contentDescription = "실행 취소",
+                        )
+                    }
+                    IconButton(
+                        onClick = ::applyRedo,
+                        enabled = isRedoAvailable,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Redo,
+                            contentDescription = "다시 실행",
+                        )
+                    }
+                    IconButton(
+                        onClick = { saveTemplate(exitAfterSave = false) },
+                        enabled = hasUnsavedChanges && !isSavingTemplate,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Save,
+                            contentDescription = "저장",
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = DDZColor.Background,
                     navigationIconContentColor = DDZColor.Primary,
-                    titleContentColor = DDZColor.Primary
+                    titleContentColor = DDZColor.Primary,
+                    actionIconContentColor = DDZColor.Primary,
                 )
             )
         }
