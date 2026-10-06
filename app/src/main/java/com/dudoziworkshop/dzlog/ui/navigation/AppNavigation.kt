@@ -163,6 +163,7 @@ class TableTemplateViewModel : ViewModel() {
 fun AppRoot() {
     var screen by remember { mutableStateOf(AppScreen.HOME) }
     var previousScreen by remember { mutableStateOf(AppScreen.HOME) }
+    var templateListEntryScreen by remember { mutableStateOf(AppScreen.HOME) }
     var albumEntryScreen by remember { mutableStateOf(AppScreen.HOME) }
     var gridEntrySource by remember { mutableStateOf(GridEntrySource.NORMAL) }
     var viewerEntrySource by remember { mutableStateOf(ViewerEntrySource.GRID) }
@@ -370,6 +371,9 @@ fun AppRoot() {
         if (screen == AppScreen.CAMERA && target != AppScreen.CAMERA && !isAlbumScreen(target)) {
             cameraSessionCaptureStack.clear()
         }
+        if (target == AppScreen.TABLE_TEMPLATES) {
+            templateListEntryScreen = screen
+        }
         previousScreen = screen
         screen = target
     }
@@ -570,7 +574,7 @@ fun AppRoot() {
 
             AppScreen.SETTINGS -> screen = AppScreen.HOME
             AppScreen.CREDITS -> screen = AppScreen.SETTINGS
-            AppScreen.TABLE_TEMPLATES -> screen = previousScreen
+            AppScreen.TABLE_TEMPLATES -> screen = templateListEntryScreen
             AppScreen.TABLE_EDITOR -> screen = previousScreen
             AppScreen.TABLE_EDITOR_V2_MOCK -> screen = previousScreen
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
@@ -627,7 +631,7 @@ fun AppRoot() {
                 TableTemplateListScreen(
                     templates = tableTemplateViewModel.templates,
                     activeTemplateId = tableTemplateViewModel.activeTemplateId,
-                    onBack = { screen = previousScreen },
+                    onBack = { screen = templateListEntryScreen },
                     onOpenTemplate = ::openSavedTemplate,
                     onCreateTemplate = ::createNewTemplate,
                     onRenameTemplate = ::renameTemplate,
