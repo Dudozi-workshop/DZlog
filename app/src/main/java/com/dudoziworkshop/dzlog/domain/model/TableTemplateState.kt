@@ -45,7 +45,7 @@ fun deriveFileNameCellSlotsFromDrafts(drafts: List<TableEditorSlotDraft?>): List
 }
 
 const val FILE_NAME_SLOT_COUNT: Int = 3
-const val PATH_SLOT_COUNT: Int = 2
+const val PATH_SLOT_COUNT: Int = 3
 
 
 fun derivePathCellSlotsFromDrafts(drafts: List<TableEditorSlotDraft?>): List<CellKey?> {
