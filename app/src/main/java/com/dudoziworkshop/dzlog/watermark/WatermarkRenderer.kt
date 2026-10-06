@@ -12,6 +12,8 @@ interface WatermarkRenderer {
         templateCells: List<TableCellState>,
         rows: Int,
         cols: Int,
+        rowWeights: List<Float>? = null,
+        colWeights: List<Float>? = null,
         anchor: WatermarkTableAnchor,
         offsetXRatio: Int,
         offsetYRatio: Int,
