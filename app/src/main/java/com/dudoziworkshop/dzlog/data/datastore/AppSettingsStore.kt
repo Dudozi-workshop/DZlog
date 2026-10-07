@@ -41,7 +41,27 @@ data class AppSettings(
     val assistShutterEnabled: Boolean = false,
     val assistShutterXRatio: Float = 0.82f,
     val assistShutterYRatio: Float = 0.62f,
-)
+) {
+    companion object {
+        val Default = AppSettings(
+            saveMode = SaveMode.BOTH,
+            continuousPreviewMode = ContinuousPreviewMode.OFF,
+            photoQualityMode = PhotoQualityMode.BALANCED,
+            counterPadding = 0,
+            includePathInCounterScope = true,
+            includeFilenameInCounterScope = true,
+            toastEnabled = true,
+            hapticEnabled = true,
+            captureHapticEnabled = true,
+            captureSoundEnabled = true,
+            volumeKeyAction = VolumeKeyAction.NONE,
+            blankWarningEnabled = true,
+            assistShutterEnabled = false,
+            assistShutterXRatio = 0.82f,
+            assistShutterYRatio = 0.62f,
+        )
+    }
+}
 
 object AppSettingsStore {
 
