@@ -163,5 +163,6 @@ data class LayoutTabActions(
     val onCommitRowWeights: (List<Float>) -> Unit,
     val onCommitColumnWeights: (List<Float>) -> Unit,
     val onOpenRotatingTemplateDialogForSelected: (String) -> Unit,
-    val onOpenPlacementDialog: () -> Unit
+    val onOpenPlacementDialog: () -> Unit,
+    val templateName: String = ""
 )
