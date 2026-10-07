@@ -196,6 +196,9 @@ fun RealTableGridSection(
                 baseScaleRatio = previewRatio.tableWidthRatio,
                 rowWeights = previewRowWeights,
                 colWeights = previewColWeights,
+                // 편집 화면은 실제 촬영 배치 크기와 분리한다.
+                // 표 내부 비율은 그대로 둔 채 작업영역에 uniform scale로 최대 fit한다.
+                allowUpscaleToFit = true,
             )
         }
         val renderedScene = rendered.scene
