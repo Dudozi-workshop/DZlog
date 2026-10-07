@@ -3,23 +3,30 @@ package com.dudoziworkshop.dzlog.ui.theme
 import androidx.compose.ui.graphics.Color
 
 object DDZColor {
-    val Background = Color(0xFFF3F1EE)
-    val Surface = Color(0xFFF5F3F1)
-    val Card = Color(0xFFF1EAE1)
-    val Primary = Color(0xFF4E3A30)
-    val PrimaryElevated = Color(0xFF48352C)
-    val PrimaryDark = Color(0xFF261F17)
-    val Border = Color(0xFFCBC3BA)
-    val TextPrimary = PrimaryDark
-    val TextMuted = Color(0xFF665F59)
-    val IconMuted = Color(0xFFA69F99)
-    val Sage = Color(0xFFA8B59B)
-    val SageDark = Color(0xFF8FA08A)
-    val SageLight = Color(0xFFD7E0CF)
+    // Dudozi C1 · Oat Sage
+    val Background = Color(0xFFFAF9F5)
+    val Surface = Color(0xFFFCFBF7)
+    val Card = Color(0xFFEFE6DD)
 
-    // Camera emphasis palette (촬영 화면 가독성 강화용)
-    val SagePrimary = Color(0xFF6E8B74)
-    val SageDarkStrong = Color(0xFF4F6657)
-    val SageBorder = Color(0xFF9FB3A7)
-    val TextStrong = Color(0xFF2F3A33)
+    // Green is reserved for active / selected / primary actions.
+    val Primary = Color(0xFF8CA678)
+    val PrimaryElevated = Color(0xFF728961)
+    val PrimaryDark = Color(0xFF536747)
+
+    // Brown remains as the Dudozi brand/text accent, not a large surface color.
+    val BrandBrown = Color(0xFF5A4636)
+    val TextPrimary = Color(0xFF332B26)
+    val TextMuted = Color(0xFF756D65)
+    val IconMuted = Color(0xFFA7A098)
+    val Border = Color(0xFFDED6CD)
+
+    val Sage = Color(0xFF8CA678)
+    val SageDark = Color(0xFF728961)
+    val SageLight = Color(0xFFDDE6D7)
+
+    // Camera / overlay emphasis palette
+    val SagePrimary = Color(0xFF78936A)
+    val SageDarkStrong = Color(0xFF536747)
+    val SageBorder = Color(0xFFB8C7AD)
+    val TextStrong = Color(0xFF2F352E)
 }
