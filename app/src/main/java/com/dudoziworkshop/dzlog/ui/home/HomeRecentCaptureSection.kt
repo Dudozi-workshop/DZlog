@@ -61,41 +61,46 @@ internal fun HomeRecentCaptureSection(
     Spacer(Modifier.height(HomeUiSpec.RecentHeaderToImageGap))
 
     if (image != null) {
-        Column(
-            modifier = Modifier.fillMaxWidth(HomeUiSpec.RecentImageWidthFraction),
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(HomeUiSpec.RecentImageAspectRatio)
-                    .clip(RoundedCornerShape(HomeUiSpec.RecentImageRadius))
-                    .background(DDZColor.Surface)
-                    .border(
-                        HomeUiSpec.BorderWidth,
-                        DDZColor.Border,
-                        RoundedCornerShape(HomeUiSpec.RecentImageRadius),
-                    )
-                    .clickable {
-                        val (g1, g2) = parseG1G2FromRelativePath(image.relativePath)
-                        onOpenRecentCaptureGrid(g1, g2, image.relativePath, 0)
-                    },
+            Column(
+                modifier = Modifier.fillMaxWidth(HomeUiSpec.RecentImageWidthFraction),
             ) {
-                DzThumbnail(image.uri.toString())
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(HomeUiSpec.RecentImageAspectRatio)
+                        .clip(RoundedCornerShape(HomeUiSpec.RecentImageRadius))
+                        .background(DDZColor.Surface)
+                        .border(
+                            HomeUiSpec.BorderWidth,
+                            DDZColor.Border,
+                            RoundedCornerShape(HomeUiSpec.RecentImageRadius),
+                        )
+                        .clickable {
+                            val (g1, g2) = parseG1G2FromRelativePath(image.relativePath)
+                            onOpenRecentCaptureGrid(g1, g2, image.relativePath, 0)
+                        },
+                ) {
+                    DzThumbnail(image.uri.toString())
+                }
+                Spacer(Modifier.height(HomeUiSpec.RecentImageToNameGap))
+                Text(
+                    text = image.displayName,
+                    style = DDZTypography.Body.copy(fontWeight = FontWeight.Medium),
+                    color = DDZColor.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(HomeUiSpec.RecentNameToTimeGap))
+                Text(
+                    text = timeText,
+                    style = DDZTypography.Caption,
+                    color = DDZColor.TextSecondary,
+                )
             }
-            Spacer(Modifier.height(HomeUiSpec.RecentImageToNameGap))
-            Text(
-                text = image.displayName,
-                style = DDZTypography.Body.copy(fontWeight = FontWeight.Medium),
-                color = DDZColor.TextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(HomeUiSpec.RecentNameToTimeGap))
-            Text(
-                text = timeText,
-                style = DDZTypography.Caption,
-                color = DDZColor.TextSecondary,
-            )
         }
     } else {
         Column(
