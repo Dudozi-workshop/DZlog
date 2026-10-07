@@ -26,25 +26,47 @@ internal fun selectMockLayoutCell(
 ): MockLayoutSelection {
     val result = TableSelectionResolver.selectByTap(
         cells = templateState.cells,
-        current = TableSelectionResult(
-            selectedCellIds = current.selectedCellIds,
-            range = current.range,
-            lastSelectedCellId = current.lastSelectedCellId,
-        ),
+        current = TableSelectionResult(emptySet(), null, null),
         tappedCellId = tappedDomainCellId,
-        additive = current.selectedCellIds.isNotEmpty(),
+        additive = false,
     )
-    val baseRange = result.range ?: return result.toMockLayoutSelection()
+    val baseRange = result.range ?: return MockLayoutSelection()
     val expandedRange = TableStructureRangeActions.expandRangeToMergedBlocks(
         cells = templateState.cells,
         base = baseRange,
     )
-    val expandedIds = templateState.cells
-        .filter { cell -> expandedRange.contains(cell.rowIndex, cell.colIndex) }
-        .map { it.cellId }
-        .toSet()
+    val root = TableStructureRangeActions.interactiveRootCellsInRange(
+        cells = templateState.cells,
+        range = expandedRange,
+    ).firstOrNull() ?: return MockLayoutSelection()
     return MockLayoutSelection(
-        selectedCellIds = expandedIds,
+        selectedCellIds = setOf(root.cellId),
+        range = expandedRange,
+        lastSelectedCellId = root.cellId,
+    )
+}
+
+internal fun selectMockLayoutRange(
+    templateState: TableTemplateState,
+    startDomainCellId: String,
+    endDomainCellId: String,
+): MockLayoutSelection {
+    val result = TableSelectionResolver.selectByDrag(
+        cells = templateState.cells,
+        startCellId = startDomainCellId,
+        endCellId = endDomainCellId,
+    )
+    val baseRange = result.range ?: return MockLayoutSelection()
+    val expandedRange = TableStructureRangeActions.expandRangeToMergedBlocks(
+        cells = templateState.cells,
+        base = baseRange,
+    )
+    val rootIds = TableStructureRangeActions.interactiveRootCellsInRange(
+        cells = templateState.cells,
+        range = expandedRange,
+    ).map { it.cellId }.toSet()
+    return MockLayoutSelection(
+        selectedCellIds = rootIds,
         range = expandedRange,
         lastSelectedCellId = result.lastSelectedCellId,
     )
@@ -119,24 +141,40 @@ internal fun mergeOrUnmergeMockLayoutSelection(
 internal fun normalizeMockLayoutSelection(
     templateState: TableTemplateState,
     range: TableSelectionRange?,
+    collapseToTopLeft: Boolean = false,
 ): MockLayoutSelection {
     val normalizedRange = range ?: return MockLayoutSelection()
     val expanded = TableStructureRangeActions.expandRangeToMergedBlocks(
         cells = templateState.cells,
         base = normalizedRange,
     )
-    val ids = templateState.cells
-        .filter { cell -> expanded.contains(cell.rowIndex, cell.colIndex) }
-        .map { it.cellId }
-        .toSet()
-    val rootId = TableStructureRangeActions.interactiveRootCellsInRange(
+    val roots = TableStructureRangeActions.interactiveRootCellsInRange(
         cells = templateState.cells,
         range = expanded,
-    ).firstOrNull()?.cellId
+    )
+    if (roots.isEmpty()) return MockLayoutSelection()
+    if (roots.size == 1 || collapseToTopLeft) {
+        val root = roots.minWith(compareBy({ it.rowIndex }, { it.colIndex }))
+        val singleRange = if (root.rowSpan > 1 || root.colSpan > 1) {
+            TableSelectionRange(
+                minRow = root.rowIndex,
+                maxRow = root.rowIndex + root.rowSpan - 1,
+                minCol = root.colIndex,
+                maxCol = root.colIndex + root.colSpan - 1,
+            )
+        } else {
+            TableSelectionRange(root.rowIndex, root.rowIndex, root.colIndex, root.colIndex)
+        }
+        return MockLayoutSelection(
+            selectedCellIds = setOf(root.cellId),
+            range = singleRange,
+            lastSelectedCellId = root.cellId,
+        )
+    }
     return MockLayoutSelection(
-        selectedCellIds = ids,
+        selectedCellIds = roots.map { it.cellId }.toSet(),
         range = expanded,
-        lastSelectedCellId = rootId,
+        lastSelectedCellId = roots.last().cellId,
     )
 }
 
