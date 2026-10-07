@@ -48,7 +48,10 @@ class TableStructureRangeActionsTest {
             selectionRange = TableSelectionRange(minRow = 0, maxRow = 1, minCol = 0, maxCol = 1),
         )
 
-        val absorber = cellAt(deleted.cells, 0, 2)
+        val absorber = TableStructureRangeActions.resolveRootCell(
+            deleted.cells,
+            cellAt(deleted.cells, 0, 0),
+        )
         val resolvedCovered = TableStructureRangeActions.resolveRootCell(
             deleted.cells,
             cellAt(deleted.cells, 1, 1),
