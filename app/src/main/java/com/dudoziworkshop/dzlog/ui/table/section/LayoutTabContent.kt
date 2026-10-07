@@ -15,7 +15,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -240,6 +245,7 @@ fun LayoutTabContent(
             CompactBottomNavButton(
                 modifier = Modifier.weight(1f),
                 label = "레이아웃",
+                icon = Icons.Filled.GridView,
                 selected = isLayoutActive,
                 onClick = {
                     if (isLayoutActive) actions.onCloseBottomPanel()
@@ -249,6 +255,7 @@ fun LayoutTabContent(
             CompactBottomNavButton(
                 modifier = Modifier.weight(1f),
                 label = "스타일",
+                icon = Icons.Filled.Palette,
                 selected = isStyleActive,
                 onClick = {
                     if (isStyleActive) actions.onCloseBottomPanel()
@@ -258,6 +265,7 @@ fun LayoutTabContent(
             CompactBottomNavButton(
                 modifier = Modifier.weight(1f),
                 label = "저장 규칙",
+                icon = Icons.Filled.Save,
                 selected = isSaveRulesActive,
                 onClick = {
                     if (isSaveRulesActive) actions.onCloseBottomPanel()
@@ -412,6 +420,7 @@ fun LayoutTabContent(
 private fun CompactBottomNavButton(
     modifier: Modifier = Modifier,
     label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
@@ -425,11 +434,21 @@ private fun CompactBottomNavButton(
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = label,
-            style = DDZTypography.ButtonText,
-            color = if (selected) DDZColor.Primary else DDZColor.TextPrimary,
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (selected) DDZColor.Primary else DDZColor.TextMuted,
+            )
+            Text(
+                text = label,
+                style = DDZTypography.Caption,
+                color = if (selected) DDZColor.Primary else DDZColor.TextPrimary,
+            )
+        }
     }
 }
 
