@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
 private enum class MockMode { EDIT, LAYOUT }
@@ -69,31 +70,46 @@ internal data class MockCell(
     val id: Int,
     val value: String,
     val type: MockCellType = MockCellType.TEXT,
+    val domainCellId: String? = null,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TableEditorV2MockScreen(
+    templateState: TableTemplateState,
+    includePathInCounterScope: Boolean,
+    includeFilenameInCounterScope: Boolean,
+    onTemplateChange: (TableTemplateState) -> Unit,
+    onIncludePathInCounterScopeChange: (Boolean) -> Unit,
+    onIncludeFilenameInCounterScopeChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
-    val cells = remember {
-        mutableStateListOf(
-            MockCell(0, "Draper"),
-            MockCell(1, "0012", MockCellType.COUNTER),
-            MockCell(2, "2026.10.06", MockCellType.DATE),
-            MockCell(3, "천안"),
-            MockCell(4, "처리구 A"),
-            MockCell(5, "반복 1"),
-        )
+    val cells = remember(templateState.cells, templateState.rows, templateState.cols) {
+        mutableStateListOf<MockCell>().apply {
+            addAll(mockCellsFromTemplate(templateState))
+        }
     }
-    var rows by remember { mutableIntStateOf(3) }
-    var cols by remember { mutableIntStateOf(2) }
+    var rows by remember(templateState.rows) { mutableIntStateOf(templateState.rows) }
+    var cols by remember(templateState.cols) { mutableIntStateOf(templateState.cols) }
     var selectedId by remember { mutableStateOf<Int?>(null) }
     var selectedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var mode by remember { mutableStateOf(MockMode.EDIT) }
     var showStyle by remember { mutableStateOf(false) }
     var showSaveRules by remember { mutableStateOf(false) }
-    var saveRulesDraft by remember { mutableStateOf(defaultMockSaveRulesDraft()) }
+    var saveRulesDraft by remember(
+        templateState.fileNameSlotDrafts,
+        templateState.pathSlotDrafts,
+        includePathInCounterScope,
+        includeFilenameInCounterScope,
+    ) {
+        mutableStateOf(
+            mockSaveRulesDraftFromTemplate(
+                templateState = templateState,
+                includePathInScope = includePathInCounterScope,
+                includeFilenameInScope = includeFilenameInCounterScope,
+            )
+        )
+    }
     var darkTable by remember { mutableStateOf(false) }
     var gridEnabled by remember { mutableStateOf(true) }
     var fontScale by remember { mutableFloatStateOf(1f) }
@@ -133,7 +149,13 @@ fun TableEditorV2MockScreen(
                         IconButton(onClick = { }) {
                             Icon(Icons.Filled.Redo, contentDescription = "다시 실행")
                         }
-                        IconButton(onClick = { }) {
+                        IconButton(
+                            onClick = {
+                                onTemplateChange(applyMockSaveRulesDraft(templateState, saveRulesDraft))
+                                onIncludePathInCounterScopeChange(saveRulesDraft.includePathInScope)
+                                onIncludeFilenameInCounterScopeChange(saveRulesDraft.includeFilenameInScope)
+                            }
+                        ) {
                             Icon(Icons.Filled.Save, contentDescription = "저장")
                         }
                     }
@@ -302,6 +324,13 @@ fun TableEditorV2MockScreen(
             cols = cols,
             draft = saveRulesDraft,
             onDraftChange = { saveRulesDraft = it },
+            onApply = { applied ->
+                saveRulesDraft = applied
+                onTemplateChange(applyMockSaveRulesDraft(templateState, applied))
+                onIncludePathInCounterScopeChange(applied.includePathInScope)
+                onIncludeFilenameInCounterScopeChange(applied.includeFilenameInScope)
+                showSaveRules = false
+            },
             onDismiss = { showSaveRules = false },
         )
     }
