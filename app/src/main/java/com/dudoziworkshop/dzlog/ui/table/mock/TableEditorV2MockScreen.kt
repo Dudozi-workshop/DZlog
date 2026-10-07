@@ -76,6 +76,8 @@ import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZConfirmDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZContentDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZTextField
 import com.dudoziworkshop.dzlog.ui.common.DDZQuickChoiceDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBarIconButton
@@ -697,26 +699,49 @@ fun TableEditorV2Screen(
     }
 
     if (saveCoordinator.errorMessage != null) {
-        AlertDialog(
-            onDismissRequest = { saveCoordinator.clearError() },
-            title = { Text("저장 실패") },
-            text = { Text(saveCoordinator.errorMessage.orEmpty()) },
-            confirmButton = {
-                TextButton(onClick = { saveCoordinator.clearError() }) {
-                    Text("확인")
-                }
-            },
+        DDZConfirmDialog(
+            title = "저장 실패",
+            message = saveCoordinator.errorMessage.orEmpty(),
+            confirmText = "확인",
+            dismissText = "닫기",
+            onConfirm = { saveCoordinator.clearError() },
+            onDismiss = { saveCoordinator.clearError() },
         )
     }
 
     if (showBackSaveDialog) {
-        AlertDialog(
-            onDismissRequest = { showBackSaveDialog = false },
-            title = { Text("변경사항을 저장할까요?") },
-            text = { Text("저장하지 않으면 이번 편집 내용은 모두 사라집니다.") },
-            confirmButton = {
-                TextButton(
+        DDZContentDialog(
+            title = "변경사항을 저장할까요?",
+            onDismiss = { showBackSaveDialog = false },
+            content = {
+                Text(
+                    text = "저장하지 않으면 이번 편집 내용은 모두 사라집니다.",
+                    color = DDZColor.TextSecondary,
+                )
+            },
+            actions = {
+                DDZButton(
+                    text = "저장 안 함",
+                    style = DDZButtonStyle.Text,
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        if (isUnsavedNewTemplate) {
+                            onDiscardUnsavedNewTemplate()
+                        }
+                        showBackSaveDialog = false
+                        onBack()
+                    },
+                )
+                DDZButton(
+                    text = "취소",
+                    style = DDZButtonStyle.Secondary,
+                    modifier = Modifier.weight(1f),
+                    onClick = { showBackSaveDialog = false },
+                )
+                DDZButton(
+                    text = "저장",
                     enabled = !saveCoordinator.isSaving,
+                    modifier = Modifier.weight(1f),
                     onClick = {
                         saveScope.launch {
                             if (saveCoordinator.save(session, onSave)) {
@@ -725,23 +750,7 @@ fun TableEditorV2Screen(
                             }
                         }
                     },
-                ) { Text("저장") }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(
-                        onClick = {
-                            if (isUnsavedNewTemplate) {
-                                onDiscardUnsavedNewTemplate()
-                            }
-                            showBackSaveDialog = false
-                            onBack()
-                        },
-                    ) { Text("저장 안 함") }
-                    TextButton(onClick = { showBackSaveDialog = false }) {
-                        Text("취소")
-                    }
-                }
+                )
             },
         )
     }
@@ -1028,12 +1037,11 @@ private fun TableEditorCellUiModelEditor(
         when (cell.type) {
             TableEditorCellType.TEXT,
             TableEditorCellType.NUMBER -> {
-                OutlinedTextField(
+                DDZTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = cell.value,
                     onValueChange = onValueChange,
-                    label = { Text("값") },
-                    singleLine = true,
+                    label = "값",
                 )
             }
 
@@ -1050,7 +1058,7 @@ private fun TableEditorCellUiModelEditor(
                     ) {
                         Text("−")
                     }
-                    OutlinedTextField(
+                    DDZTextField(
                         modifier = Modifier.weight(1f),
                         value = currentCounter.toString(),
                         onValueChange = { input ->
@@ -1059,8 +1067,7 @@ private fun TableEditorCellUiModelEditor(
                                 onValueChange(digits)
                             }
                         },
-                        label = { Text("시작 번호") },
-                        singleLine = true,
+                        label = "시작 번호",
                     )
                     OutlinedButton(
                         onClick = { onValueChange((currentCounter + 1).toString()) },
@@ -1163,14 +1170,14 @@ private fun TableEditorCellUiModelEditor(
     }
 
     if (showTypePicker) {
-        ModalBottomSheet(onDismissRequest = { showTypePicker = false }) {
+        DDZBottomSheet(
+            title = "셀에 무엇을 표시할까요?",
+            onDismiss = { showTypePicker = false },
+        ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("셀에 무엇을 표시할까요?", fontWeight = FontWeight.Bold)
                 TableEditorCellType.entries.chunked(2).forEach { row ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1195,14 +1202,14 @@ private fun TableEditorCellUiModelEditor(
     }
 
     if (showDatePicker) {
-        ModalBottomSheet(onDismissRequest = { showDatePicker = false }) {
+        DDZBottomSheet(
+            title = "날짜 형식",
+            onDismiss = { showDatePicker = false },
+        ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text("날짜 형식", fontWeight = FontWeight.Bold)
                 listOf("yyyyMMdd", "yyMMdd", "MMdd").forEach { pattern ->
                     OutlinedButton(
                         modifier = Modifier.fillMaxWidth(),
@@ -1222,14 +1229,14 @@ private fun TableEditorCellUiModelEditor(
     }
 
     if (showPhrasePicker) {
-        ModalBottomSheet(onDismissRequest = { showPhrasePicker = false }) {
+        DDZBottomSheet(
+            title = "문구 세트",
+            onDismiss = { showPhrasePicker = false },
+        ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text("문구 세트", fontWeight = FontWeight.Bold)
 
                 Button(
                     modifier = Modifier.fillMaxWidth(),
@@ -1295,32 +1302,33 @@ private fun TableEditorCellUiModelEditor(
     }
 
     if (showCreatePhraseSet) {
-        AlertDialog(
-            onDismissRequest = { showCreatePhraseSet = false },
-            title = { Text("새 문구 세트") },
-            text = {
-                OutlinedTextField(
+        DDZContentDialog(
+            title = "새 문구 세트",
+            onDismiss = { showCreatePhraseSet = false },
+            content = {
+                DDZTextField(
                     value = createPhraseSetName,
                     onValueChange = { createPhraseSetName = it },
-                    singleLine = true,
-                    label = { Text("세트 이름") },
+                    label = "세트 이름",
+                    modifier = Modifier.fillMaxWidth(),
                 )
             },
-            confirmButton = {
-                TextButton(
+            actions = {
+                DDZButton(
+                    text = "취소",
+                    style = DDZButtonStyle.Secondary,
+                    modifier = Modifier.weight(1f),
+                    onClick = { showCreatePhraseSet = false },
+                )
+                DDZButton(
+                    text = "추가",
                     enabled = createPhraseSetName.trim().isNotBlank(),
+                    modifier = Modifier.weight(1f),
                     onClick = {
                         onCreatePhraseSet(createPhraseSetName.trim())
                         showCreatePhraseSet = false
                     },
-                ) {
-                    Text("추가")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCreatePhraseSet = false }) {
-                    Text("취소")
-                }
+                )
             },
         )
     }
