@@ -117,4 +117,37 @@ class MockLayoutDomainAdapterTest {
     }
 
 
+    @Test
+    fun `tapping merged root selects full merged block`() {
+        val base = newBlankTableTemplateState(rows = 2, cols = 2)
+        val topLeft = base.cells.first { it.rowIndex == 0 && it.colIndex == 0 }
+        val bottomRight = base.cells.first { it.rowIndex == 1 && it.colIndex == 1 }
+
+        var selection = selectMockLayoutCell(
+            templateState = base,
+            current = MockLayoutSelection(),
+            tappedDomainCellId = topLeft.cellId,
+        )
+        selection = selectMockLayoutCell(
+            templateState = base,
+            current = selection,
+            tappedDomainCellId = bottomRight.cellId,
+        )
+        val merged = mergeOrUnmergeMockLayoutSelection(base, selection)
+
+        val mergedTap = selectMockLayoutCell(
+            templateState = merged,
+            current = MockLayoutSelection(),
+            tappedDomainCellId = topLeft.cellId,
+        )
+
+        assertEquals(4, mergedTap.selectedCellIds.size)
+        assertEquals(0, mergedTap.range?.minRow)
+        assertEquals(1, mergedTap.range?.maxRow)
+        assertEquals(0, mergedTap.range?.minCol)
+        assertEquals(1, mergedTap.range?.maxCol)
+        assertTrue(isMockLayoutSelectionMerged(merged, mergedTap))
+    }
+
+
 }
