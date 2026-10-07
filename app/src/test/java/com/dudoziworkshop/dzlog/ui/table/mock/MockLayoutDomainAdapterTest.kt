@@ -33,15 +33,10 @@ class MockLayoutDomainAdapterTest {
         val topLeft = base.cells.first { it.rowIndex == 0 && it.colIndex == 0 }
         val bottomRight = base.cells.first { it.rowIndex == 1 && it.colIndex == 1 }
 
-        var selection = selectMockLayoutCell(
+        val selection = selectMockLayoutRange(
             templateState = base,
-            current = MockLayoutSelection(),
-            tappedDomainCellId = topLeft.cellId,
-        )
-        selection = selectMockLayoutCell(
-            templateState = base,
-            current = selection,
-            tappedDomainCellId = bottomRight.cellId,
+            startDomainCellId = topLeft.cellId,
+            endDomainCellId = bottomRight.cellId,
         )
 
         val merged = mergeOrUnmergeMockLayoutSelection(base, selection)
@@ -49,7 +44,12 @@ class MockLayoutDomainAdapterTest {
         assertEquals(2, root.rowSpan)
         assertEquals(2, root.colSpan)
 
-        val unmerged = mergeOrUnmergeMockLayoutSelection(merged, selection)
+        val mergedSelection = selectMockLayoutCell(
+            templateState = merged,
+            current = MockLayoutSelection(),
+            tappedDomainCellId = topLeft.cellId,
+        )
+        val unmerged = mergeOrUnmergeMockLayoutSelection(merged, mergedSelection)
         val unmergedRoot = unmerged.cells.first { it.cellId == topLeft.cellId }
         assertEquals(1, unmergedRoot.rowSpan)
         assertEquals(1, unmergedRoot.colSpan)
@@ -100,15 +100,10 @@ class MockLayoutDomainAdapterTest {
         val topLeft = base.cells.first { it.rowIndex == 0 && it.colIndex == 0 }
         val bottomRight = base.cells.first { it.rowIndex == 1 && it.colIndex == 1 }
 
-        var selection = selectMockLayoutCell(
+        val selection = selectMockLayoutRange(
             templateState = base,
-            current = MockLayoutSelection(),
-            tappedDomainCellId = topLeft.cellId,
-        )
-        selection = selectMockLayoutCell(
-            templateState = base,
-            current = selection,
-            tappedDomainCellId = bottomRight.cellId,
+            startDomainCellId = topLeft.cellId,
+            endDomainCellId = bottomRight.cellId,
         )
         val merged = mergeOrUnmergeMockLayoutSelection(base, selection)
         val mockCells = mockCellsFromTemplate(merged)
@@ -126,15 +121,10 @@ class MockLayoutDomainAdapterTest {
         val topLeft = base.cells.first { it.rowIndex == 0 && it.colIndex == 0 }
         val bottomRight = base.cells.first { it.rowIndex == 1 && it.colIndex == 1 }
 
-        var selection = selectMockLayoutCell(
+        val selection = selectMockLayoutRange(
             templateState = base,
-            current = MockLayoutSelection(),
-            tappedDomainCellId = topLeft.cellId,
-        )
-        selection = selectMockLayoutCell(
-            templateState = base,
-            current = selection,
-            tappedDomainCellId = bottomRight.cellId,
+            startDomainCellId = topLeft.cellId,
+            endDomainCellId = bottomRight.cellId,
         )
         val merged = mergeOrUnmergeMockLayoutSelection(base, selection)
 
@@ -144,7 +134,7 @@ class MockLayoutDomainAdapterTest {
             tappedDomainCellId = topLeft.cellId,
         )
 
-        assertEquals(4, mergedTap.selectedCellIds.size)
+        assertEquals(setOf(topLeft.cellId), mergedTap.selectedCellIds)
         assertEquals(0, mergedTap.range?.minRow)
         assertEquals(1, mergedTap.range?.maxRow)
         assertEquals(0, mergedTap.range?.minCol)
@@ -158,15 +148,10 @@ class MockLayoutDomainAdapterTest {
         val topLeft = base.cells.first { it.rowIndex == 0 && it.colIndex == 0 }
         val bottomRight = base.cells.first { it.rowIndex == 1 && it.colIndex == 1 }
 
-        var selection = selectMockLayoutCell(
+        val selection = selectMockLayoutRange(
             templateState = base,
-            current = MockLayoutSelection(),
-            tappedDomainCellId = topLeft.cellId,
-        )
-        selection = selectMockLayoutCell(
-            templateState = base,
-            current = selection,
-            tappedDomainCellId = bottomRight.cellId,
+            startDomainCellId = topLeft.cellId,
+            endDomainCellId = bottomRight.cellId,
         )
 
         val decision = resolveMockLayoutMergeDecision(
