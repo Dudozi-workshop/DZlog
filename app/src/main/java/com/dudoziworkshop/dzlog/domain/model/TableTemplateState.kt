@@ -29,9 +29,15 @@ data class TableTemplateState(
     val phraseSets: List<RotatingPhraseSet> = emptyList(),
     // 정책: 파일명/저장경로 슬롯의 단일 SSOT는 draft payload다.
     val fileNameSlotDrafts: List<TableEditorSlotDraft?> = List(FILE_NAME_SLOT_COUNT) { null },
-    // 내부는 가변 리스트로 유지하고, 현재 UX에서만 기본 3단계를 제공한다.
+    // 저장경로는 도메인/저장/촬영 전 구간에서 최대 3단계만 허용한다.
     val pathSlotDrafts: List<TableEditorSlotDraft?> = List(PATH_SLOT_UI_MAX_COUNT) { null },
-)
+) {
+    init {
+        require(pathSlotDrafts.size <= PATH_SLOT_UI_MAX_COUNT) {
+            "pathSlotDrafts must contain at most $PATH_SLOT_UI_MAX_COUNT items"
+        }
+    }
+}
 
 private const val FILE_NAME_SLOT_KIND_CELL = "CELL"
 private const val PATH_SLOT_KIND_CELL = "CELL"
@@ -47,17 +53,17 @@ fun deriveFileNameCellSlotsFromDrafts(drafts: List<TableEditorSlotDraft?>): List
 
 const val FILE_NAME_SLOT_COUNT: Int = 3
 
-/**
- * 현재 UI에서 노출하는 저장경로 최대 단계 수.
- *
- * pathSlotDrafts 자체는 가변 리스트이며 이 값으로 truncate하지 않는다.
- * 향후 UX에서 4단계 이상을 허용하더라도 저장/경로 계산 구조를 다시 바꾸지 않기 위함이다.
- */
+/** 저장경로의 도메인 최대 단계 수. UI/preview/counter/capture 모두 이 제한을 공유한다. */
 const val PATH_SLOT_UI_MAX_COUNT: Int = 3
 
+fun normalizePathSlotDrafts(
+    drafts: List<TableEditorSlotDraft?>,
+): List<TableEditorSlotDraft?> =
+    drafts.take(PATH_SLOT_UI_MAX_COUNT) +
+        List((PATH_SLOT_UI_MAX_COUNT - drafts.size).coerceAtLeast(0)) { null }
 
 fun derivePathCellSlotsFromDrafts(drafts: List<TableEditorSlotDraft?>): List<CellKey?> {
-    return drafts.map { draft ->
+    return normalizePathSlotDrafts(drafts).map { draft ->
         val isCellSlot = draft?.kind.equals(PATH_SLOT_KIND_CELL, ignoreCase = true)
         if (isCellSlot) draft?.cellId else null
     }
