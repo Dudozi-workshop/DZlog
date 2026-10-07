@@ -116,6 +116,30 @@ internal fun mergeOrUnmergeMockLayoutSelection(
         ),
     )
 
+internal fun normalizeMockLayoutSelection(
+    templateState: TableTemplateState,
+    range: TableSelectionRange?,
+): MockLayoutSelection {
+    val normalizedRange = range ?: return MockLayoutSelection()
+    val expanded = TableStructureRangeActions.expandRangeToMergedBlocks(
+        cells = templateState.cells,
+        base = normalizedRange,
+    )
+    val ids = templateState.cells
+        .filter { cell -> expanded.contains(cell.rowIndex, cell.colIndex) }
+        .map { it.cellId }
+        .toSet()
+    val rootId = TableStructureRangeActions.interactiveRootCellsInRange(
+        cells = templateState.cells,
+        range = expanded,
+    ).firstOrNull()?.cellId
+    return MockLayoutSelection(
+        selectedCellIds = ids,
+        range = expanded,
+        lastSelectedCellId = rootId,
+    )
+}
+
 internal fun isMockLayoutSelectionMerged(
     templateState: TableTemplateState,
     selection: MockLayoutSelection,
