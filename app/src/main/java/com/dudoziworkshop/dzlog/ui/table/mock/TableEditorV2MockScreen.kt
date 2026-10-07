@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -109,11 +110,16 @@ fun TableEditorV2MockScreen(
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean,
     styleState: TableStyleState,
+    isUnsavedNewTemplate: Boolean = false,
     onSave: (TableTemplateState, TableStyleState, Boolean, Boolean) -> Unit,
+    onDiscardUnsavedNewTemplate: () -> Unit = {},
     onBack: () -> Unit,
 ) {
     var draftTemplateState by remember { mutableStateOf(templateState) }
     var draftStyleState by remember { mutableStateOf(styleState) }
+
+    var savedTemplateBaseline by remember { mutableStateOf(templateState) }
+    var savedStyleBaseline by remember { mutableStateOf(styleState) }
 
     val cells = remember(draftTemplateState.cells, draftTemplateState.rows, draftTemplateState.cols) {
         mutableStateListOf<MockCell>().apply {
@@ -137,6 +143,8 @@ fun TableEditorV2MockScreen(
             )
         )
     }
+    var savedSaveRulesBaseline by remember { mutableStateOf(saveRulesDraft) }
+    var showBackSaveDialog by remember { mutableStateOf(false) }
     var darkTable by remember(draftStyleState.bgStyle) { mutableStateOf(draftStyleState.bgStyle == 0) }
     var transparentTable by remember(draftStyleState.bgStyle) { mutableStateOf(draftStyleState.bgStyle == 2) }
     var gridEnabled by remember(draftStyleState.gridEnabled) { mutableStateOf(draftStyleState.gridEnabled) }
@@ -188,18 +196,49 @@ fun TableEditorV2MockScreen(
     }
 
 
+    fun saveCurrentSession() {
+        val finalTemplate = applyMockSaveRulesDraft(draftTemplateState, saveRulesDraft)
+        draftTemplateState = finalTemplate
+        onSave(
+            finalTemplate,
+            draftStyleState,
+            saveRulesDraft.includePathInScope,
+            saveRulesDraft.includeFilenameInScope,
+        )
+        savedTemplateBaseline = finalTemplate
+        savedStyleBaseline = draftStyleState
+        savedSaveRulesBaseline = saveRulesDraft
+    }
+
+    fun requestBack() {
+        if (mode == MockMode.LAYOUT) {
+            mode = MockMode.EDIT
+            layoutSelection = MockLayoutSelection()
+            return
+        }
+        val isDirty =
+            draftTemplateState != savedTemplateBaseline ||
+                draftStyleState != savedStyleBaseline ||
+                saveRulesDraft != savedSaveRulesBaseline
+        if (isDirty || isUnsavedNewTemplate) {
+            showBackSaveDialog = true
+        } else {
+            onBack()
+        }
+    }
+
+    BackHandler {
+        requestBack()
+    }
+
+
     Scaffold(
         containerColor = Color(0xFFF7F7FA),
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
                 navigationIcon = {
-                    IconButton(onClick = {
-                        if (mode == MockMode.LAYOUT) {
-                            mode = MockMode.EDIT
-                            layoutSelection = MockLayoutSelection()
-                        } else onBack()
-                    }) {
+                    IconButton(onClick = { requestBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로")
                     }
                 },
@@ -236,18 +275,7 @@ fun TableEditorV2MockScreen(
                         ) {
                             Icon(Icons.Filled.Redo, contentDescription = "다시 실행")
                         }
-                        IconButton(
-                            onClick = {
-                                val finalTemplate = applyMockSaveRulesDraft(draftTemplateState, saveRulesDraft)
-                                draftTemplateState = finalTemplate
-                                onSave(
-                                    finalTemplate,
-                                    draftStyleState,
-                                    saveRulesDraft.includePathInScope,
-                                    saveRulesDraft.includeFilenameInScope,
-                                )
-                            }
-                        ) {
+                        IconButton(onClick = { saveCurrentSession() }) {
                             Icon(Icons.Filled.Save, contentDescription = "저장")
                         }
                     }
@@ -670,6 +698,39 @@ fun TableEditorV2MockScreen(
                 showSaveRules = false
             },
             onDismiss = { showSaveRules = false },
+        )
+    }
+
+    if (showBackSaveDialog) {
+        AlertDialog(
+            onDismissRequest = { showBackSaveDialog = false },
+            title = { Text("변경사항을 저장할까요?") },
+            text = { Text("저장하지 않으면 이번 편집 내용은 모두 사라집니다.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        saveCurrentSession()
+                        showBackSaveDialog = false
+                        onBack()
+                    },
+                ) { Text("저장") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(
+                        onClick = {
+                            if (isUnsavedNewTemplate) {
+                                onDiscardUnsavedNewTemplate()
+                            }
+                            showBackSaveDialog = false
+                            onBack()
+                        },
+                    ) { Text("저장 안 함") }
+                    TextButton(onClick = { showBackSaveDialog = false }) {
+                        Text("취소")
+                    }
+                }
+            },
         )
     }
 }
