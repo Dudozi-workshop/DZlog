@@ -44,13 +44,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.debug.CounterDebugDump
-import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
-import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
-import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
@@ -104,17 +102,7 @@ fun HomeScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val settings by AppSettingsStore.flow(context).collectAsState(
-        initial = com.dudoziworkshop.dzlog.data.datastore.AppSettings(
-            saveMode = SaveMode.BOTH,
-            continuousPreviewMode = ContinuousPreviewMode.OFF,
-            photoQualityMode = PhotoQualityMode.BALANCED,
-            counterPadding = 0,
-            includePathInCounterScope = true,
-            includeFilenameInCounterScope = true,
-            toastEnabled = true,
-            hapticEnabled = true,
-            blankWarningEnabled = true,
-        ),
+        initial = AppSettings.Default,
     )
 
     val counterFacade = remember(context, settings.counterPadding) {
