@@ -456,22 +456,21 @@ fun TableEditorV2MockScreen(
                     cols = cols,
                     mergedSelection = isMockLayoutSelectionMerged(draftTemplateState, layoutSelection),
                     onAddRow = {
-                        session.commitTemplateChange(addMockLayoutRow(draftTemplateState, layoutSelection))
+                        session.commitTemplateChange(
+                            TableEditorV2StructureController.addRow(draftTemplateState, layoutSelection)
+                        )
                         selectionState.clearLayoutSelection()
                     },
                     onAddCol = {
-                        session.commitTemplateChange(addMockLayoutColumn(draftTemplateState, layoutSelection))
+                        session.commitTemplateChange(
+                            TableEditorV2StructureController.addColumn(draftTemplateState, layoutSelection)
+                        )
                         selectionState.clearLayoutSelection()
                     },
                     onMergeSelection = {
-                        val populatedCellIds = cells
-                            .filter { it.value.isNotBlank() }
-                            .mapNotNull { it.domainCellId }
-                            .toSet()
-                        val decision = resolveMockLayoutMergeDecision(
+                        val decision = TableEditorV2StructureController.resolveMergeDecision(
                             templateState = draftTemplateState,
                             selection = layoutSelection,
-                            populatedCellIds = populatedCellIds,
                         )
                         when (decision.type) {
                             TableMergeDecisionType.CONFIRM_MERGE -> {
@@ -479,7 +478,7 @@ fun TableEditorV2MockScreen(
                             }
                             TableMergeDecisionType.MERGE,
                             TableMergeDecisionType.UNMERGE -> {
-                                val updated = applyMockLayoutMergeDecision(draftTemplateState, decision)
+                                val updated = TableEditorV2StructureController.applyMergeDecision(draftTemplateState, decision)
                                 session.commitTemplateChange(updated)
                                 selectionState.normalizeLayoutSelection(
                                     templateState = updated,
@@ -512,7 +511,7 @@ fun TableEditorV2MockScreen(
                 TextButton(
                     onClick = {
                         pendingMergeDecision?.let { decision ->
-                            val updated = applyMockLayoutMergeDecision(draftTemplateState, decision)
+                            val updated = TableEditorV2StructureController.applyMergeDecision(draftTemplateState, decision)
                             session.commitTemplateChange(updated)
                             selectionState.normalizeLayoutSelection(
                                 templateState = updated,
@@ -540,7 +539,9 @@ fun TableEditorV2MockScreen(
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
-                        session.commitTemplateChange(removeMockLayoutRows(draftTemplateState, layoutSelection))
+                        session.commitTemplateChange(
+                            TableEditorV2StructureController.removeRows(draftTemplateState, layoutSelection)
+                        )
                         selectionState.clearLayoutSelection()
                         showLayoutDeleteSheet = false
                     },
@@ -548,7 +549,9 @@ fun TableEditorV2MockScreen(
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
-                        session.commitTemplateChange(removeMockLayoutColumns(draftTemplateState, layoutSelection))
+                        session.commitTemplateChange(
+                            TableEditorV2StructureController.removeColumns(draftTemplateState, layoutSelection)
+                        )
                         selectionState.clearLayoutSelection()
                         showLayoutDeleteSheet = false
                     },
