@@ -1,5 +1,9 @@
 package com.dudoziworkshop.dzlog.feature.table.editor
 
+import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
+import com.dudoziworkshop.dzlog.domain.model.GroupLevel
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
+import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.DeletedStructureSnapshot
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.StructureRestoreAxis
@@ -8,6 +12,7 @@ import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStru
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureRestoreCoordinatorInput
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
 import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
+import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotListHandlers
 
 data class StructureActionResult(
     val nextTemplate: TableTemplateState,
@@ -39,7 +44,57 @@ data class StructureAddOrRestoreInput(
     val applyPathSlots: (TableTemplateState, List<PathSlotUiItem?>) -> TableTemplateState,
 )
 
+data class StructureDraftRemoveInput(
+    val axis: StructureRestoreAxis,
+    val currentTemplate: TableTemplateState,
+    val selectionRange: TableSelectionRange?,
+)
+
 object TableEditorStructureActions {
+
+    fun removeDraft(input: StructureDraftRemoveInput): TableTemplateState {
+        val requestedRange = resolveDeletionRange(
+            axis = input.axis,
+            isStructureEditMode = true,
+            structureSelectionRange = input.selectionRange,
+            currentTemplate = input.currentTemplate,
+        )
+        val deletionRange = resolveSafeDeletionRange(
+            axis = input.axis,
+            currentTemplate = input.currentTemplate,
+            requestedRange = requestedRange,
+        ) ?: return input.currentTemplate
+
+        val deletedCellIds = input.currentTemplate.cells
+            .filter { cell ->
+                when (input.axis) {
+                    StructureRestoreAxis.ROW -> cell.rowIndex in deletionRange
+                    StructureRestoreAxis.COL -> cell.colIndex in deletionRange
+                }
+            }
+            .map { it.cellId }
+            .toSet()
+
+        val removedTemplate = when (input.axis) {
+            StructureRestoreAxis.ROW -> removeRowsByRange(input.currentTemplate, deletionRange)
+            StructureRestoreAxis.COL -> removeColsByRange(input.currentTemplate, deletionRange)
+        }
+        val sanitizedTemplate = sanitizePathGroupsAfterStructureChange(removedTemplate)
+        val nextFileNameSlots = removeDeletedCellRefs(
+            slots = input.currentTemplate.fileNameSlotDrafts,
+            deletedCellIds = deletedCellIds,
+            size = FILE_NAME_SLOT_COUNT,
+        )
+        val nextPathSlots = removeDeletedCellRefs(
+            slots = input.currentTemplate.pathSlotDrafts,
+            deletedCellIds = deletedCellIds,
+            size = PATH_SLOT_UI_MAX_COUNT,
+        )
+        return sanitizedTemplate.copy(
+            fileNameSlotDrafts = nextFileNameSlots,
+            pathSlotDrafts = nextPathSlots,
+        )
+    }
 
     fun resolveDeletionRange(
         axis: StructureRestoreAxis,
@@ -180,19 +235,11 @@ object TableEditorStructureActions {
             structureSelectionRange = input.editor.structureSelectionRange,
             currentTemplate = input.editor.currentTemplate,
         )
-        val mergedSafeRange = when (input.axis) {
-            StructureRestoreAxis.ROW ->
-                expandRowRemovalRangeForMergedCells(input.editor.currentTemplate, requestedRange)
-            StructureRestoreAxis.COL ->
-                expandColRemovalRangeForMergedCells(input.editor.currentTemplate, requestedRange)
-        }
-        val deletionRange = when (input.axis) {
-            StructureRestoreAxis.ROW -> normalizeRowRemovalRange(input.editor.currentTemplate, mergedSafeRange)
-            StructureRestoreAxis.COL -> normalizeColRemovalRange(input.editor.currentTemplate, mergedSafeRange)
-        }?.takeIf { normalized ->
-            mergedSafeRange == requestedRange ||
-                (normalized.first == mergedSafeRange.first && normalized.last == mergedSafeRange.last)
-        }
+        val deletionRange = resolveSafeDeletionRange(
+            axis = input.axis,
+            currentTemplate = input.editor.currentTemplate,
+            requestedRange = requestedRange,
+        )
 
         if (deletionRange == null) {
             return buildStructureActionResult(
@@ -249,6 +296,53 @@ object TableEditorStructureActions {
             actionLabel = actionLabelForRemove(input.axis),
         )
     }
+
+    private fun resolveSafeDeletionRange(
+        axis: StructureRestoreAxis,
+        currentTemplate: TableTemplateState,
+        requestedRange: IntRange,
+    ): IntRange? {
+        val mergedSafeRange = when (axis) {
+            StructureRestoreAxis.ROW ->
+                expandRowRemovalRangeForMergedCells(currentTemplate, requestedRange)
+            StructureRestoreAxis.COL ->
+                expandColRemovalRangeForMergedCells(currentTemplate, requestedRange)
+        }
+        return when (axis) {
+            StructureRestoreAxis.ROW -> normalizeRowRemovalRange(currentTemplate, mergedSafeRange)
+            StructureRestoreAxis.COL -> normalizeColRemovalRange(currentTemplate, mergedSafeRange)
+        }?.takeIf { normalized ->
+            mergedSafeRange == requestedRange ||
+                (normalized.first == mergedSafeRange.first && normalized.last == mergedSafeRange.last)
+        }
+    }
+
+    private fun sanitizePathGroupsAfterStructureChange(
+        state: TableTemplateState,
+    ): TableTemplateState {
+        if (state.cells.any { it.groupLevel == GroupLevel.G1 }) return state
+        return state.copy(
+            cells = state.cells.map { cell ->
+                if (cell.groupLevel == GroupLevel.G2) {
+                    cell.copy(groupLevel = GroupLevel.NONE)
+                } else {
+                    cell
+                }
+            }
+        )
+    }
+
+    private fun removeDeletedCellRefs(
+        slots: List<TableEditorSlotDraft?>,
+        deletedCellIds: Set<String>,
+        size: Int,
+    ): List<TableEditorSlotDraft?> =
+        TableEditorSlotListHandlers.removeCellRefs(
+            slots = slots,
+            deletedCellIds = deletedCellIds,
+            slotCellId = { it.cellId },
+            normalize = { filtered -> List(size) { index -> filtered.getOrNull(index) } },
+        )
 
     private fun buildStructureActionResult(
         editor: StructureEditorContext,
