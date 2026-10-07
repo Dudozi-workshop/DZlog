@@ -299,6 +299,30 @@ fun AppRoot() {
         }
     }
 
+    fun saveV2EditSession(
+        updatedTemplate: TableTemplateState,
+        updatedStyle: TableStyleState,
+        includePathInCounterScope: Boolean,
+        includeFilenameInCounterScope: Boolean,
+    ) {
+        tableTemplateViewModel.updateActive(updatedTemplate, updatedStyle)
+        if (pendingNewTemplateId == tableTemplateViewModel.activeTemplateId) {
+            pendingNewTemplateId = null
+            pendingNewTemplatePreviousActiveId = null
+        }
+        if (!hasRestoredTemplate) return
+        appScope.launch {
+            persistTableStyleState(context, updatedStyle)
+            AppSettingsStore.setIncludePathInCounterScope(context, includePathInCounterScope)
+            AppSettingsStore.setIncludeFilenameInCounterScope(context, includeFilenameInCounterScope)
+            persistTableTemplateCatalog(
+                context = context,
+                items = tableTemplateViewModel.templates,
+                activeTemplateId = tableTemplateViewModel.activeTemplateId,
+            )
+        }
+    }
+
     fun openSavedTemplate(templateId: String) {
         val target = tableTemplateViewModel.templates.firstOrNull { it.id == templateId } ?: return
         appScope.launch {
@@ -692,18 +716,7 @@ fun AppRoot() {
                         .firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }
                         ?.styleState
                         ?: TableStyleState(),
-                    onTemplateChange = ::updateTemplateState,
-                    onStyleChange = ::updateTableStyleState,
-                    onIncludePathInCounterScopeChange = { enabled ->
-                        appScope.launch {
-                            AppSettingsStore.setIncludePathInCounterScope(context, enabled)
-                        }
-                    },
-                    onIncludeFilenameInCounterScopeChange = { enabled ->
-                        appScope.launch {
-                            AppSettingsStore.setIncludeFilenameInCounterScope(context, enabled)
-                        }
-                    },
+                    onSave = ::saveV2EditSession,
                     onBack = { screen = previousScreen },
                 )
             }
