@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.Redo
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -67,6 +68,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.TableUndoManager
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
+import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
 private enum class MockMode { EDIT, LAYOUT }
@@ -411,6 +413,31 @@ fun TableEditorV2MockScreen(
                                     )
                                 )
                             }
+                        },
+                        onCreatePhraseSet = { name ->
+                            commitTemplateChange(
+                                createMockPhraseSet(
+                                    templateState = templateState,
+                                    name = name,
+                                )
+                            )
+                        },
+                        onUpdatePhraseSet = { phraseSetId, transform ->
+                            commitTemplateChange(
+                                updateMockPhraseSet(
+                                    templateState = templateState,
+                                    phraseSetId = phraseSetId,
+                                    transform = transform,
+                                )
+                            )
+                        },
+                        onDeletePhraseSet = { phraseSetId ->
+                            commitTemplateChange(
+                                deleteMockPhraseSet(
+                                    templateState = templateState,
+                                    phraseSetId = phraseSetId,
+                                )
+                            )
                         },
                         onClose = { selectedId = null },
                     )
@@ -817,11 +844,17 @@ private fun MockCellEditor(
     onApplyTimePolicy: () -> Unit,
     onPhraseSetChange: (String?) -> Unit,
     onPhraseEveryChange: (Int) -> Unit,
+    onCreatePhraseSet: (String) -> Unit,
+    onUpdatePhraseSet: (String, (com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> Unit,
+    onDeletePhraseSet: (String) -> Unit,
     onClose: () -> Unit,
 ) {
     var showTypePicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showPhrasePicker by remember { mutableStateOf(false) }
+    var showCreatePhraseSet by remember { mutableStateOf(false) }
+    var createPhraseSetName by remember { mutableStateOf("") }
+    var editingPhraseSetId by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -1050,29 +1083,55 @@ private fun MockCellEditor(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text("문구 세트", fontWeight = FontWeight.Bold)
+
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        createPhraseSetName = ""
+                        showCreatePhraseSet = true
+                    },
+                ) {
+                    Text("+ 새 문구 세트")
+                }
+
                 if (phraseSets.isEmpty()) {
                     Text("등록된 문구 세트가 없습니다.", color = DDZColor.TextMuted)
                 } else {
                     phraseSets.forEach { set ->
-                        OutlinedButton(
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            onClick = {
-                                onPhraseSetChange(set.id)
-                                showPhrasePicker = false
-                            },
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                            OutlinedButton(
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    onPhraseSetChange(set.id)
+                                    showPhrasePicker = false
+                                },
                             ) {
-                                Text(set.name)
-                                Text(
-                                    if (cell.phraseSetId == set.id) set.items.size.toString() + "개 ✓"
-                                    else set.items.size.toString() + "개"
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Text(set.name)
+                                    Text(
+                                        if (cell.phraseSetId == set.id) set.items.size.toString() + "개 ✓"
+                                        else set.items.size.toString() + "개"
+                                    )
+                                }
+                            }
+                            TextButton(
+                                onClick = {
+                                    editingPhraseSetId = set.id
+                                    showPhrasePicker = false
+                                },
+                            ) {
+                                Text("편집")
                             }
                         }
                     }
+
                     TextButton(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
@@ -1087,6 +1146,54 @@ private fun MockCellEditor(
             }
         }
     }
+
+    if (showCreatePhraseSet) {
+        AlertDialog(
+            onDismissRequest = { showCreatePhraseSet = false },
+            title = { Text("새 문구 세트") },
+            text = {
+                OutlinedTextField(
+                    value = createPhraseSetName,
+                    onValueChange = { createPhraseSetName = it },
+                    singleLine = true,
+                    label = { Text("세트 이름") },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = createPhraseSetName.trim().isNotBlank(),
+                    onClick = {
+                        onCreatePhraseSet(createPhraseSetName.trim())
+                        showCreatePhraseSet = false
+                    },
+                ) {
+                    Text("추가")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreatePhraseSet = false }) {
+                    Text("취소")
+                }
+            },
+        )
+    }
+
+    editingPhraseSetId
+        ?.let { id -> phraseSets.firstOrNull { it.id == id } }
+        ?.let { editingSet ->
+            RotatingPhraseSetEditDialog(
+                phraseSet = editingSet,
+                onClose = { editingPhraseSetId = null },
+                onUpdateSet = { transform ->
+                    onUpdatePhraseSet(editingSet.id, transform)
+                },
+                onDeleteSet = { phraseSetId ->
+                    onDeletePhraseSet(phraseSetId)
+                    editingPhraseSetId = null
+                },
+            )
+        }
+
 }
 
 @Composable
