@@ -96,7 +96,8 @@ fun TableEditorV2MockScreen(
     var rows by remember(templateState.rows) { mutableIntStateOf(templateState.rows) }
     var cols by remember(templateState.cols) { mutableIntStateOf(templateState.cols) }
     var selectedId by remember { mutableStateOf<Int?>(null) }
-    var selectedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var layoutSelection by remember { mutableStateOf(MockLayoutSelection()) }
+    var showLayoutDeleteSheet by remember { mutableStateOf(false) }
     var mode by remember { mutableStateOf(MockMode.EDIT) }
     var showStyle by remember { mutableStateOf(false) }
     var showSaveRules by remember { mutableStateOf(false) }
@@ -128,7 +129,7 @@ fun TableEditorV2MockScreen(
                     IconButton(onClick = {
                         if (mode == MockMode.LAYOUT) {
                             mode = MockMode.EDIT
-                            selectedIds = emptySet()
+                            layoutSelection = MockLayoutSelection()
                         } else onBack()
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로")
@@ -144,7 +145,7 @@ fun TableEditorV2MockScreen(
                     if (mode == MockMode.LAYOUT) {
                         Button(onClick = {
                             mode = MockMode.EDIT
-                            selectedIds = emptySet()
+                            layoutSelection = MockLayoutSelection()
                         }) { Text("완료") }
                     } else {
                         IconButton(onClick = { }) {
@@ -198,13 +199,24 @@ fun TableEditorV2MockScreen(
                 rows = rows,
                 cols = cols,
                 selectedId = selectedId,
-                selectedIds = selectedIds,
+                selectedIds = cells
+                    .filter { it.domainCellId in layoutSelection.selectedCellIds }
+                    .map { it.id }
+                    .toSet(),
                 darkTable = darkTable,
                 gridEnabled = gridEnabled,
                 layoutMode = mode == MockMode.LAYOUT,
                 onCellClick = { id ->
                     if (mode == MockMode.LAYOUT) {
-                        selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
+                        val tapped = cells.firstOrNull { it.id == id }
+                        val domainCellId = tapped?.domainCellId
+                        if (domainCellId != null) {
+                            layoutSelection = selectMockLayoutCell(
+                                templateState = templateState,
+                                current = layoutSelection,
+                                tappedDomainCellId = domainCellId,
+                            )
+                        }
                     } else {
                         selectedId = id
                     }
@@ -297,23 +309,64 @@ fun TableEditorV2MockScreen(
                 }
             } else {
                 MockLayoutPanel(
-                    selectedCount = selectedIds.size,
+                    selectedCount = layoutSelection.selectedCellIds.size,
                     rows = rows,
                     cols = cols,
+                    mergedSelection = isMockLayoutSelectionMerged(templateState, layoutSelection),
                     onAddRow = {
-                        rows += 1
-                        val start = cells.size
-                        repeat(cols) { offset -> cells += MockCell(start + offset, "새 셀") }
+                        onTemplateChange(addMockLayoutRow(templateState, layoutSelection))
                     },
                     onAddCol = {
-                        cols += 1
-                        val start = cells.size
-                        repeat(rows) { offset -> cells += MockCell(start + offset, "새 셀") }
+                        onTemplateChange(addMockLayoutColumn(templateState, layoutSelection))
+                    },
+                    onMergeSelection = {
+                        onTemplateChange(
+                            mergeOrUnmergeMockLayoutSelection(
+                                templateState = templateState,
+                                selection = layoutSelection,
+                            )
+                        )
                     },
                     onDeleteSelection = {
-                        selectedIds = emptySet()
+                        showLayoutDeleteSheet = true
                     },
                 )
+            }
+        }
+    }
+
+    if (showLayoutDeleteSheet) {
+        ModalBottomSheet(onDismissRequest = { showLayoutDeleteSheet = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("구조 삭제", fontWeight = FontWeight.Bold)
+                Text("선택 영역을 기준으로 삭제할 방향을 고르세요.", color = DDZColor.TextMuted)
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        onTemplateChange(removeMockLayoutRows(templateState, layoutSelection))
+                        layoutSelection = MockLayoutSelection()
+                        showLayoutDeleteSheet = false
+                    },
+                ) { Text("행 삭제") }
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        onTemplateChange(removeMockLayoutColumns(templateState, layoutSelection))
+                        layoutSelection = MockLayoutSelection()
+                        showLayoutDeleteSheet = false
+                    },
+                ) { Text("열 삭제") }
+                TextButton(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 18.dp),
+                    onClick = { showLayoutDeleteSheet = false },
+                ) { Text("취소") }
             }
         }
     }
@@ -736,8 +789,10 @@ private fun MockLayoutPanel(
     selectedCount: Int,
     rows: Int,
     cols: Int,
+    mergedSelection: Boolean,
     onAddRow: () -> Unit,
     onAddCol: () -> Unit,
+    onMergeSelection: () -> Unit,
     onDeleteSelection: () -> Unit,
 ) {
     Column(
@@ -765,10 +820,10 @@ private fun MockLayoutPanel(
             }
             OutlinedButton(
                 modifier = Modifier.weight(1f),
-                enabled = selectedCount > 1,
-                onClick = { },
+                enabled = selectedCount > 1 || mergedSelection,
+                onClick = onMergeSelection,
             ) {
-                Text("병합")
+                Text(if (mergedSelection) "병합 해제" else "병합")
             }
             OutlinedButton(
                 modifier = Modifier.weight(1f),
