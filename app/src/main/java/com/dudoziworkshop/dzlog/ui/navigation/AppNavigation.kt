@@ -24,7 +24,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
@@ -43,6 +42,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.settings.ui.CreditsScreen
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
+import com.dudoziworkshop.dzlog.feature.table.state.TableTemplateCatalogViewModel
 import com.dudoziworkshop.dzlog.feature.table.policy.TableTemplateCatalogCoordinator
 import com.dudoziworkshop.dzlog.feature.table.policy.activeSavedTableStyle
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
@@ -103,60 +103,6 @@ data class OriginalNavContext(
     val returnLocation: AlbumLocation?
 )
 
-class TableTemplateViewModel : ViewModel() {
-    var tableTemplateState by mutableStateOf(defaultTableTemplateState())
-        private set
-
-    var templates by mutableStateOf<List<SavedTableTemplate>>(emptyList())
-        private set
-
-    var activeTemplateId by mutableStateOf<String?>(null)
-        private set
-
-    fun restoreCatalog(items: List<SavedTableTemplate>, activeId: String?) {
-        templates = items.sortedByDescending { it.modifiedAt }
-        activeTemplateId = activeId?.takeIf { id -> templates.any { it.id == id } }
-        tableTemplateState = templates.firstOrNull { it.id == activeTemplateId }?.templateState
-            ?: templates.firstOrNull()?.templateState
-            ?: newBlankTableTemplateState()
-    }
-
-    fun updateStateOnly(state: TableTemplateState) {
-        tableTemplateState = state
-    }
-
-    fun setCatalog(items: List<SavedTableTemplate>, activeId: String?) {
-        templates = items.sortedByDescending { it.modifiedAt }
-        activeTemplateId = activeId?.takeIf { id -> templates.any { it.id == id } }
-        tableTemplateState = templates.firstOrNull { it.id == activeTemplateId }?.templateState
-            ?: templates.firstOrNull()?.templateState
-            ?: newBlankTableTemplateState()
-    }
-
-    fun activate(id: String) {
-        val target = templates.firstOrNull { it.id == id } ?: return
-        activeTemplateId = target.id
-        tableTemplateState = target.templateState
-    }
-
-    fun updateActive(state: TableTemplateState, style: TableStyleState) {
-        val id = activeTemplateId
-        tableTemplateState = state
-        if (id == null) return
-        templates = templates.map { item ->
-            if (item.id == id) {
-                item.copy(
-                    templateState = state,
-                    styleState = style,
-                    modifiedAt = System.currentTimeMillis(),
-                )
-            } else {
-                item
-            }
-        }.sortedByDescending { it.modifiedAt }
-    }
-}
-
 @Composable
 fun AppRoot() {
     var screen by remember { mutableStateOf(AppScreen.HOME) }
@@ -179,7 +125,7 @@ fun AppRoot() {
     // 기존 상태
 
     var orientationMode by remember { mutableStateOf(OrientationMode.PORTRAIT_LOCK) }
-    val tableTemplateViewModel: TableTemplateViewModel = viewModel()
+    val tableTemplateViewModel: TableTemplateCatalogViewModel = viewModel()
     val tableTemplateState = tableTemplateViewModel.tableTemplateState
 
     val context = LocalContext.current
