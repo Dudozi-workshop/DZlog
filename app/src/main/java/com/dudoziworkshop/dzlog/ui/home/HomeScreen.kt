@@ -27,7 +27,6 @@ import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -73,6 +72,7 @@ import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZCard
+import com.dudoziworkshop.dzlog.ui.common.DDZIconButton
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.common.rememberThreeButtonNavEquivalentBottomPadding
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
@@ -258,24 +258,20 @@ fun HomeScreen(
                     Text(
                         text = "DZlog",
                         style = DDZTypography.HomeMainTitle.copy(letterSpacing = 1.6.sp),
-                        color = DDZColor.Primary,
+                        color = DDZColor.PrimaryDark,
                         modifier = Modifier.align(Alignment.Center)
                     )
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
-                            .size(40.dp)
+                            .size(40.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        IconButton(
+                        DDZIconButton(
+                            icon = Icons.Default.Settings,
+                            contentDescription = "설정",
                             onClick = onOpenSettings,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "설정",
-                                tint = DDZColor.Primary
-                            )
-                        }
+                        )
                     }
                 }
 
@@ -321,7 +317,7 @@ fun HomeScreen(
                             Icon(
                                 imageVector = Icons.Default.Folder,
                                 contentDescription = null,
-                                tint = DDZColor.TextMuted,
+                                tint = DDZColor.TextSecondary,
                                 modifier = Modifier.align(Alignment.Center)
                             )
                         }
@@ -339,7 +335,7 @@ fun HomeScreen(
                                     text = "저장경로",
                                     modifier = Modifier.width(labelColumnWidth),
                                     style = DDZTypography.Caption,
-                                    color = DDZColor.TextMuted,
+                                    color = DDZColor.TextSecondary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -371,7 +367,7 @@ fun HomeScreen(
                                     text = "파일명",
                                     modifier = Modifier.width(labelColumnWidth),
                                     style = DDZTypography.Caption,
-                                    color = DDZColor.TextMuted,
+                                    color = DDZColor.TextSecondary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -408,18 +404,10 @@ fun HomeScreen(
                     onClick = onStartCamera,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .shadow(
-                            elevation = 7.dp,
-                            shape = unifiedActionButtonShape,
-                            clip = false,
-                            ambientColor = Color.Black.copy(alpha = 0.20f),
-                            spotColor = Color.Black.copy(alpha = 0.20f)
-                        ),
+                        .padding(horizontal = 16.dp),
                     style = DDZButtonStyle.Primary,
                     minHeight = unifiedActionButtonHeight,
-                    shape = unifiedActionButtonShape,
-                    containerColorOverride = DDZColor.PrimaryElevated
+                    shape = unifiedActionButtonShape
                 )
                 DDZButton(
                     text = "기존 사진 편집",
@@ -442,7 +430,7 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .height(190.dp)
                     .clip(RoundedCornerShape(DDZLayout.Radius.Large))
-                    .background(DDZColor.Card)
+                    .background(DDZColor.SurfaceSoft)
                     .border(1.dp, DDZColor.Border.copy(alpha = 0.95f), RoundedCornerShape(DDZLayout.Radius.Large))
                     .padding(horizontal = 10.dp, vertical = 8.dp)
             ) {
@@ -507,7 +495,7 @@ fun HomeScreen(
                                 .shadow(3.dp, RoundedCornerShape(18.dp), clip = false)
                                 .clip(RoundedCornerShape(18.dp))
                                 .background(DDZColor.Surface)
-                                .border(1.dp, DDZColor.Primary.copy(alpha = 0.75f), RoundedCornerShape(18.dp))
+                                .border(1.dp, DDZColor.BorderStrong, RoundedCornerShape(18.dp))
                                 .clickable {
                                     val it = latestImage
                                     if (it == null) {
@@ -531,14 +519,14 @@ fun HomeScreen(
                                         Icon(
                                             imageVector = Icons.Default.Collections,
                                             contentDescription = null,
-                                            tint = DDZColor.TextMuted,
+                                            tint = DDZColor.TextSecondary,
                                             modifier = Modifier.size(26.dp)
                                         )
                                         Spacer(Modifier.height(6.dp))
                                         Text(
                                             text = "최근 촬영 없음",
                                             style = DDZTypography.Caption,
-                                            color = DDZColor.TextMuted
+                                            color = DDZColor.TextSecondary
                                         )
                                     }
                                 }
@@ -575,15 +563,15 @@ fun HomeScreen(
                                 .fillMaxWidth()
                                 .shadow(1.5.dp, RoundedCornerShape(DDZLayout.Radius.Medium), clip = false)
                                 .clip(RoundedCornerShape(DDZLayout.Radius.Medium))
-                                .background(DDZColor.SageLight.copy(alpha = 0.99f))
-                                .border(1.dp, DDZColor.Sage.copy(alpha = 0.55f), RoundedCornerShape(DDZLayout.Radius.Medium))
+                                .background(DDZColor.Surface)
+                                .border(1.dp, DDZColor.Border, RoundedCornerShape(DDZLayout.Radius.Medium))
                                 .clickable(onClick = onOpenAlbum),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Collections,
                                 contentDescription = "앨범",
-                                tint = DDZColor.Sage
+                                tint = DDZColor.PrimaryDark
                             )
                         }
                     }
