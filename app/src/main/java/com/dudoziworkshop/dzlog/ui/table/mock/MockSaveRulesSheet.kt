@@ -171,23 +171,26 @@ internal fun MockSaveRulesSheet(
                 editingSection == null -> {
                     Text("저장 규칙", fontWeight = FontWeight.Bold)
 
-                    RuleSummarySection(
+                    CompactRuleSummarySection(
                         title = "파일명",
-                        preview = fileNamePreview,
                         items = draft.fileNameItems,
-                        itemLabel = { index -> "${index + 1}항목" },
+                        emptyLabel = { index -> "+ ${index + 1}항목" },
                         onItemClick = { index -> openEditor(MockRuleSection.FILE_NAME, index) },
                     )
                     Text(
-                        "자동번호 0012는 항상 파일명 마지막에 붙습니다.",
+                        fileNamePreview,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                    Text(
+                        "자동번호 0012는 항상 마지막에 붙습니다.",
                         color = DDZColor.TextMuted,
                     )
 
-                    RuleSummarySection(
+                    CompactRuleSummarySection(
                         title = "저장경로",
-                        preview = if (pathPreview.isBlank()) "경로가 아직 비어 있어요" else pathPreview,
                         items = draft.pathItems,
-                        itemLabel = { index -> "${index + 1}단계" },
+                        emptyLabel = { index -> "+ ${index + 1}단계" },
                         onItemClick = { index -> openEditor(MockRuleSection.PATH, index) },
                     )
                     Text(
@@ -197,6 +200,7 @@ internal fun MockSaveRulesSheet(
                             "Pictures/DZlog/${pathPreview.replace(" / ", "/")}/"
                         },
                         color = DDZColor.TextMuted,
+                        maxLines = 1,
                     )
 
                     Row(
@@ -472,32 +476,28 @@ internal fun MockSaveRulesSheet(
 }
 
 @Composable
-private fun RuleSummarySection(
+private fun CompactRuleSummarySection(
     title: String,
-    preview: String,
     items: List<MockRuleItem?>,
-    itemLabel: (Int) -> String,
+    emptyLabel: (Int) -> String,
     onItemClick: (Int) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(title, color = DDZColor.TextMuted)
-        Text(preview, fontWeight = FontWeight.Bold)
-
-        repeat(3) { index ->
-            val item = items.getOrNull(index)
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { onItemClick(index) },
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            repeat(3) { index ->
+                val item = items.getOrNull(index)
+                OutlinedButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = { onItemClick(index) },
                 ) {
-                    Text(itemLabel(index))
                     Text(
-                        text = item?.let(::ruleItemSummary) ?: "+ 추가",
+                        text = item?.let(::ruleItemCompactLabel) ?: emptyLabel(index),
                         color = if (item == null) DDZColor.TextMuted else DDZColor.TextPrimary,
+                        maxLines = 1,
                     )
                 }
             }
@@ -524,10 +524,10 @@ private fun ScopeToggle(
     }
 }
 
-private fun ruleItemSummary(item: MockRuleItem): String =
+private fun ruleItemCompactLabel(item: MockRuleItem): String =
     when (item.sourceType) {
-        MockRuleSourceType.CELL,
-        MockRuleSourceType.MANUAL -> item.value
+        MockRuleSourceType.CELL -> "셀:${item.value}"
+        MockRuleSourceType.MANUAL -> "직접:${item.value}"
         MockRuleSourceType.DATE -> "날짜"
         MockRuleSourceType.TIME -> "시간"
         MockRuleSourceType.ROTATING_TEXT -> "순환문구"
