@@ -54,7 +54,6 @@ import com.dudoziworkshop.dzlog.ui.log.LogGridScreen
 import com.dudoziworkshop.dzlog.ui.log.LogViewerScreen
 import com.dudoziworkshop.dzlog.ui.log.ORIGINAL_PHOTOS_TITLE
 import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
-import com.dudoziworkshop.dzlog.ui.table.detail.TableDetailRoute
 import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2MockScreen
 import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateListScreen
 import kotlinx.coroutines.flow.first
@@ -67,7 +66,6 @@ enum class AppScreen {
     CAMERA,
     TABLE_TEMPLATES,
     TABLE_EDITOR,
-    TABLE_EDITOR_V2_MOCK,
     SETTINGS,
     CREDITS,
     ALBUM_G1,
@@ -549,8 +547,7 @@ fun AppRoot() {
     val keepCameraAliveBehindAlbum = albumEntryScreen == AppScreen.CAMERA && isAlbumScreen(screen)
 
     BackHandler(
-        enabled = screen != AppScreen.TABLE_EDITOR &&
-            screen != AppScreen.TABLE_EDITOR_V2_MOCK,
+        enabled = screen != AppScreen.TABLE_EDITOR,
     ) {
         // 기본 내비게이션(화면 기준)
         when (screen) {
@@ -570,7 +567,6 @@ fun AppRoot() {
             AppScreen.CREDITS -> screen = AppScreen.SETTINGS
             AppScreen.TABLE_TEMPLATES -> screen = templateListEntryScreen
             AppScreen.TABLE_EDITOR -> screen = previousScreen
-            AppScreen.TABLE_EDITOR_V2_MOCK -> screen = previousScreen
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
 
             AppScreen.ALBUM_GRID -> {
@@ -605,7 +601,6 @@ fun AppRoot() {
                 onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
                 onStartCamera = { navigateTo(AppScreen.CAMERA) },
                 onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
-                onOpenTableEditorV2Mock = { navigateTo(AppScreen.TABLE_EDITOR_V2_MOCK) },
                 onOpenAlbum = ::openAlbumRoot,
                 onOpenRecentCaptureGrid = ::openRecentCaptureGrid
             )
@@ -635,22 +630,6 @@ fun AppRoot() {
             }
 
             AppScreen.TABLE_EDITOR -> {
-                TableEditorV2MockScreen(
-                    templateState = tableTemplateState,
-                    includePathInCounterScope = appSettings.includePathInCounterScope,
-                    includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-                    styleState = activeSavedTableStyle(
-                        tableTemplateViewModel.templates,
-                        tableTemplateViewModel.activeTemplateId,
-                    ),
-                    isUnsavedNewTemplate = pendingNewTemplateId == tableTemplateViewModel.activeTemplateId,
-                    onSave = ::saveV2EditSession,
-                    onDiscardUnsavedNewTemplate = ::discardPendingNewTemplate,
-                    onBack = { screen = previousScreen },
-                )
-            }
-
-            AppScreen.TABLE_EDITOR_V2_MOCK -> {
                 TableEditorV2MockScreen(
                     templateState = tableTemplateState,
                     includePathInCounterScope = appSettings.includePathInCounterScope,
