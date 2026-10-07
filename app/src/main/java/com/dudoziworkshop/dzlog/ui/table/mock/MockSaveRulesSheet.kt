@@ -150,7 +150,9 @@ internal fun MockSaveRulesSheet(
 
     fun removeItem() {
         val index = editingIndex ?: return
-        val compacted = activeItems().filterNotNull().toMutableList()
+        val compacted = mutableListOf<MockRuleItem?>().apply {
+            addAll(activeItems().filterNotNull())
+        }
         if (index in compacted.indices) compacted.removeAt(index)
         while (compacted.size < 3) compacted += null
         updateActiveItems(compacted.take(3))
