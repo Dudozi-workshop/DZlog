@@ -60,7 +60,6 @@ import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.feature.settings.policy.SettingsAction
 import com.dudoziworkshop.dzlog.feature.settings.policy.applySettingsAction
 import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControl
-import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControlOption
 import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControlStyles
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
