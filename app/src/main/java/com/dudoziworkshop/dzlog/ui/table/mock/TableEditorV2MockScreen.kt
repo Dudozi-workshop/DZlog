@@ -53,7 +53,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -125,14 +124,12 @@ fun TableEditorV2MockScreen(
     var savedTemplateBaseline by remember { mutableStateOf(templateState) }
     var savedStyleBaseline by remember { mutableStateOf(styleState) }
 
-    val cells = remember(draftTemplateState.cells, draftTemplateState.rows, draftTemplateState.cols) {
-        mutableStateListOf<MockCell>().apply {
-            addAll(mockCellsFromTemplate(draftTemplateState))
-        }
+    val cells = remember(draftTemplateState) {
+        mockCellsFromTemplate(draftTemplateState)
     }
-    var rows by remember(draftTemplateState.rows) { mutableIntStateOf(draftTemplateState.rows) }
-    var cols by remember(draftTemplateState.cols) { mutableIntStateOf(draftTemplateState.cols) }
-    var selectedId by remember { mutableStateOf<Int?>(null) }
+    val rows = draftTemplateState.rows
+    val cols = draftTemplateState.cols
+    var selectedCellId by remember { mutableStateOf<String?>(null) }
     var layoutSelection by remember { mutableStateOf(MockLayoutSelection()) }
     var showLayoutDeleteSheet by remember { mutableStateOf(false) }
     var pendingMergeDecision by remember { mutableStateOf<TableMergeDecision?>(null) }
@@ -270,7 +267,7 @@ fun TableEditorV2MockScreen(
                                 val restored = undoManager.undo(current)
                                 if (restored != current) {
                                     applyHistorySnapshot(restored)
-                                    selectedId = null
+                                    selectedCellId = null
                                     layoutSelection = MockLayoutSelection()
                                 }
                             },
@@ -284,7 +281,7 @@ fun TableEditorV2MockScreen(
                                 val restored = undoManager.redo(current)
                                 if (restored != current) {
                                     applyHistorySnapshot(restored)
-                                    selectedId = null
+                                    selectedCellId = null
                                     layoutSelection = MockLayoutSelection()
                                 }
                             },
@@ -302,7 +299,7 @@ fun TableEditorV2MockScreen(
             if (mode == MockMode.EDIT) {
                 MockBottomBar(
                     onLayout = {
-                        selectedId = null
+                        selectedCellId = null
                         mode = MockMode.LAYOUT
                     },
                     onStyle = {
@@ -336,7 +333,7 @@ fun TableEditorV2MockScreen(
                 cells = cells,
                 rows = rows,
                 cols = cols,
-                selectedId = selectedId,
+                selectedCellId = selectedCellId,
                 selectedIds = cells
                     .filter { it.domainCellId in layoutSelection.selectedCellIds }
                     .map { it.id }
@@ -378,19 +375,15 @@ fun TableEditorV2MockScreen(
                 onBoundaryDragEnd = {
                     layoutBoundaryDragActive = false
                 },
-                onCellClick = { id ->
+                onCellClick = { domainCellId ->
                     if (mode == MockMode.LAYOUT) {
-                        val tapped = cells.firstOrNull { it.id == id }
-                        val domainCellId = tapped?.domainCellId
-                        if (domainCellId != null) {
-                            layoutSelection = selectMockLayoutCell(
-                                templateState = draftTemplateState,
-                                current = layoutSelection,
-                                tappedDomainCellId = domainCellId,
-                            )
-                        }
+                        layoutSelection = selectMockLayoutCell(
+                            templateState = draftTemplateState,
+                            current = layoutSelection,
+                            tappedDomainCellId = domainCellId,
+                        )
                     } else {
-                        selectedId = id
+                        selectedCellId = domainCellId
                     }
                 },
                 onCellRangeDrag = { startId, endId ->
@@ -408,16 +401,14 @@ fun TableEditorV2MockScreen(
             Spacer(Modifier.height(12.dp))
 
             if (mode == MockMode.EDIT) {
-                val selected = selectedId?.let { id -> cells.firstOrNull { it.id == id } }
+                val selected = selectedCellId?.let { id ->
+                    cells.firstOrNull { it.domainCellId == id }
+                }
                 if (selected != null) {
                     MockCellEditor(
                         cell = selected,
                         phraseSets = draftTemplateState.phraseSets,
                         onValueChange = { nextValue ->
-                            val index = cells.indexOfFirst { it.id == selected.id }
-                            if (index >= 0) {
-                                cells[index] = cells[index].copy(value = nextValue)
-                            }
                             selected.domainCellId?.let { cellId ->
                                 commitTemplateChange(
                                     applyMockCellValue(
@@ -429,10 +420,6 @@ fun TableEditorV2MockScreen(
                             }
                         },
                         onTypeChange = { nextType ->
-                            val index = cells.indexOfFirst { it.id == selected.id }
-                            if (index >= 0) {
-                                cells[index] = cells[index].copy(type = nextType)
-                            }
                             selected.domainCellId?.let { cellId ->
                                 commitTemplateChange(
                                     applyMockCellType(
@@ -511,7 +498,7 @@ fun TableEditorV2MockScreen(
                                 )
                             )
                         },
-                        onClose = { selectedId = null },
+                        onClose = { selectedCellId = null },
                     )
                 }
             } else {
@@ -823,7 +810,7 @@ private fun ColumnScope.MockTableCanvas(
     cells: List<MockCell>,
     rows: Int,
     cols: Int,
-    selectedId: Int?,
+    selectedCellId: String?,
     selectedIds: Set<Int>,
     darkTable: Boolean,
     transparentTable: Boolean,
@@ -840,7 +827,7 @@ private fun ColumnScope.MockTableCanvas(
     onRowBoundaryDrag: (Int, Float) -> Unit,
     onColBoundaryDrag: (Int, Float) -> Unit,
     onBoundaryDragEnd: () -> Unit,
-    onCellClick: (Int) -> Unit,
+    onCellClick: (String) -> Unit,
     onCellRangeDrag: (String, String) -> Unit,
     onClearLayoutSelection: () -> Unit,
 ) {
@@ -920,7 +907,11 @@ private fun ColumnScope.MockTableCanvas(
                 val y = rowSizes.take(startRow).fold(0.dp) { acc, value -> acc + value }
                 val width = colSizes.subList(startCol, endColExclusive).fold(0.dp) { acc, value -> acc + value }
                 val height = rowSizes.subList(startRow, endRowExclusive).fold(0.dp) { acc, value -> acc + value }
-                val isSelected = if (layoutMode) cell.id in selectedIds else selectedId == cell.id
+                val isSelected = if (layoutMode) {
+                    cell.id in selectedIds
+                } else {
+                    selectedCellId != null && cell.domainCellId == selectedCellId
+                }
 
                 Box(
                     modifier = Modifier
@@ -935,7 +926,9 @@ private fun ColumnScope.MockTableCanvas(
                                 if (darkTable) Color.White.copy(alpha = 0.28f) else Color(0xFFB8B8BE)
                             ) else Modifier
                         )
-                        .clickable(enabled = !layoutMode) { onCellClick(cell.id) },
+                        .clickable(enabled = !layoutMode && cell.domainCellId != null) {
+                            cell.domainCellId?.let(onCellClick)
+                        },
                     contentAlignment = cellAlignment,
                 ) {
                     Text(
@@ -963,8 +956,7 @@ private fun ColumnScope.MockTableCanvas(
                                 if (domainId == null) {
                                     onClearLayoutSelection()
                                 } else {
-                                    val cell = cells.firstOrNull { it.domainCellId == domainId }
-                                    if (cell != null) onCellClick(cell.id)
+                                    onCellClick(domainId)
                                 }
                             }
                         }
