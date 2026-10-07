@@ -55,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +75,7 @@ import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import kotlinx.coroutines.launch
 
 private enum class MockMode { EDIT, LAYOUT }
 private data class MockEditorSnapshot(
@@ -114,7 +116,7 @@ fun TableEditorV2MockScreen(
     includeFilenameInCounterScope: Boolean,
     styleState: TableStyleState,
     isUnsavedNewTemplate: Boolean = false,
-    onSave: (TableTemplateState, TableStyleState, Boolean, Boolean) -> Unit,
+    onSave: suspend (TableTemplateState, TableStyleState, Boolean, Boolean) -> Boolean,
     onDiscardUnsavedNewTemplate: () -> Unit = {},
     onBack: () -> Unit,
 ) {
@@ -151,6 +153,9 @@ fun TableEditorV2MockScreen(
     var styleSheetDraft by remember { mutableStateOf(draftStyleState) }
     var showAdvancedStyle by remember { mutableStateOf(false) }
     var layoutBoundaryDragActive by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
+    var saveErrorMessage by remember { mutableStateOf<String?>(null) }
+    val saveScope = rememberCoroutineScope()
     val undoManager = remember { TableUndoManager<MockEditorSnapshot>() }
     var historyRevision by remember { mutableIntStateOf(0) }
 
@@ -201,18 +206,29 @@ fun TableEditorV2MockScreen(
     }
 
 
-    fun saveCurrentSession() {
+    suspend fun saveCurrentSession(): Boolean {
+        if (isSaving) return false
+        isSaving = true
+        saveErrorMessage = null
         val finalTemplate = applyMockSaveRulesDraft(draftTemplateState, saveRulesDraft)
-        draftTemplateState = finalTemplate
-        onSave(
-            finalTemplate,
-            draftStyleState,
-            saveRulesDraft.includePathInScope,
-            saveRulesDraft.includeFilenameInScope,
-        )
-        savedTemplateBaseline = finalTemplate
-        savedStyleBaseline = draftStyleState
-        savedSaveRulesBaseline = saveRulesDraft
+        val success = runCatching {
+            onSave(
+                finalTemplate,
+                draftStyleState,
+                saveRulesDraft.includePathInScope,
+                saveRulesDraft.includeFilenameInScope,
+            )
+        }.getOrDefault(false)
+        if (success) {
+            draftTemplateState = finalTemplate
+            savedTemplateBaseline = finalTemplate
+            savedStyleBaseline = draftStyleState
+            savedSaveRulesBaseline = saveRulesDraft
+        } else {
+            saveErrorMessage = "저장하지 못했습니다. 변경사항은 유지됩니다."
+        }
+        isSaving = false
+        return success
     }
 
     fun requestBack() {
@@ -288,7 +304,12 @@ fun TableEditorV2MockScreen(
                         ) {
                             Icon(Icons.Filled.Redo, contentDescription = "다시 실행")
                         }
-                        IconButton(onClick = { saveCurrentSession() }) {
+                        IconButton(
+                            enabled = !isSaving,
+                            onClick = {
+                                saveScope.launch { saveCurrentSession() }
+                            },
+                        ) {
                             Icon(Icons.Filled.Save, contentDescription = "저장")
                         }
                     }
@@ -773,6 +794,19 @@ fun TableEditorV2MockScreen(
         )
     }
 
+    if (saveErrorMessage != null) {
+        AlertDialog(
+            onDismissRequest = { saveErrorMessage = null },
+            title = { Text("저장 실패") },
+            text = { Text(saveErrorMessage.orEmpty()) },
+            confirmButton = {
+                TextButton(onClick = { saveErrorMessage = null }) {
+                    Text("확인")
+                }
+            },
+        )
+    }
+
     if (showBackSaveDialog) {
         AlertDialog(
             onDismissRequest = { showBackSaveDialog = false },
@@ -780,10 +814,14 @@ fun TableEditorV2MockScreen(
             text = { Text("저장하지 않으면 이번 편집 내용은 모두 사라집니다.") },
             confirmButton = {
                 TextButton(
+                    enabled = !isSaving,
                     onClick = {
-                        saveCurrentSession()
-                        showBackSaveDialog = false
-                        onBack()
+                        saveScope.launch {
+                            if (saveCurrentSession()) {
+                                showBackSaveDialog = false
+                                onBack()
+                            }
+                        }
                     },
                 ) { Text("저장") }
             },
