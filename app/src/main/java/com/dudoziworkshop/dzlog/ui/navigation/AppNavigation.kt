@@ -598,6 +598,10 @@ fun AppRoot() {
         when (screen) {
             AppScreen.HOME -> HomeScreen(
                 tableTemplateState = tableTemplateState,
+                activeTemplateName = tableTemplateViewModel.templates
+                    .firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }
+                    ?.name
+                    .orEmpty(),
                 onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
                 onStartCamera = { navigateTo(AppScreen.CAMERA) },
                 onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
