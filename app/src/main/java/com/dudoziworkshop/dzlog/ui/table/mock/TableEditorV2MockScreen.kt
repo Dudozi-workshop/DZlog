@@ -142,31 +142,8 @@ fun TableEditorV2MockScreen(
     var styleSheetDraft by remember { mutableStateOf(draftStyleState) }
     var showAdvancedStyle by remember { mutableStateOf(false) }
     var layoutBoundaryDragActive by remember { mutableStateOf(false) }
-    var isSaving by remember { mutableStateOf(false) }
-    var saveErrorMessage by remember { mutableStateOf<String?>(null) }
+    val saveCoordinator = remember { TableEditorV2SaveCoordinator() }
     val saveScope = rememberCoroutineScope()
-
-    suspend fun saveCurrentSession(): Boolean {
-        if (isSaving) return false
-        isSaving = true
-        saveErrorMessage = null
-        val finalTemplate = session.finalTemplateForSave()
-        val success = runCatching {
-            onSave(
-                finalTemplate,
-                draftStyleState,
-                saveRulesDraft.includePathInScope,
-                saveRulesDraft.includeFilenameInScope,
-            )
-        }.getOrDefault(false)
-        if (success) {
-            session.markSaved(finalTemplate)
-        } else {
-            saveErrorMessage = "저장하지 못했습니다. 변경사항은 유지됩니다."
-        }
-        isSaving = false
-        return success
-    }
 
     fun requestBack() {
         if (mode == MockMode.LAYOUT) {
@@ -232,9 +209,9 @@ fun TableEditorV2MockScreen(
                             Icon(Icons.Filled.Redo, contentDescription = "다시 실행")
                         }
                         IconButton(
-                            enabled = !isSaving,
+                            enabled = !saveCoordinator.isSaving,
                             onClick = {
-                                saveScope.launch { saveCurrentSession() }
+                                saveScope.launch { saveCoordinator.save(session, onSave) }
                             },
                         ) {
                             Icon(Icons.Filled.Save, contentDescription = "저장")
@@ -724,13 +701,13 @@ fun TableEditorV2MockScreen(
         )
     }
 
-    if (saveErrorMessage != null) {
+    if (saveCoordinator.errorMessage != null) {
         AlertDialog(
-            onDismissRequest = { saveErrorMessage = null },
+            onDismissRequest = { saveCoordinator.clearError() },
             title = { Text("저장 실패") },
-            text = { Text(saveErrorMessage.orEmpty()) },
+            text = { Text(saveCoordinator.errorMessage.orEmpty()) },
             confirmButton = {
-                TextButton(onClick = { saveErrorMessage = null }) {
+                TextButton(onClick = { saveCoordinator.clearError() }) {
                     Text("확인")
                 }
             },
@@ -744,10 +721,10 @@ fun TableEditorV2MockScreen(
             text = { Text("저장하지 않으면 이번 편집 내용은 모두 사라집니다.") },
             confirmButton = {
                 TextButton(
-                    enabled = !isSaving,
+                    enabled = !saveCoordinator.isSaving,
                     onClick = {
                         saveScope.launch {
-                            if (saveCurrentSession()) {
+                            if (saveCoordinator.save(session, onSave)) {
                                 showBackSaveDialog = false
                                 onBack()
                             }
