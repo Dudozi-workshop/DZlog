@@ -26,7 +26,10 @@ jobs:
           cache: gradle
 
       - name: Install Android SDK 34
-        run: yes | sdkmanager --licenses >/dev/null && sdkmanager "platforms;android-34" "build-tools;34.0.0"
+        run: |
+          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
