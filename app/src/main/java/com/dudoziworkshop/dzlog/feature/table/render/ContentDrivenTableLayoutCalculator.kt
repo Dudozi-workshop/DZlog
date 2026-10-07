@@ -103,6 +103,7 @@ fun computeResolvedRenderLayout(
     colWeights: List<Float>? = null,
     maxWidthPx: Float? = null,
     maxHeightPx: Float? = null,
+    allowUpscaleToFit: Boolean = false,
 ): ResolvedRenderLayout {
     val safeRows = rows.coerceAtLeast(1)
     val safeCols = cols.coerceAtLeast(1)
@@ -156,9 +157,14 @@ fun computeResolvedRenderLayout(
     }
     val intrinsicTableWidth = intrinsicColWidths.sum().coerceAtLeast(1f)
     val intrinsicTableHeight = intrinsicRowHeights.sum().coerceAtLeast(1f)
-    val widthFit = maxWidthPx?.takeIf { it > 0f }?.let { (it / intrinsicTableWidth).coerceAtMost(1f) } ?: 1f
-    val heightFit = maxHeightPx?.takeIf { it > 0f }?.let { (it / intrinsicTableHeight).coerceAtMost(1f) } ?: 1f
-    val fitScale = minOf(widthFit, heightFit).coerceAtMost(1f).coerceAtLeast(0.01f)
+    val widthFit = maxWidthPx?.takeIf { it > 0f }?.let { it / intrinsicTableWidth } ?: 1f
+    val heightFit = maxHeightPx?.takeIf { it > 0f }?.let { it / intrinsicTableHeight } ?: 1f
+    val rawFitScale = minOf(widthFit, heightFit)
+    val fitScale = if (allowUpscaleToFit) {
+        rawFitScale.coerceAtLeast(0.01f)
+    } else {
+        rawFitScale.coerceAtMost(1f).coerceAtLeast(0.01f)
+    }
     val scaledColWidths = intrinsicColWidths.map { it * fitScale }
     val scaledRowHeights = intrinsicRowHeights.map { it * fitScale }
     return ResolvedRenderLayout(
@@ -185,6 +191,7 @@ fun buildContentDrivenRenderedSceneFromPlacement(
     baseScaleRatio: Int,
     rowWeights: List<Float>? = null,
     colWeights: List<Float>? = null,
+    allowUpscaleToFit: Boolean = false,
 ): ContentDrivenRenderedScene {
     val rootCells = buildRenderRootCells(templateCells)
     val viewportTableRect = computeRenderedTableGeometry(
@@ -206,6 +213,7 @@ fun buildContentDrivenRenderedSceneFromPlacement(
         colWeights = colWeights,
         maxWidthPx = viewportTableRect.width(),
         maxHeightPx = viewportTableRect.height(),
+        allowUpscaleToFit = allowUpscaleToFit,
     )
     val finalTableRect = RectF(
         viewportTableRect.centerX() - (resolvedLayout.scaledColWidthsPx.sum() / 2f),
