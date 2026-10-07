@@ -42,7 +42,7 @@ import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
-import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePathFromSlotDrafts
+import com.dudoziworkshop.dzlog.domain.naming.buildSavePath
 import com.dudoziworkshop.dzlog.domain.naming.resolveGroupValue
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
@@ -334,7 +334,7 @@ internal fun CameraPreviewArea(
         }
 
         val previewRequest = CaptureRequest(
-            relativePath = buildGalleryRelativePathFromSlotDrafts(
+            relativePath = buildSavePath(
                 resolvedCells = resolvedCellsForPreview,
                 pathSlotDrafts = args.tableTemplateState.pathSlotDrafts,
                 now = args.now,
