@@ -16,7 +16,9 @@ import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -31,6 +33,7 @@ internal data class HomeUiState(
     val settings: AppSettings = AppSettings.Default,
     val nextCounterPreview: Int = 1,
     val latestImage: MediaImageItem? = null,
+    val latestImageTimeText: String = "-",
 )
 
 internal class HomeViewModel(
@@ -88,7 +91,24 @@ internal class HomeViewModel(
                     DzlogMediaStoreReader(appContext.contentResolver).loadLatestImage()
                 }.getOrNull()
             }
-            _uiState.value = _uiState.value.copy(latestImage = latest)
+            _uiState.value = _uiState.value.copy(
+                latestImage = latest,
+                latestImageTimeText = formatRecentCaptureTime(latest?.dateAddedSeconds ?: 0L),
+            )
+        }
+    }
+
+    private fun formatRecentCaptureTime(dateAddedSeconds: Long): String {
+        if (dateAddedSeconds <= 0L) return "-"
+        val captureDate = Date(dateAddedSeconds * 1_000L)
+        val todayKey = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+        val isToday = todayKey.format(captureDate) == todayKey.format(Date())
+        return if (isToday) {
+            val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(captureDate)
+            appContext.getString(com.dudoziworkshop.dzlog.R.string.home_today_time, time)
+        } else {
+            val pattern = appContext.getString(com.dudoziworkshop.dzlog.R.string.home_date_time_pattern)
+            SimpleDateFormat(pattern, Locale.getDefault()).format(captureDate)
         }
     }
 
