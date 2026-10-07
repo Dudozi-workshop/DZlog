@@ -106,7 +106,6 @@ data class LayoutTabUiState(
     val wmTextAlign: Int,
     val structureSelectedCellIds: Set<String>,
     val isUndoAvailable: Boolean,
-    val templateName: String = "",
 )
 
 data class LayoutTabActions(
