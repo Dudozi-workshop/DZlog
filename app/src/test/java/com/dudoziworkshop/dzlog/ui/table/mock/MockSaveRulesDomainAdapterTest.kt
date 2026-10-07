@@ -1,5 +1,8 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
+import com.dudoziworkshop.dzlog.data.template.tableTemplateStateFromJson
+import com.dudoziworkshop.dzlog.data.template.toJsonString
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
@@ -8,6 +11,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.json.JSONObject
 import org.junit.Test
 
 class MockSaveRulesDomainAdapterTest {
@@ -35,7 +39,6 @@ class MockSaveRulesDomainAdapterTest {
                 TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
                 TableEditorSlotDraft(kind = "FORMAT", label = "날짜", formatType = "DATE"),
                 null,
-                TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "preserved-tail"),
             ),
         )
 
@@ -65,7 +68,7 @@ class MockSaveRulesDomainAdapterTest {
         assertEquals("CELL", updated.fileNameSlotDrafts[0]?.kind)
         assertEquals("cell-1", updated.fileNameSlotDrafts[0]?.cellId)
         assertEquals("TIME", updated.pathSlotDrafts[2]?.formatType)
-        assertEquals("preserved-tail", updated.pathSlotDrafts[3]?.manualText)
+        assertEquals(3, updated.pathSlotDrafts.size)
     }
 
 
@@ -255,6 +258,25 @@ class MockSaveRulesDomainAdapterTest {
         assertTrue(deleted.phraseSets.isEmpty())
         assertEquals(null, deleted.cells.single().phraseSetId)
         assertEquals(null, deleted.cells.single().everyOverride)
+    }
+
+    @Test
+    fun `legacy path tail is dropped during json migration`() {
+        val base = newBlankTableTemplateState(rows = 1, cols = 1)
+        val root = JSONObject(base.toJsonString())
+        val pathSlots = root.getJSONArray("pathSlotDrafts")
+        pathSlots.put(
+            JSONObject()
+                .put("kind", "MANUAL")
+                .put("label", "legacy")
+                .put("manualText", "hidden-fourth"),
+        )
+
+        val migrated = tableTemplateStateFromJson(root.toString())
+            ?: error("migration failed")
+
+        assertEquals(3, migrated.pathSlotDrafts.size)
+        assertTrue(migrated.pathSlotDrafts.none { it?.manualText == "hidden-fourth" })
     }
 
 
