@@ -42,7 +42,7 @@ internal enum class MockRuleSourceType(val label: String) {
 internal data class MockRuleItem(
     val sourceType: MockRuleSourceType,
     val value: String,
-    val cellId: Int? = null,
+    val cellId: String? = null,
 )
 
 internal data class MockSaveRulesDraft(
@@ -55,7 +55,7 @@ internal data class MockSaveRulesDraft(
 internal fun defaultMockSaveRulesDraft(): MockSaveRulesDraft =
     MockSaveRulesDraft(
         fileNameItems = listOf(
-            MockRuleItem(MockRuleSourceType.CELL, "Draper", cellId = 0),
+            MockRuleItem(MockRuleSourceType.CELL, "Draper", cellId = "mock-0"),
             MockRuleItem(MockRuleSourceType.DATE, "20261006"),
             null,
         ),
@@ -278,7 +278,7 @@ internal fun MockSaveRulesSheet(
                                                         MockRuleItem(
                                                             sourceType = MockRuleSourceType.CELL,
                                                             value = cell.value,
-                                                            cellId = cell.id,
+                                                            cellId = cell.domainCellId,
                                                         )
                                                     )
                                                 }
