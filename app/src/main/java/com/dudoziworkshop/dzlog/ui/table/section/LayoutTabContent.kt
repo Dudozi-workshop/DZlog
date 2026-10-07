@@ -87,24 +87,40 @@ fun LayoutTabContent(
             modifier = contentColumnModifier
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                if (uiState.bottomPanelMode == BottomEditorPanelMode.NONE) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
-                        text = "수정할 셀을 눌러보세요",
+                        text = "${uiState.templateState.rows} × ${uiState.templateState.cols}",
                         style = DDZTypography.Caption,
                         color = DDZColor.TextMuted,
                     )
-                    Spacer(Modifier.height(10.dp))
+                    uiState.selectedCell?.let { cell ->
+                        Text(
+                            text = "${cellCoordinateLabel(cell.rowIndex, cell.colIndex)} · ${dataTypeLabel(cell.dataType)}",
+                            style = DDZTypography.Caption,
+                            color = DDZColor.TextMuted,
+                        )
+                    }
                 }
+                Spacer(Modifier.height(8.dp))
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 200.dp)
+                        .heightIn(max = 220.dp)
                         .onGloballyPositioned { coordinates ->
                             previewBottomPx = coordinates.boundsInParent().bottom
                         }
-                        .background(DDZColor.Card, RoundedCornerShape(14.dp))
-                        .padding(6.dp)
+                        .background(DDZColor.Card, RoundedCornerShape(16.dp))
+                        .clickable(
+                            enabled = uiState.bottomPanelMode != BottomEditorPanelMode.NONE &&
+                                uiState.bottomPanelMode != BottomEditorPanelMode.STRUCTURE_EDIT,
+                            onClick = actions.onCloseBottomPanel,
+                        )
+                        .padding(10.dp)
                 ) {
                     RealTableGridSection(
                         templateState = uiState.templateState,
@@ -416,3 +432,18 @@ private fun CompactBottomNavButton(
         )
     }
 }
+
+private fun cellCoordinateLabel(rowIndex: Int, colIndex: Int): String {
+    val colLabel = ('A'.code + colIndex.coerceAtLeast(0)).toChar()
+    return "$colLabel${rowIndex + 1}"
+}
+
+private fun dataTypeLabel(type: com.dudoziworkshop.dzlog.domain.model.TableCellDataType): String =
+    when (type) {
+        com.dudoziworkshop.dzlog.domain.model.TableCellDataType.TEXT -> "텍스트"
+        com.dudoziworkshop.dzlog.domain.model.TableCellDataType.NUMBER -> "숫자"
+        com.dudoziworkshop.dzlog.domain.model.TableCellDataType.COUNTER -> "자동번호"
+        com.dudoziworkshop.dzlog.domain.model.TableCellDataType.DATE -> "날짜"
+        com.dudoziworkshop.dzlog.domain.model.TableCellDataType.TIME -> "시간"
+        com.dudoziworkshop.dzlog.domain.model.TableCellDataType.ROTATING_TEXT -> "순환문구"
+    }
