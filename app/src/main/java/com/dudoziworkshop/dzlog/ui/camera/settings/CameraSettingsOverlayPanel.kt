@@ -33,9 +33,9 @@ import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
-import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControl
-import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControlOption
-import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControlStyles
+import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControl
+import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControlOption
+import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControlStyles
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -132,31 +132,31 @@ internal fun CameraSettingsOverlayPanel(
                 SettingSectionTitle("촬영 비율")
                 CompactSegments(
                     options = listOf(
-                        SegmentedControlOption("1:1", captureAspect == CaptureAspect.R1_1) { onCaptureAspectChange(CaptureAspect.R1_1) },
-                        SegmentedControlOption("3:4", captureAspect == CaptureAspect.R3_4) { onCaptureAspectChange(CaptureAspect.R3_4) },
-                        SegmentedControlOption("9:16", captureAspect == CaptureAspect.R9_16) { onCaptureAspectChange(CaptureAspect.R9_16) }
+                        DDZSegmentedControlOption("1:1", captureAspect == CaptureAspect.R1_1) { onCaptureAspectChange(CaptureAspect.R1_1) },
+                        DDZSegmentedControlOption("3:4", captureAspect == CaptureAspect.R3_4) { onCaptureAspectChange(CaptureAspect.R3_4) },
+                        DDZSegmentedControlOption("9:16", captureAspect == CaptureAspect.R9_16) { onCaptureAspectChange(CaptureAspect.R9_16) }
                     )
                 )
 
                 SettingSectionTitle("저장 방식")
                 CompactSegments(
                     options = listOf(
-                        SegmentedControlOption("원본", saveMode == SaveMode.ORIGINAL_ONLY) { onSaveModeChange(SaveMode.ORIGINAL_ONLY) },
-                        SegmentedControlOption("워터마크", saveMode == SaveMode.WATERMARK_ONLY) { onSaveModeChange(SaveMode.WATERMARK_ONLY) },
-                        SegmentedControlOption("둘 다", saveMode == SaveMode.BOTH) { onSaveModeChange(SaveMode.BOTH) }
+                        DDZSegmentedControlOption("원본", saveMode == SaveMode.ORIGINAL_ONLY) { onSaveModeChange(SaveMode.ORIGINAL_ONLY) },
+                        DDZSegmentedControlOption("워터마크", saveMode == SaveMode.WATERMARK_ONLY) { onSaveModeChange(SaveMode.WATERMARK_ONLY) },
+                        DDZSegmentedControlOption("둘 다", saveMode == SaveMode.BOTH) { onSaveModeChange(SaveMode.BOTH) }
                     )
                 )
 
                 SettingSectionTitle("미리보기")
                 CompactSegments(
                     options = listOf(
-                        SegmentedControlOption("없음", continuousPreviewMode == ContinuousPreviewMode.OFF) {
+                        DDZSegmentedControlOption("없음", continuousPreviewMode == ContinuousPreviewMode.OFF) {
                             onContinuousPreviewModeChange(ContinuousPreviewMode.OFF)
                         },
-                        SegmentedControlOption("짧게", continuousPreviewMode == ContinuousPreviewMode.SHORT) {
+                        DDZSegmentedControlOption("짧게", continuousPreviewMode == ContinuousPreviewMode.SHORT) {
                             onContinuousPreviewModeChange(ContinuousPreviewMode.SHORT)
                         },
-                        SegmentedControlOption("고정", continuousPreviewMode == ContinuousPreviewMode.HOLD) {
+                        DDZSegmentedControlOption("고정", continuousPreviewMode == ContinuousPreviewMode.HOLD) {
                             onContinuousPreviewModeChange(ContinuousPreviewMode.HOLD)
                         }
                     )
@@ -165,21 +165,21 @@ internal fun CameraSettingsOverlayPanel(
                 SettingSectionTitle("화면 표기")
                 CompactSegments(
                     options = listOf(
-                        SegmentedControlOption("그리드", showGrid) { onShowGridChange(!showGrid) },
-                        SegmentedControlOption("표", showTable) { onShowTableChange(!showTable) }
+                        DDZSegmentedControlOption("그리드", showGrid) { onShowGridChange(!showGrid) },
+                        DDZSegmentedControlOption("표", showTable) { onShowTableChange(!showTable) }
                     )
                 )
 
                 SettingSectionTitle("음량키")
                 CompactSegments(
                     options = listOf(
-                        SegmentedControlOption("기능없음", volumeKeyAction == VolumeKeyAction.NONE) {
+                        DDZSegmentedControlOption("기능없음", volumeKeyAction == VolumeKeyAction.NONE) {
                             onVolumeKeyActionChange(VolumeKeyAction.NONE)
                         },
-                        SegmentedControlOption("배율", volumeKeyAction == VolumeKeyAction.ZOOM) {
+                        DDZSegmentedControlOption("배율", volumeKeyAction == VolumeKeyAction.ZOOM) {
                             onVolumeKeyActionChange(VolumeKeyAction.ZOOM)
                         },
-                        SegmentedControlOption("촬영", volumeKeyAction == VolumeKeyAction.CAPTURE) {
+                        DDZSegmentedControlOption("촬영", volumeKeyAction == VolumeKeyAction.CAPTURE) {
                             onVolumeKeyActionChange(VolumeKeyAction.CAPTURE)
                         },
                     )
@@ -201,8 +201,8 @@ private fun SettingSectionTitle(title: String) {
 @Composable
 private fun CompactSegments(options: List<SegmentedControlOption>) {
     // 3단계 정책: 촬영설정 패널도 공통 SegmentedControl 렌더러를 사용해 중복 UI를 제거한다.
-    SegmentedControl(
+    DDZSegmentedControl(
         options = options,
-        style = SegmentedControlStyles.CameraPanel
+        style = DDZSegmentedControlStyles.CameraPanel
     )
 }
