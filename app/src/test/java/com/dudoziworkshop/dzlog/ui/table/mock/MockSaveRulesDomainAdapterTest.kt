@@ -89,7 +89,7 @@ class MockSaveRulesDomainAdapterTest {
             ),
         )
 
-        val textUpdated = applyMockCellValue(
+        val textUpdated = applyTableEditorCellUiModelValue(
             templateState = template,
             domainCellId = "cell-1",
             nextValue = "Draper",
@@ -98,12 +98,12 @@ class MockSaveRulesDomainAdapterTest {
         assertEquals("Draper", textUpdated.cells.single().rawText)
         assertEquals(CellValue.Text("Draper"), textUpdated.cells.single().typedValue)
 
-        val numberTemplate = applyMockCellType(
+        val numberTemplate = applyTableEditorCellType(
             templateState = textUpdated,
             domainCellId = "cell-1",
-            nextType = MockCellType.NUMBER,
+            nextType = TableEditorCellType.NUMBER,
         )
-        val numberUpdated = applyMockCellValue(
+        val numberUpdated = applyTableEditorCellUiModelValue(
             templateState = numberTemplate,
             domainCellId = "cell-1",
             nextValue = "12.5",
@@ -130,19 +130,19 @@ class MockSaveRulesDomainAdapterTest {
             ),
         )
 
-        val dateUpdated = applyMockCellType(
+        val dateUpdated = applyTableEditorCellType(
             templateState = template,
             domainCellId = "cell-1",
-            nextType = MockCellType.DATE,
+            nextType = TableEditorCellType.DATE,
         )
 
         assertEquals(TableCellDataType.DATE, dateUpdated.cells.single().dataType)
         assertEquals(CellValue.Auto, dateUpdated.cells.single().typedValue)
 
-        val counterUpdated = applyMockCellType(
+        val counterUpdated = applyTableEditorCellType(
             templateState = template,
             domainCellId = "cell-1",
-            nextType = MockCellType.COUNTER,
+            nextType = TableEditorCellType.COUNTER,
         )
 
         assertEquals(TableCellDataType.COUNTER, counterUpdated.cells.single().dataType)
@@ -175,9 +175,9 @@ class MockSaveRulesDomainAdapterTest {
         val cells = mockCellsFromTemplate(template)
 
         assertEquals("alpha", cells[0].domainCellId)
-        assertEquals(MockCellType.TEXT, cells[0].type)
+        assertEquals(TableEditorCellType.TEXT, cells[0].type)
         assertEquals("counter", cells[1].domainCellId)
-        assertEquals(MockCellType.COUNTER, cells[1].type)
+        assertEquals(TableEditorCellType.COUNTER, cells[1].type)
     }
     @Test
     fun `date time and rotating detail mutations persist`() {
