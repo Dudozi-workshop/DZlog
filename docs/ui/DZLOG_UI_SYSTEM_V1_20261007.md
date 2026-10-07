@@ -218,3 +218,27 @@ Implementation targets:
 - Bottom utility actions: about 42–46dp height, 13–14sp text.
 - Validate proportions on tall Android phone ratios around 9:19.5–9:20.
 - Existing Step 5B Home implementation is considered a prototype and must be revised to this H3-3 baseline.
+
+
+## 14. Home H3-3 — Implementation Cleanup
+
+Updated on 2026-10-08.
+
+Hardcoding cleanup:
+- Home layout measurements moved to `HomeUiSpec`.
+- Ambient leaf/light geometry moved to `HomeAmbientSpec`.
+- Warm ambient color moved to semantic token `DDZColor.AmbientWarm`.
+- Home user-facing copy moved to `strings.xml`.
+- Shared app defaults centralized as `AppSettings.Default`.
+- Home counter / settings / latest MediaStore item loading moved from the Composable into `HomeViewModel`.
+- Recent capture UI extracted to `HomeRecentCaptureSection`.
+- `HomeScreen` is now focused on rendering + event wiring and is below the 300-line screen threshold.
+
+Save-settings entry:
+- Home `저장 설정` now opens the active template editor directly with the save-settings tab selected.
+- The editor still owns the same save-rule draft/session and save pipeline; no duplicate save-settings store was introduced.
+- If there is no active template, the user is routed to the template list instead of creating an invalid editor state.
+
+Remaining gate:
+- Android CI must pass on the latest HEAD.
+- Then validate the H3-3 proportions on a tall Android device and perform final typography/spacing polish.
