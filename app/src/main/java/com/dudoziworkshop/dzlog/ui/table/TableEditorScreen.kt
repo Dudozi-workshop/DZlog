@@ -87,6 +87,7 @@ import com.dudoziworkshop.dzlog.feature.table.editor.StructureAddOrRestoreInput
 import com.dudoziworkshop.dzlog.feature.table.editor.StructureRemoveInput
 import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorInlineEditActions
 import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorStructureActions
+import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
 import com.dudoziworkshop.dzlog.feature.table.editor.TableStructureRangeActions
 import com.dudoziworkshop.dzlog.feature.table.editor.TableUndoManager
@@ -1586,39 +1587,37 @@ fun TableEditorScreen(
         onAddRow = { applyStructureAdd(StructureRestoreAxis.ROW) },
         onAddCol = { applyStructureAdd(StructureRestoreAxis.COL) },
         onMergeSelection = merge@{
-            val singleSelectedId = structureSelectedCellIds.singleOrNull()
-            val singleSelectedCell = singleSelectedId?.let { id ->
-                currentTemplate.cells.firstOrNull { it.cellId == id }
-            }
-            if (singleSelectedCell != null &&
-                (singleSelectedCell.rowSpan > 1 || singleSelectedCell.colSpan > 1)
-            ) {
-                val unmerged = TableStructureRangeActions.unmergeRoot(
-                    templateState = currentTemplate,
-                    rootCellId = singleSelectedCell.cellId,
-                )
-                applyTemplateWithUndo(unmerged)
-                structureSelectionRange = TableSelectionRange(
-                    minRow = singleSelectedCell.rowIndex,
-                    maxRow = singleSelectedCell.rowIndex,
-                    minCol = singleSelectedCell.colIndex,
-                    maxCol = singleSelectedCell.colIndex,
-                )
-                structureSelectedCellIds = setOf(singleSelectedCell.cellId)
-                return@merge
-            }
-
-            val range = structureSelectionRange ?: return@merge
-            val expanded = TableStructureRangeActions.expandRangeToMergedBlocks(currentTemplate.cells, range)
-            if (expanded != range || range.rowCount * range.colCount < 2) return@merge
-            val populatedCount = currentTemplate.cells.count { cell ->
-                range.contains(cell.rowIndex, cell.colIndex) &&
-                    resolvedByCellId[cell.cellId].orEmpty().isNotBlank()
-            }
-            if (populatedCount > 1) {
-                pendingMergeRange = range
-            } else {
-                performMergeSelection(range)
+            val populatedCellIds = resolvedByCellId
+                .filterValues { it.isNotBlank() }
+                .keys
+            val decision = TableStructureRangeActions.resolveMergeDecision(
+                templateState = currentTemplate,
+                selectionRange = structureSelectionRange,
+                populatedCellIds = populatedCellIds,
+            )
+            when (decision.type) {
+                TableMergeDecisionType.UNMERGE -> {
+                    val rootCellId = decision.rootCellId ?: return@merge
+                    val root = currentTemplate.cells.firstOrNull { it.cellId == rootCellId }
+                        ?: return@merge
+                    applyTemplateWithUndo(
+                        TableStructureRangeActions.applyMergeDecision(currentTemplate, decision)
+                    )
+                    structureSelectionRange = TableSelectionRange(
+                        minRow = root.rowIndex,
+                        maxRow = root.rowIndex,
+                        minCol = root.colIndex,
+                        maxCol = root.colIndex,
+                    )
+                    structureSelectedCellIds = setOf(root.cellId)
+                }
+                TableMergeDecisionType.CONFIRM_MERGE -> {
+                    pendingMergeRange = decision.range
+                }
+                TableMergeDecisionType.MERGE -> {
+                    decision.range?.let(::performMergeSelection)
+                }
+                TableMergeDecisionType.NONE -> Unit
             }
         },
         onDeleteSelection = delete@{
