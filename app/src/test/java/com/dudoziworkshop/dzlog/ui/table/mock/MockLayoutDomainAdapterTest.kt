@@ -67,4 +67,28 @@ class MockLayoutDomainAdapterTest {
         assertEquals(2, next.rows)
         assertTrue(next.cells.none { it.cellId == middle.cellId })
     }
+    @Test
+    fun `boundary drag preserves total weight and changes neighbors`() {
+        val base = newBlankTableTemplateState(rows = 2, cols = 2)
+
+        val rowAdjusted = adjustMockRowBoundary(
+            templateState = base,
+            boundaryIndex = 0,
+            deltaFraction = 0.10f,
+        )
+        val rowWeights = rowAdjusted.rowWeights ?: error("row weights missing")
+        assertEquals(2f, rowWeights.sum(), 0.0001f)
+        assertTrue(rowWeights[0] > rowWeights[1])
+
+        val colAdjusted = adjustMockColumnBoundary(
+            templateState = base,
+            boundaryIndex = 0,
+            deltaFraction = -0.10f,
+        )
+        val colWeights = colAdjusted.colWeights ?: error("column weights missing")
+        assertEquals(2f, colWeights.sum(), 0.0001f)
+        assertTrue(colWeights[0] < colWeights[1])
+    }
+
+
 }
