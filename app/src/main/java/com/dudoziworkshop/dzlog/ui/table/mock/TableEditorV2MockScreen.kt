@@ -31,11 +31,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -528,139 +523,20 @@ fun TableEditorV2Screen(
     }
 
     if (showStyle) {
-        DDZBottomSheet(
-            title = "표 스타일",
+        TableEditorStyleSheet(
+            draft = styleSheetDraft,
+            showAdvanced = showAdvancedStyle,
+            onDraftChange = { styleSheetDraft = it },
+            onAdvancedChange = { showAdvancedStyle = it },
+            onApply = { applied ->
+                session.commitStyleChange(applied)
+                showStyle = false
+            },
             onDismiss = {
                 styleSheetDraft = draftStyleState
                 showStyle = false
             },
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp)
-            ) {
-                Text("배경", color = DDZColor.TextMuted)
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    listOf("밝게", "어둡게", "투명").forEachIndexed { index, label ->
-                        val selected = when (index) {
-                            0 -> styleSheetDraft.bgStyle == 1
-                            1 -> styleSheetDraft.bgStyle == 0
-                            else -> styleSheetDraft.bgStyle == 2
-                        }
-                        SegmentedButton(
-                            selected = selected,
-                            onClick = {
-                                styleSheetDraft = styleSheetDraft.copy(
-                                    bgStyle = when (index) {
-                                        0 -> 1
-                                        1 -> 0
-                                        else -> 2
-                                    }
-                                )
-                            },
-                            shape = SegmentedButtonDefaults.itemShape(index, 3)
-                        ) { Text(label) }
-                    }
-                }
-
-                Text("글자 크기  " + styleSheetDraft.valueScale + "%", color = DDZColor.TextMuted)
-                Slider(
-                    value = styleSheetDraft.valueScale / 100f,
-                    onValueChange = { value ->
-                        styleSheetDraft = styleSheetDraft.copy(
-                            valueScale = (value * 100).toInt().coerceIn(60, 160)
-                        )
-                    },
-                    valueRange = 0.6f..1.6f,
-                )
-
-                Text("정렬", color = DDZColor.TextMuted)
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    listOf("왼쪽", "가운데", "오른쪽").forEachIndexed { index, label ->
-                        SegmentedButton(
-                            selected = styleSheetDraft.textAlign == index,
-                            onClick = { styleSheetDraft = styleSheetDraft.copy(textAlign = index) },
-                            shape = SegmentedButtonDefaults.itemShape(index, 3)
-                        ) { Text(label) }
-                    }
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text("테두리 표시")
-                    Switch(
-                        checked = styleSheetDraft.gridEnabled,
-                        onCheckedChange = { styleSheetDraft = styleSheetDraft.copy(gridEnabled = it) },
-                    )
-                }
-
-                DDZButton(
-                    text = if (showAdvancedStyle) "고급 설정 접기" else "더보기",
-                    modifier = Modifier.fillMaxWidth(),
-                    style = DDZButtonStyle.Secondary,
-                    onClick = { showAdvancedStyle = !showAdvancedStyle },
-                )
-
-                if (showAdvancedStyle) {
-                    Text(
-                        "배경 투명도  " + ((styleSheetDraft.bgAlpha / 255f) * 100).toInt() + "%",
-                        color = DDZColor.TextMuted,
-                    )
-                    Slider(
-                        value = styleSheetDraft.bgAlpha.toFloat(),
-                        onValueChange = { value ->
-                            styleSheetDraft = styleSheetDraft.copy(
-                                bgAlpha = value.toInt().coerceIn(0, 255)
-                            )
-                        },
-                        valueRange = 0f..255f,
-                        enabled = styleSheetDraft.bgStyle != 2,
-                    )
-
-                    Text("글자 색", color = DDZColor.TextMuted)
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        listOf("자동", "흰색", "검정").forEachIndexed { index, label ->
-                            val selected = when (index) {
-                                0 -> styleSheetDraft.textColorMode == 0
-                                1 -> styleSheetDraft.textColorMode == 1 && styleSheetDraft.manualTextColor == 0
-                                else -> styleSheetDraft.textColorMode == 1 && styleSheetDraft.manualTextColor == 1
-                            }
-                            SegmentedButton(
-                                selected = selected,
-                                onClick = {
-                                    styleSheetDraft = when (index) {
-                                        0 -> styleSheetDraft.copy(textColorMode = 0)
-                                        1 -> styleSheetDraft.copy(
-                                            textColorMode = 1,
-                                            manualTextColor = 0,
-                                        )
-                                        else -> styleSheetDraft.copy(
-                                            textColorMode = 1,
-                                            manualTextColor = 1,
-                                        )
-                                    }
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(index, 3)
-                            ) { Text(label) }
-                        }
-                    }
-                }
-
-                DDZButton(
-                    text = "적용",
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = {
-                        session.commitStyleChange(styleSheetDraft)
-                        showStyle = false
-                    },
-                )
-            }
-        }
+        )
     }
 
     if (showSaveRules) {
