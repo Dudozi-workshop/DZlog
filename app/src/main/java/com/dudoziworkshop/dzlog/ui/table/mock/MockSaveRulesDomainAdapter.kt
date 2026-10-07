@@ -13,11 +13,11 @@ import com.dudoziworkshop.dzlog.domain.model.TimeSeparator
 import com.dudoziworkshop.dzlog.feature.table.editor.withDataType
 import java.util.UUID
 
-internal fun mockCellsFromTemplate(templateState: TableTemplateState): List<MockCell> =
+internal fun mockCellsFromTemplate(templateState: TableTemplateState): List<TableEditorCellUiModel> =
     templateState.cells
         .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
         .mapIndexed { index, cell ->
-            MockCell(
+            TableEditorCellUiModel(
                 id = index,
                 domainCellId = cell.cellId,
                 value = when (cell.dataType) {
@@ -37,7 +37,7 @@ internal fun mockCellsFromTemplate(templateState: TableTemplateState): List<Mock
                         .ifBlank { "순환문구" }
                     else -> cell.rawText
                 },
-                type = cell.dataType.toMockCellType(),
+                type = cell.dataType.toTableEditorCellType(),
                 formatPattern = cell.formatPattern,
                 phraseSetId = cell.phraseSetId,
                 everyOverride = cell.everyOverride,
@@ -51,7 +51,7 @@ internal fun mockCellsFromTemplate(templateState: TableTemplateState): List<Mock
         }
 
 
-internal fun applyMockCellValue(
+internal fun applyTableEditorCellUiModelValue(
     templateState: TableTemplateState,
     domainCellId: String,
     nextValue: String,
@@ -89,10 +89,10 @@ internal fun applyMockCellValue(
         }
     )
 
-internal fun applyMockCellType(
+internal fun applyTableEditorCellType(
     templateState: TableTemplateState,
     domainCellId: String,
-    nextType: MockCellType,
+    nextType: TableEditorCellType,
 ): TableTemplateState =
     templateState.copy(
         cells = templateState.cells.map { cell ->
@@ -104,14 +104,14 @@ internal fun applyMockCellType(
         }
     )
 
-private fun MockCellType.toDomainDataType(): TableCellDataType =
+private fun TableEditorCellType.toDomainDataType(): TableCellDataType =
     when (this) {
-        MockCellType.TEXT -> TableCellDataType.TEXT
-        MockCellType.NUMBER -> TableCellDataType.NUMBER
-        MockCellType.COUNTER -> TableCellDataType.COUNTER
-        MockCellType.DATE -> TableCellDataType.DATE
-        MockCellType.TIME -> TableCellDataType.TIME
-        MockCellType.ROTATING_TEXT -> TableCellDataType.ROTATING_TEXT
+        TableEditorCellType.TEXT -> TableCellDataType.TEXT
+        TableEditorCellType.NUMBER -> TableCellDataType.NUMBER
+        TableEditorCellType.COUNTER -> TableCellDataType.COUNTER
+        TableEditorCellType.DATE -> TableCellDataType.DATE
+        TableEditorCellType.TIME -> TableCellDataType.TIME
+        TableEditorCellType.ROTATING_TEXT -> TableCellDataType.ROTATING_TEXT
     }
 
 
@@ -276,14 +276,14 @@ internal fun applyMockSaveRulesDraft(
     )
 }
 
-private fun TableCellDataType.toMockCellType(): MockCellType =
+private fun TableCellDataType.toTableEditorCellType(): TableEditorCellType =
     when (this) {
-        TableCellDataType.TEXT -> MockCellType.TEXT
-        TableCellDataType.NUMBER -> MockCellType.NUMBER
-        TableCellDataType.COUNTER -> MockCellType.COUNTER
-        TableCellDataType.DATE -> MockCellType.DATE
-        TableCellDataType.TIME -> MockCellType.TIME
-        TableCellDataType.ROTATING_TEXT -> MockCellType.ROTATING_TEXT
+        TableCellDataType.TEXT -> TableEditorCellType.TEXT
+        TableCellDataType.NUMBER -> TableEditorCellType.NUMBER
+        TableCellDataType.COUNTER -> TableEditorCellType.COUNTER
+        TableCellDataType.DATE -> TableEditorCellType.DATE
+        TableCellDataType.TIME -> TableEditorCellType.TIME
+        TableCellDataType.ROTATING_TEXT -> TableEditorCellType.ROTATING_TEXT
     }
 
 private fun TableEditorSlotDraft?.toMockRuleItem(
