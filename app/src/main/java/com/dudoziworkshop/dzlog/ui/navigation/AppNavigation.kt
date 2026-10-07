@@ -54,7 +54,7 @@ import com.dudoziworkshop.dzlog.ui.log.LogGridScreen
 import com.dudoziworkshop.dzlog.ui.log.LogViewerScreen
 import com.dudoziworkshop.dzlog.ui.log.ORIGINAL_PHOTOS_TITLE
 import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
-import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2MockScreen
+import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2Screen
 import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateListScreen
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -630,7 +630,7 @@ fun AppRoot() {
             }
 
             AppScreen.TABLE_EDITOR -> {
-                TableEditorV2MockScreen(
+                TableEditorV2Screen(
                     templateState = tableTemplateState,
                     includePathInCounterScope = appSettings.includePathInCounterScope,
                     includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
