@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -104,6 +105,7 @@ fun CreditsScreen(
 private fun HeaderCard() {
     DDZCard(
         modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(0.dp),
         shape = CARD_SHAPE,
     ) {
         Column(
