@@ -285,7 +285,9 @@ fun AppRoot() {
             tableTemplateViewModel.templates.any { it.id == tableTemplateViewModel.activeTemplateId }
 
         if (!hasActiveTemplate) {
-            navigateTo(AppScreen.TABLE_TEMPLATES)
+            templateListEntryScreen = screen
+            previousScreen = screen
+            screen = AppScreen.TABLE_TEMPLATES
             return
         }
 
