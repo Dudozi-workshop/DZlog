@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -58,6 +59,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -368,7 +371,17 @@ fun TableEditorV2MockScreen(
                     } else {
                         selectedId = id
                     }
-                }
+                },
+                onCellRangeDrag = { startId, endId ->
+                    layoutSelection = selectMockLayoutRange(
+                        templateState = draftTemplateState,
+                        startDomainCellId = startId,
+                        endDomainCellId = endId,
+                    )
+                },
+                onClearLayoutSelection = {
+                    layoutSelection = MockLayoutSelection()
+                },
             )
 
             Spacer(Modifier.height(12.dp))
@@ -513,6 +526,7 @@ fun TableEditorV2MockScreen(
                                 layoutSelection = normalizeMockLayoutSelection(
                                     templateState = updated,
                                     range = decision.range,
+                                    collapseToTopLeft = decision.type == TableMergeDecisionType.UNMERGE,
                                 )
                             }
                             TableMergeDecisionType.NONE -> Unit
@@ -545,6 +559,7 @@ fun TableEditorV2MockScreen(
                             layoutSelection = normalizeMockLayoutSelection(
                                 templateState = updated,
                                 range = decision.range,
+                                collapseToTopLeft = false,
                             )
                         }
                         pendingMergeDecision = null
@@ -801,6 +816,8 @@ private fun ColumnScope.MockTableCanvas(
     onColBoundaryDrag: (Int, Float) -> Unit,
     onBoundaryDragEnd: () -> Unit,
     onCellClick: (Int) -> Unit,
+    onCellRangeDrag: (String, String) -> Unit,
+    onClearLayoutSelection: () -> Unit,
 ) {
     val background = if (darkTable) Color(0xFF1E2220) else Color(0xFFE9EFE7)
     val resolvedAlpha = (bgAlpha.coerceIn(0, 255) / 255f)
@@ -852,6 +869,22 @@ private fun ColumnScope.MockTableCanvas(
             val rowSizes = resolvedRowWeights.map { totalHeight * (it / rowWeightSum) }
             val totalWidthPx = with(density) { totalWidth.toPx().coerceAtLeast(1f) }
             val totalHeightPx = with(density) { totalHeight.toPx().coerceAtLeast(1f) }
+            val rootHitRects = cells.filterNot { it.isCovered }.map { cell ->
+                val startRow = cell.rowIndex.coerceIn(0, (rows - 1).coerceAtLeast(0))
+                val startCol = cell.colIndex.coerceIn(0, (cols - 1).coerceAtLeast(0))
+                val endRowExclusive = (startRow + cell.rowSpan.coerceAtLeast(1)).coerceAtMost(rows)
+                val endColExclusive = (startCol + cell.colSpan.coerceAtLeast(1)).coerceAtMost(cols)
+                val x = colSizes.take(startCol).fold(0.dp) { acc, value -> acc + value }
+                val y = rowSizes.take(startRow).fold(0.dp) { acc, value -> acc + value }
+                val width = colSizes.subList(startCol, endColExclusive).fold(0.dp) { acc, value -> acc + value }
+                val height = rowSizes.subList(startRow, endRowExclusive).fold(0.dp) { acc, value -> acc + value }
+                cell to Rect(
+                    left = with(density) { x.toPx() },
+                    top = with(density) { y.toPx() },
+                    right = with(density) { (x + width).toPx() },
+                    bottom = with(density) { (y + height).toPx() },
+                )
+            }
 
             cells.filterNot { it.isCovered }.forEach { cell ->
                 val startRow = cell.rowIndex.coerceIn(0, (rows - 1).coerceAtLeast(0))
@@ -877,7 +910,7 @@ private fun ColumnScope.MockTableCanvas(
                                 if (darkTable) Color.White.copy(alpha = 0.28f) else Color(0xFFB8B8BE)
                             ) else Modifier
                         )
-                        .clickable { onCellClick(cell.id) },
+                        .clickable(enabled = !layoutMode) { onCellClick(cell.id) },
                     contentAlignment = cellAlignment,
                 ) {
                     Text(
@@ -891,6 +924,43 @@ private fun ColumnScope.MockTableCanvas(
             }
 
             if (layoutMode) {
+                fun hitDomainCellId(position: Offset): String? =
+                    rootHitRects.firstOrNull { (_, rect) -> rect.contains(position) }
+                        ?.first
+                        ?.domainCellId
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(rootHitRects) {
+                            detectTapGestures { position ->
+                                val domainId = hitDomainCellId(position)
+                                if (domainId == null) {
+                                    onClearLayoutSelection()
+                                } else {
+                                    val cell = cells.firstOrNull { it.domainCellId == domainId }
+                                    if (cell != null) onCellClick(cell.id)
+                                }
+                            }
+                        }
+                        .pointerInput(rootHitRects) {
+                            var startDomainId: String? = null
+                            detectDragGestures(
+                                onDragStart = { position ->
+                                    startDomainId = hitDomainCellId(position)
+                                },
+                                onDrag = { change, _ ->
+                                    change.consume()
+                                    val startId = startDomainId ?: return@detectDragGestures
+                                    val endId = hitDomainCellId(change.position) ?: return@detectDragGestures
+                                    onCellRangeDrag(startId, endId)
+                                },
+                                onDragEnd = { startDomainId = null },
+                                onDragCancel = { startDomainId = null },
+                            )
+                        }
+                )
+
                 for (boundaryIndex in 0 until (cols - 1).coerceAtLeast(0)) {
                     val x = colSizes.take(boundaryIndex + 1).fold(0.dp) { acc, value -> acc + value }
                     Box(
