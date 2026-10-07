@@ -50,15 +50,6 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
             }
         }
 
-        fun parseVariableEditorSlotDrafts(key: String, minSlotCount: Int): List<TableEditorSlotDraft?> {
-            val arr = root.optJSONArray(key) ?: JSONArray()
-            return parseEditorSlotDrafts(
-                key = key,
-                slotCount = maxOf(arr.length(), minSlotCount),
-            )
-        }
-
-
         val phraseSets = if (root.has("phraseSets")) {
             val sets = root.optJSONArray("phraseSets") ?: JSONArray()
             buildList {
@@ -146,7 +137,8 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
             }
         }
         val fileNameSlotDrafts = parseEditorSlotDrafts("fileNameSlotDrafts", FILE_NAME_SLOT_COUNT)
-        val pathSlotDrafts = parseVariableEditorSlotDrafts("pathSlotDrafts", PATH_SLOT_UI_MAX_COUNT)
+        // migration: legacy 4단계 이상 tail은 로드 시점에 폐기한다.
+        val pathSlotDrafts = parseEditorSlotDrafts("pathSlotDrafts", PATH_SLOT_UI_MAX_COUNT)
 
         TableTemplateState(
             rows = rows,
@@ -312,7 +304,7 @@ fun TableTemplateState.toJsonString(): String {
     }
 
     root.put("fileNameSlotDrafts", slotDraftsToJson(fileNameSlotDrafts, FILE_NAME_SLOT_COUNT))
-    root.put("pathSlotDrafts", slotDraftsToJson(pathSlotDrafts))
+    root.put("pathSlotDrafts", slotDraftsToJson(pathSlotDrafts, PATH_SLOT_UI_MAX_COUNT))
 
     if (phraseSets.isNotEmpty()) {
         val phraseSetsJson = JSONArray()
