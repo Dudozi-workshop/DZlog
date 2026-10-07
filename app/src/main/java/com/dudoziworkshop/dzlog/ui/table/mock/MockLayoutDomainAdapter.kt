@@ -3,13 +3,14 @@ package com.dudoziworkshop.dzlog.ui.table.mock
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionResolver
+import com.dudoziworkshop.dzlog.feature.table.editor.StructureDraftRemoveInput
+import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorStructureActions
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionResult
 import com.dudoziworkshop.dzlog.feature.table.editor.TableStructureRangeActions
 import com.dudoziworkshop.dzlog.feature.table.editor.addColumnBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.addRowBySelection
-import com.dudoziworkshop.dzlog.feature.table.editor.removeColumnBySelection
-import com.dudoziworkshop.dzlog.feature.table.editor.removeRowBySelection
+import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.StructureRestoreAxis
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 
 internal data class MockLayoutSelection(
@@ -65,13 +66,25 @@ internal fun removeMockLayoutRows(
     templateState: TableTemplateState,
     selection: MockLayoutSelection,
 ): TableTemplateState =
-    removeRowBySelection(templateState, selection.range)
+    TableEditorStructureActions.removeDraft(
+        StructureDraftRemoveInput(
+            axis = StructureRestoreAxis.ROW,
+            currentTemplate = templateState,
+            selectionRange = selection.range,
+        )
+    )
 
 internal fun removeMockLayoutColumns(
     templateState: TableTemplateState,
     selection: MockLayoutSelection,
 ): TableTemplateState =
-    removeColumnBySelection(templateState, selection.range)
+    TableEditorStructureActions.removeDraft(
+        StructureDraftRemoveInput(
+            axis = StructureRestoreAxis.COL,
+            currentTemplate = templateState,
+            selectionRange = selection.range,
+        )
+    )
 
 internal fun resolveMockLayoutMergeDecision(
     templateState: TableTemplateState,
