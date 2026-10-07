@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.ui.table.mock
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -10,6 +11,7 @@ import com.dudoziworkshop.dzlog.domain.model.HourSystem
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.model.TimeSeparator
 import com.dudoziworkshop.dzlog.feature.table.editor.withDataType
+import java.util.UUID
 
 internal fun mockCellsFromTemplate(templateState: TableTemplateState): List<MockCell> =
     templateState.cells
@@ -185,6 +187,49 @@ internal fun applyMockPhraseEvery(
                 cell.phraseSetId != null
             ) {
                 cell.copy(everyOverride = every.coerceAtLeast(1))
+            } else {
+                cell
+            }
+        }
+    )
+
+
+internal fun createMockPhraseSet(
+    templateState: TableTemplateState,
+    name: String,
+    id: String = UUID.randomUUID().toString(),
+): TableTemplateState {
+    val normalized = name.trim()
+    if (normalized.isBlank()) return templateState
+    val created = RotatingPhraseSet(
+        id = id,
+        name = normalized,
+        items = emptyList(),
+        defaultEvery = 1,
+    )
+    return templateState.copy(phraseSets = templateState.phraseSets + created)
+}
+
+internal fun updateMockPhraseSet(
+    templateState: TableTemplateState,
+    phraseSetId: String,
+    transform: (RotatingPhraseSet) -> RotatingPhraseSet,
+): TableTemplateState =
+    templateState.copy(
+        phraseSets = templateState.phraseSets.map { set ->
+            if (set.id == phraseSetId) transform(set) else set
+        }
+    )
+
+internal fun deleteMockPhraseSet(
+    templateState: TableTemplateState,
+    phraseSetId: String,
+): TableTemplateState =
+    templateState.copy(
+        phraseSets = templateState.phraseSets.filterNot { it.id == phraseSetId },
+        cells = templateState.cells.map { cell ->
+            if (cell.phraseSetId == phraseSetId) {
+                cell.copy(phraseSetId = null, everyOverride = null)
             } else {
                 cell
             }
