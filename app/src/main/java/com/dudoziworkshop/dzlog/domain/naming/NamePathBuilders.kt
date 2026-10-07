@@ -4,6 +4,7 @@ import com.dudoziworkshop.dzlog.domain.counter.resolveRotatingCounterStreamIdent
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
@@ -315,7 +316,7 @@ fun buildSavePath(
     timeFormat: String,
 ): String {
     val resolvedById = resolvedCells.associateBy { it.id }
-    val segments = pathSlotDrafts
+    val segments = normalizeSlotDrafts(pathSlotDrafts, PATH_SLOT_UI_MAX_COUNT)
         .map { resolvePathSlotToken(it, resolvedById, resolvedCells, now, dateFormat, timeFormat) }
         .filter { it.isNotBlank() }
 
