@@ -1,6 +1,12 @@
 @file:Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
 
 package com.dudoziworkshop.dzlog.ui.home
+
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,22 +14,22 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -36,12 +42,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -63,15 +70,12 @@ import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
-import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
-import com.dudoziworkshop.dzlog.ui.common.DDZCard
 import com.dudoziworkshop.dzlog.ui.common.DDZIconButton
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.common.rememberThreeButtonNavEquivalentBottomPadding
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
-import com.dudoziworkshop.dzlog.ui.log.dzFormatDate
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
@@ -79,7 +83,9 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 
 private fun clampDp(value: Dp, min: Dp, max: Dp): Dp {
     return when {
@@ -89,14 +95,104 @@ private fun clampDp(value: Dp, min: Dp, max: Dp): Dp {
     }
 }
 
+private fun formatRecentCaptureTime(dateAddedSeconds: Long): String {
+    if (dateAddedSeconds <= 0L) return "-"
+    val captureDate = Date(dateAddedSeconds * 1_000L)
+    val todayKey = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+    val isToday = todayKey.format(captureDate) == todayKey.format(Date())
+    val pattern = if (isToday) "'오늘' HH:mm" else "M월 d일 HH:mm"
+    return SimpleDateFormat(pattern, Locale.getDefault()).format(captureDate)
+}
+
+@Composable
+private fun HomeAmbientEffect(
+    modifier: Modifier = Modifier,
+) {
+    val transition = rememberInfiniteTransition(label = "home-ambient")
+    val drift by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 11_000),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "home-ambient-drift",
+    )
+
+    Box(
+        modifier = modifier
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        DDZColor.SurfaceSoft.copy(alpha = 0.44f),
+                        DDZColor.Background.copy(alpha = 0.04f),
+                        Color.Transparent,
+                    )
+                )
+            )
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(
+                    x = (12f + drift * 5f).dp,
+                    y = (-12f + drift * 4f).dp,
+                )
+                .size(width = 220.dp, height = 170.dp)
+                .blur(18.dp),
+        ) {
+            val shadow = DDZColor.PrimaryDark.copy(alpha = 0.13f)
+            val stem = DDZColor.Primary.copy(alpha = 0.09f)
+
+            Box(
+                modifier = Modifier
+                    .offset(x = 126.dp, y = 8.dp)
+                    .size(width = 12.dp, height = 150.dp)
+                    .rotate(23f)
+                    .background(stem, RoundedCornerShape(50)),
+            )
+            Box(
+                modifier = Modifier
+                    .offset(x = 92.dp, y = 18.dp)
+                    .size(width = 76.dp, height = 30.dp)
+                    .rotate(-24f)
+                    .background(shadow, RoundedCornerShape(50)),
+            )
+            Box(
+                modifier = Modifier
+                    .offset(x = 132.dp, y = 47.dp)
+                    .size(width = 82.dp, height = 32.dp)
+                    .rotate(24f)
+                    .background(shadow, RoundedCornerShape(50)),
+            )
+            Box(
+                modifier = Modifier
+                    .offset(x = 70.dp, y = 75.dp)
+                    .size(width = 88.dp, height = 34.dp)
+                    .rotate(-18f)
+                    .background(shadow, RoundedCornerShape(50)),
+            )
+            Box(
+                modifier = Modifier
+                    .offset(x = 119.dp, y = 107.dp)
+                    .size(width = 80.dp, height = 31.dp)
+                    .rotate(20f)
+                    .background(shadow, RoundedCornerShape(50)),
+            )
+        }
+    }
+}
+
 @Composable
 fun HomeScreen(
     tableTemplateState: TableTemplateState,
+    activeTemplateName: String = "기본 촬영",
     onOpenSettings: () -> Unit,
     onStartCamera: () -> Unit,
     onOpenTableEditor: () -> Unit,
+    onOpenSaveSettings: () -> Unit = onOpenTableEditor,
     onOpenAlbum: () -> Unit,
-    onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit
+    onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -122,10 +218,8 @@ fun HomeScreen(
         )
     }
 
-    var savePathPreview by remember { mutableStateOf("Pictures/DZlog/") }
-    var filenamePreview by remember { mutableStateOf("DZlog_1.jpg") }
     var previewNow by remember { mutableStateOf(Date()) }
-    // Home은 편집 화면이 아니므로 preview용 phrase cursor는 고정값으로 유지한다.
+    var nextCounterPreview by remember { mutableStateOf(1) }
     val phraseProgressCursor = 1
 
     LaunchedEffect(tableTemplateState.cells, lifecycleOwner) {
@@ -151,11 +245,10 @@ fun HomeScreen(
         phraseProgressCursor,
         counterFacade,
     ) {
-        val now = previewNow
         val previewPipeline = buildPreview(
             PreviewInput(
                 templateState = tableTemplateState,
-                captureNow = now,
+                captureNow = previewNow,
                 counterDigits = settings.counterPadding,
                 dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
                 timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
@@ -167,45 +260,24 @@ fun HomeScreen(
                 phraseProgressCursor = phraseProgressCursor,
             )
         )
-        // 주요 정책: 홈 preview도 request 정규화 -> facade read 단일 경로를 사용한다.
-        val counterScope = previewPipeline.previewNaming.counterScope
-        val scanPrefix = previewPipeline.previewNaming.scanPrefix
         val counterRequest = CounterRequestResolver.fromHome(
-            counterScope = counterScope,
+            counterScope = previewPipeline.previewNaming.counterScope,
             saveMode = settings.saveMode,
-            scanPrefix = scanPrefix,
+            scanPrefix = previewPipeline.previewNaming.scanPrefix,
             includePathInScope = settings.includePathInCounterScope,
             includeFilenameInScope = settings.includeFilenameInCounterScope,
         )
         val counterRead = counterFacade.read(counterRequest)
-        val streamNext = counterRead.next.coerceAtLeast(1)
-        // 파일명/경로 표시도 공용 pipeline 결과를 사용하되, 사용 카운터만 streamNext로 맞춘다.
-        val displayPreviewPipeline = buildPreview(
-            PreviewInput(
-                templateState = tableTemplateState,
-                captureNow = now,
-                counterDigits = settings.counterPadding,
-                dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
-                timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
-                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-                includePathInCounterScope = settings.includePathInCounterScope,
-                includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
-                saveMode = settings.saveMode,
-                scopeNextCounter = streamNext,
-                phraseProgressCursor = phraseProgressCursor,
-                selectedPhraseTextByCellIdOverride = previewPipeline.selectedPhraseTextByCellId,
-            )
-        )
+        nextCounterPreview = counterRead.next.coerceAtLeast(1)
+
         CounterDebugDump.dump(
             tag = "HomePreview",
             context = context,
             scopedStream = counterRead.scopedStream,
             appSettings = settings,
-            nextSeed = streamNext,
+            nextSeed = nextCounterPreview,
             note = null,
         )
-        savePathPreview = displayPreviewPipeline.previewNaming.relativePath
-        filenamePreview = displayPreviewPipeline.previewNaming.displayName
     }
 
     var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
@@ -216,327 +288,203 @@ fun HomeScreen(
         }
     }
 
+    val normalizedTemplateName = activeTemplateName.trim().ifBlank { "기본 촬영" }
+    val nextCounterText = remember(nextCounterPreview, settings.counterPadding) {
+        val raw = nextCounterPreview.toString()
+        if (settings.counterPadding > 0) {
+            raw.padStart(settings.counterPadding, '0')
+        } else {
+            raw
+        }
+    }
+
     BoxWithConstraints(
-        modifier = Modifier
-            .dzScreen()
+        modifier = Modifier.dzScreen(),
     ) {
         val threeButtonEquivalentBottomPadding = rememberThreeButtonNavEquivalentBottomPadding()
-        val screenWidth = this@BoxWithConstraints.maxWidth
-        val screenHeight = this@BoxWithConstraints.maxHeight
+        val horizontalPad = clampDp(maxWidth * 0.055f, 18.dp, 24.dp)
+        val heroHeight = clampDp(maxHeight * 0.30f, 220.dp, 280.dp)
+        val sectionGap = clampDp(maxHeight * 0.026f, 18.dp, 28.dp)
 
-        val horizontalPad = clampDp(screenWidth * 0.045f, 12.dp, 20.dp)
-        val homeBottomGap = clampDp(screenHeight * 0.004f, 0.dp, 8.dp)
-        val gap = clampDp(screenHeight * 0.012f, 6.dp, 14.dp)
-
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(
                     start = horizontalPad,
                     end = horizontalPad,
-                    bottom = homeBottomGap + threeButtonEquivalentBottomPadding
-                )
+                    bottom = 20.dp + threeButtonEquivalentBottomPadding,
+                ),
         ) {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .align(Alignment.TopCenter)
+                    .height(62.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                Text(
+                    text = "DZlog",
+                    style = DDZTypography.HomeMainTitle.copy(letterSpacing = 1.2.sp),
+                    color = DDZColor.PrimaryDark,
+                    modifier = Modifier.weight(1f),
+                )
+                DDZIconButton(
+                    icon = Icons.Default.Settings,
+                    contentDescription = "설정",
+                    onClick = onOpenSettings,
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(heroHeight)
+                    .clip(RoundedCornerShape(26.dp)),
+            ) {
+                HomeAmbientEffect(modifier = Modifier.fillMaxSize())
+
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = 26.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = "현재 촬영",
+                        style = DDZTypography.Caption.copy(fontWeight = FontWeight.Medium),
+                        color = DDZColor.TextSecondary,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = normalizedTemplateName,
+                        style = DDZTypography.ScreenTitle.copy(
+                            fontSize = 22.sp,
+                            lineHeight = 27.sp,
+                        ),
+                        color = DDZColor.TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "다음 번호 $nextCounterText",
+                        style = DDZTypography.Secondary,
+                        color = DDZColor.TextSecondary,
+                    )
+                    Spacer(Modifier.height(24.dp))
+                    DDZButton(
+                        text = "촬영 시작",
+                        onClick = onStartCamera,
+                        modifier = Modifier.width(176.dp),
+                        style = DDZButtonStyle.Primary,
+                        minHeight = DDZLayout.Control.Button,
+                        shape = RoundedCornerShape(14.dp),
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(sectionGap))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "최근 촬영",
+                    style = DDZTypography.SectionTitle,
+                    color = DDZColor.TextPrimary,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = "앨범 보기 ›",
+                    style = DDZTypography.Secondary.copy(fontWeight = FontWeight.Medium),
+                    color = DDZColor.PrimaryDark,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable(onClick = onOpenAlbum)
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            val image = latestImage
+            if (image != null) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 56.dp, max = 72.dp)
-                        .padding(vertical = gap * 0.35f),
+                        .aspectRatio(1.5f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(DDZColor.Surface)
+                        .border(1.dp, DDZColor.Border, RoundedCornerShape(16.dp))
+                        .clickable {
+                            val (g1, g2) = parseG1G2FromRelativePath(image.relativePath)
+                            onOpenRecentCaptureGrid(g1, g2, image.relativePath, 0)
+                        },
+                ) {
+                    DzThumbnail(image.uri.toString())
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = image.displayName,
+                    style = DDZTypography.Body.copy(fontWeight = FontWeight.Medium),
+                    color = DDZColor.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = formatRecentCaptureTime(image.dateAddedSeconds),
+                    style = DDZTypography.Caption,
+                    color = DDZColor.TextSecondary,
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 26.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
-                        text = "DZlog",
-                        style = DDZTypography.HomeMainTitle.copy(letterSpacing = 1.6.sp),
-                        color = DDZColor.PrimaryDark,
-                        modifier = Modifier.align(Alignment.Center)
+                        text = "아직 촬영한 사진이 없어요.",
+                        style = DDZTypography.Body,
+                        color = DDZColor.TextPrimary,
                     )
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .size(40.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        DDZIconButton(
-                            icon = Icons.Default.Settings,
-                            contentDescription = "설정",
-                            onClick = onOpenSettings,
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                val textMeasurer = rememberTextMeasurer()
-                val density = LocalDensity.current
-                val labelColumnWidth = remember(textMeasurer, density) {
-                    val savePathLabelWidth = with(density) {
-                        textMeasurer.measure(
-                            text = "저장경로",
-                            style = DDZTypography.Caption
-                        ).size.width.toDp()
-                    }
-                    val fileNameLabelWidth = with(density) {
-                        textMeasurer.measure(
-                            text = "파일명",
-                            style = DDZTypography.Caption
-                        ).size.width.toDp()
-                    }
-                    clampDp(maxOf(savePathLabelWidth, fileNameLabelWidth), 42.dp, 72.dp)
-                }
-
-                DDZCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight()
-                        .clickable(onClick = onOpenSettings),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 9.dp),
-                    shape = RoundedCornerShape(22.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(DDZColor.Background)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Folder,
-                                contentDescription = null,
-                                tint = DDZColor.TextSecondary,
-                                modifier = Modifier.align(Alignment.Center)
-                            )
-                        }
-
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = "저장경로",
-                                    modifier = Modifier.width(labelColumnWidth),
-                                    style = DDZTypography.Caption,
-                                    color = DDZColor.TextSecondary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Box(modifier = Modifier.weight(1f)) {
-                                    val valueStyle = DDZTypography.Body.copy(
-                                        fontSize = 11.sp,
-                                        lineHeight = 14.sp
-                                    )
-                                    val displayPath = remember(savePathPreview) {
-                                        savePathPreview.ifBlank { "Pictures/DZlog/" }.trimEnd('/')
-                                    }
-                                    Text(
-                                        text = displayPath,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        style = valueStyle,
-                                        color = DDZColor.TextPrimary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = "파일명",
-                                    modifier = Modifier.width(labelColumnWidth),
-                                    style = DDZTypography.Caption,
-                                    color = DDZColor.TextSecondary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                CounterAwareFileNameText(
-                                    fileName = filenamePreview,
-                                    modifier = Modifier.weight(1f),
-                                    style = DDZTypography.Body.copy(
-                                        fontSize = 11.sp,
-                                        lineHeight = 14.sp
-                                    ),
-                                    color = DDZColor.TextPrimary,
-                                )
-                            }
-                        }
-                    }
+                    Text(
+                        text = "첫 기록을 남겨보세요.",
+                        style = DDZTypography.Secondary,
+                        color = DDZColor.TextSecondary,
+                    )
                 }
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                    .align(Alignment.Center),
-                verticalArrangement = Arrangement.spacedBy(gap + 4.dp)
-            ) {
-                // 홈 액션 버튼 정책: 두 버튼의 높이/라운딩을 통일해 라운드 사각형 톤을 유지한다.
-                // 토큰 정책: 홈의 대표 액션 버튼 높이는 공통 Button 기준선을 사용한다.
-                val unifiedActionButtonHeight = DDZLayout.Control.Button
-                // 1단계 라운딩 토큰: 홈 액션 버튼은 Medium 기준선을 사용한다.
-                val unifiedActionButtonShape = RoundedCornerShape(DDZLayout.Radius.Medium)
+            Spacer(Modifier.height(sectionGap))
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 DDZButton(
-                    text = "촬영 시작",
-                    onClick = onStartCamera,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    style = DDZButtonStyle.Primary,
-                    minHeight = unifiedActionButtonHeight,
-                    shape = unifiedActionButtonShape
-                )
-                DDZButton(
-                    text = "기존 사진 편집",
-                    onClick = {},
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 32.dp),
+                    text = "표 상세설정",
+                    leadingIcon = Icons.Default.GridView,
+                    onClick = onOpenTableEditor,
+                    modifier = Modifier.weight(1f),
                     style = DDZButtonStyle.Secondary,
-                    enabled = false,
-                    minHeight = unifiedActionButtonHeight,
-                    shape = unifiedActionButtonShape
+                    minHeight = 46.dp,
+                    shape = RoundedCornerShape(14.dp),
+                    containerColorOverride = DDZColor.SurfaceSoft.copy(alpha = 0.72f),
                 )
-
-            }
-
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 15.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                DDZCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onOpenTableEditor),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-                    shape = RoundedCornerShape(DDZLayout.Radius.Large),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(DDZColor.Surface),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Collections,
-                                contentDescription = null,
-                                tint = DDZColor.PrimaryDark,
-                            )
-                        }
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(3.dp),
-                        ) {
-                            Text(
-                                text = "현재 촬영 설정",
-                                style = DDZTypography.SettingLabel,
-                                color = DDZColor.TextPrimary,
-                            )
-                            Text(
-                                text = "${tableTemplateState.rows}행 × ${tableTemplateState.cols}열 · 표 설정",
-                                style = DDZTypography.Secondary,
-                                color = DDZColor.TextSecondary,
-                            )
-                        }
-                        Text(
-                            text = "편집",
-                            style = DDZTypography.Secondary,
-                            color = DDZColor.PrimaryDark,
-                        )
-                    }
-                }
-
-                DDZCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-                    shape = RoundedCornerShape(DDZLayout.Radius.Large),
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(96.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(DDZColor.Surface)
-                                .border(1.dp, DDZColor.Border, RoundedCornerShape(16.dp))
-                                .clickable {
-                                    val image = latestImage
-                                    if (image == null) {
-                                        onOpenAlbum()
-                                    } else {
-                                        val (g1, g2) = parseG1G2FromRelativePath(image.relativePath)
-                                        onOpenRecentCaptureGrid(g1, g2, image.relativePath, 0)
-                                    }
-                                },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            val image = latestImage
-                            if (image == null) {
-                                Icon(
-                                    imageVector = Icons.Default.Collections,
-                                    contentDescription = null,
-                                    tint = DDZColor.TextSecondary,
-                                )
-                            } else {
-                                DzThumbnail(image.uri.toString())
-                            }
-                        }
-
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Text(
-                                text = "최근 촬영",
-                                style = DDZTypography.SettingLabel,
-                                color = DDZColor.TextPrimary,
-                            )
-                            Text(
-                                text = latestImage?.let { dzFormatDate(it.dateAddedSeconds) } ?: "최근 촬영 없음",
-                                style = DDZTypography.Secondary,
-                                color = DDZColor.TextSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-
-                        DDZIconButton(
-                            icon = Icons.Default.Collections,
-                            contentDescription = "앨범",
-                            onClick = onOpenAlbum,
-                        )
-                    }
-                }
+                DDZButton(
+                    text = "저장 설정",
+                    leadingIcon = Icons.Default.Folder,
+                    onClick = onOpenSaveSettings,
+                    modifier = Modifier.weight(1f),
+                    style = DDZButtonStyle.Secondary,
+                    minHeight = 46.dp,
+                    shape = RoundedCornerShape(14.dp),
+                    containerColorOverride = DDZColor.SurfaceSoft.copy(alpha = 0.72f),
+                )
             }
         }
     }
