@@ -207,42 +207,56 @@ fun LayoutTabContent(
             }
         }
 
-        if (uiState.bottomPanelMode == BottomEditorPanelMode.NONE) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STRUCTURE_EDIT) },
-                ) {
-                    Text("레이아웃")
-                }
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STYLE_EDIT) },
-                ) {
-                    Text("스타일")
-                }
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.FILENAME_EDIT) },
-                ) {
-                    Text("저장 규칙")
-                }
-            }
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(DDZColor.Background)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            val isLayoutActive = uiState.bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT
+            val isStyleActive = uiState.bottomPanelMode == BottomEditorPanelMode.STYLE_EDIT
+            val isSaveRulesActive =
+                uiState.bottomPanelMode == BottomEditorPanelMode.FILENAME_EDIT ||
+                    uiState.bottomPanelMode == BottomEditorPanelMode.PATH_EDIT
+
+            CompactBottomNavButton(
+                modifier = Modifier.weight(1f),
+                label = "레이아웃",
+                selected = isLayoutActive,
+                onClick = {
+                    if (isLayoutActive) actions.onCloseBottomPanel()
+                    else actions.onChangeBottomPanelMode(BottomEditorPanelMode.STRUCTURE_EDIT)
+                },
+            )
+            CompactBottomNavButton(
+                modifier = Modifier.weight(1f),
+                label = "스타일",
+                selected = isStyleActive,
+                onClick = {
+                    if (isStyleActive) actions.onCloseBottomPanel()
+                    else actions.onChangeBottomPanelMode(BottomEditorPanelMode.STYLE_EDIT)
+                },
+            )
+            CompactBottomNavButton(
+                modifier = Modifier.weight(1f),
+                label = "저장 규칙",
+                selected = isSaveRulesActive,
+                onClick = {
+                    if (isSaveRulesActive) actions.onCloseBottomPanel()
+                    else actions.onChangeBottomPanelMode(BottomEditorPanelMode.FILENAME_EDIT)
+                },
+            )
         }
 
         if (uiState.bottomPanelMode != BottomEditorPanelMode.NONE) {
             BottomEditorPanel(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .heightIn(max = panelAvailableHeightDp)
+                    .heightIn(max = (panelAvailableHeightDp - 72.dp).coerceAtLeast(0.dp))
                     .padding(horizontal = 16.dp)
-                    .padding(top = 8.dp),
+                    .padding(top = 8.dp, bottom = 72.dp),
                 panelMode = uiState.bottomPanelMode,
             rows = uiState.templateState.rows,
             cols = uiState.templateState.cols,
@@ -335,6 +349,8 @@ fun LayoutTabContent(
                 onOpenCellMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT) },
                 onOpenStructureMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STRUCTURE_EDIT) },
                 onOpenStyleMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STYLE_EDIT) },
+                onOpenFileNameMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.FILENAME_EDIT) },
+                onOpenPathMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.PATH_EDIT) },
             )
         }
 
@@ -373,5 +389,30 @@ fun LayoutTabContent(
                 phraseSets = uiState.phraseSets
             )
         }
+    }
+}
+
+@Composable
+private fun CompactBottomNavButton(
+    modifier: Modifier = Modifier,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .background(
+                color = if (selected) DDZColor.Primary.copy(alpha = 0.12f) else DDZColor.Card,
+                shape = RoundedCornerShape(14.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = DDZTypography.ButtonText,
+            color = if (selected) DDZColor.Primary else DDZColor.TextPrimary,
+        )
     }
 }
