@@ -610,7 +610,10 @@ fun AppRoot() {
 
     val keepCameraAliveBehindAlbum = albumEntryScreen == AppScreen.CAMERA && isAlbumScreen(screen)
 
-    BackHandler(enabled = screen != AppScreen.TABLE_EDITOR_V2_MOCK) {
+    BackHandler(
+        enabled = screen != AppScreen.TABLE_EDITOR &&
+            screen != AppScreen.TABLE_EDITOR_V2_MOCK,
+    ) {
         // 기본 내비게이션(화면 기준)
         when (screen) {
             AppScreen.HOME -> {
