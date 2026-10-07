@@ -128,15 +128,10 @@ fun TableEditorV2MockScreen(
     var mode by remember { mutableStateOf(MockMode.EDIT) }
     var showStyle by remember { mutableStateOf(false) }
     var showSaveRules by remember { mutableStateOf(false) }
-    var saveRulesDraft by remember(
-        draftTemplateState.fileNameSlotDrafts,
-        draftTemplateState.pathSlotDrafts,
-        includePathInCounterScope,
-        includeFilenameInCounterScope,
-    ) {
+    var saveRulesDraft by remember {
         mutableStateOf(
             mockSaveRulesDraftFromTemplate(
-                templateState = draftTemplateState,
+                templateState = templateState,
                 includePathInScope = includePathInCounterScope,
                 includeFilenameInScope = includeFilenameInCounterScope,
             )
@@ -184,7 +179,8 @@ fun TableEditorV2MockScreen(
     fun applyHistorySnapshot(snapshot: MockEditorSnapshot) {
         draftTemplateState = snapshot.templateState
         draftStyleState = snapshot.styleState
-        saveRulesDraft = saveRulesDraft.copy(
+        saveRulesDraft = mockSaveRulesDraftFromTemplate(
+            templateState = snapshot.templateState,
             includePathInScope = snapshot.includePathInCounterScope,
             includeFilenameInScope = snapshot.includeFilenameInCounterScope,
         )
