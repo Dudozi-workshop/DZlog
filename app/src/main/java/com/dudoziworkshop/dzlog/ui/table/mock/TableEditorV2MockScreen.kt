@@ -75,6 +75,8 @@ private enum class MockMode { EDIT, LAYOUT }
 private data class MockEditorSnapshot(
     val templateState: TableTemplateState,
     val styleState: TableStyleState,
+    val includePathInCounterScope: Boolean,
+    val includeFilenameInCounterScope: Boolean,
 )
 internal enum class MockCellType(val label: String) {
     TEXT("텍스트"),
@@ -153,10 +155,18 @@ fun TableEditorV2MockScreen(
     val undoManager = remember { TableUndoManager<MockEditorSnapshot>() }
     var historyRevision by remember { mutableIntStateOf(0) }
 
+    fun currentSnapshot(): MockEditorSnapshot =
+        MockEditorSnapshot(
+            templateState = draftTemplateState,
+            styleState = draftStyleState,
+            includePathInCounterScope = saveRulesDraft.includePathInScope,
+            includeFilenameInCounterScope = saveRulesDraft.includeFilenameInScope,
+        )
+
     fun commitTemplateChange(updated: TableTemplateState) {
         if (updated == draftTemplateState) return
         undoManager.pushSnapshotBeforeAction(
-            MockEditorSnapshot(templateState = draftTemplateState, styleState = draftStyleState)
+            currentSnapshot()
         )
         historyRevision += 1
         draftTemplateState = updated
@@ -165,7 +175,7 @@ fun TableEditorV2MockScreen(
     fun commitStyleChange(updated: TableStyleState) {
         if (updated == draftStyleState) return
         undoManager.pushSnapshotBeforeAction(
-            MockEditorSnapshot(templateState = draftTemplateState, styleState = draftStyleState)
+            currentSnapshot()
         )
         historyRevision += 1
         draftStyleState = updated
@@ -174,6 +184,10 @@ fun TableEditorV2MockScreen(
     fun applyHistorySnapshot(snapshot: MockEditorSnapshot) {
         draftTemplateState = snapshot.templateState
         draftStyleState = snapshot.styleState
+        saveRulesDraft = saveRulesDraft.copy(
+            includePathInScope = snapshot.includePathInCounterScope,
+            includeFilenameInScope = snapshot.includeFilenameInCounterScope,
+        )
         historyRevision += 1
     }
 
@@ -209,7 +223,7 @@ fun TableEditorV2MockScreen(
                         IconButton(
                             enabled = undoManager.canUndo() && historyRevision >= 0,
                             onClick = {
-                                val current = MockEditorSnapshot(draftTemplateState, draftStyleState)
+                                val current = currentSnapshot()
                                 val restored = undoManager.undo(current)
                                 if (restored != current) applyHistorySnapshot(restored)
                             },
@@ -219,7 +233,7 @@ fun TableEditorV2MockScreen(
                         IconButton(
                             enabled = undoManager.canRedo() && historyRevision >= 0,
                             onClick = {
-                                val current = MockEditorSnapshot(draftTemplateState, draftStyleState)
+                                val current = currentSnapshot()
                                 val restored = undoManager.redo(current)
                                 if (restored != current) applyHistorySnapshot(restored)
                             },
@@ -294,7 +308,7 @@ fun TableEditorV2MockScreen(
                 onBoundaryDragStart = {
                     if (!layoutBoundaryDragActive) {
                         undoManager.pushSnapshotBeforeAction(
-                            MockEditorSnapshot(templateState = draftTemplateState, styleState = draftStyleState)
+                            currentSnapshot()
                         )
                         historyRevision += 1
                         layoutBoundaryDragActive = true
