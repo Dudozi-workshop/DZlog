@@ -57,10 +57,11 @@ import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
-import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControl
-import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControlStyles
 import com.dudoziworkshop.dzlog.feature.settings.policy.SettingsAction
 import com.dudoziworkshop.dzlog.feature.settings.policy.applySettingsAction
+import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControl
+import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControlOption
+import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControlStyles
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -203,14 +204,14 @@ fun SettingsRootScreen(
         ) {
             SectionBlock(title = "빠른 설정") {
                 OptionRow(title = "저장 대상") {
-                    SegmentedControl(
+                    DDZSegmentedControl(
                         options = listOf("원본", "워터마크", "둘 다"),
                         selectedIndex = when (settings.saveMode) {
                             SaveMode.ORIGINAL_ONLY -> 0
                             SaveMode.WATERMARK_ONLY -> 1
                             SaveMode.BOTH -> 2
                         },
-                        style = SegmentedControlStyles.QuickSettings,
+                        style = DDZSegmentedControlStyles.QuickSettings,
                         onSelect = { idx ->
                             // 저장 대상 변경 즉시 반영 + 재진입 복원은 기존 액션 파이프라인을 그대로 사용.
                             val mode = when (idx) {
@@ -224,14 +225,14 @@ fun SettingsRootScreen(
                 }
 
                 OptionRow(title = "음량키 동작") {
-                    SegmentedControl(
+                    DDZSegmentedControl(
                         options = listOf("없음", "촬영", "배율"),
                         selectedIndex = when (settings.volumeKeyAction) {
                             VolumeKeyAction.NONE -> 0
                             VolumeKeyAction.CAPTURE -> 1
                             VolumeKeyAction.ZOOM -> 2
                         },
-                        style = SegmentedControlStyles.QuickSettings,
+                        style = DDZSegmentedControlStyles.QuickSettings,
                         onSelect = { idx ->
                             val action = when (idx) {
                                 1 -> VolumeKeyAction.CAPTURE
@@ -246,14 +247,14 @@ fun SettingsRootScreen(
                 }
 
                 OptionRow(title = "연속촬영 미리보기") {
-                    SegmentedControl(
+                    DDZSegmentedControl(
                         options = listOf("없음", "짧게", "고정"),
                         selectedIndex = when (settings.continuousPreviewMode) {
                             ContinuousPreviewMode.OFF -> 0
                             ContinuousPreviewMode.SHORT -> 1
                             ContinuousPreviewMode.HOLD -> 2
                         },
-                        style = SegmentedControlStyles.QuickSettings,
+                        style = DDZSegmentedControlStyles.QuickSettings,
                         onSelect = { idx ->
                             val mode = when (idx) {
                                 0 -> ContinuousPreviewMode.OFF
@@ -266,7 +267,7 @@ fun SettingsRootScreen(
                 }
 
                 OptionRow(title = "카운터 패딩") {
-                    SegmentedControl(
+                    DDZSegmentedControl(
                         options = listOf("0", "2", "3", "4"),
                         selectedIndex = when (settings.counterPadding) {
                             0 -> 0
@@ -274,7 +275,7 @@ fun SettingsRootScreen(
                             3 -> 2
                             else -> 3
                         },
-                        style = SegmentedControlStyles.QuickSettings,
+                        style = DDZSegmentedControlStyles.QuickSettings,
                         onSelect = { idx ->
                             val padding = when (idx) {
                                 0 -> 0
