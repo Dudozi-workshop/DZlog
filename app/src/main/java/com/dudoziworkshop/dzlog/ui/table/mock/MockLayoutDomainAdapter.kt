@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.ui.table.mock
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionResolver
+import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionResult
 import com.dudoziworkshop.dzlog.feature.table.editor.TableStructureRangeActions
 import com.dudoziworkshop.dzlog.feature.table.editor.addColumnBySelection
@@ -72,34 +73,35 @@ internal fun removeMockLayoutColumns(
 ): TableTemplateState =
     removeColumnBySelection(templateState, selection.range)
 
+internal fun resolveMockLayoutMergeDecision(
+    templateState: TableTemplateState,
+    selection: MockLayoutSelection,
+    populatedCellIds: Set<String>,
+): TableMergeDecision =
+    TableStructureRangeActions.resolveMergeDecision(
+        templateState = templateState,
+        selectionRange = selection.range,
+        populatedCellIds = populatedCellIds,
+    )
+
+internal fun applyMockLayoutMergeDecision(
+    templateState: TableTemplateState,
+    decision: TableMergeDecision,
+): TableTemplateState =
+    TableStructureRangeActions.applyMergeDecision(templateState, decision)
+
 internal fun mergeOrUnmergeMockLayoutSelection(
     templateState: TableTemplateState,
     selection: MockLayoutSelection,
-): TableTemplateState {
-    val range = selection.range ?: return templateState
-    val selectedRoots = TableStructureRangeActions.interactiveRootCellsInRange(
-        cells = templateState.cells,
-        range = range,
-    )
-    val singleRoot = selectedRoots.singleOrNull()
-    if (
-        singleRoot != null &&
-        (singleRoot.rowSpan > 1 || singleRoot.colSpan > 1) &&
-        range.minRow == singleRoot.rowIndex &&
-        range.maxRow == singleRoot.rowIndex + singleRoot.rowSpan - 1 &&
-        range.minCol == singleRoot.colIndex &&
-        range.maxCol == singleRoot.colIndex + singleRoot.colSpan - 1
-    ) {
-        return TableStructureRangeActions.unmergeRoot(
-            templateState = templateState,
-            rootCellId = singleRoot.cellId,
-        )
-    }
-    return TableStructureRangeActions.mergeSelection(
+): TableTemplateState =
+    applyMockLayoutMergeDecision(
         templateState = templateState,
-        selectionRange = range,
+        decision = resolveMockLayoutMergeDecision(
+            templateState = templateState,
+            selection = selection,
+            populatedCellIds = emptySet(),
+        ),
     )
-}
 
 internal fun isMockLayoutSelectionMerged(
     templateState: TableTemplateState,
