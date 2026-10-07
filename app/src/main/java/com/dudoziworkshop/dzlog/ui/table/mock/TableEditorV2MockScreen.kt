@@ -71,6 +71,20 @@ private data class MockCell(
     val type: MockCellType = MockCellType.TEXT,
 )
 
+private enum class MockPathSourceType(val label: String) {
+    CELL("셀에서 가져오기"),
+    MANUAL("직접 입력"),
+    DATE("날짜"),
+    TIME("시간"),
+    ROTATING_TEXT("순환문구"),
+}
+
+private data class MockPathItem(
+    val sourceType: MockPathSourceType,
+    val value: String,
+    val cellId: Int? = null,
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TableEditorV2MockScreen(
@@ -296,6 +310,9 @@ fun TableEditorV2MockScreen(
 
     if (showSaveRules) {
         MockSaveRulesSheet(
+            cells = cells,
+            rows = rows,
+            cols = cols,
             onDismiss = { showSaveRules = false },
         )
     }
@@ -587,19 +604,50 @@ private fun MockBottomBar(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MockSaveRulesSheet(
+    cells: List<MockCell>,
+    rows: Int,
+    cols: Int,
     onDismiss: () -> Unit,
 ) {
-    var path1 by remember { mutableStateOf("Draper") }
-    var path2 by remember { mutableStateOf("처리구 A") }
-    var path3 by remember { mutableStateOf("2026.10.06") }
+    val pathItems = remember {
+        mutableStateListOf<MockPathItem?>(
+            MockPathItem(MockPathSourceType.CELL, "Draper", cellId = 0),
+            MockPathItem(MockPathSourceType.MANUAL, "처리구 A"),
+            MockPathItem(MockPathSourceType.DATE, "2026.10.06"),
+        )
+    }
+    var editingStage by remember { mutableStateOf<Int?>(null) }
+    var showCellPicker by remember { mutableStateOf(false) }
+    var manualDraft by remember { mutableStateOf("") }
+    var showManualEditor by remember { mutableStateOf(false) }
     var showAdvanced by remember { mutableStateOf(false) }
     var includePathInScope by remember { mutableStateOf(true) }
     var includeFilenameInScope by remember { mutableStateOf(true) }
 
-    val pathPreview = listOf(path1, path2, path3)
-        .map { it.trim() }
-        .filter { it.isNotBlank() }
+    val pathPreview = pathItems
+        .mapNotNull { it?.value?.trim()?.takeIf(String::isNotBlank) }
         .joinToString(" / ")
+
+    fun returnToSummary() {
+        editingStage = null
+        showCellPicker = false
+        showManualEditor = false
+        manualDraft = ""
+    }
+
+    fun setStage(index: Int, item: MockPathItem) {
+        pathItems[index] = item
+        returnToSummary()
+    }
+
+    fun removeStage(index: Int) {
+        val compacted = pathItems.filterNotNull().toMutableList()
+        if (index in compacted.indices) compacted.removeAt(index)
+        while (compacted.size < 3) compacted += null
+        pathItems.clear()
+        pathItems.addAll(compacted.take(3))
+        returnToSummary()
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -608,96 +656,280 @@ private fun MockSaveRulesSheet(
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("저장 규칙", fontWeight = FontWeight.Bold)
+            when {
+                editingStage == null -> {
+                    Text("저장 규칙", fontWeight = FontWeight.Bold)
 
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("파일명", color = DDZColor.TextMuted)
-                Text("Draper_20261006_0012.jpg", fontWeight = FontWeight.Bold)
-            }
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("파일명", color = DDZColor.TextMuted)
+                        Text("Draper_20261006_0012.jpg", fontWeight = FontWeight.Bold)
+                    }
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("저장경로", color = DDZColor.TextMuted)
-                OutlinedTextField(
-                    modifier = Modifier.fillMaxWidth(),
-                    value = path1,
-                    onValueChange = { path1 = it },
-                    label = { Text("1단계") },
-                    singleLine = true,
-                )
-                OutlinedTextField(
-                    modifier = Modifier.fillMaxWidth(),
-                    value = path2,
-                    onValueChange = { path2 = it },
-                    label = { Text("2단계") },
-                    singleLine = true,
-                )
-                OutlinedTextField(
-                    modifier = Modifier.fillMaxWidth(),
-                    value = path3,
-                    onValueChange = { path3 = it },
-                    label = { Text("3단계") },
-                    singleLine = true,
-                )
-                Text(
-                    text = if (pathPreview.isBlank()) "Pictures/DZlog/" else "Pictures/DZlog/$pathPreview/",
-                    color = DDZColor.TextMuted,
-                )
-            }
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("저장경로", color = DDZColor.TextMuted)
+                        Text(
+                            text = if (pathPreview.isBlank()) "경로가 아직 비어 있어요" else pathPreview,
+                            fontWeight = FontWeight.Bold,
+                        )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column {
-                    Text("자동번호", color = DDZColor.TextMuted)
-                    Text("다음 번호 0012", fontWeight = FontWeight.Bold)
-                }
-            }
+                        repeat(3) { index ->
+                            val item = pathItems.getOrNull(index)
+                            OutlinedButton(
+                                modifier = Modifier.fillMaxWidth(),
+                                onClick = {
+                                    editingStage = index
+                                    showCellPicker = false
+                                    showManualEditor = false
+                                    manualDraft = item?.takeIf { it.sourceType == MockPathSourceType.MANUAL }?.value.orEmpty()
+                                },
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text("${index + 1}단계")
+                                    Text(
+                                        text = item?.let { pathItemSummary(it) } ?: "+ 추가",
+                                        color = if (item == null) DDZColor.TextMuted else DDZColor.TextPrimary,
+                                    )
+                                }
+                            }
+                        }
 
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { showAdvanced = !showAdvanced },
-            ) {
-                Text(if (showAdvanced) "고급 설정 접기" else "고급 설정")
-            }
+                        Text(
+                            text = if (pathPreview.isBlank()) {
+                                "Pictures/DZlog/"
+                            } else {
+                                "Pictures/DZlog/${pathPreview.replace(" / ", "/")}/"
+                            },
+                            color = DDZColor.TextMuted,
+                        )
+                    }
 
-            if (showAdvanced) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("자동번호 범위", color = DDZColor.TextMuted)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("저장경로 변경 시 번호 분리")
-                        Switch(
-                            checked = includePathInScope,
-                            onCheckedChange = { includePathInScope = it },
-                        )
+                        Column {
+                            Text("자동번호", color = DDZColor.TextMuted)
+                            Text("다음 번호 0012", fontWeight = FontWeight.Bold)
+                        }
                     }
-                    Row(
+
+                    OutlinedButton(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                        onClick = { showAdvanced = !showAdvanced },
                     ) {
-                        Text("파일명 구성 변경 시 번호 분리")
-                        Switch(
-                            checked = includeFilenameInScope,
-                            onCheckedChange = { includeFilenameInScope = it },
-                        )
+                        Text(if (showAdvanced) "고급 설정 접기" else "고급 설정")
+                    }
+
+                    if (showAdvanced) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("자동번호 범위", color = DDZColor.TextMuted)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("저장경로 변경 시 번호 분리")
+                                Switch(
+                                    checked = includePathInScope,
+                                    onCheckedChange = { includePathInScope = it },
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("파일명 구성 변경 시 번호 분리")
+                                Switch(
+                                    checked = includeFilenameInScope,
+                                    onCheckedChange = { includeFilenameInScope = it },
+                                )
+                            }
+                        }
+                    }
+
+                    Button(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp),
+                        onClick = onDismiss,
+                    ) {
+                        Text("적용")
                     }
                 }
-            }
 
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp),
-                onClick = onDismiss,
-            ) {
-                Text("적용")
+                showCellPicker -> {
+                    val stage = editingStage ?: 0
+                    Text("${stage + 1}단계 · 셀에서 가져오기", fontWeight = FontWeight.Bold)
+                    Text("사용할 셀을 눌러주세요.", color = DDZColor.TextMuted)
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, DDZColor.Border, RoundedCornerShape(10.dp))
+                    ) {
+                        for (row in 0 until rows) {
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                for (col in 0 until cols) {
+                                    val index = row * cols + col
+                                    val cell = cells.getOrNull(index)
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(64.dp)
+                                            .border(0.5.dp, DDZColor.Border)
+                                            .clickable(enabled = cell != null) {
+                                                if (cell != null) {
+                                                    setStage(
+                                                        stage,
+                                                        MockPathItem(
+                                                            sourceType = MockPathSourceType.CELL,
+                                                            value = cell.value,
+                                                            cellId = cell.id,
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                            .padding(8.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text(
+                                            text = cell?.value ?: "",
+                                            color = if (cell == null) DDZColor.TextMuted else DDZColor.TextPrimary,
+                                            maxLines = 2,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            showCellPicker = false
+                        },
+                    ) { Text("다른 방식 선택") }
+
+                    TextButton(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 18.dp),
+                        onClick = ::returnToSummary,
+                    ) { Text("취소") }
+                }
+
+                showManualEditor -> {
+                    val stage = editingStage ?: 0
+                    Text("${stage + 1}단계 · 직접 입력", fontWeight = FontWeight.Bold)
+                    OutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = manualDraft,
+                        onValueChange = { manualDraft = it },
+                        label = { Text("폴더명") },
+                        singleLine = true,
+                    )
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = manualDraft.trim().isNotBlank(),
+                        onClick = {
+                            setStage(
+                                stage,
+                                MockPathItem(
+                                    sourceType = MockPathSourceType.MANUAL,
+                                    value = manualDraft.trim(),
+                                )
+                            )
+                        },
+                    ) { Text("적용") }
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            showManualEditor = false
+                        },
+                    ) { Text("다른 방식 선택") }
+                    TextButton(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 18.dp),
+                        onClick = ::returnToSummary,
+                    ) { Text("취소") }
+                }
+
+                else -> {
+                    val stage = editingStage ?: 0
+                    Text("${stage + 1}단계 설정", fontWeight = FontWeight.Bold)
+                    Text("어떤 값을 폴더명으로 사용할까요?", color = DDZColor.TextMuted)
+
+                    MockPathSourceType.entries.forEach { source ->
+                        OutlinedButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                when (source) {
+                                    MockPathSourceType.CELL -> {
+                                        showCellPicker = true
+                                        showManualEditor = false
+                                    }
+                                    MockPathSourceType.MANUAL -> {
+                                        showManualEditor = true
+                                        showCellPicker = false
+                                    }
+                                    MockPathSourceType.DATE -> setStage(
+                                        stage,
+                                        MockPathItem(source, "2026.10.06")
+                                    )
+                                    MockPathSourceType.TIME -> setStage(
+                                        stage,
+                                        MockPathItem(source, "11.48")
+                                    )
+                                    MockPathSourceType.ROTATING_TEXT -> setStage(
+                                        stage,
+                                        MockPathItem(source, "품종")
+                                    )
+                                }
+                            },
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(source.label)
+                                if (pathItems.getOrNull(stage)?.sourceType == source) {
+                                    Text("✓")
+                                }
+                            }
+                        }
+                    }
+
+                    if (pathItems.getOrNull(stage) != null) {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { removeStage(stage) },
+                        ) { Text("이 단계 삭제") }
+                    }
+
+                    TextButton(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 18.dp),
+                        onClick = ::returnToSummary,
+                    ) { Text("취소") }
+                }
             }
         }
     }
 }
+
+private fun pathItemSummary(item: MockPathItem): String =
+    when (item.sourceType) {
+        MockPathSourceType.CELL,
+        MockPathSourceType.MANUAL -> item.value
+        MockPathSourceType.DATE -> "날짜"
+        MockPathSourceType.TIME -> "시간"
+        MockPathSourceType.ROTATING_TEXT -> "순환문구"
+    }
