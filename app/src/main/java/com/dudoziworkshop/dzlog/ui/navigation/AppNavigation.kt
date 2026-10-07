@@ -44,11 +44,11 @@ import com.dudoziworkshop.dzlog.feature.settings.ui.CreditsScreen
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.policy.activateSavedTableTemplate
+import com.dudoziworkshop.dzlog.feature.table.policy.activeSavedTableStyle
 import com.dudoziworkshop.dzlog.feature.table.policy.loadOrMigrateTableTemplateCatalog
 import com.dudoziworkshop.dzlog.feature.table.policy.persistTableTemplateCatalog
+import com.dudoziworkshop.dzlog.feature.table.policy.replaceActiveSavedTableTemplate
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
-import com.dudoziworkshop.dzlog.feature.table.state.loadTableStyleState
-import com.dudoziworkshop.dzlog.feature.table.state.persistTableStyleState
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
 import com.dudoziworkshop.dzlog.ui.log.LogG1Screen
@@ -276,26 +276,17 @@ fun AppRoot() {
         }
         if (!hasRestoredTemplate) return
         appScope.launch {
-            val style = loadTableStyleState(context)
-            tableTemplateViewModel.updateActive(updated, style)
-            persistTableTemplateCatalog(
-                context = context,
+            val next = replaceActiveSavedTableTemplate(
                 items = tableTemplateViewModel.templates,
                 activeTemplateId = tableTemplateViewModel.activeTemplateId,
+                templateState = updated,
             )
-        }
-    }
-
-    fun updateTableStyleState(style: TableStyleState) {
-        tableTemplateViewModel.updateActive(tableTemplateState, style)
-        if (!hasRestoredTemplate) return
-        appScope.launch {
-            persistTableStyleState(context, style)
             persistTableTemplateCatalog(
                 context = context,
-                items = tableTemplateViewModel.templates,
+                items = next,
                 activeTemplateId = tableTemplateViewModel.activeTemplateId,
             )
+            tableTemplateViewModel.setCatalog(next, tableTemplateViewModel.activeTemplateId)
         }
     }
 
@@ -308,20 +299,14 @@ fun AppRoot() {
         if (!hasRestoredTemplate) return false
 
         val activeId = tableTemplateViewModel.activeTemplateId
-        val updatedItems = tableTemplateViewModel.templates.map { item ->
-            if (item.id == activeId) {
-                item.copy(
-                    templateState = updatedTemplate,
-                    styleState = updatedStyle,
-                    modifiedAt = System.currentTimeMillis(),
-                )
-            } else {
-                item
-            }
-        }.sortedByDescending { it.modifiedAt }
+        val updatedItems = replaceActiveSavedTableTemplate(
+            items = tableTemplateViewModel.templates,
+            activeTemplateId = activeId,
+            templateState = updatedTemplate,
+            styleState = updatedStyle,
+        )
 
         return runCatching {
-            persistTableStyleState(context, updatedStyle)
             AppSettingsStore.setIncludePathInCounterScope(context, includePathInCounterScope)
             AppSettingsStore.setIncludeFilenameInCounterScope(context, includeFilenameInCounterScope)
             persistTableTemplateCatalog(
@@ -359,7 +344,10 @@ fun AppRoot() {
             val item = createSavedTableTemplate(
                 name = nextNewTemplateName(tableTemplateViewModel.templates),
                 templateState = newBlankTableTemplateState(),
-                styleState = loadTableStyleState(context),
+                styleState = activeSavedTableStyle(
+                    tableTemplateViewModel.templates,
+                    tableTemplateViewModel.activeTemplateId,
+                ),
             )
             val next = listOf(item) + tableTemplateViewModel.templates
             pendingNewTemplateId = item.id
@@ -717,10 +705,10 @@ fun AppRoot() {
                     templateState = tableTemplateState,
                     includePathInCounterScope = appSettings.includePathInCounterScope,
                     includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-                    styleState = tableTemplateViewModel.templates
-                        .firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }
-                        ?.styleState
-                        ?: TableStyleState(),
+                    styleState = activeSavedTableStyle(
+                        tableTemplateViewModel.templates,
+                        tableTemplateViewModel.activeTemplateId,
+                    ),
                     isUnsavedNewTemplate = pendingNewTemplateId == tableTemplateViewModel.activeTemplateId,
                     onSave = ::saveV2EditSession,
                     onDiscardUnsavedNewTemplate = ::discardPendingNewTemplate,
@@ -733,10 +721,10 @@ fun AppRoot() {
                     templateState = tableTemplateState,
                     includePathInCounterScope = appSettings.includePathInCounterScope,
                     includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-                    styleState = tableTemplateViewModel.templates
-                        .firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }
-                        ?.styleState
-                        ?: TableStyleState(),
+                    styleState = activeSavedTableStyle(
+                        tableTemplateViewModel.templates,
+                        tableTemplateViewModel.activeTemplateId,
+                    ),
                     isUnsavedNewTemplate = pendingNewTemplateId == tableTemplateViewModel.activeTemplateId,
                     onSave = ::saveV2EditSession,
                     onDiscardUnsavedNewTemplate = ::discardPendingNewTemplate,
