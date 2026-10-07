@@ -226,4 +226,36 @@ class MockSaveRulesDomainAdapterTest {
     }
 
 
+    @Test
+    fun `phrase set CRUD updates references safely`() {
+        val rotatingCell = TableCellState(
+            rowIndex = 0,
+            colIndex = 0,
+            cellId = "rotating",
+            dataType = TableCellDataType.ROTATING_TEXT,
+        )
+        val base = TableTemplateState(
+            rows = 1,
+            cols = 1,
+            cells = listOf(rotatingCell),
+        )
+
+        val created = createMockPhraseSet(base, "품종", id = "set-1")
+        assertEquals("품종", created.phraseSets.single().name)
+
+        val selected = applyMockPhraseSet(created, "rotating", "set-1")
+        assertEquals("set-1", selected.cells.single().phraseSetId)
+
+        val updated = updateMockPhraseSet(selected, "set-1") { set ->
+            set.copy(items = listOf("Draper", "Duke"))
+        }
+        assertEquals(2, updated.phraseSets.single().items.size)
+
+        val deleted = deleteMockPhraseSet(updated, "set-1")
+        assertTrue(deleted.phraseSets.isEmpty())
+        assertEquals(null, deleted.cells.single().phraseSetId)
+        assertEquals(null, deleted.cells.single().everyOverride)
+    }
+
+
 }
