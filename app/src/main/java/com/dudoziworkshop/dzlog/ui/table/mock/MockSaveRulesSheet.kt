@@ -60,7 +60,7 @@ internal fun defaultMockSaveRulesDraft(): MockSaveRulesDraft =
             null,
         ),
         pathItems = listOf(
-            MockRuleItem(MockRuleSourceType.CELL, "Draper", cellId = 0),
+            MockRuleItem(MockRuleSourceType.CELL, "Draper", cellId = "mock-0"),
             MockRuleItem(MockRuleSourceType.MANUAL, "처리구 A"),
             MockRuleItem(MockRuleSourceType.DATE, "20261006"),
         ),
@@ -81,6 +81,7 @@ internal fun MockSaveRulesSheet(
     cols: Int,
     draft: MockSaveRulesDraft,
     onDraftChange: (MockSaveRulesDraft) -> Unit,
+    onApply: (MockSaveRulesDraft) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var editingSection by remember { mutableStateOf<MockRuleSection?>(null) }
@@ -238,7 +239,7 @@ internal fun MockSaveRulesSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 24.dp),
-                        onClick = onDismiss,
+                        onClick = { onApply(draft) },
                     ) {
                         Text("적용")
                     }
