@@ -52,7 +52,9 @@ internal class HomeViewModel(
         viewModelScope.launch {
             AppSettingsStore.flow(appContext).collectLatest { settings ->
                 _uiState.value = _uiState.value.copy(settings = settings)
-                activeTemplateState?.let { recomputeCounter(it, settings) }
+                if (isActive) {
+                    activeTemplateState?.let { recomputeCounter(it, settings) }
+                }
             }
         }
     }
@@ -127,7 +129,7 @@ internal class HomeViewModel(
                 includePathInCounterScope = settings.includePathInCounterScope,
                 includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
                 saveMode = settings.saveMode,
-                scopeNextCounter = 1,
+                scopeNextCounter = HOME_PREVIEW_COUNTER_SEED,
                 phraseProgressCursor = HOME_PREVIEW_PHRASE_CURSOR,
             ),
         )
@@ -159,6 +161,7 @@ internal class HomeViewModel(
     }
 
     private companion object {
+        const val HOME_PREVIEW_COUNTER_SEED = 1
         const val HOME_PREVIEW_PHRASE_CURSOR = 1
     }
 }
