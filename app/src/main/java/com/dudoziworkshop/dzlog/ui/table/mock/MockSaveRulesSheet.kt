@@ -14,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZSettingRow
 import com.dudoziworkshop.dzlog.ui.common.DDZTextField
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
@@ -99,6 +99,11 @@ internal fun MockSaveRulesSheet(
     val pathPreview = draft.pathItems
         .mapNotNull { it?.value?.trim()?.takeIf(String::isNotBlank) }
         .joinToString(" / ")
+    val resolvedPathPreview = if (pathPreview.isBlank()) {
+        "Pictures/DZlog/"
+    } else {
+        "Pictures/DZlog/${pathPreview.replace(" / ", "/")}/"
+    }
 
     fun activeItems(): List<MockRuleItem?> =
         when (editingSection) {
@@ -117,12 +122,21 @@ internal fun MockSaveRulesSheet(
         )
     }
 
-    fun closeEditor() {
-        editingSection = null
+    fun closeItemEditor() {
         editingIndex = null
         showCellPicker = false
         showManualEditor = false
         manualDraft = ""
+    }
+
+    fun closeSection() {
+        editingSection = null
+        closeItemEditor()
+    }
+
+    fun openSection(section: MockRuleSection) {
+        editingSection = section
+        closeItemEditor()
     }
 
     fun openEditor(section: MockRuleSection, index: Int) {
@@ -143,7 +157,7 @@ internal fun MockSaveRulesSheet(
             it[index] = item
         }.take(3)
         updateActiveItems(updated)
-        closeEditor()
+        closeItemEditor()
     }
 
     fun removeItem() {
@@ -154,7 +168,7 @@ internal fun MockSaveRulesSheet(
         if (index in compacted.indices) compacted.removeAt(index)
         while (compacted.size < 3) compacted += null
         updateActiveItems(compacted.take(3))
-        closeEditor()
+        closeItemEditor()
     }
 
     DDZBottomSheet(
@@ -169,59 +183,32 @@ internal fun MockSaveRulesSheet(
         ) {
             when {
                 editingSection == null -> {
-                    CompactRuleSummarySection(
-                        title = "파일명",
-                        items = draft.fileNameItems,
-                        emptyLabel = { index -> "+ ${index + 1}항목" },
-                        onItemClick = { index -> openEditor(MockRuleSection.FILE_NAME, index) },
+                    DDZSettingRow(
+                        label = "파일명",
+                        value = fileNamePreview,
+                        onClick = { openSection(MockRuleSection.FILE_NAME) },
                     )
-                    Text(
-                        fileNamePreview,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
+                    DDZSettingRow(
+                        label = "저장 위치",
+                        value = resolvedPathPreview,
+                        onClick = { openSection(MockRuleSection.PATH) },
                     )
-                    Text(
-                        "자동번호 0012는 항상 마지막에 붙습니다.",
-                        color = DDZColor.TextMuted,
+                    DDZSettingRow(
+                        label = "자동번호",
+                        value = "다음 번호 0012",
                     )
-
-                    CompactRuleSummarySection(
-                        title = "저장경로",
-                        items = draft.pathItems,
-                        emptyLabel = { index -> "+ ${index + 1}단계" },
-                        onItemClick = { index -> openEditor(MockRuleSection.PATH, index) },
-                    )
-                    Text(
-                        text = if (pathPreview.isBlank()) {
-                            "Pictures/DZlog/"
-                        } else {
-                            "Pictures/DZlog/${pathPreview.replace(" / ", "/")}/"
-                        },
-                        color = DDZColor.TextMuted,
-                        maxLines = 1,
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column {
-                            Text("자동번호", color = DDZColor.TextMuted)
-                            Text("다음 번호 0012", fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    DDZButton(
-                        text = if (showAdvanced) "고급 설정 접기" else "고급 설정",
-                        modifier = Modifier.fillMaxWidth(),
-                        style = DDZButtonStyle.Secondary,
+                    DDZSettingRow(
+                        label = "고급 설정",
+                        value = "자동번호 범위",
                         onClick = { showAdvanced = !showAdvanced },
                     )
 
                     if (showAdvanced) {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("자동번호 범위", color = DDZColor.TextMuted)
+                        Column(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Text("자동번호 범위", color = DDZColor.TextSecondary)
                             ScopeToggle(
                                 label = "저장경로 변경 시 번호 분리",
                                 checked = draft.includePathInScope,
@@ -243,6 +230,45 @@ internal fun MockSaveRulesSheet(
                         text = "적용",
                         modifier = Modifier.fillMaxWidth(),
                         onClick = { onApply(draft) },
+                    )
+                }
+
+                editingIndex == null -> {
+                    val section = editingSection ?: return@Column
+                    val isFileName = section == MockRuleSection.FILE_NAME
+
+                    Text(
+                        text = if (isFileName) "파일명" else "저장 위치",
+                        fontWeight = FontWeight.SemiBold,
+                        color = DDZColor.TextPrimary,
+                    )
+                    CompactRuleSummarySection(
+                        title = if (isFileName) "구성" else "경로 단계",
+                        items = if (isFileName) draft.fileNameItems else draft.pathItems,
+                        emptyLabel = { index ->
+                            if (isFileName) "+ ${index + 1}항목" else "+ ${index + 1}단계"
+                        },
+                        onItemClick = { index -> openEditor(section, index) },
+                    )
+
+                    Text(
+                        text = if (isFileName) fileNamePreview else resolvedPathPreview,
+                        color = DDZColor.TextSecondary,
+                        maxLines = 1,
+                    )
+
+                    if (isFileName) {
+                        Text(
+                            "자동번호 0012는 항상 마지막에 붙습니다.",
+                            color = DDZColor.TextSecondary,
+                        )
+                    }
+
+                    DDZButton(
+                        text = "뒤로",
+                        modifier = Modifier.fillMaxWidth(),
+                        style = DDZButtonStyle.Text,
+                        onClick = ::closeSection,
                     )
                 }
 
@@ -328,7 +354,7 @@ internal fun MockSaveRulesSheet(
                         text = "취소",
                         modifier = Modifier.fillMaxWidth(),
                         style = DDZButtonStyle.Text,
-                        onClick = ::closeEditor,
+                        onClick = ::closeItemEditor,
                     )
                 }
 
@@ -373,7 +399,7 @@ internal fun MockSaveRulesSheet(
                         text = "취소",
                         modifier = Modifier.fillMaxWidth(),
                         style = DDZButtonStyle.Text,
-                        onClick = ::closeEditor,
+                        onClick = ::closeItemEditor,
                     )
                 }
 
@@ -424,25 +450,23 @@ internal fun MockSaveRulesSheet(
                     }
 
                     if (activeItems().getOrNull(index) != null) {
-                        TextButton(
+                        DDZButton(
+                            text = if (section == MockRuleSection.FILE_NAME) {
+                                "이 항목 삭제"
+                            } else {
+                                "이 단계 삭제"
+                            },
                             modifier = Modifier.fillMaxWidth(),
+                            style = DDZButtonStyle.Destructive,
                             onClick = ::removeItem,
-                        ) {
-                            Text(
-                                if (section == MockRuleSection.FILE_NAME) {
-                                    "이 항목 삭제"
-                                } else {
-                                    "이 단계 삭제"
-                                }
-                            )
-                        }
+                        )
                     }
 
                     DDZButton(
                         text = "취소",
                         modifier = Modifier.fillMaxWidth(),
                         style = DDZButtonStyle.Text,
-                        onClick = ::closeEditor,
+                        onClick = ::closeItemEditor,
                     )
                 }
             }
