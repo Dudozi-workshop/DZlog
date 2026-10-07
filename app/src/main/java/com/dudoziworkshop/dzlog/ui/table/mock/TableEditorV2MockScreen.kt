@@ -27,6 +27,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.ViewColumn
+import androidx.compose.material.icons.filled.ViewStream
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Undo
@@ -47,6 +49,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -66,6 +69,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType
@@ -180,64 +184,62 @@ fun TableEditorV2Screen(
                     )
                 },
                 actions = {
-                    if (mode == MockMode.LAYOUT) {
-                        Button(onClick = {
-                            mode = MockMode.EDIT
-                            selectionState.clearLayoutSelection()
-                        }) { Text("완료") }
-                    } else {
-                        IconButton(
-                            enabled = session.canUndo && session.historyRevision >= 0,
-                            onClick = {
-                                if (session.undo()) {
-                                    selectionState.clearEditSelection()
-                                    selectionState.clearLayoutSelection()
-                                }
-                            },
-                        ) {
-                            Icon(Icons.Filled.Undo, contentDescription = "실행 취소")
-                        }
-                        IconButton(
-                            enabled = session.canRedo && session.historyRevision >= 0,
-                            onClick = {
-                                if (session.redo()) {
-                                    selectionState.clearEditSelection()
-                                    selectionState.clearLayoutSelection()
-                                }
-                            },
-                        ) {
-                            Icon(Icons.Filled.Redo, contentDescription = "다시 실행")
-                        }
-                        IconButton(
-                            enabled = !saveCoordinator.isSaving,
-                            onClick = {
+                    Button(
+                        enabled = !saveCoordinator.isSaving,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = DDZColor.Primary,
+                            contentColor = Color.White,
+                        ),
+                        onClick = {
+                            if (mode == MockMode.LAYOUT) {
+                                mode = MockMode.EDIT
+                                selectionState.clearLayoutSelection()
+                            } else {
                                 saveScope.launch { saveCoordinator.save(session, onSave) }
-                            },
-                        ) {
-                            Icon(Icons.Filled.Save, contentDescription = "저장")
-                        }
+                            }
+                        },
+                    ) {
+                        Text(if (mode == MockMode.LAYOUT) "완료" else "저장")
                     }
                 }
             )
         },
         bottomBar = {
-            if (mode == MockMode.EDIT) {
-                MockBottomBar(
-                    onLayout = {
-                        selectionState.clearEditSelection()
-                        mode = MockMode.LAYOUT
-                    },
-                    onStyle = {
-                        styleSheetDraft = draftStyleState
-                        showAdvancedStyle = false
-                        showStyle = true
-                    },
-                    onSaveRules = {
-                        saveRulesSheetDraft = saveRulesDraft
-                        showSaveRules = true
-                    },
-                )
-            }
+            MockBottomBar(
+                active = when {
+                    mode == MockMode.LAYOUT -> MockBottomTab.STRUCTURE
+                    showStyle -> MockBottomTab.STYLE
+                    showSaveRules -> MockBottomTab.SAVE
+                    else -> MockBottomTab.CONTENT
+                },
+                onContent = {
+                    mode = MockMode.EDIT
+                    selectionState.clearLayoutSelection()
+                    showStyle = false
+                    showSaveRules = false
+                },
+                onLayout = {
+                    selectionState.clearEditSelection()
+                    showStyle = false
+                    showSaveRules = false
+                    mode = MockMode.LAYOUT
+                },
+                onStyle = {
+                    mode = MockMode.EDIT
+                    selectionState.clearLayoutSelection()
+                    styleSheetDraft = draftStyleState
+                    showAdvancedStyle = false
+                    showSaveRules = false
+                    showStyle = true
+                },
+                onSaveRules = {
+                    mode = MockMode.EDIT
+                    selectionState.clearLayoutSelection()
+                    showStyle = false
+                    saveRulesSheetDraft = saveRulesDraft
+                    showSaveRules = true
+                },
+            )
         }
     ) { padding ->
         Column(
@@ -247,11 +249,11 @@ fun TableEditorV2Screen(
         ) {
             Text(
                 text = if (mode == MockMode.EDIT)
-                    "셀을 직접 눌러 수정해보세요."
+                    "셀을 선택해 내용을 편집하세요."
                 else
-                    "여러 셀을 선택한 뒤 구조를 조정해보세요.",
+                    "구조를 바꿀 셀을 선택하세요.",
                 color = DDZColor.TextMuted,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
             )
 
             MockTableCanvas(
@@ -504,41 +506,54 @@ fun TableEditorV2Screen(
     }
 
     if (showLayoutDeleteSheet) {
-        ModalBottomSheet(onDismissRequest = { showLayoutDeleteSheet = false }) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+        Dialog(onDismissRequest = { showLayoutDeleteSheet = false }) {
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = DDZColor.Surface,
+                tonalElevation = 2.dp,
+                shadowElevation = 6.dp,
             ) {
-                Text("구조 삭제", fontWeight = FontWeight.Bold)
-                Text("선택 영역을 기준으로 삭제할 방향을 고르세요.", color = DDZColor.TextMuted)
-                OutlinedButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = {
-                        session.commitTemplateChange(
-                            TableEditorV2StructureController.removeRows(draftTemplateState, layoutSelection)
-                        )
-                        selectionState.clearLayoutSelection()
-                        showLayoutDeleteSheet = false
-                    },
-                ) { Text("행 삭제") }
-                OutlinedButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = {
-                        session.commitTemplateChange(
-                            TableEditorV2StructureController.removeColumns(draftTemplateState, layoutSelection)
-                        )
-                        selectionState.clearLayoutSelection()
-                        showLayoutDeleteSheet = false
-                    },
-                ) { Text("열 삭제") }
-                TextButton(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 18.dp),
-                    onClick = { showLayoutDeleteSheet = false },
-                ) { Text("취소") }
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        "삭제할 항목을 선택하세요",
+                        fontWeight = FontWeight.SemiBold,
+                        color = DDZColor.TextPrimary,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                session.commitTemplateChange(
+                                    TableEditorV2StructureController.removeRows(draftTemplateState, layoutSelection)
+                                )
+                                selectionState.clearLayoutSelection()
+                                showLayoutDeleteSheet = false
+                            },
+                        ) {
+                            Icon(Icons.Filled.ViewStream, contentDescription = null)
+                            Text("  행 삭제")
+                        }
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                session.commitTemplateChange(
+                                    TableEditorV2StructureController.removeColumns(draftTemplateState, layoutSelection)
+                                )
+                                selectionState.clearLayoutSelection()
+                                showLayoutDeleteSheet = false
+                            },
+                        ) {
+                            Icon(Icons.Filled.ViewColumn, contentDescription = null)
+                            Text("  열 삭제")
+                        }
+                    }
+                }
             }
         }
     }
@@ -778,7 +793,7 @@ private fun ColumnScope.MockTableCanvas(
     onCellRangeDrag: (String, String) -> Unit,
     onClearLayoutSelection: () -> Unit,
 ) {
-    val background = if (darkTable) Color(0xFF1E2220) else Color(0xFFE9EFE7)
+    val background = DDZColor.Background
     val resolvedAlpha = (bgAlpha.coerceIn(0, 255) / 255f)
     val cellBackground = when {
         transparentTable -> Color.Transparent
@@ -1362,47 +1377,90 @@ private fun MockLayoutPanel(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
-            .padding(16.dp),
+            .background(DDZColor.Surface)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            if (selectedCount == 0) "셀을 선택하세요" else selectedCount.toString() + "개 셀 선택됨",
-            fontWeight = FontWeight.Bold,
-        )
+        Text("구조", fontWeight = FontWeight.Bold, color = DDZColor.TextPrimary)
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedButton(modifier = Modifier.weight(1f), onClick = onAddRow) {
-                Icon(Icons.Filled.Add, contentDescription = null)
-                Text(" 행")
-            }
-            OutlinedButton(modifier = Modifier.weight(1f), onClick = onAddCol) {
-                Icon(Icons.Filled.GridView, contentDescription = null)
-                Text(" 열")
-            }
-            OutlinedButton(
+            StructureActionButton(
                 modifier = Modifier.weight(1f),
+                icon = Icons.Filled.ViewStream,
+                label = "행 추가",
+                onClick = onAddRow,
+            )
+            StructureActionButton(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Filled.ViewColumn,
+                label = "열 추가",
+                onClick = onAddCol,
+            )
+            StructureActionButton(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Filled.GridView,
+                label = if (mergedSelection) "병합 해제" else "병합",
                 enabled = selectedCount > 1 || mergedSelection,
                 onClick = onMergeSelection,
-            ) {
-                Text(if (mergedSelection) "병합 해제" else "병합")
-            }
-            OutlinedButton(
+            )
+            StructureActionButton(
                 modifier = Modifier.weight(1f),
+                icon = Icons.Filled.Delete,
+                label = "삭제",
                 enabled = selectedCount > 0,
+                danger = true,
                 onClick = onDeleteSelection,
-            ) {
-                Icon(Icons.Filled.Delete, contentDescription = null)
-            }
+            )
         }
-        Text("현재 " + rows + "행 × " + cols + "열", color = DDZColor.TextMuted)
+
+        Text(
+            if (selectedCount == 0) "${rows}행 × ${cols}열 · 셀을 선택하면 병합/삭제가 활성화됩니다."
+            else "${selectedCount}개 셀 선택됨",
+            color = DDZColor.TextMuted,
+            fontSize = 12.sp,
+        )
     }
 }
 
 @Composable
+private fun StructureActionButton(
+    modifier: Modifier = Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    enabled: Boolean = true,
+    danger: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val tint = when {
+        !enabled -> DDZColor.IconMuted
+        danger -> Color(0xFFB85C52)
+        else -> DDZColor.TextPrimary
+    }
+    Column(
+        modifier = modifier
+            .background(
+                color = if (enabled) DDZColor.Card.copy(alpha = 0.72f) else DDZColor.Card.copy(alpha = 0.36f),
+                shape = RoundedCornerShape(16.dp),
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 12.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        Icon(icon, contentDescription = label, tint = tint)
+        Text(label, color = tint, fontSize = 12.sp, maxLines = 1)
+    }
+}
+
+private enum class MockBottomTab { CONTENT, STRUCTURE, STYLE, SAVE }
+
+@Composable
 private fun MockBottomBar(
+    active: MockBottomTab,
+    onContent: () -> Unit,
     onLayout: () -> Unit,
     onStyle: () -> Unit,
     onSaveRules: () -> Unit,
@@ -1410,21 +1468,72 @@ private fun MockBottomBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .background(DDZColor.Surface)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        OutlinedButton(modifier = Modifier.weight(1f), onClick = onLayout) {
-            Icon(Icons.Filled.GridView, contentDescription = null)
-            Text(" 레이아웃")
-        }
-        OutlinedButton(modifier = Modifier.weight(1f), onClick = onStyle) {
-            Icon(Icons.Filled.Palette, contentDescription = null)
-            Text(" 스타일")
-        }
-        OutlinedButton(modifier = Modifier.weight(1f), onClick = onSaveRules) {
-            Icon(Icons.Filled.Save, contentDescription = null)
-            Text(" 저장 규칙")
-        }
+        MockNavItem(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Filled.GridView,
+            label = "내용",
+            selected = active == MockBottomTab.CONTENT,
+            onClick = onContent,
+        )
+        MockNavItem(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Filled.ViewStream,
+            label = "구조",
+            selected = active == MockBottomTab.STRUCTURE,
+            onClick = onLayout,
+        )
+        MockNavItem(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Filled.Palette,
+            label = "스타일",
+            selected = active == MockBottomTab.STYLE,
+            onClick = onStyle,
+        )
+        MockNavItem(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Filled.Save,
+            label = "저장설정",
+            selected = active == MockBottomTab.SAVE,
+            onClick = onSaveRules,
+        )
     }
 }
+
+@Composable
+private fun MockNavItem(
+    modifier: Modifier = Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .background(
+                color = if (selected) DDZColor.SageLight else Color.Transparent,
+                shape = RoundedCornerShape(16.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Icon(
+            icon,
+            contentDescription = label,
+            tint = if (selected) DDZColor.PrimaryDark else DDZColor.TextMuted,
+            modifier = Modifier.size(21.dp),
+        )
+        Text(
+            label,
+            color = if (selected) DDZColor.PrimaryDark else DDZColor.TextMuted,
+            fontSize = 11.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+        )
+    }
+}
+
