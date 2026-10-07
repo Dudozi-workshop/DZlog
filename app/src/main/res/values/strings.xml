@@ -17,6 +17,9 @@
     <string name="home_save_settings">저장 설정</string>
     <string name="home_no_recent_capture">아직 촬영한 사진이 없어요.</string>
     <string name="home_first_record_hint">첫 기록을 남겨보세요.</string>
+    <string name="home_settings_content_description">설정</string>
+    <string name="home_today_time">오늘 %1$s</string>
+    <string name="home_date_time_pattern">M월 d일 HH:mm</string>
 
     <string name="error_bitmap_compress_failed">이미지 압축 실패</string>
 
