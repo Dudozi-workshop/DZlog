@@ -325,6 +325,28 @@ object TableStructureRangeActions {
             )
         }
 
+        val absorberOrigin = absorber.rowIndex to absorber.colIndex
+        val targetOrigin = targetRange.minRow to targetRange.minCol
+        val displacedAtTargetOrigin = cells.firstOrNull { cell ->
+            cell.cellId != absorber.cellId &&
+                cell.rowIndex == targetOrigin.first &&
+                cell.colIndex == targetOrigin.second
+        }
+
+        fun clearAbsorbedCell(cell: TableCellState): TableCellState =
+            cell.copy(
+                rawText = "",
+                typedValue = CellValue.Auto,
+                timeFormatOptions = null,
+                rowSpan = 1,
+                colSpan = 1,
+                dataType = TableCellDataType.TEXT,
+                phraseSetId = null,
+                everyOverride = null,
+                formatPattern = "",
+                counterScopeMode = null,
+            )
+
         return cells.map { cell ->
             when {
                 cell.cellId == absorber.cellId -> cell.copy(
@@ -333,7 +355,12 @@ object TableStructureRangeActions {
                     rowSpan = targetRange.rowCount,
                     colSpan = targetRange.colCount,
                 )
-                range.contains(cell.rowIndex, cell.colIndex) -> cell.copy(rowSpan = 1, colSpan = 1)
+                displacedAtTargetOrigin != null && cell.cellId == displacedAtTargetOrigin.cellId ->
+                    clearAbsorbedCell(cell).copy(
+                        rowIndex = absorberOrigin.first,
+                        colIndex = absorberOrigin.second,
+                    )
+                targetRange.contains(cell.rowIndex, cell.colIndex) -> clearAbsorbedCell(cell)
                 else -> cell
             }
         }
