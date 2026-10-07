@@ -508,8 +508,11 @@ fun TableEditorV2MockScreen(
                             }
                             TableMergeDecisionType.MERGE,
                             TableMergeDecisionType.UNMERGE -> {
-                                commitTemplateChange(
-                                    applyMockLayoutMergeDecision(draftTemplateState, decision)
+                                val updated = applyMockLayoutMergeDecision(draftTemplateState, decision)
+                                commitTemplateChange(updated)
+                                layoutSelection = normalizeMockLayoutSelection(
+                                    templateState = updated,
+                                    range = decision.range,
                                 )
                             }
                             TableMergeDecisionType.NONE -> Unit
@@ -537,8 +540,11 @@ fun TableEditorV2MockScreen(
                 TextButton(
                     onClick = {
                         pendingMergeDecision?.let { decision ->
-                            commitTemplateChange(
-                                applyMockLayoutMergeDecision(draftTemplateState, decision)
+                            val updated = applyMockLayoutMergeDecision(draftTemplateState, decision)
+                            commitTemplateChange(updated)
+                            layoutSelection = normalizeMockLayoutSelection(
+                                templateState = updated,
+                                range = decision.range,
                             )
                         }
                         pendingMergeDecision = null
@@ -816,20 +822,25 @@ private fun ColumnScope.MockTableCanvas(
     }
     val resolvedRowWeights = TableLayoutCalculator.resolveWeights(rowWeights, rows)
     val resolvedColWeights = TableLayoutCalculator.resolveWeights(colWeights, cols)
-    val tableHeight = (74.dp * rows.toFloat()).coerceIn(120.dp, 420.dp)
+    val baseTableHeight = (74.dp * rows.toFloat()).coerceIn(120.dp, 420.dp)
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .weight(1f)
-            .background(background)
-            .padding(26.dp),
+            .background(background),
         contentAlignment = Alignment.Center,
     ) {
+        val previousWorkingWidth = (maxWidth - 52.dp).coerceAtLeast(1.dp)
+        val expandedWorkingWidth = (maxWidth - 16.dp).coerceAtLeast(1.dp)
+        val editorScale = (expandedWorkingWidth / previousWorkingWidth).coerceAtLeast(1f)
+        val stableTableHeight = (baseTableHeight * editorScale)
+            .coerceAtMost((maxHeight - 16.dp).coerceAtLeast(120.dp))
+
         BoxWithConstraints(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(tableHeight)
+                .width(expandedWorkingWidth)
+                .height(stableTableHeight)
                 .border(2.dp, DDZColor.Primary, RoundedCornerShape(4.dp))
         ) {
             val density = LocalDensity.current
@@ -897,13 +908,13 @@ private fun ColumnScope.MockTableCanvas(
                                     onColBoundaryDrag(boundaryIndex, dragAmount.x / totalWidthPx)
                                 }
                             },
-                        contentAlignment = Alignment.Center,
+                        contentAlignment = Alignment.TopCenter,
                     ) {
                         Box(
                             Modifier
-                                .width(2.dp)
-                                .fillMaxHeight()
-                                .background(DDZColor.Primary.copy(alpha = 0.45f))
+                                .width(3.dp)
+                                .height(18.dp)
+                                .background(DDZColor.Primary.copy(alpha = 0.65f))
                         )
                     }
                 }
@@ -925,13 +936,13 @@ private fun ColumnScope.MockTableCanvas(
                                     onRowBoundaryDrag(boundaryIndex, dragAmount.y / totalHeightPx)
                                 }
                             },
-                        contentAlignment = Alignment.Center,
+                        contentAlignment = Alignment.CenterStart,
                     ) {
                         Box(
                             Modifier
-                                .height(2.dp)
-                                .fillMaxWidth()
-                                .background(DDZColor.Primary.copy(alpha = 0.45f))
+                                .height(3.dp)
+                                .width(18.dp)
+                                .background(DDZColor.Primary.copy(alpha = 0.65f))
                         )
                     }
                 }
