@@ -2,8 +2,21 @@ package com.dudoziworkshop.dzlog.ui.table.mock
 
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
+import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+
+internal fun mockCellsFromTemplate(templateState: TableTemplateState): List<MockCell> =
+    templateState.cells
+        .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
+        .mapIndexed { index, cell ->
+            MockCell(
+                id = index,
+                domainCellId = cell.cellId,
+                value = cell.rawText,
+                type = cell.dataType.toMockCellType(),
+            )
+        }
 
 internal fun mockSaveRulesDraftFromTemplate(
     templateState: TableTemplateState,
@@ -45,6 +58,16 @@ internal fun applyMockSaveRulesDraft(
         pathSlotDrafts = visiblePathDrafts + preservedPathTail,
     )
 }
+
+private fun TableCellDataType.toMockCellType(): MockCellType =
+    when (this) {
+        TableCellDataType.TEXT -> MockCellType.TEXT
+        TableCellDataType.NUMBER -> MockCellType.NUMBER
+        TableCellDataType.COUNTER -> MockCellType.COUNTER
+        TableCellDataType.DATE -> MockCellType.DATE
+        TableCellDataType.TIME -> MockCellType.TIME
+        TableCellDataType.ROTATING_TEXT -> MockCellType.ROTATING_TEXT
+    }
 
 private fun TableEditorSlotDraft?.toMockRuleItem(
     templateState: TableTemplateState,
