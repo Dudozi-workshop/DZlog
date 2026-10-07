@@ -114,7 +114,7 @@ fun HomeScreen(
             ) {
                 Text(
                     text = "DZlog",
-                    style = DDZTypography.HomeMainTitle.copy(letterSpacing = 1.1.sp),
+                    style = DDZTypography.HomeMainTitle.copy(letterSpacing = HomeUiSpec.BrandLetterSpacing),
                     color = DDZColor.PrimaryDark,
                     modifier = Modifier.weight(1f),
                 )
@@ -138,7 +138,7 @@ fun HomeScreen(
                     style = DDZTypography.Caption.copy(fontWeight = FontWeight.Medium),
                     color = DDZColor.TextSecondary,
                 )
-                Spacer(Modifier.height(5.dp))
+                Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
                 Text(
                     text = normalizedTemplateName,
                     style = DDZTypography.ScreenTitle.copy(
@@ -150,7 +150,7 @@ fun HomeScreen(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(Modifier.height(5.dp))
+                Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
                 Text(
                     text = stringResource(com.dudoziworkshop.dzlog.R.string.home_next_capture, nextCounterText),
                     style = DDZTypography.Secondary,
@@ -158,7 +158,7 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(HomeUiSpec.BeforePrimaryButtonGap))
 
             DDZButton(
                 text = stringResource(com.dudoziworkshop.dzlog.R.string.home_start_capture),
@@ -175,7 +175,7 @@ fun HomeScreen(
                 ),
             )
 
-            Spacer(Modifier.height(sectionGap + 8.dp))
+            Spacer(Modifier.height(sectionGap + HomeUiSpec.PrimaryToRecentExtraGap))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -192,13 +192,13 @@ fun HomeScreen(
                     style = DDZTypography.Secondary.copy(fontWeight = FontWeight.Medium),
                     color = DDZColor.PrimaryDark,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(HomeUiSpec.AlbumActionRadius))
                         .clickable(onClick = onOpenAlbum)
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                        .padding(horizontal = HomeUiSpec.AlbumActionHorizontalPadding, vertical = HomeUiSpec.AlbumActionVerticalPadding),
                 )
             }
 
-            Spacer(Modifier.height(9.dp))
+            Spacer(Modifier.height(HomeUiSpec.RecentHeaderToImageGap))
 
             val image = latestImage
             if (image != null) {
@@ -213,7 +213,7 @@ fun HomeScreen(
                             .aspectRatio(HomeUiSpec.RecentImageAspectRatio)
                             .clip(RoundedCornerShape(HomeUiSpec.RecentImageRadius))
                             .background(DDZColor.Surface)
-                            .border(1.dp, DDZColor.Border, RoundedCornerShape(HomeUiSpec.RecentImageRadius))
+                            .border(HomeUiSpec.BorderWidth, DDZColor.Border, RoundedCornerShape(HomeUiSpec.RecentImageRadius))
                             .clickable {
                                 val (g1, g2) = parseG1G2FromRelativePath(image.relativePath)
                                 onOpenRecentCaptureGrid(g1, g2, image.relativePath, 0)
@@ -221,7 +221,7 @@ fun HomeScreen(
                     ) {
                         DzThumbnail(image.uri.toString())
                     }
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(HomeUiSpec.RecentImageToNameGap))
                     Text(
                         text = image.displayName,
                         style = DDZTypography.Body.copy(fontWeight = FontWeight.Medium),
@@ -229,7 +229,7 @@ fun HomeScreen(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Spacer(Modifier.height(2.dp))
+                    Spacer(Modifier.height(HomeUiSpec.RecentNameToTimeGap))
                     Text(
                         text = uiState.latestImageTimeText,
                         style = DDZTypography.Caption,
@@ -240,9 +240,9 @@ fun HomeScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 22.dp),
+                        .padding(vertical = HomeUiSpec.EmptyStateVerticalPadding),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(HomeUiSpec.EmptyStateGap),
                 ) {
                     Text(
                         text = stringResource(com.dudoziworkshop.dzlog.R.string.home_no_recent_capture),
