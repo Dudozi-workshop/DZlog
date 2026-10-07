@@ -102,7 +102,7 @@ internal data class MockCell(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TableEditorV2MockScreen(
+fun TableEditorV2Screen(
     templateState: TableTemplateState,
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean,
