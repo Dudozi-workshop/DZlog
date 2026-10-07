@@ -76,7 +76,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.launch
 
 private enum class MockMode { EDIT, LAYOUT }
-internal enum class MockCellType(val label: String) {
+internal enum class TableEditorCellType(val label: String) {
     TEXT("텍스트"),
     NUMBER("숫자"),
     COUNTER("자동번호"),
@@ -85,10 +85,10 @@ internal enum class MockCellType(val label: String) {
     ROTATING_TEXT("순환문구"),
 }
 
-internal data class MockCell(
+internal data class TableEditorCellUiModel(
     val id: Int,
     val value: String,
-    val type: MockCellType = MockCellType.TEXT,
+    val type: TableEditorCellType = TableEditorCellType.TEXT,
     val domainCellId: String? = null,
     val formatPattern: String = "",
     val phraseSetId: String? = null,
@@ -330,13 +330,13 @@ fun TableEditorV2Screen(
                     cells.firstOrNull { it.domainCellId == id }
                 }
                 if (selected != null) {
-                    MockCellEditor(
+                    TableEditorCellUiModelEditor(
                         cell = selected,
                         phraseSets = draftTemplateState.phraseSets,
                         onValueChange = { nextValue ->
                             selected.domainCellId?.let { cellId ->
                                 session.commitTemplateChange(
-                                    applyMockCellValue(
+                                    applyTableEditorCellUiModelValue(
                                         templateState = draftTemplateState,
                                         domainCellId = cellId,
                                         nextValue = nextValue,
@@ -347,7 +347,7 @@ fun TableEditorV2Screen(
                         onTypeChange = { nextType ->
                             selected.domainCellId?.let { cellId ->
                                 session.commitTemplateChange(
-                                    applyMockCellType(
+                                    applyTableEditorCellType(
                                         templateState = draftTemplateState,
                                         domainCellId = cellId,
                                         nextType = nextType,
@@ -754,7 +754,7 @@ fun TableEditorV2Screen(
 
 @Composable
 private fun ColumnScope.MockTableCanvas(
-    cells: List<MockCell>,
+    cells: List<TableEditorCellUiModel>,
     rows: Int,
     cols: Int,
     selectedCellId: String?,
@@ -987,11 +987,11 @@ private fun ColumnScope.MockTableCanvas(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MockCellEditor(
-    cell: MockCell,
+private fun TableEditorCellUiModelEditor(
+    cell: TableEditorCellUiModel,
     phraseSets: List<com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet>,
     onValueChange: (String) -> Unit,
-    onTypeChange: (MockCellType) -> Unit,
+    onTypeChange: (TableEditorCellType) -> Unit,
     onDatePatternChange: (String) -> Unit,
     onApplyTimePolicy: () -> Unit,
     onPhraseSetChange: (String?) -> Unit,
@@ -1031,8 +1031,8 @@ private fun MockCellEditor(
         }
 
         when (cell.type) {
-            MockCellType.TEXT,
-            MockCellType.NUMBER -> {
+            TableEditorCellType.TEXT,
+            TableEditorCellType.NUMBER -> {
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = cell.value,
@@ -1042,7 +1042,7 @@ private fun MockCellEditor(
                 )
             }
 
-            MockCellType.COUNTER -> {
+            TableEditorCellType.COUNTER -> {
                 val currentCounter = cell.value.toIntOrNull()?.coerceAtLeast(0) ?: 1
                 Text("자동번호", fontWeight = FontWeight.Bold)
                 Row(
@@ -1076,7 +1076,7 @@ private fun MockCellEditor(
                 Text("촬영 성공 후 다음 번호로 증가합니다.", color = DDZColor.TextMuted)
             }
 
-            MockCellType.DATE -> {
+            TableEditorCellType.DATE -> {
                 Text(
                     text = when (cell.formatPattern.ifBlank { "yyyyMMdd" }) {
                         "yyMMdd" -> "261007"
@@ -1099,7 +1099,7 @@ private fun MockCellEditor(
                 }
             }
 
-            MockCellType.TIME -> {
+            TableEditorCellType.TIME -> {
                 Text("1251", fontWeight = FontWeight.Bold)
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
@@ -1115,7 +1115,7 @@ private fun MockCellEditor(
                 }
             }
 
-            MockCellType.ROTATING_TEXT -> {
+            TableEditorCellType.ROTATING_TEXT -> {
                 val selectedSet = phraseSets.firstOrNull { it.id == cell.phraseSetId }
                 Text(
                     selectedSet?.items?.firstOrNull().orEmpty().ifBlank { "문구 세트를 선택하세요" },
@@ -1176,7 +1176,7 @@ private fun MockCellEditor(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text("셀에 무엇을 표시할까요?", fontWeight = FontWeight.Bold)
-                MockCellType.entries.chunked(2).forEach { row ->
+                TableEditorCellType.entries.chunked(2).forEach { row ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
