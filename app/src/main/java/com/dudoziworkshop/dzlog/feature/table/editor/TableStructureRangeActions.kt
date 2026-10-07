@@ -61,6 +61,24 @@ object TableStructureRangeActions {
         )
     }
 
+    fun applyMergeDecision(
+        templateState: TableTemplateState,
+        decision: TableMergeDecision,
+    ): TableTemplateState {
+        return when (decision.type) {
+            TableMergeDecisionType.MERGE,
+            TableMergeDecisionType.CONFIRM_MERGE -> mergeSelection(
+                templateState = templateState,
+                selectionRange = decision.range,
+            )
+            TableMergeDecisionType.UNMERGE -> {
+                val rootCellId = decision.rootCellId ?: return templateState
+                unmergeRoot(templateState, rootCellId)
+            }
+            TableMergeDecisionType.NONE -> templateState
+        }
+    }
+
     data class StructureResolvedCell(
         val cellId: String,
         val rowIndex: Int,
