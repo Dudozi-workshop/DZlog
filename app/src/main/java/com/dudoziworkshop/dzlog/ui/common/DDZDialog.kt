@@ -104,3 +104,43 @@ fun DDZDialogContent(
         content()
     }
 }
+
+
+@Composable
+fun DDZContentDialog(
+    title: String,
+    onDismiss: () -> Unit,
+    content: @Composable () -> Unit,
+    actions: @Composable RowScope.() -> Unit,
+) {
+    val colors = LocalDDZColor.current
+    val typography = LocalDDZTypography.current
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            color = colors.Surface,
+            shape = RoundedCornerShape(20.dp),
+            shadowElevation = 4.dp,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = title,
+                    style = typography.SectionTitle,
+                    color = colors.TextPrimary,
+                )
+                content()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    actions()
+                }
+            }
+        }
+    }
+}
