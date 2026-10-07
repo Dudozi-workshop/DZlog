@@ -48,6 +48,7 @@ import com.dudoziworkshop.dzlog.feature.table.policy.loadOrMigrateTableTemplateC
 import com.dudoziworkshop.dzlog.feature.table.policy.persistTableTemplateCatalog
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.feature.table.state.loadTableStyleState
+import com.dudoziworkshop.dzlog.feature.table.state.persistTableStyleState
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
 import com.dudoziworkshop.dzlog.ui.log.LogG1Screen
@@ -277,6 +278,19 @@ fun AppRoot() {
         appScope.launch {
             val style = loadTableStyleState(context)
             tableTemplateViewModel.updateActive(updated, style)
+            persistTableTemplateCatalog(
+                context = context,
+                items = tableTemplateViewModel.templates,
+                activeTemplateId = tableTemplateViewModel.activeTemplateId,
+            )
+        }
+    }
+
+    fun updateTableStyleState(style: TableStyleState) {
+        tableTemplateViewModel.updateActive(tableTemplateState, style)
+        if (!hasRestoredTemplate) return
+        appScope.launch {
+            persistTableStyleState(context, style)
             persistTableTemplateCatalog(
                 context = context,
                 items = tableTemplateViewModel.templates,
@@ -674,7 +688,12 @@ fun AppRoot() {
                     templateState = tableTemplateState,
                     includePathInCounterScope = appSettings.includePathInCounterScope,
                     includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+                    styleState = tableTemplateViewModel.templates
+                        .firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }
+                        ?.styleState
+                        ?: TableStyleState(),
                     onTemplateChange = ::updateTemplateState,
+                    onStyleChange = ::updateTableStyleState,
                     onIncludePathInCounterScopeChange = { enabled ->
                         appScope.launch {
                             AppSettingsStore.setIncludePathInCounterScope(context, enabled)
