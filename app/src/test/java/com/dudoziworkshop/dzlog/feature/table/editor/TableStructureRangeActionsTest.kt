@@ -55,6 +55,10 @@ class TableStructureRangeActionsTest {
         )
 
         assertEquals(absorber.cellId, resolvedCovered.cellId)
+        assertEquals(
+            deleted.cells.size,
+            deleted.cells.map { it.rowIndex to it.colIndex }.toSet().size,
+        )
         assertFalse(
             TableStructureRangeActions.rootCells(deleted.cells)
                 .any { it.rowIndex == 1 && it.colIndex == 1 }
