@@ -139,6 +139,7 @@ fun TableEditorV2MockScreen(
     var mode by remember { mutableStateOf(MockMode.EDIT) }
     var showStyle by remember { mutableStateOf(false) }
     var showSaveRules by remember { mutableStateOf(false) }
+    var saveRulesSheetDraft by remember { mutableStateOf<MockSaveRulesDraft?>(null) }
     var saveRulesDraft by remember {
         mutableStateOf(
             mockSaveRulesDraftFromTemplate(
@@ -180,6 +181,15 @@ fun TableEditorV2MockScreen(
         )
         historyRevision += 1
         draftStyleState = updated
+    }
+
+    fun commitSaveRulesChange(updated: MockSaveRulesDraft) {
+        val updatedTemplate = applyMockSaveRulesDraft(draftTemplateState, updated)
+        if (updated == saveRulesDraft && updatedTemplate == draftTemplateState) return
+        undoManager.pushSnapshotBeforeAction(currentSnapshot())
+        historyRevision += 1
+        saveRulesDraft = updated
+        draftTemplateState = updatedTemplate
     }
 
     fun applyHistorySnapshot(snapshot: MockEditorSnapshot) {
@@ -300,7 +310,10 @@ fun TableEditorV2MockScreen(
                         showAdvancedStyle = false
                         showStyle = true
                     },
-                    onSaveRules = { showSaveRules = true },
+                    onSaveRules = {
+                        saveRulesSheetDraft = saveRulesDraft
+                        showSaveRules = true
+                    },
                 )
             }
         }
@@ -752,18 +765,22 @@ fun TableEditorV2MockScreen(
     }
 
     if (showSaveRules) {
+        val sheetDraft = saveRulesSheetDraft ?: saveRulesDraft
         MockSaveRulesSheet(
             cells = cells,
             rows = rows,
             cols = cols,
-            draft = saveRulesDraft,
-            onDraftChange = { saveRulesDraft = it },
+            draft = sheetDraft,
+            onDraftChange = { saveRulesSheetDraft = it },
             onApply = { applied ->
-                saveRulesDraft = applied
-                commitTemplateChange(applyMockSaveRulesDraft(draftTemplateState, applied))
+                commitSaveRulesChange(applied)
+                saveRulesSheetDraft = null
                 showSaveRules = false
             },
-            onDismiss = { showSaveRules = false },
+            onDismiss = {
+                saveRulesSheetDraft = null
+                showSaveRules = false
+            },
         )
     }
 
