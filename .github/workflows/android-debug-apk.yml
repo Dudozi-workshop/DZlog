@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - feat/table-editor-v2-ux-mock
+  pull_request:
+    branches:
+      - DZlog-260325
   workflow_dispatch:
 
 jobs:
