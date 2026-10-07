@@ -7,16 +7,16 @@ class TimeScopeNormalizerTest {
 
     @Test
     fun `returns HH mm when seconds are present`() {
-        assertEquals("11:22", normalizeTimeToMinute("11:22:33"))
+        assertEquals("1122", normalizeTimeToMinute("11:22:33"))
     }
 
     @Test
     fun `trims whitespace around tokens`() {
-        assertEquals("11:22", normalizeTimeToMinute(" 11 : 22 : 33 "))
+        assertEquals("1122", normalizeTimeToMinute(" 11 : 22 : 33 "))
     }
 
     @Test
-    fun `returns original when colon format is not available`() {
+    fun `accepts compact HHmm input`() {
         assertEquals("1122", normalizeTimeToMinute("1122"))
     }
 
