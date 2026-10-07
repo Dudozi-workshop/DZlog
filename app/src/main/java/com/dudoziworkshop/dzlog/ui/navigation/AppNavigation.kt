@@ -43,11 +43,8 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.settings.ui.CreditsScreen
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
-import com.dudoziworkshop.dzlog.feature.table.policy.activateSavedTableTemplate
+import com.dudoziworkshop.dzlog.feature.table.policy.TableTemplateCatalogCoordinator
 import com.dudoziworkshop.dzlog.feature.table.policy.activeSavedTableStyle
-import com.dudoziworkshop.dzlog.feature.table.policy.loadOrMigrateTableTemplateCatalog
-import com.dudoziworkshop.dzlog.feature.table.policy.persistTableTemplateCatalog
-import com.dudoziworkshop.dzlog.feature.table.policy.replaceActiveSavedTableTemplate
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
@@ -188,6 +185,9 @@ fun AppRoot() {
     val context = LocalContext.current
     val view = LocalView.current
     val activity = context as? android.app.Activity
+    val tableCatalogCoordinator = remember(context) {
+        TableTemplateCatalogCoordinator(context)
+    }
 
     val appSettings by AppSettingsStore.flow(context).collectAsState(
         initial = com.dudoziworkshop.dzlog.data.datastore.AppSettings(
@@ -238,7 +238,7 @@ fun AppRoot() {
 
     LaunchedEffect(Unit) {
         runCatching {
-            val catalog = loadOrMigrateTableTemplateCatalog(context)
+            val catalog = tableCatalogCoordinator.load()
             tableTemplateViewModel.restoreCatalog(
                 items = catalog.items,
                 activeId = catalog.activeTemplateId,
@@ -260,8 +260,7 @@ fun AppRoot() {
     fun persistCurrentCatalog() {
         if (!hasRestoredTemplate) return
         appScope.launch {
-            persistTableTemplateCatalog(
-                context = context,
+            tableCatalogCoordinator.persist(
                 items = tableTemplateViewModel.templates,
                 activeTemplateId = tableTemplateViewModel.activeTemplateId,
             )
@@ -276,15 +275,10 @@ fun AppRoot() {
         }
         if (!hasRestoredTemplate) return
         appScope.launch {
-            val next = replaceActiveSavedTableTemplate(
+            val next = tableCatalogCoordinator.updateActiveTemplate(
                 items = tableTemplateViewModel.templates,
                 activeTemplateId = tableTemplateViewModel.activeTemplateId,
                 templateState = updated,
-            )
-            persistTableTemplateCatalog(
-                context = context,
-                items = next,
-                activeTemplateId = tableTemplateViewModel.activeTemplateId,
             )
             tableTemplateViewModel.setCatalog(next, tableTemplateViewModel.activeTemplateId)
         }
@@ -299,20 +293,15 @@ fun AppRoot() {
         if (!hasRestoredTemplate) return false
 
         val activeId = tableTemplateViewModel.activeTemplateId
-        val updatedItems = replaceActiveSavedTableTemplate(
-            items = tableTemplateViewModel.templates,
-            activeTemplateId = activeId,
-            templateState = updatedTemplate,
-            styleState = updatedStyle,
-        )
 
         return runCatching {
             AppSettingsStore.setIncludePathInCounterScope(context, includePathInCounterScope)
             AppSettingsStore.setIncludeFilenameInCounterScope(context, includeFilenameInCounterScope)
-            persistTableTemplateCatalog(
-                context = context,
-                items = updatedItems,
+            val updatedItems = tableCatalogCoordinator.saveActiveSession(
+                items = tableTemplateViewModel.templates,
                 activeTemplateId = activeId,
+                templateState = updatedTemplate,
+                styleState = updatedStyle,
             )
 
             tableTemplateViewModel.setCatalog(updatedItems, activeId)
@@ -327,8 +316,7 @@ fun AppRoot() {
     fun openSavedTemplate(templateId: String) {
         val target = tableTemplateViewModel.templates.firstOrNull { it.id == templateId } ?: return
         appScope.launch {
-            activateSavedTableTemplate(
-                context = context,
+            tableCatalogCoordinator.activate(
                 items = tableTemplateViewModel.templates,
                 activeTemplateId = target.id,
             )
