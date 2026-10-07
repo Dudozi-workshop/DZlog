@@ -153,7 +153,7 @@ private fun normalizeFileNameDraftSlots(slots: List<FileNameSlotUiItem?>): List<
 }
 
 private fun normalizePathDraftSlots(slots: List<PathSlotUiItem?>): List<PathSlotUiItem?> {
-    return List(2) { index -> slots.getOrNull(index) }
+    return List(3) { index -> slots.getOrNull(index) }
 }
 
 private fun toFileNameUiSlotDraft(slot: com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft?): FileNameSlotUiItem? {
