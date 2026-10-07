@@ -179,3 +179,42 @@ This UI System must be applied without changing the current production feature s
 Refactor visual components first; preserve domain logic and editor behavior.
 
 The approved visual board is stored with the planning record in Notion.
+
+
+## 13. Home H3-3 — Final Visual Direction
+
+Approved on 2026-10-08.
+
+Baseline:
+- H3-3 textured / film-emotional home concept.
+- Warm cream background, natural light, leaf shadow and subtle paper/film texture.
+- The home remains a shooting tool first; atmosphere must not reduce legibility.
+
+Home hierarchy:
+1. DZlog + Settings
+2. Current capture state
+   - `현재 촬영`
+   - active template name
+   - next capture number
+3. Primary brown `촬영 시작`
+4. Recent capture
+   - section title `최근 촬영`
+   - right action `앨범 보기 >` opens full album
+   - tapping the recent image opens the album/grid focused on that capture context
+   - thumbnail + filename + time
+5. Bottom utility actions
+   - `표 상세설정`
+   - `저장 설정`
+
+Visibility policy:
+- Do not show table dimensions such as 3×4 on Home.
+- Do not show full save path or long naming-rule details on Home.
+- Do not show an extra chevron on the current-capture information block.
+- Keep the recent image slightly smaller than the earlier mock so the layout reads cleaner.
+
+Implementation targets:
+- Active template name: about 19–20sp SemiBold.
+- Primary capture button label: about 15–16sp SemiBold.
+- Bottom utility actions: about 42–46dp height, 13–14sp text.
+- Validate proportions on tall Android phone ratios around 9:19.5–9:20.
+- Existing Step 5B Home implementation is considered a prototype and must be revised to this H3-3 baseline.
