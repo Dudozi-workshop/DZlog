@@ -147,6 +147,7 @@ fun TableEditorV2MockScreen(
     var textColorMode by remember(styleState.textColorMode) { mutableIntStateOf(styleState.textColorMode) }
     var manualTextColor by remember(styleState.manualTextColor) { mutableIntStateOf(styleState.manualTextColor) }
     var showAdvancedStyle by remember { mutableStateOf(false) }
+    var layoutBoundaryDragActive by remember { mutableStateOf(false) }
     val undoManager = remember { TableUndoManager<MockEditorSnapshot>() }
     var historyRevision by remember { mutableIntStateOf(0) }
 
@@ -283,8 +284,17 @@ fun TableEditorV2MockScreen(
                 layoutMode = mode == MockMode.LAYOUT,
                 rowWeights = templateState.rowWeights,
                 colWeights = templateState.colWeights,
+                onBoundaryDragStart = {
+                    if (!layoutBoundaryDragActive) {
+                        undoManager.pushSnapshotBeforeAction(
+                            MockEditorSnapshot(templateState = templateState, styleState = styleState)
+                        )
+                        historyRevision += 1
+                        layoutBoundaryDragActive = true
+                    }
+                },
                 onRowBoundaryDrag = { boundaryIndex, deltaFraction ->
-                    commitTemplateChange(
+                    onTemplateChange(
                         adjustMockRowBoundary(
                             templateState = templateState,
                             boundaryIndex = boundaryIndex,
@@ -293,13 +303,16 @@ fun TableEditorV2MockScreen(
                     )
                 },
                 onColBoundaryDrag = { boundaryIndex, deltaFraction ->
-                    commitTemplateChange(
+                    onTemplateChange(
                         adjustMockColumnBoundary(
                             templateState = templateState,
                             boundaryIndex = boundaryIndex,
                             deltaFraction = deltaFraction,
                         )
                     )
+                },
+                onBoundaryDragEnd = {
+                    layoutBoundaryDragActive = false
                 },
                 onCellClick = { id ->
                     if (mode == MockMode.LAYOUT) {
@@ -643,8 +656,10 @@ private fun ColumnScope.MockTableCanvas(
     layoutMode: Boolean,
     rowWeights: List<Float>?,
     colWeights: List<Float>?,
+    onBoundaryDragStart: () -> Unit,
     onRowBoundaryDrag: (Int, Float) -> Unit,
     onColBoundaryDrag: (Int, Float) -> Unit,
+    onBoundaryDragEnd: () -> Unit,
     onCellClick: (Int) -> Unit,
 ) {
     val background = if (darkTable) Color(0xFF1E2220) else Color(0xFFE9EFE7)
@@ -739,7 +754,11 @@ private fun ColumnScope.MockTableCanvas(
                             .width(20.dp)
                             .fillMaxHeight()
                             .pointerInput(boundaryIndex, totalWidthPx) {
-                                detectDragGestures { change, dragAmount ->
+                                detectDragGestures(
+                                    onDragStart = { onBoundaryDragStart() },
+                                    onDragEnd = onBoundaryDragEnd,
+                                    onDragCancel = onBoundaryDragEnd,
+                                ) { change, dragAmount ->
                                     change.consume()
                                     onColBoundaryDrag(boundaryIndex, dragAmount.x / totalWidthPx)
                                 }
@@ -763,7 +782,11 @@ private fun ColumnScope.MockTableCanvas(
                             .height(20.dp)
                             .fillMaxWidth()
                             .pointerInput(boundaryIndex, totalHeightPx) {
-                                detectDragGestures { change, dragAmount ->
+                                detectDragGestures(
+                                    onDragStart = { onBoundaryDragStart() },
+                                    onDragEnd = onBoundaryDragEnd,
+                                    onDragCancel = onBoundaryDragEnd,
+                                ) { change, dragAmount ->
                                     change.consume()
                                     onRowBoundaryDrag(boundaryIndex, dragAmount.y / totalHeightPx)
                                 }
