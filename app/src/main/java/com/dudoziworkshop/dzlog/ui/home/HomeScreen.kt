@@ -29,34 +29,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.repeatOnLifecycle
-import com.dudoziworkshop.dzlog.data.datastore.AppSettings
-import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
-import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
-import com.dudoziworkshop.dzlog.debug.CounterDebugDump
-import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
-import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
-import com.dudoziworkshop.dzlog.domain.preview.buildPreview
-import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
-import com.dudoziworkshop.dzlog.domain.preview.decideTickUnitFromTemplate
-import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
-import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZIconButton
@@ -66,9 +48,6 @@ import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -99,89 +78,19 @@ fun HomeScreen(
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val settings by AppSettingsStore.flow(context).collectAsState(
-        initial = AppSettings.Default,
-    )
+    val homeViewModel: HomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val uiState by homeViewModel.uiState.collectAsState()
+    val settings = uiState.settings
+    val nextCounterPreview = uiState.nextCounterPreview
+    val latestImage = uiState.latestImage
 
-    val counterFacade = remember(context, settings.counterPadding) {
-        CounterFacade(
-            context = context,
-            counterDigits = settings.counterPadding,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-        )
+    androidx.compose.runtime.DisposableEffect(homeViewModel) {
+        homeViewModel.activate(tableTemplateState)
+        onDispose { homeViewModel.deactivate() }
     }
 
-    var previewNow by remember { mutableStateOf(Date()) }
-    var nextCounterPreview by remember { mutableStateOf(1) }
-    val phraseProgressCursor = 1
-
-    LaunchedEffect(tableTemplateState.cells, lifecycleOwner) {
-        val unit = decideTickUnitFromTemplate(tableTemplateState.cells)
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            while (true) {
-                delay(computeNextDelayMillis(unit))
-                previewNow = Date()
-            }
-        }
-    }
-
-    LaunchedEffect(
-        tableTemplateState.cells,
-        tableTemplateState.fileNameSlotDrafts,
-        tableTemplateState.pathSlotDrafts,
-        tableTemplateState.phraseSets,
-        settings.saveMode,
-        settings.counterPadding,
-        settings.includePathInCounterScope,
-        settings.includeFilenameInCounterScope,
-        previewNow,
-        phraseProgressCursor,
-        counterFacade,
-    ) {
-        val previewPipeline = buildPreview(
-            PreviewInput(
-                templateState = tableTemplateState,
-                captureNow = previewNow,
-                counterDigits = settings.counterPadding,
-                dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
-                timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
-                fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-                includePathInCounterScope = settings.includePathInCounterScope,
-                includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
-                saveMode = settings.saveMode,
-                scopeNextCounter = 1,
-                phraseProgressCursor = phraseProgressCursor,
-            ),
-        )
-        val counterRequest = CounterRequestResolver.fromHome(
-            counterScope = previewPipeline.previewNaming.counterScope,
-            saveMode = settings.saveMode,
-            scanPrefix = previewPipeline.previewNaming.scanPrefix,
-            includePathInScope = settings.includePathInCounterScope,
-            includeFilenameInScope = settings.includeFilenameInCounterScope,
-        )
-        val counterRead = counterFacade.read(counterRequest)
-        nextCounterPreview = counterRead.next.coerceAtLeast(1)
-
-        CounterDebugDump.dump(
-            tag = "HomePreview",
-            context = context,
-            scopedStream = counterRead.scopedStream,
-            appSettings = settings,
-            nextSeed = nextCounterPreview,
-            note = null,
-        )
-    }
-
-    var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
-    LaunchedEffect(Unit) {
-        latestImage = withContext(Dispatchers.IO) {
-            runCatching {
-                DzlogMediaStoreReader(context.contentResolver).loadLatestImage()
-            }.getOrNull()
-        }
+    LaunchedEffect(tableTemplateState) {
+        homeViewModel.updateTemplate(tableTemplateState)
     }
 
     val defaultCaptureName = stringResource(com.dudoziworkshop.dzlog.R.string.home_default_capture)
