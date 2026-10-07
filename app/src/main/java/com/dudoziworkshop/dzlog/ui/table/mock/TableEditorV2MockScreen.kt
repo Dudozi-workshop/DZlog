@@ -66,6 +66,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
+import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType
 import com.dudoziworkshop.dzlog.feature.table.editor.TableUndoManager
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
@@ -131,6 +133,7 @@ fun TableEditorV2MockScreen(
     var selectedId by remember { mutableStateOf<Int?>(null) }
     var layoutSelection by remember { mutableStateOf(MockLayoutSelection()) }
     var showLayoutDeleteSheet by remember { mutableStateOf(false) }
+    var pendingMergeDecision by remember { mutableStateOf<TableMergeDecision?>(null) }
     var mode by remember { mutableStateOf(MockMode.EDIT) }
     var showStyle by remember { mutableStateOf(false) }
     var showSaveRules by remember { mutableStateOf(false) }
@@ -494,12 +497,27 @@ fun TableEditorV2MockScreen(
                         commitTemplateChange(addMockLayoutColumn(draftTemplateState, layoutSelection))
                     },
                     onMergeSelection = {
-                        commitTemplateChange(
-                            mergeOrUnmergeMockLayoutSelection(
-                                templateState = draftTemplateState,
-                                selection = layoutSelection,
-                            )
+                        val populatedCellIds = cells
+                            .filter { it.value.isNotBlank() }
+                            .mapNotNull { it.domainCellId }
+                            .toSet()
+                        val decision = resolveMockLayoutMergeDecision(
+                            templateState = draftTemplateState,
+                            selection = layoutSelection,
+                            populatedCellIds = populatedCellIds,
                         )
+                        when (decision.type) {
+                            TableMergeDecisionType.CONFIRM_MERGE -> {
+                                pendingMergeDecision = decision
+                            }
+                            TableMergeDecisionType.MERGE,
+                            TableMergeDecisionType.UNMERGE -> {
+                                commitTemplateChange(
+                                    applyMockLayoutMergeDecision(draftTemplateState, decision)
+                                )
+                            }
+                            TableMergeDecisionType.NONE -> Unit
+                        }
                     },
                     onDeleteSelection = {
                         showLayoutDeleteSheet = true
@@ -507,6 +525,31 @@ fun TableEditorV2MockScreen(
                 )
             }
         }
+    }
+
+    if (pendingMergeDecision != null) {
+        AlertDialog(
+            onDismissRequest = { pendingMergeDecision = null },
+            title = { Text("셀을 병합할까요?") },
+            text = { Text("병합하면 왼쪽 위 셀의 값만 유지됩니다.") },
+            dismissButton = {
+                TextButton(onClick = { pendingMergeDecision = null }) {
+                    Text("취소")
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingMergeDecision?.let { decision ->
+                            commitTemplateChange(
+                                applyMockLayoutMergeDecision(draftTemplateState, decision)
+                            )
+                        }
+                        pendingMergeDecision = null
+                    },
+                ) { Text("병합") }
+            },
+        )
     }
 
     if (showLayoutDeleteSheet) {
