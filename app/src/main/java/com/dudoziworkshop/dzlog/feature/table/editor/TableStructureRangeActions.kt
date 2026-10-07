@@ -5,7 +5,61 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 
+enum class TableMergeDecisionType {
+    NONE,
+    MERGE,
+    CONFIRM_MERGE,
+    UNMERGE,
+}
+
+data class TableMergeDecision(
+    val type: TableMergeDecisionType,
+    val range: TableSelectionRange? = null,
+    val rootCellId: String? = null,
+)
+
 object TableStructureRangeActions {
+
+    fun resolveMergeDecision(
+        templateState: TableTemplateState,
+        selectionRange: TableSelectionRange?,
+        populatedCellIds: Set<String>,
+    ): TableMergeDecision {
+        val range = selectionRange ?: return TableMergeDecision(TableMergeDecisionType.NONE)
+        val selectedRoots = interactiveRootCellsInRange(templateState.cells, range)
+        val singleRoot = selectedRoots.singleOrNull()
+        if (
+            singleRoot != null &&
+            (singleRoot.rowSpan > 1 || singleRoot.colSpan > 1) &&
+            range.minRow == singleRoot.rowIndex &&
+            range.maxRow == singleRoot.rowIndex + singleRoot.rowSpan - 1 &&
+            range.minCol == singleRoot.colIndex &&
+            range.maxCol == singleRoot.colIndex + singleRoot.colSpan - 1
+        ) {
+            return TableMergeDecision(
+                type = TableMergeDecisionType.UNMERGE,
+                range = range,
+                rootCellId = singleRoot.cellId,
+            )
+        }
+
+        val expanded = expandRangeToMergedBlocks(templateState.cells, range)
+        if (expanded != range || range.rowCount * range.colCount < 2) {
+            return TableMergeDecision(TableMergeDecisionType.NONE)
+        }
+
+        val populatedCount = templateState.cells.count { cell ->
+            range.contains(cell.rowIndex, cell.colIndex) && cell.cellId in populatedCellIds
+        }
+        return TableMergeDecision(
+            type = if (populatedCount > 1) {
+                TableMergeDecisionType.CONFIRM_MERGE
+            } else {
+                TableMergeDecisionType.MERGE
+            },
+            range = range,
+        )
+    }
 
     data class StructureResolvedCell(
         val cellId: String,
