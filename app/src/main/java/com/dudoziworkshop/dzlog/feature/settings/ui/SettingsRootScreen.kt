@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,12 +16,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
@@ -31,15 +30,10 @@ import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.VolunteerActivism
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -59,6 +53,9 @@ import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.feature.settings.policy.SettingsAction
 import com.dudoziworkshop.dzlog.feature.settings.policy.applySettingsAction
+import com.dudoziworkshop.dzlog.ui.common.DDZCard
+import com.dudoziworkshop.dzlog.ui.common.DDZSettingRow
+import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControl
 import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControlStyles
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -129,7 +126,6 @@ private val SETTINGS_CAPTURE_ASSIST_ITEMS = listOf(
     )
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsRootScreen(
     onBack: () -> Unit,
@@ -161,33 +157,9 @@ fun SettingsRootScreen(
     Scaffold(
         containerColor = DDZColor.Background,
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = "설정",
-                        style = DDZTypography.ScreenTitle,
-                        color = DDZColor.Primary
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "뒤로가기",
-                            tint = DDZColor.Primary
-                        )
-                    }
-                },
-                actions = {
-                    // 헤더 우측은 의도적으로 비워서 다른 화면 패턴과 맞춘다.
-                    Spacer(modifier = Modifier.width(48.dp))
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DDZColor.Background,
-                    navigationIconContentColor = DDZColor.Primary,
-                    titleContentColor = DDZColor.Primary,
-                    actionIconContentColor = DDZColor.Primary
-                )
+            DDZTopBar(
+                title = "설정",
+                onBack = onBack,
             )
         }
     ) { innerPadding ->
@@ -353,7 +325,7 @@ fun SettingsRootScreen(
             Text(
                 text = appVersion,
                 style = DDZTypography.Caption,
-                color = DDZColor.TextMuted,
+                color = DDZColor.TextSecondary,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = DDZSpacing.sectionGap),
@@ -376,18 +348,15 @@ private fun SectionBlock(
         Text(
             text = title,
             style = DDZTypography.SectionTitle,
-            color = DDZColor.Primary,
+            color = DDZColor.TextPrimary,
             modifier = Modifier.padding(start = 4.dp)
         )
 
-        Surface(
+        DDZCard(
             modifier = Modifier.fillMaxWidth(),
             shape = SettingsCardShape,
-            color = DDZColor.Card,
-            border = BorderStroke(1.dp, DDZColor.Border)
         ) {
             Column(
-                modifier = Modifier.padding(DDZSpacing.cardPadding),
                 verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)
             ) {
                 content()
@@ -400,41 +369,15 @@ private fun SectionBlock(
 private fun CreditsEntryRow(
     onClick: () -> Unit,
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(SettingsCardShape)
-            .clickable(onClick = onClick),
+    DDZCard(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(0.dp),
         shape = SettingsCardShape,
-        color = DDZColor.Card,
-        border = BorderStroke(1.dp, DDZColor.Border)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = DDZSpacing.cardPadding, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.VolunteerActivism,
-                contentDescription = null,
-                tint = DDZColor.SageDark,
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = "도움 주신 분들",
-                style = DDZTypography.Body,
-                color = DDZColor.TextPrimary,
-                modifier = Modifier.weight(1f)
-            )
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = DDZColor.TextMuted,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        DDZSettingRow(
+            label = "도움 주신 분들",
+            onClick = onClick,
+        )
     }
 }
 
@@ -497,8 +440,8 @@ private fun QualityOptionRow(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    val borderColor = if (selected) DDZColor.SageDark else DDZColor.Border
-    val selectedBg = if (selected) DDZColor.SageLight.copy(alpha = 0.28f) else DDZColor.Surface
+    val borderColor = if (selected) DDZColor.SelectedDark else DDZColor.Border
+    val selectedBg = if (selected) DDZColor.SelectedSoft.copy(alpha = 0.28f) else DDZColor.Surface
 
     Surface(
         modifier = Modifier
@@ -535,7 +478,7 @@ private fun QualityOptionRow(
                 Text(
                     text = item.description,
                     style = DDZTypography.Caption,
-                    color = DDZColor.TextMuted,
+                    color = DDZColor.TextSecondary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -545,7 +488,7 @@ private fun QualityOptionRow(
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = "선택됨",
-                    tint = DDZColor.SageDark,
+                    tint = DDZColor.SelectedDark,
                     modifier = Modifier.size(18.dp)
                 )
             } else {
@@ -565,8 +508,8 @@ private fun ToggleCardRow(
     checked: Boolean,
     onToggle: () -> Unit
 ) {
-    val borderColor = if (checked) DDZColor.SageDark else DDZColor.Border
-    val selectedBg = if (checked) DDZColor.SageLight.copy(alpha = 0.28f) else DDZColor.Surface
+    val borderColor = if (checked) DDZColor.SelectedDark else DDZColor.Border
+    val selectedBg = if (checked) DDZColor.SelectedSoft.copy(alpha = 0.28f) else DDZColor.Surface
 
     Surface(
         modifier = Modifier
@@ -603,7 +546,7 @@ private fun ToggleCardRow(
                 Text(
                     text = item.description,
                     style = DDZTypography.Caption,
-                    color = DDZColor.TextMuted,
+                    color = DDZColor.TextSecondary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -613,7 +556,7 @@ private fun ToggleCardRow(
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = "선택됨",
-                    tint = DDZColor.SageDark,
+                    tint = DDZColor.SelectedDark,
                     modifier = Modifier.size(18.dp)
                 )
             } else {
@@ -633,7 +576,7 @@ private fun IconSlot(
     icon: ImageVector?,
     selected: Boolean
 ) {
-    val tint = if (selected) DDZColor.SageDark else DDZColor.TextMuted
+    val tint = if (selected) DDZColor.SelectedDark else DDZColor.TextSecondary
     Box(
         modifier = Modifier.size(20.dp),
         contentAlignment = Alignment.Center
