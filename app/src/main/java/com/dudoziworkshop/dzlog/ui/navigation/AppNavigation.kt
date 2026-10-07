@@ -610,7 +610,7 @@ fun AppRoot() {
 
     val keepCameraAliveBehindAlbum = albumEntryScreen == AppScreen.CAMERA && isAlbumScreen(screen)
 
-    BackHandler(enabled = true) {
+    BackHandler(enabled = screen != AppScreen.TABLE_EDITOR_V2_MOCK) {
         // 기본 내비게이션(화면 기준)
         when (screen) {
             AppScreen.HOME -> {
@@ -716,7 +716,9 @@ fun AppRoot() {
                         .firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }
                         ?.styleState
                         ?: TableStyleState(),
+                    isUnsavedNewTemplate = pendingNewTemplateId == tableTemplateViewModel.activeTemplateId,
                     onSave = ::saveV2EditSession,
+                    onDiscardUnsavedNewTemplate = ::discardPendingNewTemplate,
                     onBack = { screen = previousScreen },
                 )
             }
