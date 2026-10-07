@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -92,7 +93,7 @@ private fun formatRecentCaptureTime(dateAddedSeconds: Long): String {
 @Composable
 fun HomeScreen(
     tableTemplateState: TableTemplateState,
-    activeTemplateName: String = "기본 촬영",
+    activeTemplateName: String = "",
     onOpenSettings: () -> Unit,
     onStartCamera: () -> Unit,
     onOpenTableEditor: () -> Unit,
@@ -195,7 +196,8 @@ fun HomeScreen(
         }
     }
 
-    val normalizedTemplateName = activeTemplateName.trim().ifBlank { "기본 촬영" }
+    val defaultCaptureName = stringResource(com.dudoziworkshop.dzlog.R.string.home_default_capture)
+    val normalizedTemplateName = activeTemplateName.trim().ifBlank { defaultCaptureName }
     val nextCounterText = remember(nextCounterPreview, settings.counterPadding) {
         val raw = nextCounterPreview.toString()
         if (settings.counterPadding > 0) raw.padStart(settings.counterPadding, '0') else raw
@@ -203,9 +205,9 @@ fun HomeScreen(
 
     BoxWithConstraints(modifier = Modifier.dzScreen()) {
         val bottomInset = rememberThreeButtonNavEquivalentBottomPadding()
-        val horizontalPad = clampDp(maxWidth * 0.055f, 18.dp, 24.dp)
-        val sectionGap = clampDp(maxHeight * 0.020f, 14.dp, 22.dp)
-        val heroTopGap = clampDp(maxHeight * 0.055f, 30.dp, 52.dp)
+        val horizontalPad = clampDp(maxWidth * 0.055f, HomeUiSpec.HorizontalPaddingMin, HomeUiSpec.HorizontalPaddingMax)
+        val sectionGap = clampDp(maxHeight * 0.020f, HomeUiSpec.SectionGapMin, HomeUiSpec.SectionGapMax)
+        val heroTopGap = clampDp(maxHeight * 0.055f, HomeUiSpec.HeroTopGapMin, HomeUiSpec.HeroTopGapMax)
 
         HomeAmbientBackground()
 
@@ -216,13 +218,13 @@ fun HomeScreen(
                 .padding(
                     start = horizontalPad,
                     end = horizontalPad,
-                    bottom = 18.dp + bottomInset,
+                    bottom = HomeUiSpec.BottomContentPadding + bottomInset,
                 ),
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp),
+                    .height(HomeUiSpec.HeaderHeight),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -243,11 +245,11 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp),
+                    .padding(horizontal = HomeUiSpec.CurrentCaptureInnerHorizontalPadding),
                 horizontalAlignment = Alignment.Start,
             ) {
                 Text(
-                    text = "현재 촬영",
+                    text = stringResource(com.dudoziworkshop.dzlog.R.string.home_current_capture),
                     style = DDZTypography.Caption.copy(fontWeight = FontWeight.Medium),
                     color = DDZColor.TextSecondary,
                 )
@@ -255,8 +257,8 @@ fun HomeScreen(
                 Text(
                     text = normalizedTemplateName,
                     style = DDZTypography.ScreenTitle.copy(
-                        fontSize = 20.sp,
-                        lineHeight = 24.sp,
+                        fontSize = HomeUiSpec.TemplateNameSize,
+                        lineHeight = HomeUiSpec.TemplateNameLineHeight,
                         fontWeight = FontWeight.SemiBold,
                     ),
                     color = DDZColor.TextPrimary,
@@ -265,7 +267,7 @@ fun HomeScreen(
                 )
                 Spacer(Modifier.height(5.dp))
                 Text(
-                    text = "다음 촬영 $nextCounterText",
+                    text = stringResource(com.dudoziworkshop.dzlog.R.string.home_next_capture, nextCounterText),
                     style = DDZTypography.Secondary,
                     color = DDZColor.TextSecondary,
                 )
@@ -274,16 +276,16 @@ fun HomeScreen(
             Spacer(Modifier.height(24.dp))
 
             DDZButton(
-                text = "촬영 시작",
+                text = stringResource(com.dudoziworkshop.dzlog.R.string.home_start_capture),
                 onClick = onStartCamera,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp),
+                    .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset),
                 style = DDZButtonStyle.Primary,
-                minHeight = 50.dp,
-                shape = RoundedCornerShape(14.dp),
+                minHeight = HomeUiSpec.PrimaryButtonHeight,
+                shape = RoundedCornerShape(HomeUiSpec.PrimaryButtonRadius),
                 textStyleOverride = DDZTypography.ButtonText.copy(
-                    fontSize = 15.sp,
+                    fontSize = HomeUiSpec.PrimaryButtonTextSize,
                     fontWeight = FontWeight.SemiBold,
                 ),
             )
@@ -295,13 +297,13 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "최근 촬영",
+                    text = stringResource(com.dudoziworkshop.dzlog.R.string.home_recent_capture),
                     style = DDZTypography.SectionTitle,
                     color = DDZColor.TextPrimary,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = "앨범 보기 >",
+                    text = stringResource(com.dudoziworkshop.dzlog.R.string.home_album_view),
                     style = DDZTypography.Secondary.copy(fontWeight = FontWeight.Medium),
                     color = DDZColor.PrimaryDark,
                     modifier = Modifier
@@ -317,16 +319,16 @@ fun HomeScreen(
             if (image != null) {
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth(0.94f)
+                        .fillMaxWidth(HomeUiSpec.RecentImageWidthFraction)
                         .align(Alignment.CenterHorizontally),
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .aspectRatio(1.58f)
-                            .clip(RoundedCornerShape(15.dp))
+                            .aspectRatio(HomeUiSpec.RecentImageAspectRatio)
+                            .clip(RoundedCornerShape(HomeUiSpec.RecentImageRadius))
                             .background(DDZColor.Surface)
-                            .border(1.dp, DDZColor.Border, RoundedCornerShape(15.dp))
+                            .border(1.dp, DDZColor.Border, RoundedCornerShape(HomeUiSpec.RecentImageRadius))
                             .clickable {
                                 val (g1, g2) = parseG1G2FromRelativePath(image.relativePath)
                                 onOpenRecentCaptureGrid(g1, g2, image.relativePath, 0)
@@ -358,12 +360,12 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
-                        text = "아직 촬영한 사진이 없어요.",
+                        text = stringResource(com.dudoziworkshop.dzlog.R.string.home_no_recent_capture),
                         style = DDZTypography.Body,
                         color = DDZColor.TextPrimary,
                     )
                     Text(
-                        text = "첫 기록을 남겨보세요.",
+                        text = stringResource(com.dudoziworkshop.dzlog.R.string.home_first_record_hint),
                         style = DDZTypography.Secondary,
                         color = DDZColor.TextSecondary,
                     )
@@ -374,33 +376,33 @@ fun HomeScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(HomeUiSpec.UtilityButtonGap),
             ) {
                 DDZButton(
-                    text = "표 상세설정",
+                    text = stringResource(com.dudoziworkshop.dzlog.R.string.home_table_settings),
                     leadingIcon = Icons.Default.GridView,
                     onClick = onOpenTableEditor,
                     modifier = Modifier.weight(1f),
                     style = DDZButtonStyle.Secondary,
-                    minHeight = 44.dp,
-                    shape = RoundedCornerShape(13.dp),
+                    minHeight = HomeUiSpec.UtilityButtonHeight,
+                    shape = RoundedCornerShape(HomeUiSpec.UtilityButtonRadius),
                     containerColorOverride = DDZColor.SurfaceSoft.copy(alpha = 0.68f),
                     textStyleOverride = DDZTypography.ButtonText.copy(
-                        fontSize = 13.sp,
+                        fontSize = HomeUiSpec.UtilityButtonTextSize,
                         fontWeight = FontWeight.Medium,
                     ),
                 )
                 DDZButton(
-                    text = "저장 설정",
+                    text = stringResource(com.dudoziworkshop.dzlog.R.string.home_save_settings),
                     leadingIcon = Icons.Default.Folder,
                     onClick = onOpenSaveSettings,
                     modifier = Modifier.weight(1f),
                     style = DDZButtonStyle.Secondary,
-                    minHeight = 44.dp,
-                    shape = RoundedCornerShape(13.dp),
+                    minHeight = HomeUiSpec.UtilityButtonHeight,
+                    shape = RoundedCornerShape(HomeUiSpec.UtilityButtonRadius),
                     containerColorOverride = DDZColor.SurfaceSoft.copy(alpha = 0.68f),
                     textStyleOverride = DDZTypography.ButtonText.copy(
-                        fontSize = 13.sp,
+                        fontSize = HomeUiSpec.UtilityButtonTextSize,
                         fontWeight = FontWeight.Medium,
                     ),
                 )
