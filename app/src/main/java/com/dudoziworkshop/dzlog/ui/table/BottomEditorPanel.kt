@@ -47,7 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
-import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -670,7 +670,7 @@ internal fun BottomEditorPanel(
                     )
                 }
                 Spacer(Modifier.height(8.dp))
-                val normalizedSlots = List(3) { index -> pathSlotItems.getOrNull(index) }
+                val normalizedSlots = List(PATH_SLOT_UI_MAX_COUNT) { index -> pathSlotItems.getOrNull(index) }
                 val canMoveLeft = selectedPathSlot?.let {
                     normalizedSlots.getOrNull(it) != null && normalizedSlots.getOrNull(it - 1) != null
                 } == true
