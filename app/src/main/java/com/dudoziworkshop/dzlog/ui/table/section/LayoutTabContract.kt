@@ -106,6 +106,7 @@ data class LayoutTabUiState(
     val wmTextAlign: Int,
     val structureSelectedCellIds: Set<String>,
     val isUndoAvailable: Boolean,
+    val templateName: String = "",
 )
 
 data class LayoutTabActions(
@@ -163,6 +164,5 @@ data class LayoutTabActions(
     val onCommitRowWeights: (List<Float>) -> Unit,
     val onCommitColumnWeights: (List<Float>) -> Unit,
     val onOpenRotatingTemplateDialogForSelected: (String) -> Unit,
-    val onOpenPlacementDialog: () -> Unit,
-    val templateName: String = ""
+    val onOpenPlacementDialog: () -> Unit
 )
