@@ -17,30 +17,23 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.R
+import com.dudoziworkshop.dzlog.ui.common.DDZButton
+import com.dudoziworkshop.dzlog.ui.common.DDZCard
+import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
@@ -51,7 +44,7 @@ private val supporters = listOf("아무개", "아무개", "아무개")
 private val privateTesters = listOf("아무개", "아무개")
 private val ideaFeedback = listOf("아무개", "아무개")
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CreditsScreen(
     onBack: () -> Unit,
@@ -62,7 +55,7 @@ fun CreditsScreen(
     ) {
         Scaffold(
             containerColor = DDZColor.Background,
-            topBar = { CreditsTopBar(onBack = onBack) },
+            topBar = { DDZTopBar(title = "도움 주신 분들", onBack = onBack) },
             bottomBar = { SupportButton(onClick = {}) }
         ) { innerPadding ->
             // 주요 정책: 상/하단은 고정하고 중앙 콘텐츠만 스크롤되도록 유지한다.
@@ -107,46 +100,11 @@ fun CreditsScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CreditsTopBar(
-    onBack: () -> Unit,
-) {
-    CenterAlignedTopAppBar(
-        title = {
-            Text(
-                text = "도움 주신 분들",
-                style = DDZTypography.CardTitle,
-                color = DDZColor.Primary
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "뒤로가기",
-                    tint = DDZColor.Primary
-                )
-            }
-        },
-        actions = { Spacer(modifier = Modifier.size(48.dp)) },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = DDZColor.Background,
-            navigationIconContentColor = DDZColor.Primary,
-            titleContentColor = DDZColor.Primary,
-            actionIconContentColor = DDZColor.Primary
-        )
-    )
-}
-
 @Composable
 private fun HeaderCard() {
-    Card(
+    DDZCard(
         modifier = Modifier.fillMaxWidth(),
         shape = CARD_SHAPE,
-        colors = CardDefaults.cardColors(containerColor = DDZColor.Card),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, DDZColor.Border)
     ) {
         Column(
             modifier = Modifier
@@ -163,12 +121,12 @@ private fun HeaderCard() {
             Text(
                 text = "DZLog",
                 style = DDZTypography.ScreenTitle,
-                color = DDZColor.Primary
+                color = DDZColor.PrimaryDark
             )
             Text(
                 text = "촬영·기록·정리를 한 번에",
                 style = DDZTypography.Caption,
-                color = DDZColor.TextMuted
+                color = DDZColor.TextSecondary
             )
         }
     }
@@ -180,12 +138,9 @@ private fun CreditsSectionCard(
     title: String,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Card(
+    DDZCard(
         modifier = Modifier.fillMaxWidth(),
         shape = CARD_SHAPE,
-        colors = CardDefaults.cardColors(containerColor = DDZColor.Card),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, DDZColor.Border)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -198,13 +153,13 @@ private fun CreditsSectionCard(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = DDZColor.Primary,
+                    tint = DDZColor.PrimaryDark,
                     modifier = Modifier.size(18.dp)
                 )
                 Text(
                     text = title,
                     style = DDZTypography.Body,
-                    color = DDZColor.Primary
+                    color = DDZColor.PrimaryDark
                 )
             }
             // 주요 정책: 슬롯 콘텐츠는 카드 본문 ColumnScope에서 직접 렌더링한다.
@@ -261,7 +216,7 @@ private fun ContributorGroup(
         Text(
             text = subtitle,
             style = DDZTypography.Body,
-            color = DDZColor.Primary
+            color = DDZColor.PrimaryDark
         )
         ContributorLines(names = names)
     }
@@ -272,19 +227,12 @@ private fun SupportButton(
     onClick: () -> Unit,
 ) {
     Surface(color = DDZColor.Background) {
-        Button(
+        DDZButton(
+            text = "후원하기",
             onClick = onClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = DDZColor.Primary)
-        ) {
-            Text(
-                text = "후원하기",
-                style = DDZTypography.ButtonText,
-                color = Color.White
-            )
-        }
+        )
     }
 }
