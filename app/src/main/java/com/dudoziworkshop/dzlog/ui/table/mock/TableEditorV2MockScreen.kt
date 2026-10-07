@@ -107,19 +107,19 @@ fun TableEditorV2MockScreen(
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean,
     styleState: TableStyleState,
-    onTemplateChange: (TableTemplateState) -> Unit,
-    onStyleChange: (TableStyleState) -> Unit,
-    onIncludePathInCounterScopeChange: (Boolean) -> Unit,
-    onIncludeFilenameInCounterScopeChange: (Boolean) -> Unit,
+    onSave: (TableTemplateState, TableStyleState, Boolean, Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
-    val cells = remember(templateState.cells, templateState.rows, templateState.cols) {
+    var draftTemplateState by remember { mutableStateOf(templateState) }
+    var draftStyleState by remember { mutableStateOf(styleState) }
+
+    val cells = remember(draftTemplateState.cells, draftTemplateState.rows, draftTemplateState.cols) {
         mutableStateListOf<MockCell>().apply {
-            addAll(mockCellsFromTemplate(templateState))
+            addAll(mockCellsFromTemplate(draftTemplateState))
         }
     }
-    var rows by remember(templateState.rows) { mutableIntStateOf(templateState.rows) }
-    var cols by remember(templateState.cols) { mutableIntStateOf(templateState.cols) }
+    var rows by remember(draftTemplateState.rows) { mutableIntStateOf(draftTemplateState.rows) }
+    var cols by remember(draftTemplateState.cols) { mutableIntStateOf(draftTemplateState.cols) }
     var selectedId by remember { mutableStateOf<Int?>(null) }
     var layoutSelection by remember { mutableStateOf(MockLayoutSelection()) }
     var showLayoutDeleteSheet by remember { mutableStateOf(false) }
@@ -127,53 +127,53 @@ fun TableEditorV2MockScreen(
     var showStyle by remember { mutableStateOf(false) }
     var showSaveRules by remember { mutableStateOf(false) }
     var saveRulesDraft by remember(
-        templateState.fileNameSlotDrafts,
-        templateState.pathSlotDrafts,
+        draftTemplateState.fileNameSlotDrafts,
+        draftTemplateState.pathSlotDrafts,
         includePathInCounterScope,
         includeFilenameInCounterScope,
     ) {
         mutableStateOf(
             mockSaveRulesDraftFromTemplate(
-                templateState = templateState,
+                templateState = draftTemplateState,
                 includePathInScope = includePathInCounterScope,
                 includeFilenameInScope = includeFilenameInCounterScope,
             )
         )
     }
-    var darkTable by remember(styleState.bgStyle) { mutableStateOf(styleState.bgStyle == 0) }
-    var transparentTable by remember(styleState.bgStyle) { mutableStateOf(styleState.bgStyle == 2) }
-    var gridEnabled by remember(styleState.gridEnabled) { mutableStateOf(styleState.gridEnabled) }
-    var fontScale by remember(styleState.valueScale) { mutableFloatStateOf(styleState.valueScale / 100f) }
-    var textAlignIndex by remember(styleState.textAlign) { mutableIntStateOf(styleState.textAlign.coerceIn(0, 2)) }
-    var bgAlpha by remember(styleState.bgAlpha) { mutableIntStateOf(styleState.bgAlpha) }
-    var textColorMode by remember(styleState.textColorMode) { mutableIntStateOf(styleState.textColorMode) }
-    var manualTextColor by remember(styleState.manualTextColor) { mutableIntStateOf(styleState.manualTextColor) }
+    var darkTable by remember(draftStyleState.bgStyle) { mutableStateOf(draftStyleState.bgStyle == 0) }
+    var transparentTable by remember(draftStyleState.bgStyle) { mutableStateOf(draftStyleState.bgStyle == 2) }
+    var gridEnabled by remember(draftStyleState.gridEnabled) { mutableStateOf(draftStyleState.gridEnabled) }
+    var fontScale by remember(draftStyleState.valueScale) { mutableFloatStateOf(draftStyleState.valueScale / 100f) }
+    var textAlignIndex by remember(draftStyleState.textAlign) { mutableIntStateOf(draftStyleState.textAlign.coerceIn(0, 2)) }
+    var bgAlpha by remember(draftStyleState.bgAlpha) { mutableIntStateOf(draftStyleState.bgAlpha) }
+    var textColorMode by remember(draftStyleState.textColorMode) { mutableIntStateOf(draftStyleState.textColorMode) }
+    var manualTextColor by remember(draftStyleState.manualTextColor) { mutableIntStateOf(draftStyleState.manualTextColor) }
     var showAdvancedStyle by remember { mutableStateOf(false) }
     var layoutBoundaryDragActive by remember { mutableStateOf(false) }
     val undoManager = remember { TableUndoManager<MockEditorSnapshot>() }
     var historyRevision by remember { mutableIntStateOf(0) }
 
     fun commitTemplateChange(updated: TableTemplateState) {
-        if (updated == templateState) return
+        if (updated == draftTemplateState) return
         undoManager.pushSnapshotBeforeAction(
-            MockEditorSnapshot(templateState = templateState, styleState = styleState)
+            MockEditorSnapshot(templateState = draftTemplateState, styleState = draftStyleState)
         )
         historyRevision += 1
-        onTemplateChange(updated)
+        draftTemplateState = updated
     }
 
     fun commitStyleChange(updated: TableStyleState) {
-        if (updated == styleState) return
+        if (updated == draftStyleState) return
         undoManager.pushSnapshotBeforeAction(
-            MockEditorSnapshot(templateState = templateState, styleState = styleState)
+            MockEditorSnapshot(templateState = draftTemplateState, styleState = draftStyleState)
         )
         historyRevision += 1
-        onStyleChange(updated)
+        draftStyleState = updated
     }
 
     fun applyHistorySnapshot(snapshot: MockEditorSnapshot) {
-        onTemplateChange(snapshot.templateState)
-        onStyleChange(snapshot.styleState)
+        draftTemplateState = snapshot.templateState
+        draftStyleState = snapshot.styleState
         historyRevision += 1
     }
 
@@ -209,7 +209,7 @@ fun TableEditorV2MockScreen(
                         IconButton(
                             enabled = undoManager.canUndo() && historyRevision >= 0,
                             onClick = {
-                                val current = MockEditorSnapshot(templateState, styleState)
+                                val current = MockEditorSnapshot(draftTemplateState, draftStyleState)
                                 val restored = undoManager.undo(current)
                                 if (restored != current) applyHistorySnapshot(restored)
                             },
@@ -219,7 +219,7 @@ fun TableEditorV2MockScreen(
                         IconButton(
                             enabled = undoManager.canRedo() && historyRevision >= 0,
                             onClick = {
-                                val current = MockEditorSnapshot(templateState, styleState)
+                                val current = MockEditorSnapshot(draftTemplateState, draftStyleState)
                                 val restored = undoManager.redo(current)
                                 if (restored != current) applyHistorySnapshot(restored)
                             },
@@ -228,9 +228,14 @@ fun TableEditorV2MockScreen(
                         }
                         IconButton(
                             onClick = {
-                                commitTemplateChange(applyMockSaveRulesDraft(templateState, saveRulesDraft))
-                                onIncludePathInCounterScopeChange(saveRulesDraft.includePathInScope)
-                                onIncludeFilenameInCounterScopeChange(saveRulesDraft.includeFilenameInScope)
+                                val finalTemplate = applyMockSaveRulesDraft(draftTemplateState, saveRulesDraft)
+                                draftTemplateState = finalTemplate
+                                onSave(
+                                    finalTemplate,
+                                    draftStyleState,
+                                    saveRulesDraft.includePathInScope,
+                                    saveRulesDraft.includeFilenameInScope,
+                                )
                             }
                         ) {
                             Icon(Icons.Filled.Save, contentDescription = "저장")
@@ -284,33 +289,29 @@ fun TableEditorV2MockScreen(
                 textColorMode = textColorMode,
                 manualTextColor = manualTextColor,
                 layoutMode = mode == MockMode.LAYOUT,
-                rowWeights = templateState.rowWeights,
-                colWeights = templateState.colWeights,
+                rowWeights = draftTemplateState.rowWeights,
+                colWeights = draftTemplateState.colWeights,
                 onBoundaryDragStart = {
                     if (!layoutBoundaryDragActive) {
                         undoManager.pushSnapshotBeforeAction(
-                            MockEditorSnapshot(templateState = templateState, styleState = styleState)
+                            MockEditorSnapshot(templateState = draftTemplateState, styleState = draftStyleState)
                         )
                         historyRevision += 1
                         layoutBoundaryDragActive = true
                     }
                 },
                 onRowBoundaryDrag = { boundaryIndex, deltaFraction ->
-                    onTemplateChange(
-                        adjustMockRowBoundary(
-                            templateState = templateState,
-                            boundaryIndex = boundaryIndex,
-                            deltaFraction = deltaFraction,
-                        )
+                    draftTemplateState = adjustMockRowBoundary(
+                        templateState = draftTemplateState,
+                        boundaryIndex = boundaryIndex,
+                        deltaFraction = deltaFraction,
                     )
                 },
                 onColBoundaryDrag = { boundaryIndex, deltaFraction ->
-                    onTemplateChange(
-                        adjustMockColumnBoundary(
-                            templateState = templateState,
-                            boundaryIndex = boundaryIndex,
-                            deltaFraction = deltaFraction,
-                        )
+                    draftTemplateState = adjustMockColumnBoundary(
+                        templateState = draftTemplateState,
+                        boundaryIndex = boundaryIndex,
+                        deltaFraction = deltaFraction,
                     )
                 },
                 onBoundaryDragEnd = {
@@ -322,7 +323,7 @@ fun TableEditorV2MockScreen(
                         val domainCellId = tapped?.domainCellId
                         if (domainCellId != null) {
                             layoutSelection = selectMockLayoutCell(
-                                templateState = templateState,
+                                templateState = draftTemplateState,
                                 current = layoutSelection,
                                 tappedDomainCellId = domainCellId,
                             )
@@ -340,7 +341,7 @@ fun TableEditorV2MockScreen(
                 if (selected != null) {
                     MockCellEditor(
                         cell = selected,
-                        phraseSets = templateState.phraseSets,
+                        phraseSets = draftTemplateState.phraseSets,
                         onValueChange = { nextValue ->
                             val index = cells.indexOfFirst { it.id == selected.id }
                             if (index >= 0) {
@@ -349,7 +350,7 @@ fun TableEditorV2MockScreen(
                             selected.domainCellId?.let { cellId ->
                                 commitTemplateChange(
                                     applyMockCellValue(
-                                        templateState = templateState,
+                                        templateState = draftTemplateState,
                                         domainCellId = cellId,
                                         nextValue = nextValue,
                                     )
@@ -364,7 +365,7 @@ fun TableEditorV2MockScreen(
                             selected.domainCellId?.let { cellId ->
                                 commitTemplateChange(
                                     applyMockCellType(
-                                        templateState = templateState,
+                                        templateState = draftTemplateState,
                                         domainCellId = cellId,
                                         nextType = nextType,
                                     )
@@ -375,7 +376,7 @@ fun TableEditorV2MockScreen(
                             selected.domainCellId?.let { cellId ->
                                 commitTemplateChange(
                                     applyMockDatePattern(
-                                        templateState = templateState,
+                                        templateState = draftTemplateState,
                                         domainCellId = cellId,
                                         pattern = pattern,
                                     )
@@ -386,7 +387,7 @@ fun TableEditorV2MockScreen(
                             selected.domainCellId?.let { cellId ->
                                 commitTemplateChange(
                                     applyMockTimeFormatPolicy(
-                                        templateState = templateState,
+                                        templateState = draftTemplateState,
                                         domainCellId = cellId,
                                     )
                                 )
@@ -396,7 +397,7 @@ fun TableEditorV2MockScreen(
                             selected.domainCellId?.let { cellId ->
                                 commitTemplateChange(
                                     applyMockPhraseSet(
-                                        templateState = templateState,
+                                        templateState = draftTemplateState,
                                         domainCellId = cellId,
                                         phraseSetId = phraseSetId,
                                     )
@@ -407,7 +408,7 @@ fun TableEditorV2MockScreen(
                             selected.domainCellId?.let { cellId ->
                                 commitTemplateChange(
                                     applyMockPhraseEvery(
-                                        templateState = templateState,
+                                        templateState = draftTemplateState,
                                         domainCellId = cellId,
                                         every = every,
                                     )
@@ -417,7 +418,7 @@ fun TableEditorV2MockScreen(
                         onCreatePhraseSet = { name ->
                             commitTemplateChange(
                                 createMockPhraseSet(
-                                    templateState = templateState,
+                                    templateState = draftTemplateState,
                                     name = name,
                                 )
                             )
@@ -425,7 +426,7 @@ fun TableEditorV2MockScreen(
                         onUpdatePhraseSet = { phraseSetId, transform ->
                             commitTemplateChange(
                                 updateMockPhraseSet(
-                                    templateState = templateState,
+                                    templateState = draftTemplateState,
                                     phraseSetId = phraseSetId,
                                     transform = transform,
                                 )
@@ -434,7 +435,7 @@ fun TableEditorV2MockScreen(
                         onDeletePhraseSet = { phraseSetId ->
                             commitTemplateChange(
                                 deleteMockPhraseSet(
-                                    templateState = templateState,
+                                    templateState = draftTemplateState,
                                     phraseSetId = phraseSetId,
                                 )
                             )
@@ -447,17 +448,17 @@ fun TableEditorV2MockScreen(
                     selectedCount = layoutSelection.selectedCellIds.size,
                     rows = rows,
                     cols = cols,
-                    mergedSelection = isMockLayoutSelectionMerged(templateState, layoutSelection),
+                    mergedSelection = isMockLayoutSelectionMerged(draftTemplateState, layoutSelection),
                     onAddRow = {
-                        commitTemplateChange(addMockLayoutRow(templateState, layoutSelection))
+                        commitTemplateChange(addMockLayoutRow(draftTemplateState, layoutSelection))
                     },
                     onAddCol = {
-                        commitTemplateChange(addMockLayoutColumn(templateState, layoutSelection))
+                        commitTemplateChange(addMockLayoutColumn(draftTemplateState, layoutSelection))
                     },
                     onMergeSelection = {
                         commitTemplateChange(
                             mergeOrUnmergeMockLayoutSelection(
-                                templateState = templateState,
+                                templateState = draftTemplateState,
                                 selection = layoutSelection,
                             )
                         )
@@ -483,7 +484,7 @@ fun TableEditorV2MockScreen(
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
-                        commitTemplateChange(removeMockLayoutRows(templateState, layoutSelection))
+                        commitTemplateChange(removeMockLayoutRows(draftTemplateState, layoutSelection))
                         layoutSelection = MockLayoutSelection()
                         showLayoutDeleteSheet = false
                     },
@@ -491,7 +492,7 @@ fun TableEditorV2MockScreen(
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
-                        commitTemplateChange(removeMockLayoutColumns(templateState, layoutSelection))
+                        commitTemplateChange(removeMockLayoutColumns(draftTemplateState, layoutSelection))
                         layoutSelection = MockLayoutSelection()
                         showLayoutDeleteSheet = false
                     },
@@ -625,7 +626,7 @@ fun TableEditorV2MockScreen(
                         .padding(bottom = 24.dp),
                     onClick = {
                         commitStyleChange(
-                            styleState.copy(
+                            draftStyleState.copy(
                                 bgStyle = when {
                                     transparentTable -> 2
                                     darkTable -> 0
@@ -655,9 +656,7 @@ fun TableEditorV2MockScreen(
             onDraftChange = { saveRulesDraft = it },
             onApply = { applied ->
                 saveRulesDraft = applied
-                commitTemplateChange(applyMockSaveRulesDraft(templateState, applied))
-                onIncludePathInCounterScopeChange(applied.includePathInScope)
-                onIncludeFilenameInCounterScopeChange(applied.includeFilenameInScope)
+                commitTemplateChange(applyMockSaveRulesDraft(draftTemplateState, applied))
                 showSaveRules = false
             },
             onDismiss = { showSaveRules = false },
