@@ -266,14 +266,13 @@ internal fun applyMockSaveRulesDraft(
     val fileNameDrafts = List(FILE_NAME_SLOT_COUNT) { index ->
         draft.fileNameItems.getOrNull(index).toDomainDraft()
     }
-    val visiblePathDrafts = List(PATH_SLOT_UI_MAX_COUNT) { index ->
+    val pathDrafts = List(PATH_SLOT_UI_MAX_COUNT) { index ->
         draft.pathItems.getOrNull(index).toDomainDraft()
     }
-    val preservedPathTail = templateState.pathSlotDrafts.drop(PATH_SLOT_UI_MAX_COUNT)
 
     return templateState.copy(
         fileNameSlotDrafts = fileNameDrafts,
-        pathSlotDrafts = visiblePathDrafts + preservedPathTail,
+        pathSlotDrafts = pathDrafts,
     )
 }
 
