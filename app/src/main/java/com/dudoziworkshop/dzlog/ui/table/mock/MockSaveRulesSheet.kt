@@ -76,7 +76,7 @@ private enum class MockRuleSection {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun MockSaveRulesSheet(
-    cells: List<MockCell>,
+    cells: List<TableEditorCellUiModel>,
     rows: Int,
     cols: Int,
     draft: MockSaveRulesDraft,
@@ -273,7 +273,7 @@ internal fun MockSaveRulesSheet(
                                     val cell = cells.getOrNull(cellIndex)
                                     val isBlockedCounter =
                                         section == MockRuleSection.FILE_NAME &&
-                                            cell?.type == MockCellType.COUNTER
+                                            cell?.type == TableEditorCellType.COUNTER
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
