@@ -7,6 +7,7 @@ object DDZColor {
     val Background = Color(0xFFFBF8F3)
     val Surface = Color(0xFFFFFDF9)
     val SurfaceSoft = Color(0xFFEEE4D8)
+    val AmbientWarm = Color(0xFFF7F0E5)
 
     // Primary action / brand
     val Primary = Color(0xFFA98F78)
