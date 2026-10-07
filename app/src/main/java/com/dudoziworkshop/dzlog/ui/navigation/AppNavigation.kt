@@ -299,28 +299,44 @@ fun AppRoot() {
         }
     }
 
-    fun saveV2EditSession(
+    suspend fun saveV2EditSession(
         updatedTemplate: TableTemplateState,
         updatedStyle: TableStyleState,
         includePathInCounterScope: Boolean,
         includeFilenameInCounterScope: Boolean,
-    ) {
-        tableTemplateViewModel.updateActive(updatedTemplate, updatedStyle)
-        if (pendingNewTemplateId == tableTemplateViewModel.activeTemplateId) {
-            pendingNewTemplateId = null
-            pendingNewTemplatePreviousActiveId = null
-        }
-        if (!hasRestoredTemplate) return
-        appScope.launch {
+    ): Boolean {
+        if (!hasRestoredTemplate) return false
+
+        val activeId = tableTemplateViewModel.activeTemplateId
+        val updatedItems = tableTemplateViewModel.templates.map { item ->
+            if (item.id == activeId) {
+                item.copy(
+                    templateState = updatedTemplate,
+                    styleState = updatedStyle,
+                    modifiedAt = System.currentTimeMillis(),
+                )
+            } else {
+                item
+            }
+        }.sortedByDescending { it.modifiedAt }
+
+        return runCatching {
             persistTableStyleState(context, updatedStyle)
             AppSettingsStore.setIncludePathInCounterScope(context, includePathInCounterScope)
             AppSettingsStore.setIncludeFilenameInCounterScope(context, includeFilenameInCounterScope)
             persistTableTemplateCatalog(
                 context = context,
-                items = tableTemplateViewModel.templates,
-                activeTemplateId = tableTemplateViewModel.activeTemplateId,
+                items = updatedItems,
+                activeTemplateId = activeId,
             )
-        }
+
+            tableTemplateViewModel.setCatalog(updatedItems, activeId)
+            if (pendingNewTemplateId == activeId) {
+                pendingNewTemplateId = null
+                pendingNewTemplatePreviousActiveId = null
+            }
+            true
+        }.getOrDefault(false)
     }
 
     fun openSavedTemplate(templateId: String) {
