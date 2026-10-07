@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ORIENTATION_MODE
@@ -37,7 +38,6 @@ import com.dudoziworkshop.dzlog.data.template.defaultTableTemplateState
 import com.dudoziworkshop.dzlog.data.template.duplicateTemplateName
 import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
 import com.dudoziworkshop.dzlog.data.template.nextNewTemplateName
-import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.settings.ui.CreditsScreen
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
@@ -134,26 +134,14 @@ fun AppRoot() {
     }
 
     val appSettings by AppSettingsStore.flow(context).collectAsState(
-        initial = com.dudoziworkshop.dzlog.data.datastore.AppSettings(
-            saveMode = com.dudoziworkshop.dzlog.domain.model.SaveMode.BOTH,
-            continuousPreviewMode = com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode.OFF,
-            photoQualityMode = PhotoQualityMode.BALANCED,
-            counterPadding = 0,
-            includePathInCounterScope = true,
-            includeFilenameInCounterScope = true,
-            toastEnabled = true,
-            hapticEnabled = true,
-            captureHapticEnabled = true,
-            captureSoundEnabled = true,
-            volumeKeyAction = com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction.NONE,
-            blankWarningEnabled = true,
-        )
+        initial = AppSettings.Default,
     )
 
     var lastBackPressedMs by remember { mutableLongStateOf(0L) }
     var hasRestoredTemplate by remember { mutableStateOf(false) }
     var pendingNewTemplateId by remember { mutableStateOf<String?>(null) }
     var pendingNewTemplatePreviousActiveId by remember { mutableStateOf<String?>(null) }
+    var openSaveSettingsInitially by remember { mutableStateOf(false) }
     val appScope = rememberCoroutineScope()
 
     DisposableEffect(screen, view) {
@@ -265,6 +253,7 @@ fun AppRoot() {
                 activeTemplateId = target.id,
             )
             tableTemplateViewModel.activate(target.id)
+            openSaveSettingsInitially = false
             previousScreen = AppScreen.TABLE_TEMPLATES
             screen = AppScreen.TABLE_EDITOR
         }
@@ -285,9 +274,24 @@ fun AppRoot() {
             pendingNewTemplateId = item.id
             pendingNewTemplatePreviousActiveId = previousActiveId
             tableTemplateViewModel.setCatalog(next, item.id)
+            openSaveSettingsInitially = false
             previousScreen = AppScreen.TABLE_TEMPLATES
             screen = AppScreen.TABLE_EDITOR
         }
+    }
+
+    fun openActiveSaveSettings() {
+        val hasActiveTemplate = tableTemplateViewModel.activeTemplateId != null &&
+            tableTemplateViewModel.templates.any { it.id == tableTemplateViewModel.activeTemplateId }
+
+        if (!hasActiveTemplate) {
+            navigateTo(AppScreen.TABLE_TEMPLATES)
+            return
+        }
+
+        openSaveSettingsInitially = true
+        previousScreen = screen
+        screen = AppScreen.TABLE_EDITOR
     }
 
     fun discardPendingNewTemplate() {
@@ -604,7 +608,11 @@ fun AppRoot() {
                     .orEmpty(),
                 onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
                 onStartCamera = { navigateTo(AppScreen.CAMERA) },
-                onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
+                onOpenTableEditor = {
+                    openSaveSettingsInitially = false
+                    navigateTo(AppScreen.TABLE_TEMPLATES)
+                },
+                onOpenSaveSettings = ::openActiveSaveSettings,
                 onOpenAlbum = ::openAlbumRoot,
                 onOpenRecentCaptureGrid = ::openRecentCaptureGrid
             )
@@ -643,9 +651,13 @@ fun AppRoot() {
                         tableTemplateViewModel.activeTemplateId,
                     ),
                     isUnsavedNewTemplate = pendingNewTemplateId == tableTemplateViewModel.activeTemplateId,
+                    openSaveSettingsInitially = openSaveSettingsInitially,
                     onSave = ::saveV2EditSession,
                     onDiscardUnsavedNewTemplate = ::discardPendingNewTemplate,
-                    onBack = { screen = previousScreen },
+                    onBack = {
+                        openSaveSettingsInitially = false
+                        screen = previousScreen
+                    },
                 )
             }
 
