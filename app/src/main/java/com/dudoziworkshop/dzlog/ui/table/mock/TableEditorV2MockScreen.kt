@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.GridView
@@ -38,7 +37,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -51,8 +49,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,12 +65,18 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
+import com.dudoziworkshop.dzlog.ui.common.DDZBottomNavigation
+import com.dudoziworkshop.dzlog.ui.common.DDZBottomNavigationItem
+import com.dudoziworkshop.dzlog.ui.common.DDZButton
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZQuickChoiceDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
+import com.dudoziworkshop.dzlog.ui.common.DDZTopBarIconButton
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.launch
@@ -168,28 +170,36 @@ fun TableEditorV2Screen(
 
 
     Scaffold(
-        containerColor = Color(0xFFF7F7FA),
+        containerColor = DDZColor.Background,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
-                navigationIcon = {
-                    IconButton(onClick = { requestBack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로")
-                    }
-                },
-                title = {
-                    Text(
-                        if (mode == MockMode.LAYOUT) "레이아웃 편집" else "표 편집",
-                        fontWeight = FontWeight.Bold,
-                    )
-                },
+            DDZTopBar(
+                title = "표 편집",
+                onBack = { requestBack() },
                 actions = {
-                    Button(
+                    DDZTopBarIconButton(
+                        icon = Icons.Filled.Undo,
+                        contentDescription = "실행 취소",
+                        enabled = session.canUndo && !saveCoordinator.isSaving,
+                        onClick = {
+                            if (session.undo()) {
+                                selectionState.clearAll()
+                            }
+                        },
+                    )
+                    DDZTopBarIconButton(
+                        icon = Icons.Filled.Redo,
+                        contentDescription = "다시 실행",
+                        enabled = session.canRedo && !saveCoordinator.isSaving,
+                        onClick = {
+                            if (session.redo()) {
+                                selectionState.clearAll()
+                            }
+                        },
+                    )
+                    DDZButton(
+                        text = if (mode == MockMode.LAYOUT) "완료" else "저장",
                         enabled = !saveCoordinator.isSaving,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = DDZColor.Primary,
-                            contentColor = Color.White,
-                        ),
+                        minHeight = 40.dp,
                         onClick = {
                             if (mode == MockMode.LAYOUT) {
                                 mode = MockMode.EDIT
@@ -198,10 +208,8 @@ fun TableEditorV2Screen(
                                 saveScope.launch { saveCoordinator.save(session, onSave) }
                             }
                         },
-                    ) {
-                        Text(if (mode == MockMode.LAYOUT) "완료" else "저장")
-                    }
-                }
+                    )
+                },
             )
         },
         bottomBar = {
@@ -506,55 +514,35 @@ fun TableEditorV2Screen(
     }
 
     if (showLayoutDeleteSheet) {
-        Dialog(onDismissRequest = { showLayoutDeleteSheet = false }) {
-            Surface(
-                shape = RoundedCornerShape(22.dp),
-                color = DDZColor.Surface,
-                tonalElevation = 2.dp,
-                shadowElevation = 6.dp,
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(
-                        "삭제할 항목을 선택하세요",
-                        fontWeight = FontWeight.SemiBold,
-                        color = DDZColor.TextPrimary,
+        DDZQuickChoiceDialog(
+            onDismiss = { showLayoutDeleteSheet = false },
+        ) {
+            DDZButton(
+                text = "행 삭제",
+                leadingIcon = Icons.Filled.ViewStream,
+                style = DDZButtonStyle.Destructive,
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    session.commitTemplateChange(
+                        TableEditorV2StructureController.removeRows(draftTemplateState, layoutSelection)
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        OutlinedButton(
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                session.commitTemplateChange(
-                                    TableEditorV2StructureController.removeRows(draftTemplateState, layoutSelection)
-                                )
-                                selectionState.clearLayoutSelection()
-                                showLayoutDeleteSheet = false
-                            },
-                        ) {
-                            Icon(Icons.Filled.ViewStream, contentDescription = null)
-                            Text("  행 삭제")
-                        }
-                        OutlinedButton(
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                session.commitTemplateChange(
-                                    TableEditorV2StructureController.removeColumns(draftTemplateState, layoutSelection)
-                                )
-                                selectionState.clearLayoutSelection()
-                                showLayoutDeleteSheet = false
-                            },
-                        ) {
-                            Icon(Icons.Filled.ViewColumn, contentDescription = null)
-                            Text("  열 삭제")
-                        }
-                    }
-                }
-            }
+                    selectionState.clearLayoutSelection()
+                    showLayoutDeleteSheet = false
+                },
+            )
+            DDZButton(
+                text = "열 삭제",
+                leadingIcon = Icons.Filled.ViewColumn,
+                style = DDZButtonStyle.Destructive,
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    session.commitTemplateChange(
+                        TableEditorV2StructureController.removeColumns(draftTemplateState, layoutSelection)
+                    )
+                    selectionState.clearLayoutSelection()
+                    showLayoutDeleteSheet = false
+                },
+            )
         }
     }
 
@@ -1465,75 +1453,33 @@ private fun MockBottomBar(
     onStyle: () -> Unit,
     onSaveRules: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(DDZColor.Surface)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        MockNavItem(
-            modifier = Modifier.weight(1f),
-            icon = Icons.Filled.GridView,
-            label = "내용",
-            selected = active == MockBottomTab.CONTENT,
-            onClick = onContent,
-        )
-        MockNavItem(
-            modifier = Modifier.weight(1f),
-            icon = Icons.Filled.ViewStream,
-            label = "구조",
-            selected = active == MockBottomTab.STRUCTURE,
-            onClick = onLayout,
-        )
-        MockNavItem(
-            modifier = Modifier.weight(1f),
-            icon = Icons.Filled.Palette,
-            label = "스타일",
-            selected = active == MockBottomTab.STYLE,
-            onClick = onStyle,
-        )
-        MockNavItem(
-            modifier = Modifier.weight(1f),
-            icon = Icons.Filled.Save,
-            label = "저장설정",
-            selected = active == MockBottomTab.SAVE,
-            onClick = onSaveRules,
-        )
-    }
-}
-
-@Composable
-private fun MockNavItem(
-    modifier: Modifier = Modifier,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier = modifier
-            .background(
-                color = if (selected) DDZColor.SageLight else Color.Transparent,
-                shape = RoundedCornerShape(16.dp),
-            )
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        Icon(
-            icon,
-            contentDescription = label,
-            tint = if (selected) DDZColor.PrimaryDark else DDZColor.TextMuted,
-            modifier = Modifier.size(21.dp),
-        )
-        Text(
-            label,
-            color = if (selected) DDZColor.PrimaryDark else DDZColor.TextMuted,
-            fontSize = 11.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-        )
-    }
+    DDZBottomNavigation(
+        items = listOf(
+            DDZBottomNavigationItem(
+                label = "내용",
+                icon = Icons.Filled.GridView,
+                selected = active == MockBottomTab.CONTENT,
+                onClick = onContent,
+            ),
+            DDZBottomNavigationItem(
+                label = "구조",
+                icon = Icons.Filled.ViewStream,
+                selected = active == MockBottomTab.STRUCTURE,
+                onClick = onLayout,
+            ),
+            DDZBottomNavigationItem(
+                label = "스타일",
+                icon = Icons.Filled.Palette,
+                selected = active == MockBottomTab.STYLE,
+                onClick = onStyle,
+            ),
+            DDZBottomNavigationItem(
+                label = "저장설정",
+                icon = Icons.Filled.Save,
+                selected = active == MockBottomTab.SAVE,
+                onClick = onSaveRules,
+            ),
+        ),
+    )
 }
 
