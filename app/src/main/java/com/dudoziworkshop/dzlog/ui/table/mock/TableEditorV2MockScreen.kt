@@ -98,6 +98,7 @@ fun TableEditorV2Screen(
     includeFilenameInCounterScope: Boolean,
     styleState: TableStyleState,
     isUnsavedNewTemplate: Boolean = false,
+    openSaveSettingsInitially: Boolean = false,
     onSave: suspend (TableTemplateState, TableStyleState, Boolean, Boolean) -> Boolean,
     onDiscardUnsavedNewTemplate: () -> Unit = {},
     onBack: () -> Unit,
@@ -126,8 +127,12 @@ fun TableEditorV2Screen(
     var pendingMergeDecision by remember { mutableStateOf<TableMergeDecision?>(null) }
     var mode by remember { mutableStateOf(MockMode.EDIT) }
     var showStyle by remember { mutableStateOf(false) }
-    var showSaveRules by remember { mutableStateOf(false) }
-    var saveRulesSheetDraft by remember { mutableStateOf<MockSaveRulesDraft?>(null) }
+    var showSaveRules by remember { mutableStateOf(openSaveSettingsInitially) }
+    var saveRulesSheetDraft by remember {
+        mutableStateOf<MockSaveRulesDraft?>(
+            if (openSaveSettingsInitially) saveRulesDraft else null,
+        )
+    }
     var showBackSaveDialog by remember { mutableStateOf(false) }
     var styleSheetDraft by remember { mutableStateOf(draftStyleState) }
     var showAdvancedStyle by remember { mutableStateOf(false) }
