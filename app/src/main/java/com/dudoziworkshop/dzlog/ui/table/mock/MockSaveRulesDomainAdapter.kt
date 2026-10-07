@@ -23,6 +23,12 @@ internal fun mockCellsFromTemplate(templateState: TableTemplateState): List<Mock
                 formatPattern = cell.formatPattern,
                 phraseSetId = cell.phraseSetId,
                 everyOverride = cell.everyOverride,
+                rowIndex = cell.rowIndex,
+                colIndex = cell.colIndex,
+                rowSpan = cell.rowSpan,
+                colSpan = cell.colSpan,
+                isCovered = com.dudoziworkshop.dzlog.feature.table.editor.TableStructureRangeActions
+                    .isCoveredCell(templateState.cells, cell.rowIndex, cell.colIndex),
             )
         }
 
