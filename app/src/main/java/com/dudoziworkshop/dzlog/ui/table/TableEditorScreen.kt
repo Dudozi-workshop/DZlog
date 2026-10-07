@@ -5,6 +5,7 @@
 
 package com.dudoziworkshop.dzlog.ui.table
 
+import androidx.activity.compose.BackHandler
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -1351,6 +1352,10 @@ fun TableEditorScreen(
                 )
             },
         )
+    }
+
+    BackHandler(enabled = bottomPanelMode != BottomEditorPanelMode.NONE) {
+        requestCloseBottomPanelToNone()
     }
 
     fun dismissUnsavedChangesDialog() {
