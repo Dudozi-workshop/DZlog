@@ -24,12 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.ViewColumn
-import androidx.compose.material.icons.filled.ViewStream
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material3.ButtonDefaults
@@ -64,19 +59,14 @@ import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
-import com.dudoziworkshop.dzlog.ui.common.DDZBottomNavigation
-import com.dudoziworkshop.dzlog.ui.common.DDZBottomNavigationItem
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZConfirmDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZContentDialog
-import com.dudoziworkshop.dzlog.ui.common.DDZTextField
 import com.dudoziworkshop.dzlog.ui.common.DDZQuickChoiceDialog
-import com.dudoziworkshop.dzlog.ui.common.DDZSettingRow
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBarIconButton
-import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.launch
 
@@ -983,44 +973,3 @@ private fun ColumnScope.MockTableCanvas(
         }
     }
 }
-
-private enum class MockBottomTab { CONTENT, STRUCTURE, STYLE, SAVE }
-
-@Composable
-private fun MockBottomBar(
-    active: MockBottomTab,
-    onContent: () -> Unit,
-    onLayout: () -> Unit,
-    onStyle: () -> Unit,
-    onSaveRules: () -> Unit,
-) {
-    DDZBottomNavigation(
-        items = listOf(
-            DDZBottomNavigationItem(
-                label = "내용",
-                icon = Icons.Filled.GridView,
-                selected = active == MockBottomTab.CONTENT,
-                onClick = onContent,
-            ),
-            DDZBottomNavigationItem(
-                label = "구조",
-                icon = Icons.Filled.ViewStream,
-                selected = active == MockBottomTab.STRUCTURE,
-                onClick = onLayout,
-            ),
-            DDZBottomNavigationItem(
-                label = "스타일",
-                icon = Icons.Filled.Palette,
-                selected = active == MockBottomTab.STYLE,
-                onClick = onStyle,
-            ),
-            DDZBottomNavigationItem(
-                label = "저장설정",
-                icon = Icons.Filled.Save,
-                selected = active == MockBottomTab.SAVE,
-                onClick = onSaveRules,
-            ),
-        ),
-    )
-}
-
