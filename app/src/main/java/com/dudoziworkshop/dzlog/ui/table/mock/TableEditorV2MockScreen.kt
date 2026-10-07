@@ -38,6 +38,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -71,6 +72,9 @@ internal data class MockCell(
     val value: String,
     val type: MockCellType = MockCellType.TEXT,
     val domainCellId: String? = null,
+    val formatPattern: String = "",
+    val phraseSetId: String? = null,
+    val everyOverride: Int? = null,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -214,6 +218,7 @@ fun TableEditorV2MockScreen(
                 if (selected != null) {
                     MockCellEditor(
                         cell = selected,
+                        phraseSets = templateState.phraseSets,
                         onValueChange = { nextValue ->
                             val index = cells.indexOfFirst { it.id == selected.id }
                             if (index >= 0) {
@@ -240,6 +245,49 @@ fun TableEditorV2MockScreen(
                                         templateState = templateState,
                                         domainCellId = cellId,
                                         nextType = nextType,
+                                    )
+                                )
+                            }
+                        },
+                        onDatePatternChange = { pattern ->
+                            selected.domainCellId?.let { cellId ->
+                                onTemplateChange(
+                                    applyMockDatePattern(
+                                        templateState = templateState,
+                                        domainCellId = cellId,
+                                        pattern = pattern,
+                                    )
+                                )
+                            }
+                        },
+                        onApplyTimePolicy = {
+                            selected.domainCellId?.let { cellId ->
+                                onTemplateChange(
+                                    applyMockTimeFormatPolicy(
+                                        templateState = templateState,
+                                        domainCellId = cellId,
+                                    )
+                                )
+                            }
+                        },
+                        onPhraseSetChange = { phraseSetId ->
+                            selected.domainCellId?.let { cellId ->
+                                onTemplateChange(
+                                    applyMockPhraseSet(
+                                        templateState = templateState,
+                                        domainCellId = cellId,
+                                        phraseSetId = phraseSetId,
+                                    )
+                                )
+                            }
+                        },
+                        onPhraseEveryChange = { every ->
+                            selected.domainCellId?.let { cellId ->
+                                onTemplateChange(
+                                    applyMockPhraseEvery(
+                                        templateState = templateState,
+                                        domainCellId = cellId,
+                                        every = every,
                                     )
                                 )
                             }
@@ -427,11 +475,18 @@ private fun ColumnScope.MockTableCanvas(
 @Composable
 private fun MockCellEditor(
     cell: MockCell,
+    phraseSets: List<com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet>,
     onValueChange: (String) -> Unit,
     onTypeChange: (MockCellType) -> Unit,
+    onDatePatternChange: (String) -> Unit,
+    onApplyTimePolicy: () -> Unit,
+    onPhraseSetChange: (String?) -> Unit,
+    onPhraseEveryChange: (Int) -> Unit,
     onClose: () -> Unit,
 ) {
     var showTypePicker by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showPhrasePicker by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -468,46 +523,89 @@ private fun MockCellEditor(
             }
 
             MockCellType.COUNTER -> {
-                Text(cell.value, fontWeight = FontWeight.Bold)
+                Text(cell.value.ifBlank { "1" }, fontWeight = FontWeight.Bold)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("다음 번호", color = DDZColor.TextMuted)
-                    Text("0013")
+                    Text("현재 시작 번호", color = DDZColor.TextMuted)
+                    Text(cell.value.ifBlank { "1" })
                 }
             }
 
             MockCellType.DATE -> {
-                Text(cell.value.ifBlank { "2026.10.06" }, fontWeight = FontWeight.Bold)
-                Row(
+                Text(
+                    text = when (cell.formatPattern.ifBlank { "yyyyMMdd" }) {
+                        "yyMMdd" -> "261007"
+                        "MMdd" -> "1007"
+                        else -> "20261007"
+                    },
+                    fontWeight = FontWeight.Bold,
+                )
+                OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    onClick = { showDatePicker = true },
                 ) {
-                    Text("날짜 형식", color = DDZColor.TextMuted)
-                    Text("2026.10.06  ›")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("날짜 형식")
+                        Text((cell.formatPattern.ifBlank { "yyyyMMdd" }) + "  ›")
+                    }
                 }
             }
 
             MockCellType.TIME -> {
-                Text(cell.value.ifBlank { "22:04" }, fontWeight = FontWeight.Bold)
-                Row(
+                Text("1251", fontWeight = FontWeight.Bold)
+                OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    onClick = onApplyTimePolicy,
                 ) {
-                    Text("시간 형식", color = DDZColor.TextMuted)
-                    Text("22:04  ›")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("시간 형식")
+                        Text("HHmm · 분 단위 고정")
+                    }
                 }
             }
 
             MockCellType.ROTATING_TEXT -> {
-                Text(cell.value.ifBlank { "Draper" }, fontWeight = FontWeight.Bold)
-                Row(
+                val selectedSet = phraseSets.firstOrNull { it.id == cell.phraseSetId }
+                Text(
+                    selectedSet?.items?.firstOrNull().orEmpty().ifBlank { "문구 세트를 선택하세요" },
+                    fontWeight = FontWeight.Bold,
+                )
+                OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    onClick = { showPhrasePicker = true },
                 ) {
-                    Text("문구 세트", color = DDZColor.TextMuted)
-                    Text("품종  ›")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("문구 세트")
+                        Text((selectedSet?.name ?: "선택 안 함") + "  ›")
+                    }
+                }
+                if (selectedSet != null) {
+                    val everyValue = (cell.everyOverride ?: selectedSet.defaultEvery).coerceAtLeast(1)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("변경 주기", modifier = Modifier.weight(1f), color = DDZColor.TextMuted)
+                        OutlinedButton(onClick = { onPhraseEveryChange((everyValue - 1).coerceAtLeast(1)) }) {
+                            Text("−")
+                        }
+                        Text(everyValue.toString() + "장")
+                        OutlinedButton(onClick = { onPhraseEveryChange(everyValue + 1) }) {
+                            Text("+")
+                        }
+                    }
                 }
             }
         }
@@ -548,11 +646,83 @@ private fun MockCellEditor(
                                     showTypePicker = false
                                 },
                             ) {
+                                Text(if (type == cell.type) type.label + " ✓" else type.label)
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+            }
+        }
+    }
+
+    if (showDatePicker) {
+        ModalBottomSheet(onDismissRequest = { showDatePicker = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("날짜 형식", fontWeight = FontWeight.Bold)
+                listOf("yyyyMMdd", "yyMMdd", "MMdd").forEach { pattern ->
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            onDatePatternChange(pattern)
+                            showDatePicker = false
+                        },
+                    ) {
+                        Text(
+                            if (cell.formatPattern.ifBlank { "yyyyMMdd" } == pattern) pattern + " ✓" else pattern
+                        )
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+            }
+        }
+    }
+
+    if (showPhrasePicker) {
+        ModalBottomSheet(onDismissRequest = { showPhrasePicker = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("문구 세트", fontWeight = FontWeight.Bold)
+                if (phraseSets.isEmpty()) {
+                    Text("등록된 문구 세트가 없습니다.", color = DDZColor.TextMuted)
+                } else {
+                    phraseSets.forEach { set ->
+                        OutlinedButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                onPhraseSetChange(set.id)
+                                showPhrasePicker = false
+                            },
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(set.name)
                                 Text(
-                                    if (type == cell.type) type.label + " ✓" else type.label
+                                    if (cell.phraseSetId == set.id) set.items.size.toString() + "개 ✓"
+                                    else set.items.size.toString() + "개"
                                 )
                             }
                         }
+                    }
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            onPhraseSetChange(null)
+                            showPhrasePicker = false
+                        },
+                    ) {
+                        Text("선택 해제")
                     }
                 }
                 Spacer(Modifier.height(18.dp))
