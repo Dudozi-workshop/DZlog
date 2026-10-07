@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.LocalDDZColor
@@ -38,6 +39,7 @@ fun DDZButton(
     minHeight: Dp = 48.dp,
     shape: Shape = RoundedCornerShape(12.dp),
     containerColorOverride: Color? = null,
+    textStyleOverride: TextStyle? = null,
 ) {
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
@@ -82,7 +84,7 @@ fun DDZButton(
         }
         Text(
             text = text,
-            style = typography.ButtonText,
+            style = textStyleOverride ?: typography.ButtonText,
         )
     }
 }
