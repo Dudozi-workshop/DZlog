@@ -509,9 +509,11 @@ fun TableEditorV2MockScreen(
                     mergedSelection = isMockLayoutSelectionMerged(draftTemplateState, layoutSelection),
                     onAddRow = {
                         commitTemplateChange(addMockLayoutRow(draftTemplateState, layoutSelection))
+                        layoutSelection = MockLayoutSelection()
                     },
                     onAddCol = {
                         commitTemplateChange(addMockLayoutColumn(draftTemplateState, layoutSelection))
+                        layoutSelection = MockLayoutSelection()
                     },
                     onMergeSelection = {
                         val populatedCellIds = cells
