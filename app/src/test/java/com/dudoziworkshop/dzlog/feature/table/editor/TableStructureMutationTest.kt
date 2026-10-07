@@ -44,7 +44,7 @@ class TableStructureMutationTest {
     }
 
     @Test
-    fun structural_mutation_is_blocked_when_merged_cells_exist() {
+    fun column_removal_expands_to_full_merged_block() {
         val base = defaultTableTemplateState()
         val mergedTemplate = base.copy(
             cells = base.cells.mapIndexed { index, cell ->
@@ -52,23 +52,18 @@ class TableStructureMutationTest {
             }
         )
 
-        val addNext = addColumnBySelection(
-            templateState = mergedTemplate,
-            selectionRange = TableSelectionRange(minRow = 0, maxRow = 1, minCol = 1, maxCol = 2),
-        )
-        val removeNext = removeColumnBySelection(
+        val next = removeColumnBySelection(
             templateState = mergedTemplate,
             selectionRange = TableSelectionRange(minRow = 0, maxRow = 1, minCol = 1, maxCol = 2),
         )
 
-        assertEquals(mergedTemplate, addNext)
-        assertEquals(mergedTemplate, removeNext)
-        assertTrue(addNext.cells.all { it.rowSpan >= 1 && it.colSpan >= 1 })
-        assertRectangularInvariant(addNext)
+        assertEquals(1, next.cols)
+        assertRectangularInvariant(next)
+        assertTrue(next.cells.all { it.rowSpan >= 1 && it.colSpan == 1 })
     }
 
     @Test
-    fun row_mutation_is_blocked_when_merged_cells_exist() {
+    fun row_add_is_safe_but_partial_merged_removal_is_blocked() {
         val base = defaultTableTemplateState()
         val mergedTemplate = base.copy(
             cells = base.cells.mapIndexed { index, cell ->
@@ -85,9 +80,9 @@ class TableStructureMutationTest {
             selectionRange = TableSelectionRange(minRow = 0, maxRow = 1, minCol = 0, maxCol = 3),
         )
 
-        assertEquals(mergedTemplate, addNext)
-        assertEquals(mergedTemplate, removeNext)
+        assertEquals(mergedTemplate.rows + 1, addNext.rows)
         assertRectangularInvariant(addNext)
+        assertEquals(mergedTemplate, removeNext)
     }
 
     private fun cellAtFirstRow(template: TableTemplateState, col: Int): TableCellState {
