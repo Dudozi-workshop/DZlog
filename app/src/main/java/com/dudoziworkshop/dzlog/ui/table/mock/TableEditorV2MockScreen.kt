@@ -789,14 +789,37 @@ private fun MockCellEditor(
             }
 
             MockCellType.COUNTER -> {
-                Text(cell.value.ifBlank { "1" }, fontWeight = FontWeight.Bold)
+                val currentCounter = cell.value.toIntOrNull()?.coerceAtLeast(0) ?: 1
+                Text("자동번호", fontWeight = FontWeight.Bold)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("현재 시작 번호", color = DDZColor.TextMuted)
-                    Text(cell.value.ifBlank { "1" })
+                    OutlinedButton(
+                        onClick = { onValueChange((currentCounter - 1).coerceAtLeast(0).toString()) },
+                    ) {
+                        Text("−")
+                    }
+                    OutlinedTextField(
+                        modifier = Modifier.weight(1f),
+                        value = currentCounter.toString(),
+                        onValueChange = { input ->
+                            val digits = input.filter { it.isDigit() }
+                            if (digits.isNotBlank()) {
+                                onValueChange(digits)
+                            }
+                        },
+                        label = { Text("시작 번호") },
+                        singleLine = true,
+                    )
+                    OutlinedButton(
+                        onClick = { onValueChange((currentCounter + 1).toString()) },
+                    ) {
+                        Text("+")
+                    }
                 }
+                Text("촬영 성공 후 다음 번호로 증가합니다.", color = DDZColor.TextMuted)
             }
 
             MockCellType.DATE -> {
