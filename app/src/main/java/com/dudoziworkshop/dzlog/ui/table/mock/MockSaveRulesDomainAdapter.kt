@@ -18,7 +18,23 @@ internal fun mockCellsFromTemplate(templateState: TableTemplateState): List<Mock
             MockCell(
                 id = index,
                 domainCellId = cell.cellId,
-                value = cell.rawText,
+                value = when (cell.dataType) {
+                    TableCellDataType.COUNTER ->
+                        (cell.typedValue as? CellValue.CounterSeed)?.start?.toString() ?: "1"
+                    TableCellDataType.DATE -> when (cell.formatPattern.ifBlank { "yyyyMMdd" }) {
+                        "yyMMdd" -> "날짜(yyMMdd)"
+                        "MMdd" -> "날짜(MMdd)"
+                        else -> "날짜(yyyyMMdd)"
+                    }
+                    TableCellDataType.TIME -> "시간(HHmm)"
+                    TableCellDataType.ROTATING_TEXT -> templateState.phraseSets
+                        .firstOrNull { it.id == cell.phraseSetId }
+                        ?.items
+                        ?.firstOrNull()
+                        .orEmpty()
+                        .ifBlank { "순환문구" }
+                    else -> cell.rawText
+                },
                 type = cell.dataType.toMockCellType(),
                 formatPattern = cell.formatPattern,
                 phraseSetId = cell.phraseSetId,
