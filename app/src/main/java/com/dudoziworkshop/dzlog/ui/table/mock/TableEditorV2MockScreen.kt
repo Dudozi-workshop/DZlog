@@ -51,7 +51,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -148,14 +147,7 @@ fun TableEditorV2MockScreen(
     }
     var savedSaveRulesBaseline by remember { mutableStateOf(saveRulesDraft) }
     var showBackSaveDialog by remember { mutableStateOf(false) }
-    var darkTable by remember(draftStyleState.bgStyle) { mutableStateOf(draftStyleState.bgStyle == 0) }
-    var transparentTable by remember(draftStyleState.bgStyle) { mutableStateOf(draftStyleState.bgStyle == 2) }
-    var gridEnabled by remember(draftStyleState.gridEnabled) { mutableStateOf(draftStyleState.gridEnabled) }
-    var fontScale by remember(draftStyleState.valueScale) { mutableFloatStateOf(draftStyleState.valueScale / 100f) }
-    var textAlignIndex by remember(draftStyleState.textAlign) { mutableIntStateOf(draftStyleState.textAlign.coerceIn(0, 2)) }
-    var bgAlpha by remember(draftStyleState.bgAlpha) { mutableIntStateOf(draftStyleState.bgAlpha) }
-    var textColorMode by remember(draftStyleState.textColorMode) { mutableIntStateOf(draftStyleState.textColorMode) }
-    var manualTextColor by remember(draftStyleState.manualTextColor) { mutableIntStateOf(draftStyleState.manualTextColor) }
+    var styleSheetDraft by remember { mutableStateOf(draftStyleState) }
     var showAdvancedStyle by remember { mutableStateOf(false) }
     var layoutBoundaryDragActive by remember { mutableStateOf(false) }
     val undoManager = remember { TableUndoManager<MockEditorSnapshot>() }
@@ -292,7 +284,11 @@ fun TableEditorV2MockScreen(
                         selectedId = null
                         mode = MockMode.LAYOUT
                     },
-                    onStyle = { showStyle = true },
+                    onStyle = {
+                        styleSheetDraft = draftStyleState
+                        showAdvancedStyle = false
+                        showStyle = true
+                    },
                     onSaveRules = { showSaveRules = true },
                 )
             }
@@ -321,14 +317,14 @@ fun TableEditorV2MockScreen(
                     .filter { it.domainCellId in layoutSelection.selectedCellIds }
                     .map { it.id }
                     .toSet(),
-                darkTable = darkTable,
-                transparentTable = transparentTable,
-                gridEnabled = gridEnabled,
-                bgAlpha = bgAlpha,
-                fontScale = fontScale,
-                textAlignIndex = textAlignIndex,
-                textColorMode = textColorMode,
-                manualTextColor = manualTextColor,
+                darkTable = (if (showStyle) styleSheetDraft else draftStyleState).bgStyle == 0,
+                transparentTable = (if (showStyle) styleSheetDraft else draftStyleState).bgStyle == 2,
+                gridEnabled = (if (showStyle) styleSheetDraft else draftStyleState).gridEnabled,
+                bgAlpha = (if (showStyle) styleSheetDraft else draftStyleState).bgAlpha,
+                fontScale = (if (showStyle) styleSheetDraft else draftStyleState).valueScale / 100f,
+                textAlignIndex = (if (showStyle) styleSheetDraft else draftStyleState).textAlign,
+                textColorMode = (if (showStyle) styleSheetDraft else draftStyleState).textColorMode,
+                manualTextColor = (if (showStyle) styleSheetDraft else draftStyleState).manualTextColor,
                 layoutMode = mode == MockMode.LAYOUT,
                 rowWeights = draftTemplateState.rowWeights,
                 colWeights = draftTemplateState.colWeights,
@@ -589,7 +585,12 @@ fun TableEditorV2MockScreen(
     }
 
     if (showStyle) {
-        ModalBottomSheet(onDismissRequest = { showStyle = false }) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                styleSheetDraft = draftStyleState
+                showStyle = false
+            },
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -602,37 +603,34 @@ fun TableEditorV2MockScreen(
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     listOf("밝게", "어둡게", "투명").forEachIndexed { index, label ->
                         val selected = when (index) {
-                            0 -> !darkTable && !transparentTable
-                            1 -> darkTable && !transparentTable
-                            else -> transparentTable
+                            0 -> styleSheetDraft.bgStyle == 1
+                            1 -> styleSheetDraft.bgStyle == 0
+                            else -> styleSheetDraft.bgStyle == 2
                         }
                         SegmentedButton(
                             selected = selected,
                             onClick = {
-                                when (index) {
-                                    0 -> {
-                                        darkTable = false
-                                        transparentTable = false
+                                styleSheetDraft = styleSheetDraft.copy(
+                                    bgStyle = when (index) {
+                                        0 -> 1
+                                        1 -> 0
+                                        else -> 2
                                     }
-                                    1 -> {
-                                        darkTable = true
-                                        transparentTable = false
-                                    }
-                                    else -> {
-                                        transparentTable = true
-                                        darkTable = false
-                                    }
-                                }
+                                )
                             },
                             shape = SegmentedButtonDefaults.itemShape(index, 3)
                         ) { Text(label) }
                     }
                 }
 
-                Text("글자 크기  " + (fontScale * 100).toInt() + "%", color = DDZColor.TextMuted)
+                Text("글자 크기  " + styleSheetDraft.valueScale + "%", color = DDZColor.TextMuted)
                 Slider(
-                    value = fontScale,
-                    onValueChange = { fontScale = it },
+                    value = styleSheetDraft.valueScale / 100f,
+                    onValueChange = { value ->
+                        styleSheetDraft = styleSheetDraft.copy(
+                            valueScale = (value * 100).toInt().coerceIn(60, 160)
+                        )
+                    },
                     valueRange = 0.6f..1.6f,
                 )
 
@@ -640,8 +638,8 @@ fun TableEditorV2MockScreen(
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     listOf("왼쪽", "가운데", "오른쪽").forEachIndexed { index, label ->
                         SegmentedButton(
-                            selected = textAlignIndex == index,
-                            onClick = { textAlignIndex = index },
+                            selected = styleSheetDraft.textAlign == index,
+                            onClick = { styleSheetDraft = styleSheetDraft.copy(textAlign = index) },
                             shape = SegmentedButtonDefaults.itemShape(index, 3)
                         ) { Text(label) }
                     }
@@ -653,7 +651,10 @@ fun TableEditorV2MockScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text("테두리 표시")
-                    Switch(checked = gridEnabled, onCheckedChange = { gridEnabled = it })
+                    Switch(
+                        checked = styleSheetDraft.gridEnabled,
+                        onCheckedChange = { styleSheetDraft = styleSheetDraft.copy(gridEnabled = it) },
+                    )
                 }
 
                 OutlinedButton(
@@ -664,35 +665,42 @@ fun TableEditorV2MockScreen(
                 }
 
                 if (showAdvancedStyle) {
-                    Text("배경 투명도  " + ((bgAlpha / 255f) * 100).toInt() + "%", color = DDZColor.TextMuted)
+                    Text(
+                        "배경 투명도  " + ((styleSheetDraft.bgAlpha / 255f) * 100).toInt() + "%",
+                        color = DDZColor.TextMuted,
+                    )
                     Slider(
-                        value = bgAlpha.toFloat(),
-                        onValueChange = { bgAlpha = it.toInt().coerceIn(0, 255) },
+                        value = styleSheetDraft.bgAlpha.toFloat(),
+                        onValueChange = { value ->
+                            styleSheetDraft = styleSheetDraft.copy(
+                                bgAlpha = value.toInt().coerceIn(0, 255)
+                            )
+                        },
                         valueRange = 0f..255f,
-                        enabled = !transparentTable,
+                        enabled = styleSheetDraft.bgStyle != 2,
                     )
 
                     Text("글자 색", color = DDZColor.TextMuted)
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         listOf("자동", "흰색", "검정").forEachIndexed { index, label ->
                             val selected = when (index) {
-                                0 -> textColorMode == 0
-                                1 -> textColorMode == 1 && manualTextColor == 0
-                                else -> textColorMode == 1 && manualTextColor == 1
+                                0 -> styleSheetDraft.textColorMode == 0
+                                1 -> styleSheetDraft.textColorMode == 1 && styleSheetDraft.manualTextColor == 0
+                                else -> styleSheetDraft.textColorMode == 1 && styleSheetDraft.manualTextColor == 1
                             }
                             SegmentedButton(
                                 selected = selected,
                                 onClick = {
-                                    when (index) {
-                                        0 -> textColorMode = 0
-                                        1 -> {
-                                            textColorMode = 1
-                                            manualTextColor = 0
-                                        }
-                                        else -> {
-                                            textColorMode = 1
-                                            manualTextColor = 1
-                                        }
+                                    styleSheetDraft = when (index) {
+                                        0 -> styleSheetDraft.copy(textColorMode = 0)
+                                        1 -> styleSheetDraft.copy(
+                                            textColorMode = 1,
+                                            manualTextColor = 0,
+                                        )
+                                        else -> styleSheetDraft.copy(
+                                            textColorMode = 1,
+                                            manualTextColor = 1,
+                                        )
                                     }
                                 },
                                 shape = SegmentedButtonDefaults.itemShape(index, 3)
@@ -706,21 +714,7 @@ fun TableEditorV2MockScreen(
                         .fillMaxWidth()
                         .padding(bottom = 24.dp),
                     onClick = {
-                        commitStyleChange(
-                            draftStyleState.copy(
-                                bgStyle = when {
-                                    transparentTable -> 2
-                                    darkTable -> 0
-                                    else -> 1
-                                },
-                                gridEnabled = gridEnabled,
-                                valueScale = (fontScale * 100).toInt().coerceIn(60, 160),
-                                textAlign = textAlignIndex.coerceIn(0, 2),
-                                bgAlpha = bgAlpha.coerceIn(0, 255),
-                                textColorMode = textColorMode.coerceIn(0, 1),
-                                manualTextColor = manualTextColor.coerceIn(0, 1),
-                            )
-                        )
+                        commitStyleChange(styleSheetDraft)
                         showStyle = false
                     },
                 ) { Text("적용") }
