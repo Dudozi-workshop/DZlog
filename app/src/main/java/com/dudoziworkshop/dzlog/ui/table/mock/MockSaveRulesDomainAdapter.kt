@@ -1,10 +1,12 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.table.editor.withDataType
 
 internal fun mockCellsFromTemplate(templateState: TableTemplateState): List<MockCell> =
     templateState.cells
@@ -17,6 +19,70 @@ internal fun mockCellsFromTemplate(templateState: TableTemplateState): List<Mock
                 type = cell.dataType.toMockCellType(),
             )
         }
+
+
+internal fun applyMockCellValue(
+    templateState: TableTemplateState,
+    domainCellId: String,
+    nextValue: String,
+): TableTemplateState =
+    templateState.copy(
+        cells = templateState.cells.map { cell ->
+            if (cell.cellId != domainCellId) {
+                cell
+            } else {
+                when (cell.dataType) {
+                    TableCellDataType.TEXT -> cell.copy(
+                        rawText = nextValue,
+                        typedValue = CellValue.Text(nextValue),
+                    )
+                    TableCellDataType.NUMBER -> cell.copy(
+                        rawText = nextValue,
+                        typedValue = CellValue.Number(nextValue),
+                    )
+                    TableCellDataType.COUNTER -> {
+                        val parsed = nextValue.trim().toIntOrNull()
+                        if (parsed == null || parsed < 0) {
+                            cell
+                        } else {
+                            cell.copy(
+                                rawText = nextValue,
+                                typedValue = CellValue.CounterSeed(parsed),
+                            )
+                        }
+                    }
+                    TableCellDataType.DATE,
+                    TableCellDataType.TIME,
+                    TableCellDataType.ROTATING_TEXT -> cell
+                }
+            }
+        }
+    )
+
+internal fun applyMockCellType(
+    templateState: TableTemplateState,
+    domainCellId: String,
+    nextType: MockCellType,
+): TableTemplateState =
+    templateState.copy(
+        cells = templateState.cells.map { cell ->
+            if (cell.cellId == domainCellId) {
+                cell.withDataType(nextType.toDomainDataType())
+            } else {
+                cell
+            }
+        }
+    )
+
+private fun MockCellType.toDomainDataType(): TableCellDataType =
+    when (this) {
+        MockCellType.TEXT -> TableCellDataType.TEXT
+        MockCellType.NUMBER -> TableCellDataType.NUMBER
+        MockCellType.COUNTER -> TableCellDataType.COUNTER
+        MockCellType.DATE -> TableCellDataType.DATE
+        MockCellType.TIME -> TableCellDataType.TIME
+        MockCellType.ROTATING_TEXT -> TableCellDataType.ROTATING_TEXT
+    }
 
 internal fun mockSaveRulesDraftFromTemplate(
     templateState: TableTemplateState,
