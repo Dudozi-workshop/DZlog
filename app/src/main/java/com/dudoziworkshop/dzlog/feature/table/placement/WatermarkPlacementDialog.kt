@@ -34,6 +34,7 @@ import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
 import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControl
+import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControlStyles
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlin.math.roundToInt
@@ -161,9 +162,7 @@ fun TablePlacementPreviewDialog(
                     modifier = Modifier
                         .width(160.dp)
                         .height(28.dp),
-                    horizontalPadding = 2.dp,
-                    verticalPadding = 1.dp,
-                    textStyle = DDZTypography.Caption
+                    style = DDZSegmentedControlStyles.PlacementCompact
                 )
 
                 TextButton(
