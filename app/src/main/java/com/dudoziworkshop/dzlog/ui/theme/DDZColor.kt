@@ -3,30 +3,51 @@ package com.dudoziworkshop.dzlog.ui.theme
 import androidx.compose.ui.graphics.Color
 
 object DDZColor {
-    // Dudozi C1 · Oat Sage
-    val Background = Color(0xFFFAF9F5)
-    val Surface = Color(0xFFFCFBF7)
-    val Card = Color(0xFFEFE6DD)
+    // DZlog UI System v1 · Light Brown Main / Sage Accent
+    val Background = Color(0xFFFBF8F3)
+    val Surface = Color(0xFFFFFDF9)
+    val SurfaceSoft = Color(0xFFEEE4D8)
 
-    // Green is reserved for active / selected / primary actions.
-    val Primary = Color(0xFF8CA678)
-    val PrimaryElevated = Color(0xFF728961)
-    val PrimaryDark = Color(0xFF536747)
+    // Primary action / brand
+    val Primary = Color(0xFFA98F78)
+    val PrimaryElevated = Color(0xFF927762)
+    val PrimaryDark = Color(0xFF6D5645)
+    val OnPrimary = Color.White
 
-    // Brown remains as the Dudozi brand/text accent, not a large surface color.
-    val BrandBrown = Color(0xFF5A4636)
-    val TextPrimary = Color(0xFF332B26)
-    val TextMuted = Color(0xFF756D65)
-    val IconMuted = Color(0xFFA7A098)
-    val Border = Color(0xFFDED6CD)
+    // Selection / active state
+    val Selected = Color(0xFF7E9670)
+    val SelectedDark = Color(0xFF617757)
+    val SelectedSoft = Color(0xFFE3EBDD)
 
-    val Sage = Color(0xFF8CA678)
-    val SageDark = Color(0xFF728961)
-    val SageLight = Color(0xFFDDE6D7)
+    // Text / icon hierarchy
+    val TextPrimary = Color(0xFF332A25)
+    val TextSecondary = Color(0xFF6F655D)
+    val TextDisabled = Color(0xFFA39A92)
+    val IconMuted = Color(0xFF8B827A)
 
-    // Camera / overlay emphasis palette
-    val SagePrimary = Color(0xFF78936A)
-    val SageDarkStrong = Color(0xFF536747)
-    val SageBorder = Color(0xFFB8C7AD)
-    val TextStrong = Color(0xFF2F352E)
+    // Borders
+    val Border = Color(0xFFD8CEC4)
+    val BorderStrong = Color(0xFFC6BAB0)
+
+    // Destructive
+    val Destructive = Color(0xFFD96862)
+    val DestructiveSoft = Color(0xFFF8E3E1)
+
+    // Camera / overlay exception tokens
+    val OverlayScrim = Color(0xFF2D2926)
+    val OverlayText = Color.White
+
+    // Compatibility aliases. Remove gradually as screens migrate to semantic names.
+    val Card = SurfaceSoft
+    val BrandBrown = PrimaryDark
+    val TextMuted = TextSecondary
+
+    val Sage = Selected
+    val SageDark = SelectedDark
+    val SageLight = SelectedSoft
+
+    val SagePrimary = Selected
+    val SageDarkStrong = SelectedDark
+    val SageBorder = Color(0xFFB9C7B2)
+    val TextStrong = TextPrimary
 }
