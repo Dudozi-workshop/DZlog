@@ -98,6 +98,27 @@ private val QuickSettingsSegmentedControlStyle = DDZSegmentedControlStyle(
     borderColor = DDZColor.Border,
 )
 
+
+private val PlacementCompactSegmentedControlStyle = DDZSegmentedControlStyle(
+    groupShape = RoundedCornerShape(8.dp),
+    itemShape = RoundedCornerShape(0.dp),
+    widthFraction = 1f,
+    outerHorizontalPadding = 0.dp,
+    innerHorizontalPadding = 0.dp,
+    innerVerticalPadding = 0.dp,
+    itemSpacing = 0.dp,
+    fixedHeight = 28.dp,
+    minItemHeight = 28.dp,
+    itemHorizontalPadding = 2.dp,
+    itemVerticalPadding = 1.dp,
+    textStyle = DDZTypography.Caption,
+    selectedTextColor = DDZColor.PrimaryDark,
+    unselectedTextColor = DDZColor.Primary,
+    selectedContainerColor = DDZColor.Surface,
+    unselectedContainerColor = DDZColor.Card,
+    borderColor = DDZColor.Border,
+)
+
 private val CameraPanelSegmentedControlStyle = DDZSegmentedControlStyle(
     groupShape = RoundedCornerShape(DDZLayout.Radius.Small),
     itemShape = RoundedCornerShape(DDZLayout.Radius.Small),
@@ -122,6 +143,7 @@ object DDZSegmentedControlStyles {
     val Default: DDZSegmentedControlStyle = DefaultSegmentedControlStyle
     val QuickSettings: DDZSegmentedControlStyle = QuickSettingsSegmentedControlStyle
     val CameraPanel: DDZSegmentedControlStyle = CameraPanelSegmentedControlStyle
+    val PlacementCompact: DDZSegmentedControlStyle = PlacementCompactSegmentedControlStyle
 }
 
 @Composable
@@ -217,48 +239,4 @@ fun DDZSegmentedControl(
             }
         }
     }
-}
-
-/**
- * Compatibility overload for the existing placement preview.
- * Remove after that screen is migrated to a named DDZSegmentedControlStyle.
- */
-@Composable
-fun DDZSegmentedControl(
-    options: List<String>,
-    selectedIndex: Int,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-    height: Dp = 30.dp,
-    horizontalPadding: Dp = 0.dp,
-    verticalPadding: Dp = 0.dp,
-    textStyle: TextStyle = DDZTypography.SegmentSmall,
-) {
-    val legacyStyle = DDZSegmentedControlStyle(
-        groupShape = RoundedCornerShape(8.dp),
-        itemShape = RoundedCornerShape(0.dp),
-        widthFraction = 1f,
-        outerHorizontalPadding = 0.dp,
-        innerHorizontalPadding = 0.dp,
-        innerVerticalPadding = 0.dp,
-        itemSpacing = 0.dp,
-        fixedHeight = height,
-        minItemHeight = height,
-        itemHorizontalPadding = horizontalPadding,
-        itemVerticalPadding = verticalPadding,
-        textStyle = textStyle,
-        selectedTextColor = DDZColor.PrimaryDark,
-        unselectedTextColor = DDZColor.Primary,
-        selectedContainerColor = DDZColor.Surface,
-        unselectedContainerColor = DDZColor.Card,
-        borderColor = DDZColor.Border,
-    )
-
-    DDZSegmentedControl(
-        options = options,
-        selectedIndex = selectedIndex,
-        onSelect = onSelect,
-        modifier = modifier,
-        style = legacyStyle,
-    )
 }
