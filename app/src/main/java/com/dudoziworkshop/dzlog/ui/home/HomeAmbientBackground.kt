@@ -12,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
@@ -27,7 +26,7 @@ internal fun HomeAmbientBackground(
                 Brush.verticalGradient(
                     colors = listOf(
                         DDZColor.Background,
-                        Color(0xFFF7F0E5),
+                        DDZColor.AmbientWarm,
                         DDZColor.Background,
                     ),
                 ),
@@ -36,46 +35,46 @@ internal fun HomeAmbientBackground(
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .offset(x = 28.dp, y = (-18).dp)
-                .size(width = 250.dp, height = 210.dp)
-                .blur(22.dp),
+                .offset(x = HomeAmbientSpec.CanvasOffsetX, y = HomeAmbientSpec.CanvasOffsetY)
+                .size(width = HomeAmbientSpec.CanvasWidth, height = HomeAmbientSpec.CanvasHeight)
+                .blur(HomeAmbientSpec.BlurRadius),
         ) {
-            val shadow = DDZColor.PrimaryDark.copy(alpha = 0.12f)
-            val shadowSoft = DDZColor.Primary.copy(alpha = 0.075f)
+            val shadow = DDZColor.PrimaryDark.copy(alpha = HomeAmbientSpec.ShadowAlpha)
+            val shadowSoft = DDZColor.Primary.copy(alpha = HomeAmbientSpec.StemAlpha)
 
             Box(
                 modifier = Modifier
-                    .offset(x = 148.dp, y = 0.dp)
-                    .size(width = 12.dp, height = 182.dp)
-                    .rotate(20f)
+                    .offset(x = HomeAmbientSpec.StemX, y = HomeAmbientSpec.StemY)
+                    .size(width = HomeAmbientSpec.StemWidth, height = HomeAmbientSpec.StemHeight)
+                    .rotate(HomeAmbientSpec.StemRotation)
                     .background(shadowSoft, RoundedCornerShape(50)),
             )
             Box(
                 modifier = Modifier
-                    .offset(x = 84.dp, y = 22.dp)
-                    .size(width = 92.dp, height = 34.dp)
-                    .rotate(-24f)
+                    .offset(x = HomeAmbientSpec.Leaf1X, y = HomeAmbientSpec.Leaf1Y)
+                    .size(width = HomeAmbientSpec.Leaf1Width, height = HomeAmbientSpec.Leaf1Height)
+                    .rotate(HomeAmbientSpec.Leaf1Rotation)
                     .background(shadow, RoundedCornerShape(50)),
             )
             Box(
                 modifier = Modifier
-                    .offset(x = 143.dp, y = 56.dp)
-                    .size(width = 98.dp, height = 36.dp)
-                    .rotate(24f)
+                    .offset(x = HomeAmbientSpec.Leaf2X, y = HomeAmbientSpec.Leaf2Y)
+                    .size(width = HomeAmbientSpec.Leaf2Width, height = HomeAmbientSpec.Leaf2Height)
+                    .rotate(HomeAmbientSpec.Leaf2Rotation)
                     .background(shadow, RoundedCornerShape(50)),
             )
             Box(
                 modifier = Modifier
-                    .offset(x = 63.dp, y = 91.dp)
-                    .size(width = 102.dp, height = 38.dp)
-                    .rotate(-18f)
+                    .offset(x = HomeAmbientSpec.Leaf3X, y = HomeAmbientSpec.Leaf3Y)
+                    .size(width = HomeAmbientSpec.Leaf3Width, height = HomeAmbientSpec.Leaf3Height)
+                    .rotate(HomeAmbientSpec.Leaf3Rotation)
                     .background(shadow, RoundedCornerShape(50)),
             )
             Box(
                 modifier = Modifier
-                    .offset(x = 127.dp, y = 128.dp)
-                    .size(width = 92.dp, height = 34.dp)
-                    .rotate(18f)
+                    .offset(x = HomeAmbientSpec.Leaf4X, y = HomeAmbientSpec.Leaf4Y)
+                    .size(width = HomeAmbientSpec.Leaf1Width, height = HomeAmbientSpec.Leaf1Height)
+                    .rotate(HomeAmbientSpec.Leaf4Rotation)
                     .background(shadow, RoundedCornerShape(50)),
             )
         }
@@ -83,11 +82,11 @@ internal fun HomeAmbientBackground(
         Box(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .offset(x = (-52).dp, y = 118.dp)
-                .size(width = 170.dp, height = 140.dp)
-                .blur(28.dp)
+                .offset(x = HomeAmbientSpec.GlowOffsetX, y = HomeAmbientSpec.GlowOffsetY)
+                .size(width = HomeAmbientSpec.GlowWidth, height = HomeAmbientSpec.GlowHeight)
+                .blur(HomeAmbientSpec.GlowBlurRadius)
                 .background(
-                    DDZColor.Primary.copy(alpha = 0.035f),
+                    DDZColor.Primary.copy(alpha = HomeAmbientSpec.GlowAlpha),
                     RoundedCornerShape(50),
                 ),
         )
