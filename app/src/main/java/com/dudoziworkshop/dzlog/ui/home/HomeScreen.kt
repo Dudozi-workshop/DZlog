@@ -48,23 +48,11 @@ import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 private fun clampDp(value: Dp, min: Dp, max: Dp): Dp = when {
     value < min -> min
     value > max -> max
     else -> value
-}
-
-private fun formatRecentCaptureTime(dateAddedSeconds: Long): String {
-    if (dateAddedSeconds <= 0L) return "-"
-    val captureDate = Date(dateAddedSeconds * 1_000L)
-    val todayKey = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
-    val isToday = todayKey.format(captureDate) == todayKey.format(Date())
-    val pattern = if (isToday) "'오늘' HH:mm" else "M월 d일 HH:mm"
-    return SimpleDateFormat(pattern, Locale.getDefault()).format(captureDate)
 }
 
 @Composable
@@ -132,7 +120,7 @@ fun HomeScreen(
                 )
                 DDZIconButton(
                     icon = Icons.Default.Settings,
-                    contentDescription = "설정",
+                    contentDescription = stringResource(com.dudoziworkshop.dzlog.R.string.home_settings_content_description),
                     onClick = onOpenSettings,
                 )
             }
@@ -243,7 +231,7 @@ fun HomeScreen(
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = formatRecentCaptureTime(image.dateAddedSeconds),
+                        text = uiState.latestImageTimeText,
                         style = DDZTypography.Caption,
                         color = DDZColor.TextSecondary,
                     )
