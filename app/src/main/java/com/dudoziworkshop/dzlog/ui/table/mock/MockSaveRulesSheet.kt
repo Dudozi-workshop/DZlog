@@ -12,11 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,6 +25,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
+import com.dudoziworkshop.dzlog.ui.common.DDZButton
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZTextField
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
 internal enum class MockRuleSourceType(val label: String) {
@@ -73,7 +73,6 @@ private enum class MockRuleSection {
     PATH,
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun MockSaveRulesSheet(
     cells: List<TableEditorCellUiModel>,
@@ -159,18 +158,18 @@ internal fun MockSaveRulesSheet(
         closeEditor()
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    DDZBottomSheet(
+        title = if (editingSection == null) "저장설정" else null,
+        onDismiss = onDismiss,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             when {
                 editingSection == null -> {
-                    Text("저장 규칙", fontWeight = FontWeight.Bold)
-
                     CompactRuleSummarySection(
                         title = "파일명",
                         items = draft.fileNameItems,
@@ -214,12 +213,12 @@ internal fun MockSaveRulesSheet(
                         }
                     }
 
-                    OutlinedButton(
+                    DDZButton(
+                        text = if (showAdvanced) "고급 설정 접기" else "고급 설정",
                         modifier = Modifier.fillMaxWidth(),
+                        style = DDZButtonStyle.Secondary,
                         onClick = { showAdvanced = !showAdvanced },
-                    ) {
-                        Text(if (showAdvanced) "고급 설정 접기" else "고급 설정")
-                    }
+                    )
 
                     if (showAdvanced) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -241,14 +240,11 @@ internal fun MockSaveRulesSheet(
                         }
                     }
 
-                    Button(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 24.dp),
+                    DDZButton(
+                        text = "적용",
+                        modifier = Modifier.fillMaxWidth(),
                         onClick = { onApply(draft) },
-                    ) {
-                        Text("적용")
-                    }
+                    )
                 }
 
                 showCellPicker -> {
@@ -323,20 +319,18 @@ internal fun MockSaveRulesSheet(
                         )
                     }
 
-                    OutlinedButton(
+                    DDZButton(
+                        text = "다른 방식 선택",
                         modifier = Modifier.fillMaxWidth(),
+                        style = DDZButtonStyle.Secondary,
                         onClick = { showCellPicker = false },
-                    ) {
-                        Text("다른 방식 선택")
-                    }
-                    TextButton(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 18.dp),
+                    )
+                    DDZButton(
+                        text = "취소",
+                        modifier = Modifier.fillMaxWidth(),
+                        style = DDZButtonStyle.Text,
                         onClick = ::closeEditor,
-                    ) {
-                        Text("취소")
-                    }
+                    )
                 }
 
                 showManualEditor -> {
@@ -347,22 +341,18 @@ internal fun MockSaveRulesSheet(
                         MockRuleSection.PATH -> "${index + 1}단계 · 직접 입력"
                     }
                     Text(title, fontWeight = FontWeight.Bold)
-                    OutlinedTextField(
+                    DDZTextField(
                         modifier = Modifier.fillMaxWidth(),
                         value = manualDraft,
                         onValueChange = { manualDraft = it },
-                        label = {
-                            Text(
-                                if (section == MockRuleSection.FILE_NAME) {
-                                    "파일명 항목"
-                                } else {
-                                    "폴더명"
-                                }
-                            )
+                        label = if (section == MockRuleSection.FILE_NAME) {
+                            "파일명 항목"
+                        } else {
+                            "폴더명"
                         },
-                        singleLine = true,
                     )
-                    Button(
+                    DDZButton(
+                        text = "적용",
                         modifier = Modifier.fillMaxWidth(),
                         enabled = manualDraft.trim().isNotBlank(),
                         onClick = {
@@ -373,23 +363,19 @@ internal fun MockSaveRulesSheet(
                                 )
                             )
                         },
-                    ) {
-                        Text("적용")
-                    }
-                    OutlinedButton(
+                    )
+                    DDZButton(
+                        text = "다른 방식 선택",
                         modifier = Modifier.fillMaxWidth(),
+                        style = DDZButtonStyle.Secondary,
                         onClick = { showManualEditor = false },
-                    ) {
-                        Text("다른 방식 선택")
-                    }
-                    TextButton(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 18.dp),
+                    )
+                    DDZButton(
+                        text = "취소",
+                        modifier = Modifier.fillMaxWidth(),
+                        style = DDZButtonStyle.Text,
                         onClick = ::closeEditor,
-                    ) {
-                        Text("취소")
-                    }
+                    )
                 }
 
                 else -> {
@@ -410,8 +396,10 @@ internal fun MockSaveRulesSheet(
                     )
 
                     MockRuleSourceType.entries.forEach { source ->
-                        OutlinedButton(
+                        DDZButton(
+                            text = source.label + if (activeItems().getOrNull(index)?.sourceType == source) " ✓" else "",
                             modifier = Modifier.fillMaxWidth(),
+                            style = DDZButtonStyle.Secondary,
                             onClick = {
                                 when (source) {
                                     MockRuleSourceType.CELL -> {
@@ -433,17 +421,7 @@ internal fun MockSaveRulesSheet(
                                     )
                                 }
                             },
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Text(source.label)
-                                if (activeItems().getOrNull(index)?.sourceType == source) {
-                                    Text("✓")
-                                }
-                            }
-                        }
+                        )
                     }
 
                     if (activeItems().getOrNull(index) != null) {
@@ -461,14 +439,12 @@ internal fun MockSaveRulesSheet(
                         }
                     }
 
-                    TextButton(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 18.dp),
+                    DDZButton(
+                        text = "취소",
+                        modifier = Modifier.fillMaxWidth(),
+                        style = DDZButtonStyle.Text,
                         onClick = ::closeEditor,
-                    ) {
-                        Text("취소")
-                    }
+                    )
                 }
             }
         }
@@ -490,16 +466,12 @@ private fun CompactRuleSummarySection(
         ) {
             repeat(3) { index ->
                 val item = items.getOrNull(index)
-                OutlinedButton(
+                DDZButton(
+                    text = item?.let(::ruleItemCompactLabel) ?: emptyLabel(index),
                     modifier = Modifier.weight(1f),
+                    style = DDZButtonStyle.Secondary,
                     onClick = { onItemClick(index) },
-                ) {
-                    Text(
-                        text = item?.let(::ruleItemCompactLabel) ?: emptyLabel(index),
-                        color = if (item == null) DDZColor.TextMuted else DDZColor.TextPrimary,
-                        maxLines = 1,
-                    )
-                }
+                )
             }
         }
     }
