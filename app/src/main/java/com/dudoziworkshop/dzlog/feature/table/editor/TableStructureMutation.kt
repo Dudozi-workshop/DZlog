@@ -129,7 +129,13 @@ fun removeRowsByRange(
 ): TableTemplateState {
     val expandedRange = expandRowRemovalRangeForMergedCells(templateState, range)
     val normalizedRange = normalizeRowRemovalRange(templateState, expandedRange) ?: return templateState
-    if (expandedRange != range &&
+    val touchesMergedBlock = templateState.cells
+        .filter { it.rowSpan > 1 }
+        .any { cell ->
+            val cellRange = cell.rowIndex..(cell.rowIndex + cell.rowSpan - 1)
+            cellRange.first <= expandedRange.last && cellRange.last >= expandedRange.first
+        }
+    if (touchesMergedBlock &&
         (normalizedRange.first != expandedRange.first || normalizedRange.last != expandedRange.last)
     ) return templateState
 
@@ -162,7 +168,13 @@ fun removeColsByRange(
 ): TableTemplateState {
     val expandedRange = expandColRemovalRangeForMergedCells(templateState, range)
     val normalizedRange = normalizeColRemovalRange(templateState, expandedRange) ?: return templateState
-    if (expandedRange != range &&
+    val touchesMergedBlock = templateState.cells
+        .filter { it.colSpan > 1 }
+        .any { cell ->
+            val cellRange = cell.colIndex..(cell.colIndex + cell.colSpan - 1)
+            cellRange.first <= expandedRange.last && cellRange.last >= expandedRange.first
+        }
+    if (touchesMergedBlock &&
         (normalizedRange.first != expandedRange.first || normalizedRange.last != expandedRange.last)
     ) return templateState
 
