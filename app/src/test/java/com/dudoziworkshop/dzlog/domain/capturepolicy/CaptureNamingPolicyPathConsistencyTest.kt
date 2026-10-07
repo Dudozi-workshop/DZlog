@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.domain.capturepolicy
 
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterScopeParts
+import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -52,6 +53,32 @@ class CaptureNamingPolicyPathConsistencyTest {
 
         assertEquals(false, onA.scopeKey == onB.scopeKey)
         assertEquals(offA.scopeKey, offB.scopeKey)
+    }
+
+    @Test
+    fun `counter scope toggles never change physical path or display name`() {
+        val naming = CaptureNamingPolicy.buildForCaptureWithCounter(
+            captureContext = baseContext(),
+            usedCounter = 12,
+        )
+        val allOn = buildScopedCounter(
+            counterScope = naming.counterScope,
+            includePathInScope = true,
+            includeFilenameInScope = true,
+            scanPrefix = naming.scanPrefix,
+        )
+        val allOff = buildScopedCounter(
+            counterScope = naming.counterScope,
+            includePathInScope = false,
+            includeFilenameInScope = false,
+            scanPrefix = naming.scanPrefix,
+        )
+
+        assertEquals("Pictures/DZlog/A/B/", naming.relativePath)
+        assertEquals(naming.scanPrefix, allOn.captureStreamKey.scanPrefix)
+        assertEquals(naming.scanPrefix, allOff.captureStreamKey.scanPrefix)
+        assertEquals("*", allOff.scopeParts.relativePathKey)
+        assertEquals("*", allOff.scopeParts.prefix)
     }
 
     @Test
