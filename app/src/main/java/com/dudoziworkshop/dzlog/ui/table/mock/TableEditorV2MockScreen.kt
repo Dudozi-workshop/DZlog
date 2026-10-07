@@ -129,8 +129,9 @@ fun TableEditorV2MockScreen(
     }
     val rows = draftTemplateState.rows
     val cols = draftTemplateState.cols
-    var selectedCellId by remember { mutableStateOf<String?>(null) }
-    var layoutSelection by remember { mutableStateOf(MockLayoutSelection()) }
+    val selectionState = remember { TableEditorV2SelectionState() }
+    val selectedCellId = selectionState.selectedCellId
+    val layoutSelection = selectionState.layoutSelection
     var showLayoutDeleteSheet by remember { mutableStateOf(false) }
     var pendingMergeDecision by remember { mutableStateOf<TableMergeDecision?>(null) }
     var mode by remember { mutableStateOf(MockMode.EDIT) }
@@ -170,7 +171,7 @@ fun TableEditorV2MockScreen(
     fun requestBack() {
         if (mode == MockMode.LAYOUT) {
             mode = MockMode.EDIT
-            layoutSelection = MockLayoutSelection()
+            selectionState.clearLayoutSelection()
             return
         }
         if (session.isDirty || isUnsavedNewTemplate) {
@@ -205,15 +206,15 @@ fun TableEditorV2MockScreen(
                     if (mode == MockMode.LAYOUT) {
                         Button(onClick = {
                             mode = MockMode.EDIT
-                            layoutSelection = MockLayoutSelection()
+                            selectionState.clearLayoutSelection()
                         }) { Text("완료") }
                     } else {
                         IconButton(
                             enabled = session.canUndo && session.historyRevision >= 0,
                             onClick = {
                                 if (session.undo()) {
-                                    selectedCellId = null
-                                    layoutSelection = MockLayoutSelection()
+                                    selectionState.clearEditSelection()
+                                    selectionState.clearLayoutSelection()
                                 }
                             },
                         ) {
@@ -223,8 +224,8 @@ fun TableEditorV2MockScreen(
                             enabled = session.canRedo && session.historyRevision >= 0,
                             onClick = {
                                 if (session.redo()) {
-                                    selectedCellId = null
-                                    layoutSelection = MockLayoutSelection()
+                                    selectionState.clearEditSelection()
+                                    selectionState.clearLayoutSelection()
                                 }
                             },
                         ) {
@@ -246,7 +247,7 @@ fun TableEditorV2MockScreen(
             if (mode == MockMode.EDIT) {
                 MockBottomBar(
                     onLayout = {
-                        selectedCellId = null
+                        selectionState.clearEditSelection()
                         mode = MockMode.LAYOUT
                     },
                     onStyle = {
@@ -325,24 +326,23 @@ fun TableEditorV2MockScreen(
                 },
                 onCellClick = { domainCellId ->
                     if (mode == MockMode.LAYOUT) {
-                        layoutSelection = selectMockLayoutCell(
+                        selectionState.selectLayoutCell(
                             templateState = draftTemplateState,
-                            current = layoutSelection,
                             tappedDomainCellId = domainCellId,
                         )
                     } else {
-                        selectedCellId = domainCellId
+                        selectionState.selectEditCell(domainCellId)
                     }
                 },
                 onCellRangeDrag = { startId, endId ->
-                    layoutSelection = selectMockLayoutRange(
+                    selectionState.selectLayoutRange(
                         templateState = draftTemplateState,
                         startDomainCellId = startId,
                         endDomainCellId = endId,
                     )
                 },
                 onClearLayoutSelection = {
-                    layoutSelection = MockLayoutSelection()
+                    selectionState.clearLayoutSelection()
                 },
             )
 
@@ -446,7 +446,7 @@ fun TableEditorV2MockScreen(
                                 )
                             )
                         },
-                        onClose = { selectedCellId = null },
+                        onClose = { selectionState.clearEditSelection() },
                     )
                 }
             } else {
@@ -457,11 +457,11 @@ fun TableEditorV2MockScreen(
                     mergedSelection = isMockLayoutSelectionMerged(draftTemplateState, layoutSelection),
                     onAddRow = {
                         session.commitTemplateChange(addMockLayoutRow(draftTemplateState, layoutSelection))
-                        layoutSelection = MockLayoutSelection()
+                        selectionState.clearLayoutSelection()
                     },
                     onAddCol = {
                         session.commitTemplateChange(addMockLayoutColumn(draftTemplateState, layoutSelection))
-                        layoutSelection = MockLayoutSelection()
+                        selectionState.clearLayoutSelection()
                     },
                     onMergeSelection = {
                         val populatedCellIds = cells
@@ -481,7 +481,7 @@ fun TableEditorV2MockScreen(
                             TableMergeDecisionType.UNMERGE -> {
                                 val updated = applyMockLayoutMergeDecision(draftTemplateState, decision)
                                 session.commitTemplateChange(updated)
-                                layoutSelection = normalizeMockLayoutSelection(
+                                selectionState.normalizeLayoutSelection(
                                     templateState = updated,
                                     range = decision.range,
                                     collapseToTopLeft = decision.type == TableMergeDecisionType.UNMERGE,
@@ -514,7 +514,7 @@ fun TableEditorV2MockScreen(
                         pendingMergeDecision?.let { decision ->
                             val updated = applyMockLayoutMergeDecision(draftTemplateState, decision)
                             session.commitTemplateChange(updated)
-                            layoutSelection = normalizeMockLayoutSelection(
+                            selectionState.normalizeLayoutSelection(
                                 templateState = updated,
                                 range = decision.range,
                                 collapseToTopLeft = false,
@@ -541,7 +541,7 @@ fun TableEditorV2MockScreen(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
                         session.commitTemplateChange(removeMockLayoutRows(draftTemplateState, layoutSelection))
-                        layoutSelection = MockLayoutSelection()
+                        selectionState.clearLayoutSelection()
                         showLayoutDeleteSheet = false
                     },
                 ) { Text("행 삭제") }
@@ -549,7 +549,7 @@ fun TableEditorV2MockScreen(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
                         session.commitTemplateChange(removeMockLayoutColumns(draftTemplateState, layoutSelection))
-                        layoutSelection = MockLayoutSelection()
+                        selectionState.clearLayoutSelection()
                         showLayoutDeleteSheet = false
                     },
                 ) { Text("열 삭제") }
