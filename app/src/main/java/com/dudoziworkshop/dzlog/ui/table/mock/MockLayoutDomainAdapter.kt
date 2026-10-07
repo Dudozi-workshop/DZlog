@@ -32,7 +32,20 @@ internal fun selectMockLayoutCell(
         tappedCellId = tappedDomainCellId,
         additive = current.selectedCellIds.isNotEmpty(),
     )
-    return result.toMockLayoutSelection()
+    val baseRange = result.range ?: return result.toMockLayoutSelection()
+    val expandedRange = TableStructureRangeActions.expandRangeToMergedBlocks(
+        cells = templateState.cells,
+        base = baseRange,
+    )
+    val expandedIds = templateState.cells
+        .filter { cell -> expandedRange.contains(cell.rowIndex, cell.colIndex) }
+        .map { it.cellId }
+        .toSet()
+    return MockLayoutSelection(
+        selectedCellIds = expandedIds,
+        range = expandedRange,
+        lastSelectedCellId = result.lastSelectedCellId,
+    )
 }
 
 internal fun addMockLayoutRow(
