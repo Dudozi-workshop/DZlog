@@ -91,4 +91,30 @@ class MockLayoutDomainAdapterTest {
     }
 
 
+    @Test
+    fun `mock canvas geometry marks merged covered cells`() {
+        val base = newBlankTableTemplateState(rows = 2, cols = 2)
+        val topLeft = base.cells.first { it.rowIndex == 0 && it.colIndex == 0 }
+        val bottomRight = base.cells.first { it.rowIndex == 1 && it.colIndex == 1 }
+
+        var selection = selectMockLayoutCell(
+            templateState = base,
+            current = MockLayoutSelection(),
+            tappedDomainCellId = topLeft.cellId,
+        )
+        selection = selectMockLayoutCell(
+            templateState = base,
+            current = selection,
+            tappedDomainCellId = bottomRight.cellId,
+        )
+        val merged = mergeOrUnmergeMockLayoutSelection(base, selection)
+        val mockCells = mockCellsFromTemplate(merged)
+
+        val root = mockCells.first { it.domainCellId == topLeft.cellId }
+        assertEquals(2, root.rowSpan)
+        assertEquals(2, root.colSpan)
+        assertTrue(mockCells.count { it.isCovered } == 3)
+    }
+
+
 }
