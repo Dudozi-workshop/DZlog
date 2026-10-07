@@ -669,7 +669,7 @@ internal fun BottomEditorPanel(
                     )
                 }
                 Spacer(Modifier.height(8.dp))
-                val normalizedSlots = List(2) { index -> pathSlotItems.getOrNull(index) }
+                val normalizedSlots = List(3) { index -> pathSlotItems.getOrNull(index) }
                 val canMoveLeft = selectedPathSlot?.let {
                     normalizedSlots.getOrNull(it) != null && normalizedSlots.getOrNull(it - 1) != null
                 } == true
