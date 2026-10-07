@@ -2,16 +2,12 @@
 
 package com.dudoziworkshop.dzlog.ui.home
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,10 +27,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,8 +38,6 @@ import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZIconButton
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.common.rememberThreeButtonNavEquivalentBottomPadding
-import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
-import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
@@ -177,85 +169,12 @@ fun HomeScreen(
 
             Spacer(Modifier.height(sectionGap + HomeUiSpec.PrimaryToRecentExtraGap))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(com.dudoziworkshop.dzlog.R.string.home_recent_capture),
-                    style = DDZTypography.SectionTitle,
-                    color = DDZColor.TextPrimary,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = stringResource(com.dudoziworkshop.dzlog.R.string.home_album_view),
-                    style = DDZTypography.Secondary.copy(fontWeight = FontWeight.Medium),
-                    color = DDZColor.PrimaryDark,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(HomeUiSpec.AlbumActionRadius))
-                        .clickable(onClick = onOpenAlbum)
-                        .padding(horizontal = HomeUiSpec.AlbumActionHorizontalPadding, vertical = HomeUiSpec.AlbumActionVerticalPadding),
-                )
-            }
-
-            Spacer(Modifier.height(HomeUiSpec.RecentHeaderToImageGap))
-
-            val image = latestImage
-            if (image != null) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth(HomeUiSpec.RecentImageWidthFraction)
-                        .align(Alignment.CenterHorizontally),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(HomeUiSpec.RecentImageAspectRatio)
-                            .clip(RoundedCornerShape(HomeUiSpec.RecentImageRadius))
-                            .background(DDZColor.Surface)
-                            .border(HomeUiSpec.BorderWidth, DDZColor.Border, RoundedCornerShape(HomeUiSpec.RecentImageRadius))
-                            .clickable {
-                                val (g1, g2) = parseG1G2FromRelativePath(image.relativePath)
-                                onOpenRecentCaptureGrid(g1, g2, image.relativePath, 0)
-                            },
-                    ) {
-                        DzThumbnail(image.uri.toString())
-                    }
-                    Spacer(Modifier.height(HomeUiSpec.RecentImageToNameGap))
-                    Text(
-                        text = image.displayName,
-                        style = DDZTypography.Body.copy(fontWeight = FontWeight.Medium),
-                        color = DDZColor.TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(Modifier.height(HomeUiSpec.RecentNameToTimeGap))
-                    Text(
-                        text = uiState.latestImageTimeText,
-                        style = DDZTypography.Caption,
-                        color = DDZColor.TextSecondary,
-                    )
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = HomeUiSpec.EmptyStateVerticalPadding),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(HomeUiSpec.EmptyStateGap),
-                ) {
-                    Text(
-                        text = stringResource(com.dudoziworkshop.dzlog.R.string.home_no_recent_capture),
-                        style = DDZTypography.Body,
-                        color = DDZColor.TextPrimary,
-                    )
-                    Text(
-                        text = stringResource(com.dudoziworkshop.dzlog.R.string.home_first_record_hint),
-                        style = DDZTypography.Secondary,
-                        color = DDZColor.TextSecondary,
-                    )
-                }
-            }
+            HomeRecentCaptureSection(
+                image = latestImage,
+                timeText = uiState.latestImageTimeText,
+                onOpenAlbum = onOpenAlbum,
+                onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
+            )
 
             Spacer(Modifier.height(sectionGap))
 
