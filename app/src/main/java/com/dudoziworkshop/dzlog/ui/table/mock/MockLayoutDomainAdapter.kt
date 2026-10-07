@@ -9,6 +9,7 @@ import com.dudoziworkshop.dzlog.feature.table.editor.addColumnBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.addRowBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.removeColumnBySelection
 import com.dudoziworkshop.dzlog.feature.table.editor.removeRowBySelection
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 
 internal data class MockLayoutSelection(
     val selectedCellIds: Set<String> = emptySet(),
@@ -110,3 +111,49 @@ private fun TableSelectionResult.toMockLayoutSelection(): MockLayoutSelection =
         range = range,
         lastSelectedCellId = lastSelectedCellId,
     )
+
+
+private const val MOCK_MIN_WEIGHT = 0.20f
+
+internal fun adjustMockRowBoundary(
+    templateState: TableTemplateState,
+    boundaryIndex: Int,
+    deltaFraction: Float,
+): TableTemplateState {
+    val weights = TableLayoutCalculator.resolveWeights(templateState.rowWeights, templateState.rows)
+    return templateState.copy(
+        rowWeights = adjustBoundaryWeights(weights, boundaryIndex, deltaFraction),
+    )
+}
+
+internal fun adjustMockColumnBoundary(
+    templateState: TableTemplateState,
+    boundaryIndex: Int,
+    deltaFraction: Float,
+): TableTemplateState {
+    val weights = TableLayoutCalculator.resolveWeights(templateState.colWeights, templateState.cols)
+    return templateState.copy(
+        colWeights = adjustBoundaryWeights(weights, boundaryIndex, deltaFraction),
+    )
+}
+
+private fun adjustBoundaryWeights(
+    weights: List<Float>,
+    boundaryIndex: Int,
+    deltaFraction: Float,
+): List<Float> {
+    if (weights.size < 2 || boundaryIndex !in 0 until weights.lastIndex) return weights
+    val total = weights.sum().coerceAtLeast(0.0001f)
+    val deltaWeight = deltaFraction * total
+    val left = weights[boundaryIndex]
+    val right = weights[boundaryIndex + 1]
+    val clampedDelta = deltaWeight.coerceIn(
+        MOCK_MIN_WEIGHT - left,
+        right - MOCK_MIN_WEIGHT,
+    )
+    if (clampedDelta == 0f) return weights
+    return weights.toMutableList().also {
+        it[boundaryIndex] = left + clampedDelta
+        it[boundaryIndex + 1] = right - clampedDelta
+    }
+}
