@@ -75,6 +75,24 @@ class CaptureNamingPolicyPathConsistencyTest {
     }
 
     @Test
+    fun `only first three path slots are used by preview counter and capture naming`() {
+        val result = CaptureNamingPolicy.buildForCaptureWithCounter(
+            captureContext = baseContext(
+                pathSlotDrafts = listOf(
+                    TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
+                    TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "B"),
+                    TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "C"),
+                    TableEditorSlotDraft(kind = "MANUAL", label = "legacy", manualText = "D"),
+                )
+            ),
+            usedCounter = 1,
+        )
+
+        assertEquals("Pictures/DZlog/A/B/C/", result.relativePath)
+        assertEquals(result.relativePath, result.counterScope.relativePathKey)
+    }
+
+    @Test
     fun `group level differences do not change relativePath when path slots are same`() {
         val none = resolvedTextCell(GroupLevel.NONE)
         val g2 = resolvedTextCell(GroupLevel.G2)
