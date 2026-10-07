@@ -6,6 +6,9 @@ import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.HourSystem
+import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
+import com.dudoziworkshop.dzlog.domain.model.TimeSeparator
 import com.dudoziworkshop.dzlog.feature.table.editor.withDataType
 
 internal fun mockCellsFromTemplate(templateState: TableTemplateState): List<MockCell> =
@@ -17,6 +20,9 @@ internal fun mockCellsFromTemplate(templateState: TableTemplateState): List<Mock
                 domainCellId = cell.cellId,
                 value = cell.rawText,
                 type = cell.dataType.toMockCellType(),
+                formatPattern = cell.formatPattern,
+                phraseSetId = cell.phraseSetId,
+                everyOverride = cell.everyOverride,
             )
         }
 
@@ -83,6 +89,85 @@ private fun MockCellType.toDomainDataType(): TableCellDataType =
         MockCellType.TIME -> TableCellDataType.TIME
         MockCellType.ROTATING_TEXT -> TableCellDataType.ROTATING_TEXT
     }
+
+
+internal fun applyMockDatePattern(
+    templateState: TableTemplateState,
+    domainCellId: String,
+    pattern: String,
+): TableTemplateState {
+    val normalized = pattern.takeIf { it in setOf("yyyyMMdd", "yyMMdd", "MMdd") } ?: "yyyyMMdd"
+    return templateState.copy(
+        cells = templateState.cells.map { cell ->
+            if (cell.cellId == domainCellId && cell.dataType == TableCellDataType.DATE) {
+                cell.copy(formatPattern = normalized)
+            } else {
+                cell
+            }
+        }
+    )
+}
+
+internal fun applyMockTimeFormatPolicy(
+    templateState: TableTemplateState,
+    domainCellId: String,
+): TableTemplateState =
+    templateState.copy(
+        cells = templateState.cells.map { cell ->
+            if (cell.cellId == domainCellId && cell.dataType == TableCellDataType.TIME) {
+                cell.copy(
+                    timeFormatOptions = TimeFormatOptions(
+                        hourSystem = HourSystem.H24,
+                        includeSeconds = false,
+                        separator = TimeSeparator.NONE,
+                    ),
+                    formatPattern = "HHmm",
+                )
+            } else {
+                cell
+            }
+        }
+    )
+
+internal fun applyMockPhraseSet(
+    templateState: TableTemplateState,
+    domainCellId: String,
+    phraseSetId: String?,
+): TableTemplateState {
+    val safeId = phraseSetId?.takeIf { id -> templateState.phraseSets.any { it.id == id } }
+    return templateState.copy(
+        cells = templateState.cells.map { cell ->
+            if (cell.cellId == domainCellId && cell.dataType == TableCellDataType.ROTATING_TEXT) {
+                if (safeId == null) {
+                    cell.copy(phraseSetId = null, everyOverride = null)
+                } else {
+                    cell.copy(phraseSetId = safeId)
+                }
+            } else {
+                cell
+            }
+        }
+    )
+}
+
+internal fun applyMockPhraseEvery(
+    templateState: TableTemplateState,
+    domainCellId: String,
+    every: Int,
+): TableTemplateState =
+    templateState.copy(
+        cells = templateState.cells.map { cell ->
+            if (
+                cell.cellId == domainCellId &&
+                cell.dataType == TableCellDataType.ROTATING_TEXT &&
+                cell.phraseSetId != null
+            ) {
+                cell.copy(everyOverride = every.coerceAtLeast(1))
+            } else {
+                cell
+            }
+        }
+    )
 
 internal fun mockSaveRulesDraftFromTemplate(
     templateState: TableTemplateState,
