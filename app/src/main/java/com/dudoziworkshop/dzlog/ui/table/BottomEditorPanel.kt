@@ -159,6 +159,8 @@ internal fun BottomEditorPanel(
     onOpenCellMode: () -> Unit,
     onOpenStructureMode: () -> Unit,
     onOpenStyleMode: () -> Unit,
+    onOpenFileNameMode: () -> Unit,
+    onOpenPathMode: () -> Unit,
 ) {
     @Composable
     fun PanelHeader(title: String) {
@@ -543,6 +545,24 @@ internal fun BottomEditorPanel(
             }
 
             BottomEditorPanelMode.FILENAME_EDIT -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    CompactTextAction(
+                        modifier = Modifier.weight(1f),
+                        label = "파일명",
+                        selected = true,
+                        onClick = onOpenFileNameMode,
+                    )
+                    CompactTextAction(
+                        modifier = Modifier.weight(1f),
+                        label = "저장경로",
+                        selected = false,
+                        onClick = onOpenPathMode,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
                 val normalizedSlots = List(3) { index -> fileNameSlotItems.getOrNull(index) }
                 val canMoveLeft = selectedFileNameSlot?.let {
                     normalizedSlots.getOrNull(it) != null && normalizedSlots.getOrNull(it - 1) != null
@@ -631,6 +651,24 @@ internal fun BottomEditorPanel(
             }
 
             BottomEditorPanelMode.PATH_EDIT -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    CompactTextAction(
+                        modifier = Modifier.weight(1f),
+                        label = "파일명",
+                        selected = false,
+                        onClick = onOpenFileNameMode,
+                    )
+                    CompactTextAction(
+                        modifier = Modifier.weight(1f),
+                        label = "저장경로",
+                        selected = true,
+                        onClick = onOpenPathMode,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
                 val normalizedSlots = List(2) { index -> pathSlotItems.getOrNull(index) }
                 val canMoveLeft = selectedPathSlot?.let {
                     normalizedSlots.getOrNull(it) != null && normalizedSlots.getOrNull(it - 1) != null
