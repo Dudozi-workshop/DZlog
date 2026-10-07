@@ -89,17 +89,17 @@ class CounterSeedPolicyTest {
 
         val pathOnly = buildCounterScopeParts(relativePath = "A/B", prefix = "PFX", includePathInScope = true, includeFilenameInScope = false)
         assertEquals("A/B", pathOnly.relativePathKey)
-        assertEquals("name=off", pathOnly.prefix)
-        assertEquals("A/B|name=off", pathOnly.scopeKey)
+        assertEquals("*", pathOnly.prefix)
+        assertEquals("A/B|*", pathOnly.scopeKey)
 
         val filenameOnly = buildCounterScopeParts(relativePath = "A/B", prefix = "PFX", includePathInScope = false, includeFilenameInScope = true)
-        assertEquals("path=off", filenameOnly.relativePathKey)
+        assertEquals("*", filenameOnly.relativePathKey)
         assertEquals("PFX", filenameOnly.prefix)
-        assertEquals("path=off|PFX", filenameOnly.scopeKey)
+        assertEquals("*|PFX", filenameOnly.scopeKey)
 
         val global = buildCounterScopeParts(relativePath = "A/B", prefix = "PFX", includePathInScope = false, includeFilenameInScope = false)
-        assertEquals("path=off", global.relativePathKey)
-        assertEquals("name=off", global.prefix)
-        assertEquals("path=off|name=off", global.scopeKey)
+        assertEquals("*", global.relativePathKey)
+        assertEquals("*", global.prefix)
+        assertEquals("*|*", global.scopeKey)
     }
 }
