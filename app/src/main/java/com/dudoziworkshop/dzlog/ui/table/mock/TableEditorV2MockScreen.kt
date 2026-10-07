@@ -214,13 +214,35 @@ fun TableEditorV2MockScreen(
                 if (selected != null) {
                     MockCellEditor(
                         cell = selected,
-                        onValueChange = { next ->
+                        onValueChange = { nextValue ->
                             val index = cells.indexOfFirst { it.id == selected.id }
-                            if (index >= 0) cells[index] = selected.copy(value = next)
+                            if (index >= 0) {
+                                cells[index] = cells[index].copy(value = nextValue)
+                            }
+                            selected.domainCellId?.let { cellId ->
+                                onTemplateChange(
+                                    applyMockCellValue(
+                                        templateState = templateState,
+                                        domainCellId = cellId,
+                                        nextValue = nextValue,
+                                    )
+                                )
+                            }
                         },
                         onTypeChange = { nextType ->
                             val index = cells.indexOfFirst { it.id == selected.id }
-                            if (index >= 0) cells[index] = selected.copy(type = nextType)
+                            if (index >= 0) {
+                                cells[index] = cells[index].copy(type = nextType)
+                            }
+                            selected.domainCellId?.let { cellId ->
+                                onTemplateChange(
+                                    applyMockCellType(
+                                        templateState = templateState,
+                                        domainCellId = cellId,
+                                        nextType = nextType,
+                                    )
+                                )
+                            }
                         },
                         onClose = { selectedId = null },
                     )
