@@ -670,7 +670,23 @@ fun AppRoot() {
             }
 
             AppScreen.TABLE_EDITOR_V2_MOCK -> {
-                TableEditorV2MockScreen(onBack = { screen = previousScreen })
+                TableEditorV2MockScreen(
+                    templateState = tableTemplateState,
+                    includePathInCounterScope = appSettings.includePathInCounterScope,
+                    includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+                    onTemplateChange = ::updateTemplateState,
+                    onIncludePathInCounterScopeChange = { enabled ->
+                        appScope.launch {
+                            AppSettingsStore.setIncludePathInCounterScope(context, enabled)
+                        }
+                    },
+                    onIncludeFilenameInCounterScopeChange = { enabled ->
+                        appScope.launch {
+                            AppSettingsStore.setIncludeFilenameInCounterScope(context, enabled)
+                        }
+                    },
+                    onBack = { screen = previousScreen },
+                )
             }
 
             AppScreen.SETTINGS -> SettingsScreen(
