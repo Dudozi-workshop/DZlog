@@ -37,7 +37,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -74,6 +73,8 @@ import com.dudoziworkshop.dzlog.ui.common.DDZBottomNavigation
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomNavigationItem
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
+import com.dudoziworkshop.dzlog.ui.common.DDZConfirmDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZQuickChoiceDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBarIconButton
@@ -485,30 +486,22 @@ fun TableEditorV2Screen(
     }
 
     if (pendingMergeDecision != null) {
-        AlertDialog(
-            onDismissRequest = { pendingMergeDecision = null },
-            title = { Text("셀을 병합할까요?") },
-            text = { Text("병합하면 왼쪽 위 셀의 값만 유지됩니다.") },
-            dismissButton = {
-                TextButton(onClick = { pendingMergeDecision = null }) {
-                    Text("취소")
+        DDZConfirmDialog(
+            title = "셀을 병합할까요?",
+            message = "병합하면 왼쪽 위 셀의 값만 유지됩니다.",
+            confirmText = "병합",
+            onDismiss = { pendingMergeDecision = null },
+            onConfirm = {
+                pendingMergeDecision?.let { decision ->
+                    val updated = TableEditorV2StructureController.applyMergeDecision(draftTemplateState, decision)
+                    session.commitTemplateChange(updated)
+                    selectionState.normalizeLayoutSelection(
+                        templateState = updated,
+                        range = decision.range,
+                        collapseToTopLeft = false,
+                    )
                 }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        pendingMergeDecision?.let { decision ->
-                            val updated = TableEditorV2StructureController.applyMergeDecision(draftTemplateState, decision)
-                            session.commitTemplateChange(updated)
-                            selectionState.normalizeLayoutSelection(
-                                templateState = updated,
-                                range = decision.range,
-                                collapseToTopLeft = false,
-                            )
-                        }
-                        pendingMergeDecision = null
-                    },
-                ) { Text("병합") }
+                pendingMergeDecision = null
             },
         )
     }
@@ -547,8 +540,9 @@ fun TableEditorV2Screen(
     }
 
     if (showStyle) {
-        ModalBottomSheet(
-            onDismissRequest = {
+        DDZBottomSheet(
+            title = "표 스타일",
+            onDismiss = {
                 styleSheetDraft = draftStyleState
                 showStyle = false
             },
@@ -559,8 +553,6 @@ fun TableEditorV2Screen(
                     .padding(horizontal = 20.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                Text("표 스타일", fontWeight = FontWeight.Bold)
-
                 Text("배경", color = DDZColor.TextMuted)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     listOf("밝게", "어둡게", "투명").forEachIndexed { index, label ->
@@ -619,12 +611,12 @@ fun TableEditorV2Screen(
                     )
                 }
 
-                OutlinedButton(
+                DDZButton(
+                    text = if (showAdvancedStyle) "고급 설정 접기" else "더보기",
                     modifier = Modifier.fillMaxWidth(),
+                    style = DDZButtonStyle.Secondary,
                     onClick = { showAdvancedStyle = !showAdvancedStyle },
-                ) {
-                    Text(if (showAdvancedStyle) "고급 설정 접기" else "더보기")
-                }
+                )
 
                 if (showAdvancedStyle) {
                     Text(
@@ -671,15 +663,14 @@ fun TableEditorV2Screen(
                     }
                 }
 
-                Button(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 24.dp),
+                DDZButton(
+                    text = "적용",
+                    modifier = Modifier.fillMaxWidth(),
                     onClick = {
                         session.commitStyleChange(styleSheetDraft)
                         showStyle = false
                     },
-                ) { Text("적용") }
+                )
             }
         }
     }
@@ -1424,7 +1415,7 @@ private fun StructureActionButton(
 ) {
     val tint = when {
         !enabled -> DDZColor.IconMuted
-        danger -> Color(0xFFB85C52)
+        danger -> DDZColor.Destructive
         else -> DDZColor.TextPrimary
     }
     Column(
