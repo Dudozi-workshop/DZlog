@@ -694,16 +694,18 @@ fun AppRoot() {
             }
 
             AppScreen.TABLE_EDITOR -> {
-                TableDetailRoute(
+                TableEditorV2MockScreen(
                     templateState = tableTemplateState,
-                    templateName = tableTemplateViewModel.templates
+                    includePathInCounterScope = appSettings.includePathInCounterScope,
+                    includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+                    styleState = tableTemplateViewModel.templates
                         .firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }
-                        ?.name
-                        .orEmpty(),
+                        ?.styleState
+                        ?: TableStyleState(),
                     isUnsavedNewTemplate = pendingNewTemplateId == tableTemplateViewModel.activeTemplateId,
-                    onTemplateChange = ::updateTemplateState,
+                    onSave = ::saveV2EditSession,
                     onDiscardUnsavedNewTemplate = ::discardPendingNewTemplate,
-                    onBack = { screen = previousScreen }
+                    onBack = { screen = previousScreen },
                 )
             }
 
