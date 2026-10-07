@@ -62,6 +62,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
@@ -228,6 +229,11 @@ fun TableEditorV2MockScreen(
                 darkTable = darkTable,
                 transparentTable = transparentTable,
                 gridEnabled = gridEnabled,
+                bgAlpha = bgAlpha,
+                fontScale = fontScale,
+                textAlignIndex = textAlignIndex,
+                textColorMode = textColorMode,
+                manualTextColor = manualTextColor,
                 layoutMode = mode == MockMode.LAYOUT,
                 rowWeights = templateState.rowWeights,
                 colWeights = templateState.colWeights,
@@ -427,26 +433,39 @@ fun TableEditorV2MockScreen(
                 Text("배경", color = DDZColor.TextMuted)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     listOf("밝게", "어둡게", "투명").forEachIndexed { index, label ->
+                        val selected = when (index) {
+                            0 -> !darkTable && !transparentTable
+                            1 -> darkTable && !transparentTable
+                            else -> transparentTable
+                        }
                         SegmentedButton(
-                            selected = when (index) {
-                                0 -> !darkTable
-                                1 -> darkTable
-                                else -> false
-                            },
+                            selected = selected,
                             onClick = {
-                                if (index == 0) darkTable = false
-                                if (index == 1) darkTable = true
+                                when (index) {
+                                    0 -> {
+                                        darkTable = false
+                                        transparentTable = false
+                                    }
+                                    1 -> {
+                                        darkTable = true
+                                        transparentTable = false
+                                    }
+                                    else -> {
+                                        transparentTable = true
+                                        darkTable = false
+                                    }
+                                }
                             },
                             shape = SegmentedButtonDefaults.itemShape(index, 3)
                         ) { Text(label) }
                     }
                 }
 
-                Text("글자 크기", color = DDZColor.TextMuted)
+                Text("글자 크기  " + (fontScale * 100).toInt() + "%", color = DDZColor.TextMuted)
                 Slider(
                     value = fontScale,
                     onValueChange = { fontScale = it },
-                    valueRange = 0.8f..1.4f,
+                    valueRange = 0.6f..1.6f,
                 )
 
                 Text("정렬", color = DDZColor.TextMuted)
@@ -471,13 +490,71 @@ fun TableEditorV2MockScreen(
 
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
-                    onClick = { },
-                ) { Text("더보기") }
+                    onClick = { showAdvancedStyle = !showAdvancedStyle },
+                ) {
+                    Text(if (showAdvancedStyle) "고급 설정 접기" else "더보기")
+                }
+
+                if (showAdvancedStyle) {
+                    Text("배경 투명도  " + ((bgAlpha / 255f) * 100).toInt() + "%", color = DDZColor.TextMuted)
+                    Slider(
+                        value = bgAlpha.toFloat(),
+                        onValueChange = { bgAlpha = it.toInt().coerceIn(0, 255) },
+                        valueRange = 0f..255f,
+                        enabled = !transparentTable,
+                    )
+
+                    Text("글자 색", color = DDZColor.TextMuted)
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        listOf("자동", "흰색", "검정").forEachIndexed { index, label ->
+                            val selected = when (index) {
+                                0 -> textColorMode == 0
+                                1 -> textColorMode == 1 && manualTextColor == 0
+                                else -> textColorMode == 1 && manualTextColor == 1
+                            }
+                            SegmentedButton(
+                                selected = selected,
+                                onClick = {
+                                    when (index) {
+                                        0 -> textColorMode = 0
+                                        1 -> {
+                                            textColorMode = 1
+                                            manualTextColor = 0
+                                        }
+                                        else -> {
+                                            textColorMode = 1
+                                            manualTextColor = 1
+                                        }
+                                    }
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index, 3)
+                            ) { Text(label) }
+                        }
+                    }
+                }
+
                 Button(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 24.dp),
-                    onClick = { showStyle = false },
+                    onClick = {
+                        onStyleChange(
+                            styleState.copy(
+                                bgStyle = when {
+                                    transparentTable -> 2
+                                    darkTable -> 0
+                                    else -> 1
+                                },
+                                gridEnabled = gridEnabled,
+                                valueScale = (fontScale * 100).toInt().coerceIn(60, 160),
+                                textAlign = textAlignIndex.coerceIn(0, 2),
+                                bgAlpha = bgAlpha.coerceIn(0, 255),
+                                textColorMode = textColorMode.coerceIn(0, 1),
+                                manualTextColor = manualTextColor.coerceIn(0, 1),
+                            )
+                        )
+                        showStyle = false
+                    },
                 ) { Text("적용") }
             }
         }
@@ -512,6 +589,11 @@ private fun ColumnScope.MockTableCanvas(
     darkTable: Boolean,
     transparentTable: Boolean,
     gridEnabled: Boolean,
+    bgAlpha: Int,
+    fontScale: Float,
+    textAlignIndex: Int,
+    textColorMode: Int,
+    manualTextColor: Int,
     layoutMode: Boolean,
     rowWeights: List<Float>?,
     colWeights: List<Float>?,
@@ -520,12 +602,23 @@ private fun ColumnScope.MockTableCanvas(
     onCellClick: (Int) -> Unit,
 ) {
     val background = if (darkTable) Color(0xFF1E2220) else Color(0xFFE9EFE7)
+    val resolvedAlpha = (bgAlpha.coerceIn(0, 255) / 255f)
     val cellBackground = when {
         transparentTable -> Color.Transparent
-        darkTable -> Color(0xFF202522)
-        else -> Color.White.copy(alpha = 0.94f)
+        darkTable -> Color(0xFF202522).copy(alpha = resolvedAlpha)
+        else -> Color.White.copy(alpha = resolvedAlpha)
     }
-    val textColor = if (darkTable) Color.White else Color(0xFF202124)
+    val textColor = when {
+        textColorMode == 1 && manualTextColor == 0 -> Color.White
+        textColorMode == 1 && manualTextColor == 1 -> Color.Black
+        darkTable -> Color.White
+        else -> Color(0xFF202124)
+    }
+    val cellAlignment = when (textAlignIndex.coerceIn(0, 2)) {
+        0 -> Alignment.CenterStart
+        2 -> Alignment.CenterEnd
+        else -> Alignment.Center
+    }
     val resolvedRowWeights = TableLayoutCalculator.resolveWeights(rowWeights, rows)
     val resolvedColWeights = TableLayoutCalculator.resolveWeights(colWeights, cols)
     val tableHeight = (74.dp * rows.toFloat()).coerceIn(120.dp, 420.dp)
@@ -579,12 +672,13 @@ private fun ColumnScope.MockTableCanvas(
                             ) else Modifier
                         )
                         .clickable { onCellClick(cell.id) },
-                    contentAlignment = Alignment.Center,
+                    contentAlignment = cellAlignment,
                 ) {
                     Text(
                         cell.value,
                         color = if (isSelected) DDZColor.PrimaryDark else textColor,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = (14f * fontScale.coerceIn(0.6f, 1.6f)).sp,
                         modifier = Modifier.padding(8.dp),
                     )
                 }
