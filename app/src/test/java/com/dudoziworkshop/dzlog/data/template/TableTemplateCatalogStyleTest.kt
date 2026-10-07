@@ -3,7 +3,10 @@ package com.dudoziworkshop.dzlog.data.template
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class TableTemplateCatalogStyleTest {
 
     @Test
