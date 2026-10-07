@@ -76,6 +76,7 @@ import com.dudoziworkshop.dzlog.ui.common.DDZConfirmDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZContentDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZTextField
 import com.dudoziworkshop.dzlog.ui.common.DDZQuickChoiceDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZSettingRow
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBarIconButton
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
@@ -1012,7 +1013,7 @@ private fun TableEditorCellUiModelEditor(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(DDZColor.Surface)
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -1050,11 +1051,12 @@ private fun TableEditorCellUiModelEditor(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OutlinedButton(
+                    DDZButton(
+                        text = "−",
+                        style = DDZButtonStyle.Secondary,
+                        minHeight = 40.dp,
                         onClick = { onValueChange((currentCounter - 1).coerceAtLeast(0).toString()) },
-                    ) {
-                        Text("−")
-                    }
+                    )
                     DDZTextField(
                         modifier = Modifier.weight(1f),
                         value = currentCounter.toString(),
@@ -1066,11 +1068,12 @@ private fun TableEditorCellUiModelEditor(
                         },
                         label = "시작 번호",
                     )
-                    OutlinedButton(
+                    DDZButton(
+                        text = "+",
+                        style = DDZButtonStyle.Secondary,
+                        minHeight = 40.dp,
                         onClick = { onValueChange((currentCounter + 1).toString()) },
-                    ) {
-                        Text("+")
-                    }
+                    )
                 }
                 Text("촬영 성공 후 다음 번호로 증가합니다.", color = DDZColor.TextMuted)
             }
@@ -1084,34 +1087,20 @@ private fun TableEditorCellUiModelEditor(
                     },
                     fontWeight = FontWeight.Bold,
                 )
-                OutlinedButton(
-                    modifier = Modifier.fillMaxWidth(),
+                DDZSettingRow(
+                    label = "날짜 형식",
+                    value = cell.formatPattern.ifBlank { "yyyyMMdd" },
                     onClick = { showDatePicker = true },
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("날짜 형식")
-                        Text((cell.formatPattern.ifBlank { "yyyyMMdd" }) + "  ›")
-                    }
-                }
+                )
             }
 
             TableEditorCellType.TIME -> {
                 Text("1251", fontWeight = FontWeight.Bold)
-                OutlinedButton(
-                    modifier = Modifier.fillMaxWidth(),
+                DDZSettingRow(
+                    label = "시간 형식",
+                    value = "HHmm · 분 단위 고정",
                     onClick = onApplyTimePolicy,
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("시간 형식")
-                        Text("HHmm · 분 단위 고정")
-                    }
-                }
+                )
             }
 
             TableEditorCellType.ROTATING_TEXT -> {
@@ -1120,18 +1109,11 @@ private fun TableEditorCellUiModelEditor(
                     selectedSet?.items?.firstOrNull().orEmpty().ifBlank { "문구 세트를 선택하세요" },
                     fontWeight = FontWeight.Bold,
                 )
-                OutlinedButton(
-                    modifier = Modifier.fillMaxWidth(),
+                DDZSettingRow(
+                    label = "문구 세트",
+                    value = selectedSet?.name ?: "선택 안 함",
                     onClick = { showPhrasePicker = true },
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("문구 세트")
-                        Text((selectedSet?.name ?: "선택 안 함") + "  ›")
-                    }
-                }
+                )
                 if (selectedSet != null) {
                     val everyValue = (cell.everyOverride ?: selectedSet.defaultEvery).coerceAtLeast(1)
                     Row(
@@ -1140,30 +1122,29 @@ private fun TableEditorCellUiModelEditor(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("변경 주기", modifier = Modifier.weight(1f), color = DDZColor.TextMuted)
-                        OutlinedButton(onClick = { onPhraseEveryChange((everyValue - 1).coerceAtLeast(1)) }) {
-                            Text("−")
-                        }
+                        DDZButton(
+                            text = "−",
+                            style = DDZButtonStyle.Secondary,
+                            minHeight = 40.dp,
+                            onClick = { onPhraseEveryChange((everyValue - 1).coerceAtLeast(1)) },
+                        )
                         Text(everyValue.toString() + "장")
-                        OutlinedButton(onClick = { onPhraseEveryChange(everyValue + 1) }) {
-                            Text("+")
-                        }
+                        DDZButton(
+                            text = "+",
+                            style = DDZButtonStyle.Secondary,
+                            minHeight = 40.dp,
+                            onClick = { onPhraseEveryChange(everyValue + 1) },
+                        )
                     }
                 }
             }
         }
 
-        OutlinedButton(
-            modifier = Modifier.fillMaxWidth(),
+        DDZSettingRow(
+            label = "셀 종류",
+            value = cell.type.label,
             onClick = { showTypePicker = true },
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text("셀 종류")
-                Text(cell.type.label + "  ›")
-            }
-        }
+        )
     }
 
     if (showTypePicker) {
@@ -1181,15 +1162,15 @@ private fun TableEditorCellUiModelEditor(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         row.forEach { type ->
-                            OutlinedButton(
+                            DDZButton(
+                                text = if (type == cell.type) type.label + " ✓" else type.label,
                                 modifier = Modifier.weight(1f),
+                                style = DDZButtonStyle.Secondary,
                                 onClick = {
                                     onTypeChange(type)
                                     showTypePicker = false
                                 },
-                            ) {
-                                Text(if (type == cell.type) type.label + " ✓" else type.label)
-                            }
+                            )
                         }
                     }
                 }
@@ -1208,17 +1189,15 @@ private fun TableEditorCellUiModelEditor(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 listOf("yyyyMMdd", "yyMMdd", "MMdd").forEach { pattern ->
-                    OutlinedButton(
+                    DDZButton(
+                        text = if (cell.formatPattern.ifBlank { "yyyyMMdd" } == pattern) pattern + " ✓" else pattern,
                         modifier = Modifier.fillMaxWidth(),
+                        style = DDZButtonStyle.Secondary,
                         onClick = {
                             onDatePatternChange(pattern)
                             showDatePicker = false
                         },
-                    ) {
-                        Text(
-                            if (cell.formatPattern.ifBlank { "yyyyMMdd" } == pattern) pattern + " ✓" else pattern
-                        )
-                    }
+                    )
                 }
                 Spacer(Modifier.height(18.dp))
             }
@@ -1235,15 +1214,14 @@ private fun TableEditorCellUiModelEditor(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
 
-                Button(
+                DDZButton(
+                    text = "+ 새 문구 세트",
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
                         createPhraseSetName = ""
                         showCreatePhraseSet = true
                     },
-                ) {
-                    Text("+ 새 문구 세트")
-                }
+                )
 
                 if (phraseSets.isEmpty()) {
                     Text("등록된 문구 세트가 없습니다.", color = DDZColor.TextMuted)
@@ -1254,44 +1232,37 @@ private fun TableEditorCellUiModelEditor(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            OutlinedButton(
+                            DDZButton(
+                                text = set.name + " · " + set.items.size + "개" +
+                                    if (cell.phraseSetId == set.id) " ✓" else "",
                                 modifier = Modifier.weight(1f),
+                                style = DDZButtonStyle.Secondary,
                                 onClick = {
                                     onPhraseSetChange(set.id)
                                     showPhrasePicker = false
                                 },
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                ) {
-                                    Text(set.name)
-                                    Text(
-                                        if (cell.phraseSetId == set.id) set.items.size.toString() + "개 ✓"
-                                        else set.items.size.toString() + "개"
-                                    )
-                                }
-                            }
-                            TextButton(
+                            )
+                            DDZButton(
+                                text = "편집",
+                                style = DDZButtonStyle.Text,
+                                minHeight = 40.dp,
                                 onClick = {
                                     editingPhraseSetId = set.id
                                     showPhrasePicker = false
                                 },
-                            ) {
-                                Text("편집")
-                            }
+                            )
                         }
                     }
 
-                    TextButton(
+                    DDZButton(
+                        text = "선택 해제",
                         modifier = Modifier.fillMaxWidth(),
+                        style = DDZButtonStyle.Text,
                         onClick = {
                             onPhraseSetChange(null)
                             showPhrasePicker = false
                         },
-                    ) {
-                        Text("선택 해제")
-                    }
+                    )
                 }
                 Spacer(Modifier.height(18.dp))
             }
