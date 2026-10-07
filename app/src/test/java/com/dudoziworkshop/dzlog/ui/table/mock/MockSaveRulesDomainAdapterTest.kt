@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.ui.table.mock
 
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -175,4 +176,54 @@ class MockSaveRulesDomainAdapterTest {
         assertEquals("counter", cells[1].domainCellId)
         assertEquals(MockCellType.COUNTER, cells[1].type)
     }
+    @Test
+    fun `date time and rotating detail mutations persist`() {
+        val dateCell = TableCellState(
+            rowIndex = 0,
+            colIndex = 0,
+            cellId = "date",
+            dataType = TableCellDataType.DATE,
+        )
+        val timeCell = TableCellState(
+            rowIndex = 0,
+            colIndex = 1,
+            cellId = "time",
+            dataType = TableCellDataType.TIME,
+        )
+        val rotatingCell = TableCellState(
+            rowIndex = 0,
+            colIndex = 2,
+            cellId = "rotating",
+            dataType = TableCellDataType.ROTATING_TEXT,
+        )
+        val template = TableTemplateState(
+            rows = 1,
+            cols = 3,
+            cells = listOf(dateCell, timeCell, rotatingCell),
+            phraseSets = listOf(
+                RotatingPhraseSet(
+                    id = "set-1",
+                    name = "품종",
+                    items = listOf("Draper", "Duke"),
+                    defaultEvery = 2,
+                )
+            ),
+        )
+
+        val dateUpdated = applyMockDatePattern(template, "date", "yyMMdd")
+        assertEquals("yyMMdd", dateUpdated.cells.first { it.cellId == "date" }.formatPattern)
+
+        val timeUpdated = applyMockTimeFormatPolicy(dateUpdated, "time")
+        val time = timeUpdated.cells.first { it.cellId == "time" }
+        assertEquals("HHmm", time.formatPattern)
+        assertEquals(false, time.timeFormatOptions?.includeSeconds)
+
+        val phraseSelected = applyMockPhraseSet(timeUpdated, "rotating", "set-1")
+        assertEquals("set-1", phraseSelected.cells.first { it.cellId == "rotating" }.phraseSetId)
+
+        val everyUpdated = applyMockPhraseEvery(phraseSelected, "rotating", 4)
+        assertEquals(4, everyUpdated.cells.first { it.cellId == "rotating" }.everyOverride)
+    }
+
+
 }
