@@ -258,7 +258,11 @@ fun TableEditorV2MockScreen(
                             onClick = {
                                 val current = currentSnapshot()
                                 val restored = undoManager.undo(current)
-                                if (restored != current) applyHistorySnapshot(restored)
+                                if (restored != current) {
+                                    applyHistorySnapshot(restored)
+                                    selectedId = null
+                                    layoutSelection = MockLayoutSelection()
+                                }
                             },
                         ) {
                             Icon(Icons.Filled.Undo, contentDescription = "실행 취소")
@@ -268,7 +272,11 @@ fun TableEditorV2MockScreen(
                             onClick = {
                                 val current = currentSnapshot()
                                 val restored = undoManager.redo(current)
-                                if (restored != current) applyHistorySnapshot(restored)
+                                if (restored != current) {
+                                    applyHistorySnapshot(restored)
+                                    selectedId = null
+                                    layoutSelection = MockLayoutSelection()
+                                }
                             },
                         ) {
                             Icon(Icons.Filled.Redo, contentDescription = "다시 실행")
