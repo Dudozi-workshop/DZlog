@@ -24,7 +24,9 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,6 +43,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import java.util.UUID
 
 private enum class RuleEditorTarget {
     VALUE,
@@ -63,6 +66,16 @@ internal fun TableEditorRuleListEditor(
     var editorTarget by remember { mutableStateOf<RuleEditorTarget?>(null) }
     var manualDraft by remember { mutableStateOf("") }
     val lazyListState = rememberLazyListState()
+    val itemKeys = remember { mutableStateListOf<String>() }
+
+    LaunchedEffect(compactItems.size) {
+        while (itemKeys.size < compactItems.size) {
+            itemKeys.add(UUID.randomUUID().toString())
+        }
+        while (itemKeys.size > compactItems.size) {
+            itemKeys.removeAt(itemKeys.lastIndex)
+        }
+    }
 
     fun emitCompacted(next: List<MockRuleItem>) {
         val max = items.size.coerceAtLeast(1)
@@ -77,11 +90,15 @@ internal fun TableEditorRuleListEditor(
 
     fun removeAt(index: Int) {
         if (index !in compactItems.indices) return
+        if (index in itemKeys.indices) {
+            itemKeys.removeAt(index)
+        }
         emitCompacted(compactItems.filterIndexed { itemIndex, _ -> itemIndex != index })
     }
 
     fun append(item: MockRuleItem) {
         if (compactItems.size >= items.size) return
+        itemKeys.add(UUID.randomUUID().toString())
         emitCompacted(compactItems + item)
         editorTarget = null
     }
@@ -92,7 +109,12 @@ internal fun TableEditorRuleListEditor(
         }
         val reordered = compactItems.toMutableList()
         val moved = reordered.removeAt(from.index)
-        reordered.add(to.index.coerceIn(0, reordered.size), moved)
+        val insertIndex = to.index.coerceIn(0, reordered.size)
+        reordered.add(insertIndex, moved)
+        if (from.index in itemKeys.indices) {
+            val movedKey = itemKeys.removeAt(from.index)
+            itemKeys.add(insertIndex.coerceIn(0, itemKeys.size), movedKey)
+        }
         emitCompacted(reordered)
     }
 
@@ -105,11 +127,11 @@ internal fun TableEditorRuleListEditor(
     ) {
         itemsIndexed(
             items = compactItems,
-            key = { index, item -> "${item.sourceType.name}-${item.cellId.orEmpty()}-${item.value}-$index" },
+            key = { index, _ -> itemKeys.getOrNull(index) ?: "rule-$index" },
         ) { index, item ->
             ReorderableItem(
                 state = reorderableState,
-                key = "${item.sourceType.name}-${item.cellId.orEmpty()}-${item.value}-$index",
+                key = itemKeys.getOrNull(index) ?: "rule-$index",
             ) { isDragging ->
                 val dismissState = rememberSwipeToDismissBoxState(
                     confirmValueChange = { value ->
