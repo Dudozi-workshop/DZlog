@@ -5,6 +5,7 @@ import androidx.compose.runtime.*
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
+import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
 import com.dudoziworkshop.dzlog.domain.preview.buildPreview
 import com.dudoziworkshop.dzlog.feature.counter.table.SaveSettingsCounterController
@@ -18,7 +19,7 @@ internal class TableEditorCounterOrchestrator {
         private set
 
     private fun streamSnapshot(session: TableEditorV2SessionState) = session.currentSnapshot().copy(
-        nextCounter = null, usesAutoNext = true,
+        styleState = TableStyleState(),
     )
 
     suspend fun initialize(context: Context, session: TableEditorV2SessionState) {

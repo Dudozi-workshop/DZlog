@@ -59,7 +59,7 @@ private fun formatNow(pattern: String, now: Date): String {
         .getOrElse { "" }
 }
 
-private fun resolveRotatingFileNameCell(resolvedCells: List<ResolvedCell>): ResolvedCell? {
+internal fun resolveRotatingFileNameCell(resolvedCells: List<ResolvedCell>): ResolvedCell? {
     val rotating = resolvedCells.filter { it.type == TableCellDataType.ROTATING_TEXT }
         .sortedWith(compareBy({ it.raw?.rowIndex ?: 0 }, { it.raw?.colIndex ?: 0 }))
     return rotating.firstOrNull { it.resolvedText.isNotBlank() } ?: rotating.firstOrNull()
