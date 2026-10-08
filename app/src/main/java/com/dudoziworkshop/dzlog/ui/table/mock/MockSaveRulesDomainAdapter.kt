@@ -310,8 +310,16 @@ private fun TableEditorSlotDraft?.toMockRuleItem(
             value = draft.manualText.orEmpty(),
         )
         "FORMAT" -> when (draft.formatType?.uppercase()) {
-            "DATE" -> MockRuleItem(MockRuleSourceType.DATE, "날짜")
-            "TIME" -> MockRuleItem(MockRuleSourceType.TIME, "시간")
+            "DATE" -> MockRuleItem(
+                sourceType = MockRuleSourceType.DATE,
+                value = dateFormatExample(draft.formatPattern),
+                formatPattern = draft.formatPattern ?: "yyyyMMdd",
+            )
+            "TIME" -> MockRuleItem(
+                sourceType = MockRuleSourceType.TIME,
+                value = timeFormatExample(draft.formatPattern),
+                formatPattern = draft.formatPattern ?: "HHmm",
+            )
             "ROTATING_TEXT" -> MockRuleItem(MockRuleSourceType.ROTATING_TEXT, "순환문구")
             else -> null
         }
@@ -343,11 +351,13 @@ private fun MockRuleItem?.toDomainDraft(): TableEditorSlotDraft? {
             kind = "FORMAT",
             label = "날짜",
             formatType = "DATE",
+            formatPattern = item.formatPattern ?: "yyyyMMdd",
         )
         MockRuleSourceType.TIME -> TableEditorSlotDraft(
             kind = "FORMAT",
             label = "시간",
             formatType = "TIME",
+            formatPattern = item.formatPattern ?: "HHmm",
         )
         MockRuleSourceType.ROTATING_TEXT -> TableEditorSlotDraft(
             kind = "FORMAT",
@@ -356,3 +366,18 @@ private fun MockRuleItem?.toDomainDraft(): TableEditorSlotDraft? {
         )
     }
 }
+
+
+private fun dateFormatExample(pattern: String?): String =
+    when (pattern) {
+        "yyyy-MM-dd" -> "2026-10-08"
+        "yy.MM.dd" -> "26.10.08"
+        "MM월 dd일" -> "10월 08일"
+        else -> "20261008"
+    }
+
+private fun timeFormatExample(pattern: String?): String =
+    when (pattern) {
+        "HH-mm" -> "09-30"
+        else -> "0930"
+    }
