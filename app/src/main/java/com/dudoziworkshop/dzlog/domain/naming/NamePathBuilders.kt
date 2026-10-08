@@ -169,6 +169,7 @@ fun resolveFileNameScopeTokensFromDrafts(
                         sanitizeFilePart(
                             resolveRotatingCounterStreamIdentity(
                                 activePhraseText = rc.resolvedText,
+                                phraseSet = rc.rotatingPhraseSet,
                             )
                         )
                     }
@@ -190,6 +191,7 @@ fun resolveFileNameScopeTokensFromDrafts(
                     sanitizeFilePart(
                         resolveRotatingCounterStreamIdentity(
                             activePhraseText = rotating?.resolvedText,
+                            phraseSet = rotating?.rotatingPhraseSet,
                         )
                     )
                 }
@@ -379,3 +381,4 @@ fun buildGalleryRelativePathFromSlotDrafts(
     dateFormat = dateFormat,
     timeFormat = timeFormat,
 )
+

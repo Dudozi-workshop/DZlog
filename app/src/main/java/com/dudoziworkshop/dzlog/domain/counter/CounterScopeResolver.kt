@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.domain.counter
 
 import com.dudoziworkshop.dzlog.domain.counter.policy.normalizeTimeToMinute
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterProgressMode
 import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -55,7 +56,8 @@ object CounterScopeResolver {
             .asSequence()
             .filter { cell ->
                 cell.dataType == TableCellDataType.ROTATING_TEXT &&
-                    cell.cellId in fileNameCellIds
+                    cell.cellId in fileNameCellIds &&
+                    resolvedById[cell.cellId]?.rotatingPhraseSet?.counterProgressMode != RotatingCounterProgressMode.CONTINUOUS
             }
             .map { cell ->
                 val identity = resolveRotatingCounterStreamIdentity(
@@ -72,3 +74,4 @@ object CounterScopeResolver {
         )
     }
 }
+

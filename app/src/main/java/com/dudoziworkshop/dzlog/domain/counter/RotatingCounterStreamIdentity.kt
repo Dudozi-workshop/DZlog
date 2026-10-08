@@ -1,5 +1,8 @@
 package com.dudoziworkshop.dzlog.domain.counter
 
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterProgressMode
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+
 internal const val ROTATING_PHRASE_BLANK_KEY = "__blank__"
 
 /**
@@ -9,6 +12,12 @@ internal const val ROTATING_PHRASE_BLANK_KEY = "__blank__"
  */
 internal fun resolveRotatingCounterStreamIdentity(
     activePhraseText: String?,
+    phraseSet: RotatingPhraseSet? = null,
 ): String {
+    if (phraseSet?.counterProgressMode == RotatingCounterProgressMode.CONTINUOUS) {
+        // Stable policy identity also isolates manual overrides across mode changes.
+        return "rc_continuous_${phraseSet.id}"
+    }
     return activePhraseText?.trim().orEmpty().ifBlank { ROTATING_PHRASE_BLANK_KEY }
 }
+
