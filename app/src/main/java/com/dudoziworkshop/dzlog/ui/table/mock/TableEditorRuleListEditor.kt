@@ -344,7 +344,7 @@ internal fun TableEditorRuleListEditor(
             target == RuleEditorTarget.VALUE && active?.sourceType == MockRuleSourceType.TIME -> {
                 ChoiceSheet(
                     title = "시간 형식",
-                    options = listOf("0930", "09-30"),
+                    options = listOf("0930"),
                     onDismiss = { editorTarget = null },
                     onSelect = { value ->
                         val index = editingIndex ?: return@ChoiceSheet
@@ -353,7 +353,7 @@ internal fun TableEditorRuleListEditor(
                             MockRuleItem(
                                 sourceType = MockRuleSourceType.TIME,
                                 value = value,
-                                formatPattern = if (value == "09-30") "HH-mm" else "HHmm",
+                                formatPattern = "HHmm",
                             )
                         )
                     },
@@ -435,8 +435,8 @@ private fun ChoiceSheet(
 
 private fun defaultRuleItem(type: MockRuleSourceType): MockRuleItem =
     when (type) {
-        MockRuleSourceType.CELL -> MockRuleItem(type, "셀")
-        MockRuleSourceType.MANUAL -> MockRuleItem(type, "직접입력")
+        MockRuleSourceType.CELL -> MockRuleItem(type, "")
+        MockRuleSourceType.MANUAL -> MockRuleItem(type, "")
         MockRuleSourceType.DATE -> MockRuleItem(
             sourceType = type,
             value = "20261008",
