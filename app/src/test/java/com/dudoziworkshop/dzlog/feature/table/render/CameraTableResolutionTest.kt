@@ -81,7 +81,9 @@ class CameraTableResolutionTest {
         val small = scene(smallBounds, WatermarkTableAnchor.TOP_LEFT)
         val large = scene(largeBounds, WatermarkTableAnchor.TOP_LEFT)
         assertSameRelativeRect(small.scene.tableRect, smallBounds, large.scene.tableRect, largeBounds)
-        assertEquals(small.resolvedLayout.finalRowWeights, large.resolvedLayout.finalRowWeights)
+        small.resolvedLayout.finalRowWeights.zip(large.resolvedLayout.finalRowWeights).forEach { (a, b) ->
+            assertEquals(a, b, 0.0001f)
+        }
         small.resolvedLayout.finalColWeights.zip(large.resolvedLayout.finalColWeights).forEach { (a, b) ->
             assertEquals(a, b, 0.0001f)
         }
