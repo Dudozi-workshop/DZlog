@@ -42,7 +42,7 @@ internal fun CameraQuickValueSheet(
     val inputCells = manualCells.filter { it.kind == TableCellKind.INPUT }
     val editableCells = inputCells.ifEmpty { manualCells }
     val drafts = remember(template) {
-        editableCells.associate { it.cellId to it.rawText }.toMutableStateMap()
+        editableCells.map { it.cellId to it.rawText }.toMutableStateMap()
     }
     val changed = editableCells.any { drafts[it.cellId] != it.rawText }
 
