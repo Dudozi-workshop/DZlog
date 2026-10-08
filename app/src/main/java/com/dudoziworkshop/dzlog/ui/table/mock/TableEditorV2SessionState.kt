@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.TableUndoManager
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
@@ -13,6 +14,8 @@ internal data class MockEditorSnapshot(
     val styleState: TableStyleState,
     val includePathInCounterScope: Boolean,
     val includeFilenameInCounterScope: Boolean,
+    val saveMode: SaveMode,
+    val counterPadding: Int,
 )
 
 internal class TableEditorV2SessionState(
@@ -20,11 +23,19 @@ internal class TableEditorV2SessionState(
     initialStyleState: TableStyleState,
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean,
+    initialSaveMode: SaveMode = SaveMode.BOTH,
+    initialCounterPadding: Int = 0,
 ) {
     var draftTemplateState by mutableStateOf(initialTemplateState)
         private set
 
     var draftStyleState by mutableStateOf(initialStyleState)
+        private set
+
+    var draftSaveMode by mutableStateOf(initialSaveMode)
+        private set
+
+    var draftCounterPadding by mutableIntStateOf(initialCounterPadding.coerceIn(0, 6))
         private set
 
     var saveRulesDraft by mutableStateOf(
@@ -39,6 +50,8 @@ internal class TableEditorV2SessionState(
     private var savedTemplateBaseline: TableTemplateState = initialTemplateState
     private var savedStyleBaseline: TableStyleState = initialStyleState
     private var savedSaveRulesBaseline: MockSaveRulesDraft = saveRulesDraft
+    private var savedSaveModeBaseline: SaveMode = draftSaveMode
+    private var savedCounterPaddingBaseline: Int = draftCounterPadding
 
     private val undoManager = TableUndoManager<MockEditorSnapshot>()
 
@@ -55,7 +68,9 @@ internal class TableEditorV2SessionState(
         get() =
             draftTemplateState != savedTemplateBaseline ||
                 draftStyleState != savedStyleBaseline ||
-                saveRulesDraft != savedSaveRulesBaseline
+                saveRulesDraft != savedSaveRulesBaseline ||
+                draftSaveMode != savedSaveModeBaseline ||
+                draftCounterPadding != savedCounterPaddingBaseline
 
     fun currentSnapshot(): MockEditorSnapshot =
         MockEditorSnapshot(
@@ -63,6 +78,8 @@ internal class TableEditorV2SessionState(
             styleState = draftStyleState,
             includePathInCounterScope = saveRulesDraft.includePathInScope,
             includeFilenameInCounterScope = saveRulesDraft.includeFilenameInScope,
+            saveMode = draftSaveMode,
+            counterPadding = draftCounterPadding,
         )
 
     fun commitTemplateChange(updated: TableTemplateState) {
@@ -75,6 +92,19 @@ internal class TableEditorV2SessionState(
         if (updated == draftStyleState) return
         pushCurrentSnapshot()
         draftStyleState = updated
+    }
+
+    fun commitSaveModeChange(updated: SaveMode) {
+        if (updated == draftSaveMode) return
+        pushCurrentSnapshot()
+        draftSaveMode = updated
+    }
+
+    fun commitCounterPaddingChange(updated: Int) {
+        val normalized = updated.coerceIn(0, 6)
+        if (normalized == draftCounterPadding) return
+        pushCurrentSnapshot()
+        draftCounterPadding = normalized
     }
 
     fun commitSaveRulesChange(updated: MockSaveRulesDraft) {
@@ -117,6 +147,8 @@ internal class TableEditorV2SessionState(
         savedTemplateBaseline = finalTemplate
         savedStyleBaseline = draftStyleState
         savedSaveRulesBaseline = saveRulesDraft
+        savedSaveModeBaseline = draftSaveMode
+        savedCounterPaddingBaseline = draftCounterPadding
     }
 
     private fun pushCurrentSnapshot() {
@@ -132,6 +164,8 @@ internal class TableEditorV2SessionState(
             includePathInScope = snapshot.includePathInCounterScope,
             includeFilenameInScope = snapshot.includeFilenameInCounterScope,
         )
+        draftSaveMode = snapshot.saveMode
+        draftCounterPadding = snapshot.counterPadding
         historyRevision += 1
     }
 }
