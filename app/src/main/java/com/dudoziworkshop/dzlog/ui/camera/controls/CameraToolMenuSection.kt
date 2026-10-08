@@ -12,12 +12,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CenterFocusStrong
+import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.FlashAuto
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -31,21 +31,20 @@ import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraOverlayTool
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
-import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 private val ToolMenuChipShape = RoundedCornerShape(DDZLayout.Radius.Full)
 
 @Composable
 internal fun CameraToolMenuSection(
     selectedTool: CameraOverlayTool?,
-    zoomRatioTenths: Int,
     flashMode: CameraFlashMode,
     focusMode: CameraFocusMode,
+    showGrid: Boolean,
     assistShutterEnabled: Boolean,
     onSelectTool: (CameraOverlayTool) -> Unit,
+    onToggleGrid: () -> Unit,
     onToggleAssistShutter: () -> Unit,
 ) {
-    val zoomLabel = formatZoomMenuBucketLabel(zoomRatioTenths)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -55,12 +54,6 @@ internal fun CameraToolMenuSection(
             .border(1.dp, DDZColor.SageBorder, ToolMenuChipShape)
             .padding(horizontal = 8.dp, vertical = 8.dp)
     ) {
-        ToolMenuChip(
-            selected = selectedTool == CameraOverlayTool.ZOOM,
-            onClick = { onSelectTool(CameraOverlayTool.ZOOM) }
-        ) {
-            Text(text = zoomLabel, style = DDZTypography.Caption)
-        }
         ToolMenuChip(
             selected = selectedTool == CameraOverlayTool.FOCUS,
             onClick = { onSelectTool(CameraOverlayTool.FOCUS) }
@@ -81,6 +74,16 @@ internal fun CameraToolMenuSection(
             Icon(
                 imageVector = flashMode.toToolMenuIcon(),
                 contentDescription = "플래시",
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        ToolMenuChip(
+            selected = showGrid,
+            onClick = onToggleGrid
+        ) {
+            Icon(
+                imageVector = Icons.Default.GridOn,
+                contentDescription = if (showGrid) "격자 숨기기" else "격자 표시",
                 modifier = Modifier.size(16.dp),
             )
         }
