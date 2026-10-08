@@ -159,7 +159,15 @@ fun TableEditorV2Screen(
     val saveScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    LaunchedEffect(showSaveRules) {
+    LaunchedEffect(
+        showSaveRules,
+        session.draftNextCounter,
+        session.draftSaveMode,
+        session.draftCounterPadding,
+        session.saveRulesDraft.includePathInScope,
+        session.saveRulesDraft.includeFilenameInScope,
+        session.draftTemplateState,
+    ) {
         if (showSaveRules && session.draftNextCounter == null) {
             counterBusy = true
             runCatching {
