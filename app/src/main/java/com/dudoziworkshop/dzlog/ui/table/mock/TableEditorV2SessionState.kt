@@ -185,21 +185,25 @@ internal class TableEditorV2SessionState(
     fun finalTemplateForSave(): TableTemplateState =
         applyMockSaveRulesDraft(draftTemplateState, saveRulesDraft)
 
-    fun markSaved(finalTemplate: TableTemplateState) {
-        draftTemplateState = finalTemplate
-        saveRulesDraft = mockSaveRulesDraftFromTemplate(
+    fun markSaved(finalTemplate: TableTemplateState, savedSnapshot: MockEditorSnapshot = currentSnapshot()) {
+        val savedRules = mockSaveRulesDraftFromTemplate(
             templateState = finalTemplate,
-            includePathInScope = saveRulesDraft.includePathInScope,
-            includeFilenameInScope = saveRulesDraft.includeFilenameInScope,
+            includePathInScope = savedSnapshot.includePathInCounterScope,
+            includeFilenameInScope = savedSnapshot.includeFilenameInCounterScope,
         )
+        // Saving may suspend while the user continues editing. Only normalize an unchanged draft.
+        if (currentSnapshot() == savedSnapshot) {
+            draftTemplateState = finalTemplate
+            saveRulesDraft = savedRules
+        }
         savedTemplateBaseline = finalTemplate
-        savedStyleBaseline = draftStyleState
-        savedSaveRulesBaseline = saveRulesDraft
-        savedSaveModeBaseline = draftSaveMode
-        savedCounterPaddingBaseline = draftCounterPadding
-        savedNextCounterBaseline = draftNextCounter
-        savedUsesAutoNextBaseline = draftUsesAutoNext
-        counterBaselineInitialized = draftNextCounter != null
+        savedStyleBaseline = savedSnapshot.styleState
+        savedSaveRulesBaseline = savedRules
+        savedSaveModeBaseline = savedSnapshot.saveMode
+        savedCounterPaddingBaseline = savedSnapshot.counterPadding
+        savedNextCounterBaseline = savedSnapshot.nextCounter
+        savedUsesAutoNextBaseline = savedSnapshot.usesAutoNext
+        counterBaselineInitialized = savedSnapshot.nextCounter != null
     }
 
     private fun invalidateCounterDraft() {
@@ -227,3 +231,4 @@ internal class TableEditorV2SessionState(
         historyRevision += 1
     }
 }
+

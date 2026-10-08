@@ -31,6 +31,7 @@ internal class TableEditorV2SaveCoordinator {
         isSaving = true
         errorMessage = null
 
+        val savedSnapshot = session.currentSnapshot()
         val finalTemplate = session.finalTemplateForSave()
         val success = runCatching {
             onSave(
@@ -46,7 +47,7 @@ internal class TableEditorV2SaveCoordinator {
         }.getOrDefault(false)
 
         if (success) {
-            session.markSaved(finalTemplate)
+            session.markSaved(finalTemplate, savedSnapshot)
         } else {
             errorMessage = "저장하지 못했습니다. 변경사항은 유지됩니다."
         }
@@ -59,3 +60,4 @@ internal class TableEditorV2SaveCoordinator {
         errorMessage = null
     }
 }
+

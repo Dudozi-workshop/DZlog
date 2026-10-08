@@ -151,5 +151,21 @@ class TableEditorV2SessionStateTest {
         assertFalse(session.isDirty)
     }
 
+    @Test
+    fun edits_made_while_save_is_suspended_remain_dirty_and_are_not_overwritten() = runBlocking {
+        val initial = newBlankTableTemplateState(1, 1)
+        val session = TableEditorV2SessionState(initial, TableStyleState(), true, true)
+        val coordinator = TableEditorV2SaveCoordinator()
+        val saved = coordinator.save(session) { _, _, _, _, _, _, _, _ ->
+            session.commitTemplateChange(initial.copy(cells = initial.cells.map { it.copy(rawText = "new draft") }))
+            true
+        }
+        assertTrue(saved)
+        assertEquals("new draft", session.draftTemplateState.cells.single().rawText)
+        assertTrue(session.isDirty)
+        assertTrue(coordinator.save(session) { _, _, _, _, _, _, _, _ -> true })
+        assertFalse(session.isDirty)
+    }
+
 }
 
