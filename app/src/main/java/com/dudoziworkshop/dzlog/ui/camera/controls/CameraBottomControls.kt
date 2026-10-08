@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.RotateRight
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
@@ -79,6 +79,7 @@ internal fun CameraBottomControls(
     undoPending: Boolean,
     onUndoDelete: (targetUris: List<Uri>) -> Unit,
     onTriggerCapture: () -> Unit,
+    onOpenQuickValues: () -> Unit,
     onShutterButtonTopYChange: (Float?) -> Unit,
     hapticEnabled: Boolean,
 ) {
@@ -114,11 +115,9 @@ internal fun CameraBottomControls(
             onTriggerCapture = onTriggerCapture,
             onUndoDelete = onUndoDelete,
             onShutterButtonTopYChange = onShutterButtonTopYChange,
-            onRotateClick = {
+            onOpenQuickValues = {
                 ui.dismissToolOverlays()
-                val nextRotation = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
-                ui.prefs.wmRotationCwDeg = nextRotation
-                scope.launch { settingsWriter.setWmRotationCwDeg(nextRotation) }
+                onOpenQuickValues()
             },
             onBottomBarHeightChange = { bottomBarHeightPx = it }
         )
@@ -180,7 +179,7 @@ private fun BoxScope.CameraBottomBarRow(
     onTriggerCapture: () -> Unit,
     onUndoDelete: (List<Uri>) -> Unit,
     onShutterButtonTopYChange: (Float?) -> Unit,
-    onRotateClick: () -> Unit,
+    onOpenQuickValues: () -> Unit,
     onBottomBarHeightChange: (Int) -> Unit,
 ) {
     Box(
@@ -196,7 +195,7 @@ private fun BoxScope.CameraBottomBarRow(
                 .onSizeChanged { onBottomBarHeightChange(it.height) },
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.weight(15f), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
                 RecentCaptureThumbButton(
                     latestImage = latestImage,
                     onClick = {
@@ -211,7 +210,7 @@ private fun BoxScope.CameraBottomBarRow(
                 )
             }
 
-            Box(modifier = Modifier.weight(23f), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
                 CameraToolEntryButton(
                     onClick = {
                         if (ui.showToolMenu) {
@@ -226,7 +225,7 @@ private fun BoxScope.CameraBottomBarRow(
                 )
             }
 
-            Box(modifier = Modifier.weight(24f), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.weight(28f), contentAlignment = Alignment.Center) {
                 CaptureButtonSection(
                     ready = enabledNow,
                     onClick = {
@@ -238,14 +237,11 @@ private fun BoxScope.CameraBottomBarRow(
                 )
             }
 
-            Box(modifier = Modifier.weight(23f), contentAlignment = Alignment.Center) {
-                WatermarkRotateButton(
-                    onClick = onRotateClick,
-                    active = (ui.prefs.wmRotationCwDeg == 90)
-                )
+            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
+                QuickValueButton(onClick = onOpenQuickValues)
             }
 
-            Box(modifier = Modifier.weight(15f), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
                 UndoCaptureButton(
                     enabled = sessionCaptureStack.isNotEmpty() && !undoPending,
                     onClick = {
@@ -387,21 +383,15 @@ private fun CameraControlButton(
 }
 
 @Composable
-private fun WatermarkRotateButton(
+private fun QuickValueButton(
     onClick: () -> Unit,
-    active: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    CameraControlButton(
-        onClick = onClick,
-        modifier = modifier,
-        backgroundColor = if (active) DDZColor.SagePrimary else Color.Transparent,
-        borderColor = if (active) DDZColor.SagePrimary else DDZColor.SageBorder,
-    ) {
+    CameraControlButton(onClick = onClick, modifier = modifier) {
         Icon(
-            imageVector = Icons.AutoMirrored.Filled.RotateRight,
-            contentDescription = "워터마크 90도 회전",
-            tint = if (active) Color.White else DDZColor.SageDark
+            imageVector = Icons.Default.Edit,
+            contentDescription = "빠른 값 변경",
+            tint = DDZColor.SageDarkStrong,
         )
     }
 }
