@@ -93,8 +93,10 @@ private fun resolveFileNameSlotToken(
         }
         "MANUAL" -> draft.manualText.orEmpty()
         "FORMAT" -> when (draft.formatType?.uppercase(Locale.ROOT)) {
-            "DATE" -> formatNow(dateFormat, now)
-            "TIME" -> normalizeTimeWithoutSeconds(formatNow(timeFormat, now))
+            "DATE" -> formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: dateFormat, now)
+            "TIME" -> normalizeTimeWithoutSeconds(
+                formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: timeFormat, now)
+            )
             "ROTATING_TEXT" -> resolveRotatingTextToken(resolvedCells)
             // 정책: COUNTER는 파일명 suffix 자동 정책만 사용. slot token으로 추가하지 않는다.
             "COUNTER" -> ""
@@ -120,8 +122,10 @@ private fun resolvePathSlotToken(
         }
         "MANUAL" -> draft.manualText.orEmpty()
         "FORMAT" -> when (draft.formatType?.uppercase(Locale.ROOT)) {
-            "DATE" -> formatNow(dateFormat, now)
-            "TIME" -> normalizeTimeWithoutSeconds(formatNow(timeFormat, now))
+            "DATE" -> formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: dateFormat, now)
+            "TIME" -> normalizeTimeWithoutSeconds(
+                formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: timeFormat, now)
+            )
             "ROTATING_TEXT" -> resolveRotatingTextToken(resolvedCells)
             else -> ""
         }
@@ -183,8 +187,14 @@ fun resolveFileNameScopeTokensFromDrafts(
             }
             "MANUAL" -> sanitizeFilePart(draft.manualText.orEmpty())
             "FORMAT" -> when (draft.formatType?.uppercase(Locale.ROOT)) {
-                "DATE" -> sanitizeFilePart(formatNow(dateFormat, now))
-                "TIME" -> sanitizeFilePart(normalizeTimeWithoutSeconds(formatNow(timeFormat, now)))
+                "DATE" -> sanitizeFilePart(
+                    formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: dateFormat, now)
+                )
+                "TIME" -> sanitizeFilePart(
+                    normalizeTimeWithoutSeconds(
+                        formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: timeFormat, now)
+                    )
+                )
                 "ROTATING_TEXT" -> {
                     val rotating = resolvedCells.firstOrNull { it.type == TableCellDataType.ROTATING_TEXT }
                     sanitizeFilePart(
