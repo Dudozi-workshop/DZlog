@@ -78,7 +78,11 @@ internal fun buildCameraTriggerCapture(
             latestImageController.reload()
         },
         onSetCapturedUri = { capturedUri -> ui.capture.capturedUri = capturedUri },
-        onSetCapturing = { ui.capture.isCapturing = it }
+        onSetCapturing = { ui.capture.isCapturing = it },
+        onProgressPersistenceFailed = {
+            ui.counter.scopeNextCounter = null
+            cameraViewModel.bumpResumeResyncTick()
+        },
     )
 
     handleCaptureClick(
