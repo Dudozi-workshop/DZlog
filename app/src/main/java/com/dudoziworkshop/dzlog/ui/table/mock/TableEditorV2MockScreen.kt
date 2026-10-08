@@ -111,6 +111,8 @@ fun TableEditorV2Screen(
         Boolean,
         SaveMode,
         Int,
+        Int?,
+        Boolean,
     ) -> Boolean,
     onDiscardUnsavedNewTemplate: () -> Unit = {},
     onBack: () -> Unit,
