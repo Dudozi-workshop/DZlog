@@ -57,6 +57,7 @@ import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraBottomControls
+import com.dudoziworkshop.dzlog.ui.camera.controls.CameraQuickValueSheet
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTopBar
 import com.dudoziworkshop.dzlog.ui.camera.controls.FloatingAssistShutterButton
 import com.dudoziworkshop.dzlog.ui.camera.controls.buildCameraTriggerCapture
@@ -173,6 +174,7 @@ fun CameraPreview(
     val captureFeedback = remember(context) { CaptureFeedback(context) }
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+    var showQuickValueSheet by remember { mutableStateOf(false) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
     val threeButtonEquivalentBottomPadding = rememberThreeButtonNavEquivalentBottomPadding()
@@ -425,6 +427,7 @@ fun CameraPreview(
                             triggerCapture()
                         },
                         onShutterButtonTopYChange = { layout.onShutterButtonTopYChange(it) },
+                        onOpenQuickValues = { showQuickValueSheet = true },
                         hapticEnabled = appSettings.hapticEnabled,
                     )
                 }
@@ -452,6 +455,17 @@ fun CameraPreview(
                         .zIndex(80f)
                 )
             }
+        }
+
+        if (showQuickValueSheet) {
+            CameraQuickValueSheet(
+                template = tableTemplateState,
+                onDismiss = { showQuickValueSheet = false },
+                onApply = { updatedTemplate ->
+                    onTemplateChange(updatedTemplate)
+                    showQuickValueSheet = false
+                },
+            )
         }
 
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode != ContinuousPreviewMode.OFF) {
