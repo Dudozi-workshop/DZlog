@@ -187,6 +187,11 @@ internal class TableEditorV2SessionState(
 
     fun markSaved(finalTemplate: TableTemplateState) {
         draftTemplateState = finalTemplate
+        saveRulesDraft = mockSaveRulesDraftFromTemplate(
+            templateState = finalTemplate,
+            includePathInScope = saveRulesDraft.includePathInScope,
+            includeFilenameInScope = saveRulesDraft.includeFilenameInScope,
+        )
         savedTemplateBaseline = finalTemplate
         savedStyleBaseline = draftStyleState
         savedSaveRulesBaseline = saveRulesDraft
