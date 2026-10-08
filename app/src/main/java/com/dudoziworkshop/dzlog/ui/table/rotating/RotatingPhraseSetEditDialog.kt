@@ -9,12 +9,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,9 +32,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterProgressMode
 import com.dudoziworkshop.dzlog.ui.common.components.EmptyHint
 import com.dudoziworkshop.dzlog.ui.common.components.LazyListScrollIndicator
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -150,6 +155,31 @@ fun RotatingPhraseSetEditDialog(
 
                 TextButton(onClick = ::openRenameDialog) {
                     Text(phraseSet.name, style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+                }
+
+                Column(modifier = Modifier.selectableGroup()) {
+                    Text("번호 진행 방식", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                    RotatingCounterProgressMode.entries.forEach { mode ->
+                        val selected = phraseSet.counterProgressMode == mode
+                        Row(
+                            modifier = Modifier.fillMaxWidth().selectable(
+                                selected = selected,
+                                role = Role.RadioButton,
+                                onClick = { onUpdateSet { it.copy(counterProgressMode = mode) } },
+                            ),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = selected, onClick = null)
+                            Text(
+                                text = when (mode) {
+                                    RotatingCounterProgressMode.PER_PHRASE -> "문구별로 따로"
+                                    RotatingCounterProgressMode.CONTINUOUS -> "문구가 바뀌어도 계속"
+                                },
+                                style = DDZTypography.Body,
+                                color = DDZColor.TextPrimary,
+                            )
+                        }
+                    }
                 }
 
                 Box(
@@ -337,3 +367,4 @@ fun RotatingPhraseSetEditDialog(
         )
     }
 }
+
