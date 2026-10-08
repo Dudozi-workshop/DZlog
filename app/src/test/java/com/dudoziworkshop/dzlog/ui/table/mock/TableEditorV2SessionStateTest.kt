@@ -2,6 +2,9 @@ package com.dudoziworkshop.dzlog.ui.table.mock
 
 import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterProgressMode
+import kotlinx.coroutines.runBlocking
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import org.junit.Assert.assertEquals
@@ -123,4 +126,30 @@ class TableEditorV2SessionStateTest {
         assertTrue(session.saveRulesDraft.includePathInScope)
         assertFalse(session.isDirty)
     }
+    @Test
+    fun mode_change_invalidates_manual_draft_and_failed_save_keeps_draft_unsaved() = runBlocking {
+        val initial = newBlankTableTemplateState(1, 1).copy(
+            phraseSets = listOf(RotatingPhraseSet("set", "처리구", listOf("A", "B", "C"))),
+        )
+        val session = TableEditorV2SessionState(initial, TableStyleState(), true, true)
+        session.initializeCounterState(9, false)
+        session.commitTemplateChange(initial.copy(phraseSets = initial.phraseSets.map {
+            it.copy(counterProgressMode = RotatingCounterProgressMode.CONTINUOUS)
+        }))
+        assertEquals(null, session.draftNextCounter)
+        assertTrue(session.draftUsesAutoNext)
+        val coordinator = TableEditorV2SaveCoordinator()
+        var persisted = initial
+        val failed = coordinator.save(session) { _, _, _, _, _, _, _, _ -> false }
+        assertFalse(failed)
+        assertEquals(RotatingCounterProgressMode.PER_PHRASE, persisted.phraseSets.single().counterProgressMode)
+        assertTrue(session.isDirty)
+        assertFalse(coordinator.isSaving)
+        val saved = coordinator.save(session) { template, _, _, _, _, _, _, _ -> persisted = template; true }
+        assertTrue(saved)
+        assertEquals(RotatingCounterProgressMode.CONTINUOUS, persisted.phraseSets.single().counterProgressMode)
+        assertFalse(session.isDirty)
+    }
+
 }
+
