@@ -141,21 +141,11 @@ private fun normalizeTimeWithoutSeconds(text: String): String {
     if (t.isBlank()) return ""
 
     // 주요 정책: naming 경로의 시간 토큰은 항상 HHmm(분 단위)로 정규화한다.
-    val colonMatch = Regex("""^(\d{1,2}):(\d{2})""").find(t)
-    if (colonMatch != null) {
-        val hour = colonMatch.groupValues[1].toIntOrNull()?.coerceIn(0, 23) ?: return ""
-        val minute = colonMatch.groupValues[2].toIntOrNull()?.coerceIn(0, 59) ?: return ""
-        return "%02d%02d".format(hour, minute)
-    }
-
-    val digitMatch = Regex("""^(\d{2})(\d{2})""").find(t)
-    if (digitMatch != null) {
-        val hour = digitMatch.groupValues[1].toIntOrNull()?.coerceIn(0, 23) ?: return ""
-        val minute = digitMatch.groupValues[2].toIntOrNull()?.coerceIn(0, 59) ?: return ""
-        return "%02d%02d".format(hour, minute)
-    }
-
-    return ""
+    // 과거/중간 버전에서 저장된 ':', '-', '.' 구분 형식도 HHmm로 복구한다.
+    val match = Regex("""^(\d{1,2})[:.\-]?(\d{2})""").find(t) ?: return ""
+    val hour = match.groupValues[1].toIntOrNull()?.takeIf { it in 0..23 } ?: return ""
+    val minute = match.groupValues[2].toIntOrNull()?.takeIf { it in 0..59 } ?: return ""
+    return "%02d%02d".format(hour, minute)
 }
 
 fun resolveFileNameScopeTokensFromDrafts(
