@@ -14,7 +14,12 @@ fun buildCounterScopeParts(
     includeFilenameInScope: Boolean,
 ): CounterScopeParts {
     val relativePathKey = if (includePathInScope) relativePath else "*"
-    val prefixKey = if (includeFilenameInScope) prefix else "*"
+    val rotatingPolicy = prefix.substringAfter("|rotating=", "").substringBefore("|g2=")
+    val prefixKey = when {
+        includeFilenameInScope -> prefix
+        rotatingPolicy.isNotBlank() -> "*|rotating=$rotatingPolicy"
+        else -> "*"
+    }
     val scopeKey = listOf(relativePathKey, prefixKey).joinToString("|")
 
     return CounterScopeParts(
@@ -23,3 +28,4 @@ fun buildCounterScopeParts(
         scopeKey = scopeKey,
     )
 }
+

@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.domain.counter
 
 import android.content.Context
+import java.net.URLEncoder
 import com.dudoziworkshop.dzlog.data.counter.CounterScanTarget
 import com.dudoziworkshop.dzlog.data.counter.scanUsedCounters
 import com.dudoziworkshop.dzlog.data.counter.toCounterScanTarget
@@ -163,7 +164,14 @@ object CounterManager {
             }
         }
 
-        return if (parts.isEmpty()) "DZlog" else parts.joinToString(delim)
+        val base = if (parts.isEmpty()) "DZlog" else parts.joinToString(delim)
+        // Ordinary filename scope OFF must not erase the phrase's explicit policy.
+        val rotatingPolicy = scopeOptions.rotatingPolicyScopeValues.joinToString(",") {
+            URLEncoder.encode(it, "UTF-8")
+        }
+        return if (!includeFilenameInScope && rotatingPolicy.isNotBlank()) {
+            "$base|rotating=$rotatingPolicy"
+        } else base
     }
 
     /**
@@ -328,3 +336,4 @@ object CounterManager {
             .toSet()
     }
 }
+
