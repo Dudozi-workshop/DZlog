@@ -5,6 +5,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.camera.core.ImageCapture
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
+import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
@@ -153,6 +154,7 @@ internal fun handleCaptureClick(
                     mediaStoreId = entry.mediaStoreId
                 )
 
+                AppSettingsStore.setPhraseProgressCursor(context, finalCapturePreview.nextPhraseProgressCursor)
                 withContext(Dispatchers.Main) {
                     // 정책 유지: 저장 성공 후에만 템플릿 patch/문구 진행/카운터 재동기화를 반영한다.
                     onApplyTemplatePatch(tableTemplateState.applyPatch(finalCapturePreview.tablePatch))
@@ -194,3 +196,4 @@ internal fun handleCaptureClick(
         }
     )
 }
+

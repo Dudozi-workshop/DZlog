@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.data.datastore
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import com.dudoziworkshop.dzlog.data.preferences.KEY_BLANK_WARNING_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAPTURE_HAPTIC_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_ENABLED
@@ -41,6 +42,7 @@ data class AppSettings(
     val assistShutterEnabled: Boolean = false,
     val assistShutterXRatio: Float = 0.82f,
     val assistShutterYRatio: Float = 0.62f,
+    val phraseProgressCursor: Int = 1,
 ) {
     companion object {
         val Default = AppSettings(
@@ -64,10 +66,12 @@ data class AppSettings(
 }
 
 object AppSettingsStore {
+    private val phraseProgressKey = intPreferencesKey("phrase_progress_cursor_v1")
 
     fun flow(context: Context): Flow<AppSettings> =
         context.dataStore.data.map { prefs ->
             AppSettings(
+                phraseProgressCursor = (prefs[phraseProgressKey] ?: 1).coerceAtLeast(1),
                 saveMode = SaveMode.from(prefs[KEY_SAVE_MODE] ?: SaveMode.BOTH.v),
                 continuousPreviewMode = ContinuousPreviewMode.from(prefs[KEY_CONTINUOUS_PREVIEW_MODE] ?: ContinuousPreviewMode.OFF.v),
                 photoQualityMode = PhotoQualityMode.from(prefs[KEY_PHOTO_QUALITY_MODE] ?: PhotoQualityMode.BALANCED.v),
@@ -85,6 +89,10 @@ object AppSettingsStore {
                 assistShutterYRatio = prefs[KEY_ASSIST_SHUTTER_Y_RATIO] ?: 0.62f,
             )
         }
+
+    suspend fun setPhraseProgressCursor(context: Context, cursor: Int) {
+        context.dataStore.edit { it[phraseProgressKey] = cursor.coerceAtLeast(1) }
+    }
 
     suspend fun setSaveMode(context: Context, mode: SaveMode) {
         context.dataStore.edit { it[KEY_SAVE_MODE] = mode.v }
@@ -138,3 +146,4 @@ object AppSettingsStore {
         context.dataStore.edit { it[KEY_ASSIST_SHUTTER_ENABLED] = enabled }
     }
 }
+

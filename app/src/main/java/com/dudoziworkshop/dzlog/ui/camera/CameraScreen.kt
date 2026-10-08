@@ -186,7 +186,7 @@ fun CameraPreview(
         tableTemplateState,
         ui.capture.now,
         ui.prefs.counterDigits,
-        cameraViewModel.phraseProgressCounter,
+        appSettings.phraseProgressCursor,
         appSettings.includePathInCounterScope,
         appSettings.includeFilenameInCounterScope,
         appSettings.saveMode,
@@ -196,7 +196,7 @@ fun CameraPreview(
             tableTemplateState = tableTemplateState,
             now = ui.capture.now,
             counterDigits = ui.prefs.counterDigits,
-            phraseProgressCounter = cameraViewModel.phraseProgressCounter,
+            phraseProgressCounter = appSettings.phraseProgressCursor,
             includePathInCounterScope = appSettings.includePathInCounterScope,
             includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
             saveMode = appSettings.saveMode,
@@ -373,7 +373,7 @@ fun CameraPreview(
                     tableTemplateState = tableTemplateState,
                     tableResolver = tableResolver,
                     scopeNextCounter = displayCounter,
-                    phraseProgressCursor = cameraViewModel.phraseProgressCounter,
+                    phraseProgressCursor = appSettings.phraseProgressCursor,
                     dateFormat = dateFormat,
                     timeFormat = timeFormat,
                     fnDelim = fnDelim,
@@ -502,3 +502,4 @@ fun CameraPreview(
         }
     }
 }
+
