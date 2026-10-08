@@ -149,7 +149,6 @@ fun TableEditorV2Screen(
     var saveDetail by remember { mutableStateOf<TableEditorSaveDetail?>(null) }
     var showCounterResetDialog by remember { mutableStateOf(false) }
     var showBackSaveDialog by remember { mutableStateOf(false) }
-    var styleSheetDraft by remember { mutableStateOf(draftStyleState) }
     var showAdvancedStyle by remember { mutableStateOf(false) }
     var layoutBoundaryDragActive by remember { mutableStateOf(false) }
     val saveCoordinator = remember { TableEditorV2SaveCoordinator() }
@@ -249,8 +248,6 @@ fun TableEditorV2Screen(
                 onStyle = {
                     mode = MockMode.EDIT
                     selectionState.clearLayoutSelection()
-                    styleSheetDraft = draftStyleState
-                    showAdvancedStyle = false
                     showSaveRules = false
                     saveDetail = null
                     showStyle = true
@@ -271,10 +268,12 @@ fun TableEditorV2Screen(
                 .padding(padding)
         ) {
             Text(
-                text = if (mode == MockMode.EDIT)
-                    "셀을 선택해 내용을 편집하세요."
-                else
-                    "구조를 바꿀 셀을 선택하세요.",
+                text = when {
+                    showStyle -> "스타일 변경은 미리보기에 반영됩니다. 상단 저장으로 확정하세요."
+                    showSaveRules -> "저장설정을 선택해 편집하세요."
+                    mode == MockMode.EDIT -> "셀을 선택해 내용을 편집하세요."
+                    else -> "구조를 바꿀 셀을 선택하세요."
+                },
                 color = DDZColor.TextMuted,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
             )
@@ -288,14 +287,14 @@ fun TableEditorV2Screen(
                     .filter { it.domainCellId in layoutSelection.selectedCellIds }
                     .map { it.id }
                     .toSet(),
-                darkTable = (if (showStyle) styleSheetDraft else draftStyleState).bgStyle == 0,
-                transparentTable = (if (showStyle) styleSheetDraft else draftStyleState).bgStyle == 2,
-                gridEnabled = (if (showStyle) styleSheetDraft else draftStyleState).gridEnabled,
-                bgAlpha = (if (showStyle) styleSheetDraft else draftStyleState).bgAlpha,
-                fontScale = (if (showStyle) styleSheetDraft else draftStyleState).valueScale / 100f,
-                textAlignIndex = (if (showStyle) styleSheetDraft else draftStyleState).textAlign,
-                textColorMode = (if (showStyle) styleSheetDraft else draftStyleState).textColorMode,
-                manualTextColor = (if (showStyle) styleSheetDraft else draftStyleState).manualTextColor,
+                darkTable = draftStyleState.bgStyle == 0,
+                transparentTable = draftStyleState.bgStyle == 2,
+                gridEnabled = draftStyleState.gridEnabled,
+                bgAlpha = draftStyleState.bgAlpha,
+                fontScale = draftStyleState.valueScale / 100f,
+                textAlignIndex = draftStyleState.textAlign,
+                textColorMode = draftStyleState.textColorMode,
+                manualTextColor = draftStyleState.manualTextColor,
                 layoutMode = mode == MockMode.LAYOUT,
                 rowWeights = draftTemplateState.rowWeights,
                 colWeights = draftTemplateState.colWeights,
@@ -359,6 +358,14 @@ fun TableEditorV2Screen(
                     counterPadding = session.draftCounterPadding,
                     nextCounter = session.draftNextCounter ?: 1,
                     onOpenDetail = { saveDetail = it },
+                )
+            } else if (showStyle) {
+                TableEditorStylePanel(
+                    draft = draftStyleState,
+                    showAdvanced = showAdvancedStyle,
+                    onDraftChange = session::commitStyleChange,
+                    onAdvancedChange = { showAdvancedStyle = it },
+                    modifier = Modifier.weight(1f),
                 )
             } else if (mode == MockMode.EDIT) {
                 val selected = selectedCellId?.let { id ->
@@ -561,23 +568,6 @@ fun TableEditorV2Screen(
                 },
             )
         }
-    }
-
-    if (showStyle) {
-        TableEditorStyleSheet(
-            draft = styleSheetDraft,
-            showAdvanced = showAdvancedStyle,
-            onDraftChange = { styleSheetDraft = it },
-            onAdvancedChange = { showAdvancedStyle = it },
-            onApply = { applied ->
-                session.commitStyleChange(applied)
-                showStyle = false
-            },
-            onDismiss = {
-                styleSheetDraft = draftStyleState
-                showStyle = false
-            },
-        )
     }
 
     saveDetail?.let { detail ->
