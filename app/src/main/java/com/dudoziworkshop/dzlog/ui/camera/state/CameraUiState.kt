@@ -82,6 +82,7 @@ internal class CameraUiState {
     var showToolMenu by mutableStateOf(false)
     var selectedTool by mutableStateOf<CameraOverlayTool?>(null)
     var isToolPanelExpanded by mutableStateOf(false)
+    var isZoomChipExpanded by mutableStateOf(false)
     var isPinchZoomActive by mutableStateOf(false)
     var focusMode by mutableStateOf(CameraFocusMode.AUTO)
     var focusUiValue by mutableFloatStateOf(0.5f)
@@ -91,6 +92,7 @@ internal class CameraUiState {
     fun dismissToolOverlays() {
         showToolMenu = false
         isToolPanelExpanded = false
+        isZoomChipExpanded = false
     }
 }
 
