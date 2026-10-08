@@ -122,6 +122,7 @@ internal fun buildPreview(
             ),
             counterSeedOverride = input.scopeNextCounter.coerceAtLeast(1),
             selectedPhraseTextByCellId = scopeState.selectedPhraseTextByCellId,
+            phraseSets = input.templateState.phraseSets,
         )
     } else {
         scopeState.plan
@@ -176,6 +177,7 @@ internal fun buildScope(
         ),
         counterSeedOverride = null,
         selectedPhraseTextByCellId = selectedPhraseTextByCellId,
+        phraseSets = input.templateState.phraseSets,
     )
 
     val fileNameCellSlots = deriveFileNameCellSlotsFromDrafts(input.templateState.fileNameSlotDrafts)
@@ -235,6 +237,7 @@ internal fun buildCapturePreview(
         ),
         counterSeedOverride = input.syncedCounter.coerceAtLeast(1),
         selectedPhraseTextByCellId = scopeState.selectedPhraseTextByCellId,
+        phraseSets = input.templateState.phraseSets,
     )
 
     val previewNaming = CaptureNamingPolicy.buildForCaptureWithCounter(
@@ -267,3 +270,4 @@ internal fun buildCapturePreview(
         relativePathPreview = previewNaming.relativePath,
     )
 }
+
