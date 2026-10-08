@@ -302,7 +302,19 @@ internal fun TableEditorRuleListEditor(
                     onDismiss = { editorTarget = null },
                     onSelect = { value ->
                         val index = editingIndex ?: return@ChoiceSheet
-                        replaceAt(index, MockRuleItem(MockRuleSourceType.DATE, value))
+                        replaceAt(
+                            index,
+                            MockRuleItem(
+                                sourceType = MockRuleSourceType.DATE,
+                                value = value,
+                                formatPattern = when (value) {
+                                    "2026-10-08" -> "yyyy-MM-dd"
+                                    "26.10.08" -> "yy.MM.dd"
+                                    "10월 08일" -> "MM월 dd일"
+                                    else -> "yyyyMMdd"
+                                },
+                            )
+                        )
                     },
                 )
             }
@@ -310,11 +322,18 @@ internal fun TableEditorRuleListEditor(
             target == RuleEditorTarget.VALUE && active?.sourceType == MockRuleSourceType.TIME -> {
                 ChoiceSheet(
                     title = "시간 형식",
-                    options = listOf("0930", "09:30"),
+                    options = listOf("0930", "09-30"),
                     onDismiss = { editorTarget = null },
                     onSelect = { value ->
                         val index = editingIndex ?: return@ChoiceSheet
-                        replaceAt(index, MockRuleItem(MockRuleSourceType.TIME, value))
+                        replaceAt(
+                            index,
+                            MockRuleItem(
+                                sourceType = MockRuleSourceType.TIME,
+                                value = value,
+                                formatPattern = if (value == "09-30") "HH-mm" else "HHmm",
+                            )
+                        )
                     },
                 )
             }
@@ -396,8 +415,16 @@ private fun defaultRuleItem(type: MockRuleSourceType): MockRuleItem =
     when (type) {
         MockRuleSourceType.CELL -> MockRuleItem(type, "셀")
         MockRuleSourceType.MANUAL -> MockRuleItem(type, "직접입력")
-        MockRuleSourceType.DATE -> MockRuleItem(type, "20261008")
-        MockRuleSourceType.TIME -> MockRuleItem(type, "0930")
+        MockRuleSourceType.DATE -> MockRuleItem(
+            sourceType = type,
+            value = "20261008",
+            formatPattern = "yyyyMMdd",
+        )
+        MockRuleSourceType.TIME -> MockRuleItem(
+            sourceType = type,
+            value = "0930",
+            formatPattern = "HHmm",
+        )
         MockRuleSourceType.ROTATING_TEXT -> MockRuleItem(type, "순환문구")
     }
 
