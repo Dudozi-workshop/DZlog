@@ -36,6 +36,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,12 +48,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.counter.table.SaveSettingsCounterController
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
@@ -144,17 +147,41 @@ fun TableEditorV2Screen(
     var mode by remember { mutableStateOf(MockMode.EDIT) }
     var showStyle by remember { mutableStateOf(false) }
     var showSaveRules by remember { mutableStateOf(openSaveSettingsInitially) }
-    var saveRulesSheetDraft by remember {
-        mutableStateOf<MockSaveRulesDraft?>(
-            if (openSaveSettingsInitially) saveRulesDraft else null,
-        )
-    }
+    var saveDetail by remember { mutableStateOf<TableEditorSaveDetail?>(null) }
+    var counterBusy by remember { mutableStateOf(false) }
+    var counterStatus by remember { mutableStateOf<String?>(null) }
+    var showCounterResetDialog by remember { mutableStateOf(false) }
     var showBackSaveDialog by remember { mutableStateOf(false) }
     var styleSheetDraft by remember { mutableStateOf(draftStyleState) }
     var showAdvancedStyle by remember { mutableStateOf(false) }
     var layoutBoundaryDragActive by remember { mutableStateOf(false) }
     val saveCoordinator = remember { TableEditorV2SaveCoordinator() }
     val saveScope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    LaunchedEffect(showSaveRules) {
+        if (showSaveRules && session.draftNextCounter == null) {
+            counterBusy = true
+            runCatching {
+                SaveSettingsCounterController.readCurrent(
+                    context = context,
+                    templateState = session.finalTemplateForSave(),
+                    saveMode = session.draftSaveMode,
+                    counterPadding = session.draftCounterPadding,
+                    includePathInScope = session.saveRulesDraft.includePathInScope,
+                    includeFilenameInScope = session.saveRulesDraft.includeFilenameInScope,
+                )
+            }.onSuccess { state ->
+                session.initializeCounterState(
+                    next = state.next,
+                    usesAutoNext = state.usesAutoNext,
+                )
+            }.onFailure {
+                counterStatus = "저장된 번호를 확인하지 못했습니다."
+            }
+            counterBusy = false
+        }
+    }
 
     fun requestBack() {
         if (mode == MockMode.LAYOUT) {
@@ -170,7 +197,11 @@ fun TableEditorV2Screen(
     }
 
     BackHandler {
-        requestBack()
+        if (saveDetail != null) {
+            saveDetail = null
+        } else {
+            requestBack()
+        }
     }
 
 
@@ -230,11 +261,13 @@ fun TableEditorV2Screen(
                     selectionState.clearLayoutSelection()
                     showStyle = false
                     showSaveRules = false
+                    saveDetail = null
                 },
                 onLayout = {
                     selectionState.clearEditSelection()
                     showStyle = false
                     showSaveRules = false
+                    saveDetail = null
                     mode = MockMode.LAYOUT
                 },
                 onStyle = {
@@ -243,13 +276,14 @@ fun TableEditorV2Screen(
                     styleSheetDraft = draftStyleState
                     showAdvancedStyle = false
                     showSaveRules = false
+                    saveDetail = null
                     showStyle = true
                 },
                 onSaveRules = {
                     mode = MockMode.EDIT
                     selectionState.clearLayoutSelection()
                     showStyle = false
-                    saveRulesSheetDraft = saveRulesDraft
+                    saveDetail = null
                     showSaveRules = true
                 },
             )
@@ -340,7 +374,15 @@ fun TableEditorV2Screen(
 
             Spacer(Modifier.height(12.dp))
 
-            if (mode == MockMode.EDIT) {
+            if (showSaveRules) {
+                TableEditorSaveSettingsPanel(
+                    draft = saveRulesDraft,
+                    saveMode = session.draftSaveMode,
+                    counterPadding = session.draftCounterPadding,
+                    nextCounter = session.draftNextCounter ?: 1,
+                    onOpenDetail = { saveDetail = it },
+                )
+            } else if (mode == MockMode.EDIT) {
                 val selected = selectedCellId?.let { id ->
                     cells.firstOrNull { it.domainCellId == id }
                 }
@@ -560,23 +602,61 @@ fun TableEditorV2Screen(
         )
     }
 
-    if (showSaveRules) {
-        val sheetDraft = saveRulesSheetDraft ?: saveRulesDraft
-        MockSaveRulesSheet(
-            cells = cells,
-            rows = rows,
-            cols = cols,
-            draft = sheetDraft,
-            onDraftChange = { saveRulesSheetDraft = it },
-            onApply = { applied ->
-                session.commitSaveRulesChange(applied)
-                saveRulesSheetDraft = null
-                showSaveRules = false
+    saveDetail?.let { detail ->
+        TableEditorSaveDetailScreen(
+            detail = detail,
+            draft = saveRulesDraft,
+            saveMode = session.draftSaveMode,
+            counterPadding = session.draftCounterPadding,
+            nextCounter = session.draftNextCounter ?: 1,
+            isCounterBusy = counterBusy,
+            counterStatus = counterStatus,
+            onBack = { saveDetail = null },
+            onOpenDetail = { saveDetail = it },
+            onSaveModeChange = session::commitSaveModeChange,
+            onCounterPaddingChange = session::commitCounterPaddingChange,
+            onNextCounterChange = { next ->
+                session.commitNextCounterChange(next, usesAutoNext = false)
+                counterStatus = null
             },
-            onDismiss = {
-                saveRulesSheetDraft = null
-                showSaveRules = false
+            onSyncCounter = {
+                saveScope.launch {
+                    counterBusy = true
+                    runCatching {
+                        SaveSettingsCounterController.readSavedImageNext(
+                            context = context,
+                            templateState = session.finalTemplateForSave(),
+                            saveMode = session.draftSaveMode,
+                            counterPadding = session.draftCounterPadding,
+                            includePathInScope = session.saveRulesDraft.includePathInScope,
+                            includeFilenameInScope = session.saveRulesDraft.includeFilenameInScope,
+                        )
+                    }.onSuccess { next ->
+                        session.commitNextCounterChange(next, usesAutoNext = true)
+                        counterStatus = "저장 이력 기준으로 ${formatMockCounter(next, session.draftCounterPadding)}부터 이어집니다."
+                    }.onFailure {
+                        counterStatus = "저장된 번호를 확인하지 못했습니다."
+                    }
+                    counterBusy = false
+                }
             },
+            onResetCounter = { showCounterResetDialog = true },
+            onDraftChange = session::commitSaveRulesChange,
+        )
+    }
+
+    if (showCounterResetDialog) {
+        DDZConfirmDialog(
+            title = "자동번호를 초기화할까요?",
+            message = "다음 번호가 ${formatMockCounter(1, session.draftCounterPadding)}로 변경됩니다. 저장된 사진의 번호는 변경되지 않습니다.",
+            confirmText = "초기화",
+            dismissText = "취소",
+            onConfirm = {
+                session.commitNextCounterChange(1, usesAutoNext = false)
+                counterStatus = "다음 번호를 ${formatMockCounter(1, session.draftCounterPadding)}로 변경했습니다."
+                showCounterResetDialog = false
+            },
+            onDismiss = { showCounterResetDialog = false },
         )
     }
 
