@@ -94,6 +94,17 @@ object AppSettingsStore {
         context.dataStore.edit { it[phraseProgressKey] = cursor.coerceAtLeast(1) }
     }
 
+    suspend fun setSaveSettings(context: Context, includePath: Boolean, includeFilename: Boolean,
+        mode: SaveMode, padding: Int) {
+        require(padding in 0..6)
+        context.dataStore.edit {
+            it[KEY_INCLUDE_PATH_IN_COUNTER_SCOPE] = includePath
+            it[KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE] = includeFilename
+            it[KEY_SAVE_MODE] = mode.v
+            it[KEY_COUNTER_DIGITS] = padding
+        }
+    }
+
     suspend fun setSaveMode(context: Context, mode: SaveMode) {
         context.dataStore.edit { it[KEY_SAVE_MODE] = mode.v }
     }
