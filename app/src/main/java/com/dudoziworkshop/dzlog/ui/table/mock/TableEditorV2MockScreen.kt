@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType
@@ -98,10 +99,19 @@ fun TableEditorV2Screen(
     templateState: TableTemplateState,
     includePathInCounterScope: Boolean,
     includeFilenameInCounterScope: Boolean,
+    saveMode: SaveMode,
+    counterPadding: Int,
     styleState: TableStyleState,
     isUnsavedNewTemplate: Boolean = false,
     openSaveSettingsInitially: Boolean = false,
-    onSave: suspend (TableTemplateState, TableStyleState, Boolean, Boolean) -> Boolean,
+    onSave: suspend (
+        TableTemplateState,
+        TableStyleState,
+        Boolean,
+        Boolean,
+        SaveMode,
+        Int,
+    ) -> Boolean,
     onDiscardUnsavedNewTemplate: () -> Unit = {},
     onBack: () -> Unit,
 ) {
@@ -111,6 +121,8 @@ fun TableEditorV2Screen(
             initialStyleState = styleState,
             includePathInCounterScope = includePathInCounterScope,
             includeFilenameInCounterScope = includeFilenameInCounterScope,
+            initialSaveMode = saveMode,
+            initialCounterPadding = counterPadding,
         )
     }
     val draftTemplateState = session.draftTemplateState
