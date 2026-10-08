@@ -11,6 +11,9 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.ui.common.DDZSettingRow
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 internal enum class TableEditorSaveDetail {
     FILE_NAME,
@@ -62,20 +65,37 @@ internal fun buildMockFileNamePreview(
     draft: MockSaveRulesDraft,
     nextCounter: Int,
     counterPadding: Int,
+    now: Date = Date(),
 ): String {
     val prefix = draft.fileNameItems
-        .mapNotNull { it?.value?.trim()?.takeIf(String::isNotBlank) }
+        .mapNotNull { item -> item?.previewValue(now)?.trim()?.takeIf(String::isNotBlank) }
         .joinToString("_")
         .ifBlank { "DZlog" }
     return "${prefix}_${formatMockCounter(nextCounter, counterPadding)}.jpg"
 }
 
-internal fun buildMockPathPreview(draft: MockSaveRulesDraft): String {
+internal fun buildMockPathPreview(
+    draft: MockSaveRulesDraft,
+    now: Date = Date(),
+): String {
     val suffix = draft.pathItems
-        .mapNotNull { it?.value?.trim()?.takeIf(String::isNotBlank) }
+        .mapNotNull { item -> item?.previewValue(now)?.trim()?.takeIf(String::isNotBlank) }
         .joinToString("/")
     return if (suffix.isBlank()) "Pictures/DZlog/" else "Pictures/DZlog/$suffix/"
 }
+
+private fun MockRuleItem.previewValue(now: Date): String =
+    when (sourceType) {
+        MockRuleSourceType.DATE -> formatPattern
+            ?.takeIf(String::isNotBlank)
+            ?.let { pattern -> runCatching { SimpleDateFormat(pattern, Locale.getDefault()).format(now) }.getOrNull() }
+            ?: value
+        MockRuleSourceType.TIME -> formatPattern
+            ?.takeIf(String::isNotBlank)
+            ?.let { pattern -> runCatching { SimpleDateFormat(pattern, Locale.getDefault()).format(now) }.getOrNull() }
+            ?: value
+        else -> value
+    }
 
 internal fun saveModeLabel(mode: SaveMode): String =
     when (mode) {
