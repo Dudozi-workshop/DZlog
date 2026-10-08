@@ -7,6 +7,7 @@ import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.HourSystem
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterProgressMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -69,7 +70,10 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                             id = id,
                             name = set.optString("name", ""),
                             items = items,
-                            defaultEvery = set.optInt("defaultEvery", 1).coerceAtLeast(1)
+                            defaultEvery = set.optInt("defaultEvery", 1).coerceAtLeast(1),
+                            counterProgressMode = runCatching {
+                                RotatingCounterProgressMode.valueOf(set.optString("counterProgressMode"))
+                            }.getOrDefault(RotatingCounterProgressMode.PER_PHRASE),
                         )
                     )
                 }
@@ -315,6 +319,7 @@ fun TableTemplateState.toJsonString(): String {
             setJson.put("id", set.id)
             setJson.put("name", set.name)
             setJson.put("defaultEvery", set.defaultEvery)
+            setJson.put("counterProgressMode", set.counterProgressMode.name)
 
             val itemsJson = JSONArray()
             set.items.forEach { itemsJson.put(it) }
@@ -363,3 +368,4 @@ fun TableTemplateState.toJsonString(): String {
     root.put("cells", arr)
     return root.toString()
 }
+
