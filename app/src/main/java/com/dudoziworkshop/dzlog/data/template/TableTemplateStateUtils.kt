@@ -297,6 +297,7 @@ fun TableTemplateState.toJsonString(): String {
                 o.put("cellId", slot.cellId ?: JSONObject.NULL)
                 o.put("manualText", slot.manualText ?: JSONObject.NULL)
                 o.put("formatType", slot.formatType ?: JSONObject.NULL)
+                o.put("formatPattern", slot.formatPattern ?: JSONObject.NULL)
                 arr.put(o)
             }
         }
