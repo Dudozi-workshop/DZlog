@@ -15,6 +15,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -22,7 +26,9 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZSettingRow
+import com.dudoziworkshop.dzlog.ui.common.DDZTextField
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -48,6 +54,9 @@ internal fun TableEditorSaveDetailScreen(
     onResetCounter: () -> Unit,
     onDraftChange: (MockSaveRulesDraft) -> Unit,
 ) {
+    var showCounterInput by remember { mutableStateOf(false) }
+    var counterInputDraft by remember(nextCounter) { mutableStateOf(nextCounter.toString()) }
+
     Scaffold(
         containerColor = DDZColor.Background,
         topBar = {
@@ -157,7 +166,10 @@ internal fun TableEditorSaveDetailScreen(
                         Surface(
                             modifier = Modifier
                                 .weight(1f)
-                                .clickable(enabled = !isCounterBusy) { },
+                                .clickable(enabled = !isCounterBusy) {
+                                    counterInputDraft = nextCounter.toString()
+                                    showCounterInput = true
+                                },
                             color = DDZColor.Surface,
                             shape = RoundedCornerShape(14.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, DDZColor.Border),
@@ -247,6 +259,35 @@ internal fun TableEditorSaveDetailScreen(
                         },
                     )
                 }
+            }
+        }
+    }
+
+    if (showCounterInput) {
+        DDZBottomSheet(
+            title = "다음 번호 직접 입력",
+            onDismiss = { showCounterInput = false },
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                DDZTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    value = counterInputDraft,
+                    onValueChange = { input ->
+                        counterInputDraft = input.filter(Char::isDigit).take(7)
+                    },
+                    label = "다음 번호",
+                )
+                DDZButton(
+                    text = "확인",
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = counterInputDraft.toIntOrNull()?.let { it >= 1 } == true,
+                    onClick = {
+                        val next = counterInputDraft.toIntOrNull()?.coerceAtLeast(1)
+                            ?: return@DDZButton
+                        onNextCounterChange(next)
+                        showCounterInput = false
+                    },
+                )
             }
         }
     }
