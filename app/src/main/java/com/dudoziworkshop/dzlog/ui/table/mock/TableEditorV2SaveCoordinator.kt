@@ -23,6 +23,8 @@ internal class TableEditorV2SaveCoordinator {
             Boolean,
             SaveMode,
             Int,
+            Int?,
+            Boolean,
         ) -> Boolean,
     ): Boolean {
         if (isSaving) return false
@@ -38,6 +40,8 @@ internal class TableEditorV2SaveCoordinator {
                 session.saveRulesDraft.includeFilenameInScope,
                 session.draftSaveMode,
                 session.draftCounterPadding,
+                session.draftNextCounter,
+                session.draftUsesAutoNext,
             )
         }.getOrDefault(false)
 
