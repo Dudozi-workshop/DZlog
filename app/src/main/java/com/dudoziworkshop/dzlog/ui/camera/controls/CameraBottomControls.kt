@@ -135,6 +135,7 @@ internal fun CameraBottomControls(
             focusMode = ui.focusMode,
             focusUiValue = ui.focusUiValue,
             showGrid = ui.prefs.showGrid,
+            rotationCwDeg = ui.prefs.wmRotationCwDeg,
             bottomOffset = with(density) { bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing },
             onSelectTool = { selectedTool ->
                 ui.isZoomChipExpanded = false
@@ -163,6 +164,11 @@ internal fun CameraBottomControls(
                 val next = !ui.prefs.showGrid
                 ui.prefs.showGrid = next
                 scope.launch { settingsWriter.setShowGrid(next) }
+            },
+            onRotateTable = {
+                val next = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
+                ui.prefs.wmRotationCwDeg = next
+                scope.launch { settingsWriter.setWmRotationCwDeg(next) }
             },
             assistShutterEnabled = ui.prefs.assistShutterEnabled,
             onToggleAssistShutter = {
@@ -304,6 +310,7 @@ private fun BoxScope.CameraToolOverlayPanel(
     focusMode: CameraFocusMode,
     focusUiValue: Float,
     showGrid: Boolean,
+    rotationCwDeg: Int,
     bottomOffset: androidx.compose.ui.unit.Dp,
     onSelectTool: (CameraOverlayTool) -> Unit,
     onOpenSelectedToolPanel: () -> Unit,
@@ -312,6 +319,7 @@ private fun BoxScope.CameraToolOverlayPanel(
     onFocusUiValueChange: (Float) -> Unit,
     onFlashModeChange: (CameraFlashMode) -> Unit,
     onToggleGrid: () -> Unit,
+    onRotateTable: () -> Unit,
     assistShutterEnabled: Boolean,
     onToggleAssistShutter: () -> Unit,
     hapticEnabled: Boolean,
@@ -330,9 +338,11 @@ private fun BoxScope.CameraToolOverlayPanel(
                 flashMode = flashMode,
                 focusMode = focusMode,
                 showGrid = showGrid,
+                rotationCwDeg = rotationCwDeg,
                 assistShutterEnabled = assistShutterEnabled,
                 onSelectTool = onSelectTool,
                 onToggleGrid = onToggleGrid,
+                onRotateTable = onRotateTable,
                 onToggleAssistShutter = onToggleAssistShutter,
             )
             compactTool == CameraOverlayTool.ZOOM && !isToolPanelExpanded -> ZoomControlSection(
