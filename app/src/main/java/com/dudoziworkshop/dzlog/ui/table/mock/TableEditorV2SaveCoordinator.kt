@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.ui.table.mock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 
@@ -15,7 +16,14 @@ internal class TableEditorV2SaveCoordinator {
 
     suspend fun save(
         session: TableEditorV2SessionState,
-        onSave: suspend (TableTemplateState, TableStyleState, Boolean, Boolean) -> Boolean,
+        onSave: suspend (
+            TableTemplateState,
+            TableStyleState,
+            Boolean,
+            Boolean,
+            SaveMode,
+            Int,
+        ) -> Boolean,
     ): Boolean {
         if (isSaving) return false
         isSaving = true
@@ -28,6 +36,8 @@ internal class TableEditorV2SaveCoordinator {
                 session.draftStyleState,
                 session.saveRulesDraft.includePathInScope,
                 session.saveRulesDraft.includeFilenameInScope,
+                session.draftSaveMode,
+                session.draftCounterPadding,
             )
         }.getOrDefault(false)
 
