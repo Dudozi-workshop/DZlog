@@ -55,7 +55,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.feature.counter.table.SaveSettingsCounterController
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
@@ -148,8 +147,6 @@ fun TableEditorV2Screen(
     var showStyle by remember { mutableStateOf(false) }
     var showSaveRules by remember { mutableStateOf(openSaveSettingsInitially) }
     var saveDetail by remember { mutableStateOf<TableEditorSaveDetail?>(null) }
-    var counterBusy by remember { mutableStateOf(false) }
-    var counterStatus by remember { mutableStateOf<String?>(null) }
     var showCounterResetDialog by remember { mutableStateOf(false) }
     var showBackSaveDialog by remember { mutableStateOf(false) }
     var styleSheetDraft by remember { mutableStateOf(draftStyleState) }
@@ -159,37 +156,8 @@ fun TableEditorV2Screen(
     val saveScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    LaunchedEffect(
-        showSaveRules,
-        session.draftNextCounter,
-        session.draftSaveMode,
-        session.draftCounterPadding,
-        session.saveRulesDraft.includePathInScope,
-        session.saveRulesDraft.includeFilenameInScope,
-        session.draftTemplateState,
-    ) {
-        if (showSaveRules && session.draftNextCounter == null) {
-            counterBusy = true
-            runCatching {
-                SaveSettingsCounterController.readCurrent(
-                    context = context,
-                    templateState = session.finalTemplateForSave(),
-                    saveMode = session.draftSaveMode,
-                    counterPadding = session.draftCounterPadding,
-                    includePathInScope = session.saveRulesDraft.includePathInScope,
-                    includeFilenameInScope = session.saveRulesDraft.includeFilenameInScope,
-                )
-            }.onSuccess { state ->
-                session.initializeCounterState(
-                    next = state.next,
-                    usesAutoNext = state.usesAutoNext,
-                )
-            }.onFailure {
-                counterStatus = "저장된 번호를 확인하지 못했습니다."
-            }
-            counterBusy = false
-        }
-    }
+    val counterController = rememberTableEditorCounterOrchestrator(context, session, showSaveRules)
+    val namingPreview = tableEditorNamingPreview(context, session)
 
     fun requestBack() {
         if (mode == MockMode.LAYOUT) {
@@ -620,37 +588,14 @@ fun TableEditorV2Screen(
             cells = cells,
             rows = rows,
             cols = cols,
-            isCounterBusy = counterBusy,
-            counterStatus = counterStatus,
+            isCounterBusy = counterController.busy,
+            counterStatus = counterController.status,
             onBack = { saveDetail = null },
             onOpenDetail = { saveDetail = it },
             onSaveModeChange = session::commitSaveModeChange,
             onCounterPaddingChange = session::commitCounterPaddingChange,
-            onNextCounterChange = { next ->
-                session.commitNextCounterChange(next, usesAutoNext = false)
-                counterStatus = null
-            },
-            onSyncCounter = {
-                saveScope.launch {
-                    counterBusy = true
-                    runCatching {
-                        SaveSettingsCounterController.readSavedImageNext(
-                            context = context,
-                            templateState = session.finalTemplateForSave(),
-                            saveMode = session.draftSaveMode,
-                            counterPadding = session.draftCounterPadding,
-                            includePathInScope = session.saveRulesDraft.includePathInScope,
-                            includeFilenameInScope = session.saveRulesDraft.includeFilenameInScope,
-                        )
-                    }.onSuccess { next ->
-                        session.commitNextCounterChange(next, usesAutoNext = true)
-                        counterStatus = "저장 이력 기준으로 ${formatMockCounter(next, session.draftCounterPadding)}부터 이어집니다."
-                    }.onFailure {
-                        counterStatus = "저장된 번호를 확인하지 못했습니다."
-                    }
-                    counterBusy = false
-                }
-            },
+            onNextCounterChange = { next -> counterController.edit(session, next) },
+            onSyncCounter = { saveScope.launch { counterController.sync(context, session) } },
             onResetCounter = { showCounterResetDialog = true },
             onDraftChange = session::commitSaveRulesChange,
         )
@@ -663,8 +608,7 @@ fun TableEditorV2Screen(
             confirmText = "초기화",
             dismissText = "취소",
             onConfirm = {
-                session.commitNextCounterChange(1, usesAutoNext = false)
-                counterStatus = "다음 번호를 ${formatMockCounter(1, session.draftCounterPadding)}로 변경했습니다."
+                counterController.reset(session)
                 showCounterResetDialog = false
             },
             onDismiss = { showCounterResetDialog = false },
@@ -728,3 +672,4 @@ fun TableEditorV2Screen(
         )
     }
 }
+
