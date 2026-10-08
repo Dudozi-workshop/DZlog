@@ -8,6 +8,7 @@ data class TableEditorSlotDraft(
     val cellId: String? = null,
     val manualText: String? = null,
     val formatType: String? = null,
+    val formatPattern: String? = null,
 )
 
 data class TableTemplateState(
