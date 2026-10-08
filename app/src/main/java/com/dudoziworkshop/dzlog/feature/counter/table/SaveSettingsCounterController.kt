@@ -11,6 +11,11 @@ import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequest
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
 import java.util.Date
 
+internal data class SaveSettingsCounterState(
+    val next: Int,
+    val usesAutoNext: Boolean,
+)
+
 internal object SaveSettingsCounterController {
 
     suspend fun readCurrent(
@@ -20,6 +25,28 @@ internal object SaveSettingsCounterController {
         counterPadding: Int,
         includePathInScope: Boolean,
         includeFilenameInScope: Boolean,
+    ): SaveSettingsCounterState {
+        val request = buildRequest(
+            templateState = templateState,
+            saveMode = saveMode,
+            counterPadding = counterPadding,
+            includePathInScope = includePathInScope,
+            includeFilenameInScope = includeFilenameInScope,
+        )
+        val read = facade(context, counterPadding).read(request)
+        return SaveSettingsCounterState(
+            next = read.next.coerceAtLeast(1),
+            usesAutoNext = !read.hasManualOverride,
+        )
+    }
+
+    suspend fun readSavedImageNext(
+        context: Context,
+        templateState: TableTemplateState,
+        saveMode: SaveMode,
+        counterPadding: Int,
+        includePathInScope: Boolean,
+        includeFilenameInScope: Boolean,
     ): Int {
         val request = buildRequest(
             templateState = templateState,
@@ -28,38 +55,19 @@ internal object SaveSettingsCounterController {
             includePathInScope = includePathInScope,
             includeFilenameInScope = includeFilenameInScope,
         )
-        return facade(context, counterPadding).read(request).next.coerceAtLeast(1)
+        return facade(context, counterPadding).readAutoNext(request).coerceAtLeast(1)
     }
 
-    suspend fun setManualNext(
+    suspend fun applyNext(
         context: Context,
         templateState: TableTemplateState,
         saveMode: SaveMode,
         counterPadding: Int,
         includePathInScope: Boolean,
         includeFilenameInScope: Boolean,
-        value: Int,
-    ): Int {
-        val request = buildRequest(
-            templateState = templateState,
-            saveMode = saveMode,
-            counterPadding = counterPadding,
-            includePathInScope = includePathInScope,
-            includeFilenameInScope = includeFilenameInScope,
-        )
-        val normalized = value.coerceAtLeast(1)
-        facade(context, counterPadding).setManualNext(request, normalized)
-        return normalized
-    }
-
-    suspend fun syncFromSavedImages(
-        context: Context,
-        templateState: TableTemplateState,
-        saveMode: SaveMode,
-        counterPadding: Int,
-        includePathInScope: Boolean,
-        includeFilenameInScope: Boolean,
-    ): Int {
+        next: Int,
+        usesAutoNext: Boolean,
+    ) {
         val request = buildRequest(
             templateState = templateState,
             saveMode = saveMode,
@@ -68,8 +76,11 @@ internal object SaveSettingsCounterController {
             includeFilenameInScope = includeFilenameInScope,
         )
         val counterFacade = facade(context, counterPadding)
-        counterFacade.clearManualNext(request)
-        return counterFacade.readAutoNext(request).coerceAtLeast(1)
+        if (usesAutoNext) {
+            counterFacade.clearManualNext(request)
+        } else {
+            counterFacade.setManualNext(request, next.coerceAtLeast(1))
+        }
     }
 
     private fun facade(context: Context, counterPadding: Int): CounterFacade =
