@@ -78,8 +78,6 @@ internal fun buildCameraTriggerCapture(
             latestImageController.reload()
         },
         onSetCapturedUri = { capturedUri -> ui.capture.capturedUri = capturedUri },
-        // 정책 유지: 저장 성공 후 다음 순환문구 cursor를 반영한다.
-        onAdvancePhraseProgress = { nextCursor -> cameraViewModel.advancePhraseProgress(nextCursor) },
         onSetCapturing = { ui.capture.isCapturing = it }
     )
 
@@ -129,3 +127,4 @@ private fun com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode.toImageCapt
     com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode.AUTO -> ImageCapture.FLASH_MODE_AUTO
     com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode.ON -> ImageCapture.FLASH_MODE_ON
 }
+

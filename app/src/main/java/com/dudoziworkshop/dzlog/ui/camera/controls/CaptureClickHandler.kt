@@ -29,7 +29,6 @@ data class CaptureClickCallbacks(
     val onAdvancePreviewCounter: (Int) -> Unit,
     val onAddToSessionStack: (List<Uri>) -> Unit,
     val onSetCapturedUri: (Uri?) -> Unit,
-    val onAdvancePhraseProgress: (Int) -> Unit,
     val onSetCapturing: (Boolean) -> Unit
 )
 
@@ -161,8 +160,6 @@ internal fun handleCaptureClick(
                     // UX 개선: 저장 성공 직후 프리뷰 카운터를 committedCounter + 1로 즉시 반영한다.
                     // 정합성은 기존 CameraCounterSyncEffect 경로가 최종 보정한다.
                     callbacks.onAdvancePreviewCounter(committedCounter + 1)
-                    // 정책 정리(2차): 문구 진행은 모드와 무관하게 저장 성공 후 plan 기준으로만 전진한다.
-                    callbacks.onAdvancePhraseProgress(finalCapturePreview.nextPhraseProgressCursor)
                     onRequestCounterResync()
 
                     if (entry.isNameAdjusted) {
