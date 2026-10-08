@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -91,9 +90,9 @@ internal fun TableEditorRuleListEditor(
         if (from.index !in compactItems.indices || to.index !in compactItems.indices) {
             return@rememberReorderableLazyListState
         }
-        val reordered = compactItems.toMutableList().apply {
-            add(to.index, removeAt(from.index))
-        }
+        val reordered = compactItems.toMutableList()
+        val moved = reordered.removeAt(from.index)
+        reordered.add(to.index.coerceIn(0, reordered.size), moved)
         emitCompacted(reordered)
     }
 
