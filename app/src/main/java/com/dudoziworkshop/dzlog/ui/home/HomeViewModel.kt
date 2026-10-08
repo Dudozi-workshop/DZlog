@@ -130,7 +130,7 @@ internal class HomeViewModel(
                 includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
                 saveMode = settings.saveMode,
                 scopeNextCounter = HOME_PREVIEW_COUNTER_SEED,
-                phraseProgressCursor = HOME_PREVIEW_PHRASE_CURSOR,
+                phraseProgressCursor = settings.phraseProgressCursor,
             ),
         )
         val counterRequest = CounterRequestResolver.fromHome(
@@ -162,6 +162,6 @@ internal class HomeViewModel(
 
     private companion object {
         const val HOME_PREVIEW_COUNTER_SEED = 1
-        const val HOME_PREVIEW_PHRASE_CURSOR = 1
     }
 }
+

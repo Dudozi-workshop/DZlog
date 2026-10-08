@@ -1,6 +1,8 @@
 package com.dudoziworkshop.dzlog.feature.counter.table
 
 import android.content.Context
+import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
+import kotlinx.coroutines.flow.first
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
@@ -27,6 +29,7 @@ internal object SaveSettingsCounterController {
         includeFilenameInScope: Boolean,
     ): SaveSettingsCounterState {
         val request = buildRequest(
+            phraseProgressCursor = AppSettingsStore.flow(context).first().phraseProgressCursor,
             templateState = templateState,
             saveMode = saveMode,
             counterPadding = counterPadding,
@@ -49,6 +52,7 @@ internal object SaveSettingsCounterController {
         includeFilenameInScope: Boolean,
     ): Int {
         val request = buildRequest(
+            phraseProgressCursor = AppSettingsStore.flow(context).first().phraseProgressCursor,
             templateState = templateState,
             saveMode = saveMode,
             counterPadding = counterPadding,
@@ -69,6 +73,7 @@ internal object SaveSettingsCounterController {
         usesAutoNext: Boolean,
     ) {
         val request = buildRequest(
+            phraseProgressCursor = AppSettingsStore.flow(context).first().phraseProgressCursor,
             templateState = templateState,
             saveMode = saveMode,
             counterPadding = counterPadding,
@@ -90,7 +95,8 @@ internal object SaveSettingsCounterController {
             fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
         )
 
-    private fun buildRequest(
+    internal fun buildRequest(
+        phraseProgressCursor: Int,
         templateState: TableTemplateState,
         saveMode: SaveMode,
         counterPadding: Int,
@@ -109,7 +115,7 @@ internal object SaveSettingsCounterController {
                 includeFilenameInCounterScope = includeFilenameInScope,
                 saveMode = saveMode,
                 scopeNextCounter = 1,
-                phraseProgressCursor = 1,
+                phraseProgressCursor = phraseProgressCursor,
             )
         )
         return CounterRequestResolver.fromTable(
@@ -123,3 +129,4 @@ internal object SaveSettingsCounterController {
         )
     }
 }
+
