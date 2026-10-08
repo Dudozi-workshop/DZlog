@@ -16,6 +16,8 @@ internal data class MockEditorSnapshot(
     val includeFilenameInCounterScope: Boolean,
     val saveMode: SaveMode,
     val counterPadding: Int,
+    val nextCounter: Int?,
+    val usesAutoNext: Boolean,
 )
 
 internal class TableEditorV2SessionState(
@@ -38,6 +40,12 @@ internal class TableEditorV2SessionState(
     var draftCounterPadding by mutableIntStateOf(initialCounterPadding.coerceIn(0, 6))
         private set
 
+    var draftNextCounter by mutableStateOf<Int?>(null)
+        private set
+
+    var draftUsesAutoNext by mutableStateOf(true)
+        private set
+
     var saveRulesDraft by mutableStateOf(
         mockSaveRulesDraftFromTemplate(
             templateState = initialTemplateState,
@@ -52,6 +60,8 @@ internal class TableEditorV2SessionState(
     private var savedSaveRulesBaseline: MockSaveRulesDraft = saveRulesDraft
     private var savedSaveModeBaseline: SaveMode = draftSaveMode
     private var savedCounterPaddingBaseline: Int = draftCounterPadding
+    private var savedNextCounterBaseline: Int? = draftNextCounter
+    private var savedUsesAutoNextBaseline: Boolean = draftUsesAutoNext
 
     private val undoManager = TableUndoManager<MockEditorSnapshot>()
 
@@ -70,7 +80,9 @@ internal class TableEditorV2SessionState(
                 draftStyleState != savedStyleBaseline ||
                 saveRulesDraft != savedSaveRulesBaseline ||
                 draftSaveMode != savedSaveModeBaseline ||
-                draftCounterPadding != savedCounterPaddingBaseline
+                draftCounterPadding != savedCounterPaddingBaseline ||
+                draftNextCounter != savedNextCounterBaseline ||
+                draftUsesAutoNext != savedUsesAutoNextBaseline
 
     fun currentSnapshot(): MockEditorSnapshot =
         MockEditorSnapshot(
@@ -80,6 +92,8 @@ internal class TableEditorV2SessionState(
             includeFilenameInCounterScope = saveRulesDraft.includeFilenameInScope,
             saveMode = draftSaveMode,
             counterPadding = draftCounterPadding,
+            nextCounter = draftNextCounter,
+            usesAutoNext = draftUsesAutoNext,
         )
 
     fun commitTemplateChange(updated: TableTemplateState) {
@@ -98,6 +112,23 @@ internal class TableEditorV2SessionState(
         if (updated == draftSaveMode) return
         pushCurrentSnapshot()
         draftSaveMode = updated
+    }
+
+    fun initializeCounterState(next: Int, usesAutoNext: Boolean) {
+        if (draftNextCounter != null) return
+        val normalized = next.coerceAtLeast(1)
+        draftNextCounter = normalized
+        draftUsesAutoNext = usesAutoNext
+        savedNextCounterBaseline = normalized
+        savedUsesAutoNextBaseline = usesAutoNext
+    }
+
+    fun commitNextCounterChange(updated: Int, usesAutoNext: Boolean) {
+        val normalized = updated.coerceAtLeast(1)
+        if (draftNextCounter == normalized && draftUsesAutoNext == usesAutoNext) return
+        pushCurrentSnapshot()
+        draftNextCounter = normalized
+        draftUsesAutoNext = usesAutoNext
     }
 
     fun commitCounterPaddingChange(updated: Int) {
@@ -149,6 +180,8 @@ internal class TableEditorV2SessionState(
         savedSaveRulesBaseline = saveRulesDraft
         savedSaveModeBaseline = draftSaveMode
         savedCounterPaddingBaseline = draftCounterPadding
+        savedNextCounterBaseline = draftNextCounter
+        savedUsesAutoNextBaseline = draftUsesAutoNext
     }
 
     private fun pushCurrentSnapshot() {
@@ -166,6 +199,8 @@ internal class TableEditorV2SessionState(
         )
         draftSaveMode = snapshot.saveMode
         draftCounterPadding = snapshot.counterPadding
+        draftNextCounter = snapshot.nextCounter
+        draftUsesAutoNext = snapshot.usesAutoNext
         historyRevision += 1
     }
 }
