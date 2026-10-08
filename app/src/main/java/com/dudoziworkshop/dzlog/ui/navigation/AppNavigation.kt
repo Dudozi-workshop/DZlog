@@ -44,6 +44,7 @@ import com.dudoziworkshop.dzlog.feature.settings.ui.CreditsScreen
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.state.TableTemplateCatalogViewModel
+import com.dudoziworkshop.dzlog.feature.counter.table.SaveSettingsCounterController
 import com.dudoziworkshop.dzlog.feature.table.policy.TableTemplateCatalogCoordinator
 import com.dudoziworkshop.dzlog.feature.table.policy.activeSavedTableStyle
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
@@ -224,6 +225,8 @@ fun AppRoot() {
         includeFilenameInCounterScope: Boolean,
         saveMode: SaveMode,
         counterPadding: Int,
+        nextCounter: Int?,
+        usesAutoNext: Boolean,
     ): Boolean {
         if (!hasRestoredTemplate) return false
 
@@ -234,6 +237,18 @@ fun AppRoot() {
             AppSettingsStore.setIncludeFilenameInCounterScope(context, includeFilenameInCounterScope)
             AppSettingsStore.setSaveMode(context, saveMode)
             AppSettingsStore.setCounterPadding(context, counterPadding)
+            if (nextCounter != null) {
+                SaveSettingsCounterController.applyNext(
+                    context = context,
+                    templateState = updatedTemplate,
+                    saveMode = saveMode,
+                    counterPadding = counterPadding,
+                    includePathInScope = includePathInCounterScope,
+                    includeFilenameInScope = includeFilenameInCounterScope,
+                    next = nextCounter,
+                    usesAutoNext = usesAutoNext,
+                )
+            }
             val updatedItems = tableCatalogCoordinator.saveActiveSession(
                 items = tableTemplateViewModel.templates,
                 activeTemplateId = activeId,
