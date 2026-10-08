@@ -5,6 +5,7 @@ import android.os.Build
 import android.provider.MediaStore
 import android.util.Log
 import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreQueryPolicy
+import com.dudoziworkshop.dzlog.domain.counter.CounterScanPrefixes
 
 // 0 = no padding (e.g., _1, _10, _5021)
 const val COUNTER_DIGITS_DEFAULT = 0
@@ -32,7 +33,12 @@ internal fun parseCounterForPolicy(
     if (base.isBlank()) return null
 
     val wildcardPrefix = fileNamePrefix == "*" || fileNamePrefix.isBlank()
-    val token = if (wildcardPrefix) {
+    val token = if (CounterScanPrefixes.isEncoded(fileNamePrefix)) {
+        val suffixDelimiter = "_" // Automatic counter is always the final underscore suffix.
+        val prefix = base.substringBeforeLast(suffixDelimiter, missingDelimiterValue = "")
+        if (!CounterScanPrefixes.matches(prefix, fileNamePrefix, fnDelim.ifBlank { "_" })) return null
+        base.substringAfterLast(suffixDelimiter, missingDelimiterValue = "").trim()
+    } else if (wildcardPrefix) {
         base.substringAfterLast(fnDelim, missingDelimiterValue = base).trim()
     } else {
         val prefixToken = "${fileNamePrefix}${fnDelim}"
@@ -137,3 +143,4 @@ fun scanUsedCounters(
     )
     return out
 }
+

@@ -1,6 +1,8 @@
 package com.dudoziworkshop.dzlog.domain.naming
 
 import com.dudoziworkshop.dzlog.domain.counter.resolveRotatingCounterStreamIdentity
+import com.dudoziworkshop.dzlog.domain.counter.CounterScanPrefixes
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterProgressMode
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
@@ -57,15 +59,14 @@ private fun formatNow(pattern: String, now: Date): String {
         .getOrElse { "" }
 }
 
-private fun resolveRotatingTextToken(resolvedCells: List<ResolvedCell>): String {
-    return resolvedCells
-        .asSequence()
-        .filter { it.type == TableCellDataType.ROTATING_TEXT }
+private fun resolveRotatingFileNameCell(resolvedCells: List<ResolvedCell>): ResolvedCell? {
+    val rotating = resolvedCells.filter { it.type == TableCellDataType.ROTATING_TEXT }
         .sortedWith(compareBy({ it.raw?.rowIndex ?: 0 }, { it.raw?.colIndex ?: 0 }))
-        .map { it.resolvedText.trim() }
-        .firstOrNull { it.isNotBlank() }
-        .orEmpty()
+    return rotating.firstOrNull { it.resolvedText.isNotBlank() } ?: rotating.firstOrNull()
 }
+
+private fun resolveRotatingTextToken(resolvedCells: List<ResolvedCell>): String =
+    resolveRotatingFileNameCell(resolvedCells)?.resolvedText?.trim().orEmpty()
 
 private fun normalizeSlotDrafts(
     drafts: List<TableEditorSlotDraft?>,
@@ -187,7 +188,7 @@ fun resolveFileNameScopeTokensFromDrafts(
                     )
                 )
                 "ROTATING_TEXT" -> {
-                    val rotating = resolvedCells.firstOrNull { it.type == TableCellDataType.ROTATING_TEXT }
+                    val rotating = resolveRotatingFileNameCell(resolvedCells)
                     sanitizeFilePart(
                         resolveRotatingCounterStreamIdentity(
                             activePhraseText = rotating?.resolvedText,
@@ -246,7 +247,24 @@ fun buildCounterScanPrefix(
     dateFormat: String,
     timeFormat: String,
 ): String {
-    // 회전문구를 포함한 파일명 prefix 규칙과 counter scan prefix 규칙을 동일하게 유지한다.
+    val resolvedById = resolvedCells.associateBy { it.id }
+    var hasContinuousSlot = false
+    val choices = normalizeSlotDrafts(fileNameSlotDrafts, FILE_NAME_SLOT_COUNT).map { draft ->
+        val rotating = when {
+            draft?.kind.equals("CELL", ignoreCase = true) -> draft?.cellId?.let { resolvedById[it] }
+            draft?.kind.equals("FORMAT", ignoreCase = true) &&
+                draft?.formatType.equals("ROTATING_TEXT", ignoreCase = true) -> resolveRotatingFileNameCell(resolvedCells)
+            else -> null
+        }?.takeIf { it.type == TableCellDataType.ROTATING_TEXT }
+        if (rotating?.rotatingPhraseSet?.counterProgressMode == RotatingCounterProgressMode.CONTINUOUS) {
+            hasContinuousSlot = true
+            // Only this set's known phrases vary. Fixed/date/time/other phrase slots remain exact.
+            (rotating.rotatingPhraseSet.items + rotating.resolvedText).map(::sanitizeFilePart).distinct()
+        } else {
+            listOf(resolveFileNameSlotToken(draft, resolvedById, resolvedCells, now, dateFormat, timeFormat))
+        }
+    }
+    if (hasContinuousSlot) return CounterScanPrefixes.encode(choices)
     return buildFileNamePrefix(
         resolvedCells = resolvedCells,
         fileNameSlotDrafts = fileNameSlotDrafts,
