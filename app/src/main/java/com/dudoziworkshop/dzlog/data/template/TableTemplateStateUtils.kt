@@ -45,7 +45,8 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                     label = label,
                     cellId = obj.optString("cellId").takeUnless { it.isBlank() || it == "null" },
                     manualText = obj.optString("manualText").takeUnless { it.isBlank() || it == "null" },
-                    formatType = obj.optString("formatType").takeUnless { it.isBlank() || it == "null" }
+                    formatType = obj.optString("formatType").takeUnless { it.isBlank() || it == "null" },
+                    formatPattern = obj.optString("formatPattern").takeUnless { it.isBlank() || it == "null" },
                 )
             }
         }
