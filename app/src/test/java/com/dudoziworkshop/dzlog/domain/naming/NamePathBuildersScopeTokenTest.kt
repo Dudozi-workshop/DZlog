@@ -8,7 +8,9 @@ import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 
 class NamePathBuildersScopeTokenTest {
 
@@ -44,6 +46,54 @@ class NamePathBuildersScopeTokenTest {
         )
 
         assertEquals(listOf("0000"), tokens)
+    }
+
+    @Test
+    fun `legacy separated time format still normalizes to HHmm`() {
+        val now = Date(0)
+        val tokens = resolveFileNameScopeTokensFromDrafts(
+            fileNameSlotDrafts = listOf(
+                TableEditorSlotDraft(
+                    kind = "FORMAT",
+                    label = "시간",
+                    formatType = "TIME",
+                    formatPattern = "HH-mm",
+                ),
+                null,
+                null,
+            ),
+            resolvedCells = emptyList(),
+            now = now,
+            dateFormat = "yyyyMMdd",
+            timeFormat = "HHmm",
+        )
+
+        val expected = SimpleDateFormat("HHmm", Locale.getDefault()).format(now)
+        assertEquals(listOf(expected), tokens)
+    }
+
+    @Test
+    fun `per slot date format participates in filename scope token`() {
+        val now = Date(0)
+        val tokens = resolveFileNameScopeTokensFromDrafts(
+            fileNameSlotDrafts = listOf(
+                TableEditorSlotDraft(
+                    kind = "FORMAT",
+                    label = "날짜",
+                    formatType = "DATE",
+                    formatPattern = "yyyy-MM-dd",
+                ),
+                null,
+                null,
+            ),
+            resolvedCells = emptyList(),
+            now = now,
+            dateFormat = "yyyyMMdd",
+            timeFormat = "HHmm",
+        )
+
+        val expected = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now)
+        assertEquals(listOf(expected), tokens)
     }
 
     @Test
