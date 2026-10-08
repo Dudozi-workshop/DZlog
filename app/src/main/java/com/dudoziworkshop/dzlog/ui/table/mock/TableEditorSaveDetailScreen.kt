@@ -37,6 +37,8 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 internal fun TableEditorSaveDetailScreen(
     detail: TableEditorSaveDetail,
     draft: MockSaveRulesDraft,
+    fileNamePreview: String,
+    pathPreview: String,
     saveMode: SaveMode,
     counterPadding: Int,
     nextCounter: Int,
@@ -83,7 +85,7 @@ internal fun TableEditorSaveDetailScreen(
                 TableEditorSaveDetail.FILE_NAME -> {
                     PreviewCard(
                         label = "현재 파일명",
-                        value = buildMockFileNamePreview(draft, nextCounter, counterPadding),
+                        value = fileNamePreview,
                     )
                     Text("파일명 구성", style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
                     TableEditorRuleListEditor(
@@ -104,7 +106,7 @@ internal fun TableEditorSaveDetailScreen(
                 TableEditorSaveDetail.SAVE_PATH -> {
                     PreviewCard(
                         label = "현재 저장 위치",
-                        value = buildMockPathPreview(draft),
+                        value = pathPreview,
                     )
                     Text("폴더 구성", style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
                     TableEditorRuleListEditor(
@@ -364,4 +366,5 @@ private fun ScopeOption(
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
+
 

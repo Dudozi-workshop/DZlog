@@ -353,6 +353,8 @@ fun TableEditorV2Screen(
             if (showSaveRules) {
                 TableEditorSaveSettingsPanel(
                     draft = saveRulesDraft,
+                    fileNamePreview = namingPreview.first,
+                    pathPreview = namingPreview.second,
                     saveMode = session.draftSaveMode,
                     counterPadding = session.draftCounterPadding,
                     nextCounter = session.draftNextCounter ?: 1,
@@ -582,6 +584,8 @@ fun TableEditorV2Screen(
         TableEditorSaveDetailScreen(
             detail = detail,
             draft = saveRulesDraft,
+            fileNamePreview = namingPreview.first,
+            pathPreview = namingPreview.second,
             saveMode = session.draftSaveMode,
             counterPadding = session.draftCounterPadding,
             nextCounter = session.draftNextCounter ?: 1,
