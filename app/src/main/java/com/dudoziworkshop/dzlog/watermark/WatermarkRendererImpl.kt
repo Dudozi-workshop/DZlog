@@ -7,7 +7,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
-import com.dudoziworkshop.dzlog.feature.table.render.buildContentDrivenRenderedSceneFromPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.buildCameraTableSceneFromPlacement
 
 class WatermarkRendererImpl : WatermarkRenderer {
     override fun renderTable(
@@ -76,7 +76,7 @@ class WatermarkRendererImpl : WatermarkRenderer {
             )
         }
 
-        val rendered = buildContentDrivenRenderedSceneFromPlacement(
+        val rendered = buildCameraTableSceneFromPlacement(
             bounds = imageBounds,
             placement = placement,
             cells = cells,
@@ -108,3 +108,4 @@ class WatermarkRendererImpl : WatermarkRenderer {
         return out
     }
 }
+

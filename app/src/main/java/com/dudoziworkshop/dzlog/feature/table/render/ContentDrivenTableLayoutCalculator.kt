@@ -234,3 +234,32 @@ fun buildContentDrivenRenderedSceneFromPlacement(
         resolvedLayout = resolvedLayout,
     )
 }
+
+
+/** Camera preview and saved photos share a resolution-independent placement policy.
+ * Intrinsic text measurements define proportions, never a maximum pixel size.
+ */
+fun buildCameraTableSceneFromPlacement(
+    bounds: RectF,
+    placement: TableRenderPlacement,
+    cells: List<WatermarkBuilder.WatermarkCell>,
+    templateCells: List<TableCellState>,
+    rows: Int,
+    cols: Int,
+    valueScale: Int,
+    baseScaleRatio: Int,
+    rowWeights: List<Float>? = null,
+    colWeights: List<Float>? = null,
+): ContentDrivenRenderedScene = buildContentDrivenRenderedSceneFromPlacement(
+    bounds = bounds,
+    placement = placement,
+    cells = cells,
+    templateCells = templateCells,
+    rows = rows,
+    cols = cols,
+    valueScale = valueScale,
+    baseScaleRatio = baseScaleRatio,
+    rowWeights = rowWeights,
+    colWeights = colWeights,
+    allowUpscaleToFit = true,
+)

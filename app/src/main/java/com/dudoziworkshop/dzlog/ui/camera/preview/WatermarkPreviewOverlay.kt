@@ -18,7 +18,7 @@ import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import com.dudoziworkshop.dzlog.feature.table.render.buildCameraPreviewPlacement
-import com.dudoziworkshop.dzlog.feature.table.render.buildContentDrivenRenderedSceneFromPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.buildCameraTableSceneFromPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.computeRatioOnlyTableShape
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.watermark.boundsRectFromOffset
@@ -117,7 +117,7 @@ fun WatermarkPreviewOverlay(
                 overrideOffsetTopPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawTopPx else null,
                 rotationCwDeg = request.watermark.rotationCwDeg,
             )
-            val rendered = buildContentDrivenRenderedSceneFromPlacement(
+            val rendered = buildCameraTableSceneFromPlacement(
                 bounds = previewContentRect,
                 placement = placement,
                 cells = cells,
@@ -162,3 +162,4 @@ fun WatermarkPreviewOverlay(
         }
     }
 }
+
