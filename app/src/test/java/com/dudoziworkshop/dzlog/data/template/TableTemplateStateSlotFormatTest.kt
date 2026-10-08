@@ -5,7 +5,10 @@ import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class TableTemplateStateSlotFormatTest {
 
     @Test
