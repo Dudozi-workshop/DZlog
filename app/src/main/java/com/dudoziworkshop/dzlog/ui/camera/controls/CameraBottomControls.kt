@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
@@ -408,14 +409,21 @@ private fun CameraControlButton(
 ) {
     Box(
         modifier = modifier
-            .size(DDZLayout.Control.CameraSmall)
+            .size(48.dp)
             .clip(CameraCompactControlShape)
-            .border(1.dp, borderColor, CameraCompactControlShape)
-            .background(backgroundColor)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
-        content = content
-    )
+    ) {
+        Box(
+            modifier = Modifier
+                .size(DDZLayout.Control.CameraSmall)
+                .clip(CameraCompactControlShape)
+                .border(1.dp, borderColor, CameraCompactControlShape)
+                .background(backgroundColor),
+            contentAlignment = Alignment.Center,
+            content = content,
+        )
+    }
 }
 
 @Composable
@@ -459,6 +467,14 @@ private fun RecentCaptureThumbButton(
     modifier: Modifier = Modifier
 ) {
     CameraControlButton(onClick = onClick, modifier = modifier) {
-        latestImage?.let { DzThumbnail(it.uri.toString()) }
+        if (latestImage != null) {
+            DzThumbnail(latestImage.uri.toString())
+        } else {
+            Icon(
+                imageVector = Icons.Default.Image,
+                contentDescription = "사진 목록",
+                tint = DDZColor.SageDarkStrong,
+            )
+        }
     }
 }
