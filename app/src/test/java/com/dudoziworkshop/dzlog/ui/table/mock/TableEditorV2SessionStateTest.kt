@@ -1,6 +1,8 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
 import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
+import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -43,6 +45,60 @@ class TableEditorV2SessionStateTest {
 
         session.markSaved(session.finalTemplateForSave())
         assertFalse(session.isDirty)
+    }
+
+    @Test
+    fun changing_counter_stream_invalidates_loaded_next_and_undo_restores_it() {
+        val initial = newBlankTableTemplateState(rows = 1, cols = 1)
+        val session = TableEditorV2SessionState(
+            initialTemplateState = initial,
+            initialStyleState = TableStyleState(),
+            includePathInCounterScope = true,
+            includeFilenameInCounterScope = true,
+        )
+        session.initializeCounterState(next = 6, usesAutoNext = true)
+
+        session.commitSaveModeChange(SaveMode.ORIGINAL_ONLY)
+
+        assertEquals(null, session.draftNextCounter)
+        assertTrue(session.isDirty)
+
+        assertTrue(session.undo())
+        assertEquals(6, session.draftNextCounter)
+        assertEquals(SaveMode.BOTH, session.draftSaveMode)
+        assertFalse(session.isDirty)
+    }
+
+    @Test
+    fun template_cell_change_refreshes_save_rule_cell_preview() {
+        val blank = newBlankTableTemplateState(rows = 1, cols = 1)
+        val cellId = blank.cells.single().cellId
+        val initial = blank.copy(
+            cells = blank.cells.map { it.copy(rawText = "before") },
+            fileNameSlotDrafts = listOf(
+                TableEditorSlotDraft(
+                    kind = "CELL",
+                    label = "셀",
+                    cellId = cellId,
+                ),
+                null,
+                null,
+            ),
+        )
+        val session = TableEditorV2SessionState(
+            initialTemplateState = initial,
+            initialStyleState = TableStyleState(),
+            includePathInCounterScope = true,
+            includeFilenameInCounterScope = true,
+        )
+        session.initializeCounterState(next = 3, usesAutoNext = true)
+
+        session.commitTemplateChange(
+            initial.copy(cells = initial.cells.map { it.copy(rawText = "after") })
+        )
+
+        assertEquals("after", session.saveRulesDraft.fileNameItems.first()?.value)
+        assertEquals(null, session.draftNextCounter)
     }
 
     @Test
