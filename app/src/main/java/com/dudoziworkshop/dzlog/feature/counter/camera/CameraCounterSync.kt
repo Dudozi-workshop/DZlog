@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.feature.counter.camera
 
+import kotlinx.coroutines.CancellationException
+
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterReadResult
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterSyncDecider
@@ -59,3 +61,12 @@ internal fun applyCameraSyncedNext(
     )
     return decision.appliedNext
 }
+
+internal suspend fun <T> readCameraCounterSafely(read: suspend () -> T): Result<T> = try {
+    Result.success(read())
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (error: Exception) {
+    Result.failure(error)
+}
+

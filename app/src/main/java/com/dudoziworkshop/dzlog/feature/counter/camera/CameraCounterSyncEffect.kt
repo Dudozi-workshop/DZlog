@@ -1,5 +1,11 @@
 package com.dudoziworkshop.dzlog.feature.counter.camera
 
+import android.util.Log
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,6 +31,7 @@ internal fun CameraCounterSyncEffect(
     ui: CameraUiState,
     counterFacade: CounterFacade,
 ) {
+    val context = LocalContext.current
     // 이전 사이클 메모리는 단일 객체로 유지하여 read/write 의도를 명확히 한다.
     var syncMemory by remember { mutableStateOf(CameraCounterSyncMemory()) }
 
@@ -62,6 +69,7 @@ internal fun CameraCounterSyncEffect(
         resumeTick,
         counterEventTick,
         appSettings.saveMode,
+        ui.capture.isCapturing,
     ) {
         if (!isTemplateReady || ui.capture.isCapturing) return@LaunchedEffect
 
@@ -83,7 +91,13 @@ internal fun CameraCounterSyncEffect(
             previousRequestKey = syncMemory.previousRequestKey,
             currentRequestKey = requestKey,
         )
-        val read = counterFacade.read(counterRequest)
+        val read = readCameraCounterSafely { counterFacade.read(counterRequest) }.getOrElse { error ->
+            ui.counter.scopeNextCounter = null
+            Log.e("CounterReadback", "Camera counter read failed", error)
+            Toast.makeText(context, "저장 이력을 확인하지 못했습니다. 카메라 화면을 다시 열어주세요.", Toast.LENGTH_LONG).show()
+            return@LaunchedEffect
+        }
+        currentCoroutineContext().ensureActive()
         val currentDisplayedNext = (ui.counter.scopeNextCounter ?: 1).coerceAtLeast(1)
         ui.counter.scopeNextCounter = applyCameraSyncedNext(
             reason = reason,
@@ -117,3 +131,4 @@ private data class CameraCounterSyncMemory(
     val previousSaveMode: SaveMode? = null,
     val previousRequestKey: String? = null,
 )
+
