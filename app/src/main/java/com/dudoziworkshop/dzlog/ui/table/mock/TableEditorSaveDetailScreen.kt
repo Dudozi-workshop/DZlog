@@ -35,6 +35,9 @@ internal fun TableEditorSaveDetailScreen(
     saveMode: SaveMode,
     counterPadding: Int,
     nextCounter: Int,
+    cells: List<TableEditorCellUiModel>,
+    rows: Int,
+    cols: Int,
     isCounterBusy: Boolean,
     counterStatus: String?,
     onBack: () -> Unit,
@@ -75,16 +78,18 @@ internal fun TableEditorSaveDetailScreen(
                         value = buildMockFileNamePreview(draft, nextCounter, counterPadding),
                     )
                     Text("파일명 구성", style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
-                    draft.fileNameItems.filterNotNull().forEachIndexed { index, item ->
-                        SimpleRuleRow(
-                            prefix = "${index + 1}",
-                            item = item,
-                        )
-                    }
-                    Text(
-                        "구성요소의 값·종류 변경과 순서 조정은 다음 패치에서 동일 화면에 연결합니다.",
-                        style = DDZTypography.Caption,
-                        color = DDZColor.TextSecondary,
+                    TableEditorRuleListEditor(
+                        isFileName = true,
+                        items = draft.fileNameItems,
+                        cells = cells,
+                        rows = rows,
+                        cols = cols,
+                        onItemsChange = { onDraftChange(draft.copy(fileNameItems = it)) },
+                    )
+                    DDZSettingRow(
+                        label = "자동번호",
+                        value = formatMockCounter(nextCounter, counterPadding),
+                        onClick = { onOpenDetail(TableEditorSaveDetail.AUTO_NUMBER) },
                     )
                 }
 
@@ -94,12 +99,14 @@ internal fun TableEditorSaveDetailScreen(
                         value = buildMockPathPreview(draft),
                     )
                     Text("폴더 구성", style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
-                    draft.pathItems.filterNotNull().forEachIndexed { index, item ->
-                        SimpleRuleRow(
-                            prefix = "${index + 1}",
-                            item = item,
-                        )
-                    }
+                    TableEditorRuleListEditor(
+                        isFileName = false,
+                        items = draft.pathItems,
+                        cells = cells,
+                        rows = rows,
+                        cols = cols,
+                        onItemsChange = { onDraftChange(draft.copy(pathItems = it)) },
+                    )
                     if (draft.pathItems.all { it == null }) {
                         Text(
                             "추가 폴더가 없으면 Pictures/DZlog/에 저장합니다.",
@@ -318,33 +325,3 @@ private fun ScopeOption(
     }
 }
 
-@Composable
-private fun SimpleRuleRow(prefix: String, item: MockRuleItem) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(DDZColor.Surface, RoundedCornerShape(14.dp))
-            .padding(14.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(prefix, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
-        Text(
-            item.value.ifBlank { "값 없음" },
-            modifier = Modifier.weight(1f),
-            style = DDZTypography.SettingLabel,
-            color = DDZColor.TextPrimary,
-        )
-        Text(
-            text = when (item.sourceType) {
-                MockRuleSourceType.CELL -> "셀"
-                MockRuleSourceType.MANUAL -> "직접입력"
-                MockRuleSourceType.DATE -> "날짜"
-                MockRuleSourceType.TIME -> "시간"
-                MockRuleSourceType.ROTATING_TEXT -> "순환문구"
-            },
-            style = DDZTypography.Caption,
-            color = DDZColor.TextSecondary,
-        )
-    }
-}
