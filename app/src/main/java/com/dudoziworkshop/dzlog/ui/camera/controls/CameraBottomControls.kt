@@ -89,8 +89,8 @@ internal fun CameraBottomControls(
     val showToolMenu = ui.showToolMenu
     val selectedTool = ui.selectedTool
     val isToolPanelExpanded = ui.isToolPanelExpanded
-    val compactTool = if (ui.isPinchZoomActive) CameraOverlayTool.ZOOM else selectedTool
-    val showDismissLayer = showToolMenu || isToolPanelExpanded
+    val compactTool = if (ui.isPinchZoomActive) null else selectedTool
+    val showDismissLayer = showToolMenu || isToolPanelExpanded || ui.isZoomChipExpanded
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (showDismissLayer) {
@@ -133,8 +133,10 @@ internal fun CameraBottomControls(
             flashMode = ui.prefs.flashMode,
             focusMode = ui.focusMode,
             focusUiValue = ui.focusUiValue,
+            showGrid = ui.prefs.showGrid,
             bottomOffset = with(density) { bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing },
             onSelectTool = { selectedTool ->
+                ui.isZoomChipExpanded = false
                 ui.showToolMenu = false
                 ui.selectedTool = selectedTool
                 ui.isToolPanelExpanded = false
@@ -156,6 +158,11 @@ internal fun CameraBottomControls(
                 ui.prefs.flashMode = mode
                 scope.launch { settingsWriter.setFlashMode(mode) }
             },
+            onToggleGrid = {
+                val next = !ui.prefs.showGrid
+                ui.prefs.showGrid = next
+                scope.launch { settingsWriter.setShowGrid(next) }
+            },
             assistShutterEnabled = ui.prefs.assistShutterEnabled,
             onToggleAssistShutter = {
                 val next = !ui.prefs.assistShutterEnabled
@@ -164,6 +171,32 @@ internal fun CameraBottomControls(
             },
             hapticEnabled = hapticEnabled,
         )
+
+        // Camera zoom remains directly available even when the tool menu is closed.
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(top = 8.dp, end = 10.dp),
+            contentAlignment = if (ui.isZoomChipExpanded) Alignment.TopCenter else Alignment.TopEnd,
+        ) {
+            ZoomControlSection(
+                zoomRatioTenths = ui.capture.actualZoomTenths,
+                maxZoomTenths = ui.capture.maxZoomTenths,
+                expanded = ui.isZoomChipExpanded,
+                hapticEnabled = hapticEnabled,
+                onToggleExpanded = {
+                    val next = !ui.isZoomChipExpanded
+                    ui.dismissToolOverlays()
+                    ui.isZoomChipExpanded = next
+                },
+                onZoomTenthsChange = { next ->
+                    val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
+                    ui.prefs.zoomRatioTenths = normalized
+                    scope.launch { settingsWriter.setZoomTenths(normalized) }
+                },
+            )
+        }
     }
 }
 
@@ -269,6 +302,7 @@ private fun BoxScope.CameraToolOverlayPanel(
     flashMode: CameraFlashMode,
     focusMode: CameraFocusMode,
     focusUiValue: Float,
+    showGrid: Boolean,
     bottomOffset: androidx.compose.ui.unit.Dp,
     onSelectTool: (CameraOverlayTool) -> Unit,
     onOpenSelectedToolPanel: () -> Unit,
@@ -276,6 +310,7 @@ private fun BoxScope.CameraToolOverlayPanel(
     onFocusModeChange: (CameraFocusMode) -> Unit,
     onFocusUiValueChange: (Float) -> Unit,
     onFlashModeChange: (CameraFlashMode) -> Unit,
+    onToggleGrid: () -> Unit,
     assistShutterEnabled: Boolean,
     onToggleAssistShutter: () -> Unit,
     hapticEnabled: Boolean,
@@ -291,11 +326,12 @@ private fun BoxScope.CameraToolOverlayPanel(
         when {
             showToolMenu -> CameraToolMenuSection(
                 selectedTool = selectedTool,
-                zoomRatioTenths = zoomRatioTenths,
                 flashMode = flashMode,
                 focusMode = focusMode,
+                showGrid = showGrid,
                 assistShutterEnabled = assistShutterEnabled,
                 onSelectTool = onSelectTool,
+                onToggleGrid = onToggleGrid,
                 onToggleAssistShutter = onToggleAssistShutter,
             )
             compactTool == CameraOverlayTool.ZOOM && !isToolPanelExpanded -> ZoomControlSection(
