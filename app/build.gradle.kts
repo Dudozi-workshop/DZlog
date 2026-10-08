@@ -1,4 +1,5 @@
 import com.android.build.api.dsl.ApplicationExtension
+import com.android.build.api.variant.ApplicationAndroidComponentsExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 
@@ -19,6 +20,16 @@ extensions.configure<ApplicationExtension> {
         targetSdk = 34
         versionCode = 2
         versionName = "0.0.0"
+    }
+
+    // CI restores a persistent test key from GitHub Secrets; release signing is independent.
+    providers.environmentVariable("DZLOG_DEBUG_KEYSTORE").orNull?.let { keyPath ->
+        signingConfigs.getByName("debug") {
+            storeFile = file(keyPath)
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
@@ -43,6 +54,19 @@ extensions.configure<ApplicationExtension> {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+}
+
+// CI supplies a monotonically increasing code; release versioning remains independent.
+val debugVersionCode = providers.gradleProperty("dzlogDebugVersionCode")
+    .map { it.toInt().also { code -> require(code in 1..2_100_000_000) } }
+    .orElse(1_000_000)
+extensions.configure<ApplicationAndroidComponentsExtension> {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        variant.outputs.forEach { output ->
+            output.versionCode.set(debugVersionCode)
+            output.versionName.set(debugVersionCode.map { "0.0.0-test.$it" })
         }
     }
 }
@@ -106,3 +130,4 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.robolectric)
 }
+

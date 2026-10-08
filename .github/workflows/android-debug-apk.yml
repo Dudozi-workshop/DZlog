@@ -73,8 +73,45 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
+      - name: Restore persistent test signing key
+        env:
+          DZLOG_TEST_KEY_BASE64: ${{ secrets.DZLOG_DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$DZLOG_TEST_KEY_BASE64" ]]; then
+            echo "::error::Set repository secret DZLOG_DEBUG_KEYSTORE_BASE64 once. See docs/debug-apk-updates.md. Refusing to generate a new incompatible signing key."
+            exit 1
+          fi
+          KEYSTORE="$RUNNER_TEMP/dzlog-test.jks"
+          printf '%s' "$DZLOG_TEST_KEY_BASE64" | base64 --decode > "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
+          keytool -exportcert -keystore "$KEYSTORE" -storepass android -alias androiddebugkey > "$RUNNER_TEMP/dzlog-test-cert.der"
+          echo "DZLOG_DEBUG_KEYSTORE=$KEYSTORE" >> "$GITHUB_ENV"
+
+      - name: Build and verify update-compatible debug APKs
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          APKSIGNER="$SDK_ROOT/build-tools/34.0.0/apksigner"
+          AAPT="$SDK_ROOT/build-tools/34.0.0/aapt"
+          FIRST_CODE=$((1000000 + GITHUB_RUN_NUMBER * 2))
+          NEXT_CODE=$((FIRST_CODE + 1))
+          EXPECTED_CERT="$(sha256sum "$RUNNER_TEMP/dzlog-test-cert.der" | cut -d ' ' -f 1)"
+          verify_apk() {
+            local apk="$1" code="$2" cert badging
+            cert="$("$APKSIGNER" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+            test "$cert" = "$EXPECTED_CERT"
+            badging="$("$AAPT" dump badging "$apk" | sed -n '1p')"
+            [[ "$badging" == *"name='com.dudoziworkshop.dzlog'"* ]]
+            [[ "$badging" == *"versionCode='$code'"* ]]
+            echo "Verified APK: package=com.dudoziworkshop.dzlog versionCode=$code certificate=$cert"
+          }
+          ./gradlew :app:assembleDebug -PdzlogDebugVersionCode="$FIRST_CODE" --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/DZlog-baseline.apk"
+          verify_apk "$RUNNER_TEMP/DZlog-baseline.apk" "$FIRST_CODE"
+          ./gradlew :app:assembleDebug -PdzlogDebugVersionCode="$NEXT_CODE" --stacktrace
+          verify_apk app/build/outputs/apk/debug/app-debug.apk "$NEXT_CODE"
+          echo "Update prerequisites verified: same package and certificate; increasing versionCode. Device install remains a manual check."
 
       - name: Rename APK
         run: cp app/build/outputs/apk/debug/app-debug.apk DZlog-v2-test.apk
@@ -86,3 +123,4 @@ jobs:
           path: DZlog-v2-test.apk
           if-no-files-found: error
           retention-days: 14
+
