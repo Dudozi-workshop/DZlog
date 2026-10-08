@@ -42,6 +42,7 @@ internal data class MockRuleItem(
     val sourceType: MockRuleSourceType,
     val value: String,
     val cellId: String? = null,
+    val formatPattern: String? = null,
 )
 
 internal data class MockSaveRulesDraft(
