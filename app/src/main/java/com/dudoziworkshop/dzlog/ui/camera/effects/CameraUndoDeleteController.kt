@@ -16,13 +16,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 internal data class UndoDeleteController(
     val isBusy: Boolean,
-    val delete: (targetUris: List<Uri>) -> Unit,
+    val deleteLatest: (stack: MutableList<List<Uri>>) -> Unit,
 )
 
 @Composable
@@ -145,8 +146,13 @@ internal fun rememberUndoDeleteController(
         }
     }
 
-    fun delete(targetUris: List<Uri>) {
-        if (isDeleting || pendingUndoDeleteUris != null || targetUris.isEmpty()) return
+    fun deleteLatest(stack: MutableList<List<Uri>>) {
+        // Reserve the batch only after checking busy. Two rapid taps must not
+        // pop two captures while the first deletion is still pending.
+        if (isDeleting || pendingUndoDeleteUris != null) return
+        val targetUris = UndoCapturePolicy.consumeLatestCapture(stack)
+        if (targetUris.isEmpty()) return
+
         isDeleting = true
         val launched = runCatching { launchScopedDeleteRequest(targetUris) }.getOrElse {
             pendingUndoDeleteUris = null
@@ -161,7 +167,7 @@ internal fun rememberUndoDeleteController(
 
     return UndoDeleteController(
         isBusy = isDeleting,
-        delete = ::delete,
+        deleteLatest = ::deleteLatest,
     )
 }
 
