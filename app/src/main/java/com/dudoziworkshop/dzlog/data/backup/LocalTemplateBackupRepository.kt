@@ -71,7 +71,11 @@ class LocalTemplateBackupRepository(private val context: Context) {
     }
 
     suspend fun preview(archive: LocalTemplateBackup): LocalTemplateMergePreview {
-        val (items, _) = currentCatalog()
+        val prefs = context.dataStore.data.first()
+        val stored = prefs[KEY_TABLE_TEMPLATES_JSON]
+        val items = if (stored == null) emptyList() else requireNotNull(savedTableTemplatesFromJson(stored)) {
+            "현재 템플릿 저장소를 읽을 수 없습니다."
+        }
         return LocalTemplateBackupMerge.preview(items, archive)
     }
 
@@ -83,10 +87,8 @@ class LocalTemplateBackupRepository(private val context: Context) {
         withContext(Dispatchers.IO) {
             var imported: LocalTemplateMergeResult? = null
             context.dataStore.edit { prefs ->
-                val stored = requireNotNull(prefs[KEY_TABLE_TEMPLATES_JSON]) {
-                    "현재 템플릿 저장소를 찾을 수 없습니다."
-                }
-                val existing = requireNotNull(savedTableTemplatesFromJson(stored)) {
+                val stored = prefs[KEY_TABLE_TEMPLATES_JSON]
+                val existing = if (stored == null) emptyList() else requireNotNull(savedTableTemplatesFromJson(stored)) {
                     "현재 템플릿 저장소가 손상되었습니다."
                 }
                 val originalActive = prefs[KEY_ACTIVE_TABLE_TEMPLATE_ID]
