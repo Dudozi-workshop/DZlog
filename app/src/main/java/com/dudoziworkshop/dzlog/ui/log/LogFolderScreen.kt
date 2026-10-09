@@ -130,6 +130,8 @@ fun LogFolderScreen(
     var managementConfirmed by remember { mutableStateOf(false) }
     var folderOperationError by remember { mutableStateOf<String?>(null) }
     var connected by remember { mutableStateOf(folderStorage.isConnected()) }
+    var showFolderAccessHelp by remember { mutableStateOf(false) }
+    var folderAccessBusy by remember { mutableStateOf(false) }
     var selectedPhotoIds by remember(relativePath) { mutableStateOf<Set<Long>>(emptySet()) }
     var selectionActive by remember(relativePath) { mutableStateOf(false) }
     var showPhotoMove by remember { mutableStateOf(false) }
@@ -146,6 +148,25 @@ fun LogFolderScreen(
     var showPhotoMoveRetry by remember { mutableStateOf(false) }
 
     var reloadKey by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val folderAccess = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
+        if (treeUri == null) {
+            folderAccessBusy = false
+            folderOperationError = "폴더 접근 연결을 취소했습니다."
+        } else {
+            scope.launch {
+                val result = withContext(Dispatchers.IO) { runCatching { folderStorage.connect(treeUri) } }
+                folderAccessBusy = false
+                connected = folderStorage.isConnected()
+                result.onSuccess {
+                    folderOperationError = null
+                    GallerySnapshotMemory.cache.invalidate()
+                    reloadKey++
+                }.onFailure {
+                    folderOperationError = it.message ?: "폴더 접근 권한을 연결하지 못했습니다."
+                }
+            }
+        }
+    }
     fun finishPhotoMove(plan: com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePlan) {
         photoMoveBusy = true
         scope.launch {
@@ -397,6 +418,12 @@ fun LogFolderScreen(
                 }
             }
         }
+        if (!connected && !selectionActive) {
+            TextButton(enabled = !folderAccessBusy && !folderManagementBusy,
+                onClick = { showFolderAccessHelp = true }) {
+                Text(if (folderAccessBusy) "폴더 접근 연결 중…" else "폴더 접근 연결")
+            }
+        }
         if (!root && connected) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(enabled = !folderManagementBusy && !selectionActive,
@@ -613,6 +640,30 @@ fun LogFolderScreen(
                     }) { Text("재시도") }
                 },
                 dismissButton = { TextButton(onClick = { showPhotoMoveRetry = false }) { Text("취소") } },
+            )
+        }
+        if (showFolderAccessHelp) {
+            AlertDialog(
+                onDismissRequest = { showFolderAccessHelp = false },
+                title = { Text("DZlog 폴더 접근 연결") },
+                text = { Text("빈 폴더를 확인하고 폴더 이름을 변경하거나 이동하려면 접근 권한이 필요합니다. 다음 화면에서 내장 저장공간의 Pictures/DZlog 폴더를 선택해 주세요.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showFolderAccessHelp = false
+                        folderAccessBusy = true
+                        folderOperationError = null
+                        runCatching {
+                            val initialUri = android.provider.DocumentsContract.buildTreeDocumentUri(
+                                "com.android.externalstorage.documents", "primary:Pictures/DZlog",
+                            )
+                            folderAccess.launch(initialUri)
+                        }.onFailure {
+                            folderAccessBusy = false
+                            folderOperationError = "폴더 선택 화면을 열지 못했습니다."
+                        }
+                    }) { Text("폴더 선택") }
+                },
+                dismissButton = { TextButton(onClick = { showFolderAccessHelp = false }) { Text("취소") } },
             )
         }
         if (manageAction != null) {
