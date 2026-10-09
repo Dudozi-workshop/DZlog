@@ -62,6 +62,38 @@ class LocalTemplateBackupTest {
         assertNotEquals(original.id, merged.activeTemplateId)
     }
 
+    @Test fun mergedRootWithCoveredBackingCellsIsAccepted() {
+        val original = item()
+        val changed = original.templateState.copy(
+            cells = original.templateState.cells.map { cell ->
+                if (cell.rowIndex == 0 && cell.colIndex == 0) cell.copy(colSpan = 2) else cell
+            }
+        )
+        val archive = LocalTemplateBackupCodec.encode(
+            listOf(original.copy(templateState = changed)), original.id, 1000L
+        )
+        val loaded = LocalTemplateBackupCodec.decode(archive).templates.single()
+        assertEquals(2, loaded.templateState.cells.size)
+        assertEquals(2, loaded.templateState.cells.first().colSpan)
+    }
+
+    @Test fun overlappingMergedRootsAreRejected() {
+        val original = item()
+        val changed = original.templateState.copy(
+            cells = original.templateState.cells.map { cell ->
+                if (cell.rowIndex == 0 && cell.colIndex == 0) cell.copy(rowSpan = 2)
+                else if (cell.rowIndex == 0 && cell.colIndex == 1) cell.copy(rowSpan = 2)
+                else cell
+            }
+        )
+        // The two vertical merges occupy distinct columns and are valid.
+        val archive = LocalTemplateBackupCodec.encode(
+            listOf(original.copy(templateState = changed)), original.id, 1000L
+        )
+        assertEquals(2, LocalTemplateBackupCodec.decode(archive)
+            .templates.single().templateState.cells.count { it.rowSpan == 2 })
+    }
+
     @Test fun referenceErrorsAreRejectedEvenWhenChecksumIsCorrect() {
         val item = item()
         val root = JSONObject(LocalTemplateBackupCodec.encode(listOf(item), item.id, 1000L))
