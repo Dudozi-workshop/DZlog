@@ -2,7 +2,6 @@ package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -35,7 +34,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 @Composable
 internal fun CameraNextCaptureInfoPopup(
     nextFileName: String,
-    relativePath: String,
+    relativePaths: List<String>,
     onOpenSaveSettings: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -91,12 +90,18 @@ internal fun CameraNextCaptureInfoPopup(
                     border = BorderStroke(1.dp, DDZColor.Border),
                     shape = RoundedCornerShape(10.dp),
                 ) {
-                    Text(
-                        relativePath.ifBlank { "기본 저장 경로" },
+                    Column(
                         modifier = Modifier.fillMaxWidth().padding(12.dp),
-                        style = DDZTypography.Body,
-                        color = DDZColor.TextStrong,
-                    )
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        relativePaths.forEach { path ->
+                            Text(
+                                path,
+                                style = DDZTypography.Body,
+                                color = DDZColor.TextStrong,
+                            )
+                        }
+                    }
                 }
                 Button(onClick = onOpenSaveSettings, modifier = Modifier.fillMaxWidth()) {
                     Text("저장 설정으로 이동")
