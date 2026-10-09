@@ -112,18 +112,19 @@ internal fun CameraSettingsOverlayPanel(
                     .padding(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(PANEL_SETTING_ROW_HEIGHT),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = "촬영 설정",
                         style = DDZTypography.OverlayTitleCompact,
-                        color = DDZColor.Primary
+                        color = DDZColor.Primary,
+                        textAlign = TextAlign.Center,
                     )
                     IconButton(
                         modifier = Modifier
+                            .align(Alignment.CenterEnd)
                             .width(PANEL_HEADER_ICON_TOUCH)
                             .height(PANEL_HEADER_ICON_TOUCH),
                         onClick = onDismiss
