@@ -25,6 +25,7 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_X_10000
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_Y_10000
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_GRID_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_ROTATION_CW_90
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_LOCKED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_BG_STYLE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
@@ -86,6 +87,7 @@ internal fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.wmManualTextColor = (prefs[KEY_WM_TEXT_COLOR_MANUAL] ?: WatermarkManualTextColor.BLACK).coerceIn(0, 1)
         ui.prefs.wmTextAlign = (prefs[KEY_WM_TEXT_ALIGN] ?: WatermarkTextAlign.LEFT).coerceIn(0, 2)
         ui.prefs.wmGridEnabled = prefs[KEY_WM_GRID_ENABLED] ?: true
+        ui.prefs.wmTableLocked = prefs[KEY_WM_TABLE_LOCKED] ?: false
         ui.prefs.wmRotationCwDeg = if ((prefs[KEY_WM_ROTATION_CW_90] ?: 0) == 90) 90 else 0
 
         ui.prefs.captureAspect = CaptureAspect.from(
@@ -141,6 +143,7 @@ internal fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.wmManualTextColor = WatermarkManualTextColor.BLACK
         ui.prefs.wmTextAlign = WatermarkTextAlign.LEFT
         ui.prefs.wmGridEnabled = true
+        ui.prefs.wmTableLocked = false
         ui.prefs.wmRotationCwDeg = 0
     }
 }
