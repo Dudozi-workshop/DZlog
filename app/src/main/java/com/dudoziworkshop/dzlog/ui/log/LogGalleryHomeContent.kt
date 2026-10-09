@@ -17,8 +17,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +50,7 @@ internal fun LogGalleryHomeContent(
     onOpenFolder: (String) -> Unit,
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
     onOpenOriginal: (String) -> Unit,
+    onCreateFolder: () -> Unit = {},
     selectedIds: Set<Long> = emptySet(),
     onLongPressPhoto: (MediaImageItem) -> Unit = {},
     onSelectPhoto: (MediaImageItem) -> Unit = {},
@@ -100,7 +103,7 @@ internal fun LogGalleryHomeContent(
                         GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto) { photo -> onOpenPhoto(recent, recent.indexOfFirst { it.id == photo.id }) }
                     }
                 }
-                item { GallerySectionTitle("저장 폴더", "${folderIndex.children.size}개") }
+                item { GallerySectionTitle("저장 폴더", "${folderIndex.children.size}개", onCreateFolder) }
                 if (folderIndex.children.isEmpty()) {
                     item { GalleryEmptyText("저장 폴더가 없습니다.") }
                 } else {
@@ -110,7 +113,7 @@ internal fun LogGalleryHomeContent(
                 }
             }
             GalleryTab.FOLDERS -> {
-                item { GallerySectionTitle("저장 폴더", "${folderIndex.children.size}개") }
+                item { GallerySectionTitle("저장 폴더", "${folderIndex.children.size}개", onCreateFolder) }
                 if (folderIndex.children.isEmpty()) {
                     item { GalleryEmptyText("저장 폴더가 없습니다.") }
                 } else {
@@ -142,7 +145,7 @@ internal fun LogGalleryHomeContent(
                     item { GalleryEmptyText("즐겨찾기한 사진이 없습니다.") }
                 } else {
                     items(favorites.chunked(3)) { row ->
-                        GalleryPhotoRow(row) { photo -> onOpenPhoto(favorites, favorites.indexOfFirst { it.id == photo.id }) }
+                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto) { photo -> onOpenPhoto(favorites, favorites.indexOfFirst { it.id == photo.id }) }
                     }
                 }
             }
@@ -151,15 +154,21 @@ internal fun LogGalleryHomeContent(
 }
 
 @Composable
-internal fun GallerySectionTitle(title: String, count: String? = null) {
+internal fun GallerySectionTitle(title: String, count: String? = null, onCreateFolder: (() -> Unit)? = null) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(title, color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold)
-        if (count != null) {
-            Text(count, color = DDZColor.TextSecondary)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (count != null && onCreateFolder == null) Text(count, color = DDZColor.TextSecondary)
+            if (onCreateFolder != null) {
+                TextButton(onClick = onCreateFolder) {
+                    Icon(Icons.Default.CreateNewFolder, contentDescription = null)
+                    Text(" 새 폴더")
+                }
+            }
         }
     }
 }
