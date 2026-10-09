@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
 import com.dudoziworkshop.dzlog.domain.model.CellValue
+import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -59,7 +60,9 @@ class TableEditorCellPreviewTest {
             dataType = TableCellDataType.ROTATING_TEXT, phraseSetId = "set")
         val template = TableTemplateState(rows = 1, cols = 1, cells = listOf(cell),
             phraseSets = listOf(RotatingPhraseSet("set", "ABC", listOf("A", "B", "C"))),
-            fileNameSlotDrafts = listOf(TableEditorSlotDraft(kind = "CELL", label = "셀", cellId = "phrase")))
+            fileNameSlotDrafts = List(FILE_NAME_SLOT_COUNT) { index ->
+                if (index == 0) TableEditorSlotDraft(kind = "CELL", label = "셀", cellId = "phrase") else null
+            })
         val result = preview(template, cursor = 3)
 
         assertEquals("C", ui(template, cursor = 3).single().previewValue)
