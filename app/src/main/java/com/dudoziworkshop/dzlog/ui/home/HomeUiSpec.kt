@@ -84,12 +84,27 @@ internal object HomeAmbientSpec {
     val Leaf4Height = 34.dp
     const val Leaf4Rotation = 18f
 
-    val GlowOffsetX = (-52).dp
-    val GlowOffsetY = 118.dp
-    val GlowWidth = 170.dp
-    val GlowHeight = 140.dp
+    // Soft sunlight enters from outside the upper-right edge.
+    val GlowOffsetX = 45.dp
+    val GlowOffsetY = (-35).dp
+    val GlowWidth = 255.dp
+    val GlowHeight = 220.dp
     val GlowBlurRadius = 28.dp
 
+    // C-Lite Motion v2: independent leaf cycles prevent mechanical synchrony.
+    // Animation durations refer to a ONE-WAY leg (RepeatMode.Reverse).
+    const val BranchLegMillis = 7_000
+    const val Leaf1LegMillis = 4_500
+    const val Leaf2LegMillis = 5_800
+    const val Leaf3LegMillis = 6_500
+    const val Leaf4LegMillis = 5_100
+    const val SunlightLegMillis = 10_000
+    val BranchTravelX = 5.dp
+    val BranchTravelY = 1.5.dp
+    const val BranchRotation = 0.75f
+    const val LeafRotation = 1.8f
+
+    // Approved C-Lite shadow strength is deliberately preserved.
     const val ShadowAlpha = 0.12f
     const val StemAlpha = 0.075f
     const val GlowAlpha = 0.035f
