@@ -478,8 +478,7 @@ fun CameraPreview(
                         undoPending = (undoDeleteController.pendingUris != null),
                         onUndoDelete = { uris -> undoDeleteController.delete(uris) },
                         onTriggerCapture = {
-                            ui.dismissToolOverlays()
-                            ui.isTableSelected = false
+                            ui.dismissCameraInteractions()
                             triggerCapture()
                         },
                         onShutterButtonTopYChange = { layout.onShutterButtonTopYChange(it) },
@@ -508,8 +507,7 @@ fun CameraPreview(
                         }
                     },
                     onTapCapture = {
-                        ui.dismissToolOverlays()
-                        ui.isTableSelected = false
+                        ui.dismissCameraInteractions()
                         triggerCapture()
                     },
                     modifier = Modifier
