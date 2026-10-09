@@ -1,7 +1,5 @@
 package com.dudoziworkshop.dzlog.ui.log
 
-import android.content.Intent
-import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -48,8 +46,6 @@ import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderStorage
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
-import com.dudoziworkshop.dzlog.feature.log.policy.GalleryMediaAccess
-import com.dudoziworkshop.dzlog.feature.log.policy.GalleryMediaAccessPolicy
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import androidx.lifecycle.Lifecycle
@@ -81,14 +77,7 @@ fun LogFolderScreen(
     var folderOperationError by remember { mutableStateOf<String?>(null) }
     var connected by remember { mutableStateOf(folderStorage.isConnected()) }
 
-    var access by remember { mutableStateOf(GalleryMediaAccessPolicy.state(context)) }
     var reloadKey by remember { androidx.compose.runtime.mutableIntStateOf(0) }
-    val permissionRequest = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) {
-        access = GalleryMediaAccessPolicy.state(context)
-        reloadKey++
-    }
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { uri ->
@@ -99,7 +88,6 @@ fun LogFolderScreen(
         }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        access = GalleryMediaAccessPolicy.state(context)
         connected = folderStorage.isConnected()
         reloadKey++
     }
@@ -108,18 +96,16 @@ fun LogFolderScreen(
         loading = true
         val result = runCatching {
             withContext(Dispatchers.IO) {
-                val folder = reader.loadFolderIndex(
-                    relativePath,
-                    existingFolderPaths = if (folderStorage.isConnected())
-                        folderStorage.listImmediateFolderPaths(relativePath) else emptyList(),
-                )
-                Triple(folder, reader.loadImages(relativePath), if (relativePath == GalleryFolderIndexPolicy.ROOT) reader.loadImagesUnderPrefix(relativePath) else emptyList())
+                val folders = if (folderStorage.isConnected())
+                    runCatching { folderStorage.listImmediateFolderPaths(relativePath) }.getOrDefault(emptyList())
+                    else emptyList()
+                reader.loadGallerySnapshot(relativePath, existingFolderPaths = folders)
             }
         }
-        result.onSuccess { (folder, loaded, allLoaded) ->
-            index = folder
-            photos = loaded
-            if (relativePath == GalleryFolderIndexPolicy.ROOT) allPhotos = allLoaded
+        result.onSuccess { snapshot ->
+            index = snapshot.index
+            photos = snapshot.directPhotos
+            if (relativePath == GalleryFolderIndexPolicy.ROOT) allPhotos = snapshot.allPhotos
             error = null
         }.onFailure { error = it.message ?: "폴더를 불러오지 못했습니다." }
         loading = false
@@ -184,32 +170,13 @@ fun LogFolderScreen(
         folderOperationError?.let { message ->
             Text(message, color = DDZColor.Destructive)
         }
-        if (access != GalleryMediaAccess.FULL) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    if (access == GalleryMediaAccess.SELECTED_ONLY)
-                        "선택한 사진만 접근할 수 있습니다. 기존 DZlog 사진을 모두 보려면 접근 범위를 변경하세요."
-                    else
-                        "기존 DZlog 사진이 보이지 않으면 사진 접근을 허용하세요. 파일은 변경되지 않습니다.",
-                    color = DDZColor.TextSecondary,
-                )
-                Button(
-                    onClick = {
-                        permissionRequest.launch(GalleryMediaAccessPolicy.requiredPermissions())
-                    },
-                ) {
-                    Text(if (access == GalleryMediaAccess.SELECTED_ONLY)
-                        "사진 접근 범위 변경" else "기존 사진 불러오기")
-                }
-            }
-        }
-        if (loading) {
+        if (loading && index == null) {
             CircularProgressIndicator(modifier = Modifier.padding(20.dp))
         } else if (error != null) {
-            Text("불러오기 오류: $error", modifier = Modifier.padding(16.dp))
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("사진 목록을 표시할 수 없습니다.", color = DDZColor.TextSecondary)
+                OutlinedButton(onClick = { reloadKey++ }) { Text("다시 시도") }
+            }
         } else if (root && index != null) {
             LogGalleryHomeContent(
                 selectedTab = selectedTab,
