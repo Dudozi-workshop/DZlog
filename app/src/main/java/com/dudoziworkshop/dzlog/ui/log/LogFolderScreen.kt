@@ -152,8 +152,12 @@ fun LogFolderScreen(
     var photoDeleteLoading by remember { mutableStateOf(false) }
     var deleteSnapshot by remember { mutableStateOf<List<MediaImageItem>>(emptyList()) }
     var deleteSelected by remember { mutableStateOf<List<MediaImageItem>>(emptyList()) }
+    var retryDeletePlan by remember { mutableStateOf<com.dudoziworkshop.dzlog.data.mediastore.GalleryPhotoDeletePlan?>(null) }
+    var showDeleteRetry by remember { mutableStateOf(false) }
     val deleteAction = rememberGalleryPhotoDeleteAction(
-        onResult = { _, result ->
+        onResult = { plan, result ->
+            val failed = plan.items.filter { it.id in result.failedIds }
+            retryDeletePlan = if (failed.isEmpty()) null else plan.copy(items = failed)
             selectedPhotoIds = selectedPhotoIds - result.deletedIds
             selectionActive = selectedPhotoIds.isNotEmpty() || result.failedIds.isNotEmpty()
             GallerySnapshotMemory.cache.invalidate()
@@ -294,6 +298,7 @@ fun LogFolderScreen(
     fun startPhotoDelete() {
         if (selectedPhotoIds.isEmpty() || deleteBusy || photoMoveBusy || pendingPhotoPlan != null) return
         val requestedIds = selectedPhotoIds
+        retryDeletePlan = null
         folderOperationError = null
         deleteSnapshot = emptyList()
         deleteSelected = emptyList()
@@ -393,6 +398,7 @@ fun LogFolderScreen(
     LaunchedEffect(selectableIds, showPhotoMove, photoMoveBusy, deleteBusy, showPhotoDelete) {
         if (!showPhotoMove && !photoMoveBusy && !deleteBusy && !showPhotoDelete) selectedPhotoIds = selectedPhotoIds.intersect(selectableIds)
     }
+    BackHandler(enabled = showPhotoDelete && photoDeleteLoading) { showPhotoDelete = false }
     BackHandler(enabled = showRecentPhotos && !selectionActive && !showPhotoMove) { showRecentPhotos = false }
     BackHandler(enabled = selectionActive && !showPhotoMove) {
         if (!photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null) cancelSelection()
@@ -483,6 +489,14 @@ fun LogFolderScreen(
                     onClick = { showPhotoMoveRetry = true }) { Text("재시도") }
                 TextButton(enabled = !photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null,
                     onClick = { retryPhotoPlan = null }) { Text("닫기") }
+            }
+        }
+        retryDeletePlan?.let { retry ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("삭제 미완료 파일 ${retry.items.size}개", modifier = Modifier.weight(1f))
+                val retryEnabled = !deleteBusy && !showPhotoDelete && !photoMoveBusy && pendingPhotoPlan == null
+                TextButton(enabled = retryEnabled, onClick = { showDeleteRetry = true }) { Text("재시도") }
+                TextButton(enabled = retryEnabled, onClick = { retryDeletePlan = null }) { Text("닫기") }
             }
         }
         Column(Modifier.weight(1f)) {
@@ -603,7 +617,35 @@ fun LogFolderScreen(
                 allPhotos = deleteSnapshot,
                 busy = deleteAction.busy,
                 onCancel = { showPhotoDelete = false },
-                onConfirm = { plan -> showPhotoDelete = false; deleteAction.request(plan) },
+                onConfirm = { plan ->
+                    showPhotoDelete = false
+                    retryDeletePlan = plan
+                    deleteAction.request(plan)
+                },
+            )
+        }
+        val deleteRetry = retryDeletePlan
+        if (showDeleteRetry && deleteRetry != null) {
+            AlertDialog(
+                onDismissRequest = { if (!deleteBusy) showDeleteRetry = false },
+                title = { Text("미완료 파일 삭제 확인") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("결과사진 ${deleteRetry.resultCount}장 · 원본사진 ${deleteRetry.originalCount}장")
+                        Text("총 재시도 파일 ${deleteRetry.items.size}개")
+                        Text("삭제한 사진은 되돌릴 수 없습니다.", color = DDZColor.Destructive)
+                    }
+                },
+                confirmButton = {
+                    TextButton(enabled = !deleteBusy && !photoMoveBusy && pendingPhotoPlan == null, onClick = {
+                        showDeleteRetry = false
+                        folderOperationError = null
+                        deleteAction.request(deleteRetry)
+                    }) { Text("삭제 재시도") }
+                },
+                dismissButton = {
+                    TextButton(enabled = !deleteBusy, onClick = { showDeleteRetry = false }) { Text("취소") }
+                },
             )
         }
         if (selectionActive) {
