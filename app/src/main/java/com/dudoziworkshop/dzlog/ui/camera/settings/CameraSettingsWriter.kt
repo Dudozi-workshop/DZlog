@@ -17,6 +17,8 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_BOUNDS_OFFSET_Y_10000
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_X
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_Y
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_ROTATION_CW_90
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.preferences.persistCaptureAspect
@@ -69,6 +71,23 @@ internal class CameraSettingsWriter(
         context.dataStore.edit {
             it[KEY_ASSIST_SHUTTER_X_RATIO] = xRatio
             it[KEY_ASSIST_SHUTTER_Y_RATIO] = yRatio
+        }
+    }
+
+    suspend fun setWmTableSizeAndPosition(
+        widthRatio: Int,
+        heightRatio: Int,
+        x10000: Int,
+        y10000: Int,
+    ) {
+        context.dataStore.edit {
+            it[KEY_WM_TABLE_WIDTH] = widthRatio.coerceIn(10, 100)
+            it[KEY_WM_TABLE_HEIGHT] = heightRatio.coerceIn(10, 100)
+            it[KEY_WM_TABLE_ANCHOR] = 4
+            it[KEY_WM_BOUNDS_OFFSET_X_10000] = x10000.coerceIn(0, 10000)
+            it[KEY_WM_BOUNDS_OFFSET_Y_10000] = y10000.coerceIn(0, 10000)
+            it[KEY_WM_OFFSET_X] = (x10000.coerceIn(0, 10000) / 100f).toInt().coerceIn(0, 100)
+            it[KEY_WM_OFFSET_Y] = (y10000.coerceIn(0, 10000) / 100f).toInt().coerceIn(0, 100)
         }
     }
 
