@@ -75,6 +75,21 @@ internal class GalleryFolderCatalog(context: Context) {
         return actual
     }
 
+    /** Keep the whole catalog subtree unless storage verification confirms complete removal. */
+    @Synchronized
+    fun deleteFolder(sourcePath: String, deleteStorage: () -> Boolean): Boolean {
+        val source = com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeletePolicy.source(sourcePath)
+        if (!deleteStorage()) return false
+        val recorded = readPaths()
+        val remaining = recorded.filterNot { it.startsWith(source) }.toSet()
+        if (remaining != recorded) {
+            check(prefs.edit().putStringSet(PATHS_KEY, remaining).commit()) {
+                "저장소 폴더는 삭제됐지만 앱 폴더 정보를 저장하지 못했습니다. 다시 시도해 주세요."
+            }
+        }
+        return true
+    }
+
     private fun readPaths(): Set<String> =
         prefs.getStringSet(PATHS_KEY, emptySet()).orEmpty().toSet()
 

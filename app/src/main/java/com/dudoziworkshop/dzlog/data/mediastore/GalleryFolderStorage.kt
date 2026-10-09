@@ -139,6 +139,61 @@ class GalleryFolderStorage(context: Context) {
         return target
     }
 
+    /** Real files of every type, including original/ and empty nested directories. */
+    fun prepareDeletion(path: String): com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeletePlan {
+        val policy = com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeletePolicy
+        val source = policy.source(path)
+        val tree = connectedTree() ?: error("먼저 DZlog 폴더 접근을 연결해 주세요.")
+        val root = resolveDirectory(tree, source) ?: return policy.plan(source, emptyList())
+        val entries = mutableListOf<com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeleteEntry>()
+        entries += com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeleteEntry(
+            DocumentsContract.getDocumentId(root), source, DocumentsContract.Document.MIME_TYPE_DIR,
+        )
+        val queue = ArrayDeque<Pair<String, Uri>>()
+        queue.add(source to root)
+        val visited = mutableSetOf(DocumentsContract.getDocumentId(root))
+        while (queue.isNotEmpty()) {
+            val (parentPath, parentUri) = queue.removeFirst()
+            listChildren(tree, parentUri).forEach { child ->
+                require(child.name.isNotBlank() && '/' !in child.name && child.name != "." && child.name != "..") {
+                    "저장소 파일 이름을 확인하지 못했습니다."
+                }
+                check(visited.add(child.id)) { "중복된 저장소 항목을 확인했습니다." }
+                val directory = child.mimeType == DocumentsContract.Document.MIME_TYPE_DIR
+                val childPath = parentPath + child.name + if (directory) "/" else ""
+                entries += com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeleteEntry(child.id, childPath, child.mimeType)
+                check(entries.size <= 5000) { "폴더 내용이 너무 많습니다. 하위 폴더를 나누어 삭제해 주세요." }
+                if (directory) queue.add(childPath to DocumentsContract.buildDocumentUriUsingTree(tree, child.id))
+            }
+        }
+        return policy.plan(source, entries)
+    }
+
+    /** Delete individually, then only empty directories. New or failed files prevent parent removal. */
+    fun deleteFolder(plan: com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeletePlan):
+        com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeletePlan {
+        val current = prepareDeletion(plan.source)
+        com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeletePolicy.requireUnchanged(plan, current)
+        val tree = connectedTree() ?: error("폴더 접근 권한을 확인해 주세요.")
+        val ordered = plan.entries.filterNot { it.directory } +
+            plan.entries.filter { it.directory }.sortedByDescending { it.path.count { char -> char == '/' } }
+        ordered.forEach { entry ->
+            runCatching {
+                val parentPath = entry.path.trimEnd('/').substringBeforeLast('/') + "/"
+                val parent = resolveDirectory(tree, parentPath) ?: return@runCatching
+                val name = entry.path.trimEnd('/').substringAfterLast('/')
+                val matching = listChildren(tree, parent).singleOrNull { it.id == entry.documentId && it.name == name && it.mimeType == entry.mimeType }
+                    ?: return@runCatching
+                val uri = DocumentsContract.buildDocumentUriUsingTree(tree, matching.id)
+                if (!entry.directory || listChildren(tree, uri).isEmpty()) {
+                    DocumentsContract.deleteDocument(resolver, uri)
+                }
+            }
+        }
+        // A failed verification throws; an unreadable directory must never be reported as deleted.
+        return prepareDeletion(plan.source)
+    }
+
     private fun queryName(uri: Uri): String? = resolver.query(
         uri, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
         null, null, null,
