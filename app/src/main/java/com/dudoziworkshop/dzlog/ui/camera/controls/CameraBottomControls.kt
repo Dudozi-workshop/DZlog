@@ -197,7 +197,7 @@ internal fun CameraBottomControls(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 val baseline = resizeBaseline
-                if (baseline != null) {
+                if (baseline != null && !ui.prefs.wmTableLocked) {
                     val sliderRange = cameraTableScaleRange(baseline)
                     Column(
                         modifier = Modifier
@@ -240,12 +240,22 @@ internal fun CameraBottomControls(
                         onOpenTableEditor()
                     },
                     onRotate = {
+                        if (!ui.prefs.wmTableLocked) {
                         resizeBaseline = null
                         val next = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
                         ui.prefs.wmRotationCwDeg = next
                         scope.launch { settingsWriter.setWmRotationCwDeg(next) }
+                        }
+                    },
+                    isLocked = ui.prefs.wmTableLocked,
+                    onToggleLock = {
+                        val next = !ui.prefs.wmTableLocked
+                        ui.prefs.wmTableLocked = next
+                        resizeBaseline = null
+                        scope.launch { settingsWriter.setWmTableLocked(next) }
                     },
                     onResize = {
+                        if (!ui.prefs.wmTableLocked) {
                         if (resizeBaseline != null) {
                             resizeBaseline = null
                         } else {
@@ -258,6 +268,7 @@ internal fun CameraBottomControls(
                                 y10000 = ui.prefs.wmBoundsOffsetY10000,
                                 photoAspect = ui.prefs.captureAspect.ratioF,
                             )
+                        }
                         }
                     },
                 )
