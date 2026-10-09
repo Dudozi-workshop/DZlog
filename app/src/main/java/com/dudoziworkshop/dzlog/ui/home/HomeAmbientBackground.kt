@@ -126,7 +126,7 @@ internal fun HomeAmbientBackground(
 
         Box(
             modifier = Modifier
-                .align(Alignment.TopStart)
+                .align(Alignment.TopEnd)
                 .offset(x = HomeAmbientSpec.GlowOffsetX, y = HomeAmbientSpec.GlowOffsetY)
                 .size(width = HomeAmbientSpec.GlowWidth, height = HomeAmbientSpec.GlowHeight)
                 .blur(HomeAmbientSpec.GlowBlurRadius)
