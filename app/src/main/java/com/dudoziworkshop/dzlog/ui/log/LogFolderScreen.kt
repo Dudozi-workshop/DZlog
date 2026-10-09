@@ -1,5 +1,11 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import android.app.Activity
+import android.os.Build
+import android.provider.MediaStore
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
@@ -17,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -101,8 +108,42 @@ fun LogFolderScreen(
     var photoMoveFolders by remember { mutableStateOf<List<String>>(emptyList()) }
     var photoMoveBusy by remember { mutableStateOf(false) }
     var moveAllPhotos by remember { mutableStateOf<List<MediaImageItem>>(emptyList()) }
+    var pendingPhotoPlan by remember { mutableStateOf<com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePlan?>(null) }
 
     var reloadKey by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    fun finishPhotoMove(plan: com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePlan) {
+        photoMoveBusy = true
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching { GalleryPhotoMover(context.contentResolver).move(plan) }
+            }
+            photoMoveBusy = false
+            result.onSuccess { moved ->
+                if (moved.moved > 0) {
+                    GallerySnapshotMemory.cache.invalidate()
+                    selectedPhotoIds = emptySet()
+                    reloadKey++
+                }
+                folderOperationError = if (moved.failed > 0) {
+                    "이동 ${moved.moved}장, 미완료 ${moved.failed}장. ${moved.detail.orEmpty()}"
+                } else "사진 ${moved.moved}장 이동 완료"
+            }.onFailure { folderOperationError = it.message ?: "사진 이동 실패" }
+            pendingPhotoPlan = null
+        }
+    }
+    val photoWritePermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        val pending = pendingPhotoPlan
+        if (result.resultCode == Activity.RESULT_OK && pending != null) {
+            finishPhotoMove(pending)
+        } else {
+            pendingPhotoPlan = null
+            photoMoveBusy = false
+            folderOperationError = "사진 수정 권한이 허용되지 않아 이동을 취소했습니다."
+        }
+    }
+
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         connected = folderStorage.isConnected()
         reloadKey++
@@ -192,17 +233,8 @@ fun LogFolderScreen(
                 }
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Button(
-                onClick = {
-                    folderOperationError = null
-                    showCreateDialog = true
-                },
-            ) { Text("새 폴더") }
-            if (!root && connected) {
+        if (!root && connected) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
                     renameName = relativePath.trimEnd('/').substringAfterLast('/')
                     managementConfirmed = false
@@ -248,6 +280,7 @@ fun LogFolderScreen(
                 onOpenFolder = onOpenFolder,
                 onOpenPhoto = onOpenPhoto,
                 onOpenOriginal = onOpenOriginal,
+                onCreateFolder = { folderOperationError = null; showCreateDialog = true },
                 selectedIds = selectedPhotoIds,
                 onLongPressPhoto = ::togglePhoto,
                 onSelectPhoto = ::togglePhoto,
@@ -255,8 +288,16 @@ fun LogFolderScreen(
         } else {
             val current = index
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                item {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("하위 폴더", fontWeight = FontWeight.SemiBold)
+                        TextButton(onClick = { folderOperationError = null; showCreateDialog = true }) {
+                            Icon(Icons.Default.CreateNewFolder, contentDescription = null)
+                            Text(" 새 폴더")
+                        }
+                    }
+                }
                 if (current != null && current.children.isNotEmpty()) {
-                    item { Text(if (root) "저장 폴더" else "하위 폴더", fontWeight = FontWeight.SemiBold) }
                     items(current.children, key = { it.relativePath }) { folder ->
                         Row(
                             modifier = Modifier.fillMaxWidth()
@@ -343,29 +384,30 @@ fun LogFolderScreen(
                         enabled = !photoMoveBusy && photoMoveFolders.contains(photoMoveTarget) &&
                             (originalMatches.isEmpty() || includeOriginals != null),
                         onClick = {
-                            photoMoveBusy = true
-                            scope.launch {
-                                val result = withContext(Dispatchers.IO) {
-                                    runCatching {
-                                        val plan = GalleryPhotoMovePolicy.plan(
-                                            selected, originalMatches, photoMoveTarget, includeOriginals == true,
-                                        )
-                                        GalleryPhotoMover(context.contentResolver).move(plan)
-                                    }
-                                }
-                                photoMoveBusy = false
-                                result.onSuccess { moved ->
-                                    if (moved.moved > 0) {
-                                        GallerySnapshotMemory.cache.invalidate()
-                                        selectedPhotoIds = emptySet()
-                                        reloadKey++
-                                    }
-                                    folderOperationError = if (moved.failed > 0) {
-                                        "이동 ${moved.moved}장, 미완료 ${moved.failed}장. ${moved.detail.orEmpty()}"
-                                    } else "사진 ${moved.moved}장 이동 완료"
-                                    showPhotoMove = false
-                                }.onFailure { folderOperationError = it.message ?: "사진 이동 실패" }
+                            val plan = runCatching {
+                                GalleryPhotoMovePolicy.plan(
+                                    selected, originalMatches, photoMoveTarget, includeOriginals == true,
+                                )
                             }
+                            plan.onSuccess { prepared ->
+                                showPhotoMove = false
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                    runCatching {
+                                        pendingPhotoPlan = prepared
+                                        val request = MediaStore.createWriteRequest(
+                                            context.contentResolver, prepared.items.map { it.uri },
+                                        )
+                                        photoWritePermission.launch(
+                                            IntentSenderRequest.Builder(request.intentSender).build()
+                                        )
+                                    }.onFailure {
+                                        pendingPhotoPlan = null
+                                        folderOperationError = "사진 수정 권한 요청을 열지 못했습니다."
+                                    }
+                                } else {
+                                    finishPhotoMove(prepared)
+                                }
+                            }.onFailure { folderOperationError = it.message ?: "사진 이동 준비 실패" }
                         },
                     ) { Text(if (photoMoveBusy) "이동 중" else "이동") }
                 },
