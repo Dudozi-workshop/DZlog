@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +39,8 @@ internal fun CameraTableSelectionToolbar(
     onOpenDetails: () -> Unit,
     onRotate: () -> Unit,
     onResize: () -> Unit,
+    isLocked: Boolean,
+    onToggleLock: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -49,9 +52,9 @@ internal fun CameraTableSelectionToolbar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         CameraTableAction("상세", Icons.Default.Edit, true, onOpenDetails)
-        CameraTableAction("크기", Icons.Default.AspectRatio, true, onResize)
-        CameraTableAction("회전", Icons.AutoMirrored.Filled.RotateRight, true, onRotate)
-        CameraTableAction("잠금", Icons.Default.Lock, false, {})
+        CameraTableAction("크기", Icons.Default.AspectRatio, !isLocked, onResize)
+        CameraTableAction("회전", Icons.AutoMirrored.Filled.RotateRight, !isLocked, onRotate)
+        CameraTableAction(if (isLocked) "잠금 해제" else "잠금", if (isLocked) Icons.Default.LockOpen else Icons.Default.Lock, true, onToggleLock)
     }
 }
 
