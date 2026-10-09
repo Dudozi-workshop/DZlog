@@ -676,7 +676,8 @@ fun AppRoot() {
                 val editingTemplate = tableTemplateViewModel.templates.firstOrNull { it.id == editingId }
                 key(editingId) {
                     TableEditorV2Screen(
-                        templateState = editingTemplate?.templateState ?: tableTemplateState,
+                        templateState = if (editorReplacementId == null) tableTemplateState
+                        else editingTemplate?.templateState ?: tableTemplateState,
                         includePathInCounterScope = appSettings.includePathInCounterScope,
                         includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
                         saveMode = appSettings.saveMode,
