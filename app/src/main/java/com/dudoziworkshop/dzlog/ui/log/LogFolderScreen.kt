@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,8 +37,12 @@ import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryMediaAccess
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryMediaAccessPolicy
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -55,7 +62,20 @@ fun LogFolderScreen(
     var error by remember(relativePath) { mutableStateOf<String?>(null) }
     var loading by remember(relativePath) { mutableStateOf(true) }
 
-    LaunchedEffect(reader, relativePath) {
+    var access by remember { mutableStateOf(GalleryMediaAccessPolicy.state(context)) }
+    var reloadKey by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val permissionRequest = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) {
+        access = GalleryMediaAccessPolicy.state(context)
+        reloadKey++
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        access = GalleryMediaAccessPolicy.state(context)
+        reloadKey++
+    }
+
+    LaunchedEffect(reader, relativePath, reloadKey) {
         loading = true
         val result = runCatching {
             withContext(Dispatchers.IO) {
@@ -83,6 +103,28 @@ fun LogFolderScreen(
                 Text(relativePath.removePrefix(GalleryFolderIndexPolicy.ROOT).ifBlank { "Pictures / DZlog" },
                     color = DDZColor.TextSecondary, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
+            }
+        }
+        if (access != GalleryMediaAccess.FULL) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    if (access == GalleryMediaAccess.SELECTED_ONLY)
+                        "선택한 사진만 접근할 수 있습니다. 기존 DZlog 사진을 모두 보려면 접근 범위를 변경하세요."
+                    else
+                        "기존 DZlog 사진이 보이지 않으면 사진 접근을 허용하세요. 파일은 변경되지 않습니다.",
+                    color = DDZColor.TextSecondary,
+                )
+                Button(
+                    onClick = {
+                        permissionRequest.launch(GalleryMediaAccessPolicy.requiredPermissions())
+                    },
+                ) {
+                    Text(if (access == GalleryMediaAccess.SELECTED_ONLY)
+                        "사진 접근 범위 변경" else "기존 사진 불러오기")
+                }
             }
         }
         if (loading) {
