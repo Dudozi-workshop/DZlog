@@ -20,6 +20,7 @@ fun CounterAwareFileNameText(
     modifier: Modifier = Modifier,
     style: TextStyle,
     color: Color,
+    counterColor: Color = color,
 ) {
     BoxWithConstraints(modifier = modifier) {
         val density = LocalDensity.current
@@ -58,7 +59,7 @@ fun CounterAwareFileNameText(
             Text(
                 text = counterText,
                 style = style,
-                color = color,
+                color = counterColor,
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
             )
