@@ -86,7 +86,11 @@ fun HomeScreen(
         val bottomInset = rememberThreeButtonNavEquivalentBottomPadding()
         val horizontalPad = clampDp(maxWidth * 0.055f, HomeUiSpec.HorizontalPaddingMin, HomeUiSpec.HorizontalPaddingMax)
         val sectionGap = clampDp(maxHeight * 0.020f, HomeUiSpec.SectionGapMin, HomeUiSpec.SectionGapMax)
-        val heroTopGap = clampDp(maxHeight * 0.055f, HomeUiSpec.HeroTopGapMin, HomeUiSpec.HeroTopGapMax)
+        val heroTopGap = clampDp(maxHeight * 0.048f, HomeUiSpec.HeroTopGapMin, HomeUiSpec.HeroTopGapMax)
+        // Main action sits close to 45% of the usable screen on regular portrait phones.
+        // Breathing room contracts on compact screens; the Column remains scrollable.
+        val gapBeforeCapture = clampDp(maxHeight * 0.165f, 46.dp, 152.dp)
+        val gapAfterCapture = clampDp(maxHeight * 0.082f, 24.dp, 80.dp)
 
         HomeAmbientBackground()
 
@@ -152,7 +156,7 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(Modifier.height(HomeUiSpec.BeforePrimaryButtonGap))
+            Spacer(Modifier.height(gapBeforeCapture))
 
             DDZButton(
                 text = stringResource(com.dudoziworkshop.dzlog.R.string.home_start_capture),
@@ -169,7 +173,7 @@ fun HomeScreen(
                 ),
             )
 
-            Spacer(Modifier.height(sectionGap + HomeUiSpec.PrimaryToRecentExtraGap))
+            Spacer(Modifier.height(gapAfterCapture))
 
             HomeRecentCaptureSection(
                 image = latestImage,
