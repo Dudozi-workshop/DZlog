@@ -16,7 +16,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 internal data class UndoDeleteController(
     val isBusy: Boolean,
@@ -63,38 +65,56 @@ internal fun rememberUndoDeleteController(
         return false
     }
 
-    fun performUndoDelete(targetUris: List<Uri>) {
+    suspend fun performUndoDelete(targetUris: List<Uri>) {
         if (targetUris.isEmpty()) {
             isDeleting = false
             return
         }
 
-        val deletedAll = runCatching {
-            targetUris.all { uri ->
-                context.contentResolver.delete(uri, null, null) > 0
+        // A capture may have multiple output files. Never restore successfully
+        // deleted URIs to the Undo stack if only part of the batch failed.
+        val attempts = withContext(Dispatchers.IO) {
+            targetUris.map { uri ->
+                uri to runCatching { context.contentResolver.delete(uri, null, null) > 0 }
             }
-        }.getOrElse { throwable ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && throwable is RecoverableSecurityException) {
-                pendingUndoDeleteUris = targetUris
-                runCatching {
-                    undoDeleteLauncher.launch(
-                        IntentSenderRequest.Builder(throwable.userAction.actionIntent.intentSender).build()
-                    )
-                }.onFailure {
-                    pendingUndoDeleteUris = null
-                    isDeleting = false
-                    latestOnRestore.value(targetUris)
-                }
-                return
-            }
-            false
         }
+        val deletedAny = attempts.any { (_, result) -> result.getOrNull() == true }
+        val failed = attempts.filter { (_, result) -> result.getOrNull() != true }
 
         try {
-            if (deletedAll) latestOnCommitted.value()
-            else latestOnRestore.value(targetUris)
+            if (deletedAny) latestOnCommitted.value()
+
+            val recoverable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                failed.firstOrNull { (_, result) ->
+                    result.exceptionOrNull() is RecoverableSecurityException
+                }
+            } else null
+
+            val remaining = failed.map { it.first }
+            if (recoverable == null) {
+                if (remaining.isNotEmpty()) latestOnRestore.value(remaining)
+                return
+            }
+
+            // Android 10 recovery grants deletion of the specific failed URI,
+            // not necessarily permission for every file in the capture batch.
+            val recoverableUri = recoverable.first
+            val otherFailures = remaining.filter { it != recoverableUri }
+            if (otherFailures.isNotEmpty()) latestOnRestore.value(otherFailures)
+
+            pendingUndoDeleteUris = listOf(recoverableUri)
+            runCatching {
+                val security = recoverable.second.exceptionOrNull() as RecoverableSecurityException
+                undoDeleteLauncher.launch(
+                    IntentSenderRequest.Builder(security.userAction.actionIntent.intentSender).build()
+                )
+            }.onFailure {
+                pendingUndoDeleteUris = null
+                latestOnRestore.value(listOf(recoverableUri))
+            }
         } finally {
-            isDeleting = false
+            // Keep the button disabled while awaiting Android's confirmation UI.
+            if (pendingUndoDeleteUris == null) isDeleting = false
         }
     }
 
