@@ -26,6 +26,7 @@ internal fun CameraPreviewOverlays(
     isWatermarkArmed: Boolean,
     watermarkOffsetOverridePx: Offset?,
     dragVisibleOffsetPx: Offset?,
+    activeHandleCorner: ResizeHandleCorner?,
     onWatermarkBoundsRectChange: (RectF?) -> Unit,
     onWatermarkRawRectChange: (RectF?) -> Unit,
 ) {
@@ -45,6 +46,7 @@ internal fun CameraPreviewOverlays(
         previewContentRect = previewContentRect,
         overrideOffsetPx = watermarkOffsetOverridePx,
         dragVisibleOffsetPx = dragVisibleOffsetPx,
+        activeHandleCorner = activeHandleCorner,
         isArmed = isWatermarkArmed,
         onBoundsRectChange = onWatermarkBoundsRectChange,
         onRawRectChange = onWatermarkRawRectChange
