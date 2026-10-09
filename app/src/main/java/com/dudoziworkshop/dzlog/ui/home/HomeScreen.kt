@@ -71,6 +71,7 @@ fun HomeScreen(
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
 ) {
     var showTemplatePicker by remember { mutableStateOf(false) }
+    var showSaveInfo by remember { mutableStateOf(false) }
     val homeViewModel: HomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val uiState by homeViewModel.uiState.collectAsState()
     val settings = uiState.settings
@@ -225,7 +226,10 @@ fun HomeScreen(
                 DDZButton(
                     text = stringResource(com.dudoziworkshop.dzlog.R.string.home_save_settings),
                     leadingIcon = Icons.Default.Folder,
-                    onClick = onOpenSaveSettings,
+                    onClick = {
+                        homeViewModel.refreshSavePreview()
+                        showSaveInfo = true
+                    },
                     modifier = Modifier.weight(1f),
                     style = DDZButtonStyle.Secondary,
                     minHeight = HomeUiSpec.UtilityButtonHeight,
@@ -238,6 +242,17 @@ fun HomeScreen(
                 )
             }
         }
+    }
+    if (showSaveInfo) {
+        HomeSaveInfoSheet(
+            fileName = uiState.nextFilenamePreview,
+            relativePath = uiState.nextRelativePathPreview,
+            onOpenSaveSettings = {
+                showSaveInfo = false
+                onOpenSaveSettings()
+            },
+            onDismiss = { showSaveInfo = false },
+        )
     }
     if (showTemplatePicker) {
         HomeTemplatePicker(
