@@ -66,6 +66,7 @@ internal fun CameraPreviewArea(
     onTapFocusUiChange: (TapFocusUiState?) -> Unit,
     isTableSelected: Boolean,
     onTableSelectionChange: (Boolean) -> Unit,
+    onCornerResizeScale: (Float, Boolean) -> Unit,
 ) {
     val context = args.context
     val lifecycleOwner = args.lifecycleOwner
@@ -267,6 +268,7 @@ internal fun CameraPreviewArea(
                 onPinchZoomActiveChange = args.onPinchZoomActiveChange,
                 onRequestedZoomTenthsCommit = args.onRequestedZoomTenthsCommit,
                 onActualZoomTenthsChange = args.onActualZoomTenthsChange,
+                onCornerResizeScale = onCornerResizeScale,
             )
 
         val plan = remember(
