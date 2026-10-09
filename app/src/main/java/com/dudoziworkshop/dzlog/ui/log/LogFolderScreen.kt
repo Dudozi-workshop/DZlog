@@ -31,6 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +58,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** One screen for every folder depth; the route state is the actual relative path. */
@@ -70,6 +72,7 @@ fun LogFolderScreen(
     capturePathDrafts: List<List<TableEditorSlotDraft?>> = emptyList(),
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val reader = remember(context) { DzlogMediaStoreReader(context.contentResolver) }
     val folderStorage = remember(context) { GalleryFolderStorage(context.applicationContext) }
     val favoriteIds by remember(context) { FavoritesProvider.repo(context) }.favoriteIdsFlow.collectAsState(initial = emptySet())
@@ -177,7 +180,12 @@ fun LogFolderScreen(
                 }) { Text("이름 변경") }
                 OutlinedButton(onClick = {
                     moveTarget = GalleryFolderIndexPolicy.ROOT
-                    destinationPaths = runCatching { folderStorage.listDestinationFolders(relativePath) }.getOrDefault(emptyList())
+                    destinationPaths = emptyList()
+                    scope.launch {
+                        destinationPaths = withContext(Dispatchers.IO) {
+                            runCatching { folderStorage.listDestinationFolders(relativePath) }.getOrDefault(emptyList())
+                        }
+                    }
                     managementConfirmed = false
                     manageAction = "move"
                 }) { Text("이동") }
@@ -303,17 +311,22 @@ fun LogFolderScreen(
                 confirmButton = {
                     TextButton(enabled = managementConfirmed && (manageAction != "move" || destinationPaths.contains(moveTarget)), onClick = {
                         val action = manageAction
-                        runCatching {
-                            if (action == "rename")
-                                folderStorage.renameFolder(relativePath, renameName)
-                            else folderStorage.moveFolder(relativePath, moveTarget)
-                        }.onSuccess { newPath ->
-                            manageAction = null
-                            folderOperationError = null
-                            GallerySnapshotMemory.cache.invalidate()
-                            onOpenFolder(newPath)
-                            reloadKey++
-                        }.onFailure { folderOperationError = it.message ?: "폴더 관리 실패" }
+                        scope.launch {
+                            val result = withContext(Dispatchers.IO) {
+                                runCatching {
+                                    if (action == "rename")
+                                        folderStorage.renameFolder(relativePath, renameName)
+                                    else folderStorage.moveFolder(relativePath, moveTarget)
+                                }
+                            }
+                            result.onSuccess { newPath ->
+                                manageAction = null
+                                folderOperationError = null
+                                GallerySnapshotMemory.cache.invalidate()
+                                onOpenFolder(newPath)
+                                reloadKey++
+                            }.onFailure { folderOperationError = it.message ?: "폴더 관리 실패" }
+                        }
                     }) { Text("변경") }
                 },
                 dismissButton = {
@@ -335,15 +348,18 @@ fun LogFolderScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        runCatching { folderStorage.createFolder(relativePath, newFolderName) }
-                            .onSuccess {
+                        scope.launch {
+                            val result = withContext(Dispatchers.IO) {
+                                runCatching { folderStorage.createFolder(relativePath, newFolderName) }
+                            }
+                            result.onSuccess {
                                 showCreateDialog = false
                                 newFolderName = ""
                                 folderOperationError = null
                                 GallerySnapshotMemory.cache.invalidate(relativePath)
                                 reloadKey++
-                            }
-                            .onFailure { folderOperationError = it.message ?: "폴더 생성 실패" }
+                            }.onFailure { folderOperationError = it.message ?: "폴더 생성 실패" }
+                        }
                     }) { Text("생성") }
                 },
                 dismissButton = {
