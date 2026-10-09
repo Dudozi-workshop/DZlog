@@ -74,7 +74,7 @@ internal fun LogGalleryHomeContent(
     }
 
     val root = folderIndex.relativePath
-    val recent = allImages.take(9)
+    val recent = allImages.filterNot { it.relativePath.trimEnd('/').endsWith("/original") }.take(9)
     val favorites = allImages.filter { it.id in favoriteIds }
     val directPhotos = allImages.filter { it.relativePath.trimEnd('/') == root.trimEnd('/') }
 
@@ -91,7 +91,7 @@ internal fun LogGalleryHomeContent(
                     item { GalleryEmptyText("저장된 사진이 없습니다.") }
                 } else {
                     items(recent.chunked(3)) { row ->
-                        GalleryPhotoRow(row) { photo -> onOpenPhoto(listOf(photo), 0) }
+                        GalleryPhotoRow(row) { photo -> onOpenPhoto(recent, recent.indexOfFirst { it.id == photo.id }) }
                     }
                 }
                 item { GallerySectionTitle("저장 폴더", "${folderIndex.children.size}개") }
@@ -136,7 +136,7 @@ internal fun LogGalleryHomeContent(
                     item { GalleryEmptyText("즐겨찾기한 사진이 없습니다.") }
                 } else {
                     items(favorites.chunked(3)) { row ->
-                        GalleryPhotoRow(row) { photo -> onOpenPhoto(listOf(photo), 0) }
+                        GalleryPhotoRow(row) { photo -> onOpenPhoto(favorites, favorites.indexOfFirst { it.id == photo.id }) }
                     }
                 }
             }
