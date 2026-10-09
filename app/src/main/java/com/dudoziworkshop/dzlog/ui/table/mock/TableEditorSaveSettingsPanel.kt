@@ -68,12 +68,12 @@ internal fun saveModeLabel(mode: SaveMode): String =
     }
 
 internal fun counterPaddingLabel(counterPadding: Int): String =
-    if (counterPadding <= 0) "자릿수 자동" else "${counterPadding}자리"
+    "${counterPadding.coerceIn(1, 4)}자리"
 
 internal fun formatMockCounter(value: Int, counterPadding: Int): String {
     val normalized = value.coerceAtLeast(1).toString()
     return if (counterPadding > 0) {
-        normalized.padStart(counterPadding.coerceIn(1, 6), '0')
+        normalized.padStart(counterPadding.coerceIn(1, 4), '0')
     } else {
         normalized
     }
