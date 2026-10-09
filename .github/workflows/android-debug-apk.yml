@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/table-editor-v2-ux-mock
+      - feat/settings-r31-ux
   workflow_dispatch:
 
 permissions:
