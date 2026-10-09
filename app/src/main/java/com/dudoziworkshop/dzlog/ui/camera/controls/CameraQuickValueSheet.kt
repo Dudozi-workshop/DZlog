@@ -47,13 +47,9 @@ internal fun CameraQuickValueSheet(
     val changed = editableCells.any { drafts[it.cellId] != it.rawText }
 
     DDZBottomSheet(onDismiss = onDismiss, title = "빠른 값 변경") {
-        Text(
-            text = "촬영할 값만 변경합니다. 셀 종류와 자동번호 설정은 표 상세에서 변경하세요.",
-            color = DDZColor.TextMuted,
-        )
         if (editableCells.isEmpty()) {
             Text(
-                text = "직접 변경할 수 있는 텍스트 또는 숫자 셀이 없습니다.",
+                text = "변경할 값이 없습니다.",
                 modifier = Modifier.padding(vertical = 16.dp),
                 color = DDZColor.TextMuted,
             )
