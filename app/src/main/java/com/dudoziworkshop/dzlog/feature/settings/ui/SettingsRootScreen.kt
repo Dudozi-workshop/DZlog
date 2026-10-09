@@ -1,112 +1,77 @@
 package com.dudoziworkshop.dzlog.feature.settings.ui
 
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Hd
-import androidx.compose.material.icons.filled.Sell
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
-import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
-import com.dudoziworkshop.dzlog.domain.model.SaveMode
-import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.feature.settings.policy.SettingsAction
 import com.dudoziworkshop.dzlog.feature.settings.policy.applySettingsAction
-import com.dudoziworkshop.dzlog.ui.common.DDZCard
-import com.dudoziworkshop.dzlog.ui.common.DDZSettingRow
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
-import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControl
-import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControlStyles
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.launch
 
-private val SettingsCardShape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
-private val SettingsOptionShape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
-
+private val SettingsGroupShape = RoundedCornerShape(14.dp)
 private val SETTINGS_QUALITY_ITEMS = listOf(
-    QualityUiItem(
-        mode = PhotoQualityMode.SPEED,
-        icon = Icons.Default.Bolt,
-        title = "속도 우선",
-        description = "저장 속도가 빠르고 용량이 작아요"
-    ),
-    QualityUiItem(
-        mode = PhotoQualityMode.BALANCED,
-        icon = Icons.Default.Tune,
-        title = "균형",
-        description = "속도와 화질의 균형을 맞춰요"
-    ),
-    QualityUiItem(
-        mode = PhotoQualityMode.QUALITY,
-        icon = Icons.Default.Hd,
-        title = "화질 우선",
-        description = "더 선명하지만 저장이 느릴 수 있어요"
-    )
+    QualityUiItem(PhotoQualityMode.SPEED, "속도 우선", "저장 속도가 빠르고 용량이 작아요", Icons.Default.Bolt),
+    QualityUiItem(PhotoQualityMode.BALANCED, "균형", "속도와 화질의 균형을 맞춰요", Icons.Default.Tune),
+    QualityUiItem(PhotoQualityMode.QUALITY, "화질 우선", "더 선명하지만 저장이 느릴 수 있어요", Icons.Default.Hd),
 )
 
-private val SETTINGS_COUNTER_ITEMS = listOf(
-    ToggleUiItem(
-        key = ToggleKey.INCLUDE_PATH,
-        icon = Icons.Default.Folder,
-        title = "저장경로에 따라 분리",
-        description = "저장경로가 다르면 카운터 범위를 분리해요."
-    ),
-    ToggleUiItem(
-        key = ToggleKey.INCLUDE_FILENAME,
-        icon = Icons.Default.Sell,
-        title = "파일명에 따라 분리",
-        description = "파일명이 다르면 카운터 범위를 분리해요."
-    )
-)
-
-private val SETTINGS_CAPTURE_ASSIST_ITEMS = listOf(
-    ToggleUiItem(
-        key = ToggleKey.ASSIST_SHUTTER,
-        icon = Icons.Default.CameraAlt,
-        title = "플로팅 보조 셔터",
-        description = "촬영 화면에 보조 셔터 버튼을 표시해요."
-    )
+private data class QualityUiItem(
+    val mode: PhotoQualityMode,
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
 )
 
 @Composable
@@ -114,459 +79,292 @@ fun SettingsRootScreen(
     onBack: () -> Unit,
     onOpenCredits: () -> Unit = {},
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val settings by AppSettingsStore.flow(context).collectAsState(initial = AppSettings.Default)
+    var showingQuality by rememberSaveable { mutableStateOf(false) }
+    val version = remember(context) { buildAppVersionLabel(context) }
 
-    // 주요 정책: UI만 재배치하고 기존 DataStore 저장/복원 로직은 그대로 사용한다.
-    val settings by AppSettingsStore.flow(context).collectAsState(
-        initial = AppSettings(
-            saveMode = SaveMode.BOTH,
-            continuousPreviewMode = ContinuousPreviewMode.OFF,
-            photoQualityMode = PhotoQualityMode.BALANCED,
-            counterPadding = 0,
-            includePathInCounterScope = true,
-            includeFilenameInCounterScope = true,
-            toastEnabled = true,
-            hapticEnabled = true,
-            captureHapticEnabled = true,
-            captureSoundEnabled = true,
-            volumeKeyAction = VolumeKeyAction.NONE,
-            blankWarningEnabled = true,
-        )
-    )
-
-    val appVersion = buildAppVersionLabel()
+    BackHandler(enabled = showingQuality) { showingQuality = false }
 
     Scaffold(
         containerColor = DDZColor.Background,
         topBar = {
             DDZTopBar(
-                title = "설정",
-                onBack = onBack,
+                title = if (showingQuality) "사진 품질" else "설정",
+                onBack = if (showingQuality) ({ showingQuality = false }) else onBack,
             )
-        }
+        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = DDZSpacing.screenPadding, vertical = DDZSpacing.itemGap)
-                .padding(bottom = DDZSpacing.itemGap),
-            // 주요 정책: 부모 컬럼은 섹션(블록) 단위 간격만 담당한다.
-            verticalArrangement = Arrangement.spacedBy(DDZSpacing.sectionGap)
-        ) {
-            SectionBlock(title = "빠른 설정") {
-                OptionRow(title = "저장 대상") {
-                    DDZSegmentedControl(
-                        options = listOf("원본", "워터마크", "둘 다"),
-                        selectedIndex = when (settings.saveMode) {
-                            SaveMode.ORIGINAL_ONLY -> 0
-                            SaveMode.WATERMARK_ONLY -> 1
-                            SaveMode.BOTH -> 2
-                        },
-                        style = DDZSegmentedControlStyles.QuickSettings,
-                        onSelect = { idx ->
-                            // 저장 대상 변경 즉시 반영 + 재진입 복원은 기존 액션 파이프라인을 그대로 사용.
-                            val mode = when (idx) {
-                                0 -> SaveMode.ORIGINAL_ONLY
-                                1 -> SaveMode.WATERMARK_ONLY
-                                else -> SaveMode.BOTH
-                            }
-                            scope.launch { applySettingsAction(context, SettingsAction.SaveModeChanged(mode)) }
-                        }
-                    )
-                }
-
-                OptionRow(title = "음량키 동작") {
-                    DDZSegmentedControl(
-                        options = listOf("없음", "촬영", "배율"),
-                        selectedIndex = when (settings.volumeKeyAction) {
-                            VolumeKeyAction.NONE -> 0
-                            VolumeKeyAction.CAPTURE -> 1
-                            VolumeKeyAction.ZOOM -> 2
-                        },
-                        style = DDZSegmentedControlStyles.QuickSettings,
-                        onSelect = { idx ->
-                            val action = when (idx) {
-                                1 -> VolumeKeyAction.CAPTURE
-                                2 -> VolumeKeyAction.ZOOM
-                                else -> VolumeKeyAction.NONE
-                            }
-                            scope.launch {
-                                applySettingsAction(context, SettingsAction.VolumeKeyActionChanged(action))
-                            }
-                        }
-                    )
-                }
-
-                OptionRow(title = "연속촬영 미리보기") {
-                    DDZSegmentedControl(
-                        options = listOf("없음", "짧게", "고정"),
-                        selectedIndex = when (settings.continuousPreviewMode) {
-                            ContinuousPreviewMode.OFF -> 0
-                            ContinuousPreviewMode.SHORT -> 1
-                            ContinuousPreviewMode.HOLD -> 2
-                        },
-                        style = DDZSegmentedControlStyles.QuickSettings,
-                        onSelect = { idx ->
-                            val mode = when (idx) {
-                                0 -> ContinuousPreviewMode.OFF
-                                1 -> ContinuousPreviewMode.SHORT
-                                else -> ContinuousPreviewMode.HOLD
-                            }
-                            scope.launch { applySettingsAction(context, SettingsAction.ContinuousPreviewModeChanged(mode)) }
-                        }
-                    )
-                }
-
-                OptionRow(title = "카운터 패딩") {
-                    DDZSegmentedControl(
-                        options = listOf("0", "2", "3", "4"),
-                        selectedIndex = when (settings.counterPadding) {
-                            0 -> 0
-                            2 -> 1
-                            3 -> 2
-                            else -> 3
-                        },
-                        style = DDZSegmentedControlStyles.QuickSettings,
-                        onSelect = { idx ->
-                            val padding = when (idx) {
-                                0 -> 0
-                                1 -> 2
-                                2 -> 3
-                                else -> 4
-                            }
-                            scope.launch { applySettingsAction(context, SettingsAction.CounterPaddingChanged(padding)) }
-                        }
-                    )
-                }
-            }
-
-            SectionBlock(title = "사진 품질") {
-                SETTINGS_QUALITY_ITEMS.forEach { item ->
-                    QualityOptionRow(
-                        item = item,
-                        selected = settings.photoQualityMode == item.mode,
-                        onClick = {
-                            scope.launch { applySettingsAction(context, SettingsAction.PhotoQualityModeChanged(item.mode)) }
-                        }
-                    )
-                }
-            }
-
-            SectionBlock(title = "촬영 보조") {
-                SETTINGS_CAPTURE_ASSIST_ITEMS.forEach { item ->
-                    val checked = resolveToggleChecked(settings, item.key)
-                    ToggleCardRow(
-                        item = item,
-                        checked = checked,
-                        onToggle = {
-                            scope.launch {
-                                applySettingsAction(context, resolveToggleAction(item.key, !checked))
-                            }
-                        }
-                    )
-                }
-            }
-
-            SectionBlock(title = "카운터 설정") {
-                SETTINGS_COUNTER_ITEMS.forEach { item ->
-                    val checked = resolveToggleChecked(settings, item.key)
-                    ToggleCardRow(
-                        item = item,
-                        checked = checked,
-                        onToggle = {
-                            scope.launch {
-                                applySettingsAction(context, resolveToggleAction(item.key, !checked))
-                            }
-                        }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(2.dp))
-            CreditsEntryRow(onClick = onOpenCredits)
-
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = appVersion,
-                style = DDZTypography.Caption,
-                color = DDZColor.TextSecondary,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = DDZSpacing.sectionGap),
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@Composable
-private fun SectionBlock(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    // 주요 정책: 제목-카드는 한 덩어리로 묶고(좁은 간격), 블록 간 간격은 부모 컬럼에서 더 크게 분리한다.
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Text(
-            text = title,
-            style = DDZTypography.SectionTitle,
-            color = DDZColor.TextPrimary,
-            modifier = Modifier.padding(start = 4.dp)
-        )
-
-        DDZCard(
-            modifier = Modifier.fillMaxWidth(),
-            shape = SettingsCardShape,
+                .padding(innerPadding),
         ) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = DDZSpacing.screenPadding, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp),
             ) {
-                content()
+                if (showingQuality) {
+                    Text(
+                        text = "사진 저장 품질을 선택하세요.",
+                        style = DDZTypography.Body,
+                        color = DDZColor.TextSecondary,
+                    )
+                    SettingsGroup {
+                        SETTINGS_QUALITY_ITEMS.forEachIndexed { index, item ->
+                            SettingsActionRow(
+                                icon = item.icon,
+                                title = item.title,
+                                subtitle = item.description,
+                                onClick = {
+                                    scope.launch {
+                                        applySettingsAction(
+                                            context,
+                                            SettingsAction.PhotoQualityModeChanged(item.mode),
+                                        )
+                                    }
+                                    showingQuality = false
+                                },
+                                trailing = {
+                                    if (settings.photoQualityMode == item.mode) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = "선택됨",
+                                            tint = DDZColor.SelectedDark,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                    }
+                                },
+                            )
+                            if (index != SETTINGS_QUALITY_ITEMS.lastIndex) SettingsDivider()
+                        }
+                    }
+                } else {
+                    SettingsBrandHeader()
+
+                    SettingsSection(title = "앱 환경") {
+                        SettingsGroup {
+                            val qualityLabel = SETTINGS_QUALITY_ITEMS
+                                .firstOrNull { it.mode == settings.photoQualityMode }?.title ?: "균형"
+                            SettingsActionRow(
+                                icon = Icons.Default.Image,
+                                title = "사진 품질",
+                                subtitle = "화질과 저장 성능",
+                                onClick = { showingQuality = true },
+                                trailing = {
+                                    Text(
+                                        text = qualityLabel,
+                                        style = DDZTypography.Caption,
+                                        color = DDZColor.TextSecondary,
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronRight,
+                                        contentDescription = null,
+                                        tint = DDZColor.IconMuted,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                },
+                            )
+                            SettingsDivider()
+                            SettingsActionRow(
+                                icon = Icons.Default.CameraAlt,
+                                title = "플로팅 보조 셔터",
+                                subtitle = "촬영 화면에 보조 버튼 표시",
+                                onClick = {
+                                    scope.launch {
+                                        applySettingsAction(
+                                            context,
+                                            SettingsAction.AssistShutterEnabledChanged(!settings.assistShutterEnabled),
+                                        )
+                                    }
+                                },
+                                trailing = {
+                                    Switch(
+                                        checked = settings.assistShutterEnabled,
+                                        onCheckedChange = { enabled ->
+                                            scope.launch {
+                                                applySettingsAction(
+                                                    context,
+                                                    SettingsAction.AssistShutterEnabledChanged(enabled),
+                                                )
+                                            }
+                                        },
+                                        colors = SwitchDefaults.colors(
+                                            checkedTrackColor = DDZColor.Selected,
+                                            uncheckedTrackColor = DDZColor.Border,
+                                            checkedThumbColor = DDZColor.Surface,
+                                            uncheckedThumbColor = DDZColor.Surface,
+                                        ),
+                                    )
+                                },
+                            )
+                        }
+                    }
+
+                    // Data management appears here once local backup/import is implemented.
+                    // Do not expose nonfunctional actions or alter camera/table editor settings.
+
+                    SettingsSection(title = "정보 및 지원") {
+                        SettingsGroup {
+                            SettingsActionRow(
+                                icon = Icons.Default.FavoriteBorder,
+                                title = "도움 주신 분들",
+                                subtitle = "DZlog를 함께 만들어주신 분들",
+                                onClick = onOpenCredits,
+                                trailing = {
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronRight,
+                                        contentDescription = null,
+                                        tint = DDZColor.IconMuted,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (!showingQuality) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp, bottom = 18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(text = "DZlog", style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
+                    Text(text = version, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun CreditsEntryRow(
-    onClick: () -> Unit,
-) {
-    DDZCard(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(0.dp),
-        shape = SettingsCardShape,
+private fun SettingsBrandHeader() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        DDZSettingRow(
-            label = "도움 주신 분들",
-            onClick = onClick,
-        )
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = DDZColor.SelectedSoft.copy(alpha = 0.65f),
+            modifier = Modifier.size(52.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.CameraAlt,
+                    contentDescription = null,
+                    tint = DDZColor.PrimaryDark,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(text = "DZlog", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
+            Text(text = "일상의 기록을 더 편리하게", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+        }
     }
 }
 
 @Composable
-private fun OptionRow(
+private fun SettingsSection(
     title: String,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = title,
-            style = DDZTypography.Body,
-            color = DDZColor.TextPrimary
+            style = DDZTypography.Caption,
+            color = DDZColor.PrimaryDark,
+            modifier = Modifier.padding(start = 4.dp),
         )
         content()
     }
 }
 
-private data class QualityUiItem(
-    val mode: PhotoQualityMode,
-    val icon: ImageVector,
-    val title: String,
-    val description: String
-)
-
-private enum class ToggleKey {
-    CAPTURE_HAPTIC,
-    CAPTURE_SOUND,
-    ASSIST_SHUTTER,
-    INCLUDE_PATH,
-    INCLUDE_FILENAME,
-}
-
-private data class ToggleUiItem(
-    val key: ToggleKey,
-    val icon: ImageVector?,
-    val title: String,
-    val description: String
-)
-
-private fun resolveToggleChecked(settings: AppSettings, key: ToggleKey): Boolean = when (key) {
-    ToggleKey.CAPTURE_HAPTIC -> settings.captureHapticEnabled
-    ToggleKey.CAPTURE_SOUND -> settings.captureSoundEnabled
-    ToggleKey.ASSIST_SHUTTER -> settings.assistShutterEnabled
-    ToggleKey.INCLUDE_PATH -> settings.includePathInCounterScope
-    ToggleKey.INCLUDE_FILENAME -> settings.includeFilenameInCounterScope
-}
-
-private fun resolveToggleAction(key: ToggleKey, enabled: Boolean): SettingsAction = when (key) {
-    ToggleKey.CAPTURE_HAPTIC -> SettingsAction.CaptureHapticEnabledChanged(enabled)
-    ToggleKey.CAPTURE_SOUND -> SettingsAction.CaptureSoundEnabledChanged(enabled)
-    ToggleKey.ASSIST_SHUTTER -> SettingsAction.AssistShutterEnabledChanged(enabled)
-    ToggleKey.INCLUDE_PATH -> SettingsAction.IncludePathInCounterScopeChanged(enabled)
-    ToggleKey.INCLUDE_FILENAME -> SettingsAction.IncludeFilenameInCounterScopeChanged(enabled)
-}
-
 @Composable
-private fun QualityOptionRow(
-    item: QualityUiItem,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val borderColor = if (selected) DDZColor.SelectedDark else DDZColor.Border
-    val selectedBg = if (selected) DDZColor.SelectedSoft.copy(alpha = 0.28f) else DDZColor.Surface
-
+private fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(SettingsOptionShape)
-            .clickable(onClick = onClick),
-        shape = SettingsOptionShape,
-        color = selectedBg,
-        border = BorderStroke(1.dp, borderColor)
+        modifier = Modifier.fillMaxWidth(),
+        shape = SettingsGroupShape,
+        color = DDZColor.Surface,
+        border = BorderStroke(1.dp, DDZColor.Border.copy(alpha = 0.75f)),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            IconSlot(
-                icon = item.icon,
-                selected = selected
-            )
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    text = item.title,
-                    style = DDZTypography.Body,
-                    color = DDZColor.TextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = item.description,
-                    style = DDZTypography.Caption,
-                    color = DDZColor.TextSecondary,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            if (selected) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "선택됨",
-                    tint = DDZColor.SelectedDark,
-                    modifier = Modifier.size(18.dp)
-                )
-            } else {
-                Spacer(
-                    modifier = Modifier
-                        .size(18.dp)
-                        .background(DDZColor.Border.copy(alpha = 0.5f), CircleShape)
-                )
-            }
-        }
+        Column(content = content)
     }
 }
 
 @Composable
-private fun ToggleCardRow(
-    item: ToggleUiItem,
-    checked: Boolean,
-    onToggle: () -> Unit
-) {
-    val borderColor = if (checked) DDZColor.SelectedDark else DDZColor.Border
-    val selectedBg = if (checked) DDZColor.SelectedSoft.copy(alpha = 0.28f) else DDZColor.Surface
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(SettingsOptionShape)
-            .clickable(onClick = onToggle),
-        shape = SettingsOptionShape,
-        color = selectedBg,
-        border = BorderStroke(1.dp, borderColor)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            IconSlot(
-                icon = item.icon,
-                selected = checked
-            )
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    text = item.title,
-                    style = DDZTypography.Body,
-                    color = DDZColor.TextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = item.description,
-                    style = DDZTypography.Caption,
-                    color = DDZColor.TextSecondary,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            if (checked) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "선택됨",
-                    tint = DDZColor.SelectedDark,
-                    modifier = Modifier.size(18.dp)
-                )
-            } else {
-                Spacer(
-                    modifier = Modifier
-                        .size(18.dp)
-                        .background(DDZColor.Border.copy(alpha = 0.5f), CircleShape)
-                )
-            }
-        }
-    }
+private fun SettingsDivider() {
+    HorizontalDivider(
+        thickness = 1.dp,
+        color = DDZColor.Border.copy(alpha = 0.55f),
+        modifier = Modifier.padding(horizontal = 12.dp),
+    )
 }
 
-
 @Composable
-private fun IconSlot(
-    icon: ImageVector?,
-    selected: Boolean
+private fun SettingsActionRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    trailing: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
 ) {
-    val tint = if (selected) DDZColor.SelectedDark else DDZColor.TextSecondary
-    Box(
-        modifier = Modifier.size(20.dp),
-        contentAlignment = Alignment.Center
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 66.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Icon(
-            imageVector = icon ?: Icons.Default.ChevronRight,
+            imageVector = icon,
             contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(20.dp)
+            tint = DDZColor.PrimaryDark,
+            modifier = Modifier.size(20.dp),
         )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = title,
+                style = DDZTypography.Body,
+                color = DDZColor.TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = subtitle,
+                style = DDZTypography.Caption,
+                color = DDZColor.TextSecondary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        trailing()
     }
 }
 
-@Composable
-private fun buildAppVersionLabel(): String {
-    val context = androidx.compose.ui.platform.LocalContext.current
+private fun buildAppVersionLabel(context: android.content.Context): String {
     val pkg = context.packageManager
-    val verName = runCatching { pkg.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "-"
-    val verCode = if (Build.VERSION.SDK_INT >= 28) {
-        runCatching { pkg.getPackageInfo(context.packageName, 0).longVersionCode }.getOrNull()?.toString() ?: "-"
-    } else {
+    val info = runCatching { pkg.getPackageInfo(context.packageName, 0) }.getOrNull()
+    val version = info?.versionName ?: "-"
+    val code = if (Build.VERSION.SDK_INT >= 28) info?.longVersionCode else {
         @Suppress("DEPRECATION")
-        runCatching { pkg.getPackageInfo(context.packageName, 0).versionCode }.getOrNull()?.toString() ?: "-"
+        info?.versionCode?.toLong()
     }
-    return "버전 $verName ($verCode)"
+    return "버전 $version (${code ?: "-"})"
 }
