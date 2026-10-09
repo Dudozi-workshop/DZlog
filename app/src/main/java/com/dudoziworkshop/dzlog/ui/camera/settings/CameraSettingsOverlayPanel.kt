@@ -24,6 +24,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -57,8 +58,6 @@ internal fun CameraSettingsOverlayPanel(
     onCaptureAspectChange: (CaptureAspect) -> Unit,
     saveMode: SaveMode,
     onSaveModeChange: (SaveMode) -> Unit,
-    showGrid: Boolean,
-    onShowGridChange: (Boolean) -> Unit,
     showTable: Boolean,
     onShowTableChange: (Boolean) -> Unit,
     continuousPreviewMode: ContinuousPreviewMode,
@@ -145,39 +144,46 @@ internal fun CameraSettingsOverlayPanel(
                 SettingSectionTitle("사진 저장")
                 CompactSegments(
                     options = listOf(
-                        DDZSegmentedControlOption("원본만", saveMode == SaveMode.ORIGINAL_ONLY) { onSaveModeChange(SaveMode.ORIGINAL_ONLY) },
-                        DDZSegmentedControlOption("표 포함", saveMode == SaveMode.WATERMARK_ONLY) { onSaveModeChange(SaveMode.WATERMARK_ONLY) },
+                        DDZSegmentedControlOption("원본", saveMode == SaveMode.ORIGINAL_ONLY) { onSaveModeChange(SaveMode.ORIGINAL_ONLY) },
+                        DDZSegmentedControlOption("표 합성", saveMode == SaveMode.WATERMARK_ONLY) { onSaveModeChange(SaveMode.WATERMARK_ONLY) },
                         DDZSegmentedControlOption("둘 다", saveMode == SaveMode.BOTH) { onSaveModeChange(SaveMode.BOTH) }
                     )
                 )
 
-                SettingSectionTitle("촬영 후 사진 확인")
+                SettingSectionTitle("촬영 후 확인")
                 CompactSegments(
                     options = listOf(
-                        DDZSegmentedControlOption("없음", continuousPreviewMode == ContinuousPreviewMode.OFF) {
+                        DDZSegmentedControlOption("안 함", continuousPreviewMode == ContinuousPreviewMode.OFF) {
                             onContinuousPreviewModeChange(ContinuousPreviewMode.OFF)
                         },
-                        DDZSegmentedControlOption("짧게", continuousPreviewMode == ContinuousPreviewMode.SHORT) {
+                        DDZSegmentedControlOption("잠깐", continuousPreviewMode == ContinuousPreviewMode.SHORT) {
                             onContinuousPreviewModeChange(ContinuousPreviewMode.SHORT)
                         },
-                        DDZSegmentedControlOption("고정", continuousPreviewMode == ContinuousPreviewMode.HOLD) {
+                        DDZSegmentedControlOption("유지", continuousPreviewMode == ContinuousPreviewMode.HOLD) {
                             onContinuousPreviewModeChange(ContinuousPreviewMode.HOLD)
                         }
                     )
                 )
 
-                SettingSectionTitle("촬영 화면 표시")
-                CompactSegments(
-                    options = listOf(
-                        DDZSegmentedControlOption("그리드", showGrid) { onShowGridChange(!showGrid) },
-                        DDZSegmentedControlOption("표", showTable) { onShowTableChange(!showTable) }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onShowTableChange(!showTable) }
+                        .padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SettingSectionTitle("표 미리보기")
+                    Switch(
+                        checked = showTable,
+                        onCheckedChange = onShowTableChange,
                     )
-                )
+                }
 
                 SettingSectionTitle("음량키")
                 CompactSegments(
                     options = listOf(
-                        DDZSegmentedControlOption("기능없음", volumeKeyAction == VolumeKeyAction.NONE) {
+                        DDZSegmentedControlOption("사용 안 함", volumeKeyAction == VolumeKeyAction.NONE) {
                             onVolumeKeyActionChange(VolumeKeyAction.NONE)
                         },
                         DDZSegmentedControlOption("배율", volumeKeyAction == VolumeKeyAction.ZOOM) {
