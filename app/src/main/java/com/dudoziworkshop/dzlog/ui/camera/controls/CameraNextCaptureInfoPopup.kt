@@ -71,38 +71,10 @@ internal fun CameraNextCaptureInfoPopup(
                         Icon(Icons.Default.Close, contentDescription = "닫기")
                     }
                 }
-                Text("파일명", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                Surface(
-                    color = DDZColor.Surface,
-                    border = BorderStroke(1.dp, DDZColor.Border),
-                    shape = RoundedCornerShape(10.dp),
-                ) {
-                    Text(
-                        nextFileName.removeSuffix(".jpg").removeSuffix(".jpeg"),
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
-                        style = DDZTypography.Body,
-                        color = DDZColor.TextStrong,
-                    )
-                }
-                Text("저장 경로", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                Surface(
-                    color = DDZColor.Surface,
-                    border = BorderStroke(1.dp, DDZColor.Border),
-                    shape = RoundedCornerShape(10.dp),
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        relativePaths.forEach { path ->
-                            Text(
-                                path,
-                                style = DDZTypography.Body,
-                                color = DDZColor.TextStrong,
-                            )
-                        }
-                    }
-                }
+                com.dudoziworkshop.dzlog.ui.common.NextCaptureInfoFields(
+                    fileName = nextFileName,
+                    relativePaths = relativePaths,
+                )
                 Button(onClick = onOpenSaveSettings, modifier = Modifier.fillMaxWidth()) {
                     Text("저장 설정으로 이동")
                 }
