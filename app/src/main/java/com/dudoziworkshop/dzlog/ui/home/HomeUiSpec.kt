@@ -52,7 +52,7 @@ internal object HomeAmbientSpec {
     val CanvasHeight = 210.dp
     val CanvasOffsetX = 28.dp
     val CanvasOffsetY = (-18).dp
-    val BlurRadius = 22.dp
+    val BlurRadius = 14.dp
 
     val StemX = 148.dp
     val StemY = 0.dp
@@ -104,8 +104,8 @@ internal object HomeAmbientSpec {
     const val BranchRotation = 0.75f
     const val LeafRotation = 1.8f
 
-    // Approved C-Lite shadow strength is deliberately preserved.
-    const val ShadowAlpha = 0.12f
-    const val StemAlpha = 0.075f
+    // Real-device visibility correction after QA: retain a soft edge while making leaf silhouettes legible.
+    const val ShadowAlpha = 0.22f
+    const val StemAlpha = 0.11f
     const val GlowAlpha = 0.035f
 }
