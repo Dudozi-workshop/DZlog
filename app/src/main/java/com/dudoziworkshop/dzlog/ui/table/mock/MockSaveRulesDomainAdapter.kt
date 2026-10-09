@@ -13,13 +13,17 @@ import com.dudoziworkshop.dzlog.domain.model.TimeSeparator
 import com.dudoziworkshop.dzlog.feature.table.editor.withDataType
 import java.util.UUID
 
-internal fun mockCellsFromTemplate(templateState: TableTemplateState): List<TableEditorCellUiModel> =
+internal fun mockCellsFromTemplate(
+    templateState: TableTemplateState,
+    resolvedTextByCellId: Map<String, String> = emptyMap(),
+): List<TableEditorCellUiModel> =
     templateState.cells
         .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
         .mapIndexed { index, cell ->
             TableEditorCellUiModel(
                 id = index,
                 domainCellId = cell.cellId,
+                previewValue = resolvedTextByCellId[cell.cellId],
                 value = when (cell.dataType) {
                     TableCellDataType.COUNTER ->
                         (cell.typedValue as? CellValue.CounterSeed)?.start?.toString() ?: "1"

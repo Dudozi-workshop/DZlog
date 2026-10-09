@@ -93,6 +93,7 @@ internal data class TableEditorCellUiModel(
     val rowSpan: Int = 1,
     val colSpan: Int = 1,
     val isCovered: Boolean = false,
+    val previewValue: String? = null,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -133,9 +134,6 @@ fun TableEditorV2Screen(
     val draftStyleState = session.draftStyleState
     val saveRulesDraft = session.saveRulesDraft
 
-    val cells = remember(draftTemplateState) {
-        mockCellsFromTemplate(draftTemplateState)
-    }
     val rows = draftTemplateState.rows
     val cols = draftTemplateState.cols
     val selectionState = remember { TableEditorV2SelectionState() }
@@ -157,7 +155,11 @@ fun TableEditorV2Screen(
     val context = LocalContext.current
 
     val counterController = rememberTableEditorCounterOrchestrator(context, session, showSaveRules)
-    val namingPreview = tableEditorNamingPreview(context, session)
+    val preview = tableEditorPreview(context, session)
+    val namingPreview = preview.previewNaming.displayName to preview.previewNaming.relativePath
+    val cells = remember(draftTemplateState, preview.plan.resolvedCells) {
+        mockCellsFromTemplate(draftTemplateState, preview.plan.resolvedCells.associate { it.id to it.resolvedText })
+    }
 
     val activeTab = when {
         mode == MockMode.LAYOUT -> MockBottomTab.STRUCTURE
