@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
@@ -28,6 +29,8 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 // 2단계 라운딩 토큰: 카메라 상/하단의 자주 노출되는 소형 컨트롤은 Small로 통일한다.
 private val CameraCompactControlShape = RoundedCornerShape(DDZLayout.Radius.Small)
+// Keep the small counter visibly green against the warm filename card.
+private val CameraCounterAccent = Color(0xFF2E7D50)
 
 @Composable
 fun CameraTopBar(
@@ -76,7 +79,7 @@ fun CameraTopBar(
                     fileName = topDisplayName,
                     style = DDZTypography.Caption.copy(lineHeight = 14.sp),
                     color = DDZColor.TextStrong,
-                    counterColor = DDZColor.SageDarkStrong,
+                    counterColor = CameraCounterAccent,
                     useExactName = true,
                     hasExactCounter = hasAutoCounter,
                 )
