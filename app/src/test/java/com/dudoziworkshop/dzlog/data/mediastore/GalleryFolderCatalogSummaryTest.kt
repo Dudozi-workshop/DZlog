@@ -1,6 +1,12 @@
 package com.dudoziworkshop.dzlog.data.mediastore
 
 import android.content.Context
+import android.content.ContentProvider
+import android.content.ContentValues
+import android.content.pm.ProviderInfo
+import android.database.Cursor
+import android.database.MatrixCursor
+import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import org.junit.Assert.assertEquals
@@ -9,6 +15,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowContentResolver
 
 @RunWith(RobolectricTestRunner::class)
 class GalleryFolderCatalogSummaryTest {
@@ -19,6 +26,10 @@ class GalleryFolderCatalogSummaryTest {
 
     @Before
     fun clearCatalog() {
+        // Catalog-only scenarios have a readable MediaStore with zero photos.
+        val provider = EmptyMediaProvider()
+        provider.attachInfo(context, ProviderInfo().apply { authority = "media" })
+        ShadowContentResolver.registerProviderInternal("media", provider)
         context.getSharedPreferences("dzlog_gallery_folder_catalog", Context.MODE_PRIVATE)
             .edit().clear().commit()
     }
@@ -147,4 +158,15 @@ class GalleryFolderCatalogSummaryTest {
         assertEquals(0, storageCalls)
         assertEquals(before, catalog.listDescendantPaths(root))
     }
+    private class EmptyMediaProvider : ContentProvider() {
+        override fun onCreate() = true
+        override fun query(uri: Uri, projection: Array<out String>?, selection: String?,
+            selectionArgs: Array<out String>?, sortOrder: String?): Cursor =
+            MatrixCursor(requireNotNull(projection))
+        override fun getType(uri: Uri) = "image/jpeg"
+        override fun insert(uri: Uri, values: ContentValues?): Uri? = error("read only")
+        override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?) = error("read only")
+        override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?) = error("read only")
+    }
+
 }
