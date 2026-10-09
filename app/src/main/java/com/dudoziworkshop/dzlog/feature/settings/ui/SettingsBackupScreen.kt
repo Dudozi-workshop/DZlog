@@ -35,6 +35,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.backup.LocalTemplateBackup
+import com.dudoziworkshop.dzlog.data.backup.RecentBackupShortcut
+import com.dudoziworkshop.dzlog.data.backup.RecentBackupShortcutStore
 import com.dudoziworkshop.dzlog.data.backup.LocalTemplateBackupRepository
 import com.dudoziworkshop.dzlog.data.backup.LocalTemplateMergePreview
 import com.dudoziworkshop.dzlog.data.backup.LocalTemplateMergeResult
@@ -59,6 +61,8 @@ fun SettingsBackupScreen(
     val context = LocalContext.current
     val repo = remember(context) { LocalTemplateBackupRepository(context) }
     val scope = rememberCoroutineScope()
+    val shortcutStore = remember(context) { RecentBackupShortcutStore(context) }
+    var recentBackup by remember { mutableStateOf(shortcutStore.load()) }
     var busy by remember { mutableStateOf(false) }
     var pendingExport by remember { mutableStateOf<String?>(null) }
     var pendingImport by remember { mutableStateOf<LocalTemplateBackup?>(null) }
@@ -87,7 +91,10 @@ fun SettingsBackupScreen(
                 error = null
                 try {
                     repo.writeTo(uri, prepared)
-                    message = "백업 파일을 저장했습니다."
+                    val displayName = repo.nameFrom(uri)
+                    val bookmarked = shortcutStore.rememberSuccessfulExport(uri, displayName)
+                    recentBackup = shortcutStore.load()
+                    message = if (bookmarked) "백업 파일을 저장했습니다. 최근 백업에서 바로 불러올 수 있어요." else "백업 파일을 저장했습니다. 가져올 때 파일 선택창에서 찾아주세요."
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (e: Exception) {
@@ -99,31 +106,33 @@ fun SettingsBackupScreen(
         }
     }
 
+    fun loadBackup(uri: android.net.Uri) {
+        scope.launch {
+            busy = true
+            error = null
+            message = null
+            try {
+                val archive = repo.readFrom(uri)
+                val summary = repo.preview(archive)
+                pendingImport = archive
+                preview = summary
+                filename = repo.nameFrom(uri)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: Exception) {
+                pendingImport = null
+                preview = null
+                error = e.message ?: "백업 파일을 확인하지 못했습니다."
+            } finally {
+                busy = false
+            }
+        }
+    }
+
     val openDocument = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        if (uri != null) {
-            scope.launch {
-                busy = true
-                error = null
-                message = null
-                try {
-                    val archive = repo.readFrom(uri)
-                    val summary = repo.preview(archive)
-                    pendingImport = archive
-                    preview = summary
-                    filename = repo.nameFrom(uri)
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (e: Exception) {
-                    pendingImport = null
-                    preview = null
-                    error = e.message ?: "백업 파일을 확인하지 못했습니다."
-                } finally {
-                    busy = false
-                }
-            }
-        }
+        if (uri != null) loadBackup(uri)
     }
 
     val title = if (mode == BackupScreenMode.EXPORT) "작업 환경 내보내기" else "작업 환경 가져오기"
@@ -196,7 +205,21 @@ fun SettingsBackupScreen(
                         style = DDZTypography.Body, color = DDZColor.TextSecondary,
                     )
                 }
-                BackupActionButton(label = if (busy) "검증 중…" else "백업 파일 선택", enabled = !busy) {
+                if (recentBackup != null) {
+                    BackupInfoCard {
+                        Text("최근 내보낸 백업", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
+                        Text(recentBackup?.displayName.orEmpty(), style = DDZTypography.Body, color = DDZColor.TextSecondary)
+                        BackupActionButton(label = if (busy) "검증 중…" else "이 백업 가져오기", enabled = !busy) {
+                            val shortcut = recentBackup ?: return@BackupActionButton
+                            loadBackup(shortcut.uri)
+                        }
+                    }
+                }
+                BackupActionButton(label = "다른 백업 파일 선택", enabled = !busy) {
+                    // Android filters by MIME, not by extension. Keep an unrestricted fallback.
+                    openDocument.launch(arrayOf("application/octet-stream", "application/json"))
+                }
+                BackupActionButton(label = "모든 파일에서 찾기", enabled = !busy) {
                     openDocument.launch(arrayOf("*/*"))
                 }
             } else {
