@@ -234,6 +234,8 @@ class DzlogMediaStoreReader(
         val index: com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex,
         val directPhotos: List<MediaImageItem>,
         val allPhotos: List<MediaImageItem>,
+        // Prepared for the next UI patch; existing callers keep using index/photos.
+        val summariesByPath: Map<String, com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary> = emptyMap(),
     )
 
     /**
@@ -251,10 +253,52 @@ class DzlogMediaStoreReader(
             imageRelativePaths = all.map { it.relativePath },
             existingFolderPaths = existingFolderPaths,
         )
+
+        // Project existing MediaStore rows into the shared, Android-independent summary policy.
+        // DATE_ADDED is the only available timestamp in MediaImageItem at this stage.
+        val summaryImages = all.map { photo ->
+            com.dudoziworkshop.dzlog.feature.log.policy.GallerySummaryImage(
+                stableId = photo.id.toString(),
+                directoryPath = photo.relativePath,
+                isOriginal = photo.relativePath.trimEnd('/')
+                    .substringAfterLast('/').equals("original", ignoreCase = true),
+                addedAtMillis = photo.dateAddedSeconds.takeIf { it > 0L }?.times(1000L),
+            )
+        }
+
+        // Include intermediate ancestors: an image in A/B/C implies A/B exists,
+        // even if MediaStore returns no photo directly inside A/B.
+        val rootPath = com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummaryPolicy
+            .normalizeFolderPath(prefix)
+        val knownFolders = (existingFolderPaths + all.map { it.relativePath }).flatMap { rawPath ->
+            val folder = com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummaryPolicy
+                .normalizeFolderPath(rawPath)
+            if (folder != rootPath && !folder.startsWith("$rootPath/")) {
+                emptyList()
+            } else {
+                var parent = rootPath
+                folder.removePrefix(rootPath).trim('/').split('/')
+                    .filter { it.isNotBlank() }
+                    .map { part ->
+                        parent += "/$part"
+                        "$parent/"
+                    }
+            }
+        }.distinct()
+
+        val summaryPaths = listOf(prefix) + index.children.map { it.relativePath }
+        val summaries = summaryPaths.associateWith { folderPath ->
+            com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummaryPolicy.summarize(
+                folderPath = folderPath,
+                images = summaryImages,
+                folderPaths = knownFolders,
+            )
+        }
         return GallerySnapshot(
             index = index,
             directPhotos = all.filter { it.relativePath.trimEnd('/') == prefix.trimEnd('/') },
             allPhotos = all,
+            summariesByPath = summaries,
         )
     }
 
