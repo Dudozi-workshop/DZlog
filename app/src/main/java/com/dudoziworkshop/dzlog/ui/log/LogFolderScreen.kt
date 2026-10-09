@@ -3,6 +3,8 @@ package com.dudoziworkshop.dzlog.ui.log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -111,6 +113,26 @@ fun LogFolderScreen(
                     overflow = TextOverflow.Ellipsis)
             }
         }
+        if (!root) {
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                GalleryFolderIndexPolicy.breadcrumbs(relativePath).forEachIndexed { i, crumb ->
+                    if (i > 0) Text(" / ", color = DDZColor.TextSecondary)
+                    Text(
+                        text = crumb.label,
+                        color = if (crumb.relativePath == relativePath) DDZColor.TextPrimary
+                            else DDZColor.Primary,
+                        modifier = Modifier.clickable {
+                            if (crumb.relativePath != relativePath) onOpenFolder(crumb.relativePath)
+                        }.padding(vertical = 5.dp),
+                    )
+                }
+            }
+        }
         if (access != GalleryMediaAccess.FULL) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
@@ -178,22 +200,8 @@ fun LogFolderScreen(
                     item { Text("이 폴더에 저장된 사진이 없습니다.", color = DDZColor.TextSecondary) }
                 } else {
                     items(photos.chunked(3)) { rowPhotos ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        ) {
-                            rowPhotos.forEach { photo ->
-                                val position = photos.indexOf(photo)
-                                androidx.compose.foundation.layout.Box(
-                                    modifier = Modifier.weight(1f).aspectRatio(1f)
-                                        .clickable { onOpenPhoto(photos, position) }
-                                ) {
-                                    DzThumbnail(photo.uri.toString())
-                                }
-                            }
-                            repeat(3 - rowPhotos.size) {
-                                androidx.compose.foundation.layout.Box(modifier = Modifier.weight(1f))
-                            }
+                        GalleryPhotoRow(rowPhotos) { photo ->
+                            onOpenPhoto(photos, photos.indexOfFirst { it.id == photo.id })
                         }
                     }
                 }
