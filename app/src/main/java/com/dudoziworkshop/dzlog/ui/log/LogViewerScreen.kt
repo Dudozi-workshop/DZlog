@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import kotlinx.coroutines.launch
@@ -101,13 +102,23 @@ fun LogViewerScreen(
     val filmstripListState = rememberLazyListState()
 
     fun reloadAfterDelete() {
-        runCatching { reader.loadImages(relativePath) }
-            .onSuccess { reloaded ->
-                onItemsReloaded(reloaded)
-                if (reloaded.isEmpty()) {
-                    onRequestCloseViewer()
+        // Recent/favorites can span several directories; querying the gallery root
+        // as one exact folder would incorrectly drop every other viewer item.
+        scope.launch {
+            val reloaded = runCatching {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    if (items.all { it.relativePath.trimEnd('/') == relativePath.trimEnd('/') }) {
+                        reader.loadImages(relativePath)
+                    } else {
+                        val available = reader.loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT)
+                            .associateBy { it.id }
+                        items.mapNotNull { available[it.id] }
+                    }
                 }
-            }
+            }.getOrNull() ?: return@launch
+            onItemsReloaded(reloaded)
+            if (reloaded.isEmpty()) onRequestCloseViewer()
+        }
     }
 
     val deleteLauncher = rememberLauncherForActivityResult(
