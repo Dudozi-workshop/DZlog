@@ -359,25 +359,21 @@ internal fun TableEditorRuleListEditor(
             }
 
             target == RuleEditorTarget.VALUE && active?.sourceType == MockRuleSourceType.DATE -> {
-                ChoiceSheet(
-                    title = "날짜 형식",
-                    options = listOf("20261008", "2026-10-08", "26.10.08", "10월 08일"),
+                TableEditorDateFormatSheet(
+                    selectedPattern = active.formatPattern ?: "yyyyMMdd",
                     onDismiss = { editorTarget = null },
-                    onSelect = { value ->
-                        val index = editingIndex ?: return@ChoiceSheet
-                        replaceAt(
-                            index,
-                            MockRuleItem(
-                                sourceType = MockRuleSourceType.DATE,
-                                value = value,
-                                formatPattern = when (value) {
-                                    "2026-10-08" -> "yyyy-MM-dd"
-                                    "26.10.08" -> "yy.MM.dd"
-                                    "10월 08일" -> "MM월 dd일"
-                                    else -> "yyyyMMdd"
-                                },
+                    onSelect = { pattern ->
+                        val index = editingIndex
+                        if (index != null) {
+                            replaceAt(
+                                index,
+                                active.copy(
+                                    value = java.text.SimpleDateFormat(pattern, java.util.Locale.getDefault())
+                                        .format(java.util.Date()),
+                                    formatPattern = pattern,
+                                ),
                             )
-                        )
+                        }
                     },
                 )
             }

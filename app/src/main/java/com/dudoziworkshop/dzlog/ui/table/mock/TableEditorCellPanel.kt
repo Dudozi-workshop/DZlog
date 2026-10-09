@@ -6,9 +6,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -26,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
-import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZSettingRow
@@ -132,7 +129,7 @@ internal fun TableEditorCellUiModelEditor(
                 )
                 DDZSettingRow(
                     label = "날짜 형식",
-                    value = cell.formatPattern.ifBlank { "yyyyMMdd" },
+                    value = tableEditorDateFormatLabel(cell.formatPattern),
                     onClick = { showDatePicker = true },
                 )
             }
@@ -202,28 +199,14 @@ internal fun TableEditorCellUiModelEditor(
     }
 
     if (showDatePicker) {
-        DDZBottomSheet(
-            title = "날짜 형식",
+        TableEditorDateFormatSheet(
+            selectedPattern = cell.formatPattern,
             onDismiss = { showDatePicker = false },
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                listOf("yyyyMMdd", "yyMMdd", "MMdd").forEach { pattern ->
-                    DDZButton(
-                        text = if (cell.formatPattern.ifBlank { "yyyyMMdd" } == pattern) pattern + " ✓" else pattern,
-                        modifier = Modifier.fillMaxWidth(),
-                        style = DDZButtonStyle.Secondary,
-                        onClick = {
-                            onDatePatternChange(pattern)
-                            showDatePicker = false
-                        },
-                    )
-                }
-                Spacer(Modifier.height(18.dp))
-            }
-        }
+            onSelect = { pattern ->
+                onDatePatternChange(pattern)
+                showDatePicker = false
+            },
+        )
     }
 
     if (showPhrasePicker) {
