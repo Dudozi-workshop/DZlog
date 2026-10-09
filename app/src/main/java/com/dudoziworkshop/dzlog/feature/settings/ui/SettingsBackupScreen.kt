@@ -106,7 +106,7 @@ fun SettingsBackupScreen(
         }
     }
 
-    fun loadBackup(uri: android.net.Uri) {
+    fun loadBackup(uri: android.net.Uri, fromRecent: Boolean = false) {
         scope.launch {
             busy = true
             error = null
@@ -122,6 +122,10 @@ fun SettingsBackupScreen(
             } catch (e: Exception) {
                 pendingImport = null
                 preview = null
+                if (fromRecent && e is java.io.FileNotFoundException) {
+                    shortcutStore.clear()
+                    recentBackup = null
+                }
                 error = e.message ?: "백업 파일을 확인하지 못했습니다."
             } finally {
                 busy = false
@@ -211,7 +215,7 @@ fun SettingsBackupScreen(
                         Text(recentBackup?.displayName.orEmpty(), style = DDZTypography.Body, color = DDZColor.TextSecondary)
                         BackupActionButton(label = if (busy) "검증 중…" else "이 백업 가져오기", enabled = !busy) {
                             val shortcut = recentBackup ?: return@BackupActionButton
-                            loadBackup(shortcut.uri)
+                            loadBackup(shortcut.uri, fromRecent = true)
                         }
                     }
                 }
