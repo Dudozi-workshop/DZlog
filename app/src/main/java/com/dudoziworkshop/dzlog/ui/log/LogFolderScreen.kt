@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderCatalog
@@ -61,6 +62,7 @@ import com.dudoziworkshop.dzlog.feature.log.policy.CapturePathImpact
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummaryPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -69,6 +71,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.TimeZone
 
 /** One screen for every folder depth; the route state is the actual relative path. */
 @Composable
@@ -180,7 +183,7 @@ fun LogFolderScreen(
             index = snapshot.index
             summariesByPath = snapshot.summariesByPath
             photos = snapshot.directPhotos
-            if (relativePath == GalleryFolderIndexPolicy.ROOT) allPhotos = snapshot.allPhotos
+            allPhotos = snapshot.allPhotos
             error = null
         }.onFailure { if (index == null) error = "목록을 불러오지 못했습니다." }
         loading = false
@@ -214,6 +217,8 @@ fun LogFolderScreen(
     }
     val root = relativePath == GalleryFolderIndexPolicy.ROOT
     val title = if (root) "갤러리" else relativePath.trimEnd('/').substringAfterLast('/')
+    val currentSummary = summariesByPath[relativePath]
+    val imagesById = remember(allPhotos) { allPhotos.associateBy { it.id.toString() } }
     Column(modifier = Modifier.dzScreen().padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             IconButton(onClick = onBack) {
@@ -224,6 +229,18 @@ fun LogFolderScreen(
                 Text(relativePath.removePrefix(GalleryFolderIndexPolicy.ROOT).ifBlank { "Pictures / DZlog" },
                     color = DDZColor.TextSecondary, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
+                if (!root && currentSummary != null) {
+                    Text(
+                        "사진 ${currentSummary.totalPhotoCount} · 하위 ${currentSummary.directChildFolderCount} · 최근 " +
+                            GalleryFolderSummaryPolicy.compactDate(
+                                epochMillis = currentSummary.latestPhotoEpochMillis,
+                                referenceMillis = System.currentTimeMillis(),
+                                timeZone = TimeZone.getDefault(),
+                            ),
+                        color = DDZColor.TextSecondary,
+                        fontSize = 12.sp,
+                    )
+                }
             }
         }
         if (!root) {
@@ -313,24 +330,14 @@ fun LogFolderScreen(
                 }
                 if (current != null && current.children.isNotEmpty()) {
                     items(current.children, key = { it.relativePath }) { folder ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth()
-                                .clickable { onOpenFolder(folder.relativePath) }
-                                .padding(vertical = 10.dp, horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text("${folder.totalImageCount}장", color = DDZColor.TextSecondary)
-                            }
-                            Icon(Icons.Default.ChevronRight, contentDescription = "열기")
+                        val summary = summariesByPath[folder.relativePath]
+                        GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get)) {
+                            onOpenFolder(folder.relativePath)
                         }
                     }
                 }
                 item {
-                    Text("사진 ${photos.size}장", fontWeight = FontWeight.SemiBold,
+                    Text("사진 ${currentSummary?.directPhotoCount ?: photos.size}장", fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(top = 8.dp))
                 }
                 if (photos.isEmpty()) {
