@@ -100,6 +100,7 @@ fun LogFolderScreen(
     var photoMoveTarget by remember { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
     var photoMoveFolders by remember { mutableStateOf<List<String>>(emptyList()) }
     var photoMoveBusy by remember { mutableStateOf(false) }
+    var moveAllPhotos by remember { mutableStateOf<List<MediaImageItem>>(emptyList()) }
 
     var reloadKey by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -139,8 +140,10 @@ fun LogFolderScreen(
         includeOriginals = null
         photoMoveTarget = GalleryFolderIndexPolicy.ROOT
         scope.launch {
+            val loaded = withContext(Dispatchers.IO) { reader.loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT) }
+            moveAllPhotos = loaded
             photoMoveFolders = withContext(Dispatchers.IO) {
-                val rootImages = reader.loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT)
+                val rootImages = loaded
                 val allFolders = rootImages.map { it.relativePath }.toMutableSet()
                 allFolders += folderCatalog.listImmediatePaths(GalleryFolderIndexPolicy.ROOT)
                 val result = mutableSetOf(GalleryFolderIndexPolicy.ROOT)
@@ -303,7 +306,7 @@ fun LogFolderScreen(
         }
         if (showPhotoMove) {
             val selected = (if (root) allPhotos else photos).filter { it.id in selectedPhotoIds }
-            val originalMatches = GalleryPhotoMovePolicy.pairedOriginals(selected, allPhotos)
+            val originalMatches = GalleryPhotoMovePolicy.pairedOriginals(selected, moveAllPhotos)
             AlertDialog(
                 onDismissRequest = { if (!photoMoveBusy) showPhotoMove = false },
                 title = { Text("사진 이동") },
