@@ -42,8 +42,11 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -108,7 +111,7 @@ fun LogViewerScreen(
     val safeStart = startIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
     val pagerState = rememberPagerState(initialPage = safeStart, pageCount = { items.size })
 
-    var uiVisible by remember { mutableStateOf(false) }
+    var uiVisible by remember { mutableStateOf(true) }
     var infoSheetItem by remember { mutableStateOf<MediaImageItem?>(null) }
     var isCurrentImageZoomed by remember { mutableStateOf(false) }
 
@@ -188,10 +191,10 @@ fun LogViewerScreen(
                 current = currentItem,
                 onBack = { if (deleteItem == null) onBack() },
                 enabled = deleteItem == null,
-                onShare = {
-                    if (deleteItem != null) return@ViewerTopOverlay
-                    val item = currentItem ?: return@ViewerTopOverlay
-                    shareImages(context, listOf(item))
+                currentIndex = pagerState.currentPage,
+                total = items.size,
+                onInfo = {
+                    if (deleteItem == null && currentItem != null) infoSheetItem = currentItem
                 }
             )
         }
@@ -234,6 +237,11 @@ fun LogViewerScreen(
                             }
                         },
                         isFavorite = currentItem?.id?.let(favoriteIds::contains) == true,
+                        onShare = {
+                            if (deleteItem != null) return@ViewerBottomPill
+                            val item = currentItem ?: return@ViewerBottomPill
+                            shareImages(context, listOf(item))
+                        },
                         onInfo = {
                             if (deleteItem == null && currentItem != null) infoSheetItem = currentItem
                         },
@@ -297,11 +305,15 @@ private fun ViewerTopOverlay(
     current: MediaImageItem?,
     enabled: Boolean,
     onBack: () -> Unit,
-    onShare: () -> Unit,
+    currentIndex: Int,
+    total: Int,
+    onInfo: () -> Unit,
 ) {
+    var menuExpanded by remember(current?.id, enabled) { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(Brush.verticalGradient(listOf(Color(0xAA000000), Color.Transparent)))
             .windowInsetsPadding(
                 WindowInsets.safeDrawing.only(
                     WindowInsetsSides.Top + WindowInsetsSides.Horizontal
@@ -310,34 +322,39 @@ private fun ViewerTopOverlay(
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            IconButton(onClick = onBack, enabled = enabled) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
-            }
+        IconButton(onClick = onBack, enabled = enabled) {
+            Icon(Icons.Default.ArrowBack, contentDescription = "뒤로가기", tint = Color.White)
         }
-        Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "DZLOG VIEWER",
+                text = current?.displayName.orEmpty(),
                 color = Color.White,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "${if (current == null) 0 else currentIndex + 1} / $total",
+                color = Color.White,
+                style = MaterialTheme.typography.labelSmall,
             )
         }
-        Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.CenterEnd
-        ) {
-            IconButton(
-                onClick = onShare,
-                enabled = enabled && current != null
-            ) {
-                Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White)
+        Box {
+            IconButton(onClick = { menuExpanded = true }, enabled = enabled && current != null) {
+                Icon(Icons.Default.MoreVert, contentDescription = "사진 메뉴", tint = Color.White)
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                DropdownMenuItem(
+                    text = { Text("사진 정보") },
+                    onClick = {
+                        menuExpanded = false
+                        if (enabled && current != null) onInfo()
+                    },
+                )
             }
         }
     }
@@ -348,6 +365,7 @@ private fun ViewerBottomPill(
     enabled: Boolean,
     onFavorite: () -> Unit,
     isFavorite: Boolean,
+    onShare: () -> Unit,
     onInfo: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -363,15 +381,18 @@ private fun ViewerBottomPill(
         IconButton(onClick = onFavorite, enabled = enabled) {
             Icon(
                 imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = "Favorite",
+                contentDescription = if (isFavorite) "즐겨찾기 해제" else "즐겨찾기 추가",
                 tint = if (isFavorite) Color(0xFFFF5C7A) else Color.White
             )
         }
+        IconButton(onClick = onShare, enabled = enabled) {
+            Icon(Icons.Default.Share, contentDescription = "공유", tint = Color.White)
+        }
         IconButton(onClick = onInfo, enabled = enabled) {
-            Icon(Icons.Default.Info, contentDescription = "Info", tint = Color.White)
+            Icon(Icons.Default.Info, contentDescription = "사진 정보", tint = Color.White)
         }
         IconButton(onClick = onDelete, enabled = enabled) {
-            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
+            Icon(Icons.Default.Delete, contentDescription = "사진 삭제", tint = Color.White)
         }
     }
 }
