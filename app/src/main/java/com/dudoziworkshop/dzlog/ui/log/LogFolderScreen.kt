@@ -23,6 +23,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
@@ -57,6 +59,9 @@ fun LogFolderScreen(
 ) {
     val context = LocalContext.current
     val reader = remember(context) { DzlogMediaStoreReader(context.contentResolver) }
+    val favoriteIds by remember(context) { FavoritesProvider.repo(context) }.favoriteIdsFlow.collectAsState(initial = emptySet())
+    var selectedTab by remember { mutableStateOf(GalleryTab.ALL) }
+    var allPhotos by remember { mutableStateOf<List<MediaImageItem>>(emptyList()) }
     var index by remember(relativePath) { mutableStateOf<GalleryFolderIndex?>(null) }
     var photos by remember(relativePath) { mutableStateOf<List<MediaImageItem>>(emptyList()) }
     var error by remember(relativePath) { mutableStateOf<String?>(null) }
@@ -80,12 +85,13 @@ fun LogFolderScreen(
         val result = runCatching {
             withContext(Dispatchers.IO) {
                 val folder = reader.loadFolderIndex(relativePath)
-                folder to reader.loadImages(relativePath)
+                Triple(folder, reader.loadImages(relativePath), if (relativePath == GalleryFolderIndexPolicy.ROOT) reader.loadImagesUnderPrefix(relativePath) else emptyList())
             }
         }
-        result.onSuccess { (folder, loaded) ->
+        result.onSuccess { (folder, loaded, allLoaded) ->
             index = folder
             photos = loaded
+            if (relativePath == GalleryFolderIndexPolicy.ROOT) allPhotos = allLoaded
             error = null
         }.onFailure { error = it.message ?: "폴더를 불러오지 못했습니다." }
         loading = false
@@ -131,6 +137,17 @@ fun LogFolderScreen(
             CircularProgressIndicator(modifier = Modifier.padding(20.dp))
         } else if (error != null) {
             Text("불러오기 오류: $error", modifier = Modifier.padding(16.dp))
+        } else if (root && index != null) {
+            LogGalleryHomeContent(
+                selectedTab = selectedTab,
+                onTabChange = { selectedTab = it },
+                folderIndex = requireNotNull(index),
+                allImages = allPhotos,
+                favoriteIds = favoriteIds,
+                onOpenFolder = onOpenFolder,
+                onOpenPhoto = onOpenPhoto,
+                onOpenOriginal = onOpenOriginal,
+            )
         } else {
             val current = index
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
