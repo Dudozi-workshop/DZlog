@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.naming.capturePhysicalSavePaths
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZIconButton
@@ -230,7 +231,9 @@ fun HomeScreen(
     if (showSaveInfo) {
         HomeSaveInfoSheet(
             fileName = uiState.nextFilenamePreview,
-            relativePath = uiState.nextRelativePathPreview,
+            relativePaths = uiState.nextRelativePathPreview?.let {
+                capturePhysicalSavePaths(it, settings.saveMode)
+            }.orEmpty(),
             onOpenSaveSettings = {
                 showSaveInfo = false
                 onOpenSaveSettings()
