@@ -554,15 +554,18 @@ fun CameraPreview(
                     ui.prefs.saveMode = mode
                     scope.launch { settingsWriter.setSaveMode(mode) }
                 },
-                showTable = ui.prefs.showWmPreview,
-                onShowTableChange = { checked ->
-                    ui.prefs.showWmPreview = checked
-                    scope.launch { settingsWriter.setShowWmPreview(checked) }
-                },
                 continuousPreviewMode = ui.prefs.continuousPreviewMode,
                 onContinuousPreviewModeChange = { mode ->
                     ui.prefs.continuousPreviewMode = mode
                     scope.launch { settingsWriter.setContinuousPreviewMode(mode) }
+                },
+                captureSoundEnabled = appSettings.captureSoundEnabled,
+                onCaptureSoundChange = { checked ->
+                    scope.launch { AppSettingsStore.setCaptureSoundEnabled(context, checked) }
+                },
+                captureHapticEnabled = appSettings.captureHapticEnabled,
+                onCaptureHapticChange = { checked ->
+                    scope.launch { AppSettingsStore.setCaptureHapticEnabled(context, checked) }
                 },
                 volumeKeyAction = appSettings.volumeKeyAction,
                 onVolumeKeyActionChange = { action ->
