@@ -43,9 +43,9 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
-private const val PANEL_WIDTH_FRACTION = 0.88f
+private const val PANEL_WIDTH_FRACTION = 0.72f
 private const val PANEL_DIM_ALPHA = 0.2f
-private val PANEL_MAX_WIDTH = 460.dp
+private val PANEL_MAX_WIDTH = 320.dp
 // 1단계 라운딩 토큰: 패널 외곽은 Medium 기준선을 사용한다.
 private val PANEL_CORNER_RADIUS = DDZLayout.Radius.Medium
 // 토큰 정책: 패널 헤더 터치 영역은 compact control 규격을 사용한다.
@@ -94,7 +94,7 @@ internal fun CameraSettingsOverlayPanel(
                 )
                 .fillMaxWidth(PANEL_WIDTH_FRACTION)
                 .widthIn(max = PANEL_MAX_WIDTH)
-                .heightIn(max = 700.dp)
+                .heightIn(max = 440.dp)
                 .zIndex(30f),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(PANEL_CORNER_RADIUS),
             tonalElevation = 0.dp,
@@ -105,7 +105,7 @@ internal fun CameraSettingsOverlayPanel(
                 // UX 3차 보정: 내부 상단 여백을 제거해 패널 시작점을 safe 영역 바로 아래로 더 밀착시킨다.
                 modifier = Modifier
                     .verticalScroll(rememberScrollState())
-                    .padding(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 12.dp),
+                    .padding(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Row(
