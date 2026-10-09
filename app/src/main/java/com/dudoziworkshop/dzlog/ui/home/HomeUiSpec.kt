@@ -21,13 +21,13 @@ internal object HomeUiSpec {
     val PrimaryButtonTextSize = 15.sp
     val PrimaryButtonHorizontalInset = 10.dp
 
-    const val RecentImageWidthFraction = 0.94f
+    const val RecentImageWidthFraction = 0.90f
     const val RecentImageAspectRatio = 1.58f
     val RecentImageRadius = 15.dp
 
-    val UtilityButtonHeight = 44.dp
+    val UtilityButtonHeight = 58.dp
     val UtilityButtonRadius = 13.dp
-    val UtilityButtonTextSize = 13.sp
+    val UtilityButtonTextSize = 12.sp
     val UtilityButtonGap = 10.dp
 
     val BrandLetterSpacing = 1.1.sp
