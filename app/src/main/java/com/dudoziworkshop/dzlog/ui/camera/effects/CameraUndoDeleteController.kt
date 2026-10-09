@@ -17,6 +17,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
+import com.dudoziworkshop.dzlog.feature.capture.policy.classifyUndoDeletion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -66,13 +67,14 @@ internal fun rememberUndoDeleteController(
             // The app must issue the delete call again after user consent.
             scope.launch {
                 try {
-                    val failed = withContext(Dispatchers.IO) {
-                        pendingUris.filter { uri ->
-                            runCatching { context.contentResolver.delete(uri, null, null) > 0 }.getOrDefault(false).not()
+                    val retryAttempts = withContext(Dispatchers.IO) {
+                        pendingUris.map { uri ->
+                            uri to runCatching { context.contentResolver.delete(uri, null, null) > 0 }
                         }
                     }
-                    if (failed.size < pendingUris.size) latestOnCommitted.value()
-                    if (failed.isNotEmpty()) latestOnRestore.value(failed)
+                    val outcome = classifyUndoDeletion(retryAttempts)
+                    if (outcome.deleted.isNotEmpty()) latestOnCommitted.value()
+                    if (outcome.remaining.isNotEmpty()) latestOnRestore.value(outcome.remaining)
                 } finally {
                     isDeleting = false
                 }
@@ -104,11 +106,11 @@ internal fun rememberUndoDeleteController(
                 uri to runCatching { context.contentResolver.delete(uri, null, null) > 0 }
             }
         }
-        val deletedAny = attempts.any { (_, result) -> result.getOrNull() == true }
+        val outcome = classifyUndoDeletion(attempts)
         val failed = attempts.filter { (_, result) -> result.getOrNull() != true }
 
         try {
-            if (deletedAny) latestOnCommitted.value()
+            if (outcome.deleted.isNotEmpty()) latestOnCommitted.value()
 
             val recoverable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 failed.firstOrNull { (_, result) ->
@@ -116,7 +118,7 @@ internal fun rememberUndoDeleteController(
                 }
             } else null
 
-            val remaining = failed.map { it.first }
+            val remaining = outcome.remaining
             if (recoverable == null) {
                 if (remaining.isNotEmpty()) latestOnRestore.value(remaining)
                 return
