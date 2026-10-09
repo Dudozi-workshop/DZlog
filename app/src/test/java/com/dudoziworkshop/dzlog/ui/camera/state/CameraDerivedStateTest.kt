@@ -18,15 +18,15 @@ class CameraDerivedStateTest {
 
     private fun state(t: TableTemplateState = template, mode: SaveMode = SaveMode.BOTH,
         request: CounterRequest? = null, next: Int? = 42, time: Date = now,
-        pathScope: Boolean = true, nameScope: Boolean = true) = computeCameraDerivedState(
-        tableTemplateState = t, now = time, counterDigits = 0, phraseProgressCounter = 1,
+        pathScope: Boolean = true, nameScope: Boolean = true, cursor: Int = 1) = computeCameraDerivedState(
+        tableTemplateState = t, now = time, counterDigits = 0, phraseProgressCounter = cursor,
         includePathInCounterScope = pathScope, includeFilenameInCounterScope = nameScope,
         saveMode = mode, syncedNextCounter = next, syncedRequest = request,
         tableResolver = TableResolver())
 
     private fun request(t: TableTemplateState = template, mode: SaveMode = SaveMode.BOTH,
-        time: Date = now, pathScope: Boolean = true, nameScope: Boolean = true): CounterRequest {
-        val pre = state(t, mode, time = time, pathScope = pathScope, nameScope = nameScope).captureScopeState
+        time: Date = now, pathScope: Boolean = true, nameScope: Boolean = true, cursor: Int = 1): CounterRequest {
+        val pre = state(t, mode, time = time, pathScope = pathScope, nameScope = nameScope, cursor = cursor).captureScopeState
         return CounterRequestResolver.fromCamera(mode, pre.counterScope.relativePathKey,
             pre.counterScope.streamPrefix, pre.scanPrefix, pathScope, nameScope)
     }
@@ -83,6 +83,32 @@ class CameraDerivedStateTest {
         val read = request()
         assertEquals(43, state(request = read, next = 43).displayCounter)
         assertEquals(42, state(request = read, next = 42).displayCounter)
-        assertEquals(template, template.copy())
     }
+
+    @Test fun rotatingPhraseChangeWaitsAndKeepsTableNameAndPathTogether() {
+        val phrase = TableCellState(0, 0, dataType = TableCellDataType.ROTATING_TEXT, phraseSetId = "phrases")
+        val phrases = template.copy(cells = listOf(phrase),
+            phraseSets = listOf(RotatingPhraseSet("phrases", "시료", listOf("오징어", "새우"))),
+            fileNameSlotDrafts = List(FILE_NAME_SLOT_COUNT) {
+                if (it == 0) TableEditorSlotDraft("CELL", "시료", cellId = phrase.cellId) else null
+            }, pathSlotDrafts = listOf(TableEditorSlotDraft("CELL", "시료", cellId = phrase.cellId)))
+        assertNull(state(phrases, request = request(phrases), cursor = 2).finalCapturePreview)
+        val result = state(phrases, request = request(phrases, cursor = 2), cursor = 2).finalCapturePreview!!
+        assertEquals("새우", result.resolvedCells.single().resolvedText)
+        assertEquals("새우_42.jpg", result.displayName)
+        assertEquals("Pictures/DZlog/새우/", result.relativePathPreview)
+        assertEquals(3, result.nextPhraseProgressCursor)
+    }
+
+    @Test fun dateFormatSlotChangeWaitsForTheNewDayRead() {
+        val dated = template.copy(fileNameSlotDrafts = List(FILE_NAME_SLOT_COUNT) {
+            if (it == 0) TableEditorSlotDraft("FORMAT", "날짜", formatType = "DATE", formatPattern = "yyyyMMdd") else null
+        })
+        val later = Date(now.time + 86_400_000L)
+        assertNull(state(dated, request = request(dated), time = later).finalCapturePreview)
+        val result = state(dated, request = request(dated, time = later), time = later).finalCapturePreview!!
+        assertTrue(result.displayName.endsWith("_42.jpg"))
+        assertNotEquals(state(dated, request = request(dated)).topDisplayName, result.displayName)
+    }
+
 }
