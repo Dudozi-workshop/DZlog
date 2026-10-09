@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
@@ -135,93 +137,69 @@ internal fun CameraSettingsOverlayPanel(
 
                 HorizontalDivider(color = DDZColor.Border)
 
-                SettingSectionTitle("촬영 비율")
-                CompactSegments(
-                    options = listOf(
+                CompactSettingsRow("비율") {
+                    CompactSegments(listOf(
                         DDZSegmentedControlOption("1:1", captureAspect == CaptureAspect.R1_1) { onCaptureAspectChange(CaptureAspect.R1_1) },
                         DDZSegmentedControlOption("3:4", captureAspect == CaptureAspect.R3_4) { onCaptureAspectChange(CaptureAspect.R3_4) },
-                        DDZSegmentedControlOption("9:16", captureAspect == CaptureAspect.R9_16) { onCaptureAspectChange(CaptureAspect.R9_16) }
-                    )
-                )
-
-                SettingSectionTitle("사진 저장")
-                CompactSegments(
-                    options = listOf(
+                        DDZSegmentedControlOption("9:16", captureAspect == CaptureAspect.R9_16) { onCaptureAspectChange(CaptureAspect.R9_16) },
+                    ))
+                }
+                CompactSettingsRow("저장") {
+                    CompactSegments(listOf(
                         DDZSegmentedControlOption("원본", saveMode == SaveMode.ORIGINAL_ONLY) { onSaveModeChange(SaveMode.ORIGINAL_ONLY) },
                         DDZSegmentedControlOption("표 합성", saveMode == SaveMode.WATERMARK_ONLY) { onSaveModeChange(SaveMode.WATERMARK_ONLY) },
-                        DDZSegmentedControlOption("둘 다", saveMode == SaveMode.BOTH) { onSaveModeChange(SaveMode.BOTH) }
-                    )
-                )
-
-                SettingSectionTitle("촬영 후 확인")
-                CompactSegments(
-                    options = listOf(
-                        DDZSegmentedControlOption("안 함", continuousPreviewMode == ContinuousPreviewMode.OFF) {
-                            onContinuousPreviewModeChange(ContinuousPreviewMode.OFF)
-                        },
-                        DDZSegmentedControlOption("잠깐", continuousPreviewMode == ContinuousPreviewMode.SHORT) {
-                            onContinuousPreviewModeChange(ContinuousPreviewMode.SHORT)
-                        },
-                        DDZSegmentedControlOption("유지", continuousPreviewMode == ContinuousPreviewMode.HOLD) {
-                            onContinuousPreviewModeChange(ContinuousPreviewMode.HOLD)
-                        }
-                    )
-                )
-
-                SettingSectionTitle("촬영 피드백")
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    CameraFeedbackChip(
-                        label = "소리",
-                        selected = captureSoundEnabled,
-                        onClick = { onCaptureSoundChange(!captureSoundEnabled) },
-                        modifier = Modifier.weight(1f),
-                    )
-                    CameraFeedbackChip(
-                        label = "진동",
-                        selected = captureHapticEnabled,
-                        onClick = { onCaptureHapticChange(!captureHapticEnabled) },
-                        modifier = Modifier.weight(1f),
-                    )
+                        DDZSegmentedControlOption("둘 다", saveMode == SaveMode.BOTH) { onSaveModeChange(SaveMode.BOTH) },
+                    ))
                 }
-
-                SettingSectionTitle("음량키")
-                CompactSegments(
-                    options = listOf(
-                        DDZSegmentedControlOption("사용 안 함", volumeKeyAction == VolumeKeyAction.NONE) {
-                            onVolumeKeyActionChange(VolumeKeyAction.NONE)
-                        },
-                        DDZSegmentedControlOption("배율", volumeKeyAction == VolumeKeyAction.ZOOM) {
-                            onVolumeKeyActionChange(VolumeKeyAction.ZOOM)
-                        },
-                        DDZSegmentedControlOption("촬영", volumeKeyAction == VolumeKeyAction.CAPTURE) {
-                            onVolumeKeyActionChange(VolumeKeyAction.CAPTURE)
-                        },
-                    )
-                )
+                CompactSettingsRow("촬영 확인") {
+                    CompactSegments(listOf(
+                        DDZSegmentedControlOption("안 함", continuousPreviewMode == ContinuousPreviewMode.OFF) { onContinuousPreviewModeChange(ContinuousPreviewMode.OFF) },
+                        DDZSegmentedControlOption("잠깐", continuousPreviewMode == ContinuousPreviewMode.SHORT) { onContinuousPreviewModeChange(ContinuousPreviewMode.SHORT) },
+                        DDZSegmentedControlOption("유지", continuousPreviewMode == ContinuousPreviewMode.HOLD) { onContinuousPreviewModeChange(ContinuousPreviewMode.HOLD) },
+                    ))
+                }
+                CompactSettingsRow("피드백") {
+                    CameraFeedbackChip("소리", captureSoundEnabled, { onCaptureSoundChange(!captureSoundEnabled) }, Modifier.weight(1f))
+                    CameraFeedbackChip("진동", captureHapticEnabled, { onCaptureHapticChange(!captureHapticEnabled) }, Modifier.weight(1f))
+                }
+                CompactSettingsRow("음량키") {
+                    CompactSegments(listOf(
+                        DDZSegmentedControlOption("안 함", volumeKeyAction == VolumeKeyAction.NONE) { onVolumeKeyActionChange(VolumeKeyAction.NONE) },
+                        DDZSegmentedControlOption("배율", volumeKeyAction == VolumeKeyAction.ZOOM) { onVolumeKeyActionChange(VolumeKeyAction.ZOOM) },
+                        DDZSegmentedControlOption("촬영", volumeKeyAction == VolumeKeyAction.CAPTURE) { onVolumeKeyActionChange(VolumeKeyAction.CAPTURE) },
+                    ))
+                }
             }
         }
     }
 }
 
+private val CompactCameraSegments = DDZSegmentedControlStyles.CameraPanel.copy(
+    widthFraction = 1f,
+    fixedHeight = 40.dp,
+    minItemHeight = 40.dp,
+    outerHorizontalPadding = 0.dp,
+    innerHorizontalPadding = 1.dp,
+    itemHorizontalPadding = 1.dp,
+    itemSpacing = 1.dp,
+    textStyle = DDZTypography.Caption.copy(fontSize = 11.sp),
+)
+
 @Composable
-private fun SettingSectionTitle(title: String) {
-    Text(
-        text = title,
-        style = DDZTypography.SectionLabelCompact,
-        color = DDZColor.Primary
-    )
+private fun CompactSettingsRow(label: String, content: @Composable RowScope.() -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(label, modifier = Modifier.width(55.dp), style = DDZTypography.Caption.copy(fontSize = 11.sp), color = DDZColor.Primary, maxLines = 1)
+        content()
+    }
 }
 
 @Composable
-private fun CompactSegments(options: List<DDZSegmentedControlOption>) {
-    // 3단계 정책: 촬영설정 패널도 공통 SegmentedControl 렌더러를 사용해 중복 UI를 제거한다.
-    DDZSegmentedControl(
-        options = options,
-        style = DDZSegmentedControlStyles.CameraPanel
-    )
+private fun RowScope.CompactSegments(options: List<DDZSegmentedControlOption>) {
+    DDZSegmentedControl(options = options, modifier = Modifier.weight(1f), style = CompactCameraSegments)
 }
 
 @Composable
@@ -244,7 +222,7 @@ private fun CameraFeedbackChip(
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text = label,
-                style = DDZTypography.Caption,
+                style = DDZTypography.Caption.copy(fontSize = 11.sp),
                 color = if (selected) DDZColor.SageDarkStrong else DDZColor.TextMuted,
             )
         }
