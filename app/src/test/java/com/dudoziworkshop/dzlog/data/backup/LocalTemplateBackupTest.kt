@@ -81,17 +81,21 @@ class LocalTemplateBackupTest {
         val original = item()
         val changed = original.templateState.copy(
             cells = original.templateState.cells.map { cell ->
-                if (cell.rowIndex == 0 && cell.colIndex == 0) cell.copy(rowSpan = 2)
-                else if (cell.rowIndex == 0 && cell.colIndex == 1) cell.copy(rowSpan = 2)
-                else cell
+                when {
+                    cell.rowIndex == 0 && cell.colIndex == 0 -> cell.copy(rowSpan = 2, colSpan = 2)
+                    cell.rowIndex == 1 && cell.colIndex == 1 -> cell.copy(rowSpan = 2)
+                    else -> cell
+                }
             }
         )
-        // The two vertical merges occupy distinct columns and are valid.
-        val archive = LocalTemplateBackupCodec.encode(
-            listOf(original.copy(templateState = changed)), original.id, 1000L
-        )
-        assertEquals(2, LocalTemplateBackupCodec.decode(archive)
-            .templates.single().templateState.cells.count { it.rowSpan == 2 })
+        try {
+            LocalTemplateBackupCodec.encode(
+                listOf(original.copy(templateState = changed)), original.id, 1000L
+            )
+            throw AssertionError("Overlapping merged roots must fail")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message?.isNotBlank() == true)
+        }
     }
 
     @Test fun referenceErrorsAreRejectedEvenWhenChecksumIsCorrect() {
