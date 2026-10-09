@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +25,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+
+// An asymmetric leaf silhouette, softened by the parent blur layer.
+private val AmbientLeafShape = GenericShape { size, _ ->
+    val w = size.width
+    val h = size.height
+    moveTo(0f, h * 0.53f)
+    cubicTo(w * 0.24f, -h * 0.12f, w * 0.73f, -h * 0.07f, w, h * 0.43f)
+    cubicTo(w * 0.76f, h * 0.94f, w * 0.27f, h * 1.14f, 0f, h * 0.53f)
+    close()
+}
 
 @Composable
 internal fun HomeAmbientBackground(
@@ -96,7 +107,7 @@ internal fun HomeAmbientBackground(
                     .size(width = HomeAmbientSpec.Leaf1Width, height = HomeAmbientSpec.Leaf1Height)
                     .rotate(HomeAmbientSpec.Leaf1Rotation)
                     .graphicsLayer { rotationZ = leaf1 }
-                    .background(shadow, RoundedCornerShape(50)),
+                    .background(shadow, AmbientLeafShape),
             )
             Box(
                 modifier = Modifier
@@ -104,7 +115,7 @@ internal fun HomeAmbientBackground(
                     .size(width = HomeAmbientSpec.Leaf2Width, height = HomeAmbientSpec.Leaf2Height)
                     .rotate(HomeAmbientSpec.Leaf2Rotation)
                     .graphicsLayer { rotationZ = leaf2 }
-                    .background(shadow, RoundedCornerShape(50)),
+                    .background(shadow, AmbientLeafShape),
             )
             Box(
                 modifier = Modifier
@@ -112,7 +123,7 @@ internal fun HomeAmbientBackground(
                     .size(width = HomeAmbientSpec.Leaf3Width, height = HomeAmbientSpec.Leaf3Height)
                     .rotate(HomeAmbientSpec.Leaf3Rotation)
                     .graphicsLayer { rotationZ = leaf3 }
-                    .background(shadow, RoundedCornerShape(50)),
+                    .background(shadow, AmbientLeafShape),
             )
             Box(
                 modifier = Modifier
@@ -120,7 +131,7 @@ internal fun HomeAmbientBackground(
                     .size(width = HomeAmbientSpec.Leaf1Width, height = HomeAmbientSpec.Leaf1Height)
                     .rotate(HomeAmbientSpec.Leaf4Rotation)
                     .graphicsLayer { rotationZ = leaf4 }
-                    .background(shadow, RoundedCornerShape(50)),
+                    .background(shadow, AmbientLeafShape),
             )
         }
 
