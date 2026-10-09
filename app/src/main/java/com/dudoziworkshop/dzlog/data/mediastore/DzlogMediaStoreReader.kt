@@ -225,6 +225,23 @@ class DzlogMediaStoreReader(
      * - RELATIVE_PATH 는 기기/버전에 따라 trailing slash 표현이 달라질 수 있어
      *   withSlash/withoutSlash 둘 다 허용하되, 폴더 단위 완전일치(=) 정책은 유지한다.
      */
+    /**
+     * Depth-independent folder index. Empty directory paths can be supplied by a
+     * future SAF directory enumerator; MediaStore alone cannot discover empty folders.
+     * Execute on Dispatchers.IO (not on the Compose main thread).
+     */
+    fun loadFolderIndex(
+        relativePath: String,
+        existingFolderPaths: List<String> = emptyList(),
+    ): com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex {
+        val paths = loadImagesUnderPrefix(relativePath).map { it.relativePath }
+        return com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy.index(
+            currentRelativePath = relativePath,
+            imageRelativePaths = paths,
+            existingFolderPaths = existingFolderPaths,
+        )
+    }
+
     fun loadImages(relativePath: String): List<MediaImageItem> {
         val where = MediaStoreQueryPolicy.whereExactRelativePath(relativePath)
         val projection = arrayOf(
