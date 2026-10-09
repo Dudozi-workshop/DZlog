@@ -50,6 +50,19 @@ class GallerySnapshotReadFailureTest {
         assertEquals(listOf(2L, 1L), photos.map { it.id })
         assertEquals(listOf("Pictures/DZlog/A/", "Pictures/DZlog/A/original/"), photos.map { it.relativePath })
     }
+    @Test fun unreadableOriginalFolderIsNotAnEmptyListInStrictMode() {
+        provider.nullCursor = true
+        assertThrows(IllegalStateException::class.java) {
+            reader.loadImages("Pictures/DZlog/A/original/", requireReadable = true)
+        }
+    }
+    @Test fun readableEmptyOriginalFolderIsValidInStrictMode() {
+        assertEquals(emptyList<Any>(), reader.loadImages("Pictures/DZlog/A/original/", requireReadable = true))
+    }
+    @Test fun existingExactQueryCallersRetainTheirNullFallback() {
+        provider.nullCursor = true
+        assertEquals(emptyList<Any>(), reader.loadImages("Pictures/DZlog/A/original/"))
+    }
     private class TestProvider : ContentProvider() {
         var nullCursor = false
         var denied = false

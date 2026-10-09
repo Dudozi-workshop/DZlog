@@ -314,7 +314,7 @@ class DzlogMediaStoreReader(
         )
     }
 
-    fun loadImages(relativePath: String): List<MediaImageItem> {
+    fun loadImages(relativePath: String, requireReadable: Boolean = false): List<MediaImageItem> {
         val where = MediaStoreQueryPolicy.whereExactRelativePath(relativePath)
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
@@ -322,7 +322,7 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATE_ADDED
         )
-        return queryImages(where, projection)
+        return queryImages(where, projection, requireReadable)
     }
 
     /**
