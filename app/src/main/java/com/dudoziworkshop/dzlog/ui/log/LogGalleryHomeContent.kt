@@ -297,8 +297,8 @@ internal fun GalleryFolderRow(
                     onClick = { menuExpanded = false; onManage("rename") })
                 DropdownMenuItem(text = { Text("이동") }, enabled = canManage,
                     onClick = { menuExpanded = false; onManage("move") })
-                // Enable only after recursive deletion, permission and partial-failure handling are implemented.
-                DropdownMenuItem(text = { Text("삭제") }, enabled = false, onClick = {})
+                DropdownMenuItem(text = { Text("삭제", color = DDZColor.Destructive) }, enabled = canManage,
+                    onClick = { menuExpanded = false; onManage("delete") })
             }
         }
     }

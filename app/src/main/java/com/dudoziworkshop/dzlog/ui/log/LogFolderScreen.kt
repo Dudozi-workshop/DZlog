@@ -362,7 +362,7 @@ fun LogFolderScreen(
         loadMoveDestinations()
     }
     fun startFolderManagement(path: String, action: String) {
-        if (folderManagementBusy || selectionActive) return
+        if (folderManagementBusy || selectionActive || manageAction != null || deleteBusy || photoMoveBusy) return
         managedFolderPath = path
         folderOperationError = null
         managementConfirmed = false
@@ -477,6 +477,10 @@ fun LogFolderScreen(
                     onClick = { startFolderManagement(relativePath, "rename") }) { Text("이름 변경") }
                 OutlinedButton(enabled = !folderManagementBusy && !selectionActive,
                     onClick = { startFolderManagement(relativePath, "move") }) { Text("이동") }
+                OutlinedButton(enabled = !folderManagementBusy && !selectionActive,
+                    onClick = { startFolderManagement(relativePath, "delete") }) {
+                    Text("삭제", color = DDZColor.Destructive)
+                }
             }
         }
         folderOperationError?.let { message ->
@@ -758,7 +762,27 @@ fun LogFolderScreen(
                 dismissButton = { TextButton(onClick = { showFolderAccessHelp = false }) { Text("취소") } },
             )
         }
-        if (manageAction != null) {
+        if (manageAction == "delete") {
+            GalleryFolderDeleteDialog(
+                path = managedFolderPath,
+                storage = folderStorage,
+                catalog = folderCatalog,
+                onCancel = { manageAction = null },
+                onChanged = {
+                    GallerySnapshotMemory.cache.invalidate()
+                    reloadKey++
+                },
+                onDeleted = {
+                    val deletedPath = managedFolderPath
+                    manageAction = null
+                    folderOperationError = "폴더 및 파일 삭제 완료"
+                    if (deletedPath == relativePath) {
+                        onOpenFolder(deletedPath.trimEnd('/').substringBeforeLast('/') + "/")
+                    }
+                },
+            )
+        }
+        if (manageAction != null && manageAction != "delete") {
             AlertDialog(
                 onDismissRequest = { if (!folderManagementBusy) manageAction = null },
                 title = { Text(if (manageAction == "rename") "폴더 이름 변경" else "폴더 이동") },
