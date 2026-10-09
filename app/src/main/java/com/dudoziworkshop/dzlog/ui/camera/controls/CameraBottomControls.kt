@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,9 +22,13 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -36,6 +41,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
@@ -87,6 +93,8 @@ internal fun CameraBottomControls(
 ) {
     val density = LocalDensity.current
     var bottomBarHeightPx by remember { mutableIntStateOf(0) }
+    var resizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
+    var resizeScale by remember { mutableFloatStateOf(1f) }
 
     val showToolMenu = ui.showToolMenu
     val selectedTool = ui.selectedTool
@@ -177,26 +185,84 @@ internal fun CameraBottomControls(
         )
 
         if (ui.isTableSelected) {
-            Box(
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = DDZSpacing.screenPadding + with(density) {
                         bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing
                     }),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
+                val baseline = resizeBaseline
+                if (baseline != null) {
+                    val sliderRange = cameraTableScaleRange(baseline)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth(0.85f)
+                            .background(DDZColor.Surface, RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                    ) {
+                        Text("표 크기 · 비율 유지", color = DDZColor.SageDarkStrong)
+                        Slider(
+                            value = resizeScale.coerceIn(sliderRange.start, sliderRange.endInclusive),
+                            onValueChange = { next ->
+                                resizeScale = next
+                                val resized = resizeCameraTableKeepingCenter(baseline, next)
+                                ui.prefs.wmTableWidthRatio = resized.widthRatio
+                                ui.prefs.wmTableHeightRatio = resized.heightRatio
+                                ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
+                                ui.prefs.wmBoundsOffsetX10000 = resized.x10000
+                                ui.prefs.wmBoundsOffsetY10000 = resized.y10000
+                                ui.prefs.wmOffsetXRatio = (resized.x10000 / 100f).toInt()
+                                ui.prefs.wmOffsetYRatio = (resized.y10000 / 100f).toInt()
+                            },
+                            onValueChangeFinished = {
+                                scope.launch {
+                                    settingsWriter.setWmTableSizeAndPosition(
+                                        ui.prefs.wmTableWidthRatio,
+                                        ui.prefs.wmTableHeightRatio,
+                                        ui.prefs.wmBoundsOffsetX10000,
+                                        ui.prefs.wmBoundsOffsetY10000,
+                                    )
+                                }
+                            },
+                            valueRange = sliderRange,
+                        )
+                    }
+                }
                 CameraTableSelectionToolbar(
                     onOpenDetails = {
+                        resizeBaseline = null
                         ui.isTableSelected = false
                         ui.dismissToolOverlays()
                         onOpenTableEditor()
                     },
                     onRotate = {
+                        resizeBaseline = null
                         val next = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
                         ui.prefs.wmRotationCwDeg = next
                         scope.launch { settingsWriter.setWmRotationCwDeg(next) }
                     },
+                    onResize = {
+                        if (resizeBaseline != null) {
+                            resizeBaseline = null
+                        } else {
+                            resizeBaseline = CameraTableResizeBaseline(
+                                widthRatio = ui.prefs.wmTableWidthRatio,
+                                heightRatio = ui.prefs.wmTableHeightRatio,
+                                rotationCwDeg = ui.prefs.wmRotationCwDeg,
+                                anchor = ui.prefs.wmTableAnchor,
+                                x10000 = ui.prefs.wmBoundsOffsetX10000,
+                                y10000 = ui.prefs.wmBoundsOffsetY10000,
+                                photoAspect = ui.prefs.captureAspect.ratioF,
+                            )
+                            resizeScale = 1f
+                        }
+                    },
                 )
             }
+        } else {
+            resizeBaseline = null
         }
 
         // Camera zoom remains directly available even when the tool menu is closed.
