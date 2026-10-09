@@ -85,6 +85,7 @@ internal class CameraUiState {
     var isToolPanelExpanded by mutableStateOf(false)
     var isZoomChipExpanded by mutableStateOf(false)
     var isTableSelected by mutableStateOf(false)
+    var isTableResizePanelOpen by mutableStateOf(false)
     var isPinchZoomActive by mutableStateOf(false)
     var focusMode by mutableStateOf(CameraFocusMode.AUTO)
     var focusUiValue by mutableFloatStateOf(0.5f)
