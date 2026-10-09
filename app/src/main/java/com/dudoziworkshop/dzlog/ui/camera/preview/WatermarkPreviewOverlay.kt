@@ -33,7 +33,7 @@ import com.dudoziworkshop.dzlog.watermark.rawRectFromBounds
  * - 목적: 촬영 화면에서 워터마크 미리보기 렌더
  */
 @Composable
-fun WatermarkPreviewOverlay(
+internal fun WatermarkPreviewOverlay(
     enabled: Boolean,
     request: CaptureRequest,
     previewContentRect: RectF?,
