@@ -46,6 +46,8 @@ import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderCatalog
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderStorage
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
+import com.dudoziworkshop.dzlog.data.mediastore.GalleryPhotoMover
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.feature.log.policy.CapturePathImpact
@@ -92,6 +94,12 @@ fun LogFolderScreen(
     var managementConfirmed by remember { mutableStateOf(false) }
     var folderOperationError by remember { mutableStateOf<String?>(null) }
     var connected by remember { mutableStateOf(folderStorage.isConnected()) }
+    var selectedPhotoIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var showPhotoMove by remember { mutableStateOf(false) }
+    var includeOriginals by remember { mutableStateOf<Boolean?>(null) }
+    var photoMoveTarget by remember { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
+    var photoMoveFolders by remember { mutableStateOf<List<String>>(emptyList()) }
+    var photoMoveBusy by remember { mutableStateOf(false) }
 
     var reloadKey by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -123,6 +131,30 @@ fun LogFolderScreen(
         loading = false
     }
 
+    fun togglePhoto(photo: MediaImageItem) {
+        selectedPhotoIds = if (photo.id in selectedPhotoIds) selectedPhotoIds - photo.id else selectedPhotoIds + photo.id
+    }
+    fun startPhotoMove() {
+        showPhotoMove = true
+        includeOriginals = null
+        photoMoveTarget = GalleryFolderIndexPolicy.ROOT
+        scope.launch {
+            photoMoveFolders = withContext(Dispatchers.IO) {
+                val rootImages = reader.loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT)
+                val allFolders = rootImages.map { it.relativePath }.toMutableSet()
+                allFolders += folderCatalog.listImmediatePaths(GalleryFolderIndexPolicy.ROOT)
+                val result = mutableSetOf(GalleryFolderIndexPolicy.ROOT)
+                allFolders.forEach { path ->
+                    var current = path
+                    while (current.startsWith(GalleryFolderIndexPolicy.ROOT)) {
+                        if (!GalleryPhotoMovePolicy.isOriginalPath(current)) result += current
+                        current = GalleryFolderIndexPolicy.parentOf(current) ?: break
+                    }
+                }
+                result.sorted()
+            }
+        }
+    }
     val root = relativePath == GalleryFolderIndexPolicy.ROOT
     val title = if (root) "갤러리" else relativePath.trimEnd('/').substringAfterLast('/')
     Column(modifier = Modifier.dzScreen().padding(horizontal = 16.dp)) {
@@ -186,6 +218,13 @@ fun LogFolderScreen(
                 }) { Text("이동") }
             }
         }
+        if (selectedPhotoIds.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("${selectedPhotoIds.size}장 선택", modifier = Modifier.weight(1f))
+                OutlinedButton(onClick = { selectedPhotoIds = emptySet() }) { Text("취소") }
+                Button(onClick = ::startPhotoMove) { Text("이동") }
+            }
+        }
         folderOperationError?.let { message ->
             Text(message, color = DDZColor.Destructive)
         }
@@ -206,6 +245,9 @@ fun LogFolderScreen(
                 onOpenFolder = onOpenFolder,
                 onOpenPhoto = onOpenPhoto,
                 onOpenOriginal = onOpenOriginal,
+                selectedIds = selectedPhotoIds,
+                onLongPressPhoto = ::togglePhoto,
+                onSelectPhoto = ::togglePhoto,
             )
         } else {
             val current = index
@@ -237,7 +279,7 @@ fun LogFolderScreen(
                     item { Text("이 폴더에 저장된 사진이 없습니다.", color = DDZColor.TextSecondary) }
                 } else {
                     items(photos.chunked(3)) { rowPhotos ->
-                        GalleryPhotoRow(rowPhotos) { photo ->
+                        GalleryPhotoRow(rowPhotos, selectedPhotoIds, ::togglePhoto, ::togglePhoto) { photo ->
                             onOpenPhoto(photos, photos.indexOfFirst { it.id == photo.id })
                         }
                     }
@@ -258,6 +300,74 @@ fun LogFolderScreen(
                     }
                 }
             }
+        }
+        if (showPhotoMove) {
+            val selected = (if (root) allPhotos else photos).filter { it.id in selectedPhotoIds }
+            val originalMatches = GalleryPhotoMovePolicy.pairedOriginals(selected, allPhotos)
+            AlertDialog(
+                onDismissRequest = { if (!photoMoveBusy) showPhotoMove = false },
+                title = { Text("사진 이동") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("선택한 사진 ${selected.size}장")
+                        Text("이동할 폴더")
+                        Column(Modifier.fillMaxWidth().heightIn(max = 180.dp).verticalScroll(rememberScrollState())) {
+                            photoMoveFolders.forEach { folder ->
+                                OutlinedButton(onClick = { photoMoveTarget = folder }) {
+                                    Text((if (photoMoveTarget == folder) "✓ " else "") +
+                                        folder.removePrefix(GalleryFolderIndexPolicy.ROOT).ifBlank { "DZlog" })
+                                }
+                            }
+                        }
+                        if (originalMatches.isNotEmpty()) {
+                            Text("연결 후보 원본 ${originalMatches.size}장도 함께 이동할까요?")
+                            Row {
+                                OutlinedButton(onClick = { includeOriginals = false }) {
+                                    Text(if (includeOriginals == false) "✓ 사진만" else "사진만")
+                                }
+                                OutlinedButton(onClick = { includeOriginals = true }) {
+                                    Text(if (includeOriginals == true) "✓ 원본 포함" else "원본 포함")
+                                }
+                            }
+                        } else {
+                            Text("연결된 원본사진 없음")
+                        }
+                        Text("촬영 저장규칙은 변경되지 않습니다.", color = DDZColor.TextSecondary)
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = !photoMoveBusy && photoMoveFolders.contains(photoMoveTarget) &&
+                            (originalMatches.isEmpty() || includeOriginals != null),
+                        onClick = {
+                            photoMoveBusy = true
+                            scope.launch {
+                                val result = withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        val plan = GalleryPhotoMovePolicy.plan(
+                                            selected, originalMatches, photoMoveTarget, includeOriginals == true,
+                                        )
+                                        GalleryPhotoMover(context.contentResolver).move(plan)
+                                    }
+                                }
+                                photoMoveBusy = false
+                                result.onSuccess { moved ->
+                                    if (moved.moved > 0) {
+                                        GallerySnapshotMemory.cache.invalidate()
+                                        selectedPhotoIds = emptySet()
+                                        reloadKey++
+                                    }
+                                    folderOperationError = if (moved.failed > 0) {
+                                        "이동 ${moved.moved}장, 미완료 ${moved.failed}장. ${moved.detail.orEmpty()}"
+                                    } else "사진 ${moved.moved}장 이동 완료"
+                                    showPhotoMove = false
+                                }.onFailure { folderOperationError = it.message ?: "사진 이동 실패" }
+                            }
+                        },
+                    ) { Text(if (photoMoveBusy) "이동 중" else "이동") }
+                },
+                dismissButton = { TextButton(onClick = { showPhotoMove = false }) { Text("취소") } },
+            )
         }
         if (manageAction != null) {
             AlertDialog(
