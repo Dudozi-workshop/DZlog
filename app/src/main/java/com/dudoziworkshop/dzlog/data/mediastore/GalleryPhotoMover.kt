@@ -54,10 +54,10 @@ class GalleryPhotoMover(private val resolver: ContentResolver) {
             val existing = mutableMapOf<String, Set<String>>()
             for (path in pending.map { requireNotNull(plan.destinations[it.id]) }.distinct()) {
                 val where = MediaStoreQueryPolicy.whereExactRelativePath(path)
-                val names = resolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                val names: Set<String> = resolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     arrayOf(MediaStore.Images.Media.DISPLAY_NAME), where.selection, where.selectionArgs, null
                 )?.use { cursor ->
-                    buildSet { while (cursor.moveToNext()) add(cursor.getString(0).orEmpty().lowercase(Locale.ROOT)) }
+                    buildSet<String> { while (cursor.moveToNext()) add(cursor.getString(0).orEmpty().lowercase(Locale.ROOT)) }
                 } ?: return result("대상 폴더 확인에 실패했습니다.")
                 existing[path] = names
             }
