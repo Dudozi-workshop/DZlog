@@ -167,6 +167,8 @@ fun LogFolderScreen(
         onError = { folderOperationError = it },
     )
     val deleteBusy = deleteAction.busy || photoDeleteLoading
+    val operationLocked = deleteBusy || photoMoveBusy || pendingPhotoPlan != null || folderManagementBusy
+    val navigationLocked = operationLocked || manageAction != null || showPhotoDelete || showPhotoMove
     val folderAccess = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
         if (treeUri == null) {
             folderAccessBusy = false
@@ -252,15 +254,14 @@ fun LogFolderScreen(
         val result = runCatching {
             withContext(Dispatchers.IO) {
                 val physicalFolders = if (folderStorage.isConnected())
-                    runCatching { folderStorage.listImmediateFolderPaths(relativePath) }.getOrDefault(emptyList())
+                    folderStorage.listImmediateFolderPaths(relativePath)
                     else emptyList()
                 // Each visible child needs its immediate directories for its summary.
                 // A bounded second level is enough; no recursive SAF tree scan is needed.
                 val physicalChildFolders = physicalFolders
                     .filterNot { it.trimEnd('/').substringAfterLast('/').equals("original", true) }
                     .flatMap { childPath ->
-                        runCatching { folderStorage.listImmediateFolderPaths(childPath) }
-                            .getOrDefault(emptyList())
+                        folderStorage.listImmediateFolderPaths(childPath)
                     }
                 val catalogFolders = folderCatalog.listDescendantPaths(relativePath)
                 reader.loadGallerySnapshot(
@@ -276,27 +277,31 @@ fun LogFolderScreen(
             photos = snapshot.directPhotos
             allPhotos = snapshot.allPhotos
             error = null
-        }.onFailure { if (index == null) error = "목록을 불러오지 못했습니다." }
+        }.onFailure {
+            if (it is kotlinx.coroutines.CancellationException) throw it
+            error = if (index == null) "목록을 불러오지 못했습니다."
+                else "목록 갱신에 실패했습니다. 마지막으로 확인한 목록을 표시합니다."
+        }
         loading = false
     }
 
     fun enterSelection(photo: MediaImageItem) {
-        if (deleteBusy || showPhotoDelete) return
+        if (operationLocked || showPhotoDelete || showPhotoMove || manageAction != null) return
         selectionActive = true
         selectedPhotoIds = selectedPhotoIds + photo.id
     }
     fun cancelSelection() {
-        if (deleteBusy || showPhotoDelete) return
+        if (operationLocked || showPhotoDelete || showPhotoMove || manageAction != null) return
         selectedPhotoIds = emptySet()
         selectionActive = false
     }
     fun togglePhoto(photo: MediaImageItem) {
-        if (deleteBusy || showPhotoDelete) return
+        if (operationLocked || showPhotoDelete || showPhotoMove || manageAction != null) return
         selectionActive = true
         selectedPhotoIds = if (photo.id in selectedPhotoIds) selectedPhotoIds - photo.id else selectedPhotoIds + photo.id
     }
     fun startPhotoDelete() {
-        if (selectedPhotoIds.isEmpty() || deleteBusy || photoMoveBusy || pendingPhotoPlan != null) return
+        if (selectedPhotoIds.isEmpty() || operationLocked || manageAction != null) return
         val requestedIds = selectedPhotoIds
         retryDeletePlan = null
         folderOperationError = null
@@ -351,7 +356,7 @@ fun LogFolderScreen(
         }
     }
     fun startPhotoMove() {
-        if (selectedPhotoIds.isEmpty() || photoMoveBusy || pendingPhotoPlan != null) return
+        if (selectedPhotoIds.isEmpty() || operationLocked || manageAction != null) return
         folderOperationError = null
         retryPhotoPlan = null
         showPhotoMove = true
@@ -395,14 +400,15 @@ fun LogFolderScreen(
     }
     val selectableIds = selectablePhotos.mapTo(mutableSetOf()) { it.id }
     val allSelected = selectableIds.isNotEmpty() && selectedPhotoIds.containsAll(selectableIds)
-    LaunchedEffect(selectableIds, showPhotoMove, photoMoveBusy, deleteBusy, showPhotoDelete) {
-        if (!showPhotoMove && !photoMoveBusy && !deleteBusy && !showPhotoDelete) selectedPhotoIds = selectedPhotoIds.intersect(selectableIds)
+    LaunchedEffect(selectableIds, showPhotoMove, photoMoveBusy, pendingPhotoPlan, deleteBusy, showPhotoDelete) {
+        if (!showPhotoMove && !photoMoveBusy && pendingPhotoPlan == null && !deleteBusy && !showPhotoDelete) selectedPhotoIds = selectedPhotoIds.intersect(selectableIds)
     }
     BackHandler(enabled = showPhotoDelete && photoDeleteLoading) { showPhotoDelete = false }
     BackHandler(enabled = showRecentPhotos && !selectionActive && !showPhotoMove) { showRecentPhotos = false }
     BackHandler(enabled = selectionActive && !showPhotoMove) {
         if (!photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null) cancelSelection()
     }
+    BackHandler(enabled = operationLocked && !photoDeleteLoading) { /* Preserve the active operation and its callbacks. */ }
     val title = if (showRecentPhotos) "최근 촬영" else if (root) "갤러리"
         else relativePath.trimEnd('/').substringAfterLast('/')
     val currentSummary = summariesByPath[relativePath]
@@ -421,7 +427,9 @@ fun LogFolderScreen(
             }
         } else {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                IconButton(onClick = { if (showRecentPhotos) showRecentPhotos = false else onBack() }) {
+                IconButton(enabled = !navigationLocked, onClick = { if (!navigationLocked) {
+                    if (showRecentPhotos) showRecentPhotos = false else onBack()
+                } }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
                 }
                 Column(modifier = Modifier.weight(1f)) {
@@ -458,7 +466,7 @@ fun LogFolderScreen(
                         text = crumb.label,
                         color = if (crumb.relativePath == relativePath) DDZColor.TextPrimary
                             else DDZColor.Primary,
-                        modifier = Modifier.clickable(enabled = !selectionActive) {
+                        modifier = Modifier.clickable(enabled = !selectionActive && !navigationLocked) {
                             if (crumb.relativePath != relativePath) onOpenFolder(crumb.relativePath)
                         }.padding(vertical = 5.dp),
                     )
@@ -473,11 +481,11 @@ fun LogFolderScreen(
         }
         if (!root && connected) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(enabled = !folderManagementBusy && !selectionActive,
+                OutlinedButton(enabled = !navigationLocked && !selectionActive,
                     onClick = { startFolderManagement(relativePath, "rename") }) { Text("이름 변경") }
-                OutlinedButton(enabled = !folderManagementBusy && !selectionActive,
+                OutlinedButton(enabled = !navigationLocked && !selectionActive,
                     onClick = { startFolderManagement(relativePath, "move") }) { Text("이동") }
-                OutlinedButton(enabled = !folderManagementBusy && !selectionActive,
+                OutlinedButton(enabled = !navigationLocked && !selectionActive,
                     onClick = { startFolderManagement(relativePath, "delete") }) {
                     Text("삭제", color = DDZColor.Destructive)
                 }
@@ -485,6 +493,12 @@ fun LogFolderScreen(
         }
         folderOperationError?.let { message ->
             Text(message, color = DDZColor.Destructive)
+        }
+        if (error != null && index != null) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(requireNotNull(error), color = DDZColor.TextSecondary, modifier = Modifier.weight(1f))
+                TextButton(onClick = { reloadKey++ }) { Text("다시 시도") }
+            }
         }
         retryPhotoPlan?.let { retry ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -506,7 +520,7 @@ fun LogFolderScreen(
         Column(Modifier.weight(1f)) {
             if (loading && index == null) {
                 GalleryLoadingSkeleton()
-            } else if (error != null) {
+            } else if (error != null && index == null) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("사진 목록을 표시할 수 없습니다.", color = DDZColor.TextSecondary)
                     OutlinedButton(onClick = { reloadKey++ }) { Text("다시 시도") }
@@ -518,7 +532,7 @@ fun LogFolderScreen(
                     } else {
                         items(recentPhotos.chunked(3)) { row ->
                             GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
-                                onOpenPhoto(recentPhotos, recentPhotos.indexOfFirst { it.id == photo.id })
+                                if (!navigationLocked) onOpenPhoto(recentPhotos, recentPhotos.indexOfFirst { it.id == photo.id })
                             }
                         }
                     }
@@ -526,18 +540,18 @@ fun LogFolderScreen(
             } else if (root && index != null) {
                 LogGalleryHomeContent(
                     selectedTab = selectedTab,
-                    onTabChange = { if (!selectionActive) selectedTab = it },
+                    onTabChange = { if (!selectionActive && !navigationLocked) selectedTab = it },
                     folderIndex = requireNotNull(index),
                     summariesByPath = summariesByPath,
                     allImages = allPhotos,
                     favoriteIds = favoriteIds,
-                    onOpenFolder = { if (!selectionActive) onOpenFolder(it) },
-                    onOpenPhoto = onOpenPhoto,
-                    onOpenOriginal = { if (!selectionActive) onOpenOriginal(it) },
-                    onOpenRecentPhotos = { if (!selectionActive) showRecentPhotos = true },
+                    onOpenFolder = { if (!selectionActive && !navigationLocked) onOpenFolder(it) },
+                    onOpenPhoto = { photos, index -> if (!navigationLocked) onOpenPhoto(photos, index) },
+                    onOpenOriginal = { if (!selectionActive && !navigationLocked) onOpenOriginal(it) },
+                    onOpenRecentPhotos = { if (!selectionActive && !navigationLocked) showRecentPhotos = true },
                     onManageFolder = ::startFolderManagement,
-                    canManageFolders = connected && !folderManagementBusy && !selectionActive,
-                    onCreateFolder = { folderOperationError = null; showCreateDialog = true },
+                    canManageFolders = connected && !navigationLocked && !selectionActive,
+                    onCreateFolder = { if (!selectionActive && !navigationLocked) { folderOperationError = null; showCreateDialog = true } },
                     selectedIds = selectedPhotoIds,
                     selectionActive = selectionActive,
                     onLongPressPhoto = ::enterSelection,
@@ -549,7 +563,7 @@ fun LogFolderScreen(
                     item {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("하위 폴더", fontWeight = FontWeight.SemiBold)
-                            TextButton(onClick = { folderOperationError = null; showCreateDialog = true }) {
+                            TextButton(enabled = !selectionActive && !navigationLocked, onClick = { if (!selectionActive && !navigationLocked) { folderOperationError = null; showCreateDialog = true } }) {
                                 Icon(Icons.Default.CreateNewFolder, contentDescription = null)
                                 Text(" 새 폴더")
                             }
@@ -559,10 +573,10 @@ fun LogFolderScreen(
                         items(current.children, key = { it.relativePath }) { folder ->
                             val summary = summariesByPath[folder.relativePath]
                             GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
-                                canManage = connected && !folderManagementBusy && !selectionActive,
+                                canManage = connected && !navigationLocked && !selectionActive,
                                 onManage = { action -> startFolderManagement(folder.relativePath, action) },
                             ) {
-                                if (!selectionActive) onOpenFolder(folder.relativePath)
+                                if (!selectionActive && !navigationLocked) onOpenFolder(folder.relativePath)
                             }
                         }
                     }
@@ -592,7 +606,7 @@ fun LogFolderScreen(
                     } else {
                         items(sortedPhotos.chunked(3)) { rowPhotos ->
                             GalleryPhotoRow(rowPhotos, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
-                                onOpenPhoto(sortedPhotos, sortedPhotos.indexOfFirst { it.id == photo.id })
+                                if (!navigationLocked) onOpenPhoto(sortedPhotos, sortedPhotos.indexOfFirst { it.id == photo.id })
                             }
                         }
                     }
@@ -600,7 +614,7 @@ fun LogFolderScreen(
                         item {
                             Row(
                                 modifier = Modifier.fillMaxWidth()
-                                    .clickable(enabled = !selectionActive) { onOpenOriginal(relativePath + "original/") }
+                                    .clickable(enabled = !selectionActive && !navigationLocked) { onOpenOriginal(relativePath + "original/") }
                                     .padding(vertical = 16.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
