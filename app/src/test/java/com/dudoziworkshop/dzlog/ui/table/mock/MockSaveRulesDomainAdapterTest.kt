@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.ui.table.mock
 import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
 import com.dudoziworkshop.dzlog.data.template.tableTemplateStateFromJson
 import com.dudoziworkshop.dzlog.data.template.toJsonString
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
@@ -71,7 +72,7 @@ class MockSaveRulesDomainAdapterTest {
         assertEquals("CELL", updated.fileNameSlotDrafts[0]?.kind)
         assertEquals("cell-1", updated.fileNameSlotDrafts[0]?.cellId)
         assertEquals("TIME", updated.pathSlotDrafts[2]?.formatType)
-        assertEquals(3, updated.pathSlotDrafts.size)
+        assertEquals(PATH_SLOT_UI_MAX_COUNT, updated.pathSlotDrafts.size)
     }
 
 
@@ -264,7 +265,7 @@ class MockSaveRulesDomainAdapterTest {
     }
 
     @Test
-    fun `legacy path tail is dropped during json migration`() {
+    fun `sixth path slot is dropped during json migration`() {
         val base = newBlankTableTemplateState(rows = 1, cols = 1)
         val root = JSONObject(base.toJsonString())
         val pathSlots = root.getJSONArray("pathSlotDrafts")
@@ -272,13 +273,13 @@ class MockSaveRulesDomainAdapterTest {
             JSONObject()
                 .put("kind", "MANUAL")
                 .put("label", "legacy")
-                .put("manualText", "hidden-fourth"),
+                .put("manualText", "hidden-sixth"),
         )
 
         val migrated = tableTemplateStateFromJson(root.toString())
             ?: error("migration failed")
 
-        assertEquals(3, migrated.pathSlotDrafts.size)
+        assertEquals(PATH_SLOT_UI_MAX_COUNT, migrated.pathSlotDrafts.size)
         assertTrue(migrated.pathSlotDrafts.none { it?.manualText == "hidden-fourth" })
     }
 

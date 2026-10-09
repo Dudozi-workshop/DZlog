@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.domain.capturepolicy
 
 import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
+import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -148,7 +149,8 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             captureContext = CaptureContext(
                 resolvedCells = resolvedCells,
                 captureNow = Date(0),
-                fileNameSlotDrafts = fileNameSlotDrafts,
+                fileNameSlotDrafts = fileNameSlotDrafts.take(FILE_NAME_SLOT_COUNT) +
+                    List((FILE_NAME_SLOT_COUNT - fileNameSlotDrafts.size).coerceAtLeast(0)) { null },
                 pathSlotDrafts = listOf(null, null),
                 fnDelim = "_",
                 counterDigits = 2,

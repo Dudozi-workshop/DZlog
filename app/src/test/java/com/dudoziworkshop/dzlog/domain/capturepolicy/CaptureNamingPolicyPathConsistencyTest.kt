@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.domain.capturepolicy
 
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterScopeParts
 import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
+import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -102,20 +103,22 @@ class CaptureNamingPolicyPathConsistencyTest {
     }
 
     @Test
-    fun `only first three path slots are used by preview counter and capture naming`() {
+    fun `five path slots are used and sixth is ignored by preview counter and capture naming`() {
         val result = CaptureNamingPolicy.buildForCaptureWithCounter(
             captureContext = baseContext(
                 pathSlotDrafts = listOf(
                     TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
                     TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "B"),
                     TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "C"),
-                    TableEditorSlotDraft(kind = "MANUAL", label = "legacy", manualText = "D"),
+                    TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "D"),
+                    TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "E"),
+                    TableEditorSlotDraft(kind = "MANUAL", label = "legacy", manualText = "F"),
                 )
             ),
             usedCounter = 1,
         )
 
-        assertEquals("Pictures/DZlog/A/B/C/", result.relativePath)
+        assertEquals("Pictures/DZlog/A/B/C/D/E/", result.relativePath)
         assertEquals(result.relativePath, result.counterScope.relativePathKey)
     }
 
@@ -147,7 +150,7 @@ class CaptureNamingPolicyPathConsistencyTest {
         return CaptureContext(
             resolvedCells = resolvedCells,
             captureNow = Date(0),
-            fileNameSlotDrafts = listOf(null, null, null),
+            fileNameSlotDrafts = List(FILE_NAME_SLOT_COUNT) { null },
             pathSlotDrafts = pathSlotDrafts,
             fnDelim = "_",
             counterDigits = 2,
