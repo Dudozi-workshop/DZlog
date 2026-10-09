@@ -2,6 +2,7 @@
 
 package com.dudoziworkshop.dzlog.ui.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -17,15 +18,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -34,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -53,6 +59,10 @@ private fun clampDp(value: Dp, min: Dp, max: Dp): Dp = when {
 fun HomeScreen(
     tableTemplateState: TableTemplateState,
     activeTemplateName: String = "",
+    templates: List<SavedTableTemplate> = emptyList(),
+    activeTemplateId: String? = null,
+    onSelectTemplate: (String) -> Unit = {},
+    onManageTemplates: () -> Unit = {},
     onOpenSettings: () -> Unit,
     onStartCamera: () -> Unit,
     onOpenTableEditor: () -> Unit,
@@ -60,6 +70,7 @@ fun HomeScreen(
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
 ) {
+    var showTemplatePicker by remember { mutableStateOf(false) }
     val homeViewModel: HomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val uiState by homeViewModel.uiState.collectAsState()
     val settings = uiState.settings
@@ -128,6 +139,7 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable { showTemplatePicker = true }
                     .padding(horizontal = HomeUiSpec.CurrentCaptureInnerHorizontalPadding),
                 horizontalAlignment = Alignment.Start,
             ) {
@@ -137,17 +149,25 @@ fun HomeScreen(
                     color = DDZColor.TextSecondary,
                 )
                 Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
-                Text(
-                    text = normalizedTemplateName,
-                    style = DDZTypography.ScreenTitle.copy(
-                        fontSize = HomeUiSpec.TemplateNameSize,
-                        lineHeight = HomeUiSpec.TemplateNameLineHeight,
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                    color = DDZColor.TextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = normalizedTemplateName,
+                        style = DDZTypography.ScreenTitle.copy(
+                            fontSize = HomeUiSpec.TemplateNameSize,
+                            lineHeight = HomeUiSpec.TemplateNameLineHeight,
+                            fontWeight = FontWeight.SemiBold,
+                        ),
+                        color = DDZColor.TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "템플릿 선택",
+                        tint = DDZColor.TextSecondary,
+                    )
+                }
                 Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
                 Text(
                     text = stringResource(com.dudoziworkshop.dzlog.R.string.home_next_capture, nextCounterText),
@@ -218,5 +238,20 @@ fun HomeScreen(
                 )
             }
         }
+    }
+    if (showTemplatePicker) {
+        HomeTemplatePicker(
+            templates = templates,
+            activeTemplateId = activeTemplateId,
+            onSelect = { templateId ->
+                onSelectTemplate(templateId)
+                showTemplatePicker = false
+            },
+            onManage = {
+                showTemplatePicker = false
+                onManageTemplates()
+            },
+            onDismiss = { showTemplatePicker = false },
+        )
     }
 }
