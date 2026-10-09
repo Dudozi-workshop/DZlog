@@ -43,7 +43,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
-import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
@@ -85,7 +84,7 @@ internal fun CameraBottomControls(
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: MutableList<List<Uri>>,
     undoPending: Boolean,
-    onUndoDelete: (targetUris: List<Uri>) -> Unit,
+    onUndoDelete: () -> Unit,
     onTriggerCapture: () -> Unit,
     onOpenQuickValues: () -> Unit,
     onOpenTableEditor: () -> Unit,
@@ -319,7 +318,7 @@ private fun BoxScope.CameraBottomBarRow(
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     onTriggerCapture: () -> Unit,
-    onUndoDelete: (List<Uri>) -> Unit,
+    onUndoDelete: () -> Unit,
     onShutterButtonTopYChange: (Float?) -> Unit,
     onOpenQuickValues: () -> Unit,
     onBottomBarHeightChange: (Int) -> Unit,
@@ -391,9 +390,7 @@ private fun BoxScope.CameraBottomBarRow(
                     onClick = {
                         ui.dismissCameraInteractions()
                         if (undoPending) return@UndoCaptureButton
-                        val targetUris = UndoCapturePolicy.consumeLatestCapture(stack = sessionCaptureStack)
-                        if (targetUris.isEmpty()) return@UndoCaptureButton
-                        onUndoDelete(targetUris)
+                        onUndoDelete()
                     }
                 )
             }
