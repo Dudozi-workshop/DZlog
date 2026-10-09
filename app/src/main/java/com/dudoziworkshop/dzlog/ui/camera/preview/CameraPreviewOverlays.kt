@@ -25,6 +25,7 @@ internal fun CameraPreviewOverlays(
     tapFocusUi: TapFocusUiState?,
     isWatermarkArmed: Boolean,
     watermarkOffsetOverridePx: Offset?,
+    dragVisibleOffsetPx: Offset?,
     onWatermarkBoundsRectChange: (RectF?) -> Unit,
     onWatermarkRawRectChange: (RectF?) -> Unit,
 ) {
@@ -43,6 +44,7 @@ internal fun CameraPreviewOverlays(
         request = previewRequest,
         previewContentRect = previewContentRect,
         overrideOffsetPx = watermarkOffsetOverridePx,
+        dragVisibleOffsetPx = dragVisibleOffsetPx,
         isArmed = isWatermarkArmed,
         onBoundsRectChange = onWatermarkBoundsRectChange,
         onRawRectChange = onWatermarkRawRectChange
