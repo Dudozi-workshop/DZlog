@@ -38,6 +38,7 @@ import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummaryPolicy
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import java.util.TimeZone
 
 enum class GalleryTab(val label: String) {
     ALL("전체"),
@@ -229,7 +230,11 @@ internal fun GalleryFolderRow(
             Text(
                 if (summary == null) "집계 정보 없음" else
                     "사진 ${summary.totalPhotoCount} · 하위 ${summary.directChildFolderCount} · 최근 " +
-                        GalleryFolderSummaryPolicy.compactDate(summary.latestPhotoEpochMillis),
+                        GalleryFolderSummaryPolicy.compactDate(
+                            epochMillis = summary.latestPhotoEpochMillis,
+                            referenceMillis = System.currentTimeMillis(),
+                            timeZone = TimeZone.getDefault(),
+                        ),
                 color = DDZColor.TextSecondary,
                 fontSize = 12.sp,
             )
