@@ -36,21 +36,46 @@ internal fun rememberUndoDeleteController(
     val latestOnRestore = rememberUpdatedState(onRestore)
 
     var pendingUndoDeleteUris by remember { mutableStateOf<List<Uri>?>(null) }
+    var retryPermissionDeleteUri by remember { mutableStateOf<Uri?>(null) }
     var isDeleting by remember { mutableStateOf(false) }
 
     val undoDeleteLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         val pendingUris = pendingUndoDeleteUris ?: return@rememberLauncherForActivityResult
-        try {
-            if (result.resultCode == Activity.RESULT_OK) {
-                latestOnCommitted.value()
-            } else {
+        val needsRetry = retryPermissionDeleteUri != null
+        pendingUndoDeleteUris = null
+        retryPermissionDeleteUri = null
+
+        if (result.resultCode != Activity.RESULT_OK) {
+            try {
                 latestOnRestore.value(pendingUris)
+            } finally {
+                isDeleting = false
             }
-        } finally {
-            pendingUndoDeleteUris = null
-            isDeleting = false
+        } else if (!needsRetry) {
+            // Android 11+ MediaStore.createDeleteRequest performs deletion itself.
+            try {
+                latestOnCommitted.value()
+            } finally {
+                isDeleting = false
+            }
+        } else {
+            // Android 10 RecoverableSecurityException grants access only.
+            // The app must issue the delete call again after user consent.
+            scope.launch {
+                try {
+                    val failed = withContext(Dispatchers.IO) {
+                        pendingUris.filter { uri ->
+                            runCatching { context.contentResolver.delete(uri, null, null) > 0 }.getOrDefault(false).not()
+                        }
+                    }
+                    if (failed.size < pendingUris.size) latestOnCommitted.value()
+                    if (failed.isNotEmpty()) latestOnRestore.value(failed)
+                } finally {
+                    isDeleting = false
+                }
+            }
         }
     }
 
@@ -103,6 +128,7 @@ internal fun rememberUndoDeleteController(
             if (otherFailures.isNotEmpty()) latestOnRestore.value(otherFailures)
 
             pendingUndoDeleteUris = listOf(recoverableUri)
+            retryPermissionDeleteUri = recoverableUri
             runCatching {
                 val security = recoverable.second.exceptionOrNull() as RecoverableSecurityException
                 undoDeleteLauncher.launch(
@@ -110,6 +136,7 @@ internal fun rememberUndoDeleteController(
                 )
             }.onFailure {
                 pendingUndoDeleteUris = null
+                retryPermissionDeleteUri = null
                 latestOnRestore.value(listOf(recoverableUri))
             }
         } finally {
@@ -122,6 +149,8 @@ internal fun rememberUndoDeleteController(
         if (isDeleting || pendingUndoDeleteUris != null || targetUris.isEmpty()) return
         isDeleting = true
         val launched = runCatching { launchScopedDeleteRequest(targetUris) }.getOrElse {
+            pendingUndoDeleteUris = null
+            retryPermissionDeleteUri = null
             isDeleting = false
             latestOnRestore.value(targetUris)
             return
