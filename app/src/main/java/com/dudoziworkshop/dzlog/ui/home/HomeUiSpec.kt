@@ -21,7 +21,7 @@ internal object HomeUiSpec {
     val PrimaryButtonTextSize = 15.sp
     val PrimaryButtonHorizontalInset = 10.dp
 
-    const val RecentImageWidthFraction = 0.90f
+    const val RecentImageWidthFraction = 0.81f
     const val RecentImageAspectRatio = 1.58f
     val RecentImageRadius = 15.dp
 
