@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -78,6 +80,8 @@ private data class QualityUiItem(
 fun SettingsRootScreen(
     onBack: () -> Unit,
     onOpenCredits: () -> Unit = {},
+    onOpenExport: () -> Unit = {},
+    onOpenImport: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -213,7 +217,26 @@ fun SettingsRootScreen(
                     }
                 }
 
-                // Show data management only when local backup/import actually works.
+                SettingsSection(title = "데이터 관리") {
+                    SettingsGroup {
+                        SettingsActionRow(
+                            icon = Icons.Default.FileDownload,
+                            title = "작업 환경 내보내기",
+                            subtitle = "표 템플릿과 저장 규칙 백업",
+                            onClick = onOpenExport,
+                            trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
+                        )
+                        SettingsDivider()
+                        SettingsActionRow(
+                            icon = Icons.Default.FileUpload,
+                            title = "작업 환경 가져오기",
+                            subtitle = "백업 파일에서 템플릿 추가",
+                            onClick = onOpenImport,
+                            trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
+                        )
+                    }
+                }
+
                 SettingsSection(title = "정보 및 지원") {
                     SettingsGroup {
                         SettingsActionRow(
