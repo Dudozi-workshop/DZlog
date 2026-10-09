@@ -160,10 +160,18 @@ fun LogFolderScreen(
                 val physicalFolders = if (folderStorage.isConnected())
                     runCatching { folderStorage.listImmediateFolderPaths(relativePath) }.getOrDefault(emptyList())
                     else emptyList()
-                val catalogFolders = folderCatalog.listImmediatePaths(relativePath)
+                // Each visible child needs its immediate directories for its summary.
+                // A bounded second level is enough; no recursive SAF tree scan is needed.
+                val physicalChildFolders = physicalFolders
+                    .filterNot { it.trimEnd('/').substringAfterLast('/').equals("original", true) }
+                    .flatMap { childPath ->
+                        runCatching { folderStorage.listImmediateFolderPaths(childPath) }
+                            .getOrDefault(emptyList())
+                    }
+                val catalogFolders = folderCatalog.listDescendantPaths(relativePath)
                 reader.loadGallerySnapshot(
                     relativePath,
-                    existingFolderPaths = (physicalFolders + catalogFolders).distinct(),
+                    existingFolderPaths = (physicalFolders + physicalChildFolders + catalogFolders).distinct(),
                 )
             }
         }

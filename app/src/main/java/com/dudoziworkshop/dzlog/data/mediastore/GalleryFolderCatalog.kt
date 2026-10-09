@@ -24,6 +24,13 @@ internal class GalleryFolderCatalog(context: Context) {
         }.sorted()
     }
 
+    /** Include empty descendants so a parent card can count its own child folders. */
+    @Synchronized
+    fun listDescendantPaths(parentPath: String): List<String> {
+        val parent = normalizedParent(parentPath)
+        return readPaths().filter { it.startsWith(parent) && it != parent }.sorted()
+    }
+
     @Synchronized
     fun create(parentPath: String, rawName: String, visibleSiblingPaths: List<String>): String {
         val parent = normalizedParent(parentPath)
