@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/table-editor-v2-ux-mock
+      - feat/gallery-v2
   workflow_dispatch:
 
 permissions:
@@ -97,30 +98,41 @@ jobs:
           FIRST_CODE=$((1000000 + GITHUB_RUN_NUMBER * 2))
           NEXT_CODE=$((FIRST_CODE + 1))
           EXPECTED_CERT="$(sha256sum "$RUNNER_TEMP/dzlog-test-cert.der" | cut -d ' ' -f 1)"
+          EXPECTED_PACKAGE="com.dudoziworkshop.dzlog"
+          EXTRA_GRADLE_ARGS=()
+          if [[ "$GITHUB_REF_NAME" == "feat/gallery-v2" ]]; then
+            EXPECTED_PACKAGE="com.dudoziworkshop.dzlog.gallerydev"
+            EXTRA_GRADLE_ARGS+=("-PdzlogGalleryStandalone=true")
+          fi
           verify_apk() {
             local apk="$1" code="$2" cert badging
             cert="$("$APKSIGNER" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
             test "$cert" = "$EXPECTED_CERT"
             badging="$("$AAPT" dump badging "$apk" | sed -n '1p')"
-            [[ "$badging" == *"name='com.dudoziworkshop.dzlog'"* ]]
+            [[ "$badging" == *"name='$EXPECTED_PACKAGE'"* ]]
             [[ "$badging" == *"versionCode='$code'"* ]]
-            echo "Verified APK: package=com.dudoziworkshop.dzlog versionCode=$code certificate=$cert"
+            echo "Verified APK: package=$EXPECTED_PACKAGE versionCode=$code certificate=$cert"
           }
-          ./gradlew :app:assembleDebug -PdzlogDebugVersionCode="$FIRST_CODE" --stacktrace
+          ./gradlew :app:assembleDebug -PdzlogDebugVersionCode="$FIRST_CODE" "${EXTRA_GRADLE_ARGS[@]}" --stacktrace
           cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/DZlog-baseline.apk"
           verify_apk "$RUNNER_TEMP/DZlog-baseline.apk" "$FIRST_CODE"
-          ./gradlew :app:assembleDebug -PdzlogDebugVersionCode="$NEXT_CODE" --stacktrace
+          ./gradlew :app:assembleDebug -PdzlogDebugVersionCode="$NEXT_CODE" "${EXTRA_GRADLE_ARGS[@]}" --stacktrace
           verify_apk app/build/outputs/apk/debug/app-debug.apk "$NEXT_CODE"
           echo "Update prerequisites verified: same package and certificate; increasing versionCode. Device install remains a manual check."
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk DZlog-v2-test.apk
+        run: |
+          if [[ "$GITHUB_REF_NAME" == "feat/gallery-v2" ]]; then
+            cp app/build/outputs/apk/debug/app-debug.apk DZlog-gallery-dev.apk
+          else
+            cp app/build/outputs/apk/debug/app-debug.apk DZlog-v2-test.apk
+          fi
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: DZlog-v2-test-apk
-          path: DZlog-v2-test.apk
+          name: ${{ github.ref_name == 'feat/gallery-v2' && 'DZlog-gallery-dev-apk' || 'DZlog-v2-test-apk' }}
+          path: ${{ github.ref_name == 'feat/gallery-v2' && 'DZlog-gallery-dev.apk' || 'DZlog-v2-test.apk' }}
           if-no-files-found: error
           retention-days: 14
 
