@@ -197,17 +197,25 @@ fun HomeScreen(
 
             Spacer(Modifier.height(gapAfterCapture))
 
-            HomeRecentCaptureSection(
-                image = latestImage,
-                timeText = uiState.latestImageTimeText,
-                onOpenAlbum = onOpenAlbum,
-                onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset),
+            ) {
+                HomeRecentCaptureSection(
+                    image = latestImage,
+                    timeText = uiState.latestImageTimeText,
+                    onOpenAlbum = onOpenAlbum,
+                    onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
+                )
+            }
 
             Spacer(Modifier.height(sectionGap))
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset),
                 horizontalArrangement = Arrangement.spacedBy(HomeUiSpec.UtilityButtonGap),
             ) {
                 HomeUtilityButton(
