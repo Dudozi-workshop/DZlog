@@ -28,8 +28,6 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Hd
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Vibration
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -84,21 +82,6 @@ private val SETTINGS_QUALITY_ITEMS = listOf(
         icon = Icons.Default.Hd,
         title = "화질 우선",
         description = "더 선명하지만 저장이 느릴 수 있어요"
-    )
-)
-
-private val SETTINGS_CAPTURE_FEEDBACK_ITEMS = listOf(
-    ToggleUiItem(
-        key = ToggleKey.CAPTURE_SOUND,
-        icon = Icons.Default.VolumeUp,
-        title = "촬영 소리",
-        description = "촬영 시 셔터 사운드를 제공해요."
-    ),
-    ToggleUiItem(
-        key = ToggleKey.CAPTURE_HAPTIC,
-        icon = Icons.Default.Vibration,
-        title = "촬영 진동",
-        description = "촬영 시 진동 피드백을 제공해요."
     )
 )
 
@@ -267,22 +250,6 @@ fun SettingsRootScreen(
                         selected = settings.photoQualityMode == item.mode,
                         onClick = {
                             scope.launch { applySettingsAction(context, SettingsAction.PhotoQualityModeChanged(item.mode)) }
-                        }
-                    )
-                }
-            }
-
-            SectionBlock(title = "촬영 피드백") {
-                // 주요 정책: 라벨 문자열이 아니라 key 기반으로 상태/액션을 연결해 문구 변경에도 동작이 깨지지 않게 유지한다.
-                SETTINGS_CAPTURE_FEEDBACK_ITEMS.forEach { item ->
-                    val checked = resolveToggleChecked(settings, item.key)
-                    ToggleCardRow(
-                        item = item,
-                        checked = checked,
-                        onToggle = {
-                            scope.launch {
-                                applySettingsAction(context, resolveToggleAction(item.key, !checked))
-                            }
                         }
                     )
                 }
