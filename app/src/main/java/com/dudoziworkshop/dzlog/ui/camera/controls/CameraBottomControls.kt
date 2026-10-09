@@ -439,6 +439,7 @@ private fun BoxScope.CameraToolOverlayPanel(
     Box(
         modifier = Modifier
             .align(Alignment.BottomCenter)
+            .fillMaxWidth()
             .padding(bottom = DDZSpacing.screenPadding + bottomOffset),
         contentAlignment = Alignment.BottomCenter
     ) {
