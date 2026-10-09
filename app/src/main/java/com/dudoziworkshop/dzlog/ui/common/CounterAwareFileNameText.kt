@@ -21,11 +21,22 @@ fun CounterAwareFileNameText(
     style: TextStyle,
     color: Color,
     counterColor: Color = color,
+    useExactName: Boolean = false,
 ) {
     BoxWithConstraints(modifier = modifier) {
         val density = LocalDensity.current
         val textMeasurer = rememberTextMeasurer()
-        val parts = splitFileNameForDisplay(fileName)
+        val parts = if (useExactName) {
+            val base = fileName.removeSuffix(".jpg").removeSuffix(".jpeg")
+            val match = Regex("_(\\d+)$").find(base)
+            if (match != null) {
+                FileNameDisplayParts(prefixText = base.removeSuffix(match.value), counter = match.groupValues[1])
+            } else {
+                FileNameDisplayParts(prefixText = base, counter = null)
+            }
+        } else {
+            splitFileNameForDisplay(fileName)
+        }
         val counter = parts.counter
 
         if (counter.isNullOrBlank()) {
