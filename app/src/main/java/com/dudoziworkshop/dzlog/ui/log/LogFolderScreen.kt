@@ -99,7 +99,7 @@ fun LogFolderScreen(
     ) { uri ->
         if (uri != null) {
             runCatching { folderStorage.connect(uri) }
-                .onSuccess { connected = true; folderOperationError = null; GallerySnapshotMemory.cache.invalidate(relativePath); reloadKey++ }
+                .onSuccess { connected = true; folderOperationError = null; showCreateDialog = true; GallerySnapshotMemory.cache.invalidate(relativePath); reloadKey++ }
                 .onFailure { folderOperationError = it.message ?: "폴더 연결 실패" }
         }
     }
@@ -169,7 +169,7 @@ fun LogFolderScreen(
             Button(
                 onClick = {
                     folderOperationError = null
-                    if (connected) showCreateDialog = true else folderPicker.launch(null)
+                    if (connected) showCreateDialog = true else folderPicker.launch(folderStorage.pickerInitialUri())
                 },
             ) { Text("새 폴더") }
             if (!root && connected) {
