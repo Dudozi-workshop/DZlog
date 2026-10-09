@@ -95,7 +95,6 @@ internal fun CameraBottomControls(
     val density = LocalDensity.current
     var bottomBarHeightPx by remember { mutableIntStateOf(0) }
     var resizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
-    var resizeScale by remember { mutableFloatStateOf(1f) }
     LaunchedEffect(ui.isTableSelected) {
         if (!ui.isTableSelected) resizeBaseline = null
     }
@@ -203,14 +202,13 @@ internal fun CameraBottomControls(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth(0.85f)
-                            .background(DDZColor.Surface, RoundedCornerShape(12.dp))
+                            .background(DDZColor.Surface.copy(alpha = 0.88f), RoundedCornerShape(12.dp))
                             .padding(horizontal = 16.dp, vertical = 6.dp),
                     ) {
-                        Text("표 크기 · 비율 유지", color = DDZColor.SageDarkStrong)
+                        Text("표 크기 · 비율 유지 · ${(ui.prefs.wmTableWidthRatio * 100f / baseline.widthRatio).toInt()}%", color = DDZColor.SageDarkStrong)
                         Slider(
-                            value = resizeScale.coerceIn(sliderRange.start, sliderRange.endInclusive),
+                            value = (ui.prefs.wmTableWidthRatio.toFloat() / baseline.widthRatio).coerceIn(sliderRange.start, sliderRange.endInclusive),
                             onValueChange = { next ->
-                                resizeScale = next
                                 val resized = resizeCameraTableKeepingCenter(baseline, next)
                                 ui.prefs.wmTableWidthRatio = resized.widthRatio
                                 ui.prefs.wmTableHeightRatio = resized.heightRatio
@@ -260,7 +258,6 @@ internal fun CameraBottomControls(
                                 y10000 = ui.prefs.wmBoundsOffsetY10000,
                                 photoAspect = ui.prefs.captureAspect.ratioF,
                             )
-                            resizeScale = 1f
                         }
                     },
                 )
