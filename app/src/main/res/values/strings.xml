@@ -7,14 +7,14 @@
     <string name="option_all">전체</string>
     <string name="camera_captured_result">촬영 결과</string>
 
-    <string name="home_current_capture">현재 촬영</string>
+    <string name="home_current_capture">현재 템플릿</string>
     <string name="home_default_capture">기본 촬영</string>
-    <string name="home_next_capture">다음 촬영 %1$s</string>
+    <string name="home_next_capture">다음 촬영 번호 %1$s</string>
     <string name="home_start_capture">촬영 시작</string>
     <string name="home_recent_capture">최근 촬영</string>
     <string name="home_album_view">앨범 보기 &gt;</string>
-    <string name="home_table_settings">표 상세설정</string>
-    <string name="home_save_settings">저장 설정</string>
+    <string name="home_table_settings">표 편집</string>
+    <string name="home_save_settings">저장 정보</string>
     <string name="home_no_recent_capture">아직 촬영한 사진이 없어요.</string>
     <string name="home_first_record_hint">첫 기록을 남겨보세요.</string>
     <string name="home_settings_content_description">설정</string>
