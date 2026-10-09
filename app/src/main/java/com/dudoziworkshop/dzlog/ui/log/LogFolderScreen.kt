@@ -149,23 +149,12 @@ fun LogFolderScreen(
             modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (!connected) {
-                OutlinedButton(onClick = { folderPicker.launch(null) }) {
-                    Text("폴더 연결")
-                }
-            }
             Button(
                 onClick = {
                     folderOperationError = null
                     if (connected) showCreateDialog = true else folderPicker.launch(null)
                 },
             ) { Text("새 폴더") }
-        }
-        if (!connected) {
-            Text(
-                "빈 폴더를 만들거나 표시하려면 시스템 파일 선택기에서 Pictures/DZlog를 연결하세요.",
-                color = DDZColor.TextSecondary,
-            )
         }
         folderOperationError?.let { message ->
             Text(message, color = DDZColor.Destructive)
