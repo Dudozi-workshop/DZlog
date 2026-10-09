@@ -507,9 +507,14 @@ fun LogFolderScreen(
                         scope.launch {
                             val result = withContext(Dispatchers.IO) {
                                 runCatching {
-                                    if (action == "rename")
-                                        folderStorage.renameFolder(relativePath, renameName)
-                                    else folderStorage.moveFolder(relativePath, moveTarget)
+                                    val targetPath = if (action == "rename")
+                                        GalleryFolderOperationPolicy.renamedPath(relativePath, renameName)
+                                    else GalleryFolderOperationPolicy.movedPath(relativePath, moveTarget)
+                                    folderCatalog.relocateFolder(relativePath, targetPath) {
+                                        if (action == "rename")
+                                            folderStorage.renameFolder(relativePath, renameName)
+                                        else folderStorage.moveFolder(relativePath, moveTarget)
+                                    }
                                 }
                             }
                             result.onSuccess { newPath ->

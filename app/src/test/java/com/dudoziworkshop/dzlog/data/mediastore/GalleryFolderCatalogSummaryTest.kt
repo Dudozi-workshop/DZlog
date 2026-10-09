@@ -61,4 +61,66 @@ class GalleryFolderCatalogSummaryTest {
         assertEquals(listOf(b), snapshot.index.children.map { it.relativePath })
         assertEquals(1, requireNotNull(snapshot.summariesByPath[a]).directChildFolderCount)
     }
+
+    @Test
+    fun renameRemapsRegisteredSubtreeAndPreservesSimilarNamedSibling() {
+        val a = catalog.create(root, "A", emptyList())
+        val b = catalog.create(a, "B", emptyList())
+        catalog.create(b, "C", emptyList())
+        val aa = catalog.create(root, "AA", emptyList())
+        val target = root + "Renamed/"
+        assertEquals(target, catalog.relocateFolder(a, target) { target })
+        val paths = listOf(target, target + "B/", target + "B/C/", aa).sorted()
+        assertEquals(paths, catalog.listDescendantPaths(root))
+        assertEquals(emptyList<String>(), catalog.listDescendantPaths(a))
+        // Read again through a new catalog instance to verify persistence.
+        assertEquals(paths, GalleryFolderCatalog(context).listDescendantPaths(root))
+        val snapshot = reader.loadGallerySnapshot(root, paths)
+        assertEquals(1, requireNotNull(snapshot.summariesByPath[target]).directChildFolderCount)
+        assertNull(snapshot.summariesByPath[a])
+    }
+
+    @Test
+    fun moveRemapsEmptyDescendantEvenWhenSourceWasNeverRecorded() {
+        val source = root + "Physical/"
+        catalog.create(source, "Empty", emptyList())
+        val destination = catalog.create(root, "Destination", emptyList())
+        val target = destination + "Physical/"
+        catalog.relocateFolder(source, target) { target }
+        val paths = catalog.listDescendantPaths(root)
+        assertEquals(listOf(destination, target + "Empty/"), paths)
+        val snapshot = reader.loadGallerySnapshot(root, paths)
+        assertEquals(1, requireNotNull(snapshot.summariesByPath[destination]).directChildFolderCount)
+        assertNull(snapshot.summariesByPath[source])
+    }
+
+    @Test
+    fun failedStorageChangePreservesAllCatalogPaths() {
+        val source = catalog.create(root, "A", emptyList())
+        catalog.create(source, "Empty", emptyList())
+        val before = catalog.listDescendantPaths(root)
+        val result = runCatching {
+            catalog.relocateFolder(source, root + "Renamed/") { error("Permission denied") }
+        }
+        assertEquals("Permission denied", result.exceptionOrNull()?.message)
+        assertEquals(before, catalog.listDescendantPaths(root))
+    }
+
+    @Test
+    fun virtualDestinationCollisionIsRejectedBeforeChangingStorage() {
+        val source = catalog.create(root, "Source", emptyList())
+        // The destination parent itself need not be recorded for a collision to exist.
+        catalog.create(root + "TAKEN/", "Empty", emptyList())
+        val before = catalog.listDescendantPaths(root)
+        var storageCalls = 0
+        val result = runCatching {
+            catalog.relocateFolder(source, root + "Taken/") {
+                storageCalls++
+                root + "Taken/"
+            }
+        }
+        assertEquals(true, result.isFailure)
+        assertEquals(0, storageCalls)
+        assertEquals(before, catalog.listDescendantPaths(root))
+    }
 }

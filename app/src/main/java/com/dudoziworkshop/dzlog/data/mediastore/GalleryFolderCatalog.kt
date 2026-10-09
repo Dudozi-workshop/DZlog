@@ -46,6 +46,35 @@ internal class GalleryFolderCatalog(context: Context) {
         return destination
     }
 
+    /** Validate virtual-folder collisions before changing storage, then remap the whole catalog subtree. */
+    @Synchronized
+    fun relocateFolder(sourcePath: String, targetPath: String, changeStorage: () -> String): String {
+        val source = normalizedParent(sourcePath)
+        val target = normalizedParent(targetPath)
+        require(source != GalleryFolderIndexPolicy.ROOT && target != GalleryFolderIndexPolicy.ROOT) {
+            "DZlog 루트 폴더는 변경할 수 없습니다."
+        }
+        if (source == target) return source
+        require(!target.startsWith(source)) { "자신의 하위 폴더로 이동할 수 없습니다." }
+        val recorded = readPaths()
+        val affected = recorded.filter { it.startsWith(source) }.toSet()
+        val remaining = recorded - affected
+        require(remaining.none { it.equals(target, true) || it.startsWith(target, true) }) {
+            "대상 위치에 같은 이름의 폴더가 이미 등록되어 있습니다."
+        }
+        val updated = remaining + affected.map { target + it.removePrefix(source) }
+        val actual = normalizedParent(changeStorage())
+        check(actual == target) {
+            "저장소에서 변경된 경로가 예상과 다릅니다. 파일 관리자에서 확인해 주세요."
+        }
+        if (affected.isNotEmpty()) {
+            check(prefs.edit().putStringSet(PATHS_KEY, updated).commit()) {
+                "저장소 폴더는 변경됐지만 앱 폴더 정보를 저장하지 못했습니다. 파일 관리자에서 확인해 주세요."
+            }
+        }
+        return actual
+    }
+
     private fun readPaths(): Set<String> =
         prefs.getStringSet(PATHS_KEY, emptySet()).orEmpty().toSet()
 
