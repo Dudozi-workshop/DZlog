@@ -98,6 +98,17 @@ internal class CameraUiState {
         isToolPanelExpanded = false
         isZoomChipExpanded = false
     }
+
+    fun dismissTableSelection() {
+        isTableSelected = false
+        isTableResizePanelOpen = false
+    }
+
+    /** Close transient camera controls before opening another action or destination. */
+    fun dismissCameraInteractions() {
+        dismissTableSelection()
+        dismissToolOverlays()
+    }
 }
 
 internal enum class CameraOverlayTool {
