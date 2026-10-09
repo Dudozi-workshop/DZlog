@@ -73,7 +73,7 @@ class LocalTemplateBackupTest {
             listOf(original.copy(templateState = changed)), original.id, 1000L
         )
         val loaded = LocalTemplateBackupCodec.decode(archive).templates.single()
-        assertEquals(2, loaded.templateState.cells.size)
+        assertEquals(original.templateState.cells.size, loaded.templateState.cells.size)
         assertEquals(2, loaded.templateState.cells.first().colSpan)
     }
 
