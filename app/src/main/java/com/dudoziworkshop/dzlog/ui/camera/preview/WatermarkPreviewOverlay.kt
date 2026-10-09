@@ -155,13 +155,23 @@ fun WatermarkPreviewOverlay(
                 ),
                 rotationCwDeg = request.watermark.rotationCwDeg,
             )
-            val finalTableRect = rendered.scene.tableRect
             if (isArmed) {
                 drawRect(
                     color = DDZColor.Surface.copy(alpha = 0.85f),
-                    topLeft = Offset(finalTableRect.left, finalTableRect.top),
-                    size = androidx.compose.ui.geometry.Size(finalTableRect.width(), finalTableRect.height()),
-                    style = Stroke(width = 2.dp.toPx())
+                    topLeft = Offset(visibleBounds.left, visibleBounds.top),
+                    size = androidx.compose.ui.geometry.Size(visibleBounds.width(), visibleBounds.height()),
+                    style = Stroke(width = 2.dp.toPx()),
+                )
+                // The handle shares the drag hit target at the displayed table corner.
+                drawCircle(
+                    color = DDZColor.Surface,
+                    radius = 11.dp.toPx(),
+                    center = Offset(visibleBounds.right, visibleBounds.bottom),
+                )
+                drawCircle(
+                    color = DDZColor.SageDarkStrong,
+                    radius = 7.dp.toPx(),
+                    center = Offset(visibleBounds.right, visibleBounds.bottom),
                 )
             }
         }
