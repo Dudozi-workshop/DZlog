@@ -34,6 +34,7 @@ fun CameraTopBar(
     topDisplayName: String,
     onOpenCaptureInfo: () -> Unit,
     onOpenSettings: () -> Unit,
+    hasAutoCounter: Boolean = true,
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -77,6 +78,7 @@ fun CameraTopBar(
                     color = DDZColor.TextStrong,
                     counterColor = DDZColor.SageDarkStrong,
                     useExactName = true,
+                    hasExactCounter = hasAutoCounter,
                 )
             }
 

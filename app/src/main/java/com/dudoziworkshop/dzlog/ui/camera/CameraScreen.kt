@@ -376,6 +376,7 @@ fun CameraPreview(
         ) {
             CameraTopBar(
                 topDisplayName = topDisplayName,
+                hasAutoCounter = displayCounter != null,
                 onOpenCaptureInfo = {
                     ui.isTableSelected = false
                     ui.dismissToolOverlays()

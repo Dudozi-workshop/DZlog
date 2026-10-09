@@ -10,6 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -22,13 +25,14 @@ fun CounterAwareFileNameText(
     color: Color,
     counterColor: Color = color,
     useExactName: Boolean = false,
+    hasExactCounter: Boolean = true,
 ) {
     BoxWithConstraints(modifier = modifier) {
         val density = LocalDensity.current
         val textMeasurer = rememberTextMeasurer()
         val parts = if (useExactName) {
             val base = fileName.removeSuffix(".jpg").removeSuffix(".jpeg")
-            val match = Regex("_(\\d+)$").find(base)
+            val match = if (hasExactCounter) Regex("_(\\d+)$").find(base) else null
             if (match != null) {
                 FileNameDisplayParts(prefixText = base.removeSuffix(match.value), counter = match.groupValues[1])
             } else {
@@ -50,7 +54,12 @@ fun CounterAwareFileNameText(
             return@BoxWithConstraints
         }
 
-        val counterText = "_$counter"
+        val counterText = buildAnnotatedString {
+            withStyle(SpanStyle(color = if (useExactName) color else counterColor)) {
+                append("_")
+            }
+            withStyle(SpanStyle(color = counterColor)) { append(counter) }
+        }
         val counterWidthPx = textMeasurer.measure(
             text = counterText,
             style = style,
