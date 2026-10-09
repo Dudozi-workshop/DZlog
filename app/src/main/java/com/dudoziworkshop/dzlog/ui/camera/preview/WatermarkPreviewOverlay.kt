@@ -39,6 +39,7 @@ fun WatermarkPreviewOverlay(
     previewContentRect: RectF?,
     overrideOffsetPx: Offset?,
     dragVisibleOffsetPx: Offset?,
+    activeHandleCorner: ResizeHandleCorner?,
     isArmed: Boolean,
     onBoundsRectChange: (RectF?) -> Unit,
     onRawRectChange: (RectF?) -> Unit
@@ -162,17 +163,34 @@ fun WatermarkPreviewOverlay(
                     size = androidx.compose.ui.geometry.Size(visibleBounds.width(), visibleBounds.height()),
                     style = Stroke(width = 2.dp.toPx()),
                 )
-                // The handle shares the drag hit target at the displayed table corner.
+                val corner = activeHandleCorner ?: chooseResizeHandleCorner(visibleBounds, previewContentRect)
+                val center = handleCornerPoint(visibleBounds, corner)
                 drawCircle(
                     color = DDZColor.Surface,
-                    radius = 11.dp.toPx(),
-                    center = Offset(visibleBounds.right, visibleBounds.bottom),
+                    radius = 12.dp.toPx(),
+                    center = center,
                 )
                 drawCircle(
                     color = DDZColor.SageDarkStrong,
-                    radius = 7.dp.toPx(),
-                    center = Offset(visibleBounds.right, visibleBounds.bottom),
+                    radius = 11.dp.toPx(),
+                    center = center,
                 )
+                val reach = 6.dp.toPx()
+                val inner = 2.5.dp.toPx()
+                drawLine(DDZColor.Surface, Offset(center.x - reach, center.y), Offset(center.x + reach, center.y), 1.3.dp.toPx())
+                drawLine(DDZColor.Surface, Offset(center.x, center.y - reach), Offset(center.x, center.y + reach), 1.3.dp.toPx())
+                listOf(
+                    Offset(-reach, 0f) to Offset(-inner, -inner),
+                    Offset(-reach, 0f) to Offset(-inner, inner),
+                    Offset(reach, 0f) to Offset(inner, -inner),
+                    Offset(reach, 0f) to Offset(inner, inner),
+                    Offset(0f, -reach) to Offset(-inner, -inner),
+                    Offset(0f, -reach) to Offset(inner, -inner),
+                    Offset(0f, reach) to Offset(-inner, inner),
+                    Offset(0f, reach) to Offset(inner, inner),
+                ).forEach { (tip, wing) ->
+                    drawLine(DDZColor.Surface, center + tip, center + wing, 1.2.dp.toPx())
+                }
             }
         }
     }
