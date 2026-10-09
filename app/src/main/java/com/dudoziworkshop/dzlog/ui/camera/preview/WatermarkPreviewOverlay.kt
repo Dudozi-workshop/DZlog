@@ -41,6 +41,7 @@ internal fun WatermarkPreviewOverlay(
     dragVisibleOffsetPx: Offset?,
     activeHandleCorner: ResizeHandleCorner?,
     isArmed: Boolean,
+    isTableLocked: Boolean,
     onBoundsRectChange: (RectF?) -> Unit,
     onRawRectChange: (RectF?) -> Unit
 ) {
@@ -163,6 +164,7 @@ internal fun WatermarkPreviewOverlay(
                     size = androidx.compose.ui.geometry.Size(visibleBounds.width(), visibleBounds.height()),
                     style = Stroke(width = 2.dp.toPx()),
                 )
+                if (!isTableLocked) {
                 val corner = activeHandleCorner ?: chooseResizeHandleCorner(visibleBounds, previewContentRect)
                 val center = handleCornerPoint(visibleBounds, corner)
                 drawCircle(
@@ -190,6 +192,7 @@ internal fun WatermarkPreviewOverlay(
                     Offset(0f, reach) to Offset(inner, inner),
                 ).forEach { (tip, wing) ->
                     drawLine(DDZColor.Surface, center + tip, center + wing, 1.2.dp.toPx())
+                }
                 }
             }
         }
