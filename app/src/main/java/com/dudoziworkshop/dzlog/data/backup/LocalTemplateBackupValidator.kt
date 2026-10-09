@@ -25,8 +25,11 @@ internal object LocalTemplateBackupValidator {
             require(cells.length() in 1..10_000) { "셀 수가 올바르지 않습니다." }
 
             val ids = mutableSetOf<String>()
+            // Real editor retains one backing cell per coordinate, even when a
+            // merged root visually covers neighboring cells. Those covered
+            // backing cells are valid and must not be treated as overlapping.
             val anchors = mutableSetOf<Pair<Int, Int>>()
-            val coverage = mutableSetOf<Pair<Int, Int>>()
+            val mergedCoverage = mutableSetOf<Pair<Int, Int>>()
             for (index in 0 until cells.length()) {
                 val c = cells.optJSONObject(index) ?: error("셀 형식이 올바르지 않습니다.")
                 val cellId = requiredString(c, "cellId")
@@ -37,8 +40,10 @@ internal object LocalTemplateBackupValidator {
                 val rs = exactInt(c, "rowSpan", 1..rows)
                 val cs = exactInt(c, "colSpan", 1..cols)
                 require(r + rs <= rows && col + cs <= cols) { "병합 셀 범위를 벗어났습니다." }
-                for (rr in r until r + rs) for (cc in col until col + cs) {
-                    require(coverage.add(rr to cc)) { "병합 셀 영역이 겹칩니다." }
+                if (rs > 1 || cs > 1) {
+                    for (rr in r until r + rs) for (cc in col until col + cs) {
+                        require(mergedCoverage.add(rr to cc)) { "병합 셀 영역이 겹칩니다." }
+                    }
                 }
                 enumValue<TableCellKind>(requiredString(c, "kind"))
                 enumValue<TableCellDataType>(requiredString(c, "dataType"))
@@ -48,7 +53,7 @@ internal object LocalTemplateBackupValidator {
                     require(phraseId.length < 200) { "순환문구 참조가 잘못되었습니다." }
                 }
             }
-            require(coverage.size == rows * cols) { "셀 구성에 빈 영역이 있습니다." }
+            require(anchors.size == rows * cols) { "셀 구성에 빈 영역이 있습니다." }
             checkWeights(table, "rowWeights", rows)
             checkWeights(table, "colWeights", cols)
             val phraseSets = table.optJSONArray("phraseSets")
@@ -57,7 +62,7 @@ internal object LocalTemplateBackupValidator {
                 val p = phraseSets.optJSONObject(index) ?: error("순환문구 세트가 올바르지 않습니다.")
                 require(phraseIds.add(requiredString(p, "id"))) { "순환문구 ID가 중복되었습니다." }
                 val phrases = p.optJSONArray("items") ?: error("순환문구 목록이 없습니다.")
-                require(phrases.length() in 1..1000) { "순환문구 항목이 없습니다." }
+                require(phrases.length() <= 1000) { "순환문구 항목 수가 올바르지 않습니다." }
                 for (j in 0 until phrases.length()) {
                     require(phrases.opt(j) is String && phrases.getString(j).isNotBlank()) {
                         "순환문구 항목이 올바르지 않습니다."
