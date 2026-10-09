@@ -209,36 +209,20 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(HomeUiSpec.UtilityButtonGap),
             ) {
-                DDZButton(
-                    text = stringResource(com.dudoziworkshop.dzlog.R.string.home_table_settings),
-                    leadingIcon = Icons.Default.GridView,
+                HomeUtilityButton(
+                    label = stringResource(com.dudoziworkshop.dzlog.R.string.home_table_settings),
+                    icon = Icons.Default.GridView,
                     onClick = onOpenTableEditor,
                     modifier = Modifier.weight(1f),
-                    style = DDZButtonStyle.Secondary,
-                    minHeight = HomeUiSpec.UtilityButtonHeight,
-                    shape = RoundedCornerShape(HomeUiSpec.UtilityButtonRadius),
-                    containerColorOverride = DDZColor.SurfaceSoft.copy(alpha = 0.68f),
-                    textStyleOverride = DDZTypography.ButtonText.copy(
-                        fontSize = HomeUiSpec.UtilityButtonTextSize,
-                        fontWeight = FontWeight.Medium,
-                    ),
                 )
-                DDZButton(
-                    text = stringResource(com.dudoziworkshop.dzlog.R.string.home_save_settings),
-                    leadingIcon = Icons.Default.Folder,
+                HomeUtilityButton(
+                    label = stringResource(com.dudoziworkshop.dzlog.R.string.home_save_settings),
+                    icon = Icons.Default.Folder,
                     onClick = {
                         homeViewModel.refreshSavePreview()
                         showSaveInfo = true
                     },
                     modifier = Modifier.weight(1f),
-                    style = DDZButtonStyle.Secondary,
-                    minHeight = HomeUiSpec.UtilityButtonHeight,
-                    shape = RoundedCornerShape(HomeUiSpec.UtilityButtonRadius),
-                    containerColorOverride = DDZColor.SurfaceSoft.copy(alpha = 0.68f),
-                    textStyleOverride = DDZTypography.ButtonText.copy(
-                        fontSize = HomeUiSpec.UtilityButtonTextSize,
-                        fontWeight = FontWeight.Medium,
-                    ),
                 )
             }
         }
