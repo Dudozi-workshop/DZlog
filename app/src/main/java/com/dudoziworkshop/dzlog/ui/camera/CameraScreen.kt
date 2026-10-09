@@ -403,12 +403,13 @@ fun CameraPreview(
                 CameraPreviewArea(
                     args = previewAreaArgs,
                     isTableSelected = ui.isTableSelected,
+                    isTableLocked = ui.prefs.wmTableLocked,
                     onTableSelectionChange = { selected ->
                         if (selected) ui.dismissToolOverlays()
                         ui.isTableSelected = selected
                     },
                     onCornerResizeScale = { scale, finished ->
-                        if (!finished) {
+                        if (!finished && !ui.prefs.wmTableLocked) {
                             val baseline = cornerResizeBaseline ?: CameraTableResizeBaseline(
                                 widthRatio = ui.prefs.wmTableWidthRatio,
                                 heightRatio = ui.prefs.wmTableHeightRatio,
