@@ -373,12 +373,10 @@ private fun MockRuleItem?.toDomainDraft(): TableEditorSlotDraft? {
 
 
 private fun dateFormatExample(pattern: String?): String =
-    when (pattern) {
-        "yyyy-MM-dd" -> "2026-10-08"
-        "yy.MM.dd" -> "26.10.08"
-        "MM월 dd일" -> "10월 08일"
-        else -> "20261008"
-    }
+    runCatching {
+        java.text.SimpleDateFormat(pattern?.takeIf { it.isNotBlank() } ?: "yyyyMMdd", java.util.Locale.getDefault())
+            .format(java.util.Date())
+    }.getOrElse { "" }
 
 private fun timeFormatExample(pattern: String?): String =
     when (pattern) {
