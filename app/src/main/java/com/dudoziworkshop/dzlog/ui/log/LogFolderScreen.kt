@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.log
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import android.app.Activity
@@ -41,6 +42,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -90,6 +92,8 @@ fun LogFolderScreen(
     val folderCatalog = remember(context) { GalleryFolderCatalog(context.applicationContext) }
     val favoriteIds by remember(context) { FavoritesProvider.repo(context) }.favoriteIdsFlow.collectAsState(initial = emptySet())
     var selectedTab by remember { mutableStateOf(GalleryTab.ALL) }
+    var showRecentPhotos by rememberSaveable(relativePath) { mutableStateOf(false) }
+    BackHandler(enabled = showRecentPhotos) { showRecentPhotos = false }
     val cached = remember(relativePath) { GallerySnapshotMemory.cache.get(relativePath) }
     var allPhotos by remember(relativePath) { mutableStateOf(cached?.allPhotos ?: emptyList()) }
     var index by remember(relativePath) { mutableStateOf<GalleryFolderIndex?>(cached?.index) }
@@ -216,17 +220,22 @@ fun LogFolderScreen(
         }
     }
     val root = relativePath == GalleryFolderIndexPolicy.ROOT
-    val title = if (root) "갤러리" else relativePath.trimEnd('/').substringAfterLast('/')
+    val recentPhotos = remember(allPhotos) {
+        allPhotos.filterNot { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }
+    }
+    val title = if (showRecentPhotos) "최근 촬영" else if (root) "갤러리"
+        else relativePath.trimEnd('/').substringAfterLast('/')
     val currentSummary = summariesByPath[relativePath]
     val imagesById = remember(allPhotos) { allPhotos.associateBy { it.id.toString() } }
     Column(modifier = Modifier.dzScreen().padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            IconButton(onClick = onBack) {
+            IconButton(onClick = { if (showRecentPhotos) showRecentPhotos = false else onBack() }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold)
-                Text(relativePath.removePrefix(GalleryFolderIndexPolicy.ROOT).ifBlank { "Pictures / DZlog" },
+                Text(if (showRecentPhotos) "사진 ${recentPhotos.size}장" else
+                    relativePath.removePrefix(GalleryFolderIndexPolicy.ROOT).ifBlank { "Pictures / DZlog" },
                     color = DDZColor.TextSecondary, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
                 if (!root && currentSummary != null) {
@@ -300,6 +309,18 @@ fun LogFolderScreen(
                 Text("사진 목록을 표시할 수 없습니다.", color = DDZColor.TextSecondary)
                 OutlinedButton(onClick = { reloadKey++ }) { Text("다시 시도") }
             }
+        } else if (root && showRecentPhotos) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                if (recentPhotos.isEmpty()) {
+                    item { GalleryEmptyText("저장된 사진이 없습니다.") }
+                } else {
+                    items(recentPhotos.chunked(3)) { row ->
+                        GalleryPhotoRow(row, selectedPhotoIds, ::togglePhoto, ::togglePhoto) { photo ->
+                            onOpenPhoto(recentPhotos, recentPhotos.indexOfFirst { it.id == photo.id })
+                        }
+                    }
+                }
+            }
         } else if (root && index != null) {
             LogGalleryHomeContent(
                 selectedTab = selectedTab,
@@ -311,6 +332,7 @@ fun LogFolderScreen(
                 onOpenFolder = onOpenFolder,
                 onOpenPhoto = onOpenPhoto,
                 onOpenOriginal = onOpenOriginal,
+                onOpenRecentPhotos = { showRecentPhotos = true },
                 onCreateFolder = { folderOperationError = null; showCreateDialog = true },
                 selectedIds = selectedPhotoIds,
                 onLongPressPhoto = ::togglePhoto,

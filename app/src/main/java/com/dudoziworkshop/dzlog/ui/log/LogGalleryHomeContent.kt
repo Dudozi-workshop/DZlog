@@ -6,6 +6,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -37,6 +39,7 @@ import com.dudoziworkshop.dzlog.feature.log.policy.GalleryChildFolder
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummaryPolicy
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import java.util.TimeZone
 
@@ -58,6 +61,7 @@ internal fun LogGalleryHomeContent(
     onOpenFolder: (String) -> Unit,
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
     onOpenOriginal: (String) -> Unit,
+    onOpenRecentPhotos: () -> Unit,
     onCreateFolder: () -> Unit = {},
     selectedIds: Set<Long> = emptySet(),
     onLongPressPhoto: (MediaImageItem) -> Unit = {},
@@ -91,7 +95,7 @@ internal fun LogGalleryHomeContent(
     }
 
     val root = folderIndex.relativePath
-    val recent = allImages.filterNot { it.relativePath.trimEnd('/').endsWith("/original") }.take(9)
+    val recent = allImages.filterNot { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }.take(9)
     val favorites = allImages.filter { it.id in favoriteIds }
     val directPhotos = allImages.filter { it.relativePath.trimEnd('/') == root.trimEnd('/') }
     // Summary IDs are MediaStore IDs, so resolve them against this same snapshot.
@@ -104,13 +108,38 @@ internal fun LogGalleryHomeContent(
         when (selectedTab) {
             GalleryTab.ALL -> {
                 item {
-                    GallerySectionTitle("최근 촬영", recent.size.takeIf { it > 0 }?.let { "최근 ${it}장" })
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("최근 촬영", color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold)
+                        TextButton(onClick = onOpenRecentPhotos, enabled = recent.isNotEmpty()) {
+                            Text("전체보기")
+                        }
+                    }
                 }
                 if (recent.isEmpty()) {
                     item { GalleryEmptyText("저장된 사진이 없습니다.") }
                 } else {
-                    items(recent.chunked(3)) { row ->
-                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto) { photo -> onOpenPhoto(recent, recent.indexOfFirst { it.id == photo.id }) }
+                    item {
+                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                            val spacing = 5.dp
+                            val photoSize = (maxWidth - spacing * 2) / 3
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(spacing),
+                            ) {
+                                items(recent, key = { it.id }) { photo ->
+                                    GalleryPhotoTile(
+                                        photo, selectedIds, onLongPressPhoto, onSelectPhoto,
+                                        modifier = Modifier.size(photoSize).clip(RoundedCornerShape(10.dp)),
+                                    ) {
+                                        onOpenPhoto(recent, recent.indexOfFirst { it.id == photo.id })
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 item { GallerySectionTitle("저장 폴더", "${folderIndex.children.size}개", onCreateFolder) }
@@ -258,7 +287,6 @@ internal fun GalleryOriginalRow(count: Int, onClick: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun GalleryPhotoRow(
     photos: List<MediaImageItem>,
@@ -272,25 +300,37 @@ internal fun GalleryPhotoRow(
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         photos.forEach { photo ->
-            Box(
-                modifier = Modifier.weight(1f).aspectRatio(1f)
-                    .combinedClickable(
-                        onClick = { if (selectedIds.isNotEmpty()) onSelectPhoto(photo) else onPhotoClick(photo) },
-                        onLongClick = { onLongPressPhoto(photo) },
-                    ),
-            ) {
-                DzThumbnail(photo.uri.toString())
-                if (selectedIds.isNotEmpty()) {
-                    Checkbox(
-                        checked = photo.id in selectedIds,
-                        onCheckedChange = { onSelectPhoto(photo) },
-                        modifier = Modifier.align(Alignment.TopEnd),
-                    )
-                }
-            }
+            GalleryPhotoTile(photo, selectedIds, onLongPressPhoto, onSelectPhoto,
+                modifier = Modifier.weight(1f).aspectRatio(1f)) { onPhotoClick(photo) }
         }
         repeat(3 - photos.size) {
             Box(modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+/** Same tap/selection behavior in the three-column grid and the recent strip. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun GalleryPhotoTile(
+    photo: MediaImageItem,
+    selectedIds: Set<Long>,
+    onLongPressPhoto: (MediaImageItem) -> Unit,
+    onSelectPhoto: (MediaImageItem) -> Unit,
+    modifier: Modifier,
+    onPhotoClick: () -> Unit,
+) {
+    Box(modifier = modifier.combinedClickable(
+        onClick = { if (selectedIds.isNotEmpty()) onSelectPhoto(photo) else onPhotoClick() },
+        onLongClick = { onLongPressPhoto(photo) },
+    )) {
+        DzThumbnail(photo.uri.toString())
+        if (selectedIds.isNotEmpty()) {
+            Checkbox(
+                checked = photo.id in selectedIds,
+                onCheckedChange = { onSelectPhoto(photo) },
+                modifier = Modifier.align(Alignment.TopEnd),
+            )
         }
     }
 }
