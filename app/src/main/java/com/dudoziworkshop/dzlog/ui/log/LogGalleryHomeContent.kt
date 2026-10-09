@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.ui.log
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -209,6 +210,7 @@ internal fun GalleryOriginalRow(count: Int, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun GalleryPhotoRow(
     photos: List<MediaImageItem>,
