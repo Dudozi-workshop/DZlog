@@ -99,7 +99,7 @@ internal fun CameraSettingsOverlayPanel(
             shape = androidx.compose.foundation.shape.RoundedCornerShape(PANEL_CORNER_RADIUS),
             tonalElevation = 0.dp,
             shadowElevation = 6.dp,
-            color = DDZColor.Card.copy(alpha = 0.97f)
+            color = DDZColor.Card
         ) {
             Column(
                 // UX 3차 보정: 내부 상단 여백을 제거해 패널 시작점을 safe 영역 바로 아래로 더 밀착시킨다.
