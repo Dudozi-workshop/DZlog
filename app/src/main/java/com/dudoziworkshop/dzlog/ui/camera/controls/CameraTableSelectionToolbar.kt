@@ -37,6 +37,7 @@ private val ToolbarShape = RoundedCornerShape(16.dp)
 internal fun CameraTableSelectionToolbar(
     onOpenDetails: () -> Unit,
     onRotate: () -> Unit,
+    onResize: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -48,7 +49,7 @@ internal fun CameraTableSelectionToolbar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         CameraTableAction("상세", Icons.Default.Edit, true, onOpenDetails)
-        CameraTableAction("크기", Icons.Default.AspectRatio, false, {})
+        CameraTableAction("크기", Icons.Default.AspectRatio, true, onResize)
         CameraTableAction("회전", Icons.AutoMirrored.Filled.RotateRight, true, onRotate)
         CameraTableAction("잠금", Icons.Default.Lock, false, {})
     }
