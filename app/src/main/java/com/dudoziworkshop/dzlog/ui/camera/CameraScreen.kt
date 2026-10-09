@@ -54,6 +54,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
+import com.dudoziworkshop.dzlog.domain.naming.capturePhysicalSavePaths
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
@@ -550,7 +551,10 @@ fun CameraPreview(
         if (showNextCaptureInfo) {
             CameraNextCaptureInfoPopup(
                 nextFileName = topDisplayName,
-                relativePath = finalCapturePreview?.relativePathPreview ?: captureScopeState.relativePathPreview,
+                relativePaths = capturePhysicalSavePaths(
+                    finalCapturePreview?.relativePathPreview ?: captureScopeState.relativePathPreview,
+                    appSettings.saveMode,
+                ),
                 onOpenSaveSettings = {
                     showNextCaptureInfo = false
                     onOpenSaveSettings()
