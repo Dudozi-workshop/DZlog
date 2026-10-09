@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.ui.log
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.Checkbox
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -45,6 +47,9 @@ internal fun LogGalleryHomeContent(
     onOpenFolder: (String) -> Unit,
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
     onOpenOriginal: (String) -> Unit,
+    selectedIds: Set<Long> = emptySet(),
+    onLongPressPhoto: (MediaImageItem) -> Unit = {},
+    onSelectPhoto: (MediaImageItem) -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth()
@@ -91,7 +96,7 @@ internal fun LogGalleryHomeContent(
                     item { GalleryEmptyText("저장된 사진이 없습니다.") }
                 } else {
                     items(recent.chunked(3)) { row ->
-                        GalleryPhotoRow(row) { photo -> onOpenPhoto(recent, recent.indexOfFirst { it.id == photo.id }) }
+                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto) { photo -> onOpenPhoto(recent, recent.indexOfFirst { it.id == photo.id }) }
                     }
                 }
                 item { GallerySectionTitle("저장 폴더", "${folderIndex.children.size}개") }
@@ -117,7 +122,7 @@ internal fun LogGalleryHomeContent(
                     item { GalleryEmptyText("DZlog 기본 위치에 저장된 사진이 없습니다.") }
                 } else {
                     items(directPhotos.chunked(3)) { row ->
-                        GalleryPhotoRow(row) { photo ->
+                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto) { photo ->
                             onOpenPhoto(directPhotos, directPhotos.indexOfFirst { it.id == photo.id })
                         }
                     }
@@ -207,6 +212,9 @@ internal fun GalleryOriginalRow(count: Int, onClick: () -> Unit) {
 @Composable
 internal fun GalleryPhotoRow(
     photos: List<MediaImageItem>,
+    selectedIds: Set<Long> = emptySet(),
+    onLongPressPhoto: (MediaImageItem) -> Unit = {},
+    onSelectPhoto: (MediaImageItem) -> Unit = {},
     onPhotoClick: (MediaImageItem) -> Unit,
 ) {
     Row(
@@ -216,9 +224,19 @@ internal fun GalleryPhotoRow(
         photos.forEach { photo ->
             Box(
                 modifier = Modifier.weight(1f).aspectRatio(1f)
-                    .clickable { onPhotoClick(photo) },
+                    .combinedClickable(
+                        onClick = { if (selectedIds.isNotEmpty()) onSelectPhoto(photo) else onPhotoClick(photo) },
+                        onLongClick = { onLongPressPhoto(photo) },
+                    ),
             ) {
                 DzThumbnail(photo.uri.toString())
+                if (selectedIds.isNotEmpty()) {
+                    Checkbox(
+                        checked = photo.id in selectedIds,
+                        onCheckedChange = { onSelectPhoto(photo) },
+                        modifier = Modifier.align(Alignment.TopEnd),
+                    )
+                }
             }
         }
         repeat(3 - photos.size) {
