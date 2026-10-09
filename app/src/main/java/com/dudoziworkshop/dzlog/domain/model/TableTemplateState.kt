@@ -30,7 +30,7 @@ data class TableTemplateState(
     val phraseSets: List<RotatingPhraseSet> = emptyList(),
     // 정책: 파일명/저장경로 슬롯의 단일 SSOT는 draft payload다.
     val fileNameSlotDrafts: List<TableEditorSlotDraft?> = List(FILE_NAME_SLOT_COUNT) { null },
-    // 저장경로는 도메인/저장/촬영 전 구간에서 최대 3단계만 허용한다.
+    // 현재 편집 가능한 저장경로 최대 5단계. 갤러리의 기존 데이터 열람 깊이와는 별도 정책이다.
     val pathSlotDrafts: List<TableEditorSlotDraft?> = List(PATH_SLOT_UI_MAX_COUNT) { null },
 ) {
     init {
@@ -52,10 +52,14 @@ fun deriveFileNameCellSlotsFromDrafts(drafts: List<TableEditorSlotDraft?>): List
     }
 }
 
-const val FILE_NAME_SLOT_COUNT: Int = 3
+/** 현재 개발/실사용 단계: 파일명 구성요소 5개 사용 가능. 향후 요금제별 편집 한도와 분리한다. */
+const val FILE_NAME_SLOT_COUNT: Int = 5
 
-/** 저장경로의 도메인 최대 단계 수. UI/preview/counter/capture 모두 이 제한을 공유한다. */
-const val PATH_SLOT_UI_MAX_COUNT: Int = 3
+/** 향후 무료 플랜의 구성요소 수(결제 권한 적용은 후속 단계). */
+const val BASIC_SAVE_RULE_SLOT_COUNT: Int = 3
+
+/** 저장경로 구성요소 최대 5개. UI/preview/counter/capture가 공유한다. */
+const val PATH_SLOT_UI_MAX_COUNT: Int = 5
 
 fun normalizePathSlotDrafts(
     drafts: List<TableEditorSlotDraft?>,

@@ -142,7 +142,7 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
             }
         }
         val fileNameSlotDrafts = parseEditorSlotDrafts("fileNameSlotDrafts", FILE_NAME_SLOT_COUNT)
-        // migration: legacy 4단계 이상 tail은 로드 시점에 폐기한다.
+        // 3슬롯 템플릿은 남는 2칸을 null로 복원한다. 5슬롯 템플릿은 5개 모두 유지한다.
         val pathSlotDrafts = parseEditorSlotDrafts("pathSlotDrafts", PATH_SLOT_UI_MAX_COUNT)
 
         TableTemplateState(
