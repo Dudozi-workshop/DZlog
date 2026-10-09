@@ -10,6 +10,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
@@ -33,8 +34,8 @@ internal fun Modifier.cameraPreviewGestureModifier(
     tapFocusUi: TapFocusUiState?,
     focusMode: CameraFocusMode,
     suppressWatermarkTapUntilMs: Long,
-    watermarkBoundsRect: RectF?,
-    watermarkRawRect: RectF?,
+    watermarkBoundsRectState: State<RectF?>,
+    watermarkRawRectState: State<RectF?>,
     isWatermarkArmed: Boolean,
     isTableLocked: Boolean,
     dragTouchSlop: Float,
@@ -65,13 +66,13 @@ internal fun Modifier.cameraPreviewGestureModifier(
     onRequestedZoomTenthsCommit: (Int) -> Unit,
     onActualZoomTenthsChange: (Int) -> Unit,
     onCornerResizeScale: (Float, Boolean) -> Unit,
-    activeHandleCorner: ResizeHandleCorner?,
+    activeHandleCornerState: State<ResizeHandleCorner?>,
     onActiveHandleCornerChange: (ResizeHandleCorner?) -> Unit,
 ): Modifier = this
-    .pointerInput(boundCamera, captureRect, tapFocusUi, focusMode, isWatermarkArmed, watermarkBoundsRect) {
+    .pointerInput(boundCamera, captureRect, tapFocusUi, focusMode, isWatermarkArmed) {
         detectTapGestures { offset ->
             if (SystemClock.uptimeMillis() < suppressWatermarkTapUntilMs) return@detectTapGestures
-            if (watermarkBoundsRect?.contains(offset.x, offset.y) == true) {
+            if (watermarkBoundsRectState.value?.contains(offset.x, offset.y) == true) {
                 onWatermarkArmedChange(true)
                 return@detectTapGestures
             }
@@ -116,13 +117,16 @@ internal fun Modifier.cameraPreviewGestureModifier(
             val activeCamera = boundCamera ?: return@awaitEachGesture
             var pinchActiveNotified = false
             val firstDown = awaitFirstDown(requireUnconsumed = false)
-            val corner = watermarkBoundsRect
-            val selectedCorner = corner?.let { activeHandleCorner ?: chooseResizeHandleCorner(it, captureRect) }
+            // Read the live overlay geometry when this gesture starts. A slider drag can
+            // resize the visible table without restarting this pointerInput coroutine.
+            val corner = watermarkBoundsRectState.value
+            val selectedCorner = corner?.let { activeHandleCornerState.value ?: chooseResizeHandleCorner(it, captureRect) }
             val handleCenter = if (corner != null && selectedCorner != null) handleCornerPoint(corner, selectedCorner) else null
             val cornerHit = !isTableLocked && isWatermarkArmed && handleCenter != null &&
                 hypot((firstDown.position.x - handleCenter.x).toDouble(), (firstDown.position.y - handleCenter.y).toDouble()) < dragTouchSlop * 3f
-            val localDragEnabled = !isTableLocked && !cornerHit && isWatermarkArmed && watermarkBoundsRect != null && watermarkRawRect != null &&
-                watermarkBoundsRect.contains(firstDown.position.x, firstDown.position.y)
+            val localDragEnabled = !isTableLocked && !cornerHit && isWatermarkArmed &&
+                corner != null && watermarkRawRectState.value != null &&
+                corner.contains(firstDown.position.x, firstDown.position.y)
             var localDragStartLeftPx = dragStartLeftPx
             var localDragStartTopPx = dragStartTopPx
             var localDragTableWidthPx = dragTableWidthPx
@@ -143,7 +147,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
                 (firstDown.position.y - resizeAnchor.y).toDouble(),
             ).toFloat().coerceAtLeast(1f) else 1f
             if (localDragEnabled) {
-                val br = watermarkBoundsRect!!
+                val br = corner!!
                 localDragStartLeftPx = br.left - captureRect.left
                 localDragStartTopPx = br.top - captureRect.top
                 localDragTableWidthPx = br.width()
