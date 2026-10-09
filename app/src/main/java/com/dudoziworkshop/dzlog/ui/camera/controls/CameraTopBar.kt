@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -32,7 +34,7 @@ private val CameraCompactControlShape = RoundedCornerShape(DDZLayout.Radius.Smal
 @Composable
 fun CameraTopBar(
     topDisplayName: String,
-    onOpenTableEditor: () -> Unit,
+    onOpenCaptureInfo: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     BoxWithConstraints(
@@ -67,16 +69,21 @@ fun CameraTopBar(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                    ) { onOpenTableEditor() }
+                    ) { onOpenCaptureInfo() }
                     .padding(horizontal = DDZSpacing.cardPadding, vertical = 5.dp),
                 contentAlignment = Alignment.Center
             ) {
                 // 시각적 중앙 보정: 파일명 텍스트가 위로 떠 보이지 않도록 lineHeight/padding을 균형화한다.
-                CounterAwareFileNameText(
-                    fileName = topDisplayName,
-                    style = DDZTypography.Caption.copy(lineHeight = 14.sp),
-                    color = DDZColor.TextStrong,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("다음", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    Text("  ·  ", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                    CounterAwareFileNameText(
+                        fileName = topDisplayName,
+                        style = DDZTypography.Caption.copy(lineHeight = 14.sp),
+                        color = DDZColor.TextStrong,
+                        counterColor = DDZColor.SageDarkStrong,
+                    )
+                }
             }
 
             Box(
