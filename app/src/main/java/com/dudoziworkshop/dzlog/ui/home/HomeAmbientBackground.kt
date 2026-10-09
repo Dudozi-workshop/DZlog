@@ -19,8 +19,8 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -29,9 +29,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 internal fun HomeAmbientBackground(
     modifier: Modifier = Modifier,
 ) {
-    val animationEnabled = androidx.compose.ui.platform.LocalView.current.isAttachedToWindow &&
-        androidx.compose.ui.platform.LocalContext.current.resources.configuration.fontScale > 0f
-    // Compose respects system animator-duration-scale for infinite transitions.
+    // Infinite transitions follow the Android animator-duration scale.
     val motion = rememberInfiniteTransition(label = "Home ambient")
     @Composable
     fun drift(duration: Int, amplitude: Float, label: String): Float {
@@ -44,11 +42,11 @@ internal fun HomeAmbientBackground(
             ),
             label = label,
         )
-        return if (animationEnabled) value else 0f
+        return value
     }
     val density = LocalDensity.current
-    val branchX = with(density) { drift(HomeAmbientSpec.BranchLegMillis, HomeAmbientSpec.BranchTravelX.value, "branch x").dp.toPx() }
-    val branchY = with(density) { drift(HomeAmbientSpec.BranchLegMillis, HomeAmbientSpec.BranchTravelY.value, "branch y").dp.toPx() }
+    val branchX = drift(HomeAmbientSpec.BranchLegMillis, HomeAmbientSpec.BranchTravelX.value, "branch x") * density.density
+    val branchY = drift(HomeAmbientSpec.BranchLegMillis, HomeAmbientSpec.BranchTravelY.value, "branch y") * density.density
     val branchAngle = drift(HomeAmbientSpec.BranchLegMillis, HomeAmbientSpec.BranchRotation, "branch rotation")
     val leaf1 = drift(HomeAmbientSpec.Leaf1LegMillis, HomeAmbientSpec.LeafRotation, "leaf 1")
     val leaf2 = drift(HomeAmbientSpec.Leaf2LegMillis, -HomeAmbientSpec.LeafRotation * 0.75f, "leaf 2")
