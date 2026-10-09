@@ -751,8 +751,17 @@ fun AppRoot() {
                     items = gridItems,
                     isSelectionMode = isSelectionMode,
                     selectedIds = selectedIds,
-                    onItemsLoaded = { gridItems = it },
-                    onOpenViewer = { idx ->
+                    onItemsLoaded = { loaded ->
+                        gridItems = loaded
+                        selectedIds = selectedIds.intersect(loaded.mapTo(mutableSetOf()) { it.id })
+                        if (selectedIds.isEmpty()) isSelectionMode = false
+                    },
+                    onDeleted = { verifiedIds ->
+                        selectedIds = selectedIds - verifiedIds
+                        if (selectedIds.isEmpty()) isSelectionMode = false
+                    },
+                    onOpenViewer = { photos, idx ->
+                        gridItems = photos
                         viewerStartIndex = idx
                         viewerEntrySource = ViewerEntrySource.GRID
                         screen = AppScreen.ALBUM_VIEWER
@@ -783,9 +792,9 @@ fun AppRoot() {
                         isSelectionMode = false
                         selectedIds = emptySet()
                     },
-                    onSelectAll = {
-                        isSelectionMode = true
-                        selectedIds = gridItems.map { it.id }.toSet()
+                    onSelectAll = { visibleIds ->
+                        selectedIds = visibleIds
+                        isSelectionMode = visibleIds.isNotEmpty()
                     },
                     onBack = { handleAlbumGridBack() }
                 )
