@@ -73,6 +73,7 @@ internal fun LogGalleryHomeContent(
     canManageFolders: Boolean,
     onCreateFolder: () -> Unit = {},
     selectedIds: Set<Long> = emptySet(),
+    selectionActive: Boolean = selectedIds.isNotEmpty(),
     onLongPressPhoto: (MediaImageItem) -> Unit = {},
     onSelectPhoto: (MediaImageItem) -> Unit = {},
 ) {
@@ -90,7 +91,7 @@ internal fun LogGalleryHomeContent(
                         if (active) DDZColor.Surface else DDZColor.SurfaceSoft,
                         RoundedCornerShape(12.dp),
                     )
-                    .clickable { onTabChange(tab) }
+                    .clickable(enabled = !selectionActive) { onTabChange(tab) }
                     .padding(vertical = 11.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -123,7 +124,7 @@ internal fun LogGalleryHomeContent(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text("최근 촬영", color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold)
-                        TextButton(onClick = onOpenRecentPhotos, enabled = recent.isNotEmpty()) {
+                        TextButton(onClick = onOpenRecentPhotos, enabled = recent.isNotEmpty() && !selectionActive) {
                             Text("전체보기")
                         }
                     }
@@ -142,6 +143,7 @@ internal fun LogGalleryHomeContent(
                                 items(recent, key = { it.id }) { photo ->
                                     GalleryPhotoTile(
                                         photo, selectedIds, onLongPressPhoto, onSelectPhoto,
+                                        selectionActive = selectionActive,
                                         modifier = Modifier.size(photoSize).clip(RoundedCornerShape(10.dp)),
                                     ) {
                                         onOpenPhoto(recent, recent.indexOfFirst { it.id == photo.id })
@@ -186,7 +188,7 @@ internal fun LogGalleryHomeContent(
                     item { GalleryEmptyText("DZlog 기본 위치에 저장된 사진이 없습니다.") }
                 } else {
                     items(directPhotos.chunked(3)) { row ->
-                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto) { photo ->
+                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto, selectionActive = selectionActive) { photo ->
                             onOpenPhoto(directPhotos, directPhotos.indexOfFirst { it.id == photo.id })
                         }
                     }
@@ -205,7 +207,7 @@ internal fun LogGalleryHomeContent(
                     item { GalleryEmptyText("즐겨찾기한 사진이 없습니다.") }
                 } else {
                     items(favorites.chunked(3)) { row ->
-                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto) { photo -> onOpenPhoto(favorites, favorites.indexOfFirst { it.id == photo.id }) }
+                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto, selectionActive = selectionActive) { photo -> onOpenPhoto(favorites, favorites.indexOfFirst { it.id == photo.id }) }
                     }
                 }
             }
@@ -323,6 +325,7 @@ internal fun GalleryPhotoRow(
     selectedIds: Set<Long> = emptySet(),
     onLongPressPhoto: (MediaImageItem) -> Unit = {},
     onSelectPhoto: (MediaImageItem) -> Unit = {},
+    selectionActive: Boolean = selectedIds.isNotEmpty(),
     onPhotoClick: (MediaImageItem) -> Unit,
 ) {
     Row(
@@ -331,6 +334,7 @@ internal fun GalleryPhotoRow(
     ) {
         photos.forEach { photo ->
             GalleryPhotoTile(photo, selectedIds, onLongPressPhoto, onSelectPhoto,
+                selectionActive = selectionActive,
                 modifier = Modifier.weight(1f).aspectRatio(1f)) { onPhotoClick(photo) }
         }
         repeat(3 - photos.size) {
@@ -347,15 +351,16 @@ private fun GalleryPhotoTile(
     selectedIds: Set<Long>,
     onLongPressPhoto: (MediaImageItem) -> Unit,
     onSelectPhoto: (MediaImageItem) -> Unit,
+    selectionActive: Boolean,
     modifier: Modifier,
     onPhotoClick: () -> Unit,
 ) {
     Box(modifier = modifier.combinedClickable(
-        onClick = { if (selectedIds.isNotEmpty()) onSelectPhoto(photo) else onPhotoClick() },
+        onClick = { if (selectionActive) onSelectPhoto(photo) else onPhotoClick() },
         onLongClick = { onLongPressPhoto(photo) },
     )) {
         DzThumbnail(photo.uri.toString())
-        if (selectedIds.isNotEmpty()) {
+        if (selectionActive) {
             Checkbox(
                 checked = photo.id in selectedIds,
                 onCheckedChange = { onSelectPhoto(photo) },

@@ -98,7 +98,6 @@ fun LogFolderScreen(
     val favoriteIds by remember(context) { FavoritesProvider.repo(context) }.favoriteIdsFlow.collectAsState(initial = emptySet())
     var selectedTab by remember { mutableStateOf(GalleryTab.ALL) }
     var showRecentPhotos by rememberSaveable(relativePath) { mutableStateOf(false) }
-    BackHandler(enabled = showRecentPhotos) { showRecentPhotos = false }
     val cached = remember(relativePath) { GallerySnapshotMemory.cache.get(relativePath) }
     var allPhotos by remember(relativePath) { mutableStateOf(cached?.allPhotos ?: emptyList()) }
     var index by remember(relativePath) { mutableStateOf<GalleryFolderIndex?>(cached?.index) }
@@ -122,7 +121,8 @@ fun LogFolderScreen(
     var managementConfirmed by remember { mutableStateOf(false) }
     var folderOperationError by remember { mutableStateOf<String?>(null) }
     var connected by remember { mutableStateOf(folderStorage.isConnected()) }
-    var selectedPhotoIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var selectedPhotoIds by remember(relativePath) { mutableStateOf<Set<Long>>(emptySet()) }
+    var selectionActive by remember(relativePath) { mutableStateOf(false) }
     var showPhotoMove by remember { mutableStateOf(false) }
     var includeOriginals by remember { mutableStateOf<Boolean?>(null) }
     var photoMoveTarget by remember { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
@@ -143,6 +143,7 @@ fun LogFolderScreen(
                 if (moved.moved > 0) {
                     GallerySnapshotMemory.cache.invalidate()
                     selectedPhotoIds = emptySet()
+                    selectionActive = false
                     reloadKey++
                 }
                 folderOperationError = if (moved.failed > 0) {
@@ -203,7 +204,16 @@ fun LogFolderScreen(
         loading = false
     }
 
+    fun enterSelection(photo: MediaImageItem) {
+        selectionActive = true
+        selectedPhotoIds = selectedPhotoIds + photo.id
+    }
+    fun cancelSelection() {
+        selectedPhotoIds = emptySet()
+        selectionActive = false
+    }
     fun togglePhoto(photo: MediaImageItem) {
+        selectionActive = true
         selectedPhotoIds = if (photo.id in selectedPhotoIds) selectedPhotoIds - photo.id else selectedPhotoIds + photo.id
     }
     fun startPhotoMove() {
@@ -230,7 +240,7 @@ fun LogFolderScreen(
         }
     }
     fun startFolderManagement(path: String, action: String) {
-        if (folderManagementBusy || selectedPhotoIds.isNotEmpty()) return
+        if (folderManagementBusy || selectionActive) return
         managedFolderPath = path
         folderOperationError = null
         managementConfirmed = false
@@ -254,32 +264,61 @@ fun LogFolderScreen(
     val recentPhotos = remember(allPhotos) {
         allPhotos.filterNot { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }
     }
+    val selectablePhotos = when {
+        !root -> photos
+        showRecentPhotos -> recentPhotos
+        selectedTab == GalleryTab.ALL -> recentPhotos.take(9)
+        selectedTab == GalleryTab.FOLDERS -> photos
+        else -> allPhotos.filter { it.id in favoriteIds }
+    }
+    val selectableIds = selectablePhotos.mapTo(mutableSetOf()) { it.id }
+    val allSelected = selectableIds.isNotEmpty() && selectedPhotoIds.containsAll(selectableIds)
+    LaunchedEffect(selectableIds, showPhotoMove, photoMoveBusy) {
+        if (!showPhotoMove && !photoMoveBusy) selectedPhotoIds = selectedPhotoIds.intersect(selectableIds)
+    }
+    BackHandler(enabled = showRecentPhotos && !selectionActive && !showPhotoMove) { showRecentPhotos = false }
+    BackHandler(enabled = selectionActive && !showPhotoMove) {
+        if (!photoMoveBusy && pendingPhotoPlan == null) cancelSelection()
+    }
     val title = if (showRecentPhotos) "최근 촬영" else if (root) "갤러리"
         else relativePath.trimEnd('/').substringAfterLast('/')
     val currentSummary = summariesByPath[relativePath]
     val imagesById = remember(allPhotos) { allPhotos.associateBy { it.id.toString() } }
     Column(modifier = Modifier.dzScreen().padding(horizontal = 16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            IconButton(onClick = { if (showRecentPhotos) showRecentPhotos = false else onBack() }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
+        if (selectionActive) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = ::cancelSelection, enabled = !photoMoveBusy && pendingPhotoPlan == null) { Text("취소") }
+                Text("${selectedPhotoIds.size}장 선택", modifier = Modifier.weight(1f),
+                    color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                TextButton(enabled = selectableIds.isNotEmpty() && !photoMoveBusy && pendingPhotoPlan == null,
+                    onClick = { selectedPhotoIds = if (allSelected) emptySet() else selectableIds }) {
+                    Text(if (allSelected) "전체 해제" else "전체 선택")
+                }
             }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold)
-                Text(if (showRecentPhotos) "사진 ${recentPhotos.size}장" else
-                    relativePath.removePrefix(GalleryFolderIndexPolicy.ROOT).ifBlank { "Pictures / DZlog" },
-                    color = DDZColor.TextSecondary, maxLines = 1,
-                    overflow = TextOverflow.Ellipsis)
-                if (!root && currentSummary != null) {
-                    Text(
-                        "사진 ${currentSummary.totalPhotoCount} · 하위 ${currentSummary.directChildFolderCount} · 최근 " +
-                            GalleryFolderSummaryPolicy.compactDate(
-                                epochMillis = currentSummary.latestPhotoEpochMillis,
-                                referenceMillis = System.currentTimeMillis(),
-                                timeZone = TimeZone.getDefault(),
-                            ),
-                        color = DDZColor.TextSecondary,
-                        fontSize = 12.sp,
-                    )
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                IconButton(onClick = { if (showRecentPhotos) showRecentPhotos = false else onBack() }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(title, color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold)
+                    Text(if (showRecentPhotos) "사진 ${recentPhotos.size}장" else
+                        relativePath.removePrefix(GalleryFolderIndexPolicy.ROOT).ifBlank { "Pictures / DZlog" },
+                        color = DDZColor.TextSecondary, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis)
+                    if (!root && currentSummary != null) {
+                        Text(
+                            "사진 ${currentSummary.totalPhotoCount} · 하위 ${currentSummary.directChildFolderCount} · 최근 " +
+                                GalleryFolderSummaryPolicy.compactDate(
+                                    epochMillis = currentSummary.latestPhotoEpochMillis,
+                                    referenceMillis = System.currentTimeMillis(),
+                                    timeZone = TimeZone.getDefault(),
+                                ),
+                            color = DDZColor.TextSecondary,
+                            fontSize = 12.sp,
+                        )
+                    }
                 }
             }
         }
@@ -296,7 +335,7 @@ fun LogFolderScreen(
                         text = crumb.label,
                         color = if (crumb.relativePath == relativePath) DDZColor.TextPrimary
                             else DDZColor.Primary,
-                        modifier = Modifier.clickable {
+                        modifier = Modifier.clickable(enabled = !selectionActive) {
                             if (crumb.relativePath != relativePath) onOpenFolder(crumb.relativePath)
                         }.padding(vertical = 5.dp),
                     )
@@ -305,17 +344,15 @@ fun LogFolderScreen(
         }
         if (!root && connected) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(enabled = !folderManagementBusy && selectedPhotoIds.isEmpty(),
+                OutlinedButton(enabled = !folderManagementBusy && !selectionActive,
                     onClick = { startFolderManagement(relativePath, "rename") }) { Text("이름 변경") }
-                OutlinedButton(enabled = !folderManagementBusy && selectedPhotoIds.isEmpty(),
+                OutlinedButton(enabled = !folderManagementBusy && !selectionActive,
                     onClick = { startFolderManagement(relativePath, "move") }) { Text("이동") }
             }
         }
-        if (selectedPhotoIds.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("${selectedPhotoIds.size}장 선택", modifier = Modifier.weight(1f))
-                OutlinedButton(onClick = { selectedPhotoIds = emptySet() }) { Text("취소") }
-                Button(onClick = ::startPhotoMove) { Text("이동") }
+        if (selectionActive && selectedPhotoIds.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Button(onClick = ::startPhotoMove, enabled = !photoMoveBusy) { Text("이동") }
             }
         }
         folderOperationError?.let { message ->
@@ -334,7 +371,7 @@ fun LogFolderScreen(
                     item { GalleryEmptyText("저장된 사진이 없습니다.") }
                 } else {
                     items(recentPhotos.chunked(3)) { row ->
-                        GalleryPhotoRow(row, selectedPhotoIds, ::togglePhoto, ::togglePhoto) { photo ->
+                        GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
                             onOpenPhoto(recentPhotos, recentPhotos.indexOfFirst { it.id == photo.id })
                         }
                     }
@@ -343,20 +380,21 @@ fun LogFolderScreen(
         } else if (root && index != null) {
             LogGalleryHomeContent(
                 selectedTab = selectedTab,
-                onTabChange = { selectedTab = it },
+                onTabChange = { if (!selectionActive) selectedTab = it },
                 folderIndex = requireNotNull(index),
                 summariesByPath = summariesByPath,
                 allImages = allPhotos,
                 favoriteIds = favoriteIds,
-                onOpenFolder = onOpenFolder,
+                onOpenFolder = { if (!selectionActive) onOpenFolder(it) },
                 onOpenPhoto = onOpenPhoto,
-                onOpenOriginal = onOpenOriginal,
-                onOpenRecentPhotos = { showRecentPhotos = true },
+                onOpenOriginal = { if (!selectionActive) onOpenOriginal(it) },
+                onOpenRecentPhotos = { if (!selectionActive) showRecentPhotos = true },
                 onManageFolder = ::startFolderManagement,
-                canManageFolders = connected && !folderManagementBusy && selectedPhotoIds.isEmpty(),
+                canManageFolders = connected && !folderManagementBusy && !selectionActive,
                 onCreateFolder = { folderOperationError = null; showCreateDialog = true },
                 selectedIds = selectedPhotoIds,
-                onLongPressPhoto = ::togglePhoto,
+                selectionActive = selectionActive,
+                onLongPressPhoto = ::enterSelection,
                 onSelectPhoto = ::togglePhoto,
             )
         } else {
@@ -375,10 +413,10 @@ fun LogFolderScreen(
                     items(current.children, key = { it.relativePath }) { folder ->
                         val summary = summariesByPath[folder.relativePath]
                         GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
-                            canManage = connected && !folderManagementBusy && selectedPhotoIds.isEmpty(),
+                            canManage = connected && !folderManagementBusy && !selectionActive,
                             onManage = { action -> startFolderManagement(folder.relativePath, action) },
                         ) {
-                            onOpenFolder(folder.relativePath)
+                            if (!selectionActive) onOpenFolder(folder.relativePath)
                         }
                     }
                 }
@@ -407,7 +445,7 @@ fun LogFolderScreen(
                     item { Text("이 폴더에 저장된 사진이 없습니다.", color = DDZColor.TextSecondary) }
                 } else {
                     items(sortedPhotos.chunked(3)) { rowPhotos ->
-                        GalleryPhotoRow(rowPhotos, selectedPhotoIds, ::togglePhoto, ::togglePhoto) { photo ->
+                        GalleryPhotoRow(rowPhotos, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
                             onOpenPhoto(sortedPhotos, sortedPhotos.indexOfFirst { it.id == photo.id })
                         }
                     }
@@ -416,7 +454,7 @@ fun LogFolderScreen(
                     item {
                         Row(
                             modifier = Modifier.fillMaxWidth()
-                                .clickable { onOpenOriginal(relativePath + "original/") }
+                                .clickable(enabled = !selectionActive) { onOpenOriginal(relativePath + "original/") }
                                 .padding(vertical = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
