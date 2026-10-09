@@ -411,6 +411,7 @@ internal fun CameraPreviewArea(
                     tapFocusUi = tapFocusUi,
                     isWatermarkArmed = isWatermarkArmed,
                     watermarkOffsetOverridePx = effectiveOverrideOffsetPx,
+                    dragVisibleOffsetPx = dragPreviewOffsetPx,
                     onWatermarkBoundsRectChange = { watermarkBoundsRect = it },
                     onWatermarkRawRectChange = { watermarkRawRect = it }
                 )
