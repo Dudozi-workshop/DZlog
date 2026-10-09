@@ -4,6 +4,7 @@ import android.graphics.RectF
 import android.text.TextPaint
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
+import com.dudoziworkshop.dzlog.watermark.computeWatermarkBoundsRect
 
 data class ContentDrivenLayoutCell(
     val rowIndex: Int,
@@ -236,8 +237,11 @@ fun buildContentDrivenRenderedSceneFromPlacement(
 }
 
 
-/** Camera preview and saved photos share a resolution-independent placement policy.
- * Intrinsic text measurements define proportions, never a maximum pixel size.
+/**
+ * Camera preview and saved photo share a normalized placement rule for the
+ * *visible* (content fitted) table, not its larger aspect-ratio viewport.
+ * This allows 0/10000 to reach the photo edge even when text-driven layout
+ * has letterboxing within the viewport.
  */
 fun buildCameraTableSceneFromPlacement(
     bounds: RectF,
@@ -250,16 +254,79 @@ fun buildCameraTableSceneFromPlacement(
     baseScaleRatio: Int,
     rowWeights: List<Float>? = null,
     colWeights: List<Float>? = null,
-): ContentDrivenRenderedScene = buildContentDrivenRenderedSceneFromPlacement(
-    bounds = bounds,
-    placement = placement,
-    cells = cells,
-    templateCells = templateCells,
-    rows = rows,
-    cols = cols,
-    valueScale = valueScale,
-    baseScaleRatio = baseScaleRatio,
-    rowWeights = rowWeights,
-    colWeights = colWeights,
-    allowUpscaleToFit = true,
-)
+): ContentDrivenRenderedScene {
+    val candidate = buildContentDrivenRenderedSceneFromPlacement(
+        bounds = bounds,
+        placement = placement,
+        cells = cells,
+        templateCells = templateCells,
+        rows = rows,
+        cols = cols,
+        valueScale = valueScale,
+        baseScaleRatio = baseScaleRatio,
+        rowWeights = rowWeights,
+        colWeights = colWeights,
+        allowUpscaleToFit = true,
+    )
+    val viewport = computeRenderedTableGeometry(
+        bounds = bounds,
+        placement = placement,
+        rows = rows.coerceAtLeast(1),
+        cols = cols.coerceAtLeast(1),
+        rowWeights = null,
+        colWeights = null,
+    ).tableRect
+    val rotatedViewport = computeWatermarkBoundsRect(viewport, placement.rotationCwDeg)
+    val actualBounds = computeWatermarkBoundsRect(candidate.scene.tableRect, placement.rotationCwDeg)
+    val availableViewportX = (bounds.width() - rotatedViewport.width()).coerceAtLeast(0f)
+    val availableViewportY = (bounds.height() - rotatedViewport.height()).coerceAtLeast(0f)
+    val normalizedX = if (availableViewportX < 0.001f) 0.5f else
+        ((rotatedViewport.left - bounds.left) / availableViewportX).coerceIn(0f, 1f)
+    val normalizedY = if (availableViewportY < 0.001f) 0.5f else
+        ((rotatedViewport.top - bounds.top) / availableViewportY).coerceIn(0f, 1f)
+    return moveCameraTableSceneToVisibleBounds(
+        candidate,
+        bounds,
+        placement.rotationCwDeg,
+        leftPx = normalizedX * (bounds.width() - actualBounds.width()).coerceAtLeast(0f),
+        topPx = normalizedY * (bounds.height() - actualBounds.height()).coerceAtLeast(0f),
+        templateCells = templateCells,
+        rows = rows,
+        cols = cols,
+    )
+}
+
+/** Transient finger drag works in visible-table pixels; persistence uses ratios. */
+fun moveCameraTableSceneToVisibleBounds(
+    rendered: ContentDrivenRenderedScene,
+    photoBounds: RectF,
+    rotationCwDeg: Int,
+    leftPx: Float,
+    topPx: Float,
+    templateCells: List<TableCellState>,
+    rows: Int,
+    cols: Int,
+): ContentDrivenRenderedScene {
+    val actualRect = rendered.scene.tableRect
+    val bounds = computeWatermarkBoundsRect(actualRect, rotationCwDeg)
+    val maxX = (photoBounds.width() - bounds.width()).coerceAtLeast(0f)
+    val maxY = (photoBounds.height() - bounds.height()).coerceAtLeast(0f)
+    val targetCenterX = photoBounds.left + leftPx.coerceIn(0f, maxX) + bounds.width() / 2f
+    val targetCenterY = photoBounds.top + topPx.coerceIn(0f, maxY) + bounds.height() / 2f
+    val newRect = RectF(
+        targetCenterX - actualRect.width() / 2f,
+        targetCenterY - actualRect.height() / 2f,
+        targetCenterX + actualRect.width() / 2f,
+        targetCenterY + actualRect.height() / 2f,
+    )
+    return rendered.copy(
+        scene = buildRenderedTableScene(
+            tableRect = newRect,
+            rows = rows,
+            cols = cols,
+            rowWeights = rendered.resolvedLayout.finalRowWeights,
+            colWeights = rendered.resolvedLayout.finalColWeights,
+            rootCells = buildRenderRootCells(templateCells),
+        )
+    )
+}
