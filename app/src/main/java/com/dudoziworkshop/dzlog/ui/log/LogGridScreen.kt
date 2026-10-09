@@ -133,14 +133,16 @@ fun LogGridScreen(
         isLoading = true
         try {
             // 스캔/메타 변경 이벤트가 연속으로 들어올 때 재조회 폭주 체감 줄이기
-            delay(500)
+            delay(120)
             val loaded = withContext(Dispatchers.IO) {
                 reader.loadImages(relativePath)
             }
             onItemsLoaded(loaded)
             error = null
+        } catch (t: kotlinx.coroutines.CancellationException) {
+            throw t
         } catch (t: Throwable) {
-            error = t.message ?: "불러오기 실패"
+            if (items.isEmpty()) error = "사진을 불러오지 못했습니다."
         } finally {
             isLoading = false
         }
@@ -169,9 +171,6 @@ fun LogGridScreen(
     fun selectedItems(): List<MediaImageItem> =
         items.filter { selectedIds.contains(it.id) }
 
-    LaunchedEffect(relativePath) {
-        reloadImages()
-    }
 
     suspend fun reloadOriginalCard() {
         if (originalRelativePath.isNullOrBlank()) {
@@ -327,13 +326,14 @@ fun LogGridScreen(
             Spacer(Modifier.height(12.dp))
 
             if (error != null) {
-                Text("오류: $error")
+                Text("사진을 불러오지 못했습니다.")
+                TextButton(onClick = { reloadImages() }) { Text("다시 시도") }
                 return@Column
             }
 
             // ✅ 최초/재진입 시 empty 먼저 그려지는 깜빡임 방지
             if (isLoading && items.isEmpty()) {
-                CircularProgressIndicator()
+                GalleryLoadingSkeleton()
                 return@Column
             }
 
