@@ -4,9 +4,10 @@ import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
-import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.HourSystem
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterProgressMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -45,11 +46,11 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                     label = label,
                     cellId = obj.optString("cellId").takeUnless { it.isBlank() || it == "null" },
                     manualText = obj.optString("manualText").takeUnless { it.isBlank() || it == "null" },
-                    formatType = obj.optString("formatType").takeUnless { it.isBlank() || it == "null" }
+                    formatType = obj.optString("formatType").takeUnless { it.isBlank() || it == "null" },
+                    formatPattern = obj.optString("formatPattern").takeUnless { it.isBlank() || it == "null" },
                 )
             }
         }
-
 
         val phraseSets = if (root.has("phraseSets")) {
             val sets = root.optJSONArray("phraseSets") ?: JSONArray()
@@ -69,7 +70,10 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                             id = id,
                             name = set.optString("name", ""),
                             items = items,
-                            defaultEvery = set.optInt("defaultEvery", 1).coerceAtLeast(1)
+                            defaultEvery = set.optInt("defaultEvery", 1).coerceAtLeast(1),
+                            counterProgressMode = runCatching {
+                                RotatingCounterProgressMode.valueOf(set.optString("counterProgressMode"))
+                            }.getOrDefault(RotatingCounterProgressMode.PER_PHRASE),
                         )
                     )
                 }
@@ -138,7 +142,8 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
             }
         }
         val fileNameSlotDrafts = parseEditorSlotDrafts("fileNameSlotDrafts", FILE_NAME_SLOT_COUNT)
-        val pathSlotDrafts = parseEditorSlotDrafts("pathSlotDrafts", PATH_SLOT_COUNT)
+        // 3슬롯 템플릿은 남는 2칸을 null로 복원한다. 5슬롯 템플릿은 5개 모두 유지한다.
+        val pathSlotDrafts = parseEditorSlotDrafts("pathSlotDrafts", PATH_SLOT_UI_MAX_COUNT)
 
         TableTemplateState(
             rows = rows,
@@ -151,6 +156,34 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
             pathSlotDrafts = pathSlotDrafts
         )
     }.getOrNull()
+}
+
+fun newBlankTableTemplateState(
+    rows: Int = 3,
+    cols: Int = 2,
+): TableTemplateState {
+    val safeRows = rows.coerceAtLeast(1)
+    val safeCols = cols.coerceAtLeast(1)
+    val cells = buildList {
+        for (row in 0 until safeRows) {
+            for (col in 0 until safeCols) {
+                add(
+                    TableCellState(
+                        rowIndex = row,
+                        colIndex = col,
+                        kind = TableCellKind.INPUT,
+                        rawText = "",
+                        typedValue = CellValue.Text(""),
+                    )
+                )
+            }
+        }
+    }
+    return TableTemplateState(
+        rows = safeRows,
+        cols = safeCols,
+        cells = cells,
+    )
 }
 
 fun defaultTableTemplateState(): TableTemplateState {
@@ -256,9 +289,10 @@ fun TableTemplateState.toJsonString(): String {
     }
 
 
-    fun slotDraftsToJson(drafts: List<TableEditorSlotDraft?>, slotCount: Int): JSONArray {
+    fun slotDraftsToJson(drafts: List<TableEditorSlotDraft?>, slotCount: Int? = null): JSONArray {
         val arr = JSONArray()
-        drafts.take(slotCount).forEach { slot ->
+        val source = slotCount?.let { drafts.take(it) } ?: drafts
+        source.forEach { slot ->
             if (slot == null) {
                 arr.put(JSONObject.NULL)
             } else {
@@ -268,6 +302,7 @@ fun TableTemplateState.toJsonString(): String {
                 o.put("cellId", slot.cellId ?: JSONObject.NULL)
                 o.put("manualText", slot.manualText ?: JSONObject.NULL)
                 o.put("formatType", slot.formatType ?: JSONObject.NULL)
+                o.put("formatPattern", slot.formatPattern ?: JSONObject.NULL)
                 arr.put(o)
             }
         }
@@ -275,7 +310,7 @@ fun TableTemplateState.toJsonString(): String {
     }
 
     root.put("fileNameSlotDrafts", slotDraftsToJson(fileNameSlotDrafts, FILE_NAME_SLOT_COUNT))
-    root.put("pathSlotDrafts", slotDraftsToJson(pathSlotDrafts, PATH_SLOT_COUNT))
+    root.put("pathSlotDrafts", slotDraftsToJson(pathSlotDrafts, PATH_SLOT_UI_MAX_COUNT))
 
     if (phraseSets.isNotEmpty()) {
         val phraseSetsJson = JSONArray()
@@ -284,6 +319,7 @@ fun TableTemplateState.toJsonString(): String {
             setJson.put("id", set.id)
             setJson.put("name", set.name)
             setJson.put("defaultEvery", set.defaultEvery)
+            setJson.put("counterProgressMode", set.counterProgressMode.name)
 
             val itemsJson = JSONArray()
             set.items.forEach { itemsJson.put(it) }
@@ -332,3 +368,4 @@ fun TableTemplateState.toJsonString(): String {
     root.put("cells", arr)
     return root.toString()
 }
+

@@ -10,21 +10,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import java.util.Locale
-import kotlin.math.roundToInt
 
 // 2단계 라운딩 토큰: 줌 칩/프리셋은 pill 계열로 Full 고정한다.
 private val CHIP_SHAPE = RoundedCornerShape(DDZLayout.Radius.Full)
@@ -35,96 +33,118 @@ internal fun ZoomControlSection(
     zoomRatioTenths: Int,
     maxZoomTenths: Int,
     expanded: Boolean,
+    hapticEnabled: Boolean,
     onToggleExpanded: () -> Unit,
     onZoomTenthsChange: (Int) -> Unit
 ) {
-    val normalizedMaxTenths = maxZoomTenths.coerceAtLeast(10)
+    val haptic = LocalHapticFeedback.current
+    val normalizedMaxTenths = maxZoomTenths.coerceIn(10, 100)
     val normalizedTenths = zoomRatioTenths.coerceIn(10, normalizedMaxTenths)
-    val zoomLabel = String.format(Locale.US, "%.1fx", normalizedTenths / 10f)
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
-            // UX 정책 유지: collapsed/expanded 모두 바깥 카드 강조를 제거하고 컨트롤 자체 가시성에 집중한다.
-            // 2단계 라운딩 토큰: 줌 영역 outer 컨테이너는 Medium을 사용한다.
-            .background(DDZColor.Card.copy(alpha = 0f), RoundedCornerShape(DDZLayout.Radius.Medium))
-            .padding(horizontal = 10.dp, vertical = 8.dp)
+        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .defaultMinSize(minWidth = DDZLayout.Control.Standard, minHeight = DDZLayout.Control.Standard)
-                .background(DDZColor.Surface.copy(alpha = 0.95f), CHIP_SHAPE)
-                .border(1.dp, DDZColor.SageBorder, CHIP_SHAPE)
-                .clickable(onClick = onToggleExpanded)
-                .padding(horizontal = 8.dp, vertical = 5.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = zoomLabel, color = DDZColor.TextStrong, style = DDZTypography.Caption)
-        }
-
         if (expanded) {
-            Slider(
-                modifier = Modifier.width(200.dp),
-                value = normalizedTenths / 10f,
-                onValueChange = {
-                    val stepped = (it * 10f).roundToInt().coerceIn(10, normalizedMaxTenths)
-                    onZoomTenthsChange(stepped)
-                },
-                valueRange = 1f..(normalizedMaxTenths / 10f),
-                steps = (normalizedMaxTenths - 10).coerceAtLeast(1) - 1,
-                colors = SliderDefaults.colors(
-                    thumbColor = DDZColor.SageDarkStrong,
-                    activeTrackColor = DDZColor.SagePrimary,
-                    inactiveTrackColor = DDZColor.Card.copy(alpha = 0.95f)
-                )
+            ZoomDetailExtraSection(
+                zoomTenths = normalizedTenths,
+                maxZoomTenths = normalizedMaxTenths,
+                hapticEnabled = hapticEnabled,
+                onZoomTenthsChange = onZoomTenthsChange,
+                onStepHaptic = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) },
             )
-
-            // 정책 유지: 프리셋은 빠른 이동용이며, 지원 최대 줌을 넘는 경우 가능한 범위로 자동 보정한다.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                PRESET_VALUES_TENTHS.forEach { presetTenths ->
-                    val actualPreset = presetTenths.coerceIn(10, normalizedMaxTenths)
-                    val selected = normalizedTenths == actualPreset
-                    val presetBackground: Color
-                    val presetBorder: Color
-                    val presetText: Color
-                    if (selected) {
-                        presetBackground = DDZColor.SageLight.copy(alpha = 0.82f)
-                        presetBorder = DDZColor.SageDarkStrong
-                        presetText = DDZColor.SageDarkStrong
-                    } else {
-                        // UX 2차 보정 유지: 밝은 프리뷰에서도 프리셋이 묻히지 않도록 웜 베이지 대비를 강화한다.
-                        presetBackground = DDZColor.Primary.copy(alpha = 0.14f)
-                        presetBorder = DDZColor.Primary.copy(alpha = 0.30f)
-                        presetText = DDZColor.PrimaryElevated
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .background(color = presetBackground, shape = CHIP_SHAPE)
-                            .border(1.dp, presetBorder, CHIP_SHAPE)
-                            .clickable { onZoomTenthsChange(actualPreset) }
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = presetLabel(presetTenths),
-                            style = DDZTypography.Caption,
-                            color = presetText
-                        )
-                    }
-                }
-            }
         }
+
+        ZoomQuickPanelCore(
+            zoomTenths = normalizedTenths,
+            onToggleExpanded = onToggleExpanded,
+        )
     }
 }
 
-private fun presetLabel(presetTenths: Int): String = when (presetTenths) {
-    10 -> "1x"
-    20 -> "2x"
-    40 -> "4x"
-    else -> "10x"
+@Composable
+internal fun ZoomQuickPanelCore(
+    zoomTenths: Int,
+    onToggleExpanded: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .defaultMinSize(minWidth = DDZLayout.Control.Standard, minHeight = DDZLayout.Control.Standard)
+            .clip(CHIP_SHAPE)
+            .background(DDZColor.Surface.copy(alpha = 0.95f), CHIP_SHAPE)
+            .border(1.dp, DDZColor.SageBorder, CHIP_SHAPE)
+            .clickable(onClick = onToggleExpanded)
+            .padding(horizontal = 8.dp, vertical = 5.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = formatZoomActualLabel(zoomTenths), color = DDZColor.TextStrong, style = DDZTypography.Caption)
+    }
+}
+
+@Composable
+internal fun ZoomDetailExtraSection(
+    zoomTenths: Int,
+    maxZoomTenths: Int,
+    hapticEnabled: Boolean,
+    onZoomTenthsChange: (Int) -> Unit,
+    onStepHaptic: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        PRESET_VALUES_TENTHS.forEach { presetTenths ->
+            val actualPreset = presetTenths.coerceIn(10, maxZoomTenths)
+            val selected = zoomTenths == actualPreset
+            val presetBackground: Color
+            val presetBorder: Color
+            val presetText: Color
+            if (selected) {
+                presetBackground = DDZColor.SageLight.copy(alpha = 0.92f)
+                presetBorder = DDZColor.SageBorder
+                presetText = DDZColor.SageDarkStrong
+            } else {
+                presetBackground = DDZColor.Surface.copy(alpha = 0.96f)
+                presetBorder = DDZColor.SageBorder
+                presetText = DDZColor.TextStrong
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(CHIP_SHAPE)
+                    .background(color = presetBackground, shape = CHIP_SHAPE)
+                    .border(1.dp, presetBorder, CHIP_SHAPE)
+                    .clickable {
+                        if (hapticEnabled) onStepHaptic()
+                        onZoomTenthsChange(actualPreset)
+                    }
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = formatZoomActualLabel(presetTenths),
+                    style = DDZTypography.Caption,
+                    color = presetText
+                )
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth(0.78f)
+            .background(DDZColor.Surface.copy(alpha = 0.96f), RoundedCornerShape(DDZLayout.Radius.Medium))
+            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(DDZLayout.Radius.Medium))
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        ZoomTickBar(
+            zoomTenths = zoomTenths,
+            maxZoomTenths = maxZoomTenths,
+            hapticEnabled = hapticEnabled,
+            onZoomTenthsChange = onZoomTenthsChange,
+            onStepHaptic = onStepHaptic,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
 }

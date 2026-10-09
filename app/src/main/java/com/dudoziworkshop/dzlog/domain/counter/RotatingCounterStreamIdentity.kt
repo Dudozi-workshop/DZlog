@@ -1,6 +1,9 @@
 package com.dudoziworkshop.dzlog.domain.counter
 
-internal const val ROTATING_PHRASE_BLANK_KEY: String = "__blank__"
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterProgressMode
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+
+internal const val ROTATING_PHRASE_BLANK_KEY = "__blank__"
 
 /**
  * ROTATING_TEXT의 "카운터 스트림 식별" 키를 계산한다.
@@ -9,7 +12,12 @@ internal const val ROTATING_PHRASE_BLANK_KEY: String = "__blank__"
  */
 internal fun resolveRotatingCounterStreamIdentity(
     activePhraseText: String?,
+    phraseSet: RotatingPhraseSet? = null,
 ): String {
-    val normalized = activePhraseText?.trim().orEmpty()
-    return if (normalized.isBlank()) ROTATING_PHRASE_BLANK_KEY else normalized
+    if (phraseSet?.counterProgressMode == RotatingCounterProgressMode.CONTINUOUS) {
+        // Stable policy identity also isolates manual overrides across mode changes.
+        return "rc_continuous_${phraseSet.id}"
+    }
+    return activePhraseText?.trim().orEmpty().ifBlank { ROTATING_PHRASE_BLANK_KEY }
 }
+

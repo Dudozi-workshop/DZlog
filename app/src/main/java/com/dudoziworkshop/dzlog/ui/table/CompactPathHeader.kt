@@ -3,8 +3,8 @@ package com.dudoziworkshop.dzlog.ui.table
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
@@ -22,6 +23,9 @@ import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+
+private val CompactPathHeaderCardShape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+private val CompactPathHeaderItemShape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
 
 @Composable
 internal fun CompactPathHeader(
@@ -52,7 +56,8 @@ internal fun CompactPathHeader(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(DDZColor.Card, androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+            .clip(CompactPathHeaderCardShape)
+            .background(DDZColor.Card, CompactPathHeaderCardShape)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -73,7 +78,8 @@ internal fun CompactPathHeader(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .background(DDZColor.Surface.copy(alpha = 0.55f), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                    .clip(CompactPathHeaderItemShape)
+                    .background(DDZColor.Surface.copy(alpha = 0.55f), CompactPathHeaderItemShape)
                     .clickable(onClick = onClickSavePathPreview)
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
@@ -108,7 +114,8 @@ internal fun CompactPathHeader(
             Row(
                 modifier = Modifier
                     .weight(1f)
-                    .background(DDZColor.Surface.copy(alpha = 0.55f), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                    .clip(CompactPathHeaderItemShape)
+                    .background(DDZColor.Surface.copy(alpha = 0.55f), CompactPathHeaderItemShape)
                     .clickable(onClick = onClickFileNamePreview)
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,

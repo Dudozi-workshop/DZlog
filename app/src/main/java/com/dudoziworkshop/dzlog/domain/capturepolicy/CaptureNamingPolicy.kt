@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.domain.capturepolicy
 
+import com.dudoziworkshop.dzlog.domain.counter.RotatingFilenamePolicy
 import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.counter.CounterScopeOptions
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterScope
@@ -99,6 +100,7 @@ internal object CaptureNamingPolicy {
             fnDelim = captureContext.fnDelim,
             includeFilenameInScope = captureContext.includeFilenameInCounterScope,
             scopeOptions = CounterScopeOptions(
+                rotatingPolicyScopeValues = RotatingFilenamePolicy.scopeValues(captureContext.fileNameSlotDrafts, resolvedCells),
                 dateScopeValues = captureContext.dateScopeValues,
                 timeScopeValues = captureContext.timeScopeValues,
                 phraseScopeValues = captureContext.phraseScopeValues,
@@ -150,3 +152,4 @@ internal object CaptureNamingPolicy {
     }
 
 }
+

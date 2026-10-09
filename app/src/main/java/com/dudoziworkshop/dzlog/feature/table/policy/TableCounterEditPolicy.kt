@@ -7,7 +7,7 @@ data class CounterEditConflict(
 
 fun parseNonNegativeInt(text: String): Int? {
     val value = text.trim().toIntOrNull() ?: return null
-    return if (value < 0) null else value
+    return value.takeIf { it >= 0 }
 }
 
 fun evaluateCounterEditConflict(
@@ -34,6 +34,5 @@ fun nextLowCounterWarningLatch(
     streamNext: Int,
 ): Boolean {
     val normalizedStreamNext = streamNext.coerceAtLeast(1)
-    val isLowCounterInput = pendingCounterCommitValue < normalizedStreamNext
-    return if (isLowCounterInput) true else false
+    return pendingCounterCommitValue < normalizedStreamNext
 }

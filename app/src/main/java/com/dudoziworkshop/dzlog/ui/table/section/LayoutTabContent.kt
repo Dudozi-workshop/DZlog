@@ -2,10 +2,11 @@ package com.dudoziworkshop.dzlog.ui.table.section
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,11 +14,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -26,12 +32,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
-import com.dudoziworkshop.dzlog.ui.common.DDZSectionHeader
+import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.table.BottomEditorPanel
 import com.dudoziworkshop.dzlog.ui.table.CellSettingsBottomPanel
-import com.dudoziworkshop.dzlog.ui.table.CompactPathHeader
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
@@ -46,9 +50,26 @@ fun LayoutTabContent(
     val isInlineEditing = uiState.editingCellId != null
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        LaunchedEffect(uiState.bottomPanelMode, uiState.selectedCellId, uiState.templateState.cells) {
+            val isTableDetailMode =
+                uiState.bottomPanelMode == BottomEditorPanelMode.CELL_EDIT ||
+                    uiState.bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT ||
+                    uiState.bottomPanelMode == BottomEditorPanelMode.STYLE_EDIT
+            if (!isTableDetailMode || uiState.selectedCellId != null) return@LaunchedEffect
+            val firstCellId = uiState.templateState.cells
+                .minWithOrNull(
+                    compareBy<com.dudoziworkshop.dzlog.domain.model.TableCellState> { it.rowIndex }
+                        .thenBy { it.colIndex }
+                )
+                ?.cellId
+            if (firstCellId != null) {
+                actions.onSelectCellId(firstCellId)
+            }
+        }
+
         val density = LocalDensity.current
         var previewBottomPx by remember { mutableFloatStateOf(0f) }
-        val screenHeightPx = with(density) { maxHeight.toPx() }
+        val screenHeightPx = with(density) { this@BoxWithConstraints.maxHeight.toPx() }
         val panelTopSpacingPx = with(density) { 8.dp.toPx() }
         val panelAvailableHeightDp = with(density) {
             // 정책 변경: 고정 380dp 제한을 제거하고, 표 프리뷰 하단 기준 남은 높이를 패널 최대 높이로 사용한다.
@@ -71,48 +92,40 @@ fun LayoutTabContent(
             modifier = contentColumnModifier
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                CompactPathHeader(
-                    savePath = uiState.savePathPreview,
-                    fileName = uiState.filenamePreview,
-                    fileNameRightLabel = uiState.counterModeLabel,
-                    onClickFileNamePreview = {
-                        if (uiState.bottomPanelMode == BottomEditorPanelMode.FILENAME_EDIT) {
-                            actions.onCloseBottomPanel()
-                        } else {
-                            actions.onChangeBottomPanelMode(BottomEditorPanelMode.FILENAME_EDIT)
-                        }
-                    },
-                    onClickSavePathPreview = {
-                        if (uiState.bottomPanelMode == BottomEditorPanelMode.PATH_EDIT) {
-                            actions.onCloseBottomPanel()
-                        } else {
-                            actions.onChangeBottomPanelMode(BottomEditorPanelMode.PATH_EDIT)
-                        }
-                    }
-                )
-
-                Spacer(Modifier.height(10.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    DDZSectionHeader(title = "셀 구성")
-                    TextButton(onClick = actions.onOpenPlacementDialog) {
-                        Text("미리보기", style = DDZTypography.Caption, color = DDZColor.Primary)
+                    Text(
+                        text = "${uiState.templateState.rows} × ${uiState.templateState.cols}",
+                        style = DDZTypography.Caption,
+                        color = DDZColor.TextMuted,
+                    )
+                    uiState.selectedCell?.let { cell ->
+                        Text(
+                            text = "${cellCoordinateLabel(cell.rowIndex, cell.colIndex)} · ${dataTypeLabel(cell.dataType)}",
+                            style = DDZTypography.Caption,
+                            color = DDZColor.TextMuted,
+                        )
                     }
                 }
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 200.dp)
+                        .heightIn(max = 220.dp)
                         .onGloballyPositioned { coordinates ->
                             previewBottomPx = coordinates.boundsInParent().bottom
                         }
-                        .background(DDZColor.Card, RoundedCornerShape(14.dp))
-                        .padding(6.dp)
+                        .background(DDZColor.Card, RoundedCornerShape(16.dp))
+                        .clickable(
+                            enabled = uiState.bottomPanelMode != BottomEditorPanelMode.NONE &&
+                                uiState.bottomPanelMode != BottomEditorPanelMode.STRUCTURE_EDIT,
+                            onClick = actions.onCloseBottomPanel,
+                        )
+                        .padding(10.dp)
                 ) {
                     RealTableGridSection(
                         templateState = uiState.templateState,
@@ -135,7 +148,6 @@ fun LayoutTabContent(
                         selectedCellId = uiState.selectedCellId,
                         editingCellId = uiState.editingCellId,
                         wmWidthRatio = uiState.wmWidthRatio,
-                        wmHeightRatio = uiState.wmHeightRatio,
                         wmBgStyle = uiState.wmBgStyle,
                         wmBgAlpha = uiState.wmBgAlpha,
                         wmValueScale = uiState.wmValueScale,
@@ -201,13 +213,9 @@ fun LayoutTabContent(
                             actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT)
                             actions.onShowCellSettingsPanel(false)
                         },
-                        onStartRowWeightsDrag = actions.onStartRowWeightsDrag,
-                        onStartColumnWeightsDrag = actions.onStartColumnWeightsDrag,
-                        onFinishRowWeightsDrag = actions.onFinishRowWeightsDrag,
-                        onFinishColumnWeightsDrag = actions.onFinishColumnWeightsDrag,
-                        onCommitRowWeightsDragEnd = actions.onCommitRowWeightsDragEnd,
-                        onCommitColumnWeightsDragEnd = actions.onCommitColumnWeightsDragEnd,
                         onSelectRange = actions.onSelectStructureRange,
+                        onCommitRowWeights = actions.onCommitRowWeights,
+                        onCommitColumnWeights = actions.onCommitColumnWeights,
                     )
                 }
 
@@ -220,13 +228,60 @@ fun LayoutTabContent(
             }
         }
 
-        BottomEditorPanel(
+        Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .heightIn(max = panelAvailableHeightDp)
-                .padding(horizontal = 16.dp)
-                .padding(top = 8.dp),
-            panelMode = uiState.bottomPanelMode,
+                .fillMaxWidth()
+                .background(DDZColor.Background)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            val isLayoutActive = uiState.bottomPanelMode == BottomEditorPanelMode.STRUCTURE_EDIT
+            val isStyleActive = uiState.bottomPanelMode == BottomEditorPanelMode.STYLE_EDIT
+            val isSaveRulesActive =
+                uiState.bottomPanelMode == BottomEditorPanelMode.FILENAME_EDIT ||
+                    uiState.bottomPanelMode == BottomEditorPanelMode.PATH_EDIT
+
+            CompactBottomNavButton(
+                modifier = Modifier.weight(1f),
+                label = "레이아웃",
+                icon = Icons.Filled.GridView,
+                selected = isLayoutActive,
+                onClick = {
+                    if (isLayoutActive) actions.onCloseBottomPanel()
+                    else actions.onChangeBottomPanelMode(BottomEditorPanelMode.STRUCTURE_EDIT)
+                },
+            )
+            CompactBottomNavButton(
+                modifier = Modifier.weight(1f),
+                label = "스타일",
+                icon = Icons.Filled.Palette,
+                selected = isStyleActive,
+                onClick = {
+                    if (isStyleActive) actions.onCloseBottomPanel()
+                    else actions.onChangeBottomPanelMode(BottomEditorPanelMode.STYLE_EDIT)
+                },
+            )
+            CompactBottomNavButton(
+                modifier = Modifier.weight(1f),
+                label = "저장 규칙",
+                icon = Icons.Filled.Save,
+                selected = isSaveRulesActive,
+                onClick = {
+                    if (isSaveRulesActive) actions.onCloseBottomPanel()
+                    else actions.onChangeBottomPanelMode(BottomEditorPanelMode.FILENAME_EDIT)
+                },
+            )
+        }
+
+        if (uiState.bottomPanelMode != BottomEditorPanelMode.NONE) {
+            BottomEditorPanel(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .heightIn(max = (panelAvailableHeightDp - 72.dp).coerceAtLeast(0.dp))
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 8.dp, bottom = 72.dp),
+                panelMode = uiState.bottomPanelMode,
             rows = uiState.templateState.rows,
             cols = uiState.templateState.cols,
             isSaving = uiState.isSavingTemplate,
@@ -286,37 +341,42 @@ fun LayoutTabContent(
             onApplyPathManualInput = actions.onApplyPathManualInput,
             onClosePanel = actions.onCloseBottomPanel,
             onAddRow = actions.onAddRow,
-            onRemoveRow = actions.onRemoveRow,
             onAddCol = actions.onAddCol,
-            onRemoveCol = actions.onRemoveCol,
-            onResetRowWeights = actions.onResetRowWeights,
-            onResetColumnWeights = actions.onResetColumnWeights,
-            onResetAllWeights = actions.onResetAllWeights,
+            onMergeSelection = actions.onMergeSelection,
+            onDeleteSelection = actions.onDeleteSelection,
             onUndo = actions.onUndo,
             isUndoAvailable = uiState.isUndoAvailable,
             onReset = actions.onReset,
             onSave = actions.onSave,
             onSetBgStyle = actions.onSetBgStyle,
+            onSetBgAlpha = actions.onSetBgAlpha,
             onSetGridEnabled = actions.onSetGridEnabled,
             onSetTextColorMode = actions.onSetTextColorMode,
             onSetManualTextColor = actions.onSetManualTextColor,
             onSetValueScale = actions.onSetValueScale,
             onSetTextAlign = actions.onSetTextAlign,
-            onSetWmRatioLocked = actions.onSetWmRatioLocked,
             onSetWmWidthRatio = actions.onSetWmWidthRatio,
-            onSetWmHeightRatio = actions.onSetWmHeightRatio,
             wmBgStyle = uiState.wmBgStyle,
+            wmBgAlpha = uiState.wmBgAlpha,
             wmGridEnabled = uiState.wmGridEnabled,
             wmTextColorMode = uiState.wmTextColorMode,
             wmManualTextColor = uiState.wmManualTextColor,
             wmValueScale = uiState.wmValueScale,
             wmTextAlign = uiState.wmTextAlign,
-            wmWidthRatio = uiState.wmWidthRatio,
-            wmHeightRatio = uiState.wmHeightRatio,
-            isWmRatioLocked = uiState.isWmRatioLocked,
-            onOpenStructureMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STRUCTURE_EDIT) },
-            onOpenStyleMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STYLE_EDIT) },
-        )
+                wmWidthRatio = uiState.wmWidthRatio,
+                structureSelectedCount = uiState.structureSelectedCellIds.size,
+                isMergedSelection = uiState.structureSelectedCellIds.singleOrNull()?.let { selectedId ->
+                    uiState.templateState.cells.firstOrNull { it.cellId == selectedId }?.let { cell ->
+                        cell.rowSpan > 1 || cell.colSpan > 1
+                    }
+                } == true,
+                onOpenCellMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.CELL_EDIT) },
+                onOpenStructureMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STRUCTURE_EDIT) },
+                onOpenStyleMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.STYLE_EDIT) },
+                onOpenFileNameMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.FILENAME_EDIT) },
+                onOpenPathMode = { actions.onChangeBottomPanelMode(BottomEditorPanelMode.PATH_EDIT) },
+            )
+        }
 
         if (uiState.showCellSettingsPanel && uiState.selectedCell != null && uiState.editingCellId == null && uiState.bottomPanelMode != BottomEditorPanelMode.CELL_EDIT) {
             Box(
@@ -355,3 +415,54 @@ fun LayoutTabContent(
         }
     }
 }
+
+@Composable
+private fun CompactBottomNavButton(
+    modifier: Modifier = Modifier,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .background(
+                color = if (selected) DDZColor.Primary.copy(alpha = 0.12f) else DDZColor.Card,
+                shape = RoundedCornerShape(14.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (selected) DDZColor.Primary else DDZColor.TextMuted,
+            )
+            Text(
+                text = label,
+                style = DDZTypography.Caption,
+                color = if (selected) DDZColor.Primary else DDZColor.TextPrimary,
+            )
+        }
+    }
+}
+
+private fun cellCoordinateLabel(rowIndex: Int, colIndex: Int): String {
+    val colLabel = ('A'.code + colIndex.coerceAtLeast(0)).toChar()
+    return "$colLabel${rowIndex + 1}"
+}
+
+private fun dataTypeLabel(type: com.dudoziworkshop.dzlog.domain.model.TableCellDataType): String =
+    when (type) {
+        com.dudoziworkshop.dzlog.domain.model.TableCellDataType.TEXT -> "텍스트"
+        com.dudoziworkshop.dzlog.domain.model.TableCellDataType.NUMBER -> "숫자"
+        com.dudoziworkshop.dzlog.domain.model.TableCellDataType.COUNTER -> "자동번호"
+        com.dudoziworkshop.dzlog.domain.model.TableCellDataType.DATE -> "날짜"
+        com.dudoziworkshop.dzlog.domain.model.TableCellDataType.TIME -> "시간"
+        com.dudoziworkshop.dzlog.domain.model.TableCellDataType.ROTATING_TEXT -> "순환문구"
+    }

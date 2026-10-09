@@ -10,6 +10,7 @@ import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
 import kotlinx.coroutines.CoroutineScope
 import java.util.Date
 
@@ -66,9 +67,11 @@ internal data class CameraPreviewAreaArgs(
     val showGrid: Boolean,
     val zoomRatioTenths: Int,
     val maxZoomTenths: Int,
+    val focusMode: CameraFocusMode,
     val onActualZoomTenthsChange: (Int) -> Unit,
     val onRequestedZoomTenthsCommit: (Int) -> Unit,
     val onMaxZoomTenthsChange: (Int) -> Unit,
+    val onPinchZoomActiveChange: (Boolean) -> Unit,
     val shutterButtonTopY: Float?,
     val safeTopY: Float?,
     val safeBottomY: Float?,

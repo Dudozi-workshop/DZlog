@@ -28,7 +28,7 @@ class TableCounterHandlersTest {
         val facade = CounterFacade(context)
         val request = tableRequest()
 
-        var templateState = counterTemplate(seed = 1)
+        var templateState = counterTemplate()
         var counterUi = TableCounterUiState()
 
         updateCounterCellAndPolicy(
@@ -64,8 +64,7 @@ class TableCounterHandlersTest {
         val facade = CounterFacade(context)
         val request = tableRequest()
 
-        var templateState = counterTemplate(seed = 1)
-        var counterUi = TableCounterUiState()
+        val templateState = counterTemplate()
 
         updateCounterCellAndPolicy(
             templateState = templateState,
@@ -75,9 +74,9 @@ class TableCounterHandlersTest {
             persistToCounterPolicy = true,
             counterRequest = request,
             counterFacade = facade,
-            counterUi = counterUi,
-            onTemplateChange = { templateState = it },
-            setCounterUi = { counterUi = it },
+            counterUi = TableCounterUiState(),
+            onTemplateChange = {},
+            setCounterUi = {},
             updateCell = ::updateCounterCell,
             scope = this,
         )
@@ -114,8 +113,7 @@ class TableCounterHandlersTest {
         val facade = CounterFacade(context)
         val request = tableRequest()
 
-        var templateState = counterTemplate(seed = 1)
-        var counterUi = TableCounterUiState()
+        val templateState = counterTemplate()
 
         applyCounterConflictDialogEffect(
             effect = TableCounterConflictDialogEffect.ApplyManualSeed(
@@ -125,9 +123,9 @@ class TableCounterHandlersTest {
             templateState = templateState,
             counterRequest = request,
             counterFacade = facade,
-            counterUi = counterUi,
-            onTemplateChange = { templateState = it },
-            setCounterUi = { counterUi = it },
+            counterUi = TableCounterUiState(),
+            onTemplateChange = {},
+            setCounterUi = {},
             updateCell = ::updateCounterCell,
             scope = this,
         )
@@ -148,7 +146,8 @@ class TableCounterHandlersTest {
         tableTemplateId = "table-handler-template",
     )
 
-    private fun counterTemplate(seed: Int): TableTemplateState {
+    private fun counterTemplate(): TableTemplateState {
+        val seed = 1
         val counterCell = TableCellState(
             rowIndex = 0,
             colIndex = 0,

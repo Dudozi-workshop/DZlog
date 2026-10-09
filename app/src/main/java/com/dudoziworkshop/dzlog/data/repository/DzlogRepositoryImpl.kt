@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
 import com.dudoziworkshop.dzlog.data.log.LogEntity
 import com.dudoziworkshop.dzlog.data.log.LogRepository
@@ -84,102 +85,40 @@ class DzlogRepositoryImpl(
                                 "CounterReadback",
                                 "captureAndSave request saveMode=${request.saveMode}, baseRel=$baseRel, origRel=$origRel, displayName=$displayName"
                             )
-                            when (request.saveMode) {
-                                SaveMode.WATERMARK_ONLY -> {
-                                    val wmBmp = renderWatermarkForRequest(
-                                        renderer = watermarkRenderer,
-                                        originalBmp = originalBmp,
-                                        request = request
-                                    )
-
-                                    val saved = kotlin.runCatching {
-                                        saver.saveJpeg(
-                                            context = context,
-                                            bitmap = applyPhotoQualityPolicy(wmBmp, qualityMode),
-                                            displayName = displayName,
-                                            relativePath = baseRel,
-                                            jpegQuality = jpegQuality
-                                        )
-                                    }.getOrNull()
-                                    val entry = LogEntry(
-                                        mediaStoreId = saved?.mediaStoreId ?: -1L,
-                                        contentUri = saved?.uri ?: Uri.EMPTY,
-                                        savedContentUris = listOfNotNull(saved?.uri),
-                                        displayName = saved?.displayName ?: displayName,
-                                        isNameAdjusted = saved?.isNameAdjusted ?: false,
-                                        createdAt = System.currentTimeMillis(),
-                                        group1 = request.group1,
-                                        group2 = request.group2
-                                    )
-                                    insertLogEntry(context, entry, saved?.uri, displayName, baseRel)
-                                    entry
-                                }
-
-                                SaveMode.BOTH -> {
-                                    // 1) 워터마크 먼저(대표 파일)
-                                    val wmBmp = renderWatermarkForRequest(
-                                        renderer = watermarkRenderer,
-                                        originalBmp = originalBmp,
-                                        request = request
-                                    )
-
-                                    val savedWm = kotlin.runCatching {
-                                        saver.saveJpeg(
-                                            context = context,
-                                            bitmap = applyPhotoQualityPolicy(wmBmp, qualityMode),
-                                            displayName = displayName,
-                                            relativePath = baseRel,
-                                            jpegQuality = jpegQuality
-                                        )
-                                    }.getOrNull()
-
-                                    // 2) 원본은 original/ 하위 (실패해도 워터마크는 이미 저장됨)
-                                    val savedOriginal = kotlin.runCatching {
-                                        saver.saveJpeg(
-                                            context = context,
-                                            bitmap = applyPhotoQualityPolicy(originalBmp, qualityMode),
-                                            displayName = displayName,
-                                            relativePath = origRel,
-                                            jpegQuality = jpegQuality
-                                        )
-                                    }.getOrNull()
-                                    val entry = LogEntry(
-                                        mediaStoreId = savedWm?.mediaStoreId ?: -1L,
-                                        contentUri = savedWm?.uri ?: Uri.EMPTY,
-                                        savedContentUris = listOfNotNull(savedWm?.uri, savedOriginal?.uri),
-                                        displayName = savedWm?.displayName ?: displayName,
-                                        isNameAdjusted = savedWm?.isNameAdjusted ?: false,
-                                        createdAt = System.currentTimeMillis(),
-                                        group1 = request.group1,
-                                        group2 = request.group2
-                                    )
-                                    insertLogEntry(context, entry, savedWm?.uri, displayName, baseRel)
-                                    entry
-                                }
-
-                                SaveMode.ORIGINAL_ONLY -> {
-                                    val saved = kotlin.runCatching {
-                                        saver.saveJpeg(
-                                            context = context,
-                                            bitmap = applyPhotoQualityPolicy(originalBmp, qualityMode),
-                                            displayName = displayName,
-                                            relativePath = origRel,
-                                            jpegQuality = jpegQuality
-                                        )
-                                    }.getOrNull()
-
-                                    LogEntry(
-                                        mediaStoreId = saved?.mediaStoreId ?: -1L,
-                                        contentUri = saved?.uri ?: Uri.EMPTY,
-                                        savedContentUris = listOfNotNull(saved?.uri),
-                                        displayName = saved?.displayName ?: displayName,
-                                        isNameAdjusted = saved?.isNameAdjusted ?: false,
-                                        createdAt = System.currentTimeMillis(),
-                                        group1 = request.group1,
-                                        group2 = request.group2
-                                    )
+                            val saved = CaptureMediaSaveCoordinator.save(
+                                mode = request.saveMode,
+                                saveWatermark = {
+                                    val wmBmp = renderWatermarkForRequest(watermarkRenderer, originalBmp, request)
+                                    saver.saveJpeg(context, applyPhotoQualityPolicy(wmBmp, qualityMode),
+                                        displayName, baseRel, jpegQuality)
+                                },
+                                saveOriginal = {
+                                    saver.saveJpeg(context, applyPhotoQualityPolicy(originalBmp, qualityMode),
+                                        displayName, origRel, jpegQuality)
+                                },
+                                deleteSaved = { uri -> saver.deleteByUri(context, uri) },
+                            )
+                            val entry = LogEntry(
+                                mediaStoreId = saved.primary.mediaStoreId,
+                                contentUri = saved.primary.uri,
+                                savedContentUris = saved.files.map { it.uri },
+                                displayName = saved.primary.displayName,
+                                isNameAdjusted = saved.primary.isNameAdjusted,
+                                createdAt = System.currentTimeMillis(),
+                                group1 = request.group1,
+                                group2 = request.group2,
+                            )
+                            if (request.saveMode != SaveMode.ORIGINAL_ONLY) {
+                                // The media is already committed; optional log failure must not
+                                // turn a successful capture into a failed counter/phrase advance.
+                                try {
+                                    insertLogEntry(context, entry, saved.primary.uri,
+                                        saved.primary.displayName, baseRel)
+                                } catch (error: Exception) {
+                                    Log.e("DZlogCapture", "사진 저장 후 로그 기록 실패", error)
                                 }
                             }
+                            entry
                         }
 
                         tmpFile.delete()
@@ -188,7 +127,10 @@ class DzlogRepositoryImpl(
                             result.onSuccess { entry ->
                                 onDone(entry)
                             }.onFailure { error ->
-                                onFail(error.message ?: "captureAndSave 실패")
+                                val message = error.message ?: "captureAndSave 실패"
+                                onFail(if (error.suppressed.isNotEmpty()) {
+                                    "$message · 일부 사진을 정리하지 못했습니다. 갤러리를 확인하세요."
+                                } else message)
                             }
                         }
                     }
@@ -263,7 +205,7 @@ class DzlogRepositoryImpl(
         val scale = maxLongEdge.toFloat() / longEdge.toFloat()
         val targetWidth = (width * scale).toInt().coerceAtLeast(1)
         val targetHeight = (height * scale).toInt().coerceAtLeast(1)
-        return Bitmap.createScaledBitmap(source, targetWidth, targetHeight, true)
+        return source.scale(width = targetWidth, height = targetHeight, filter = true)
     }
 
     private fun cropToAspect(source: Bitmap, request: CaptureRequest): Bitmap {
@@ -304,3 +246,4 @@ internal fun appendOriginalCaptureDirectory(baseRelativePath: String): String {
     val normalized = normalizeCaptureBaseRelativePath(baseRelativePath)
     return if (normalized.endsWith("original/")) normalized else "${normalized}original/"
 }
+

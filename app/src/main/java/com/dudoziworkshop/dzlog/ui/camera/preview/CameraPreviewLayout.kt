@@ -45,14 +45,14 @@ internal fun calculatePreviewBoxLayout(
     captureAspect: CaptureAspect,
 ): PreviewBoxLayout {
     val safeAspect = captureAspect.ratioF.coerceAtLeast(0.01f)
-    val previewWidthPx = parentWidthPx
-    val centerY = if (previewWidthPx > 0f) previewWidthPx * 8f / 9f else 0f
+    val previewWidthPx = parentWidthPx.coerceAtLeast(0f)
+    val centerY = previewWidthPx * 8f / 9f
     val rawTopCurrentPx = when (captureAspect) {
         CaptureAspect.R9_16 -> 0f
-        CaptureAspect.R3_4 -> centerY - ((if (previewWidthPx > 0f) previewWidthPx * 4f / 3f else 0f) / 2f)
+        CaptureAspect.R3_4 -> centerY - ((previewWidthPx * 4f / 3f) / 2f)
         CaptureAspect.R1_1 -> centerY - (previewWidthPx / 2f)
     }
-    val heightCurrentPx = if (previewWidthPx > 0f) previewWidthPx / safeAspect else 0f
+    val heightCurrentPx = previewWidthPx / safeAspect
     val maxTopPx = (parentHeightPx - heightCurrentPx).coerceAtLeast(0f)
     return PreviewBoxLayout(
         safeAspect = safeAspect,

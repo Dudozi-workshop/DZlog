@@ -1,6 +1,8 @@
 package com.dudoziworkshop.dzlog.domain.capturepolicy
 
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterScopeParts
+import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
+import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -55,6 +57,32 @@ class CaptureNamingPolicyPathConsistencyTest {
     }
 
     @Test
+    fun `counter scope toggles never change physical path or display name`() {
+        val naming = CaptureNamingPolicy.buildForCaptureWithCounter(
+            captureContext = baseContext(),
+            usedCounter = 12,
+        )
+        val allOn = buildScopedCounter(
+            counterScope = naming.counterScope,
+            includePathInScope = true,
+            includeFilenameInScope = true,
+            scanPrefix = naming.scanPrefix,
+        )
+        val allOff = buildScopedCounter(
+            counterScope = naming.counterScope,
+            includePathInScope = false,
+            includeFilenameInScope = false,
+            scanPrefix = naming.scanPrefix,
+        )
+
+        assertEquals("Pictures/DZlog/A/B/", naming.relativePath)
+        assertEquals(naming.scanPrefix, allOn.captureStreamKey.scanPrefix)
+        assertEquals(naming.scanPrefix, allOff.captureStreamKey.scanPrefix)
+        assertEquals("*", allOff.scopeParts.relativePathKey)
+        assertEquals("*", allOff.scopeParts.prefix)
+    }
+
+    @Test
     fun `save mode path policy uses water stream for BOTH and separates ORIGINAL_ONLY`() {
         val water = CaptureNamingPolicy.buildForCaptureWithCounter(
             captureContext = baseContext(saveMode = SaveMode.WATERMARK_ONLY),
@@ -75,9 +103,29 @@ class CaptureNamingPolicyPathConsistencyTest {
     }
 
     @Test
+    fun `five path slots are used and sixth is ignored by preview counter and capture naming`() {
+        val result = CaptureNamingPolicy.buildForCaptureWithCounter(
+            captureContext = baseContext(
+                pathSlotDrafts = listOf(
+                    TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
+                    TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "B"),
+                    TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "C"),
+                    TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "D"),
+                    TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "E"),
+                    TableEditorSlotDraft(kind = "MANUAL", label = "legacy", manualText = "F"),
+                )
+            ),
+            usedCounter = 1,
+        )
+
+        assertEquals("Pictures/DZlog/A/B/C/D/E/", result.relativePath)
+        assertEquals(result.relativePath, result.counterScope.relativePathKey)
+    }
+
+    @Test
     fun `group level differences do not change relativePath when path slots are same`() {
-        val none = resolvedTextCell("c1", "unused", GroupLevel.NONE)
-        val g2 = resolvedTextCell("c1", "unused", GroupLevel.G2)
+        val none = resolvedTextCell(GroupLevel.NONE)
+        val g2 = resolvedTextCell(GroupLevel.G2)
 
         val withNone = CaptureNamingPolicy.buildForCaptureWithCounter(
             captureContext = baseContext(resolvedCells = listOf(none)),
@@ -92,7 +140,7 @@ class CaptureNamingPolicyPathConsistencyTest {
     }
 
     private fun baseContext(
-        resolvedCells: List<ResolvedCell> = listOf(resolvedTextCell("c1", "unused", GroupLevel.NONE)),
+        resolvedCells: List<ResolvedCell> = listOf(resolvedTextCell(GroupLevel.NONE)),
         pathSlotDrafts: List<TableEditorSlotDraft?> = listOf(
             TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
             TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "B"),
@@ -102,19 +150,20 @@ class CaptureNamingPolicyPathConsistencyTest {
         return CaptureContext(
             resolvedCells = resolvedCells,
             captureNow = Date(0),
-            fileNameSlotDrafts = listOf(null, null, null),
+            fileNameSlotDrafts = List(FILE_NAME_SLOT_COUNT) { null },
             pathSlotDrafts = pathSlotDrafts,
             fnDelim = "_",
             counterDigits = 2,
             dateFormat = "yyyyMMdd",
             timeFormat = "HHmm",
-            includePathInCounterScope = true,
             includeFilenameInCounterScope = true,
             saveMode = saveMode,
         )
     }
 
-    private fun resolvedTextCell(id: String, text: String, groupLevel: GroupLevel): ResolvedCell {
+    private fun resolvedTextCell(groupLevel: GroupLevel): ResolvedCell {
+        val id = "c1"
+        val text = "unused"
         val raw = TableCellState(
             rowIndex = 0,
             colIndex = 0,

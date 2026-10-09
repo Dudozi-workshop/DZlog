@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.ExposurePlus1
 import androidx.compose.material.icons.filled.Numbers
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.TextButton
@@ -62,6 +64,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import java.util.Date
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CellSettingsBottomPanel(
     modifier: Modifier,
@@ -96,6 +99,7 @@ internal fun CellSettingsBottomPanel(
     var isSlotEditMode by remember { mutableStateOf(false) }
     var selectedFromIndex by remember { mutableStateOf<Int?>(null) }
     var isCounterScopeDialogOpen by remember { mutableStateOf(false) }
+    var isDataTypeSheetOpen by remember { mutableStateOf(false) }
     var pendingCounterScopeMode by remember {
         mutableStateOf(cell.counterScopeMode ?: CounterScopeMode.EXCLUDE)
     }
@@ -376,41 +380,52 @@ internal fun CellSettingsBottomPanel(
 
             if (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME) {
                 val formatLabel = if (cell.dataType == TableCellDataType.DATE) "날짜 형식" else "시간 형식"
-                val effectiveCounterScopeMode = if (isCounterScopeDialogOpen) {
-                    pendingCounterScopeMode
-                } else {
-                    cell.counterScopeMode ?: CounterScopeMode.EXCLUDE
-                }
-                val scopeLabel = when (effectiveCounterScopeMode) {
-                    CounterScopeMode.EXCLUDE -> "스코프: 제외"
-                    CounterScopeMode.INCLUDE -> "스코프: 포함"
-                }
 
                 SectionCaption("형식 설정")
                 Spacer(Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                if (compactForBottomPanel) {
                     Button(
-                        modifier = Modifier.weight(1f).height(buttonHeight),
+                        modifier = Modifier.fillMaxWidth().height(buttonHeight),
                         onClick = { onOpenFormatDialog(cell.cellId, cell.dataType) }
                     ) {
                         Text(formatLabel, style = DDZTypography.ButtonText)
                     }
-                    Button(
-                        modifier = Modifier.weight(1f).height(buttonHeight),
-                        onClick = {
-                            pendingCounterScopeMode = cell.counterScopeMode ?: CounterScopeMode.EXCLUDE
-                            isCounterScopeDialogOpen = true
-                        }
+                } else {
+                    val effectiveCounterScopeMode = if (isCounterScopeDialogOpen) {
+                        pendingCounterScopeMode
+                    } else {
+                        cell.counterScopeMode ?: CounterScopeMode.EXCLUDE
+                    }
+                    val scopeLabel = when (effectiveCounterScopeMode) {
+                        CounterScopeMode.EXCLUDE -> "스코프: 제외"
+                        CounterScopeMode.INCLUDE -> "스코프: 포함"
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(scopeLabel, style = DDZTypography.ButtonText)
+                        Button(
+                            modifier = Modifier.weight(1f).height(buttonHeight),
+                            onClick = { onOpenFormatDialog(cell.cellId, cell.dataType) }
+                        ) {
+                            Text(formatLabel, style = DDZTypography.ButtonText)
+                        }
+                        Button(
+                            modifier = Modifier.weight(1f).height(buttonHeight),
+                            onClick = {
+                                pendingCounterScopeMode = cell.counterScopeMode ?: CounterScopeMode.EXCLUDE
+                                isCounterScopeDialogOpen = true
+                            }
+                        ) {
+                            Text(scopeLabel, style = DDZTypography.ButtonText)
+                        }
                     }
                 }
             }
 
-            if (isCounterScopeDialogOpen && (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME)) {
+            if (!compactForBottomPanel && isCounterScopeDialogOpen &&
+                (cell.dataType == TableCellDataType.DATE || cell.dataType == TableCellDataType.TIME)
+            ) {
                 AlertDialog(
                     containerColor = DDZColor.Surface,
                     onDismissRequest = { isCounterScopeDialogOpen = false },
@@ -483,22 +498,67 @@ internal fun CellSettingsBottomPanel(
                         .height(buttonHeight),
                     onClick = onOpenRotatingTemplateDialog
                 ) {
-                    Text("템플릿 설정", style = DDZTypography.ButtonText)
+                    Text(
+                        if (cell.phraseSetId == null) "문구 세트 선택" else "문구 세트",
+                        style = DDZTypography.ButtonText
+                    )
                 }
             }
 
-            // 주요 정책: CELL_EDIT 본문 순서는 타입별 버튼 다음에 데이터 타입 카드를 배치한다.
-            SectionCaption("데이터 타입")
+            SectionCaption("셀 종류")
             Spacer(Modifier.height(4.dp))
-            DataTypeCardGrid3(
-                selected = cell.dataType,
-                onSelect = onSetDataType,
-                compact = compactForBottomPanel
-            )
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(buttonHeight),
+                onClick = { isDataTypeSheetOpen = true },
+            ) {
+                Text(
+                    text = "${dataTypeLabelForEditor(cell.dataType)}  >",
+                    style = DDZTypography.ButtonText,
+                )
+            }
 
             Spacer(Modifier.height(if (compactForBottomPanel) 2.dp else 10.dp))
         }
     }
+
+    if (isDataTypeSheetOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { isDataTypeSheetOpen = false },
+            containerColor = DDZColor.Surface,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    "셀에 무엇을 표시할까요?",
+                    style = DDZTypography.CardTitle,
+                    color = DDZColor.TextPrimary,
+                )
+                DataTypeCardGrid2(
+                    selected = cell.dataType,
+                    onSelect = { type ->
+                        onSetDataType(type)
+                        isDataTypeSheetOpen = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun dataTypeLabelForEditor(type: TableCellDataType): String = when (type) {
+    TableCellDataType.TEXT -> "텍스트"
+    TableCellDataType.NUMBER -> "숫자"
+    TableCellDataType.COUNTER -> "자동번호"
+    TableCellDataType.DATE -> "날짜"
+    TableCellDataType.TIME -> "시간"
+    TableCellDataType.ROTATING_TEXT -> "순환문구"
 }
 
 @Composable
@@ -513,7 +573,7 @@ private fun SectionCaption(
 }
 
 @Composable
-private fun DataTypeCardGrid3(
+private fun DataTypeCardGrid2(
     selected: TableCellDataType,
     onSelect: (TableCellDataType) -> Unit,
     compact: Boolean = false
@@ -523,11 +583,11 @@ private fun DataTypeCardGrid3(
         Triple(TableCellDataType.NUMBER, Icons.Default.Numbers, "숫자"),
         Triple(TableCellDataType.DATE, Icons.Default.DateRange, "날짜"),
         Triple(TableCellDataType.TIME, Icons.Default.AccessTime, "시간"),
-        Triple(TableCellDataType.COUNTER, Icons.Default.ExposurePlus1, "카운터"),
-        Triple(TableCellDataType.ROTATING_TEXT, Icons.Default.Autorenew, "순환 문구")
+        Triple(TableCellDataType.COUNTER, Icons.Default.ExposurePlus1, "자동번호"),
+        Triple(TableCellDataType.ROTATING_TEXT, Icons.Default.Autorenew, "순환문구")
     )
 
-    val rows = items.chunked(3)
+    val rows = items.chunked(2)
     Column(verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp)) {
         rows.forEach { row ->
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp)) {
@@ -572,7 +632,7 @@ private fun DataTypeCardGrid3(
                         }
                     }
                 }
-                repeat(3 - row.size) {
+                repeat(2 - row.size) {
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }

@@ -1,8 +1,8 @@
 package com.dudoziworkshop.dzlog.feature.table.editor
 
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
-import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -26,12 +26,6 @@ fun updateCell(
 fun addRow(templateState: TableTemplateState): TableTemplateState =
     addRowBySelection(templateState = templateState, selectionRange = null)
 
-fun removeRow(templateState: TableTemplateState): TableTemplateState =
-    removeRowsByRange(
-        templateState = templateState,
-        range = lastIndexRange(templateState.rows),
-    )
-
 fun addColumn(templateState: TableTemplateState): TableTemplateState =
     addColumnBySelection(templateState = templateState, selectionRange = null)
 
@@ -47,7 +41,9 @@ fun addRowBySelection(
 ): TableTemplateState {
     if (templateState.rows >= TableEditorPolicy.MAX_ROWS) return templateState
 
-    val insertAt = (selectionRange?.maxRow?.plus(1) ?: templateState.rows).coerceIn(0, templateState.rows)
+    val requestedInsertAt = (selectionRange?.maxRow?.plus(1) ?: templateState.rows)
+        .coerceIn(0, templateState.rows)
+    val insertAt = resolveSafeRowInsertIndex(templateState, requestedInsertAt)
     val shifted = templateState.cells.map { cell ->
         if (cell.rowIndex >= insertAt) cell.copy(rowIndex = cell.rowIndex + 1) else cell
     }
@@ -68,7 +64,7 @@ fun addRowBySelection(
 
     return templateState.copy(
         rows = templateState.rows + 1,
-        cells = (shifted + newCells).sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex })),
+        cells = (shifted + newCells).sortedWith(compareBy({ it.rowIndex }, { it.colIndex })),
         rowWeights = nextWeights,
     )
 }
@@ -79,7 +75,9 @@ fun addColumnBySelection(
 ): TableTemplateState {
     if (templateState.cols >= TableEditorPolicy.MAX_COLS) return templateState
 
-    val insertAt = (selectionRange?.maxCol?.plus(1) ?: templateState.cols).coerceIn(0, templateState.cols)
+    val requestedInsertAt = (selectionRange?.maxCol?.plus(1) ?: templateState.cols)
+        .coerceIn(0, templateState.cols)
+    val insertAt = resolveSafeColInsertIndex(templateState, requestedInsertAt)
     val shifted = templateState.cells.map { cell ->
         if (cell.colIndex >= insertAt) cell.copy(colIndex = cell.colIndex + 1) else cell
     }
@@ -100,7 +98,7 @@ fun addColumnBySelection(
 
     return templateState.copy(
         cols = templateState.cols + 1,
-        cells = (shifted + newCells).sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex })),
+        cells = (shifted + newCells).sortedWith(compareBy({ it.rowIndex }, { it.colIndex })),
         colWeights = nextWeights,
     )
 }
@@ -111,7 +109,7 @@ fun removeRowBySelection(
 ): TableTemplateState {
     return removeRowsByRange(
         templateState = templateState,
-        range = selectionRange?.let { it.minRow..it.maxRow } ?: lastIndexRange(templateState.rows),
+        range = selectionRange?.let { it.minRow..<(it.maxRow + 1) } ?: lastIndexRange(templateState.rows),
     )
 }
 
@@ -121,7 +119,7 @@ fun removeColumnBySelection(
 ): TableTemplateState {
     return removeColsByRange(
         templateState = templateState,
-        range = selectionRange?.let { it.minCol..it.maxCol } ?: lastIndexRange(templateState.cols),
+        range = selectionRange?.let { it.minCol..<(it.maxCol + 1) } ?: lastIndexRange(templateState.cols),
     )
 }
 
@@ -129,7 +127,17 @@ fun removeRowsByRange(
     templateState: TableTemplateState,
     range: IntRange,
 ): TableTemplateState {
-    val normalizedRange = normalizeRowRemovalRange(templateState, range) ?: return templateState
+    val expandedRange = expandRowRemovalRangeForMergedCells(templateState, range)
+    val normalizedRange = normalizeRowRemovalRange(templateState, expandedRange) ?: return templateState
+    val touchesMergedBlock = templateState.cells
+        .filter { it.rowSpan > 1 }
+        .any { cell ->
+            val cellRange = cell.rowIndex..(cell.rowIndex + cell.rowSpan - 1)
+            cellRange.first <= expandedRange.last && cellRange.last >= expandedRange.first
+        }
+    if (touchesMergedBlock &&
+        (normalizedRange.first != expandedRange.first || normalizedRange.last != expandedRange.last)
+    ) return templateState
 
     val remainingCells = templateState.cells
         .filterNot { it.rowIndex in normalizedRange }
@@ -143,7 +151,7 @@ fun removeRowsByRange(
 
     return templateState.copy(
         rows = templateState.rows - normalizedRange.count(),
-        cells = remainingCells.sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex })),
+        cells = remainingCells.sortedWith(compareBy({ it.rowIndex }, { it.colIndex })),
         rowWeights = removeRange(
             TableLayoutCalculator.resolveWeights(templateState.rowWeights, templateState.rows),
             normalizedRange.first,
@@ -158,7 +166,17 @@ fun removeColsByRange(
     templateState: TableTemplateState,
     range: IntRange,
 ): TableTemplateState {
-    val normalizedRange = normalizeColRemovalRange(templateState, range) ?: return templateState
+    val expandedRange = expandColRemovalRangeForMergedCells(templateState, range)
+    val normalizedRange = normalizeColRemovalRange(templateState, expandedRange) ?: return templateState
+    val touchesMergedBlock = templateState.cells
+        .filter { it.colSpan > 1 }
+        .any { cell ->
+            val cellRange = cell.colIndex..(cell.colIndex + cell.colSpan - 1)
+            cellRange.first <= expandedRange.last && cellRange.last >= expandedRange.first
+        }
+    if (touchesMergedBlock &&
+        (normalizedRange.first != expandedRange.first || normalizedRange.last != expandedRange.last)
+    ) return templateState
 
     val remainingCells = templateState.cells
         .filterNot { it.colIndex in normalizedRange }
@@ -172,7 +190,7 @@ fun removeColsByRange(
 
     return templateState.copy(
         cols = templateState.cols - normalizedRange.count(),
-        cells = remainingCells.sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex })),
+        cells = remainingCells.sortedWith(compareBy({ it.rowIndex }, { it.colIndex })),
         colWeights = removeRange(
             TableLayoutCalculator.resolveWeights(templateState.colWeights, templateState.cols),
             normalizedRange.first,
@@ -191,9 +209,6 @@ fun resetColumnWeights(templateState: TableTemplateState): TableTemplateState {
     return templateState.copy(colWeights = List(templateState.cols.coerceAtLeast(1)) { 1f })
 }
 
-fun distributeRowWeightsEvenly(templateState: TableTemplateState): TableTemplateState = resetRowWeights(templateState)
-fun distributeColumnWeightsEvenly(templateState: TableTemplateState): TableTemplateState = resetColumnWeights(templateState)
-
 private fun sanitizeFileNameSlotDrafts(
     drafts: List<TableEditorSlotDraft?>,
     remainingCells: List<TableCellState>
@@ -209,9 +224,10 @@ private fun sanitizePathSlotDrafts(
     drafts: List<TableEditorSlotDraft?>,
     remainingCells: List<TableCellState>
 ): List<TableEditorSlotDraft?> {
+    val targetCount = maxOf(drafts.size, PATH_SLOT_UI_MAX_COUNT)
     return sanitizeAndCompressSlotDrafts(
         drafts = drafts,
-        slotCount = PATH_SLOT_COUNT,
+        slotCount = targetCount,
         remainingCells = remainingCells
     )
 }
@@ -235,7 +251,111 @@ private fun sanitizeAndCompressSlotDrafts(
 
 private fun removeRange(weights: List<Float>, start: Int, end: Int): List<Float> {
     if (weights.isEmpty()) return weights
-    return weights.filterIndexed { index, _ -> index !in start..end }
+    return weights.filterIndexed { index, _ -> index !in start..<(end + 1) }
+}
+
+private fun resolveSafeRowInsertIndex(
+    templateState: TableTemplateState,
+    requestedIndex: Int,
+): Int {
+    var resolved = requestedIndex.coerceIn(0, templateState.rows)
+    var changed: Boolean
+    do {
+        changed = false
+        templateState.cells
+            .filter { it.rowSpan > 1 }
+            .forEach { cell ->
+                val start = cell.rowIndex
+                val endExclusive = cell.rowIndex + cell.rowSpan
+                if (resolved > start && resolved < endExclusive) {
+                    resolved = endExclusive.coerceAtMost(templateState.rows)
+                    changed = true
+                }
+            }
+    } while (changed)
+    return resolved
+}
+
+fun resolveSafeColInsertIndex(
+    templateState: TableTemplateState,
+    requestedIndex: Int,
+): Int {
+    var resolved = requestedIndex.coerceIn(0, templateState.cols)
+    var changed: Boolean
+    do {
+        changed = false
+        templateState.cells
+            .filter { it.colSpan > 1 }
+            .forEach { cell ->
+                val start = cell.colIndex
+                val endExclusive = cell.colIndex + cell.colSpan
+                if (resolved > start && resolved < endExclusive) {
+                    resolved = endExclusive.coerceAtMost(templateState.cols)
+                    changed = true
+                }
+            }
+    } while (changed)
+    return resolved
+}
+
+fun expandRowRemovalRangeForMergedCells(
+    templateState: TableTemplateState,
+    requestedRange: IntRange,
+): IntRange {
+    var start = requestedRange.first.coerceIn(0, (templateState.rows - 1).coerceAtLeast(0))
+    var end = requestedRange.last.coerceIn(start, (templateState.rows - 1).coerceAtLeast(start))
+    var changed: Boolean
+    do {
+        changed = false
+        templateState.cells
+            .filter { it.rowSpan > 1 }
+            .forEach { cell ->
+                val cellStart = cell.rowIndex
+                val cellEnd = cell.rowIndex + cell.rowSpan - 1
+                if (!(end < cellStart || start > cellEnd)) {
+                    val nextStart = minOf(start, cellStart)
+                    val nextEnd = maxOf(end, cellEnd)
+                    if (nextStart != start || nextEnd != end) {
+                        start = nextStart
+                        end = nextEnd
+                        changed = true
+                    }
+                }
+            }
+    } while (changed)
+    return start..end
+}
+
+fun expandColRemovalRangeForMergedCells(
+    templateState: TableTemplateState,
+    requestedRange: IntRange,
+): IntRange {
+    var start = requestedRange.first.coerceIn(0, (templateState.cols - 1).coerceAtLeast(0))
+    var end = requestedRange.last.coerceIn(start, (templateState.cols - 1).coerceAtLeast(start))
+    var changed: Boolean
+    do {
+        changed = false
+        templateState.cells
+            .filter { it.colSpan > 1 }
+            .forEach { cell ->
+                val cellStart = cell.colIndex
+                val cellEnd = cell.colIndex + cell.colSpan - 1
+                if (!(end < cellStart || start > cellEnd)) {
+                    val nextStart = minOf(start, cellStart)
+                    val nextEnd = maxOf(end, cellEnd)
+                    if (nextStart != start || nextEnd != end) {
+                        start = nextStart
+                        end = nextEnd
+                        changed = true
+                    }
+                }
+            }
+    } while (changed)
+    return start..end
+}
+
+fun hasMergedCells(templateState: TableTemplateState): Boolean {
+    return templateState.cells.any { it.rowSpan > 1 || it.colSpan > 1 }
 }
 
 fun normalizeRowRemovalRange(
@@ -271,11 +391,11 @@ private fun normalizeRemovalRange(
     val removableCount = (axisSize - minSize).coerceAtLeast(0)
     val requestedCount = boundedEnd - boundedStart + 1
     val actualCount = requestedCount.coerceAtMost(removableCount)
-    if (actualCount <= 0) return null
-    return boundedStart..(boundedStart + actualCount - 1)
+    if (actualCount == 0) return null
+    return boundedStart..<(boundedStart + actualCount)
 }
 
 private fun lastIndexRange(axisSize: Int): IntRange {
     val lastIndex = (axisSize - 1).coerceAtLeast(0)
-    return lastIndex..lastIndex
+    return lastIndex..<(lastIndex + 1)
 }

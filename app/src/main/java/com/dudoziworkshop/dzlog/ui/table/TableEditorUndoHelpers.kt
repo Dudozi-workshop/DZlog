@@ -50,13 +50,11 @@ internal fun undoTableEditorSnapshot(
     return restored.takeUnless { it == currentSnapshot }
 }
 
-internal fun pushTemplateDragCommitUndoSnapshot(
+
+internal fun redoTableEditorSnapshot(
     undoManager: TableUndoManager<TableEditorUndoSnapshot>,
     currentSnapshot: TableEditorUndoSnapshot,
-    baseTemplate: TableTemplateState,
-    nextTemplate: TableTemplateState,
-): Boolean {
-    if (baseTemplate == nextTemplate) return false
-    undoManager.pushSnapshotBeforeAction(currentSnapshot.copy(templateState = baseTemplate))
-    return true
+): TableEditorUndoSnapshot? {
+    val restored = undoManager.redo(currentSnapshot)
+    return restored.takeUnless { it == currentSnapshot }
 }

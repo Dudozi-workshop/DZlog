@@ -13,7 +13,7 @@ import com.dudoziworkshop.dzlog.ui.theme.LocalDDZTypography
 fun DDZSectionHeader(
     title: String,
     modifier: Modifier = Modifier,
-    usePrimaryText: Boolean = false
+    usePrimaryText: Boolean = true
 ) {
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current

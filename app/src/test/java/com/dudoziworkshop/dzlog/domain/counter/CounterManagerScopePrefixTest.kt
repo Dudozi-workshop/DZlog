@@ -12,7 +12,7 @@ class CounterManagerScopePrefixTest {
 
     @Test
     fun `phrase scope values split stream prefix`() {
-        val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
+        val text = resolvedCell()
 
         val whyPrefix = CounterManager.computeCounterPrefix(
             resolvedCells = listOf(text),
@@ -36,7 +36,7 @@ class CounterManagerScopePrefixTest {
 
     @Test
     fun `same phrase scope value keeps same stream prefix`() {
-        val text = resolvedCell(0, TableCellDataType.TEXT, "N600")
+        val text = resolvedCell()
 
         val first = CounterManager.computeCounterPrefix(
             resolvedCells = listOf(text),
@@ -75,11 +75,10 @@ class CounterManagerScopePrefixTest {
         assertEquals("Pictures/DZlog/A/|g2=enabled_empty", g2EnabledEmpty)
     }
 
-    private fun resolvedCell(
-        col: Int,
-        type: TableCellDataType,
-        text: String,
-    ): ResolvedCell {
+    private fun resolvedCell(): ResolvedCell {
+        val col = 0
+        val type = TableCellDataType.TEXT
+        val text = "N600"
         val raw = TableCellState(
             rowIndex = 0,
             colIndex = col,

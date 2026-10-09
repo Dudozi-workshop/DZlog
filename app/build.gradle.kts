@@ -1,4 +1,5 @@
 import com.android.build.api.dsl.ApplicationExtension
+import com.android.build.api.variant.ApplicationAndroidComponentsExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 
@@ -19,6 +20,16 @@ extensions.configure<ApplicationExtension> {
         targetSdk = 34
         versionCode = 2
         versionName = "0.0.0"
+    }
+
+    // CI restores a persistent test key from GitHub Secrets; release signing is independent.
+    providers.environmentVariable("DZLOG_DEBUG_KEYSTORE").orNull?.let { keyPath ->
+        signingConfigs.getByName("debug") {
+            storeFile = file(keyPath)
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
@@ -47,9 +58,31 @@ extensions.configure<ApplicationExtension> {
     }
 }
 
+// CI supplies a monotonically increasing code; release versioning remains independent.
+val debugVersionCode = providers.gradleProperty("dzlogDebugVersionCode")
+    .map { it.toInt().also { code -> require(code in 1..2_100_000_000) } }
+    .orElse(1_000_000)
+extensions.configure<ApplicationAndroidComponentsExtension> {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        variant.outputs.forEach { output ->
+            output.versionCode.set(debugVersionCode)
+            output.versionName.set(debugVersionCode.map { "0.0.0-test.$it" })
+        }
+    }
+}
+
 extensions.configure<KotlinAndroidProjectExtension> {
+    // Build JDK baseline: 21 (toolchain), while emitted bytecode target remains JVM 17.
+    jvmToolchain(21)
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
+java {
+    toolchain {
+        // Java/KSP tool execution uses JDK 21 for consistent local/CI behavior.
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
@@ -94,6 +127,7 @@ dependencies {
     implementation(libs.google.play.services.ads)
 
     testImplementation(libs.junit)
-    testImplementation("androidx.test:core:1.6.1")
-    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.robolectric)
 }
+

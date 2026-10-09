@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.domain.counter
 
 import android.content.Context
+import java.net.URLEncoder
 import com.dudoziworkshop.dzlog.data.counter.CounterScanTarget
 import com.dudoziworkshop.dzlog.data.counter.scanUsedCounters
 import com.dudoziworkshop.dzlog.data.counter.toCounterScanTarget
@@ -163,7 +164,14 @@ object CounterManager {
             }
         }
 
-        return if (parts.isEmpty()) "DZlog" else parts.joinToString(delim)
+        val base = if (parts.isEmpty()) "DZlog" else parts.joinToString(delim)
+        // Ordinary filename scope OFF must not erase the phrase's explicit policy.
+        val rotatingPolicy = scopeOptions.rotatingPolicyScopeValues.joinToString(",") {
+            URLEncoder.encode(it, "UTF-8")
+        }
+        return if (!includeFilenameInScope && rotatingPolicy.isNotBlank()) {
+            "$base|rotating=$rotatingPolicy"
+        } else base
     }
 
     /**
@@ -249,15 +257,13 @@ object CounterManager {
         // 최종 truth: MediaStore 실파일 스캔 결과만 사용한다.
         // - stream 분리키(rawStreamPrefix)는 DB key/스코프 비교에만 쓰고,
         //   실파일 파싱은 scanPrefix(=physicalFileNamePrefix)로 수행한다.
-        val usedCountersFromMediaStore: Set<Int> = runCatching {
-            collectUsedCountersFromPaths(
+        val usedCountersFromMediaStore: Set<Int> = collectUsedCountersFromPaths(
                 context = context,
                 relativePathPrefixes = scanPaths,
                 fileNamePrefix = physicalFileNamePrefix,
                 counterDigits = counterDigits,
                 fnDelim = fnDelim,
             )
-        }.getOrDefault(emptySet())
 
         // DB는 보조 기록으로만 유지한다(읽기 truth로 사용 금지).
         // - replaceCounters: 삭제/undo 후에도 DB가 실파일 상태와 동일하게 따라오도록 정리
@@ -328,3 +334,4 @@ object CounterManager {
             .toSet()
     }
 }
+

@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.ui.common.CounterAwareFileNameText
@@ -28,12 +29,15 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 // 2단계 라운딩 토큰: 카메라 상/하단의 자주 노출되는 소형 컨트롤은 Small로 통일한다.
 private val CameraCompactControlShape = RoundedCornerShape(DDZLayout.Radius.Small)
+// Keep the small counter visibly green against the warm filename card.
+private val CameraCounterAccent = Color(0xFF2E7D50)
 
 @Composable
 fun CameraTopBar(
     topDisplayName: String,
-    onOpenTableEditor: () -> Unit,
+    onOpenCaptureInfo: () -> Unit,
     onOpenSettings: () -> Unit,
+    hasAutoCounter: Boolean = true,
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -46,7 +50,7 @@ fun CameraTopBar(
         val topBarMinHeight = 28.dp + DDZSpacing.itemGap
         // 토큰 정책: 반복되는 32dp 터치 영역은 DDZLayout.Icon.Touch로 고정한다.
         val settingsButtonReservedWidth = DDZLayout.Icon.Touch + (DDZSpacing.cardPadding * 2)
-        val filenameMaxWidth = (maxWidth - settingsButtonReservedWidth - DDZSpacing.itemGap)
+        val filenameMaxWidth = (this@BoxWithConstraints.maxWidth - settingsButtonReservedWidth - DDZSpacing.itemGap)
             .coerceAtLeast(0.dp)
 
         Box(
@@ -67,15 +71,17 @@ fun CameraTopBar(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                    ) { onOpenTableEditor() }
+                    ) { onOpenCaptureInfo() }
                     .padding(horizontal = DDZSpacing.cardPadding, vertical = 5.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // 시각적 중앙 보정: 파일명 텍스트가 위로 떠 보이지 않도록 lineHeight/padding을 균형화한다.
                 CounterAwareFileNameText(
                     fileName = topDisplayName,
                     style = DDZTypography.Caption.copy(lineHeight = 14.sp),
                     color = DDZColor.TextStrong,
+                    counterColor = CameraCounterAccent,
+                    useExactName = true,
+                    hasExactCounter = hasAutoCounter,
                 )
             }
 

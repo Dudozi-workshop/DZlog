@@ -7,15 +7,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.HorizontalDivider
@@ -28,26 +32,29 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
-import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControl
-import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControlOption
-import com.dudoziworkshop.dzlog.feature.settings.components.SegmentedControlStyles
+import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControl
+import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControlOption
+import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControlStyles
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
-private const val PANEL_WIDTH_FRACTION = 0.6f
+private const val PANEL_WIDTH_FRACTION = 0.72f
 private const val PANEL_DIM_ALPHA = 0.2f
-private val PANEL_MAX_WIDTH = 420.dp
+private val PANEL_MAX_WIDTH = 320.dp
 // 1단계 라운딩 토큰: 패널 외곽은 Medium 기준선을 사용한다.
 private val PANEL_CORNER_RADIUS = DDZLayout.Radius.Medium
 // 토큰 정책: 패널 헤더 터치 영역은 compact control 규격을 사용한다.
 private val PANEL_HEADER_ICON_TOUCH = DDZLayout.Control.Compact
 private val PANEL_HEADER_ICON_SIZE = 12.dp
+private val PANEL_SETTING_ROW_HEIGHT = 44.dp
 
 @Composable
 internal fun CameraSettingsOverlayPanel(
@@ -55,12 +62,12 @@ internal fun CameraSettingsOverlayPanel(
     onCaptureAspectChange: (CaptureAspect) -> Unit,
     saveMode: SaveMode,
     onSaveModeChange: (SaveMode) -> Unit,
-    showGrid: Boolean,
-    onShowGridChange: (Boolean) -> Unit,
-    showTable: Boolean,
-    onShowTableChange: (Boolean) -> Unit,
     continuousPreviewMode: ContinuousPreviewMode,
     onContinuousPreviewModeChange: (ContinuousPreviewMode) -> Unit,
+    captureSoundEnabled: Boolean,
+    onCaptureSoundChange: (Boolean) -> Unit,
+    captureHapticEnabled: Boolean,
+    onCaptureHapticChange: (Boolean) -> Unit,
     volumeKeyAction: VolumeKeyAction,
     onVolumeKeyActionChange: (VolumeKeyAction) -> Unit,
     onDismiss: () -> Unit
@@ -91,29 +98,33 @@ internal fun CameraSettingsOverlayPanel(
                 )
                 .fillMaxWidth(PANEL_WIDTH_FRACTION)
                 .widthIn(max = PANEL_MAX_WIDTH)
+                .heightIn(max = 440.dp)
                 .zIndex(30f),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(PANEL_CORNER_RADIUS),
             tonalElevation = 0.dp,
             shadowElevation = 6.dp,
-            color = DDZColor.Card.copy(alpha = 0.97f)
+            color = DDZColor.Card
         ) {
             Column(
                 // UX 3차 보정: 내부 상단 여백을 제거해 패널 시작점을 safe 영역 바로 아래로 더 밀착시킨다.
-                modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 0.dp, bottom = 6.dp),
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(PANEL_SETTING_ROW_HEIGHT),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = "촬영 설정",
                         style = DDZTypography.OverlayTitleCompact,
-                        color = DDZColor.Primary
+                        color = DDZColor.Primary,
+                        textAlign = TextAlign.Center,
                     )
                     IconButton(
                         modifier = Modifier
+                            .align(Alignment.CenterEnd)
                             .width(PANEL_HEADER_ICON_TOUCH)
                             .height(PANEL_HEADER_ICON_TOUCH),
                         onClick = onDismiss
@@ -129,80 +140,96 @@ internal fun CameraSettingsOverlayPanel(
 
                 HorizontalDivider(color = DDZColor.Border)
 
-                SettingSectionTitle("촬영 비율")
-                CompactSegments(
-                    options = listOf(
-                        SegmentedControlOption("1:1", captureAspect == CaptureAspect.R1_1) { onCaptureAspectChange(CaptureAspect.R1_1) },
-                        SegmentedControlOption("3:4", captureAspect == CaptureAspect.R3_4) { onCaptureAspectChange(CaptureAspect.R3_4) },
-                        SegmentedControlOption("9:16", captureAspect == CaptureAspect.R9_16) { onCaptureAspectChange(CaptureAspect.R9_16) }
-                    )
-                )
-
-                SettingSectionTitle("저장 방식")
-                CompactSegments(
-                    options = listOf(
-                        SegmentedControlOption("원본", saveMode == SaveMode.ORIGINAL_ONLY) { onSaveModeChange(SaveMode.ORIGINAL_ONLY) },
-                        SegmentedControlOption("워터마크", saveMode == SaveMode.WATERMARK_ONLY) { onSaveModeChange(SaveMode.WATERMARK_ONLY) },
-                        SegmentedControlOption("둘 다", saveMode == SaveMode.BOTH) { onSaveModeChange(SaveMode.BOTH) }
-                    )
-                )
-
-                SettingSectionTitle("미리보기")
-                CompactSegments(
-                    options = listOf(
-                        SegmentedControlOption("없음", continuousPreviewMode == ContinuousPreviewMode.OFF) {
-                            onContinuousPreviewModeChange(ContinuousPreviewMode.OFF)
-                        },
-                        SegmentedControlOption("짧게", continuousPreviewMode == ContinuousPreviewMode.SHORT) {
-                            onContinuousPreviewModeChange(ContinuousPreviewMode.SHORT)
-                        },
-                        SegmentedControlOption("고정", continuousPreviewMode == ContinuousPreviewMode.HOLD) {
-                            onContinuousPreviewModeChange(ContinuousPreviewMode.HOLD)
-                        }
-                    )
-                )
-
-                SettingSectionTitle("화면 표기")
-                CompactSegments(
-                    options = listOf(
-                        SegmentedControlOption("그리드", showGrid) { onShowGridChange(!showGrid) },
-                        SegmentedControlOption("표", showTable) { onShowTableChange(!showTable) }
-                    )
-                )
-
-                SettingSectionTitle("음량키")
-                CompactSegments(
-                    options = listOf(
-                        SegmentedControlOption("기능없음", volumeKeyAction == VolumeKeyAction.NONE) {
-                            onVolumeKeyActionChange(VolumeKeyAction.NONE)
-                        },
-                        SegmentedControlOption("배율", volumeKeyAction == VolumeKeyAction.ZOOM) {
-                            onVolumeKeyActionChange(VolumeKeyAction.ZOOM)
-                        },
-                        SegmentedControlOption("촬영", volumeKeyAction == VolumeKeyAction.CAPTURE) {
-                            onVolumeKeyActionChange(VolumeKeyAction.CAPTURE)
-                        },
-                    )
-                )
+                CompactSettingsRow("비율") {
+                    CompactSegments(listOf(
+                        DDZSegmentedControlOption("1:1", captureAspect == CaptureAspect.R1_1) { onCaptureAspectChange(CaptureAspect.R1_1) },
+                        DDZSegmentedControlOption("3:4", captureAspect == CaptureAspect.R3_4) { onCaptureAspectChange(CaptureAspect.R3_4) },
+                        DDZSegmentedControlOption("9:16", captureAspect == CaptureAspect.R9_16) { onCaptureAspectChange(CaptureAspect.R9_16) },
+                    ))
+                }
+                CompactSettingsRow("저장") {
+                    CompactSegments(listOf(
+                        DDZSegmentedControlOption("원본", saveMode == SaveMode.ORIGINAL_ONLY) { onSaveModeChange(SaveMode.ORIGINAL_ONLY) },
+                        DDZSegmentedControlOption("표 합성", saveMode == SaveMode.WATERMARK_ONLY) { onSaveModeChange(SaveMode.WATERMARK_ONLY) },
+                        DDZSegmentedControlOption("둘 다", saveMode == SaveMode.BOTH) { onSaveModeChange(SaveMode.BOTH) },
+                    ))
+                }
+                CompactSettingsRow("촬영 확인") {
+                    CompactSegments(listOf(
+                        DDZSegmentedControlOption("안 함", continuousPreviewMode == ContinuousPreviewMode.OFF) { onContinuousPreviewModeChange(ContinuousPreviewMode.OFF) },
+                        DDZSegmentedControlOption("잠깐", continuousPreviewMode == ContinuousPreviewMode.SHORT) { onContinuousPreviewModeChange(ContinuousPreviewMode.SHORT) },
+                        DDZSegmentedControlOption("유지", continuousPreviewMode == ContinuousPreviewMode.HOLD) { onContinuousPreviewModeChange(ContinuousPreviewMode.HOLD) },
+                    ))
+                }
+                CompactSettingsRow("피드백") {
+                    CameraFeedbackChip("소리", captureSoundEnabled, { onCaptureSoundChange(!captureSoundEnabled) }, Modifier.weight(1f))
+                    CameraFeedbackChip("진동", captureHapticEnabled, { onCaptureHapticChange(!captureHapticEnabled) }, Modifier.weight(1f))
+                }
+                CompactSettingsRow("음량키") {
+                    CompactSegments(listOf(
+                        DDZSegmentedControlOption("안 함", volumeKeyAction == VolumeKeyAction.NONE) { onVolumeKeyActionChange(VolumeKeyAction.NONE) },
+                        DDZSegmentedControlOption("배율", volumeKeyAction == VolumeKeyAction.ZOOM) { onVolumeKeyActionChange(VolumeKeyAction.ZOOM) },
+                        DDZSegmentedControlOption("촬영", volumeKeyAction == VolumeKeyAction.CAPTURE) { onVolumeKeyActionChange(VolumeKeyAction.CAPTURE) },
+                    ))
+                }
             }
         }
     }
 }
 
+private val CompactCameraSegments = DDZSegmentedControlStyles.CameraPanel.copy(
+    widthFraction = 1f,
+    fixedHeight = 40.dp,
+    minItemHeight = 40.dp,
+    outerHorizontalPadding = 0.dp,
+    innerHorizontalPadding = 1.dp,
+    itemHorizontalPadding = 1.dp,
+    itemSpacing = 1.dp,
+    textStyle = DDZTypography.Caption.copy(fontSize = 11.sp),
+)
+
 @Composable
-private fun SettingSectionTitle(title: String) {
-    Text(
-        text = title,
-        style = DDZTypography.SectionLabelCompact,
-        color = DDZColor.Primary
-    )
+private fun CompactSettingsRow(label: String, content: @Composable RowScope.() -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(PANEL_SETTING_ROW_HEIGHT),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(modifier = Modifier.width(55.dp).height(PANEL_SETTING_ROW_HEIGHT), contentAlignment = Alignment.Center) {
+            Text(label, style = DDZTypography.Caption.copy(fontSize = 11.sp), color = DDZColor.Primary, textAlign = TextAlign.Center, maxLines = 1)
+        }
+        content()
+    }
 }
 
 @Composable
-private fun CompactSegments(options: List<SegmentedControlOption>) {
-    // 3단계 정책: 촬영설정 패널도 공통 SegmentedControl 렌더러를 사용해 중복 UI를 제거한다.
-    SegmentedControl(
-        options = options,
-        style = SegmentedControlStyles.Compact
-    )
+private fun RowScope.CompactSegments(options: List<DDZSegmentedControlOption>) {
+    DDZSegmentedControl(options = options, modifier = Modifier.weight(1f), style = CompactCameraSegments)
+}
+
+@Composable
+private fun CameraFeedbackChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(40.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(DDZLayout.Radius.Small),
+        color = if (selected) DDZColor.SageLight else DDZColor.Surface,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (selected) DDZColor.SageBorder else DDZColor.Border,
+        ),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = label,
+                style = DDZTypography.Caption.copy(fontSize = 11.sp),
+                color = if (selected) DDZColor.SageDarkStrong else DDZColor.TextMuted,
+            )
+        }
+    }
 }

@@ -1,7 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.controller
 
 import android.content.Context
-import android.graphics.RectF
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
@@ -13,7 +12,6 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import java.util.concurrent.TimeUnit
 
@@ -26,7 +24,6 @@ internal fun bindCamera(
     context: Context,
     lifecycleOwner: LifecycleOwner,
     previewView: PreviewView,
-    aspect: CaptureAspect,
     photoQualityMode: PhotoQualityMode,
     onBound: (imageCapture: ImageCapture?, camera: Camera?) -> Unit
 ) {
@@ -90,11 +87,4 @@ internal fun startTapToFocus(
         },
         ContextCompat.getMainExecutor(context)
     )
-}
-
-internal fun resolvePreviewContentRect(previewView: PreviewView): RectF? {
-    val width = previewView.width
-    val height = previewView.height
-    if (width <= 0 || height <= 0) return null
-    return RectF(0f, 0f, width.toFloat(), height.toFloat())
 }

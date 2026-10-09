@@ -8,6 +8,7 @@ data class TableEditorSlotDraft(
     val cellId: String? = null,
     val manualText: String? = null,
     val formatType: String? = null,
+    val formatPattern: String? = null,
 )
 
 data class TableTemplateState(
@@ -29,8 +30,15 @@ data class TableTemplateState(
     val phraseSets: List<RotatingPhraseSet> = emptyList(),
     // 정책: 파일명/저장경로 슬롯의 단일 SSOT는 draft payload다.
     val fileNameSlotDrafts: List<TableEditorSlotDraft?> = List(FILE_NAME_SLOT_COUNT) { null },
-    val pathSlotDrafts: List<TableEditorSlotDraft?> = List(PATH_SLOT_COUNT) { null },
-)
+    // 현재 편집 가능한 저장경로 최대 5단계. 갤러리의 기존 데이터 열람 깊이와는 별도 정책이다.
+    val pathSlotDrafts: List<TableEditorSlotDraft?> = List(PATH_SLOT_UI_MAX_COUNT) { null },
+) {
+    init {
+        require(pathSlotDrafts.size <= PATH_SLOT_UI_MAX_COUNT) {
+            "pathSlotDrafts must contain at most $PATH_SLOT_UI_MAX_COUNT items"
+        }
+    }
+}
 
 private const val FILE_NAME_SLOT_KIND_CELL = "CELL"
 private const val PATH_SLOT_KIND_CELL = "CELL"
@@ -44,14 +52,23 @@ fun deriveFileNameCellSlotsFromDrafts(drafts: List<TableEditorSlotDraft?>): List
     }
 }
 
-const val FILE_NAME_SLOT_COUNT: Int = 3
-const val PATH_SLOT_COUNT: Int = 2
+/** 현재 개발/실사용 단계: 파일명 구성요소 5개 사용 가능. 향후 요금제별 편집 한도와 분리한다. */
+const val FILE_NAME_SLOT_COUNT: Int = 5
 
+/** 향후 무료 플랜의 구성요소 수(결제 권한 적용은 후속 단계). */
+const val BASIC_SAVE_RULE_SLOT_COUNT: Int = 3
+
+/** 저장경로 구성요소 최대 5개. UI/preview/counter/capture가 공유한다. */
+const val PATH_SLOT_UI_MAX_COUNT: Int = 5
+
+fun normalizePathSlotDrafts(
+    drafts: List<TableEditorSlotDraft?>,
+): List<TableEditorSlotDraft?> =
+    drafts.take(PATH_SLOT_UI_MAX_COUNT) +
+        List((PATH_SLOT_UI_MAX_COUNT - drafts.size).coerceAtLeast(0)) { null }
 
 fun derivePathCellSlotsFromDrafts(drafts: List<TableEditorSlotDraft?>): List<CellKey?> {
-    val normalizedDrafts = drafts.take(PATH_SLOT_COUNT) +
-        List((PATH_SLOT_COUNT - drafts.size).coerceAtLeast(0)) { null }
-    return normalizedDrafts.map { draft ->
+    return normalizePathSlotDrafts(drafts).map { draft ->
         val isCellSlot = draft?.kind.equals(PATH_SLOT_KIND_CELL, ignoreCase = true)
         if (isCellSlot) draft?.cellId else null
     }

@@ -10,9 +10,6 @@ import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterSyncEvent
 internal class CameraViewModel : ViewModel() {
     val ui: CameraUiState = CameraUiState()
 
-    var phraseProgressCounter by mutableIntStateOf(1)
-        private set
-
     var counterEventTick by mutableIntStateOf(0)
         private set
 
@@ -36,8 +33,6 @@ internal class CameraViewModel : ViewModel() {
         counterEventTick += 1
     }
 
-    fun advancePhraseProgress(nextCursor: Int) {
-        phraseProgressCounter = nextCursor.coerceAtLeast(1)
-    }
 }
+
 

@@ -3,9 +3,11 @@ package com.dudoziworkshop.dzlog.ui.camera.state
 import android.net.Uri
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequest
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
@@ -28,6 +30,10 @@ internal class CameraPrefsState {
     var counterDigits by mutableIntStateOf(COUNTER_DIGITS_DEFAULT)
     var showGrid by mutableStateOf(false)
     var zoomRatioTenths by mutableIntStateOf(10)
+    var flashMode by mutableStateOf(CameraFlashMode.OFF)
+    var assistShutterEnabled by mutableStateOf(false)
+    var assistShutterXRatio by mutableFloatStateOf(0.82f)
+    var assistShutterYRatio by mutableFloatStateOf(0.62f)
 
     var showWmPreview by mutableStateOf(true)
     var wmTableAnchor by mutableStateOf(WatermarkTableAnchor.BOTTOM_RIGHT)
@@ -46,6 +52,7 @@ internal class CameraPrefsState {
     var wmTextAlign by mutableIntStateOf(WatermarkTextAlign.LEFT)
     var wmGridEnabled by mutableStateOf(true)
     var wmRotationCwDeg by mutableIntStateOf(0)
+    var wmTableLocked by mutableStateOf(false)
 }
 
 @Stable
@@ -58,14 +65,15 @@ internal class CaptureUiState {
     var now by mutableStateOf(Date())
     var actualZoomTenths by mutableIntStateOf(10)
     var maxZoomTenths by mutableIntStateOf(20)
-    var usableTopRatio by mutableStateOf(0f)
-    var usableBottomRatio by mutableStateOf(1f)
+    var usableTopRatio by mutableFloatStateOf(0f)
+    var usableBottomRatio by mutableFloatStateOf(1f)
 }
 
 @Stable
 internal class CounterScopeState {
     // null = 카운터 readback 동기화 전(초기 렌더) 상태
     var scopeNextCounter by mutableStateOf<Int?>(null)
+    var syncedRequest by mutableStateOf<CounterRequest?>(null)
 }
 
 @Stable
@@ -74,6 +82,50 @@ internal class CameraUiState {
     val capture: CaptureUiState = CaptureUiState()
     val counter: CounterScopeState = CounterScopeState()
 
+    var showToolMenu by mutableStateOf(false)
+    var selectedTool by mutableStateOf<CameraOverlayTool?>(null)
+    var isToolPanelExpanded by mutableStateOf(false)
+    var isZoomChipExpanded by mutableStateOf(false)
+    var isTableSelected by mutableStateOf(false)
+    var isTableResizePanelOpen by mutableStateOf(false)
+    var isPinchZoomActive by mutableStateOf(false)
+    var focusMode by mutableStateOf(CameraFocusMode.AUTO)
+    var focusUiValue by mutableFloatStateOf(0.5f)
+
     var showWizard by mutableStateOf(false)
+
+    fun dismissToolOverlays() {
+        showToolMenu = false
+        selectedTool = null
+        isToolPanelExpanded = false
+        isZoomChipExpanded = false
+    }
+
+    fun dismissTableSelection() {
+        isTableSelected = false
+        isTableResizePanelOpen = false
+    }
+
+    /** Close transient camera controls before opening another action or destination. */
+    fun dismissCameraInteractions() {
+        dismissTableSelection()
+        dismissToolOverlays()
+    }
 }
 
+internal enum class CameraOverlayTool {
+    ZOOM,
+    FOCUS,
+    FLASH,
+}
+
+internal enum class CameraFlashMode {
+    OFF,
+    AUTO,
+    ON,
+}
+
+internal enum class CameraFocusMode {
+    AUTO,
+    MANUAL,
+}

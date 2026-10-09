@@ -59,6 +59,7 @@ internal fun rememberCameraPreviewAreaArgs(
         ui.prefs.showGrid,
         ui.prefs.zoomRatioTenths,
         ui.capture.maxZoomTenths,
+        ui.focusMode,
         ui.prefs.wmTableAnchor,
         ui.prefs.wmTableWidthRatio,
         ui.prefs.wmTableHeightRatio,
@@ -100,6 +101,7 @@ internal fun rememberCameraPreviewAreaArgs(
             showGrid = ui.prefs.showGrid,
             zoomRatioTenths = ui.prefs.zoomRatioTenths,
             maxZoomTenths = ui.capture.maxZoomTenths,
+            focusMode = ui.focusMode,
             onActualZoomTenthsChange = { ui.capture.actualZoomTenths = it },
             onRequestedZoomTenthsCommit = { next ->
                 val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
@@ -107,6 +109,7 @@ internal fun rememberCameraPreviewAreaArgs(
                 scope.launch { settingsWriter.setZoomTenths(normalized) }
             },
             onMaxZoomTenthsChange = { ui.capture.maxZoomTenths = it.coerceAtLeast(10) },
+            onPinchZoomActiveChange = { ui.isPinchZoomActive = it },
             shutterButtonTopY = shutterButtonTopY,
             safeTopY = safeTopY,
             safeBottomY = safeBottomY,
@@ -202,4 +205,3 @@ private fun commitBoundsOffset10000(
     ui.prefs.wmOffsetYRatio = ny
     scope.launch { settingsWriter.setWmCustomBoundsOffset10000(nx10000, ny10000) }
 }
-

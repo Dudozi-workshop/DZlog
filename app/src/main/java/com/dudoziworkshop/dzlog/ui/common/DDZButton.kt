@@ -8,21 +8,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.dudoziworkshop.dzlog.ui.theme.LocalDDZColor
-import com.dudoziworkshop.dzlog.ui.theme.LocalDDZTypography
-import androidx.compose.material3.Icon
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.ui.theme.LocalDDZColor
+import com.dudoziworkshop.dzlog.ui.theme.LocalDDZTypography
 
 enum class DDZButtonStyle {
     Primary,
-    Secondary
+    Secondary,
+    Text,
+    Destructive,
 }
 
 @Composable
@@ -36,6 +39,7 @@ fun DDZButton(
     minHeight: Dp = 48.dp,
     shape: Shape = RoundedCornerShape(12.dp),
     containerColorOverride: Color? = null,
+    textStyleOverride: TextStyle? = null,
 ) {
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
@@ -43,14 +47,18 @@ fun DDZButton(
     val containerColor = when (style) {
         DDZButtonStyle.Primary -> colors.Primary
         DDZButtonStyle.Secondary -> colors.Surface
+        DDZButtonStyle.Text -> Color.Transparent
+        DDZButtonStyle.Destructive -> colors.DestructiveSoft
     }
     val contentColor = when (style) {
-        DDZButtonStyle.Primary -> colors.Surface
+        DDZButtonStyle.Primary -> colors.OnPrimary
         DDZButtonStyle.Secondary -> colors.TextPrimary
+        DDZButtonStyle.Text -> colors.PrimaryDark
+        DDZButtonStyle.Destructive -> colors.Destructive
     }
     val border = when (style) {
-        DDZButtonStyle.Primary -> null
         DDZButtonStyle.Secondary -> BorderStroke(1.dp, colors.Border)
+        else -> null
     }
 
     Button(
@@ -62,10 +70,13 @@ fun DDZButton(
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColorOverride ?: containerColor,
             contentColor = contentColor,
-            disabledContainerColor = containerColor.copy(alpha = 0.4f),
-            disabledContentColor = contentColor.copy(alpha = 0.6f)
+            disabledContainerColor = when (style) {
+                DDZButtonStyle.Text -> Color.Transparent
+                else -> colors.SurfaceSoft
+            },
+            disabledContentColor = colors.TextDisabled,
         ),
-        contentPadding = PaddingValues(horizontal = 16.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp),
     ) {
         if (leadingIcon != null) {
             Icon(imageVector = leadingIcon, contentDescription = null)
@@ -73,7 +84,7 @@ fun DDZButton(
         }
         Text(
             text = text,
-            style = typography.ButtonText
+            style = textStyleOverride ?: typography.ButtonText,
         )
     }
 }

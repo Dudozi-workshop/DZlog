@@ -5,20 +5,23 @@
     <string name="action_delete">삭제</string>
 
     <string name="option_all">전체</string>
-    <string name="option_both">둘 다</string>
-    <string name="option_hold">고정</string>
-    <string name="scope_global">전역</string>
-
-    <string name="label_counter">카운터</string>
-    <string name="label_date">날짜</string>
-    <string name="label_batch">배치</string>
-    <string name="label_filename">파일명</string>
-
     <string name="camera_captured_result">촬영 결과</string>
 
+    <string name="home_current_capture">현재 촬영</string>
+    <string name="home_default_capture">기본 촬영</string>
+    <string name="home_next_capture">다음 촬영 %1$s</string>
+    <string name="home_start_capture">촬영 시작</string>
+    <string name="home_recent_capture">최근 촬영</string>
+    <string name="home_album_view">앨범 보기 &gt;</string>
+    <string name="home_table_settings">표 상세설정</string>
+    <string name="home_save_settings">저장 설정</string>
+    <string name="home_no_recent_capture">아직 촬영한 사진이 없어요.</string>
+    <string name="home_first_record_hint">첫 기록을 남겨보세요.</string>
+    <string name="home_settings_content_description">설정</string>
+    <string name="home_today_time">오늘 %1$s</string>
+    <string name="home_date_time_pattern">M월 d일 HH:mm</string>
+
     <string name="error_bitmap_compress_failed">이미지 압축 실패</string>
-    <string name="error_decode_failed">디코딩 실패</string>
-    <string name="error_g2_enabled_but_empty">G2가 활성화됐지만 비어 있어요</string>
 
     <!-- 개발/테스트 안정화를 위해 Google 공식 테스트 App ID를 사용한다. (운영 배포 전 교체) -->
     <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>

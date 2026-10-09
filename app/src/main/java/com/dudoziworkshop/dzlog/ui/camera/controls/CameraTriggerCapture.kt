@@ -22,6 +22,7 @@ internal fun buildCameraTriggerCapture(
     ui: CameraUiState,
     appSettings: AppSettings,
     boundImageCapture: ImageCapture?,
+    undoPending: Boolean,
     finalCapturePreview: FinalCapturePreview?,
     scopedCounterStream: CaptureScopedCounterStream,
     tableTemplateState: TableTemplateState,
@@ -51,9 +52,11 @@ internal fun buildCameraTriggerCapture(
     ) -> WatermarkConfig,
 ): () -> Unit = trigger@{
     // 오작동 방지: 캡처 불가 상태에서는 입력 피드백/촬영 로직을 모두 실행하지 않는다.
-    if (boundImageCapture == null || ui.capture.capturedUri != null || ui.capture.isCapturing) return@trigger
+    if (undoPending || boundImageCapture == null || ui.capture.capturedUri != null || ui.capture.isCapturing || ui.capture.captureGate.get()) return@trigger
     // counter 미동기화(null) 상태에서는 최종 preview가 없으므로 캡처를 시작하지 않는다.
     val capturePreview = finalCapturePreview ?: return@trigger
+    // 촬영 직전 한 번 더 반영해 capture 시점 flash mode 불일치를 방지한다. (TORCH 상시점등 사용 금지)
+    boundImageCapture.flashMode = ui.prefs.flashMode.toImageCaptureFlashMode()
 
     // 정책 변경: 촬영 피드백은 저장 완료가 아니라 촬영 트리거(버튼/음량키) 시점에 즉시 제공한다.
     captureFeedback.play(
@@ -76,9 +79,11 @@ internal fun buildCameraTriggerCapture(
             latestImageController.reload()
         },
         onSetCapturedUri = { capturedUri -> ui.capture.capturedUri = capturedUri },
-        // 정책 유지: 저장 성공 후 다음 순환문구 cursor를 반영한다.
-        onAdvancePhraseProgress = { nextCursor -> cameraViewModel.advancePhraseProgress(nextCursor) },
-        onSetCapturing = { ui.capture.isCapturing = it }
+        onSetCapturing = { ui.capture.isCapturing = it },
+        onProgressPersistenceFailed = {
+            ui.counter.scopeNextCounter = null
+            cameraViewModel.bumpResumeResyncTick()
+        },
     )
 
     handleCaptureClick(
@@ -121,3 +126,10 @@ internal fun buildCameraTriggerCapture(
         callbacks = callbacks
     )
 }
+
+private fun com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode.toImageCaptureFlashMode(): Int = when (this) {
+    com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode.OFF -> ImageCapture.FLASH_MODE_OFF
+    com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode.AUTO -> ImageCapture.FLASH_MODE_AUTO
+    com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode.ON -> ImageCapture.FLASH_MODE_ON
+}
+

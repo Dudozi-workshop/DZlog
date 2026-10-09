@@ -2,9 +2,11 @@ package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.camera.core.ImageCapture
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
+import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
@@ -18,6 +20,8 @@ import com.dudoziworkshop.dzlog.domain.naming.resolveGroupValue
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import com.dudoziworkshop.dzlog.domain.table.applyPatch
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -28,8 +32,8 @@ data class CaptureClickCallbacks(
     val onAdvancePreviewCounter: (Int) -> Unit,
     val onAddToSessionStack: (List<Uri>) -> Unit,
     val onSetCapturedUri: (Uri?) -> Unit,
-    val onAdvancePhraseProgress: (Int) -> Unit,
-    val onSetCapturing: (Boolean) -> Unit
+    val onSetCapturing: (Boolean) -> Unit,
+    val onProgressPersistenceFailed: () -> Unit = {},
 )
 
 /**
@@ -144,46 +148,63 @@ internal fun handleCaptureClick(
             )?.coerceAtLeast(1) ?: finalCapturePreview.usedCounter
 
             CoroutineScope(Dispatchers.IO).launch {
-                // 핵심 수정: Camera read(CameraCounterSyncEffect)와 동일한 scoped stream key로 commit한다.
-                // includePath/includeFilename scope OFF 시에도 read/commit 키가 분리되지 않도록 일치화한다.
-                CaptureCounterPolicy.commit(
-                    context = context,
-                    scopedStream = scopedCounterStream,
-                    usedCounter = committedCounter,
-                    mediaStoreId = entry.mediaStoreId
-                )
+                try {
+                    // 핵심 수정: Camera read(CameraCounterSyncEffect)와 동일한 scoped stream key로 commit한다.
+                    // includePath/includeFilename scope OFF 시에도 read/commit 키가 분리되지 않도록 일치화한다.
+                    CaptureCounterPolicy.commit(
+                        context = context,
+                        scopedStream = scopedCounterStream,
+                        usedCounter = committedCounter,
+                        mediaStoreId = entry.mediaStoreId
+                    )
 
-                withContext(Dispatchers.Main) {
-                    // 정책 유지: 저장 성공 후에만 템플릿 patch/문구 진행/카운터 재동기화를 반영한다.
-                    onApplyTemplatePatch(tableTemplateState.applyPatch(finalCapturePreview.tablePatch))
-                    // UX 개선: 저장 성공 직후 프리뷰 카운터를 committedCounter + 1로 즉시 반영한다.
-                    // 정합성은 기존 CameraCounterSyncEffect 경로가 최종 보정한다.
-                    callbacks.onAdvancePreviewCounter(committedCounter + 1)
-                    // 정책 정리(2차): 문구 진행은 모드와 무관하게 저장 성공 후 plan 기준으로만 전진한다.
-                    callbacks.onAdvancePhraseProgress(finalCapturePreview.nextPhraseProgressCursor)
-                    onRequestCounterResync()
+                    AppSettingsStore.setPhraseProgressCursor(context, finalCapturePreview.nextPhraseProgressCursor)
+                    withContext(Dispatchers.Main) {
+                        // 정책 유지: 저장 성공 후에만 템플릿 patch/문구 진행/카운터 재동기화를 반영한다.
+                        onApplyTemplatePatch(tableTemplateState.applyPatch(finalCapturePreview.tablePatch))
+                        // UX 개선: 저장 성공 직후 프리뷰 카운터를 committedCounter + 1로 즉시 반영한다.
+                        // 정합성은 기존 CameraCounterSyncEffect 경로가 최종 보정한다.
+                        callbacks.onAdvancePreviewCounter(committedCounter + 1)
+                        onRequestCounterResync()
 
-                    if (entry.isNameAdjusted) {
-                        Toast.makeText(
-                            context,
-                            "중복 파일명으로 ${entry.displayName} 저장됨",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        if (entry.isNameAdjusted) {
+                            Toast.makeText(
+                                context,
+                                "중복 파일명으로 ${entry.displayName} 저장됨",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+
+                        val savedUris = entry.savedContentUris
+                            .asSequence()
+                            .filter { it != Uri.EMPTY }
+                            .distinct()
+                            .toList()
+                        callbacks.onAddToSessionStack(savedUris)
+
+                        if (continuousPreviewMode != ContinuousPreviewMode.OFF) {
+                            callbacks.onSetCapturedUri(entry.contentUri)
+                        }
+
                     }
-
-                    val savedUris = entry.savedContentUris
-                        .asSequence()
-                        .filter { it != Uri.EMPTY }
-                        .distinct()
-                        .toList()
-                    callbacks.onAddToSessionStack(savedUris)
-
-                    if (continuousPreviewMode != ContinuousPreviewMode.OFF) {
-                        callbacks.onSetCapturedUri(entry.contentUri)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Log.e("DZlogCapture", "사진 저장 후 진행 상태 기록 실패", error)
+                    withContext(Dispatchers.Main) {
+                        // Media already exists; preserve access/Undo and rescan before another capture.
+                        callbacks.onAddToSessionStack(entry.savedContentUris.filter { it != Uri.EMPTY }.distinct())
+                        if (continuousPreviewMode != ContinuousPreviewMode.OFF) {
+                            callbacks.onSetCapturedUri(entry.contentUri)
+                        }
+                        callbacks.onProgressPersistenceFailed()
+                        Toast.makeText(context, "사진은 저장됐지만 번호·문구 상태를 기록하지 못했습니다. 다시 확인해주세요.", Toast.LENGTH_LONG).show()
                     }
-
-                    gate.set(false)
-                    callbacks.onSetCapturing(false)
+                } finally {
+                    withContext(NonCancellable + Dispatchers.Main) {
+                        gate.set(false)
+                        callbacks.onSetCapturing(false)
+                    }
                 }
             }
         },
@@ -194,3 +215,4 @@ internal fun handleCaptureClick(
         }
     )
 }
+

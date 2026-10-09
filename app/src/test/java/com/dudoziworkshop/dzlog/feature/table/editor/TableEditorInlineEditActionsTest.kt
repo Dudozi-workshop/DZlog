@@ -138,7 +138,7 @@ class TableEditorInlineEditActionsTest {
 
     @Test
     fun editing_other_cell_selection_stays_when_counter_commit_is_blocked() {
-        val template = counterTemplate(seed = 3)
+        val template = counterTemplate()
         val sourceCell = template.cells.first()
         val targetCell = template.cells.last()
         val context = context(
@@ -220,7 +220,8 @@ class TableEditorInlineEditActionsTest {
         )
     }
 
-    private fun counterTemplate(seed: Int): TableTemplateState {
+    private fun counterTemplate(): TableTemplateState {
+        val seed = 3
         val template = defaultTableTemplateState()
         val cell = template.cells.first()
         return updateCell(template, cell.cellId) {

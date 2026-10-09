@@ -8,7 +8,7 @@ import org.junit.Test
 class AlbumDeletePolicyTest {
 
     @Test
-    fun `G1 선택시 루트는 exact, 개별 G1은 prefix로 계산`() {
+    fun `g1 selection builds root exact and item prefix targets`() {
         val targets = buildDeleteTargetsForG1Selection(
             selected = setOf(DzlogMediaStoreReader.ROOT_G1, "N600"),
             rootSelected = true,
@@ -24,7 +24,7 @@ class AlbumDeletePolicyTest {
     }
 
     @Test
-    fun `G1에서 rootSelected가 false면 selected에 ROOT가 있어도 루트 exact를 만들지 않는다`() {
+    fun `g1 does not create root exact when rootSelected is false`() {
         val targets = buildDeleteTargetsForG1Selection(
             selected = setOf(DzlogMediaStoreReader.ROOT_G1),
             rootSelected = false,
@@ -34,7 +34,7 @@ class AlbumDeletePolicyTest {
     }
 
     @Test
-    fun `G1에서 빈 문자열과 공백은 무시하고 prefix는 trailing slash를 유지한다`() {
+    fun `g1 ignores blank labels and keeps trailing slash for prefix`() {
         val targets = buildDeleteTargetsForG1Selection(
             selected = setOf("", "   ", "N600"),
             rootSelected = false,
@@ -45,7 +45,7 @@ class AlbumDeletePolicyTest {
     }
 
     @Test
-    fun `G2 선택시 그룹루트와 G2 노드 경로를 exact로 계산`() {
+    fun `g2 selection builds group root and node exact targets`() {
         val targets = buildDeleteTargetsForG2Selection(
             g1 = "N600",
             selected = setOf(DzlogMediaStoreReader.GROUP_ROOT_LABEL, "A1"),
@@ -63,7 +63,7 @@ class AlbumDeletePolicyTest {
     }
 
     @Test
-    fun `G2에서 g1 공백이면 empty를 반환한다`() {
+    fun `g2 returns empty when g1 is blank`() {
         val targets = buildDeleteTargetsForG2Selection(
             g1 = "   ",
             selected = setOf("A1"),
@@ -74,7 +74,7 @@ class AlbumDeletePolicyTest {
     }
 
     @Test
-    fun `G2에서 그룹 루트만 선택하면 exact 2개만 생성된다`() {
+    fun `g2 with group root only creates two exact targets`() {
         val targets = buildDeleteTargetsForG2Selection(
             g1 = "N600",
             selected = setOf(DzlogMediaStoreReader.GROUP_ROOT_LABEL),
@@ -89,7 +89,7 @@ class AlbumDeletePolicyTest {
     }
 
     @Test
-    fun `G2에서 g2 라벨 빈값 공백은 무시하고 exact는 trailing slash를 유지한다`() {
+    fun `g2 ignores blank labels and keeps trailing slash for exact`() {
         val targets = buildDeleteTargetsForG2Selection(
             g1 = "N600",
             selected = setOf("", "   ", "A1"),

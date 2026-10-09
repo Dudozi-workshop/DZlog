@@ -12,13 +12,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 internal data class LatestImageController(
@@ -32,30 +30,29 @@ internal fun rememberLatestImageController(
     counterScopeRelativePathKey: String,
     saveMode: SaveMode,
 ): LatestImageController {
-    val scope = rememberCoroutineScope()
     val refreshTick = rememberMediaStoreRefreshTick(context)
     var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
 
-    fun reload() {
-        scope.launch {
-            latestImage = withContext(Dispatchers.IO) {
-                val reader = DzlogMediaStoreReader(context.contentResolver)
-                val baseRelativePath = counterScopeRelativePathKey
-                    .substringBefore("|g2=", counterScopeRelativePathKey)
-                    .let { if (it.endsWith('/')) it else "$it/" }
-                val targetRelativePath = if (saveMode == SaveMode.ORIGINAL_ONLY) {
-                    if (baseRelativePath.endsWith("original/")) baseRelativePath else "${baseRelativePath}original/"
-                } else {
-                    baseRelativePath
-                }
-                runCatching { reader.loadLatestImageInRelativePath(targetRelativePath) }.getOrNull()
+    var reloadTick by remember { mutableIntStateOf(0) }
+    fun reload() { reloadTick += 1 }
+
+    // One cancellable lookup owns the thumbnail. A slow old-folder lookup must
+    // never replace a newer folder/mode result or remain navigable while loading.
+    LaunchedEffect(context, refreshTick, saveMode, counterScopeRelativePathKey, reloadTick) {
+        latestImage = null
+        latestImage = withContext(Dispatchers.IO) {
+            val reader = DzlogMediaStoreReader(context.contentResolver)
+            val baseRelativePath = counterScopeRelativePathKey
+                .substringBefore("|g2=", counterScopeRelativePathKey)
+                .let { if (it.endsWith('/')) it else "$it/" }
+            val targetRelativePath = if (saveMode == SaveMode.ORIGINAL_ONLY) {
+                if (baseRelativePath.endsWith("original/")) baseRelativePath else "${baseRelativePath}original/"
+            } else {
+                baseRelativePath
             }
+            runCatching { reader.loadLatestImageInRelativePath(targetRelativePath) }.getOrNull()
         }
     }
-
-    LaunchedEffect(Unit) { reload() }
-    LaunchedEffect(refreshTick) { reload() }
-    LaunchedEffect(saveMode, counterScopeRelativePathKey) { reload() }
 
     return LatestImageController(
         latestImage = latestImage,

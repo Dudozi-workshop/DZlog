@@ -10,7 +10,7 @@ class ZoomBoundsPolicyTest {
         val (minZoom, maxZoom) = resolveZoomBounds(minSupported = 0.6f, maxSupported = 5f)
 
         assertEquals(1f, minZoom, 0.0001f)
-        assertEquals(2f, maxZoom, 0.0001f)
+        assertEquals(5f, maxZoom, 0.0001f)
     }
 
     @Test

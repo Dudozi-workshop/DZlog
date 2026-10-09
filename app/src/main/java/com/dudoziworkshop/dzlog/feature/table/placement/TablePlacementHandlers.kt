@@ -23,11 +23,12 @@ suspend fun loadTablePlacementState(context: Context): TablePlacementState {
     val boundsOffsetY10000 = (prefs[KEY_WM_BOUNDS_OFFSET_Y_10000] ?: 0).coerceIn(0, 10000)
     val ratioOffsetX = (boundsOffsetX10000 / 100f).roundToInt().coerceIn(0, 100)
     val ratioOffsetY = (boundsOffsetY10000 / 100f).roundToInt().coerceIn(0, 100)
+    val widthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(10, 100)
     return TablePlacementState(
         wmOffsetXRatio = ratioOffsetX,
         wmOffsetYRatio = ratioOffsetY,
-        wmWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(10, 100),
-        wmHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 100),
+        wmWidthRatio = widthRatio,
+        wmHeightRatio = widthRatio,
         rotationCwDeg = if ((prefs[KEY_WM_ROTATION_CW_90] ?: 0) == 90) 90 else 0,
         captureAspect = CaptureAspect.from(prefs[KEY_CAPTURE_ASPECT] ?: CaptureAspect.R3_4.v)
     )
@@ -48,15 +49,17 @@ suspend fun persistTablePlacementState(
         prefs[KEY_WM_OFFSET_Y] = ny
         prefs[KEY_WM_BOUNDS_OFFSET_X_10000] = nx10000
         prefs[KEY_WM_BOUNDS_OFFSET_Y_10000] = ny10000
-        prefs[KEY_WM_TABLE_WIDTH] = placementState.wmWidthRatio.coerceIn(10, 100)
-        prefs[KEY_WM_TABLE_HEIGHT] = placementState.wmHeightRatio.coerceIn(10, 100)
+        val widthRatio = placementState.wmWidthRatio.coerceIn(10, 100)
+        prefs[KEY_WM_TABLE_WIDTH] = widthRatio
+        prefs[KEY_WM_TABLE_HEIGHT] = widthRatio
         prefs[KEY_WM_ROTATION_CW_90] = if (placementState.rotationCwDeg == 90) 90 else 0
     }
+    val widthRatio = placementState.wmWidthRatio.coerceIn(10, 100)
     return placementState.copy(
         wmOffsetXRatio = nx,
         wmOffsetYRatio = ny,
-        wmWidthRatio = placementState.wmWidthRatio.coerceIn(10, 100),
-        wmHeightRatio = placementState.wmHeightRatio.coerceIn(10, 100),
+        wmWidthRatio = widthRatio,
+        wmHeightRatio = widthRatio,
         rotationCwDeg = if (placementState.rotationCwDeg == 90) 90 else 0,
     )
 }

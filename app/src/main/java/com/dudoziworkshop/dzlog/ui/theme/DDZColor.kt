@@ -3,23 +3,52 @@ package com.dudoziworkshop.dzlog.ui.theme
 import androidx.compose.ui.graphics.Color
 
 object DDZColor {
-    val Background = Color(0xFFF3F1EE)
-    val Surface = Color(0xFFF5F3F1)
-    val Card = Color(0xFFF1EAE1)
-    val Primary = Color(0xFF4E3A30)
-    val PrimaryElevated = Color(0xFF48352C)
-    val PrimaryDark = Color(0xFF261F17)
-    val Border = Color(0xFFCBC3BA)
-    val TextPrimary = PrimaryDark
-    val TextMuted = Color(0xFF665F59)
-    val IconMuted = Color(0xFFA69F99)
-    val Sage = Color(0xFFA8B59B)
-    val SageDark = Color(0xFF8FA08A)
-    val SageLight = Color(0xFFD7E0CF)
+    // DZlog UI System v1 · Light Brown Main / Sage Accent
+    val Background = Color(0xFFFBF8F3)
+    val Surface = Color(0xFFFFFDF9)
+    val SurfaceSoft = Color(0xFFEEE4D8)
+    val AmbientWarm = Color(0xFFF7F0E5)
 
-    // Camera emphasis palette (촬영 화면 가독성 강화용)
-    val SagePrimary = Color(0xFF6E8B74)
-    val SageDarkStrong = Color(0xFF4F6657)
-    val SageBorder = Color(0xFF9FB3A7)
-    val TextStrong = Color(0xFF2F3A33)
+    // Primary action / brand
+    val Primary = Color(0xFFA98F78)
+    val PrimaryElevated = Color(0xFF927762)
+    val PrimaryDark = Color(0xFF6D5645)
+    val OnPrimary = Color.White
+
+    // Selection / active state
+    val Selected = Color(0xFF7E9670)
+    val SelectedDark = Color(0xFF617757)
+    val SelectedSoft = Color(0xFFE3EBDD)
+
+    // Text / icon hierarchy
+    val TextPrimary = Color(0xFF332A25)
+    val TextSecondary = Color(0xFF6F655D)
+    val TextDisabled = Color(0xFFA39A92)
+    val IconMuted = Color(0xFF8B827A)
+
+    // Borders
+    val Border = Color(0xFFD8CEC4)
+    val BorderStrong = Color(0xFFC6BAB0)
+
+    // Destructive
+    val Destructive = Color(0xFFD96862)
+    val DestructiveSoft = Color(0xFFF8E3E1)
+
+    // Camera / overlay exception tokens
+    val OverlayScrim = Color(0xFF2D2926)
+    val OverlayText = Color.White
+
+    // Compatibility aliases. Remove gradually as screens migrate to semantic names.
+    val Card = SurfaceSoft
+    val BrandBrown = PrimaryDark
+    val TextMuted = TextSecondary
+
+    val Sage = Selected
+    val SageDark = SelectedDark
+    val SageLight = SelectedSoft
+
+    val SagePrimary = Selected
+    val SageDarkStrong = SelectedDark
+    val SageBorder = Color(0xFFB9C7B2)
+    val TextStrong = TextPrimary
 }

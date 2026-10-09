@@ -1,8 +1,8 @@
 package com.dudoziworkshop.dzlog.ui.log
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -107,12 +107,12 @@ fun LogGroupCard(
 fun LogGroupTileCard(
     summary: LogGroupSummary,
     isSelected: Boolean,
+    modifier: Modifier = Modifier,
     isGroupRootHighlight: Boolean = false,
     titleOverride: String? = null,
     titleMaxLines: Int = Int.MAX_VALUE,
     titleOverflow: TextOverflow = TextOverflow.Clip,
     titleFontWeight: FontWeight? = null,
-    modifier: Modifier = Modifier,
 ) {
     val cardBackground = if (isGroupRootHighlight) DDZColor.SageLight else DDZColor.Card
     val borderColor = if (isGroupRootHighlight) DDZColor.Sage else DDZColor.Border

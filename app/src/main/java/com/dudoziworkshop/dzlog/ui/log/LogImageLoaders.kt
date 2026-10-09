@@ -20,6 +20,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -36,7 +37,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 
@@ -86,7 +86,7 @@ fun DzFullImage(
 
     val painter = rememberAsyncImagePainter(model = request)
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    var scale by remember(uriString) { mutableStateOf(MinScale) }
+    var scale by remember(uriString) { mutableFloatStateOf(MinScale) }
     var offset by remember(uriString) { mutableStateOf(Offset.Zero) }
     var isAtLeftEdge by remember(uriString) { mutableStateOf(false) }
     var isAtRightEdge by remember(uriString) { mutableStateOf(false) }
@@ -292,8 +292,4 @@ fun DzFullImage(
         }
     }
 
-    val painterState = painter.state
-    if (painterState is AsyncImagePainter.State.Error) {
-        // no-op: 기존 화면 정책 유지(에러 UI 미노출)
-    }
 }

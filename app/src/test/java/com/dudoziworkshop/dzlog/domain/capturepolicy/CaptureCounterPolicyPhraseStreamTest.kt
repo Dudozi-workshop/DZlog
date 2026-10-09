@@ -15,7 +15,7 @@ import java.util.UUID
 class CaptureCounterPolicyPhraseStreamTest {
 
     @Test
-    fun `same phrase stream increments to two after one commit`() = runBlocking {
+    fun `commit index alone does not advance without physical media`() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val stream = createScopedStream("rp_왜|g2=0")
 
@@ -35,7 +35,7 @@ class CaptureCounterPolicyPhraseStreamTest {
             saveMode = SaveMode.WATERMARK_ONLY,
         )
 
-        assertEquals(2, next)
+        assertEquals(1, next)
     }
 
     @Test
@@ -74,7 +74,7 @@ class CaptureCounterPolicyPhraseStreamTest {
     }
 
     @Test
-    fun `same phrase stream reaches three after two commits`() = runBlocking {
+    fun `two auxiliary commits still do not advance without physical media`() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val stream = createScopedStream("rp_왜|g2=0")
 
@@ -100,7 +100,7 @@ class CaptureCounterPolicyPhraseStreamTest {
             saveMode = SaveMode.WATERMARK_ONLY,
         )
 
-        assertEquals(3, next)
+        assertEquals(1, next)
     }
 
     private fun createScopedStream(prefix: String): CaptureScopedCounterStream {

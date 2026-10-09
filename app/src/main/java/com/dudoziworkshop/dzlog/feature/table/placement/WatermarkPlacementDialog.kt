@@ -34,8 +34,10 @@ import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.feature.table.model.TablePlacementState
 import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControl
+import com.dudoziworkshop.dzlog.ui.common.DDZSegmentedControlStyles
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import kotlin.math.roundToInt
 
 @Composable
 fun TablePlacementPreviewDialog(
@@ -58,7 +60,6 @@ fun TablePlacementPreviewDialog(
 
     val entryPlacement = remember(placementState) { placementState.copy(keepAspectRatio = true) }
     val shapeWidthBase = remember(entryPlacement.wmWidthRatio) { entryPlacement.wmWidthRatio.coerceAtLeast(10) }
-    val shapeHeightBase = remember(entryPlacement.wmHeightRatio) { entryPlacement.wmHeightRatio.coerceAtLeast(10) }
 
     var draftCaptureAspect by remember(entryPlacement.captureAspect) { mutableStateOf(entryPlacement.captureAspect) }
     var draftOffsetX by remember(entryPlacement.wmOffsetXRatio) { mutableIntStateOf(entryPlacement.wmOffsetXRatio.coerceIn(0, 100)) }
@@ -77,19 +78,15 @@ fun TablePlacementPreviewDialog(
         draftRotation = if (entryPlacement.rotationCwDeg == 90) 90 else 0
         draftScale = entryPlacement.wmWidthRatio.toFloat() / shapeWidthBase.toFloat() * 100f
     }
+    fun updateDraftOffset(offsetX: Int, offsetY: Int) {
+        draftOffsetX = offsetX.coerceIn(0, 100)
+        draftOffsetY = offsetY.coerceIn(0, 100)
+    }
 
-    val ratioLockedScaleRange = resolveRatioLockedScaleRange(
-        baseWidthRatio = shapeWidthBase,
-        baseHeightRatio = shapeHeightBase,
-    )
-    val ratioLockedSize = resolveRatioLockedSizeFromScale(
-        baseWidthRatio = shapeWidthBase,
-        baseHeightRatio = shapeHeightBase,
-        requestedScalePercent = draftScale,
-    )
-    val previewWidthRatio = ratioLockedSize.widthRatio
-    val previewHeightRatio = ratioLockedSize.heightRatio
-    val clampedScale = ratioLockedSize.scalePercent
+    val minScalePercent = ((10f / shapeWidthBase) * 100f).coerceAtLeast(10f)
+    val maxScalePercent = ((100f / shapeWidthBase) * 100f).coerceAtMost(300f)
+    val previewWidthRatio = (shapeWidthBase * (draftScale / 100f)).roundToInt().coerceIn(10, 100)
+    val previewHeightRatio = previewWidthRatio
 
     Dialog(onDismissRequest = onClose) {
         Column(
@@ -119,8 +116,7 @@ fun TablePlacementPreviewDialog(
                     captureAspect = draftCaptureAspect,
                     rows = templateState.rows,
                     cols = templateState.cols,
-                    rowWeights = templateState.rowWeights,
-                    colWeights = templateState.colWeights,
+                    templateCells = templateState.cells,
                     watermarkCells = watermarkCells,
                     offsetXRatio = draftOffsetX,
                     offsetYRatio = draftOffsetY,
@@ -134,14 +130,8 @@ fun TablePlacementPreviewDialog(
                     manualTextColor = wmManualTextColor,
                     textAlign = wmTextAlign,
                     drawGrid = wmGridEnabled,
-                    onDragPreview = { offsetX, offsetY ->
-                        draftOffsetX = offsetX.coerceIn(0, 100)
-                        draftOffsetY = offsetY.coerceIn(0, 100)
-                    },
-                    onDragCommit = { offsetX, offsetY ->
-                        draftOffsetX = offsetX.coerceIn(0, 100)
-                        draftOffsetY = offsetY.coerceIn(0, 100)
-                    },
+                    onDragPreview = ::updateDraftOffset,
+                    onDragCommit = ::updateDraftOffset,
                     modifier = Modifier.clipToBounds()
                 )
             }
@@ -165,17 +155,14 @@ fun TablePlacementPreviewDialog(
                     modifier = Modifier.weight(1f)
                 )
 
-                val selectedIndex = aspectOptions.indexOf(draftCaptureAspect).coerceAtLeast(0)
                 DDZSegmentedControl(
                     options = listOf("1:1", "3:4", "9:16"),
-                    selectedIndex = selectedIndex,
+                    selectedIndex = aspectOptions.indexOf(draftCaptureAspect).coerceAtLeast(0),
                     onSelect = { index -> draftCaptureAspect = aspectOptions[index] },
                     modifier = Modifier
                         .width(160.dp)
                         .height(28.dp),
-                    horizontalPadding = 2.dp,
-                    verticalPadding = 1.dp,
-                    textStyle = DDZTypography.Caption
+                    style = DDZSegmentedControlStyles.PlacementCompact
                 )
 
                 TextButton(
@@ -196,15 +183,9 @@ fun TablePlacementPreviewDialog(
             ) {
                 Text("표 크기", color = DDZColor.Card, style = DDZTypography.Caption)
                 Slider(
-                    value = clampedScale,
-                    onValueChange = { requested ->
-                        draftScale = resolveRatioLockedSizeFromScale(
-                            baseWidthRatio = shapeWidthBase,
-                            baseHeightRatio = shapeHeightBase,
-                            requestedScalePercent = requested,
-                        ).scalePercent
-                    },
-                    valueRange = ratioLockedScaleRange.minScalePercent..ratioLockedScaleRange.maxScalePercent
+                    value = draftScale.coerceIn(minScalePercent, maxScalePercent),
+                    onValueChange = { requested -> draftScale = requested.coerceIn(minScalePercent, maxScalePercent) },
+                    valueRange = minScalePercent..maxScalePercent
                 )
             }
 

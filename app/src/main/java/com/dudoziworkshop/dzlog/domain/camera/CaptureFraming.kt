@@ -17,14 +17,14 @@ internal fun computeAnchoredCaptureRect(
         return FramingResult(captureRect = empty, anchorY = 0f)
     }
 
-    val anchorY = contentRect.centerY()
+    val centerY = contentRect.centerY()
     val targetRect = fitInsideRect(
         contentRect = contentRect,
         targetAspectRatio = captureAspectRatio,
-        centerY = anchorY
+        centerY = centerY
     )
 
-    return FramingResult(captureRect = targetRect, anchorY = anchorY)
+    return FramingResult(captureRect = targetRect, anchorY = centerY)
 }
 
 private fun fitInsideRect(
@@ -38,13 +38,9 @@ private fun fitInsideRect(
     val contentAspect = contentWidth / contentHeight
 
     val (targetWidth, targetHeight) = if (contentAspect > safeAspect) {
-        val h = contentHeight
-        val w = h * safeAspect
-        w to h
+        (contentHeight * safeAspect) to contentHeight
     } else {
-        val w = contentWidth
-        val h = w / safeAspect
-        w to h
+        contentWidth to (contentWidth / safeAspect)
     }
 
     val left = contentRect.left + (contentWidth - targetWidth) / 2f
@@ -56,6 +52,5 @@ private fun fitInsideRect(
     )
     val top = clampedCenter - targetHeight / 2f
 
-    val bottom = top + targetHeight
-    return RectF(left, top, right, bottom)
+    return RectF(left, top, right, top + targetHeight)
 }

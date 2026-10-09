@@ -5,26 +5,6 @@ import com.dudoziworkshop.dzlog.domain.model.SaveMode
 
 internal object CounterRequestResolver {
 
-    internal fun fromScope(
-        counterScope: CounterScope,
-        saveMode: SaveMode,
-        scanPrefix: String,
-        includePathInScope: Boolean,
-        includeFilenameInScope: Boolean,
-        tableTemplateId: String? = null,
-    ): CounterRequest {
-        return fromRaw(
-            saveMode = saveMode,
-            relativePathKey = counterScope.relativePathKey,
-            prefix = counterScope.streamPrefix,
-            scanPrefix = scanPrefix,
-            includePathInScope = includePathInScope,
-            includeFilenameInScope = includeFilenameInScope,
-            tableTemplateId = tableTemplateId,
-        )
-    }
-
-
     internal fun fromHome(
         counterScope: CounterScope,
         saveMode: SaveMode,

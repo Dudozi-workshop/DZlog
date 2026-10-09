@@ -296,11 +296,10 @@ internal suspend fun syncCounterStateForScope(
     )
 
     val isManualCounterMode = syncResult.desiredSeed != mediaAutoNext
-    val autoNextCounterValue = mediaAutoNext
 
     val nextCounterUi = counterUi.copy(
         isManualCounterMode = isManualCounterMode,
-        autoNextCounterValue = autoNextCounterValue,
+        autoNextCounterValue = mediaAutoNext,
         preserveManualCounterSeed = syncResult.preserveManualCounterSeed,
         manualSeedOverride = if (syncResult.shouldClearManualOverride) null else counterUi.manualSeedOverride,
         scopeNextCounter = syncResult.desiredSeed,
@@ -314,12 +313,6 @@ internal suspend fun syncCounterStateForScope(
         isScopeCounterSynced = true,
     )
 
-    val nextScopeSnapshot = buildTableCounterScopeSnapshot(
-        counterScope = counterScope,
-        includePathInCounterScope = counterUi.includePathInCounterScope,
-        includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
-    )
-
     val updatedTemplateState = if (counterCell != null && currentSeed != syncResult.desiredSeed) {
         updateCell(templateState, counterCell.cellId) { c ->
             c.copy(typedValue = CellValue.CounterSeed(syncResult.desiredSeed))
@@ -330,7 +323,11 @@ internal suspend fun syncCounterStateForScope(
 
     return TableCounterSyncResult(
         counterUi = nextCounterUi,
-        nextScopeSnapshot = nextScopeSnapshot,
+        nextScopeSnapshot = buildTableCounterScopeSnapshot(
+            counterScope = counterScope,
+            includePathInCounterScope = counterUi.includePathInCounterScope,
+            includeFilenameInCounterScope = counterUi.includeFilenameInCounterScope,
+        ),
         updatedTemplateState = updatedTemplateState,
         nextFilenameScopeSignature = filenameScopeSignature,
     )

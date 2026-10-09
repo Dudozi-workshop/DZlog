@@ -11,7 +11,6 @@ class CounterParsingUtilsTest {
         val parsed = parseCounterForPolicy(
             displayName = "ABC_DEF_0012.jpg",
             fileNamePrefix = "ABC_DEF",
-            counterDigits = 4,
             fnDelim = "_"
         )
 
@@ -23,7 +22,6 @@ class CounterParsingUtilsTest {
         val parsed = parseCounterForPolicy(
             displayName = "ANY_PREFIX_27.jpg",
             fileNamePrefix = "*",
-            counterDigits = 0,
             fnDelim = "_"
         )
 
@@ -35,7 +33,6 @@ class CounterParsingUtilsTest {
         val parsed = parseCounterForPolicy(
             displayName = "ANY_PREFIX_27.jpg",
             fileNamePrefix = "*",
-            counterDigits = 4,
             fnDelim = "_"
         )
 
@@ -47,7 +44,6 @@ class CounterParsingUtilsTest {
         val parsed = parseCounterForPolicy(
             displayName = "ANY_PREFIX_XX.jpg",
             fileNamePrefix = "*",
-            counterDigits = 4,
             fnDelim = "_"
         )
 

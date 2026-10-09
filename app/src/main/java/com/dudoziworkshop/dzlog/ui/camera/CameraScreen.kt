@@ -1,6 +1,6 @@
 @file:OptIn(
     androidx.compose.foundation.ExperimentalFoundationApi::class,
-    androidx.compose.foundation.layout.ExperimentalLayoutApi::class
+    androidx.compose.foundation.layout.ExperimentalLayoutApi::class,
 )
 
 package com.dudoziworkshop.dzlog.ui.camera
@@ -8,8 +8,10 @@ package com.dudoziworkshop.dzlog.ui.camera
 import android.Manifest
 import android.annotation.SuppressLint
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
@@ -35,7 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -49,26 +51,36 @@ import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
+import com.dudoziworkshop.dzlog.domain.naming.capturePhysicalSavePaths
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
-import com.dudoziworkshop.dzlog.ui.camera.controls.buildCameraTriggerCapture
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraBottomControls
+import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTableResizeBaseline
+import com.dudoziworkshop.dzlog.ui.camera.controls.resizeCameraTableKeepingCenter
+import com.dudoziworkshop.dzlog.ui.camera.controls.CameraQuickValueSheet
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTopBar
+import com.dudoziworkshop.dzlog.ui.camera.controls.CameraNextCaptureInfoPopup
+import com.dudoziworkshop.dzlog.ui.camera.controls.FloatingAssistShutterButton
+import com.dudoziworkshop.dzlog.ui.camera.controls.buildCameraTriggerCapture
+import com.dudoziworkshop.dzlog.ui.camera.controls.isCaptureReady
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraNowTickEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraPrefsEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraVolumeKeyEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.rememberLatestImageController
 import com.dudoziworkshop.dzlog.ui.camera.effects.rememberUndoDeleteController
+import com.dudoziworkshop.dzlog.ui.camera.interop.applyFocusModeToBoundCamera
 import com.dudoziworkshop.dzlog.ui.camera.presenter.rememberCameraLayoutState
 import com.dudoziworkshop.dzlog.ui.camera.presenter.rememberCameraPreviewAreaArgs
 import com.dudoziworkshop.dzlog.ui.camera.preview.CameraPreviewArea
 import com.dudoziworkshop.dzlog.ui.camera.preview.buildWatermarkConfig
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsOverlayPanel
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraViewModel
 import com.dudoziworkshop.dzlog.ui.camera.state.computeCameraDerivedState
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
@@ -79,13 +91,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-private val USABLE_VERTICAL_MARGIN = 10.dp
-
 @Composable
 fun CameraScreen(
     tableTemplateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
     onOpenTableEditor: () -> Unit,
+    onOpenSaveSettings: () -> Unit,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
@@ -112,6 +123,7 @@ fun CameraScreen(
                 tableTemplateState = tableTemplateState,
                 onTemplateChange = onTemplateChange,
                 onOpenTableEditor = onOpenTableEditor,
+                onOpenSaveSettings = onOpenSaveSettings,
                 onOpenAlbum = onOpenAlbum,
                 onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
                 sessionCaptureStack = sessionCaptureStack,
@@ -126,12 +138,16 @@ fun CameraScreen(
     }
 }
 
+@Suppress("OPT_IN_ARGUMENT_IS_NOT_MARKER")
+@androidx.annotation.OptIn(ExperimentalCamera2Interop::class)
 @SuppressLint("AutoboxingStateCreation")
+@OptIn(ExperimentalCamera2Interop::class)
 @Composable
 fun CameraPreview(
     tableTemplateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
     onOpenTableEditor: () -> Unit,
+    onOpenSaveSettings: () -> Unit,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
@@ -167,11 +183,23 @@ fun CameraPreview(
     val captureFeedback = remember(context) { CaptureFeedback(context) }
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+    var showQuickValueSheet by remember { mutableStateOf(false) }
+    var cornerResizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
-    var zoomPanelExpanded by remember { mutableStateOf(false) }
     val ui = cameraViewModel.ui
+    BackHandler(enabled = ui.capture.capturedUri != null || ui.showWizard || ui.isTableResizePanelOpen || ui.showToolMenu ||
+        ui.isToolPanelExpanded || ui.isZoomChipExpanded || ui.selectedTool != null || ui.isTableSelected) {
+        when {
+            ui.capture.capturedUri != null -> ui.capture.capturedUri = null
+            ui.showWizard -> ui.showWizard = false
+            ui.isTableResizePanelOpen -> ui.isTableResizePanelOpen = false
+            ui.showToolMenu || ui.isToolPanelExpanded || ui.isZoomChipExpanded || ui.selectedTool != null ->
+                ui.dismissToolOverlays()
+            ui.isTableSelected -> ui.isTableSelected = false
+        }
+    }
     val threeButtonEquivalentBottomPadding = rememberThreeButtonNavEquivalentBottomPadding()
-    val layout = rememberCameraLayoutState(usableVerticalMargin = USABLE_VERTICAL_MARGIN)
+    val layout = rememberCameraLayoutState()
 
     val tableResolver = remember { TableResolver() }
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
@@ -181,21 +209,23 @@ fun CameraPreview(
         tableTemplateState,
         ui.capture.now,
         ui.prefs.counterDigits,
-        cameraViewModel.phraseProgressCounter,
+        appSettings.phraseProgressCursor,
         appSettings.includePathInCounterScope,
         appSettings.includeFilenameInCounterScope,
         appSettings.saveMode,
         ui.counter.scopeNextCounter,
+        ui.counter.syncedRequest,
     ) {
         computeCameraDerivedState(
             tableTemplateState = tableTemplateState,
             now = ui.capture.now,
             counterDigits = ui.prefs.counterDigits,
-            phraseProgressCounter = cameraViewModel.phraseProgressCounter,
+            phraseProgressCounter = appSettings.phraseProgressCursor,
             includePathInCounterScope = appSettings.includePathInCounterScope,
             includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
             saveMode = appSettings.saveMode,
             syncedNextCounter = ui.counter.scopeNextCounter,
+            syncedRequest = ui.counter.syncedRequest,
             tableResolver = tableResolver,
         )
     }
@@ -250,6 +280,7 @@ fun CameraPreview(
     )
 
     val topDisplayName = derivedState.topDisplayName
+    var showNextCaptureInfo by remember { mutableStateOf(false) }
 
     fun resetZoomToDefault() {
         ui.prefs.zoomRatioTenths = 10
@@ -270,6 +301,7 @@ fun CameraPreview(
         ui = ui,
         appSettings = appSettings,
         boundImageCapture = boundImageCapture,
+        undoPending = undoDeleteController.isBusy,
         finalCapturePreview = finalCapturePreview,
         scopedCounterStream = scopedCounterStream,
         tableTemplateState = tableTemplateState,
@@ -305,13 +337,33 @@ fun CameraPreview(
     CameraVolumeKeyEffect(
         volumeKeyAction = appSettings.volumeKeyAction,
         onCapture = {
-            zoomPanelExpanded = false
+            ui.dismissCameraInteractions()
             triggerCapture()
         },
         onZoomDelta = { deltaTenths ->
             commitZoomTenths(ui.prefs.zoomRatioTenths + deltaTenths)
         }
     )
+
+    LaunchedEffect(boundImageCapture, ui.prefs.flashMode) {
+        val capture = boundImageCapture ?: return@LaunchedEffect
+        // 바인딩된 ImageCapture 인스턴스가 교체되어도 선택된 flash mode를 즉시 유지한다.
+        capture.flashMode = when (ui.prefs.flashMode) {
+            CameraFlashMode.OFF -> ImageCapture.FLASH_MODE_OFF
+            CameraFlashMode.AUTO -> ImageCapture.FLASH_MODE_AUTO
+            CameraFlashMode.ON -> ImageCapture.FLASH_MODE_ON
+        }
+    }
+
+
+    LaunchedEffect(boundCamera, ui.focusMode, ui.focusUiValue) {
+        val activeCamera = boundCamera ?: return@LaunchedEffect
+        applyFocusModeToBoundCamera(
+            camera = activeCamera,
+            mode = ui.focusMode,
+            focusUiValue = ui.focusUiValue,
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -324,12 +376,15 @@ fun CameraPreview(
         ) {
             CameraTopBar(
                 topDisplayName = topDisplayName,
-                onOpenTableEditor = {
-                    zoomPanelExpanded = false
-                    onOpenTableEditor()
+                hasAutoCounter = displayCounter != null,
+                onOpenCaptureInfo = {
+                    ui.isTableSelected = false
+                    ui.dismissToolOverlays()
+                    showNextCaptureInfo = true
                 },
                 onOpenSettings = {
-                    zoomPanelExpanded = false
+                    ui.isTableSelected = false
+                    ui.dismissToolOverlays()
                     ui.showWizard = true
                 },
             )
@@ -348,7 +403,7 @@ fun CameraPreview(
                     tableTemplateState = tableTemplateState,
                     tableResolver = tableResolver,
                     scopeNextCounter = displayCounter,
-                    phraseProgressCursor = cameraViewModel.phraseProgressCounter,
+                    phraseProgressCursor = appSettings.phraseProgressCursor,
                     dateFormat = dateFormat,
                     timeFormat = timeFormat,
                     fnDelim = fnDelim,
@@ -356,11 +411,51 @@ fun CameraPreview(
                     safeTopY = layout.safeTopY,
                     safeBottomY = layout.safeBottomY,
                     usableVerticalMarginPx = layout.usableVerticalMarginPx,
-                    onOpenTableEditor = onOpenTableEditor,
+                    onOpenTableEditor = {
+                        ui.dismissToolOverlays()
+                        onOpenTableEditor()
+                    },
                 )
 
                 CameraPreviewArea(
                     args = previewAreaArgs,
+                    isTableSelected = ui.isTableSelected,
+                    isTableLocked = ui.prefs.wmTableLocked,
+                    onTableSelectionChange = { selected ->
+                        if (selected) ui.dismissToolOverlays()
+                        ui.isTableSelected = selected
+                    },
+                    onCornerResizeScale = { scale, finished ->
+                        if (!finished && !ui.prefs.wmTableLocked) {
+                            val baseline = cornerResizeBaseline ?: CameraTableResizeBaseline(
+                                widthRatio = ui.prefs.wmTableWidthRatio,
+                                heightRatio = ui.prefs.wmTableHeightRatio,
+                                rotationCwDeg = ui.prefs.wmRotationCwDeg,
+                                anchor = ui.prefs.wmTableAnchor,
+                                x10000 = ui.prefs.wmBoundsOffsetX10000,
+                                y10000 = ui.prefs.wmBoundsOffsetY10000,
+                                photoAspect = ui.prefs.captureAspect.ratioF,
+                            ).also { cornerResizeBaseline = it }
+                            val result = resizeCameraTableKeepingCenter(baseline, scale)
+                            ui.prefs.wmTableWidthRatio = result.widthRatio
+                            ui.prefs.wmTableHeightRatio = result.heightRatio
+                            ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
+                            ui.prefs.wmBoundsOffsetX10000 = result.x10000
+                            ui.prefs.wmBoundsOffsetY10000 = result.y10000
+                            ui.prefs.wmOffsetXRatio = (result.x10000 / 100f).toInt()
+                            ui.prefs.wmOffsetYRatio = (result.y10000 / 100f).toInt()
+                        } else if (cornerResizeBaseline != null) {
+                            cornerResizeBaseline = null
+                            scope.launch {
+                                settingsWriter.setWmTableSizeAndPosition(
+                                    ui.prefs.wmTableWidthRatio,
+                                    ui.prefs.wmTableHeightRatio,
+                                    ui.prefs.wmBoundsOffsetX10000,
+                                    ui.prefs.wmBoundsOffsetY10000,
+                                )
+                            }
+                        }
+                    },
                     boundCamera = boundCamera,
                     onBoundCameraChange = { boundCamera = it },
                     onBoundImageCaptureChange = { boundImageCapture = it },
@@ -375,35 +470,100 @@ fun CameraPreview(
                         .align(Alignment.BottomCenter)
                         .padding(bottom = threeButtonEquivalentBottomPadding)
                 ) {
+                    val canTriggerCapture = isCaptureReady(
+                        scopeNextCounter = displayCounter,
+                        capturedUri = ui.capture.capturedUri,
+                        isCapturing = ui.capture.isCapturing,
+                        boundImageCaptureAvailable = (boundImageCapture != null),
+                    )
                     CameraBottomControls(
                         scope = scope,
                         ui = ui,
                         settingsWriter = settingsWriter,
-                        boundImageCaptureAvailable = (boundImageCapture != null),
+                        captureReady = canTriggerCapture && !undoDeleteController.isBusy,
                         latestImage = latestImage,
                         onOpenAlbum = onOpenAlbum,
                         onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
                         sessionCaptureStack = sessionCaptureStack,
-                        undoPending = (undoDeleteController.pendingUris != null),
-                        onUndoDelete = { uris -> undoDeleteController.delete(uris) },
-                        onTriggerCapture = { triggerCapture() },
+                        undoPending = undoDeleteController.isBusy,
+                        onUndoDelete = { undoDeleteController.deleteLatest(sessionCaptureStack) },
+                        onTriggerCapture = {
+                            ui.dismissCameraInteractions()
+                            triggerCapture()
+                        },
                         onShutterButtonTopYChange = { layout.onShutterButtonTopYChange(it) },
-                        zoomPanelExpanded = zoomPanelExpanded,
-                        onZoomPanelExpandedChange = { zoomPanelExpanded = it },
+                        onOpenQuickValues = { showQuickValueSheet = true },
+                        onOpenTableEditor = {
+                            ui.isTableSelected = false
+                            ui.dismissToolOverlays()
+                            onOpenTableEditor()
+                        },
+                        hapticEnabled = appSettings.hapticEnabled,
                     )
                 }
+
+                FloatingAssistShutterButton(
+                    enabled = ui.prefs.assistShutterEnabled,
+                    xRatio = ui.prefs.assistShutterXRatio,
+                    yRatio = ui.prefs.assistShutterYRatio,
+                    onPositionRatioChange = { xRatio, yRatio ->
+                        ui.prefs.assistShutterXRatio = xRatio
+                        ui.prefs.assistShutterYRatio = yRatio
+                        scope.launch {
+                            settingsWriter.setAssistShutterPositionRatio(
+                                xRatio = xRatio,
+                                yRatio = yRatio
+                            )
+                        }
+                    },
+                    onTapCapture = {
+                        ui.dismissCameraInteractions()
+                        triggerCapture()
+                    },
+                    modifier = Modifier
+                        .matchParentSize()
+                        .zIndex(80f)
+                )
             }
         }
 
+        if (showQuickValueSheet) {
+            CameraQuickValueSheet(
+                template = tableTemplateState,
+                onDismiss = { showQuickValueSheet = false },
+                onApply = { updatedTemplate ->
+                    onTemplateChange(updatedTemplate)
+                    showQuickValueSheet = false
+                },
+            )
+        }
+
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode != ContinuousPreviewMode.OFF) {
-            // UX 보정: 결과 미리보기 노출 시에는 화면 어디를 눌러도 닫히도록 전체 영역 dismiss를 제공한다.
+            // CaptureResultOverlay covers only the photo area. Keep the original
+            // full-screen tap-to-dismiss shield so top/bottom controls cannot run
+            // while the captured photo is being reviewed.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = null
+                        indication = null,
                     ) { ui.capture.capturedUri = null }
+            )
+        }
+
+        if (showNextCaptureInfo) {
+            CameraNextCaptureInfoPopup(
+                nextFileName = topDisplayName,
+                relativePaths = capturePhysicalSavePaths(
+                    finalCapturePreview?.relativePathPreview ?: captureScopeState.relativePathPreview,
+                    appSettings.saveMode,
+                ),
+                onOpenSaveSettings = {
+                    showNextCaptureInfo = false
+                    onOpenSaveSettings()
+                },
+                onDismiss = { showNextCaptureInfo = false },
             )
         }
 
@@ -419,20 +579,18 @@ fun CameraPreview(
                     ui.prefs.saveMode = mode
                     scope.launch { settingsWriter.setSaveMode(mode) }
                 },
-                showGrid = ui.prefs.showGrid,
-                onShowGridChange = { checked ->
-                    ui.prefs.showGrid = checked
-                    scope.launch { settingsWriter.setShowGrid(checked) }
-                },
-                showTable = ui.prefs.showWmPreview,
-                onShowTableChange = { checked ->
-                    ui.prefs.showWmPreview = checked
-                    scope.launch { settingsWriter.setShowWmPreview(checked) }
-                },
                 continuousPreviewMode = ui.prefs.continuousPreviewMode,
                 onContinuousPreviewModeChange = { mode ->
                     ui.prefs.continuousPreviewMode = mode
                     scope.launch { settingsWriter.setContinuousPreviewMode(mode) }
+                },
+                captureSoundEnabled = appSettings.captureSoundEnabled,
+                onCaptureSoundChange = { checked ->
+                    scope.launch { AppSettingsStore.setCaptureSoundEnabled(context, checked) }
+                },
+                captureHapticEnabled = appSettings.captureHapticEnabled,
+                onCaptureHapticChange = { checked ->
+                    scope.launch { AppSettingsStore.setCaptureHapticEnabled(context, checked) }
                 },
                 volumeKeyAction = appSettings.volumeKeyAction,
                 onVolumeKeyActionChange = { action ->
@@ -443,3 +601,4 @@ fun CameraPreview(
         }
     }
 }
+

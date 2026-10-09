@@ -31,9 +31,6 @@ class FavoritesRepository(
         }
     }
 
-    suspend fun removeFavoriteById(mediaId: Long) {
-        dao.deleteById(mediaId)
-    }
 }
 
 object FavoritesProvider {

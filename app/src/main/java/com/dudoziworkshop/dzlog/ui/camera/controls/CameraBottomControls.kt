@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,14 +17,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.RotateRight
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,11 +38,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
-import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraOverlayTool
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraUiState
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
@@ -46,93 +57,279 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 private val BottomControlsHorizontalPadding = 12.dp
-private val ZoomOverlayBottomSpacing = 10.dp
+private val ToolOverlayBottomSpacing = 10.dp
+
+internal fun isCaptureReady(
+    scopeNextCounter: Int?,
+    capturedUri: Uri?,
+    isCapturing: Boolean,
+    boundImageCaptureAvailable: Boolean,
+): Boolean {
+    return (
+        boundImageCaptureAvailable &&
+            capturedUri == null &&
+            !isCapturing &&
+            scopeNextCounter != null
+        )
+}
 
 @Composable
 internal fun CameraBottomControls(
     scope: CoroutineScope,
     ui: CameraUiState,
     settingsWriter: CameraSettingsWriter,
-    boundImageCaptureAvailable: Boolean,
+    captureReady: Boolean,
     latestImage: MediaImageItem?,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: MutableList<List<Uri>>,
     undoPending: Boolean,
-    onUndoDelete: (targetUris: List<Uri>) -> Unit,
+    onUndoDelete: () -> Unit,
     onTriggerCapture: () -> Unit,
+    onOpenQuickValues: () -> Unit,
+    onOpenTableEditor: () -> Unit,
     onShutterButtonTopYChange: (Float?) -> Unit,
-    zoomPanelExpanded: Boolean,
-    onZoomPanelExpandedChange: (Boolean) -> Unit,
+    hapticEnabled: Boolean,
 ) {
     val density = LocalDensity.current
     var bottomBarHeightPx by remember { mutableIntStateOf(0) }
+    var resizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
+    LaunchedEffect(ui.isTableSelected, ui.isTableResizePanelOpen) {
+        if (!ui.isTableSelected) ui.isTableResizePanelOpen = false
+        if (!ui.isTableSelected || !ui.isTableResizePanelOpen) resizeBaseline = null
+    }
 
-    val enabledNow =
-        (boundImageCaptureAvailable &&
-            ui.capture.capturedUri == null &&
-            !ui.capture.isCapturing &&
-            ui.counter.scopeNextCounter != null)
+    val showToolMenu = ui.showToolMenu
+    val selectedTool = ui.selectedTool
+    val isToolPanelExpanded = ui.isToolPanelExpanded
+    val compactTool = if (ui.isPinchZoomActive) null else selectedTool
+    val showDismissLayer = showToolMenu || isToolPanelExpanded || ui.isZoomChipExpanded
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (zoomPanelExpanded) {
+        if (showDismissLayer) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
-                    ) { onZoomPanelExpandedChange(false) }
+                    ) { ui.dismissToolOverlays() }
             )
         }
 
         CameraBottomBarRow(
+            ui = ui,
             latestImage = latestImage,
-            enabledNow = enabledNow,
+            enabledNow = captureReady,
             sessionCaptureStack = sessionCaptureStack,
             undoPending = undoPending,
             onOpenAlbum = onOpenAlbum,
             onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
-            onZoomPanelExpandedChange = onZoomPanelExpandedChange,
             onTriggerCapture = onTriggerCapture,
             onUndoDelete = onUndoDelete,
             onShutterButtonTopYChange = onShutterButtonTopYChange,
-            onRotateClick = {
-                val nextRotation = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
-                ui.prefs.wmRotationCwDeg = nextRotation
-                scope.launch { settingsWriter.setWmRotationCwDeg(nextRotation) }
+            onOpenQuickValues = {
+                ui.dismissCameraInteractions()
+                onOpenQuickValues()
             },
             onBottomBarHeightChange = { bottomBarHeightPx = it }
         )
 
-        CameraZoomOverlayPanel(
+        CameraToolOverlayPanel(
+            showToolMenu = showToolMenu,
+            compactTool = compactTool,
+            selectedTool = selectedTool,
+            isToolPanelExpanded = isToolPanelExpanded,
+            isPinchZoomActive = ui.isPinchZoomActive,
             zoomRatioTenths = ui.capture.actualZoomTenths,
             maxZoomTenths = ui.capture.maxZoomTenths,
-            expanded = zoomPanelExpanded,
-            bottomOffset = with(density) { bottomBarHeightPx.toDp() + ZoomOverlayBottomSpacing },
-            onToggleExpanded = { onZoomPanelExpandedChange(!zoomPanelExpanded) },
+            flashMode = ui.prefs.flashMode,
+            focusMode = ui.focusMode,
+            focusUiValue = ui.focusUiValue,
+            showGrid = ui.prefs.showGrid,
+            showTable = ui.prefs.showWmPreview,
+            bottomOffset = with(density) { bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing },
+            onSelectTool = { selectedTool ->
+                ui.dismissTableSelection()
+                ui.isZoomChipExpanded = false
+                ui.showToolMenu = false
+                ui.selectedTool = selectedTool
+                ui.isToolPanelExpanded = true
+            },
+            onOpenSelectedToolPanel = { if (!ui.isPinchZoomActive) ui.isToolPanelExpanded = true },
             onZoomTenthsChange = { next ->
                 val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
                 ui.prefs.zoomRatioTenths = normalized
                 scope.launch { settingsWriter.setZoomTenths(normalized) }
-            }
+            },
+            onFocusModeChange = { mode ->
+                ui.focusMode = mode
+            },
+            onFocusUiValueChange = {
+                ui.focusUiValue = it
+                ui.focusMode = CameraFocusMode.MANUAL
+            },
+            onFlashModeChange = { mode ->
+                ui.prefs.flashMode = mode
+                scope.launch { settingsWriter.setFlashMode(mode) }
+            },
+            onToggleGrid = {
+                val next = !ui.prefs.showGrid
+                ui.prefs.showGrid = next
+                scope.launch { settingsWriter.setShowGrid(next) }
+            },
+            onToggleTable = {
+                val next = !ui.prefs.showWmPreview
+                ui.prefs.showWmPreview = next
+                scope.launch { settingsWriter.setShowWmPreview(next) }
+            },
+            assistShutterEnabled = ui.prefs.assistShutterEnabled,
+            onToggleAssistShutter = {
+                val next = !ui.prefs.assistShutterEnabled
+                ui.prefs.assistShutterEnabled = next
+                scope.launch { settingsWriter.setAssistShutterEnabled(next) }
+            },
+            hapticEnabled = hapticEnabled,
         )
+
+        if (ui.isTableSelected) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = DDZSpacing.screenPadding + with(density) {
+                        bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing
+                    }),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                val baseline = resizeBaseline
+                if (baseline != null && ui.isTableResizePanelOpen && !ui.prefs.wmTableLocked) {
+                    val sliderRange = cameraTableScaleRange(baseline)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth(0.85f)
+                            .background(DDZColor.Surface.copy(alpha = 0.88f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                    ) {
+                        Text("표 크기 · 비율 유지 · ${(ui.prefs.wmTableWidthRatio * 100f / baseline.widthRatio).toInt()}%", color = DDZColor.SageDarkStrong)
+                        Slider(
+                            value = (ui.prefs.wmTableWidthRatio.toFloat() / baseline.widthRatio).coerceIn(sliderRange.start, sliderRange.endInclusive),
+                            onValueChange = { next ->
+                                val resized = resizeCameraTableKeepingCenter(baseline, next)
+                                ui.prefs.wmTableWidthRatio = resized.widthRatio
+                                ui.prefs.wmTableHeightRatio = resized.heightRatio
+                                ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
+                                ui.prefs.wmBoundsOffsetX10000 = resized.x10000
+                                ui.prefs.wmBoundsOffsetY10000 = resized.y10000
+                                ui.prefs.wmOffsetXRatio = (resized.x10000 / 100f).toInt()
+                                ui.prefs.wmOffsetYRatio = (resized.y10000 / 100f).toInt()
+                            },
+                            onValueChangeFinished = {
+                                scope.launch {
+                                    settingsWriter.setWmTableSizeAndPosition(
+                                        ui.prefs.wmTableWidthRatio,
+                                        ui.prefs.wmTableHeightRatio,
+                                        ui.prefs.wmBoundsOffsetX10000,
+                                        ui.prefs.wmBoundsOffsetY10000,
+                                    )
+                                }
+                            },
+                            valueRange = sliderRange,
+                        )
+                    }
+                }
+                CameraTableSelectionToolbar(
+                    onOpenDetails = {
+                        resizeBaseline = null
+                        ui.isTableResizePanelOpen = false
+                        ui.isTableSelected = false
+                        ui.dismissToolOverlays()
+                        onOpenTableEditor()
+                    },
+                    onRotate = {
+                        if (!ui.prefs.wmTableLocked) {
+                        resizeBaseline = null
+                        ui.isTableResizePanelOpen = false
+                        val next = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
+                        ui.prefs.wmRotationCwDeg = next
+                        scope.launch { settingsWriter.setWmRotationCwDeg(next) }
+                        }
+                    },
+                    isLocked = ui.prefs.wmTableLocked,
+                    onToggleLock = {
+                        val next = !ui.prefs.wmTableLocked
+                        ui.prefs.wmTableLocked = next
+                        resizeBaseline = null
+                        ui.isTableResizePanelOpen = false
+                        scope.launch { settingsWriter.setWmTableLocked(next) }
+                    },
+                    onResize = {
+                        if (!ui.prefs.wmTableLocked) {
+                        if (ui.isTableResizePanelOpen) {
+                            resizeBaseline = null
+                            ui.isTableResizePanelOpen = false
+                        } else {
+                            ui.isTableResizePanelOpen = true
+                            resizeBaseline = CameraTableResizeBaseline(
+                                widthRatio = ui.prefs.wmTableWidthRatio,
+                                heightRatio = ui.prefs.wmTableHeightRatio,
+                                rotationCwDeg = ui.prefs.wmRotationCwDeg,
+                                anchor = ui.prefs.wmTableAnchor,
+                                x10000 = ui.prefs.wmBoundsOffsetX10000,
+                                y10000 = ui.prefs.wmBoundsOffsetY10000,
+                                photoAspect = ui.prefs.captureAspect.ratioF,
+                            )
+                        }
+                        }
+                    },
+                )
+            }
+        }
+
+        // Keep zoom near the shutter and out of the expanded tool panels.
+        if (!showToolMenu && selectedTool == null && !ui.isTableSelected) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = DDZSpacing.screenPadding + with(density) {
+                    bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing
+                }),
+            contentAlignment = Alignment.Center,
+        ) {
+            ZoomControlSection(
+                zoomRatioTenths = ui.capture.actualZoomTenths,
+                maxZoomTenths = ui.capture.maxZoomTenths,
+                expanded = ui.isZoomChipExpanded,
+                hapticEnabled = hapticEnabled,
+                onToggleExpanded = {
+                    ui.isTableSelected = false
+                    val next = !ui.isZoomChipExpanded
+                    ui.dismissToolOverlays()
+                    ui.isZoomChipExpanded = next
+                },
+                onZoomTenthsChange = { next ->
+                    val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
+                    ui.prefs.zoomRatioTenths = normalized
+                    scope.launch { settingsWriter.setZoomTenths(normalized) }
+                },
+            )
+        }
+        }
     }
 }
 
 @Composable
 private fun BoxScope.CameraBottomBarRow(
+    ui: CameraUiState,
     latestImage: MediaImageItem?,
     enabledNow: Boolean,
     sessionCaptureStack: MutableList<List<Uri>>,
     undoPending: Boolean,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
-    onZoomPanelExpandedChange: (Boolean) -> Unit,
     onTriggerCapture: () -> Unit,
-    onUndoDelete: (List<Uri>) -> Unit,
+    onUndoDelete: () -> Unit,
     onShutterButtonTopYChange: (Float?) -> Unit,
-    onRotateClick: () -> Unit,
+    onOpenQuickValues: () -> Unit,
     onBottomBarHeightChange: (Int) -> Unit,
 ) {
     Box(
@@ -148,11 +345,11 @@ private fun BoxScope.CameraBottomBarRow(
                 .onSizeChanged { onBottomBarHeightChange(it.height) },
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.weight(15f), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
                 RecentCaptureThumbButton(
                     latestImage = latestImage,
                     onClick = {
-                        onZoomPanelExpandedChange(false)
+                        ui.dismissCameraInteractions()
                         if (latestImage == null) {
                             onOpenAlbum()
                         } else {
@@ -163,13 +360,27 @@ private fun BoxScope.CameraBottomBarRow(
                 )
             }
 
-            Box(modifier = Modifier.weight(23f), contentAlignment = Alignment.Center) {}
+            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
+                CameraToolEntryButton(
+                    onClick = {
+                        ui.dismissTableSelection()
+                        ui.isZoomChipExpanded = false
+                        if (ui.showToolMenu) {
+                            ui.showToolMenu = false
+                        } else if (ui.isToolPanelExpanded) {
+                            ui.isToolPanelExpanded = false
+                            ui.showToolMenu = true
+                        } else {
+                            ui.showToolMenu = true
+                        }
+                    }
+                )
+            }
 
-            Box(modifier = Modifier.weight(24f), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.weight(28f), contentAlignment = Alignment.Center) {
                 CaptureButtonSection(
                     ready = enabledNow,
                     onClick = {
-                        onZoomPanelExpandedChange(false)
                         onTriggerCapture()
                     },
                     modifier = Modifier.onGloballyPositioned { coordinates ->
@@ -178,18 +389,17 @@ private fun BoxScope.CameraBottomBarRow(
                 )
             }
 
-            Box(modifier = Modifier.weight(23f), contentAlignment = Alignment.Center) {
-                WatermarkRotateButton(onClick = onRotateClick)
+            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
+                QuickValueButton(onClick = onOpenQuickValues)
             }
 
-            Box(modifier = Modifier.weight(15f), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
                 UndoCaptureButton(
-                    enabled = sessionCaptureStack.isNotEmpty() && !undoPending,
+                    enabled = sessionCaptureStack.isNotEmpty() && !undoPending && !ui.capture.isCapturing,
                     onClick = {
-                        if (undoPending) return@UndoCaptureButton
-                        val targetUris = UndoCapturePolicy.consumeLatestCapture(stack = sessionCaptureStack)
-                        if (targetUris.isEmpty()) return@UndoCaptureButton
-                        onUndoDelete(targetUris)
+                        ui.dismissCameraInteractions()
+                        if (undoPending || ui.capture.isCapturing || ui.capture.captureGate.get()) return@UndoCaptureButton
+                        onUndoDelete()
                     }
                 )
             }
@@ -198,26 +408,110 @@ private fun BoxScope.CameraBottomBarRow(
 }
 
 @Composable
-private fun BoxScope.CameraZoomOverlayPanel(
+private fun BoxScope.CameraToolOverlayPanel(
+    showToolMenu: Boolean,
+    compactTool: CameraOverlayTool?,
+    selectedTool: CameraOverlayTool?,
+    isToolPanelExpanded: Boolean,
+    isPinchZoomActive: Boolean,
     zoomRatioTenths: Int,
     maxZoomTenths: Int,
-    expanded: Boolean,
+    flashMode: CameraFlashMode,
+    focusMode: CameraFocusMode,
+    focusUiValue: Float,
+    showGrid: Boolean,
+    showTable: Boolean,
     bottomOffset: androidx.compose.ui.unit.Dp,
-    onToggleExpanded: () -> Unit,
+    onSelectTool: (CameraOverlayTool) -> Unit,
+    onOpenSelectedToolPanel: () -> Unit,
     onZoomTenthsChange: (Int) -> Unit,
+    onFocusModeChange: (CameraFocusMode) -> Unit,
+    onFocusUiValueChange: (Float) -> Unit,
+    onFlashModeChange: (CameraFlashMode) -> Unit,
+    onToggleGrid: () -> Unit,
+    onToggleTable: () -> Unit,
+    assistShutterEnabled: Boolean,
+    onToggleAssistShutter: () -> Unit,
+    hapticEnabled: Boolean,
 ) {
+    if (!showToolMenu && compactTool == null) return
+
     Box(
         modifier = Modifier
             .align(Alignment.BottomCenter)
+            .fillMaxWidth()
             .padding(bottom = DDZSpacing.screenPadding + bottomOffset),
         contentAlignment = Alignment.BottomCenter
     ) {
-        ZoomControlSection(
-            zoomRatioTenths = zoomRatioTenths,
-            maxZoomTenths = maxZoomTenths,
-            expanded = expanded,
-            onToggleExpanded = onToggleExpanded,
-            onZoomTenthsChange = onZoomTenthsChange
+        when {
+            showToolMenu -> CameraToolMenuSection(
+                selectedTool = selectedTool,
+                flashMode = flashMode,
+                focusMode = focusMode,
+                showGrid = showGrid,
+                showTable = showTable,
+                assistShutterEnabled = assistShutterEnabled,
+                onSelectTool = onSelectTool,
+                onToggleGrid = onToggleGrid,
+                onToggleTable = onToggleTable,
+                onToggleAssistShutter = onToggleAssistShutter,
+            )
+            compactTool == CameraOverlayTool.ZOOM && !isToolPanelExpanded -> ZoomControlSection(
+                zoomRatioTenths = zoomRatioTenths,
+                maxZoomTenths = maxZoomTenths,
+                expanded = false,
+                hapticEnabled = hapticEnabled,
+                onToggleExpanded = onOpenSelectedToolPanel,
+                onZoomTenthsChange = onZoomTenthsChange
+            )
+            compactTool == CameraOverlayTool.FLASH && !isToolPanelExpanded -> CameraFlashCompactSection(
+                mode = flashMode,
+                onClick = onOpenSelectedToolPanel
+            )
+            compactTool == CameraOverlayTool.FOCUS && !isToolPanelExpanded -> CameraFocusControlSection(
+                mode = focusMode,
+                focusUiValue = focusUiValue,
+                expanded = false,
+                hapticEnabled = hapticEnabled,
+                onToggleExpanded = onOpenSelectedToolPanel,
+                onModeChange = onFocusModeChange,
+                onValueChange = onFocusUiValueChange
+            )
+            selectedTool == CameraOverlayTool.ZOOM && isToolPanelExpanded && !isPinchZoomActive -> ZoomControlSection(
+                zoomRatioTenths = zoomRatioTenths,
+                maxZoomTenths = maxZoomTenths,
+                expanded = true,
+                hapticEnabled = hapticEnabled,
+                onToggleExpanded = {},
+                onZoomTenthsChange = onZoomTenthsChange
+            )
+            selectedTool == CameraOverlayTool.FOCUS && isToolPanelExpanded && !isPinchZoomActive -> CameraFocusControlSection(
+                mode = focusMode,
+                focusUiValue = focusUiValue,
+                expanded = true,
+                hapticEnabled = hapticEnabled,
+                onToggleExpanded = {},
+                onModeChange = onFocusModeChange,
+                onValueChange = onFocusUiValueChange
+            )
+            selectedTool == CameraOverlayTool.FLASH && isToolPanelExpanded && !isPinchZoomActive -> CameraFlashControlSection(
+                mode = flashMode,
+                onModeChange = onFlashModeChange
+            )
+        }
+    }
+}
+
+@Composable
+private fun CameraToolEntryButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    CameraControlButton(onClick = onClick, modifier = modifier) {
+        Icon(
+            imageVector = Icons.Default.Tune,
+            contentDescription = "촬영 도구",
+            tint = DDZColor.SageDarkStrong
         )
     }
 }
@@ -236,26 +530,33 @@ private fun CameraControlButton(
 ) {
     Box(
         modifier = modifier
-            .size(DDZLayout.Control.CameraSmall)
+            .size(48.dp)
             .clip(CameraCompactControlShape)
-            .border(1.dp, borderColor, CameraCompactControlShape)
-            .background(backgroundColor)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
-        content = content
-    )
+    ) {
+        Box(
+            modifier = Modifier
+                .size(DDZLayout.Control.CameraSmall)
+                .clip(CameraCompactControlShape)
+                .border(1.dp, borderColor, CameraCompactControlShape)
+                .background(backgroundColor),
+            contentAlignment = Alignment.Center,
+            content = content,
+        )
+    }
 }
 
 @Composable
-private fun WatermarkRotateButton(
+private fun QuickValueButton(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     CameraControlButton(onClick = onClick, modifier = modifier) {
         Icon(
-            imageVector = Icons.AutoMirrored.Filled.RotateRight,
-            contentDescription = "워터마크 90도 회전",
-            tint = DDZColor.SageDarkStrong
+            imageVector = Icons.Default.Edit,
+            contentDescription = "빠른 값 변경",
+            tint = DDZColor.SageDarkStrong,
         )
     }
 }
@@ -270,12 +571,13 @@ private fun UndoCaptureButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
-        backgroundColor = if (enabled) DDZColor.SagePrimary else Color.Transparent
+        backgroundColor = if (enabled) DDZColor.SageLight else DDZColor.Surface.copy(alpha = 0.35f),
+        borderColor = if (enabled) DDZColor.SageDarkStrong else DDZColor.Border.copy(alpha = 0.35f),
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.Undo,
-            contentDescription = "Undo",
-            tint = if (enabled) Color.White else DDZColor.SageDark
+            contentDescription = "직전 촬영 삭제",
+            tint = if (enabled) DDZColor.SageDarkStrong else DDZColor.TextMuted.copy(alpha = 0.35f),
         )
     }
 }
@@ -287,6 +589,14 @@ private fun RecentCaptureThumbButton(
     modifier: Modifier = Modifier
 ) {
     CameraControlButton(onClick = onClick, modifier = modifier) {
-        latestImage?.let { DzThumbnail(it.uri.toString()) }
+        if (latestImage != null) {
+            DzThumbnail(latestImage.uri.toString())
+        } else {
+            Icon(
+                imageVector = Icons.Default.Image,
+                contentDescription = "사진 목록",
+                tint = DDZColor.SageDarkStrong,
+            )
+        }
     }
 }

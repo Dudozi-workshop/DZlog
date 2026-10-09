@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.domain.capturepolicy
 
 import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
+import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -18,7 +19,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
     @Test
     fun `per phrase rotating text changes scoped counter key`() {
         val alpha = buildResult(
-            resolvedCells = listOf(resolvedRotating("r1", "ALPHA")),
+            resolvedCells = listOf(resolvedRotating("ALPHA")),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "FORMAT", label = "순환문구", formatType = "ROTATING_TEXT"),
                 null,
@@ -26,7 +27,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             ),
         )
         val beta = buildResult(
-            resolvedCells = listOf(resolvedRotating("r1", "BETA")),
+            resolvedCells = listOf(resolvedRotating("BETA")),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "FORMAT", label = "순환문구", formatType = "ROTATING_TEXT"),
                 null,
@@ -43,7 +44,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
     @Test
     fun `rotating text changes scoped counter key by phrase`() {
         val alpha = buildResult(
-            resolvedCells = listOf(resolvedRotating("r1", "ALPHA")),
+            resolvedCells = listOf(resolvedRotating("ALPHA")),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "FORMAT", label = "순환문구", formatType = "ROTATING_TEXT"),
                 null,
@@ -51,7 +52,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             ),
         )
         val beta = buildResult(
-            resolvedCells = listOf(resolvedRotating("r1", "BETA")),
+            resolvedCells = listOf(resolvedRotating("BETA")),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "FORMAT", label = "순환문구", formatType = "ROTATING_TEXT"),
                 null,
@@ -68,7 +69,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
     @Test
     fun `manual value and slot order change scoped counter key`() {
         val first = buildResult(
-            resolvedCells = listOf(resolvedText("c1", "CELL")),
+            resolvedCells = listOf(resolvedText()),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "CELL", label = "셀", cellId = "c1"),
                 TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
@@ -76,7 +77,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             ),
         )
         val swapped = buildResult(
-            resolvedCells = listOf(resolvedText("c1", "CELL")),
+            resolvedCells = listOf(resolvedText()),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
                 TableEditorSlotDraft(kind = "CELL", label = "셀", cellId = "c1"),
@@ -84,7 +85,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             ),
         )
         val changedManual = buildResult(
-            resolvedCells = listOf(resolvedText("c1", "CELL")),
+            resolvedCells = listOf(resolvedText()),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "CELL", label = "셀", cellId = "c1"),
                 TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "B"),
@@ -98,9 +99,9 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
 
     @Test
     fun `date time include exclude affects scoped counter key`() {
-        val date = resolvedDate("d1", "20260101", CounterScopeMode.INCLUDE)
-        val timeInclude = resolvedTime("t1", "13:14:59", CounterScopeMode.INCLUDE)
-        val timeExclude = resolvedTime("t1", "13:14:59", CounterScopeMode.EXCLUDE)
+        val date = resolvedDate()
+        val timeInclude = resolvedTime(CounterScopeMode.INCLUDE)
+        val timeExclude = resolvedTime(CounterScopeMode.EXCLUDE)
 
         val include = buildResult(
             resolvedCells = listOf(date, timeInclude),
@@ -129,7 +130,7 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             fileNameSlotDrafts = listOf(null, null, null),
         )
         val withCounter = buildResult(
-            resolvedCells = listOf(resolvedCounter("k1", "77")),
+            resolvedCells = listOf(resolvedCounter()),
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "CELL", label = "셀", cellId = "k1"),
                 TableEditorSlotDraft(kind = "FORMAT", label = "카운터", formatType = "COUNTER"),
@@ -148,13 +149,13 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             captureContext = CaptureContext(
                 resolvedCells = resolvedCells,
                 captureNow = Date(0),
-                fileNameSlotDrafts = fileNameSlotDrafts,
+                fileNameSlotDrafts = fileNameSlotDrafts.take(FILE_NAME_SLOT_COUNT) +
+                    List((FILE_NAME_SLOT_COUNT - fileNameSlotDrafts.size).coerceAtLeast(0)) { null },
                 pathSlotDrafts = listOf(null, null),
                 fnDelim = "_",
                 counterDigits = 2,
                 dateFormat = "yyyyMMdd",
                 timeFormat = "HH:mm:ss",
-                includePathInCounterScope = true,
                 includeFilenameInCounterScope = true,
                 dateScopeValues = emptyList(),
                 timeScopeValues = emptyList(),
@@ -165,7 +166,9 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
         )
     }
 
-    private fun resolvedText(id: String, text: String): ResolvedCell {
+    private fun resolvedText(): ResolvedCell {
+        val id = "c1"
+        val text = "CELL"
         val raw = TableCellState(
             rowIndex = 0,
             colIndex = 0,
@@ -177,32 +180,37 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
         return ResolvedCell(id, raw.dataType, raw, text, isEmpty = text.isBlank())
     }
 
-    private fun resolvedRotating(id: String, text: String): ResolvedCell {
+    private fun resolvedRotating(text: String): ResolvedCell {
+        val id = "r1"
         val raw = TableCellState(
             rowIndex = 0,
             colIndex = 0,
             rawText = text,
             dataType = TableCellDataType.ROTATING_TEXT,
             groupLevel = GroupLevel.NONE,
-                        cellId = id,
+            cellId = id,
         )
         return ResolvedCell(id, raw.dataType, raw, text, isEmpty = text.isBlank())
     }
 
-    private fun resolvedDate(id: String, text: String, mode: CounterScopeMode): ResolvedCell {
+    private fun resolvedDate(): ResolvedCell {
+        val id = "d1"
+        val text = "20260101"
         val raw = TableCellState(
             rowIndex = 0,
             colIndex = 0,
             rawText = text,
             dataType = TableCellDataType.DATE,
             groupLevel = GroupLevel.NONE,
-            counterScopeMode = mode,
+            counterScopeMode = CounterScopeMode.INCLUDE,
             cellId = id,
         )
         return ResolvedCell(id, raw.dataType, raw, text, isEmpty = text.isBlank())
     }
 
-    private fun resolvedTime(id: String, text: String, mode: CounterScopeMode): ResolvedCell {
+    private fun resolvedTime(mode: CounterScopeMode): ResolvedCell {
+        val id = "t1"
+        val text = "13:14:59"
         val raw = TableCellState(
             rowIndex = 0,
             colIndex = 0,
@@ -215,7 +223,9 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
         return ResolvedCell(id, raw.dataType, raw, text, isEmpty = text.isBlank())
     }
 
-    private fun resolvedCounter(id: String, text: String): ResolvedCell {
+    private fun resolvedCounter(): ResolvedCell {
+        val id = "k1"
+        val text = "77"
         val raw = TableCellState(
             rowIndex = 0,
             colIndex = 0,

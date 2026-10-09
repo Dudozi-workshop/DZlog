@@ -21,15 +21,17 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
+import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
-import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableRect
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import com.dudoziworkshop.dzlog.feature.table.render.buildCameraPreviewPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.buildContentDrivenRenderedSceneFromPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.computeRatioOnlyTableShape
+import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.watermark.computeWatermarkTableRect
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
@@ -38,8 +40,7 @@ fun CameraLikeWatermarkPlacementPreview(
     captureAspect: CaptureAspect,
     rows: Int,
     cols: Int,
-    rowWeights: List<Float>?,
-    colWeights: List<Float>?,
+    templateCells: List<TableCellState>,
     watermarkCells: List<WatermarkBuilder.WatermarkCell>,
     offsetXRatio: Int,
     offsetYRatio: Int,
@@ -58,7 +59,7 @@ fun CameraLikeWatermarkPlacementPreview(
     modifier: Modifier = Modifier
 ) {
     // Camera Preview 정책: 외곽 비율(표 자체 속성)과 위치/회전(촬영 배치 속성)을 분리한다.
-    val cameraPreviewShape = remember(rows, cols, rowWeights, colWeights, tableWidthRatio, tableHeightRatio) {
+    val cameraPreviewShape = remember(rows, cols, tableWidthRatio, tableHeightRatio) {
         computeRatioOnlyTableShape(
             tableWidthRatio = tableWidthRatio,
             tableHeightRatio = tableHeightRatio,
@@ -72,8 +73,6 @@ fun CameraLikeWatermarkPlacementPreview(
     var dragActive by remember { mutableStateOf(false) }
     var dragLeftPx by remember { mutableFloatStateOf(0f) }
     var dragTopPx by remember { mutableFloatStateOf(0f) }
-    var dragMaxXPx by remember { mutableFloatStateOf(0f) }
-    var dragMaxYPx by remember { mutableFloatStateOf(0f) }
     var hasOverride by remember { mutableStateOf(false) }
     var overrideReleaseTick by remember { mutableIntStateOf(0) }
 
@@ -94,6 +93,9 @@ fun CameraLikeWatermarkPlacementPreview(
     }
 
     val dragModifier = Modifier.pointerInput(captureAspect, cameraPreviewShape.tableWidthRatio, cameraPreviewShape.tableHeightRatio) {
+        // 제스처 사이클 내부에서만 쓰이는 clamp 한계값은 로컬 변수로 유지한다.
+        var dragMaxXPx = 0f
+        var dragMaxYPx = 0f
         detectDragGestures(
             onDragStart = { start ->
                 val contentRect = computeContentRect(size.width.toFloat(), size.height.toFloat(), captureAspect.ratioF)
@@ -124,8 +126,6 @@ fun CameraLikeWatermarkPlacementPreview(
                 if (dragActive) {
                     val ratioX = if (dragMaxXPx <= 0f) 0 else ((dragLeftPx / dragMaxXPx) * 100f).roundToInt().coerceIn(0, 100)
                     val ratioY = if (dragMaxYPx <= 0f) 0 else ((dragTopPx / dragMaxYPx) * 100f).roundToInt().coerceIn(0, 100)
-                    dragOffsetXRatio = ratioX
-                    dragOffsetYRatio = ratioY
                     onDragCommit(ratioX, ratioY)
                     overrideReleaseTick += 1
                 }
@@ -193,14 +193,34 @@ fun CameraLikeWatermarkPlacementPreview(
             drawRect(DDZColor.Surface.copy(alpha = 0.13f), Offset(contentRect.left, contentRect.centerY() - 0.5f), Size(contentRect.width(), 1f))
 
             drawIntoCanvas { canvas ->
-                TableRenderAdapter.draw(
-                    canvas = canvas.nativeCanvas,
+                val placement = buildCameraPreviewPlacement(
+                    anchor = WatermarkTableAnchor.CUSTOM,
+                    offsetXRatio = dragOffsetXRatio,
+                    offsetYRatio = dragOffsetYRatio,
+                    tableWidthRatio = cameraPreviewShape.tableWidthRatio,
+                    tableHeightRatio = cameraPreviewShape.tableHeightRatio,
+                    rotationCwDeg = if (rotationCwDeg == 90) 90 else 0,
+                    overrideOffsetLeftPx = if (hasOverride) dragLeftPx else null,
+                    overrideOffsetTopPx = if (hasOverride) dragTopPx else null,
+                )
+                val rendered = buildContentDrivenRenderedSceneFromPlacement(
                     bounds = contentRect,
+                    placement = placement,
+                    cells = watermarkCells,
+                    templateCells = templateCells,
+                    rows = rows,
+                    cols = cols,
+                    valueScale = valueScale,
+                    baseScaleRatio = cameraPreviewShape.tableWidthRatio,
+                )
+                TableRenderAdapter.drawScene(
+                    canvas = canvas.nativeCanvas,
+                    scene = rendered.scene,
                     payload = TableRenderPayload(
                         rows = rows,
                         cols = cols,
-                        rowWeights = rowWeights,
-                        colWeights = colWeights,
+                        rowWeights = rendered.resolvedLayout.finalRowWeights,
+                        colWeights = rendered.resolvedLayout.finalColWeights,
                         cells = watermarkCells,
                     ),
                     style = TableRenderStyle(
@@ -212,16 +232,7 @@ fun CameraLikeWatermarkPlacementPreview(
                         textAlign = textAlign,
                         drawGrid = drawGrid,
                     ),
-                    placement = buildCameraPreviewPlacement(
-                        anchor = WatermarkTableAnchor.CUSTOM,
-                        offsetXRatio = dragOffsetXRatio,
-                        offsetYRatio = dragOffsetYRatio,
-                        tableWidthRatio = cameraPreviewShape.tableWidthRatio,
-                        tableHeightRatio = cameraPreviewShape.tableHeightRatio,
-                        rotationCwDeg = if (rotationCwDeg == 90) 90 else 0,
-                        overrideOffsetLeftPx = if (hasOverride) dragLeftPx else null,
-                        overrideOffsetTopPx = if (hasOverride) dragTopPx else null,
-                    ),
+                    rotationCwDeg = if (rotationCwDeg == 90) 90 else 0,
                 )
             }
 
@@ -243,14 +254,12 @@ private fun computeContentRect(boxWidth: Float, boxHeight: Float, aspectRatio: F
     }
     val boxRatio = boxWidth / boxHeight
     return if (aspectRatio > boxRatio) {
-        val contentWidth = boxWidth
         val contentHeight = boxWidth / aspectRatio
         val topOffset = (boxHeight - contentHeight) / 2f
-        RectF(0f, topOffset, contentWidth, topOffset + contentHeight)
+        RectF(0f, topOffset, boxWidth, topOffset + contentHeight)
     } else {
-        val contentHeight = boxHeight
         val contentWidth = boxHeight * aspectRatio
         val leftOffset = (boxWidth - contentWidth) / 2f
-        RectF(leftOffset, 0f, leftOffset + contentWidth, contentHeight)
+        RectF(leftOffset, 0f, leftOffset + contentWidth, boxHeight)
     }
 }

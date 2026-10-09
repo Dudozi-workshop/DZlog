@@ -3,8 +3,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.preview
 
 import android.graphics.RectF
-import android.os.SystemClock
-import androidx.compose.ui.unit.dp
 import android.util.Log
 import android.view.View
 import androidx.camera.core.Camera
@@ -22,8 +20,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,23 +34,23 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Observer
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
-import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePathFromSlotDrafts
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
+import com.dudoziworkshop.dzlog.domain.naming.buildSavePath
 import com.dudoziworkshop.dzlog.domain.naming.resolveGroupValue
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.ui.camera.controller.bindCamera
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import kotlinx.coroutines.delay
 import kotlin.math.max
 import kotlin.math.roundToInt
-import androidx.compose.ui.unit.IntOffset
 
 /**
  * CameraPreviewArea
@@ -62,7 +64,11 @@ internal fun CameraPreviewArea(
     capturedUri: android.net.Uri?,
     onDismissCaptured: () -> Unit,
     tapFocusUi: TapFocusUiState?,
-    onTapFocusUiChange: (TapFocusUiState?) -> Unit
+    onTapFocusUiChange: (TapFocusUiState?) -> Unit,
+    isTableSelected: Boolean,
+    isTableLocked: Boolean,
+    onTableSelectionChange: (Boolean) -> Unit,
+    onCornerResizeScale: (Float, Boolean) -> Unit,
 ) {
     val context = args.context
     val lifecycleOwner = args.lifecycleOwner
@@ -85,38 +91,34 @@ internal fun CameraPreviewArea(
         }
 
         var captureRect by remember { mutableStateOf(RectF(0f, 0f, 0f, 0f)) }
-        var previewBoxWidthPx by remember { mutableStateOf(0f) }
-        var previewBoxHeightPx by remember { mutableStateOf(0f) }
-        var usableTopRatio by remember { mutableStateOf(0f) }
-        var usableBottomRatio by remember { mutableStateOf(1f) }
+        var previewBoxWidthPx by remember { mutableFloatStateOf(0f) }
+        var previewBoxHeightPx by remember { mutableFloatStateOf(0f) }
+        var usableTopRatio by remember { mutableFloatStateOf(0f) }
+        var usableBottomRatio by remember { mutableFloatStateOf(1f) }
         var watermarkBoundsRect by remember { mutableStateOf<RectF?>(null) }
+        var activeHandleCorner by remember { mutableStateOf<ResizeHandleCorner?>(null) }
         var watermarkRawRect by remember { mutableStateOf<RectF?>(null) }
         var watermarkDragActive by remember { mutableStateOf(false) }
-        var suppressWatermarkTapUntilMs by remember { mutableStateOf(0L) }
-        var isWatermarkArmed by remember { mutableStateOf(false) }
-        var previewBoundsOffsetX10000 by remember { mutableStateOf(args.watermarkUi.boundsOffsetX10000.coerceIn(0, 10000)) }
-        var previewBoundsOffsetY10000 by remember { mutableStateOf(args.watermarkUi.boundsOffsetY10000.coerceIn(0, 10000)) }
-        var previewOffsetX by remember { mutableStateOf((previewBoundsOffsetX10000 / 100f).roundToInt().coerceIn(0, 100)) }
-        var previewOffsetY by remember { mutableStateOf((previewBoundsOffsetY10000 / 100f).roundToInt().coerceIn(0, 100)) }
+        var suppressWatermarkTapUntilMs by remember { mutableLongStateOf(0L) }
+        val isWatermarkArmed = isTableSelected
+        var previewBoundsOffsetX10000 by remember { mutableIntStateOf(args.watermarkUi.boundsOffsetX10000.coerceIn(0, 10000)) }
+        var previewBoundsOffsetY10000 by remember { mutableIntStateOf(args.watermarkUi.boundsOffsetY10000.coerceIn(0, 10000)) }
+        var previewOffsetX by remember { mutableIntStateOf((previewBoundsOffsetX10000 / 100f).roundToInt().coerceIn(0, 100)) }
+        var previewOffsetY by remember { mutableIntStateOf((previewBoundsOffsetY10000 / 100f).roundToInt().coerceIn(0, 100)) }
         var dragPreviewOffsetPx by remember { mutableStateOf<Offset?>(null) }
-        var dragStartLeftPx by remember { mutableStateOf(0f) }
-        var dragStartTopPx by remember { mutableStateOf(0f) }
-        var dragTableWidthPx by remember { mutableStateOf(0f) }
-        var dragTableHeightPx by remember { mutableStateOf(0f) }
+        var dragStartLeftPx by remember { mutableFloatStateOf(0f) }
+        var dragStartTopPx by remember { mutableFloatStateOf(0f) }
+        var dragTableWidthPx by remember { mutableFloatStateOf(0f) }
+        var dragTableHeightPx by remember { mutableFloatStateOf(0f) }
         var pendingLocalOffsetSync by remember { mutableStateOf(false) }
-        var dragAccumDx by remember { mutableStateOf(0f) }
-        var dragAccumDy by remember { mutableStateOf(0f) }
-        var dragStartedAfterSlop by remember { mutableStateOf(false) }
-        var watermarkLastInteractionMs by remember { mutableStateOf(0L) }
         val dragTouchSlop = LocalViewConfiguration.current.touchSlop
+        val liveWatermarkBounds = rememberUpdatedState(watermarkBoundsRect)
+        val liveWatermarkRawRect = rememberUpdatedState(watermarkRawRect)
+        val liveHandleCorner = rememberUpdatedState(activeHandleCorner)
 
         fun commitWatermarkOffsetIfNeeded() {
             args.onWatermarkOffsetRatioCommit(previewOffsetX, previewOffsetY)
             args.onWatermarkBoundsOffset10000Commit(previewBoundsOffsetX10000, previewBoundsOffsetY10000)
-        }
-
-        fun markWatermarkInteraction() {
-            watermarkLastInteractionMs = SystemClock.uptimeMillis()
         }
 
         LaunchedEffect(args.watermarkUi.boundsOffsetX10000, args.watermarkUi.boundsOffsetY10000) {
@@ -136,19 +138,9 @@ internal fun CameraPreviewArea(
             dragPreviewOffsetPx = null
         }
 
-        LaunchedEffect(isWatermarkArmed, watermarkDragActive, watermarkLastInteractionMs) {
-            if (!isWatermarkArmed || watermarkDragActive) return@LaunchedEffect
-            val timeoutMs = 1_000L
-            val waitMs = (watermarkLastInteractionMs + timeoutMs - SystemClock.uptimeMillis()).coerceAtLeast(0L)
-            delay(waitMs)
-            if (
-                isWatermarkArmed &&
-                !watermarkDragActive &&
-                (SystemClock.uptimeMillis() - watermarkLastInteractionMs) >= timeoutMs
-            ) {
-                commitWatermarkOffsetIfNeeded()
-                isWatermarkArmed = false
-            }
+        // Selection stays visible until the user deselects, captures, or navigates away.
+        LaunchedEffect(args.showWmPreview) {
+            if (!args.showWmPreview) onTableSelectionChange(false)
         }
 
         fun updateCaptureRect() {
@@ -204,7 +196,6 @@ internal fun CameraPreviewArea(
                 context = context,
                 lifecycleOwner = lifecycleOwner,
                 previewView = previewView,
-                aspect = CaptureAspect.R3_4,
                 photoQualityMode = args.photoQualityMode
             ) { cap, camera ->
                 onBoundImageCaptureChange(cap)
@@ -251,10 +242,12 @@ internal fun CameraPreviewArea(
                 boundCamera = boundCamera,
                 captureRect = captureRect,
                 tapFocusUi = tapFocusUi,
+                focusMode = args.focusMode,
                 suppressWatermarkTapUntilMs = suppressWatermarkTapUntilMs,
-                watermarkBoundsRect = watermarkBoundsRect,
-                watermarkRawRect = watermarkRawRect,
+                watermarkBoundsRectState = liveWatermarkBounds,
+                watermarkRawRectState = liveWatermarkRawRect,
                 isWatermarkArmed = isWatermarkArmed,
+                isTableLocked = isTableLocked,
                 dragTouchSlop = dragTouchSlop,
                 dragStartLeftPx = dragStartLeftPx,
                 dragStartTopPx = dragStartTopPx,
@@ -262,19 +255,14 @@ internal fun CameraPreviewArea(
                 dragTableHeightPx = dragTableHeightPx,
                 dragPreviewOffsetPx = dragPreviewOffsetPx,
                 onTapFocusUiChange = onTapFocusUiChange,
-                onOpenTableEditor = args.onOpenTableEditor,
                 onCommitWatermarkOffsetIfNeeded = ::commitWatermarkOffsetIfNeeded,
-                onMarkWatermarkInteraction = ::markWatermarkInteraction,
-                onWatermarkArmedChange = { isWatermarkArmed = it },
+                onWatermarkArmedChange = onTableSelectionChange,
                 onWatermarkDragActiveChange = { watermarkDragActive = it },
                 onDragStartLeftPxChange = { dragStartLeftPx = it },
                 onDragStartTopPxChange = { dragStartTopPx = it },
                 onDragTableWidthPxChange = { dragTableWidthPx = it },
                 onDragTableHeightPxChange = { dragTableHeightPx = it },
                 onDragPreviewOffsetPxChange = { dragPreviewOffsetPx = it },
-                onDragAccumDxChange = { dragAccumDx = it },
-                onDragAccumDyChange = { dragAccumDy = it },
-                onDragStartedAfterSlopChange = { dragStartedAfterSlop = it },
                 onSuppressWatermarkTapUntilMsChange = { suppressWatermarkTapUntilMs = it },
                 onPreviewBoundsOffsetX10000Change = { previewBoundsOffsetX10000 = it },
                 onPreviewBoundsOffsetY10000Change = { previewBoundsOffsetY10000 = it },
@@ -284,8 +272,12 @@ internal fun CameraPreviewArea(
                 onWatermarkBoundsOffset10000Preview = args.onWatermarkBoundsOffset10000Preview,
                 onWatermarkOffsetRatioPreview = args.onWatermarkOffsetRatioPreview,
                 onMaxZoomTenthsChange = args.onMaxZoomTenthsChange,
+                onPinchZoomActiveChange = args.onPinchZoomActiveChange,
                 onRequestedZoomTenthsCommit = args.onRequestedZoomTenthsCommit,
                 onActualZoomTenthsChange = args.onActualZoomTenthsChange,
+                onCornerResizeScale = onCornerResizeScale,
+                activeHandleCornerState = liveHandleCorner,
+                onActiveHandleCornerChange = { activeHandleCorner = it },
             )
 
         val plan = remember(
@@ -336,7 +328,7 @@ internal fun CameraPreviewArea(
         }
 
         val previewRequest = CaptureRequest(
-            relativePath = buildGalleryRelativePathFromSlotDrafts(
+            relativePath = buildSavePath(
                 resolvedCells = resolvedCellsForPreview,
                 pathSlotDrafts = args.tableTemplateState.pathSlotDrafts,
                 now = args.now,
@@ -384,8 +376,8 @@ internal fun CameraPreviewArea(
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val density = LocalDensity.current
-            val widthPx = with(density) { maxWidth.toPx() }
-            val parentHeightPx = with(density) { maxHeight.toPx() }
+            val widthPx = with(density) { this@BoxWithConstraints.maxWidth.toPx() }
+            val parentHeightPx = with(density) { this@BoxWithConstraints.maxHeight.toPx() }
             val previewBoxLayout = calculatePreviewBoxLayout(
                 parentWidthPx = widthPx,
                 parentHeightPx = parentHeightPx,
@@ -429,7 +421,10 @@ internal fun CameraPreviewArea(
                     onDismissCaptured = onDismissCaptured,
                     tapFocusUi = tapFocusUi,
                     isWatermarkArmed = isWatermarkArmed,
+                    isTableLocked = isTableLocked,
                     watermarkOffsetOverridePx = effectiveOverrideOffsetPx,
+                    dragVisibleOffsetPx = dragPreviewOffsetPx,
+                    activeHandleCorner = activeHandleCorner,
                     onWatermarkBoundsRectChange = { watermarkBoundsRect = it },
                     onWatermarkRawRectChange = { watermarkRawRect = it }
                 )
@@ -461,4 +456,3 @@ internal fun resolveZoomBounds(minSupported: Float, maxSupported: Float): Pair<F
     val clampedMin = max(1f, minSupported).coerceAtMost(clampedMax)
     return clampedMin to clampedMax
 }
-

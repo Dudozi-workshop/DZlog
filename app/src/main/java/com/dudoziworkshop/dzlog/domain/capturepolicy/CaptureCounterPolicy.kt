@@ -8,8 +8,6 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_MANUAL_NEXT_OVERRID
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.counter.CounterManager
-import com.dudoziworkshop.dzlog.domain.counter.CounterScope
-import com.dudoziworkshop.dzlog.domain.counter.buildStreamKey
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import kotlinx.coroutines.flow.first
 import java.net.URLDecoder
@@ -24,23 +22,6 @@ import java.nio.charset.StandardCharsets
  * - setNext: 사용자가 next seed를 명시 변경할 때 정책을 적용
  */
 internal object CaptureCounterPolicy {
-
-    internal suspend fun resolveNext(
-        context: Context,
-        counterScope: CounterScope,
-        scanPrefix: String,
-        counterDigits: Int,
-        fnDelim: String,
-        saveMode: SaveMode,
-    ): Int {
-        return resolveNext(
-            context = context,
-            key = buildStreamKey(counterScope, scanPrefix),
-            counterDigits = counterDigits,
-            fnDelim = fnDelim,
-            saveMode = saveMode,
-        )
-    }
 
     internal suspend fun resolveNext(
         context: Context,
@@ -156,21 +137,6 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun commit(
         context: Context,
-        counterScope: CounterScope,
-        scanPrefix: String,
-        usedCounter: Int,
-        mediaStoreId: Long
-    ) {
-        commit(
-            context = context,
-            key = buildStreamKey(counterScope, scanPrefix),
-            usedCounter = usedCounter,
-            mediaStoreId = mediaStoreId
-        )
-    }
-
-    internal suspend fun commit(
-        context: Context,
         scopedStream: CaptureScopedCounterStream,
         usedCounter: Int,
         mediaStoreId: Long
@@ -231,27 +197,6 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun setNext(
         context: Context,
-        counterScope: CounterScope,
-        scanPrefix: String,
-        desired: Int,
-        force: Boolean,
-        counterDigits: Int,
-        fnDelim: String,
-        saveMode: SaveMode,
-    ) {
-        setNext(
-            context = context,
-            key = buildStreamKey(counterScope, scanPrefix),
-            desired = desired,
-            force = force,
-            counterDigits = counterDigits,
-            fnDelim = fnDelim,
-            saveMode = saveMode,
-        )
-    }
-
-    internal suspend fun setNext(
-        context: Context,
         scopedStream: CaptureScopedCounterStream,
         desired: Int,
         force: Boolean,
@@ -279,17 +224,6 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun hasManualOverride(
         context: Context,
-        counterScope: CounterScope,
-        scanPrefix: String
-    ): Boolean {
-        return hasManualOverride(
-            context = context,
-            key = buildStreamKey(counterScope, scanPrefix)
-        )
-    }
-
-    internal suspend fun hasManualOverride(
-        context: Context,
         scopedStream: CaptureScopedCounterStream
     ): Boolean {
         return hasManualOverride(
@@ -307,67 +241,11 @@ internal object CaptureCounterPolicy {
 
     internal suspend fun clearManualOverride(
         context: Context,
-        counterScope: CounterScope,
-        scanPrefix: String
-    ) {
-        clearManualOverride(
-            context = context,
-            key = buildStreamKey(counterScope, scanPrefix)
-        )
-    }
-
-    internal suspend fun clearManualOverride(
-        context: Context,
         scopedStream: CaptureScopedCounterStream
     ) {
         clearManualOverride(
             context = context,
             key = scopedStream.captureStreamKey
-        )
-    }
-
-    internal suspend fun resetToAuto(
-        context: Context,
-        counterScope: CounterScope,
-        scanPrefix: String,
-        counterDigits: Int,
-        fnDelim: String,
-        saveMode: SaveMode,
-    ): Int {
-        clearManualOverride(
-            context = context,
-            counterScope = counterScope,
-            scanPrefix = scanPrefix
-        )
-        return resolveNext(
-            context = context,
-            counterScope = counterScope,
-            scanPrefix = scanPrefix,
-            counterDigits = counterDigits,
-            fnDelim = fnDelim,
-            saveMode = saveMode,
-        )
-    }
-
-    internal suspend fun resetToAuto(
-        context: Context,
-        scopedStream: CaptureScopedCounterStream,
-        scanPrefix: String,
-        counterDigits: Int,
-        fnDelim: String,
-        saveMode: SaveMode,
-    ): Int {
-        clearManualOverride(
-            context = context,
-            scopedStream = scopedStream
-        )
-        return resolveNext(
-            context = context,
-            scopedStream = scopedStream,
-            scanPrefix = scanPrefix,
-            counterDigits = counterDigits,
-            fnDelim = fnDelim,
-            saveMode = saveMode,
         )
     }
 

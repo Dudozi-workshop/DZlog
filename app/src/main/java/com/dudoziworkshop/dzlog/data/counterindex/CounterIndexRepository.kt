@@ -16,9 +16,6 @@ class CounterIndexRepository private constructor(
     private val dao: CounterIndexDao
 ) {
 
-    suspend fun getUsedCounters(relativePath: String, prefix: String): Set<Int> =
-        dao.listCountersByPath(relativePath, prefix).toSet()
-
     suspend fun getCommittedCounters(relativePath: String, prefix: String): Set<Int> =
         dao.listCommittedCountersByPath(relativePath, prefix).toSet()
 

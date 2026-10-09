@@ -7,6 +7,7 @@ data class TableEditorBottomPanelModeChangeInput(
     val nextMode: BottomEditorPanelMode,
     val inlineCommitWasBlocked: Boolean,
     val wasStructureMode: Boolean,
+    val currentSelectedCellId: String?,
 )
 
 data class TableEditorBottomPanelModeChangedState(
@@ -45,7 +46,7 @@ object TableEditorBottomPanelModeChangeResolver {
             nextBottomPanelMode = input.nextMode,
             nextStructureSelectedCellIds = if (effects.shouldResetStructureSelection) emptySet() else null,
             nextStructureSelectionRangeCleared = effects.shouldResetStructureSelection,
-            nextSelectedCellId = if (effects.shouldResetStructureSelection) null else null,
+            nextSelectedCellId = if (effects.shouldResetStructureSelection) input.currentSelectedCellId else null,
         )
     }
 }

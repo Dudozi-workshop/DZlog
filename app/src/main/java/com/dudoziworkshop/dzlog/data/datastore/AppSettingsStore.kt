@@ -2,8 +2,12 @@ package com.dudoziworkshop.dzlog.data.datastore
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import com.dudoziworkshop.dzlog.data.preferences.KEY_BLANK_WARNING_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAPTURE_HAPTIC_ENABLED
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_ENABLED
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_X_RATIO
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_Y_RATIO
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAPTURE_SOUND_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
@@ -35,13 +39,39 @@ data class AppSettings(
     val captureSoundEnabled: Boolean = true,
     val volumeKeyAction: VolumeKeyAction = VolumeKeyAction.NONE,
     val blankWarningEnabled: Boolean,
-)
+    val assistShutterEnabled: Boolean = false,
+    val assistShutterXRatio: Float = 0.82f,
+    val assistShutterYRatio: Float = 0.62f,
+    val phraseProgressCursor: Int = 1,
+) {
+    companion object {
+        val Default = AppSettings(
+            saveMode = SaveMode.BOTH,
+            continuousPreviewMode = ContinuousPreviewMode.OFF,
+            photoQualityMode = PhotoQualityMode.BALANCED,
+            counterPadding = 0,
+            includePathInCounterScope = true,
+            includeFilenameInCounterScope = true,
+            toastEnabled = true,
+            hapticEnabled = true,
+            captureHapticEnabled = true,
+            captureSoundEnabled = true,
+            volumeKeyAction = VolumeKeyAction.NONE,
+            blankWarningEnabled = true,
+            assistShutterEnabled = false,
+            assistShutterXRatio = 0.82f,
+            assistShutterYRatio = 0.62f,
+        )
+    }
+}
 
 object AppSettingsStore {
+    private val phraseProgressKey = intPreferencesKey("phrase_progress_cursor_v1")
 
     fun flow(context: Context): Flow<AppSettings> =
         context.dataStore.data.map { prefs ->
             AppSettings(
+                phraseProgressCursor = (prefs[phraseProgressKey] ?: 1).coerceAtLeast(1),
                 saveMode = SaveMode.from(prefs[KEY_SAVE_MODE] ?: SaveMode.BOTH.v),
                 continuousPreviewMode = ContinuousPreviewMode.from(prefs[KEY_CONTINUOUS_PREVIEW_MODE] ?: ContinuousPreviewMode.OFF.v),
                 photoQualityMode = PhotoQualityMode.from(prefs[KEY_PHOTO_QUALITY_MODE] ?: PhotoQualityMode.BALANCED.v),
@@ -54,8 +84,26 @@ object AppSettingsStore {
                 captureSoundEnabled = prefs[KEY_CAPTURE_SOUND_ENABLED] ?: true,
                 volumeKeyAction = VolumeKeyAction.from(prefs[KEY_VOLUME_KEY_ACTION] ?: VolumeKeyAction.NONE.v),
                 blankWarningEnabled = prefs[KEY_BLANK_WARNING_ENABLED] ?: true,
+                assistShutterEnabled = prefs[KEY_ASSIST_SHUTTER_ENABLED] ?: false,
+                assistShutterXRatio = prefs[KEY_ASSIST_SHUTTER_X_RATIO] ?: 0.82f,
+                assistShutterYRatio = prefs[KEY_ASSIST_SHUTTER_Y_RATIO] ?: 0.62f,
             )
         }
+
+    suspend fun setPhraseProgressCursor(context: Context, cursor: Int) {
+        context.dataStore.edit { it[phraseProgressKey] = cursor.coerceAtLeast(1) }
+    }
+
+    suspend fun setSaveSettings(context: Context, includePath: Boolean, includeFilename: Boolean,
+        mode: SaveMode, padding: Int) {
+        require(padding in 0..6)
+        context.dataStore.edit {
+            it[KEY_INCLUDE_PATH_IN_COUNTER_SCOPE] = includePath
+            it[KEY_INCLUDE_FILENAME_IN_COUNTER_SCOPE] = includeFilename
+            it[KEY_SAVE_MODE] = mode.v
+            it[KEY_COUNTER_DIGITS] = padding
+        }
+    }
 
     suspend fun setSaveMode(context: Context, mode: SaveMode) {
         context.dataStore.edit { it[KEY_SAVE_MODE] = mode.v }
@@ -104,4 +152,9 @@ object AppSettingsStore {
     suspend fun setBlankWarningEnabled(context: Context, enabled: Boolean) {
         context.dataStore.edit { it[KEY_BLANK_WARNING_ENABLED] = enabled }
     }
+
+    suspend fun setAssistShutterEnabled(context: Context, enabled: Boolean) {
+        context.dataStore.edit { it[KEY_ASSIST_SHUTTER_ENABLED] = enabled }
+    }
 }
+

@@ -10,12 +10,14 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChanged
 import com.dudoziworkshop.dzlog.ui.camera.controller.startTapToFocus
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -30,10 +32,12 @@ internal fun Modifier.cameraPreviewGestureModifier(
     boundCamera: Camera?,
     captureRect: RectF,
     tapFocusUi: TapFocusUiState?,
+    focusMode: CameraFocusMode,
     suppressWatermarkTapUntilMs: Long,
-    watermarkBoundsRect: RectF?,
-    watermarkRawRect: RectF?,
+    watermarkBoundsRectState: State<RectF?>,
+    watermarkRawRectState: State<RectF?>,
     isWatermarkArmed: Boolean,
+    isTableLocked: Boolean,
     dragTouchSlop: Float,
     dragStartLeftPx: Float,
     dragStartTopPx: Float,
@@ -41,9 +45,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
     dragTableHeightPx: Float,
     dragPreviewOffsetPx: Offset?,
     onTapFocusUiChange: (TapFocusUiState?) -> Unit,
-    onOpenTableEditor: () -> Unit,
     onCommitWatermarkOffsetIfNeeded: () -> Unit,
-    onMarkWatermarkInteraction: () -> Unit,
     onWatermarkArmedChange: (Boolean) -> Unit,
     onWatermarkDragActiveChange: (Boolean) -> Unit,
     onDragStartLeftPxChange: (Float) -> Unit,
@@ -51,9 +53,6 @@ internal fun Modifier.cameraPreviewGestureModifier(
     onDragTableWidthPxChange: (Float) -> Unit,
     onDragTableHeightPxChange: (Float) -> Unit,
     onDragPreviewOffsetPxChange: (Offset?) -> Unit,
-    onDragAccumDxChange: (Float) -> Unit,
-    onDragAccumDyChange: (Float) -> Unit,
-    onDragStartedAfterSlopChange: (Boolean) -> Unit,
     onSuppressWatermarkTapUntilMsChange: (Long) -> Unit,
     onPreviewBoundsOffsetX10000Change: (Int) -> Unit,
     onPreviewBoundsOffsetY10000Change: (Int) -> Unit,
@@ -63,28 +62,25 @@ internal fun Modifier.cameraPreviewGestureModifier(
     onWatermarkBoundsOffset10000Preview: (Int, Int) -> Unit,
     onWatermarkOffsetRatioPreview: (Int, Int) -> Unit,
     onMaxZoomTenthsChange: (Int) -> Unit,
+    onPinchZoomActiveChange: (Boolean) -> Unit,
     onRequestedZoomTenthsCommit: (Int) -> Unit,
     onActualZoomTenthsChange: (Int) -> Unit,
+    onCornerResizeScale: (Float, Boolean) -> Unit,
+    activeHandleCornerState: State<ResizeHandleCorner?>,
+    onActiveHandleCornerChange: (ResizeHandleCorner?) -> Unit,
 ): Modifier = this
-    .pointerInput(boundCamera, captureRect, tapFocusUi) {
+    .pointerInput(boundCamera, captureRect, tapFocusUi, focusMode, isWatermarkArmed) {
         detectTapGestures { offset ->
             if (SystemClock.uptimeMillis() < suppressWatermarkTapUntilMs) return@detectTapGestures
-            if (watermarkBoundsRect?.contains(offset.x, offset.y) == true) {
-                if (isWatermarkArmed) {
-                    onCommitWatermarkOffsetIfNeeded()
-                    onOpenTableEditor()
-                    onWatermarkArmedChange(false)
-                } else {
-                    onWatermarkArmedChange(true)
-                    onMarkWatermarkInteraction()
-                }
+            if (watermarkBoundsRectState.value?.contains(offset.x, offset.y) == true) {
+                onWatermarkArmedChange(true)
                 return@detectTapGestures
             }
             if (isWatermarkArmed) {
                 onCommitWatermarkOffsetIfNeeded()
                 onWatermarkArmedChange(false)
-                return@detectTapGestures
             }
+            if (focusMode == CameraFocusMode.MANUAL) return@detectTapGestures
             val activeCamera = boundCamera ?: return@detectTapGestures
             if (!captureRect.contains(offset.x, offset.y)) return@detectTapGestures
 
@@ -115,13 +111,22 @@ internal fun Modifier.cameraPreviewGestureModifier(
             )
         }
     }
-    .pointerInput(boundCamera, captureRect, isWatermarkArmed) {
+    .pointerInput(boundCamera, captureRect, isWatermarkArmed, isTableLocked) {
         val pinchScaleDeadZone = 0.01f
         awaitEachGesture {
             val activeCamera = boundCamera ?: return@awaitEachGesture
+            var pinchActiveNotified = false
             val firstDown = awaitFirstDown(requireUnconsumed = false)
-            var localDragEnabled = isWatermarkArmed && watermarkBoundsRect != null && watermarkRawRect != null &&
-                watermarkBoundsRect.contains(firstDown.position.x, firstDown.position.y)
+            // Read the live overlay geometry when this gesture starts. A slider drag can
+            // resize the visible table without restarting this pointerInput coroutine.
+            val corner = watermarkBoundsRectState.value
+            val selectedCorner = corner?.let { activeHandleCornerState.value ?: chooseResizeHandleCorner(it, captureRect) }
+            val handleCenter = if (corner != null && selectedCorner != null) handleCornerPoint(corner, selectedCorner) else null
+            val cornerHit = !isTableLocked && isWatermarkArmed && handleCenter != null &&
+                hypot((firstDown.position.x - handleCenter.x).toDouble(), (firstDown.position.y - handleCenter.y).toDouble()) < dragTouchSlop * 3f
+            val localDragEnabled = !isTableLocked && !cornerHit && isWatermarkArmed &&
+                corner != null && watermarkRawRectState.value != null &&
+                corner.contains(firstDown.position.x, firstDown.position.y)
             var localDragStartLeftPx = dragStartLeftPx
             var localDragStartTopPx = dragStartTopPx
             var localDragTableWidthPx = dragTableWidthPx
@@ -132,25 +137,27 @@ internal fun Modifier.cameraPreviewGestureModifier(
             var localDragStartedAfterSlop = false
 
             onWatermarkDragActiveChange(false)
+            if (cornerHit) {
+                onActiveHandleCornerChange(selectedCorner)
+                onCornerResizeScale(1f, false)
+            }
+            val resizeAnchor = if (corner != null && selectedCorner != null) oppositeHandleCornerPoint(corner, selectedCorner) else null
+            val resizeStartDistance = if (cornerHit && resizeAnchor != null) hypot(
+                (firstDown.position.x - resizeAnchor.x).toDouble(),
+                (firstDown.position.y - resizeAnchor.y).toDouble(),
+            ).toFloat().coerceAtLeast(1f) else 1f
             if (localDragEnabled) {
-                val br = watermarkBoundsRect!!
+                val br = corner!!
                 localDragStartLeftPx = br.left - captureRect.left
                 localDragStartTopPx = br.top - captureRect.top
                 localDragTableWidthPx = br.width()
                 localDragTableHeightPx = br.height()
-                localDragAccumDx = 0f
-                localDragAccumDy = 0f
-                localDragStartedAfterSlop = false
                 localDragPreviewOffsetPx = Offset(localDragStartLeftPx, localDragStartTopPx)
                 onDragStartLeftPxChange(localDragStartLeftPx)
                 onDragStartTopPxChange(localDragStartTopPx)
                 onDragTableWidthPxChange(localDragTableWidthPx)
                 onDragTableHeightPxChange(localDragTableHeightPx)
-                onDragAccumDxChange(localDragAccumDx)
-                onDragAccumDyChange(localDragAccumDy)
-                onDragStartedAfterSlopChange(false)
                 onDragPreviewOffsetPxChange(localDragPreviewOffsetPx)
-                onMarkWatermarkInteraction()
             }
 
             while (true) {
@@ -167,6 +174,10 @@ internal fun Modifier.cameraPreviewGestureModifier(
                     }
                     val zoom = event.calculateZoom()
                     if (abs(zoom - 1f) >= pinchScaleDeadZone) {
+                        if (!pinchActiveNotified) {
+                            pinchActiveNotified = true
+                            onPinchZoomActiveChange(true)
+                        }
                         val centroid = event.calculateCentroid(useCurrent = true)
                         if (shouldHandlePreviewPinch(
                                 centroidX = centroid.x,
@@ -196,19 +207,26 @@ internal fun Modifier.cameraPreviewGestureModifier(
                     continue
                 }
 
+                if (cornerHit && resizeAnchor != null) {
+                    val active = event.changes.firstOrNull { it.pressed } ?: continue
+                    val resizeDistance = hypot(
+                        (active.position.x - resizeAnchor.x).toDouble(),
+                        (active.position.y - resizeAnchor.y).toDouble(),
+                    ).toFloat()
+                    onCornerResizeScale((resizeDistance / resizeStartDistance).coerceIn(0.1f, 10f), false)
+                    active.consume()
+                    continue
+                }
                 if (!localDragEnabled) continue
                 val change = event.changes.firstOrNull { it.pressed } ?: continue
 
                 val delta = change.positionChange()
                 localDragAccumDx += delta.x
                 localDragAccumDy += delta.y
-                onDragAccumDxChange(localDragAccumDx)
-                onDragAccumDyChange(localDragAccumDy)
                 if (!localDragStartedAfterSlop) {
                     val moved = hypot(localDragAccumDx.toDouble(), localDragAccumDy.toDouble()).toFloat()
                     if (moved < dragTouchSlop) continue
                     localDragStartedAfterSlop = true
-                    onDragStartedAfterSlopChange(true)
                     onWatermarkDragActiveChange(true)
                 }
                 if (change.positionChanged()) change.consume()
@@ -225,9 +243,12 @@ internal fun Modifier.cameraPreviewGestureModifier(
 
                 localDragPreviewOffsetPx = nextOffsetPx
                 onDragPreviewOffsetPxChange(nextOffsetPx)
-                onMarkWatermarkInteraction()
             }
 
+            if (cornerHit) {
+                onCornerResizeScale(1f, true)
+                onActiveHandleCornerChange(null)
+            }
             if (localDragEnabled && localDragStartedAfterSlop) {
                 onSuppressWatermarkTapUntilMsChange(SystemClock.uptimeMillis() + 180L)
                 onWatermarkArmedChange(true)
@@ -257,16 +278,13 @@ internal fun Modifier.cameraPreviewGestureModifier(
                 onPendingLocalOffsetSyncChange(true)
                 onWatermarkBoundsOffset10000Preview(committedX10000, committedY10000)
                 onWatermarkOffsetRatioPreview(committedXRatio, committedYRatio)
-                onMarkWatermarkInteraction()
                 onCommitWatermarkOffsetIfNeeded()
             }
             onWatermarkDragActiveChange(false)
             onDragPreviewOffsetPxChange(null)
             onDragTableWidthPxChange(0f)
             onDragTableHeightPxChange(0f)
-            onDragAccumDxChange(0f)
-            onDragAccumDyChange(0f)
-            onDragStartedAfterSlopChange(false)
+            if (pinchActiveNotified) onPinchZoomActiveChange(false)
         }
     }
 
@@ -293,7 +311,7 @@ private fun shouldHandlePreviewPinch(
     centroidY: Float,
     captureRect: RectF
 ): Boolean {
-    if (captureRect.width() <= 0f || captureRect.height() <= 0f) return false
-    if (!captureRect.contains(centroidX, centroidY)) return false
-    return true
+    return captureRect.width() > 0f &&
+        captureRect.height() > 0f &&
+        captureRect.contains(centroidX, centroidY)
 }

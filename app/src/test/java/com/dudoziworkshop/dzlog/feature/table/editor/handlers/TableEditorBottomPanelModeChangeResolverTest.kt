@@ -16,6 +16,7 @@ class TableEditorBottomPanelModeChangeResolverTest {
                 nextMode = BottomEditorPanelMode.NONE,
                 inlineCommitWasBlocked = true,
                 wasStructureMode = false,
+                currentSelectedCellId = "cell-1",
             )
         )
 
@@ -23,6 +24,7 @@ class TableEditorBottomPanelModeChangeResolverTest {
         assertEquals(BottomEditorPanelMode.CELL_EDIT, changed.nextBottomPanelMode)
         assertFalse(changed.shouldClearFileNameTransientState)
         assertFalse(changed.shouldClearPathTransientState)
+        assertEquals(null, changed.nextSelectedCellId)
     }
 
     @Test
@@ -33,6 +35,7 @@ class TableEditorBottomPanelModeChangeResolverTest {
                 nextMode = BottomEditorPanelMode.NONE,
                 inlineCommitWasBlocked = false,
                 wasStructureMode = true,
+                currentSelectedCellId = "cell-42",
             )
         )
 
@@ -41,6 +44,7 @@ class TableEditorBottomPanelModeChangeResolverTest {
         assertTrue(changed.shouldClearPathTransientState)
         assertEquals(emptySet<String>(), changed.nextStructureSelectedCellIds)
         assertTrue(changed.nextStructureSelectionRangeCleared)
+        assertEquals("cell-42", changed.nextSelectedCellId)
         assertEquals(BottomEditorPanelMode.NONE, changed.nextBottomPanelMode)
     }
 }

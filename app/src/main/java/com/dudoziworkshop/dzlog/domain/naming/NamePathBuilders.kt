@@ -1,13 +1,14 @@
 package com.dudoziworkshop.dzlog.domain.naming
 
 import com.dudoziworkshop.dzlog.domain.counter.resolveRotatingCounterStreamIdentity
+import com.dudoziworkshop.dzlog.domain.counter.CounterScanPrefixes
+import com.dudoziworkshop.dzlog.domain.model.RotatingCounterProgressMode
+import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
-import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_COUNT
-import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
-import com.dudoziworkshop.dzlog.domain.model.TableCellState
-import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
+import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
+import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import java.text.SimpleDateFormat
@@ -33,31 +34,14 @@ fun sanitizeFilePart(input: String): String {
 private fun sanitizeGroupPathSegment(input: String): String =
     sanitizeFilePart(input).replace('/', '_').replace('\\', '_').trim()
 
-@JvmName("resolveGroupValueFromStates")
-fun resolveGroupValue(cells: List<TableCellState>, level: GroupLevel): String {
-    return cells
-        .asSequence()
-        .filter { it.groupLevel == level }
-        .sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
-        .map { sanitizeGroupPathSegment(it.rawText) }
-        .firstOrNull { it.isNotBlank() }
-        .orEmpty()
-}
-
 fun resolveGroupValue(resolvedCells: List<ResolvedCell>, level: GroupLevel): String {
     return resolvedCells
         .asSequence()
         .filter { (it.raw?.groupLevel ?: GroupLevel.NONE) == level }
-        .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
+        .sortedWith(compareBy({ it.raw?.rowIndex ?: 0 }, { it.raw?.colIndex ?: 0 }))
         .map { sanitizeGroupPathSegment(it.resolvedText) }
         .firstOrNull { it.isNotBlank() }
         .orEmpty()
-}
-
-fun buildGalleryRelativePath(cells: List<TableCellState>): String {
-    val g1 = resolveGroupValue(cells, GroupLevel.G1)
-    val g2 = resolveGroupValue(cells, GroupLevel.G2)
-    return buildGalleryRelativePath(g1, g2)
 }
 
 fun buildGalleryRelativePath(group1: String, group2: String): String {
@@ -75,15 +59,14 @@ private fun formatNow(pattern: String, now: Date): String {
         .getOrElse { "" }
 }
 
-private fun resolveRotatingTextToken(resolvedCells: List<ResolvedCell>): String {
-    return resolvedCells
-        .asSequence()
-        .filter { it.type == TableCellDataType.ROTATING_TEXT }
-        .sortedWith(compareBy<ResolvedCell> { it.raw?.rowIndex ?: 0 }.thenBy { it.raw?.colIndex ?: 0 })
-        .map { it.resolvedText.trim() }
-        .firstOrNull { it.isNotBlank() }
-        .orEmpty()
+internal fun resolveRotatingFileNameCell(resolvedCells: List<ResolvedCell>): ResolvedCell? {
+    val rotating = resolvedCells.filter { it.type == TableCellDataType.ROTATING_TEXT }
+        .sortedWith(compareBy({ it.raw?.rowIndex ?: 0 }, { it.raw?.colIndex ?: 0 }))
+    return rotating.firstOrNull { it.resolvedText.isNotBlank() } ?: rotating.firstOrNull()
 }
+
+private fun resolveRotatingTextToken(resolvedCells: List<ResolvedCell>): String =
+    resolveRotatingFileNameCell(resolvedCells)?.resolvedText?.trim().orEmpty()
 
 private fun normalizeSlotDrafts(
     drafts: List<TableEditorSlotDraft?>,
@@ -111,8 +94,10 @@ private fun resolveFileNameSlotToken(
         }
         "MANUAL" -> draft.manualText.orEmpty()
         "FORMAT" -> when (draft.formatType?.uppercase(Locale.ROOT)) {
-            "DATE" -> formatNow(dateFormat, now)
-            "TIME" -> normalizeTimeWithoutSeconds(formatNow(timeFormat, now))
+            "DATE" -> formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: dateFormat, now)
+            "TIME" -> normalizeTimeWithoutSeconds(
+                formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: timeFormat, now)
+            )
             "ROTATING_TEXT" -> resolveRotatingTextToken(resolvedCells)
             // 정책: COUNTER는 파일명 suffix 자동 정책만 사용. slot token으로 추가하지 않는다.
             "COUNTER" -> ""
@@ -138,8 +123,10 @@ private fun resolvePathSlotToken(
         }
         "MANUAL" -> draft.manualText.orEmpty()
         "FORMAT" -> when (draft.formatType?.uppercase(Locale.ROOT)) {
-            "DATE" -> formatNow(dateFormat, now)
-            "TIME" -> normalizeTimeWithoutSeconds(formatNow(timeFormat, now))
+            "DATE" -> formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: dateFormat, now)
+            "TIME" -> normalizeTimeWithoutSeconds(
+                formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: timeFormat, now)
+            )
             "ROTATING_TEXT" -> resolveRotatingTextToken(resolvedCells)
             else -> ""
         }
@@ -155,21 +142,11 @@ private fun normalizeTimeWithoutSeconds(text: String): String {
     if (t.isBlank()) return ""
 
     // 주요 정책: naming 경로의 시간 토큰은 항상 HHmm(분 단위)로 정규화한다.
-    val colonMatch = Regex("""^(\d{1,2}):(\d{2})""").find(t)
-    if (colonMatch != null) {
-        val hour = colonMatch.groupValues[1].toIntOrNull()?.coerceIn(0, 23) ?: return ""
-        val minute = colonMatch.groupValues[2].toIntOrNull()?.coerceIn(0, 59) ?: return ""
-        return "%02d%02d".format(hour, minute)
-    }
-
-    val digitMatch = Regex("""^(\d{2})(\d{2})""").find(t)
-    if (digitMatch != null) {
-        val hour = digitMatch.groupValues[1].toIntOrNull()?.coerceIn(0, 23) ?: return ""
-        val minute = digitMatch.groupValues[2].toIntOrNull()?.coerceIn(0, 59) ?: return ""
-        return "%02d%02d".format(hour, minute)
-    }
-
-    return ""
+    // 과거/중간 버전에서 저장된 ':', '-', '.' 구분 형식도 HHmm로 복구한다.
+    val match = Regex("""^(\d{1,2})[:.\-]?(\d{2})""").find(t) ?: return ""
+    val hour = match.groupValues[1].toIntOrNull()?.takeIf { it in 0..23 } ?: return ""
+    val minute = match.groupValues[2].toIntOrNull()?.takeIf { it in 0..59 } ?: return ""
+    return "%02d%02d".format(hour, minute)
 }
 
 fun resolveFileNameScopeTokensFromDrafts(
@@ -193,6 +170,7 @@ fun resolveFileNameScopeTokensFromDrafts(
                         sanitizeFilePart(
                             resolveRotatingCounterStreamIdentity(
                                 activePhraseText = rc.resolvedText,
+                                phraseSet = rc.rotatingPhraseSet,
                             )
                         )
                     }
@@ -201,13 +179,20 @@ fun resolveFileNameScopeTokensFromDrafts(
             }
             "MANUAL" -> sanitizeFilePart(draft.manualText.orEmpty())
             "FORMAT" -> when (draft.formatType?.uppercase(Locale.ROOT)) {
-                "DATE" -> sanitizeFilePart(formatNow(dateFormat, now))
-                "TIME" -> sanitizeFilePart(normalizeTimeWithoutSeconds(formatNow(timeFormat, now)))
+                "DATE" -> sanitizeFilePart(
+                    formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: dateFormat, now)
+                )
+                "TIME" -> sanitizeFilePart(
+                    normalizeTimeWithoutSeconds(
+                        formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: timeFormat, now)
+                    )
+                )
                 "ROTATING_TEXT" -> {
-                    val rotating = resolvedCells.firstOrNull { it.type == TableCellDataType.ROTATING_TEXT }
+                    val rotating = resolveRotatingFileNameCell(resolvedCells)
                     sanitizeFilePart(
                         resolveRotatingCounterStreamIdentity(
                             activePhraseText = rotating?.resolvedText,
+                            phraseSet = rotating?.rotatingPhraseSet,
                         )
                     )
                 }
@@ -262,7 +247,24 @@ fun buildCounterScanPrefix(
     dateFormat: String,
     timeFormat: String,
 ): String {
-    // 회전문구를 포함한 파일명 prefix 규칙과 counter scan prefix 규칙을 동일하게 유지한다.
+    val resolvedById = resolvedCells.associateBy { it.id }
+    var hasContinuousSlot = false
+    val choices = normalizeSlotDrafts(fileNameSlotDrafts, FILE_NAME_SLOT_COUNT).map { draft ->
+        val rotating = when {
+            draft?.kind.equals("CELL", ignoreCase = true) -> draft?.cellId?.let { resolvedById[it] }
+            draft?.kind.equals("FORMAT", ignoreCase = true) &&
+                draft?.formatType.equals("ROTATING_TEXT", ignoreCase = true) -> resolveRotatingFileNameCell(resolvedCells)
+            else -> null
+        }?.takeIf { it.type == TableCellDataType.ROTATING_TEXT }
+        if (rotating?.rotatingPhraseSet?.counterProgressMode == RotatingCounterProgressMode.CONTINUOUS) {
+            hasContinuousSlot = true
+            // Only this set's known phrases vary. Fixed/date/time/other phrase slots remain exact.
+            (rotating.rotatingPhraseSet.items + rotating.resolvedText).map(::sanitizeFilePart).distinct()
+        } else {
+            listOf(resolveFileNameSlotToken(draft, resolvedById, resolvedCells, now, dateFormat, timeFormat))
+        }
+    }
+    if (hasContinuousSlot) return CounterScanPrefixes.encode(choices)
     return buildFileNamePrefix(
         resolvedCells = resolvedCells,
         fileNameSlotDrafts = fileNameSlotDrafts,
@@ -334,7 +336,7 @@ fun buildSavePath(
     timeFormat: String,
 ): String {
     val resolvedById = resolvedCells.associateBy { it.id }
-    val segments = normalizeSlotDrafts(pathSlotDrafts, PATH_SLOT_COUNT)
+    val segments = normalizeSlotDrafts(pathSlotDrafts, PATH_SLOT_UI_MAX_COUNT)
         .map { resolvePathSlotToken(it, resolvedById, resolvedCells, now, dateFormat, timeFormat) }
         .filter { it.isNotBlank() }
 
@@ -358,6 +360,22 @@ fun buildCounterPath(baseRelativePath: String, saveMode: SaveMode): String {
         SaveMode.ORIGINAL_ONLY -> if (normalizedBase.endsWith("original/")) normalizedBase else "${normalizedBase}original/"
         SaveMode.WATERMARK_ONLY,
         SaveMode.BOTH -> normalizedBase
+    }
+}
+
+
+/**
+ * 카메라 안내 화면의 실제 저장 폴더 목록.
+ * 촬영 저장 정책과 동일하게 합성 사진은 기본 경로, 원본은 original/ 경로에 둔다.
+ * 저장 방식 텍스트를 중복 표시하지 않되, BOTH 모드의 두 경로를 누락하지 않는다.
+ */
+fun capturePhysicalSavePaths(baseRelativePath: String, saveMode: SaveMode): List<String> {
+    val base = buildCounterPath(baseRelativePath, SaveMode.WATERMARK_ONLY)
+    val original = buildCounterPath(base, SaveMode.ORIGINAL_ONLY)
+    return when (saveMode) {
+        SaveMode.ORIGINAL_ONLY -> listOf(original)
+        SaveMode.WATERMARK_ONLY -> listOf(base)
+        SaveMode.BOTH -> listOf(base, original)
     }
 }
 
@@ -397,3 +415,4 @@ fun buildGalleryRelativePathFromSlotDrafts(
     dateFormat = dateFormat,
     timeFormat = timeFormat,
 )
+

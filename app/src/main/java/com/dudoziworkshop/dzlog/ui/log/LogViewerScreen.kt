@@ -25,11 +25,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
@@ -55,8 +54,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -76,13 +75,13 @@ import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Date
 import java.util.Locale
-import kotlinx.coroutines.launch
 
 @Composable
 fun LogViewerScreen(
@@ -130,7 +129,7 @@ fun LogViewerScreen(
     val pagerState = rememberPagerState(initialPage = safeStart, pageCount = { items.size })
 
     var uiVisible by remember { mutableStateOf(false) }
-    var showInfoSheet by remember { mutableStateOf(false) }
+    var infoSheetItem by remember { mutableStateOf<MediaImageItem?>(null) }
     var isCurrentImageZoomed by remember { mutableStateOf(false) }
 
     LaunchedEffect(safeStart) {
@@ -141,10 +140,9 @@ fun LogViewerScreen(
 
     LaunchedEffect(items.size) {
         if (items.isEmpty()) return@LaunchedEffect
-        val max = (items.size - 1).coerceAtLeast(0)
-        val clamped = pagerState.currentPage.coerceIn(0, max)
-        if (clamped != pagerState.currentPage) {
-            pagerState.scrollToPage(clamped)
+        val targetPage = pagerState.currentPage.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+        if (targetPage != pagerState.currentPage) {
+            pagerState.scrollToPage(targetPage)
         }
     }
 
@@ -259,7 +257,7 @@ fun LogViewerScreen(
                         },
                         isFavorite = currentItem?.id?.let(favoriteIds::contains) == true,
                         onInfo = {
-                            if (currentItem != null) showInfoSheet = true
+                            if (currentItem != null) infoSheetItem = currentItem
                         },
                         onDelete = {
                             val item = currentItem ?: return@ViewerBottomPill
@@ -284,13 +282,14 @@ fun LogViewerScreen(
         }
     }
 
-    if (showInfoSheet && currentItem != null) {
+    val sheetItem = infoSheetItem
+    if (sheetItem != null) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
-            onDismissRequest = { showInfoSheet = false },
+            onDismissRequest = { infoSheetItem = null },
             sheetState = sheetState,
         ) {
-            InfoSheetContent(item = currentItem)
+            InfoSheetContent(item = sheetItem)
         }
     }
 }
@@ -387,7 +386,7 @@ private fun ThumbnailFilmstrip(
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val thumbSize = 60.dp
-        val sidePadding = ((maxWidth - thumbSize) / 2).coerceAtLeast(0.dp)
+        val sidePadding = ((this@BoxWithConstraints.maxWidth - thumbSize) / 2).coerceAtLeast(0.dp)
 
         LazyRow(
             state = listState,

@@ -31,7 +31,7 @@ suspend fun loadTableStyleState(context: Context): TableStyleState {
             WatermarkManualTextColor.WHITE,
             WatermarkManualTextColor.BLACK,
         ),
-        textAlign = (prefs[KEY_WM_TEXT_ALIGN] ?: WatermarkTextAlign.LEFT).coerceIn(
+        textAlign = (prefs[KEY_WM_TEXT_ALIGN] ?: WatermarkTextAlign.CENTER).coerceIn(
             WatermarkTextAlign.LEFT,
             WatermarkTextAlign.RIGHT,
         ),
@@ -42,48 +42,6 @@ suspend fun loadTableStyleState(context: Context): TableStyleState {
         },
     )
 }
-
-suspend fun applyBgStyleChange(context: Context, bgStyle: Int, current: TableStyleState): TableStyleState {
-    val normalized = bgStyle.coerceIn(0, 2)
-    context.dataStore.edit { it[KEY_WM_TABLE_BG_STYLE] = normalized }
-    return current.copy(bgStyle = normalized)
-}
-
-suspend fun applyBgAlphaChange(context: Context, alpha: Int, current: TableStyleState): TableStyleState {
-    val normalized = alpha.coerceIn(0, 255)
-    context.dataStore.edit { it[KEY_WM_BG_ALPHA] = normalized }
-    return current.copy(bgAlpha = normalized)
-}
-
-suspend fun applyValueScaleChange(context: Context, scale: Int, current: TableStyleState): TableStyleState {
-    val normalized = scale.coerceIn(60, 160)
-    context.dataStore.edit { it[KEY_WM_VALUE_SCALE] = normalized }
-    return current.copy(valueScale = normalized)
-}
-
-suspend fun applyTextColorModeChange(context: Context, mode: Int, current: TableStyleState): TableStyleState {
-    val normalized = mode.coerceIn(WatermarkTextColorMode.AUTO, WatermarkTextColorMode.MANUAL)
-    context.dataStore.edit { it[KEY_WM_TEXT_COLOR_MODE] = normalized }
-    return current.copy(textColorMode = normalized)
-}
-
-suspend fun applyManualTextColorChange(context: Context, color: Int, current: TableStyleState): TableStyleState {
-    val normalized = color.coerceIn(WatermarkManualTextColor.WHITE, WatermarkManualTextColor.BLACK)
-    context.dataStore.edit { it[KEY_WM_TEXT_COLOR_MANUAL] = normalized }
-    return current.copy(manualTextColor = normalized)
-}
-
-suspend fun applyTextAlignChange(context: Context, align: Int, current: TableStyleState): TableStyleState {
-    val normalized = align.coerceIn(WatermarkTextAlign.LEFT, WatermarkTextAlign.RIGHT)
-    context.dataStore.edit { it[KEY_WM_TEXT_ALIGN] = normalized }
-    return current.copy(textAlign = normalized)
-}
-
-suspend fun applyGridEnabledChange(context: Context, enabled: Boolean, current: TableStyleState): TableStyleState {
-    context.dataStore.edit { it[KEY_TABLE_DETAIL_GRID_ENABLED] = enabled }
-    return current.copy(gridEnabled = enabled)
-}
-
 
 suspend fun persistTableStyleState(context: Context, style: TableStyleState) {
     context.dataStore.edit {

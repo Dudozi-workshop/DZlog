@@ -5,18 +5,6 @@ import com.dudoziworkshop.dzlog.ui.table.editor.isEditing
 import com.dudoziworkshop.dzlog.ui.table.editor.shouldBlockTabSwitchAfterCommit
 import com.dudoziworkshop.dzlog.ui.table.section.BottomEditorPanelMode
 
-internal fun handleTableEditorBackNavigation(
-    hasUnsavedChanges: Boolean,
-    onShowUnsavedDialog: () -> Unit,
-    onNavigateBack: () -> Unit,
-) {
-    if (hasUnsavedChanges) {
-        onShowUnsavedDialog()
-    } else {
-        onNavigateBack()
-    }
-}
-
 internal fun requestCloseBottomPanel(
     inlineEdit: InlineEditState,
     onCommitInlineEdit: () -> Unit,

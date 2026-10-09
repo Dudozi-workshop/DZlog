@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.domain.table
 
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -28,6 +29,7 @@ class TableResolver {
         config: Config,
         counterSeedOverride: Int? = null,
         selectedPhraseTextByCellId: Map<String, String> = emptyMap(),
+        phraseSets: List<RotatingPhraseSet> = emptyList(),
     ): ResolvePlan {
         // 안정적 순서: row/col 기준
         val ordered =
@@ -55,7 +57,11 @@ class TableResolver {
                 captureNow = captureNow,
                 config = config,
                 selectedPhraseTextByCellId = selectedPhraseTextByCellId,
-            )
+            ).let { resolved ->
+                if (cell.dataType == TableCellDataType.ROTATING_TEXT) {
+                    resolved.copy(rotatingPhraseSet = phraseSets.firstOrNull { it.id == cell.phraseSetId })
+                } else resolved
+            }
         }
 
         val patch = if (counterCell != null) {

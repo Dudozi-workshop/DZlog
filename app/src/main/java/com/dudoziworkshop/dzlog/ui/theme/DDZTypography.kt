@@ -7,16 +7,29 @@ import androidx.compose.ui.unit.sp
 object DDZTypography {
     val ScreenTitle = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
     val HomeMainTitle = TextStyle(fontSize = 23.sp, fontWeight = FontWeight.SemiBold, lineHeight = 28.sp)
-    val SectionTitle = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium)
-    val CardTitle = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Medium)
-    val HomeSectionLabel = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium)
+
+    val SectionTitle = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+    val SettingLabel = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium)
     val Body = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Normal)
+    val Secondary = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Normal)
     val Caption = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal)
+
     val ButtonText = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     val SegmentSmall = TextStyle(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium)
 
-    // Compact camera-overlay typography (촬영설정 패널 공용)
-    val OverlayTitleCompact = Body.copy(fontSize = 11.sp, lineHeight = 13.sp, fontWeight = FontWeight.Medium)
-    val SectionLabelCompact = Caption.copy(fontSize = 9.sp, lineHeight = 11.sp)
-    val SegmentCompact = SegmentSmall.copy(fontSize = 9.sp, lineHeight = 11.sp)
+    // Compatibility aliases while existing screens migrate to the v1 hierarchy.
+    val CardTitle = SectionTitle
+    val HomeSectionLabel = SettingLabel
+
+    // Compact camera-overlay typography. Overlay is an explicit dark-surface exception.
+    val OverlayTitleCompact = Body.copy(
+        fontSize = 14.sp,
+        lineHeight = 17.sp,
+        fontWeight = FontWeight.SemiBold,
+    )
+    val SectionLabelCompact = Caption.copy(
+        fontSize = 12.sp,
+        lineHeight = 15.sp,
+        fontWeight = FontWeight.Medium,
+    )
 }

@@ -10,7 +10,7 @@ class CounterScopeResolverTest {
 
     @Test
     fun `rotating text in filename slot includes rp identity token`() {
-        val rotating = rotatingCell(id = "r1")
+        val rotating = rotatingCell()
         val result = CounterScopeResolver.resolve(
             CounterScopeResolver.Inputs(
                 cells = listOf(rotating),
@@ -24,7 +24,7 @@ class CounterScopeResolverTest {
 
     @Test
     fun `different resolved text produces different rp token`() {
-        val rotating = rotatingCell(id = "r1")
+        val rotating = rotatingCell()
         val result = CounterScopeResolver.resolve(
             CounterScopeResolver.Inputs(
                 cells = listOf(rotating),
@@ -38,7 +38,7 @@ class CounterScopeResolverTest {
 
     @Test
     fun `rotating text outside filename slots excludes phrase scope`() {
-        val rotating = rotatingCell(id = "r1")
+        val rotating = rotatingCell()
         val result = CounterScopeResolver.resolve(
             CounterScopeResolver.Inputs(
                 cells = listOf(rotating),
@@ -52,7 +52,7 @@ class CounterScopeResolverTest {
 
     @Test
     fun `blank resolved text uses blank identity token`() {
-        val rotating = rotatingCell(id = "r1")
+        val rotating = rotatingCell()
         val result = CounterScopeResolver.resolve(
             CounterScopeResolver.Inputs(
                 cells = listOf(rotating),
@@ -64,11 +64,11 @@ class CounterScopeResolverTest {
         assertEquals(listOf("rp___blank__"), result.phraseScopeValues)
     }
 
-    private fun rotatingCell(id: String): TableCellState =
+    private fun rotatingCell(): TableCellState =
         TableCellState(
             rowIndex = 0,
             colIndex = 0,
-            cellId = id,
+            cellId = "r1",
             dataType = TableCellDataType.ROTATING_TEXT,
         )
 

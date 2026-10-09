@@ -18,8 +18,6 @@ class NamePathBuildersCounterPaddingTest {
             id = "cell-1",
             type = TableCellDataType.TEXT,
             text = "SITE",
-            row = 0,
-            col = 0,
         )
 
         val name = buildDisplayNameFromSlotDrafts(
@@ -46,8 +44,6 @@ class NamePathBuildersCounterPaddingTest {
             id = "cell-1",
             type = TableCellDataType.TEXT,
             text = "SITE",
-            row = 0,
-            col = 0,
         )
 
         val name = buildDisplayNameFromSlotDrafts(
@@ -90,8 +86,6 @@ class NamePathBuildersCounterPaddingTest {
             id = "rot-1",
             type = TableCellDataType.ROTATING_TEXT,
             text = "PHRASE",
-            row = 0,
-            col = 0,
         )
 
         val name = buildDisplayNameFromSlotDrafts(
@@ -129,16 +123,32 @@ class NamePathBuildersCounterPaddingTest {
         assertEquals("Pictures/DZlog/line/0000/", path)
     }
 
+
+    @Test
+    fun `path drafts support three ordered segments`() {
+        val path = buildGalleryRelativePathFromSlotDrafts(
+            resolvedCells = emptyList(),
+            pathSlotDrafts = listOf(
+                TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "Draper"),
+                TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "TreatmentA"),
+                TableEditorSlotDraft(kind = "FORMAT", label = "날짜", formatType = "DATE"),
+            ),
+            now = Date(0),
+            dateFormat = "yyyyMMdd",
+            timeFormat = "HHmm",
+        )
+
+        assertEquals("Pictures/DZlog/Draper/TreatmentA/19700101/", path)
+    }
+
     private fun resolvedCell(
         id: String,
         type: TableCellDataType,
         text: String,
-        row: Int,
-        col: Int,
     ): ResolvedCell {
         val raw = TableCellState(
-            rowIndex = row,
-            colIndex = col,
+            rowIndex = 0,
+            colIndex = 0,
             rawText = text,
             dataType = type,
             groupLevel = GroupLevel.NONE,

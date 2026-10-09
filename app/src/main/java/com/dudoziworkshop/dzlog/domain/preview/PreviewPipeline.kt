@@ -122,6 +122,7 @@ internal fun buildPreview(
             ),
             counterSeedOverride = input.scopeNextCounter.coerceAtLeast(1),
             selectedPhraseTextByCellId = scopeState.selectedPhraseTextByCellId,
+            phraseSets = input.templateState.phraseSets,
         )
     } else {
         scopeState.plan
@@ -137,7 +138,6 @@ internal fun buildPreview(
             counterDigits = input.counterDigits,
             dateFormat = input.dateFormat,
             timeFormat = input.timeFormat,
-            includePathInCounterScope = input.includePathInCounterScope,
             includeFilenameInCounterScope = input.includeFilenameInCounterScope,
             dateScopeValues = scopeState.scopeValues.dateScopeValues,
             timeScopeValues = scopeState.scopeValues.timeScopeValues,
@@ -177,6 +177,7 @@ internal fun buildScope(
         ),
         counterSeedOverride = null,
         selectedPhraseTextByCellId = selectedPhraseTextByCellId,
+        phraseSets = input.templateState.phraseSets,
     )
 
     val fileNameCellSlots = deriveFileNameCellSlotsFromDrafts(input.templateState.fileNameSlotDrafts)
@@ -199,7 +200,6 @@ internal fun buildScope(
             dateFormat = input.dateFormat,
             timeFormat = input.timeFormat,
             includeFilenameInCounterScope = input.includeFilenameInCounterScope,
-            includePathInCounterScope = true,
             dateScopeValues = scopeValues.dateScopeValues,
             timeScopeValues = scopeValues.timeScopeValues,
             phraseScopeValues = scopeValues.phraseScopeValues,
@@ -237,6 +237,7 @@ internal fun buildCapturePreview(
         ),
         counterSeedOverride = input.syncedCounter.coerceAtLeast(1),
         selectedPhraseTextByCellId = scopeState.selectedPhraseTextByCellId,
+        phraseSets = input.templateState.phraseSets,
     )
 
     val previewNaming = CaptureNamingPolicy.buildForCaptureWithCounter(
@@ -249,7 +250,6 @@ internal fun buildCapturePreview(
             counterDigits = input.counterDigits,
             dateFormat = input.dateFormat,
             timeFormat = input.timeFormat,
-            includePathInCounterScope = input.includePathInCounterScope,
             includeFilenameInCounterScope = input.includeFilenameInCounterScope,
             dateScopeValues = scopeState.scopeValues.dateScopeValues,
             timeScopeValues = scopeState.scopeValues.timeScopeValues,
@@ -270,3 +270,4 @@ internal fun buildCapturePreview(
         relativePathPreview = previewNaming.relativePath,
     )
 }
+

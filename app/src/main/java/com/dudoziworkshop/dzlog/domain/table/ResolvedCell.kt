@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.domain.table
 
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 
 /**
  * Fixed Contract: "해석이 끝난 결과 객체".
@@ -15,4 +16,6 @@ data class ResolvedCell(
     val resolvedText: String,
     val isEmpty: Boolean,
     val scopeToken: String? = null,
+    val rotatingPhraseSet: RotatingPhraseSet? = null,
 )
+

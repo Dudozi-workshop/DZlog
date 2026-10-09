@@ -6,12 +6,13 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import androidx.core.graphics.withClip
 import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
-import kotlin.math.abs
+import com.dudoziworkshop.dzlog.feature.table.render.computeRenderGridGeometry
 
 private const val BG_STYLE_BLACK = 0
 private const val BG_STYLE_WHITE = 1
@@ -33,14 +34,13 @@ fun computeWatermarkTableLayout(
     tableHeightRatio: Int,
     tableWidthRatio: Int
 ): WatermarkTableLayout {
-    val w = bounds.width()
-    val h = bounds.height()
-    val base = w
-    val tableW = base * (tableWidthRatio.coerceIn(10, 100) / 100f)
-    val tableH = base * (tableHeightRatio.coerceIn(10, 100) / 100f)
+    val boundsWidth = bounds.width()
+    val boundsHeight = bounds.height()
+    val tableW = boundsWidth * (tableWidthRatio.coerceIn(10, 100) / 100f)
+    val tableH = boundsWidth * (tableHeightRatio.coerceIn(10, 100) / 100f)
 
-    val maxX = (w - tableW).coerceAtLeast(0f)
-    val maxY = (h - tableH).coerceAtLeast(0f)
+    val maxX = (boundsWidth - tableW).coerceAtLeast(0f)
+    val maxY = (boundsHeight - tableH).coerceAtLeast(0f)
 
     val left = bounds.left + when (anchor) {
         WatermarkTableAnchor.TOP_LEFT,
@@ -68,17 +68,16 @@ fun computeWatermarkTableRect(
     offsetYRatio: Int,
     tableHeightRatio: Int,
     tableWidthRatio: Int
-): RectF {
-    val layout = computeWatermarkTableLayout(
+): RectF = RectF(
+    computeWatermarkTableLayout(
         bounds = bounds,
         anchor = anchor,
         offsetXRatio = offsetXRatio,
         offsetYRatio = offsetYRatio,
         tableHeightRatio = tableHeightRatio,
         tableWidthRatio = tableWidthRatio
-    )
-    return RectF(layout.rect)
-}
+    ).rect
+)
 
 fun computeWatermarkTableLayoutPx(
     bounds: RectF,
@@ -88,14 +87,13 @@ fun computeWatermarkTableLayoutPx(
     tableHeightRatio: Int,
     tableWidthRatio: Int
 ): WatermarkTableLayout {
-    val w = bounds.width()
-    val h = bounds.height()
-    val base = w
-    val tableW = base * (tableWidthRatio.coerceIn(10, 100) / 100f)
-    val tableH = base * (tableHeightRatio.coerceIn(10, 100) / 100f)
+    val boundsWidth = bounds.width()
+    val boundsHeight = bounds.height()
+    val tableW = boundsWidth * (tableWidthRatio.coerceIn(10, 100) / 100f)
+    val tableH = boundsWidth * (tableHeightRatio.coerceIn(10, 100) / 100f)
 
-    val maxX = (w - tableW).coerceAtLeast(0f)
-    val maxY = (h - tableH).coerceAtLeast(0f)
+    val maxX = (boundsWidth - tableW).coerceAtLeast(0f)
+    val maxY = (boundsHeight - tableH).coerceAtLeast(0f)
 
     val left = bounds.left + when (anchor) {
         WatermarkTableAnchor.TOP_LEFT,
@@ -207,10 +205,8 @@ fun computeWatermarkBoundsRect(rawRect: RectF, rotationCwDeg: Int): RectF {
 
     val cx = rawRect.centerX()
     val cy = rawRect.centerY()
-    val w = rawRect.width()
-    val h = rawRect.height()
-    val newW = h
-    val newH = w
+    val newW = rawRect.height()
+    val newH = rawRect.width()
     return RectF(cx - newW / 2f, cy - newH / 2f, cx + newW / 2f, cy + newH / 2f)
 }
 
@@ -261,28 +257,6 @@ private fun drawGridLines(
         val y = top + yOffset
         canvas.drawLine(left, y, left + tableW, y, paint)
     }
-}
-
-private fun resolveWeightsOrOnes(weights: List<Float>?, n: Int): List<Float> {
-    if (n <= 0) return emptyList()
-    if (weights == null || weights.size != n) return List(n) { 1f }
-    return weights.map { it.coerceAtLeast(0f) }
-}
-
-private fun computeSizes(total: Float, weights: List<Float>): List<Float> {
-    val n = weights.size.coerceAtLeast(1)
-    val sum = weights.sum()
-    if (abs(sum) < 1e-6f) {
-        val each = total / n
-        val sizes = MutableList(n) { each }
-        val diff = total - sizes.sum()
-        sizes[n - 1] = sizes[n - 1] + diff
-        return sizes
-    }
-    val sizes = MutableList(n) { idx -> total * (weights[idx] / sum) }
-    val diff = total - sizes.sum()
-    sizes[n - 1] = sizes[n - 1] + diff
-    return sizes
 }
 
 
@@ -339,11 +313,7 @@ private fun drawCellValueText(
     isPlaceholder: Boolean = false,
     placeholderTextColorArgb: Int? = null,
 ) {
-    paint.textSize = applyCellSafeTextCap(
-        scaledTextSize = commonScaledTextSize,
-        actualCellWidth = cellRect.width(),
-        actualCellHeight = cellRect.height(),
-    )
+    paint.textSize = commonScaledTextSize
 
     val originalColor = paint.color
     if (isPlaceholder) {
@@ -352,8 +322,7 @@ private fun drawCellValueText(
 
     val fm = paint.fontMetrics
     val centerY = cellRect.top + cellRect.height() / 2f - (fm.ascent + fm.descent) / 2
-    val availableWidth = (cellRect.width() - (cellTextPadding * 2f)).coerceAtLeast(0f)
-    val drawText = ellipsizeToWidth(cellText, paint, availableWidth)
+    val drawText = cellText
     val drawX = resolveTextDrawX(
         cellLeft = cellRect.left,
         cellWidth = cellRect.width(),
@@ -363,10 +332,9 @@ private fun drawCellValueText(
         textAlign = textAlign,
     )
 
-    canvas.save()
-    canvas.clipRect(cellRect)
-    canvas.drawText(drawText, drawX, centerY, paint)
-    canvas.restore()
+    canvas.withClip(cellRect) {
+        drawText(drawText, drawX, centerY, paint)
+    }
     paint.color = originalColor
 }
 
@@ -402,34 +370,11 @@ private fun resolveTextDrawX(
     }
 }
 
-
-private fun ellipsizeToWidth(text: String, paint: Paint, maxWidthPx: Float): String {
-    if (text.isEmpty()) return text
-    if (maxWidthPx <= 0f) return ""
-    if (paint.measureText(text) <= maxWidthPx) return text
-
-    val ellipsis = "…"
-    val ellipsisWidth = paint.measureText(ellipsis)
-    if (ellipsisWidth > maxWidthPx) return ellipsis
-
-    var end = text.length
-    while (end > 0) {
-        val candidate = text.substring(0, end) + ellipsis
-        if (paint.measureText(candidate) <= maxWidthPx) return candidate
-        end--
+private fun sizesFromEdges(edges: List<Float>): List<Float> {
+    if (edges.size < 2) return emptyList()
+    return (0 until edges.lastIndex).map { index ->
+        edges[index + 1] - edges[index]
     }
-    return ellipsis
-}
-
-private fun computeOffsets(sizes: List<Float>): List<Float> {
-    val offsets = ArrayList<Float>(sizes.size + 1)
-    var acc = 0f
-    offsets.add(0f)
-    for (s in sizes) {
-        acc += s
-        offsets.add(acc)
-    }
-    return offsets
 }
 
 fun drawWatermarkTableFromResolvedCells(
@@ -460,9 +405,7 @@ fun drawWatermarkTableFromResolvedCells(
     val out = src.copy(Bitmap.Config.ARGB_8888, true)
     val canvas = Canvas(out)
 
-    val w = out.width.toFloat()
-    val h = out.height.toFloat()
-    val imageBounds = RectF(0f, 0f, w, h)
+    val imageBounds = RectF(0f, 0f, out.width.toFloat(), out.height.toFloat())
     val layout = computeWatermarkTableLayout(
         bounds = imageBounds,
         anchor = anchor,
@@ -508,10 +451,18 @@ fun drawWatermarkTableFromResolvedCells(
     val safeRows = rows.coerceAtLeast(1)
     val safeCols = cols.coerceAtLeast(1)
 
-    val rowHeights = computeSizes(tableH, resolveWeightsOrOnes(rowWeights, safeRows))
-    val colWidths = computeSizes(tableW, resolveWeightsOrOnes(colWeights, safeCols))
-    val rowOffsets = computeOffsets(rowHeights)
-    val colOffsets = computeOffsets(colWidths)
+    val grid = computeRenderGridGeometry(
+        rows = safeRows,
+        cols = safeCols,
+        rowWeights = rowWeights,
+        colWeights = colWeights,
+        tableWidthPx = tableW,
+        tableHeightPx = tableH,
+    )
+    val rowOffsets = grid.rowEdges
+    val colOffsets = grid.colEdges
+    val rowHeights = sizesFromEdges(rowOffsets)
+    val colWidths = sizesFromEdges(colOffsets)
 
     if (drawGrid) {
         drawGridLines(canvas, left, top, tableW, tableH, rowOffsets, colOffsets, bgStyle)
@@ -633,10 +584,18 @@ fun drawWatermarkTableOnCanvas(
     val safeRows = rows.coerceAtLeast(1)
     val safeCols = cols.coerceAtLeast(1)
 
-    val rowHeights = computeSizes(tableH, resolveWeightsOrOnes(rowWeights, safeRows))
-    val colWidths = computeSizes(tableW, resolveWeightsOrOnes(colWeights, safeCols))
-    val rowOffsets = computeOffsets(rowHeights)
-    val colOffsets = computeOffsets(colWidths)
+    val grid = computeRenderGridGeometry(
+        rows = safeRows,
+        cols = safeCols,
+        rowWeights = rowWeights,
+        colWeights = colWeights,
+        tableWidthPx = tableW,
+        tableHeightPx = tableH,
+    )
+    val rowOffsets = grid.rowEdges
+    val colOffsets = grid.colEdges
+    val rowHeights = sizesFromEdges(rowOffsets)
+    val colWidths = sizesFromEdges(colOffsets)
 
     if (drawGrid) {
         drawGridLines(canvas, left, top, tableW, tableH, rowOffsets, colOffsets, bgStyle)
@@ -686,5 +645,86 @@ fun drawWatermarkTableOnCanvas(
         }
     }
 
+    if (shouldRotate) canvas.restore()
+}
+
+fun drawWatermarkTableOnCanvasWithResolvedGeometry(
+    canvas: Canvas,
+    tableRect: RectF,
+    rowEdges: List<Float>,
+    colEdges: List<Float>,
+    cells: List<WatermarkCell>,
+    rows: Int,
+    cols: Int,
+    bgAlpha: Int,
+    valueScale: Int,
+    textColorMode: Int = WatermarkTextColorMode.AUTO,
+    manualTextColor: Int = WatermarkManualTextColor.BLACK,
+    textAlign: Int = WatermarkTextAlign.LEFT,
+    bgStyle: Int = BG_STYLE_BLACK,
+    drawGrid: Boolean = true,
+    rotationCwDeg: Int = 0,
+    placeholderCellIndexes: Set<Int> = emptySet(),
+    placeholderTextColorArgb: Int? = null,
+) {
+    val safeRows = rows.coerceAtLeast(1)
+    val safeCols = cols.coerceAtLeast(1)
+    if (rowEdges.size < safeRows + 1 || colEdges.size < safeCols + 1) return
+
+    val tableW = tableRect.width()
+    val tableH = tableRect.height()
+    val left = tableRect.left
+    val top = tableRect.top
+
+    val shouldRotate = (rotationCwDeg % 360 + 360) % 360 == 90
+    if (shouldRotate) {
+        canvas.save()
+        canvas.rotate(90f, left + tableW / 2f, top + tableH / 2f)
+    }
+
+    drawBackgroundRect(canvas, left, top, tableW, tableH, bgAlpha, bgStyle)
+
+    if (drawGrid) {
+        drawGridLines(canvas, left, top, tableW, tableH, rowEdges, colEdges, bgStyle)
+    }
+
+    val rowHeights = sizesFromEdges(rowEdges)
+    val colWidths = sizesFromEdges(colEdges)
+    val commonScaledTextSize = applyValueScaleFactor(
+        baseTextSize = computeBaseTextSizeFromRenderedTable(
+            tableWidth = tableW,
+            tableHeight = tableH,
+            rows = safeRows,
+            cols = safeCols,
+        ),
+        valueScale = valueScale,
+    )
+    val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = resolveValueTextColor(bgStyle, textColorMode, manualTextColor)
+        typeface = Typeface.DEFAULT_BOLD
+        textSize = commonScaledTextSize
+    }
+    val cellTextPadding = resolveCellTextPadding(tableH)
+
+    for (r in 0 until safeRows) {
+        for (c in 0 until safeCols) {
+            val idx = r * safeCols + c
+            if (idx !in cells.indices) continue
+            val x = left + colEdges[c]
+            val y = top + rowEdges[r]
+            val cellRect = RectF(x, y, x + colWidths[c], y + rowHeights[r])
+            drawCellValueText(
+                canvas = canvas,
+                paint = valuePaint,
+                cellRect = cellRect,
+                cellText = cells[idx].valueText,
+                textAlign = textAlign,
+                commonScaledTextSize = commonScaledTextSize,
+                cellTextPadding = cellTextPadding,
+                isPlaceholder = idx in placeholderCellIndexes,
+                placeholderTextColorArgb = placeholderTextColorArgb,
+            )
+        }
+    }
     if (shouldRotate) canvas.restore()
 }

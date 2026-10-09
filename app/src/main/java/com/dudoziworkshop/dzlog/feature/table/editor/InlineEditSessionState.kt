@@ -5,4 +5,4 @@ data class InlineEditSessionState(
     val hasPushedUndoSnapshot: Boolean = false,
 )
 
-fun InlineEditSessionState.clearInlineSession(): InlineEditSessionState = InlineEditSessionState()
+fun clearInlineSession(): InlineEditSessionState = InlineEditSessionState()

@@ -1,8 +1,8 @@
 package com.dudoziworkshop.dzlog.ui.table.section
 
 import android.graphics.RectF
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -14,19 +14,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
@@ -38,20 +34,27 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.model.derivePathSlotIndexByCellId
-import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
-import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadgesOverlay
-import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.feature.table.editor.TableStructureRangeActions
+import com.dudoziworkshop.dzlog.feature.table.render.RenderRootRect
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
-import com.dudoziworkshop.dzlog.feature.table.render.computeDesignPreviewFitShape
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
-import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.dudoziworkshop.dzlog.feature.table.render.buildContentDrivenRenderedSceneFromPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.buildDesignPreviewPlacement
+import com.dudoziworkshop.dzlog.feature.table.render.computeDesignPreviewFitShape
+import com.dudoziworkshop.dzlog.ui.table.CellHeaderBadgesOverlay
+import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
 private val STRUCTURE_PREVIEW_WORKING_INSET_DP = 10.dp
-private val STRUCTURE_HANDLE_GAP_DP = 4.dp
+private const val DEBUG_ROOT_HIT_RECTS = false
+
+private data class CellRenderEntry(
+    val cell: TableCellState,
+    val displayText: String,
+    val isPlaceholder: Boolean,
+)
 
 /**
  * Layout 탭 전용 실제 표 편집 뷰.
@@ -69,7 +72,6 @@ fun RealTableGridSection(
     selectedCellId: String?,
     editingCellId: String?,
     wmWidthRatio: Int,
-    wmHeightRatio: Int,
     wmBgStyle: Int,
     wmBgAlpha: Int,
     wmValueScale: Int,
@@ -81,30 +83,23 @@ fun RealTableGridSection(
     structureSelectedCellIds: Set<String>,
     onSelectCell: (String) -> Unit,
     onDoubleClickCell: (TableCellState) -> Unit,
-    onStartRowWeightsDrag: () -> Unit,
-    onStartColumnWeightsDrag: () -> Unit,
-    onFinishRowWeightsDrag: () -> Unit,
-    onFinishColumnWeightsDrag: () -> Unit,
-    onCommitRowWeightsDragEnd: (List<Float>) -> Unit,
-    onCommitColumnWeightsDragEnd: (List<Float>) -> Unit,
     onSelectRange: (String, String) -> Unit,
+    onCommitRowWeights: (List<Float>) -> Unit,
+    onCommitColumnWeights: (List<Float>) -> Unit,
 ) {
     val orderedCells = remember(templateState.cells) {
-        templateState.cells.sortedWith(compareBy<TableCellState>({ it.rowIndex }, { it.colIndex }))
+        templateState.cells.sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
     }
-    data class CellRenderEntry(
-        val cell: TableCellState,
-        val displayText: String,
-        val isPlaceholder: Boolean,
-    )
     val cellRenderEntries = remember(orderedCells, displayTextProvider) {
         orderedCells.map { cell ->
             val rawValue = displayTextProvider(cell.cellId)
             val isPlaceholder = rawValue.isBlank()
-            val displayText = if (isPlaceholder) dataTypeLabelKo(cell.dataType) else rawValue
+            val displayText = if (isPlaceholder) "빈 셀" else rawValue
             CellRenderEntry(cell = cell, displayText = displayText, isPlaceholder = isPlaceholder)
         }
     }
+    val rootCells = remember(templateState.cells) { TableStructureRangeActions.rootCells(templateState.cells) }
+    val rootCellById = remember(rootCells) { rootCells.associateBy { it.cellId } }
     val placeholderCellIndexes = remember(cellRenderEntries) {
         buildSet {
             cellRenderEntries.forEachIndexed { index, entry ->
@@ -137,89 +132,91 @@ fun RealTableGridSection(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val density = LocalDensity.current
-        val areaWidthPx = with(density) { maxWidth.toPx() }
-        val areaHeightPx = with(density) { maxHeight.toPx() }
+        val areaWidthPx = with(density) { this@BoxWithConstraints.maxWidth.toPx() }
+        val areaHeightPx = with(density) { this@BoxWithConstraints.maxHeight.toPx() }
         val workingInsetPx = with(density) { STRUCTURE_PREVIEW_WORKING_INSET_DP.toPx() }
         val workingLeftPx = workingInsetPx.coerceAtMost(areaWidthPx / 2f)
         val workingTopPx = workingInsetPx.coerceAtMost(areaHeightPx / 2f)
         val workingWidthPx = (areaWidthPx - (workingLeftPx * 2f)).coerceAtLeast(0f)
         val workingHeightPx = (areaHeightPx - (workingTopPx * 2f)).coerceAtLeast(0f)
-        val safeWidthRatio = wmWidthRatio.coerceIn(10, 100)
-        val safeHeightRatio = wmHeightRatio.coerceIn(10, 100)
-
         val rows = templateState.rows.coerceAtLeast(1)
         val cols = templateState.cols.coerceAtLeast(1)
-        val designPreviewShape = computeDesignPreviewFitShape(
-            boundsWidth = workingWidthPx,
-            boundsHeight = workingHeightPx,
-            tableWidthRatio = safeWidthRatio,
-            tableHeightRatio = safeHeightRatio,
-            rows = rows,
-            cols = cols,
-        )
-
         var previewRowWeights by remember(templateState.rowWeights, rows) {
-            mutableStateOf(resolveWeightsOrOnes(templateState.rowWeights, rows))
+            mutableStateOf(TableLayoutCalculator.resolveWeights(templateState.rowWeights, rows))
         }
         var previewColWeights by remember(templateState.colWeights, cols) {
-            mutableStateOf(resolveWeightsOrOnes(templateState.colWeights, cols))
+            mutableStateOf(TableLayoutCalculator.resolveWeights(templateState.colWeights, cols))
         }
         var activeRowBoundary by remember { mutableStateOf<Int?>(null) }
         var activeColBoundary by remember { mutableStateOf<Int?>(null) }
-        LaunchedEffect(templateState.rowWeights, rows) {
-            previewRowWeights = resolveWeightsOrOnes(templateState.rowWeights, rows)
+        val renderBounds = remember(workingLeftPx, workingTopPx, workingWidthPx, workingHeightPx) {
+            RectF(
+                workingLeftPx,
+                workingTopPx,
+                workingLeftPx + workingWidthPx,
+                workingTopPx + workingHeightPx,
+            )
         }
-        LaunchedEffect(templateState.colWeights, cols) {
-            previewColWeights = resolveWeightsOrOnes(templateState.colWeights, cols)
+        val previewRatio = remember(renderBounds, rows, cols, wmWidthRatio) {
+            computeDesignPreviewFitShape(
+                boundsWidth = renderBounds.width(),
+                boundsHeight = renderBounds.height(),
+                tableWidthRatio = wmWidthRatio,
+                tableHeightRatio = wmWidthRatio,
+                rows = rows,
+                cols = cols,
+            )
         }
-
-        // Design Preview 공통 fit/scale helper 기준으로 렌더 박스 계산.
-        // (상세 + 홈 동일 축: 외곽 비율 + rows*cols 스케일, 단일 rect SSOT)
-        val tableWidthPx = if (workingWidthPx <= 0f || workingHeightPx <= 0f) {
-            0f
-        } else {
-            workingWidthPx * designPreviewShape.tableWidthRatio / 100f
+        val placement = remember(previewRatio) {
+            buildDesignPreviewPlacement(
+                tableWidthRatio = previewRatio.tableWidthRatio,
+                tableHeightRatio = previewRatio.tableHeightRatio,
+            )
         }
-        val tableHeightPx = if (workingWidthPx <= 0f || workingHeightPx <= 0f) {
-            0f
-        } else {
-            // 렌더 코어(width-base)와 동일하게 높이를 width 기준으로 파생한다.
-            tableWidthPx * designPreviewShape.tableHeightRatio / designPreviewShape.tableWidthRatio.toFloat()
+        val rendered = remember(
+            renderBounds,
+            placement,
+            resolvedCells,
+            rows,
+            cols,
+            wmValueScale,
+            previewRatio.tableWidthRatio,
+            templateState.cells,
+            previewRowWeights,
+            previewColWeights,
+        ) {
+            buildContentDrivenRenderedSceneFromPlacement(
+                bounds = renderBounds,
+                placement = placement,
+                cells = resolvedCells,
+                templateCells = templateState.cells,
+                rows = rows,
+                cols = cols,
+                valueScale = wmValueScale,
+                baseScaleRatio = previewRatio.tableWidthRatio,
+                rowWeights = previewRowWeights,
+                colWeights = previewColWeights,
+                // 편집 화면은 실제 촬영 배치 크기와 분리한다.
+                // 표 내부 비율은 그대로 둔 채 작업영역에 uniform scale로 최대 fit한다.
+                allowUpscaleToFit = true,
+            )
         }
-        val tableLeftPx = (workingLeftPx + (workingWidthPx - tableWidthPx) / 2f).coerceAtLeast(0f)
-        val tableTopPx = (workingTopPx + (workingHeightPx - tableHeightPx) / 2f).coerceAtLeast(0f)
-        val rowSizes = remember(previewRowWeights, rows, tableHeightPx) {
-            computeSizes(total = tableHeightPx, weights = resolveWeightsOrOnes(previewRowWeights, rows))
-        }
-        val colSizes = remember(previewColWeights, cols, tableWidthPx) {
-            computeSizes(total = tableWidthPx, weights = resolveWeightsOrOnes(previewColWeights, cols))
-        }
-        val rowOffsets = remember(rowSizes) { cumulativeOffsets(rowSizes) }
-        val colOffsets = remember(colSizes) { cumulativeOffsets(colSizes) }
+        val renderedScene = rendered.scene
+        val rootHitRects = renderedScene.rootRects
 
         // 실제 프리뷰와 동일한 표 렌더 코어를 Layout 편집영역에도 재사용.
-        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
-            if (tableWidthPx <= 0f || tableHeightPx <= 0f) return@Canvas
-
-            // drawWatermarkTableOnCanvas는 bounds.width를 base로 table 크기를 계산한다.
-            // 따라서 width 기준 base만 역산하고, 목표 높이는 실제 fit 높이(tableHeightPx)를 직접 사용한다.
-            val baseWidth = tableWidthPx * 100f / designPreviewShape.tableWidthRatio.coerceAtLeast(1)
-            val bounds = RectF(
-                tableLeftPx,
-                tableTopPx,
-                tableLeftPx + baseWidth,
-                tableTopPx + tableHeightPx
-            )
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            if (renderBounds.width() <= 0f || renderBounds.height() <= 0f) return@Canvas
 
             drawIntoCanvas { canvas ->
-                TableRenderAdapter.draw(
+                TableRenderAdapter.drawScene(
                     canvas = canvas.nativeCanvas,
-                    bounds = bounds,
+                    scene = renderedScene,
                     payload = TableRenderPayload(
                         rows = rows,
                         cols = cols,
-                        rowWeights = previewRowWeights,
-                        colWeights = previewColWeights,
+                        rowWeights = rendered.resolvedLayout.finalRowWeights,
+                        colWeights = rendered.resolvedLayout.finalColWeights,
                         cells = resolvedCells,
                         placeholderCellIndexes = placeholderCellIndexes,
                     ),
@@ -233,68 +230,29 @@ fun RealTableGridSection(
                         drawGrid = wmGridEnabled,
                         placeholderTextColorArgb = placeholderTextColorArgb,
                     ),
-                    placement = TableRenderPlacement(
-                        anchor = WatermarkTableAnchor.TOP_LEFT,
-                        offsetXRatio = 0,
-                        offsetYRatio = 0,
-                        tableHeightRatio = designPreviewShape.tableHeightRatio,
-                        tableWidthRatio = designPreviewShape.tableWidthRatio,
-                    ),
                 )
             }
 
             if (isStructureMode) {
                 activeRowBoundary?.let { boundary ->
-                    if (boundary in 1 until rows) {
-                        val topRowIndex = boundary - 1
-                        val bottomRowIndex = boundary
-                        val topY = tableTopPx + rowOffsets[topRowIndex]
-                        val topH = rowSizes[topRowIndex]
-                        val bottomY = tableTopPx + rowOffsets[bottomRowIndex]
-                        val bottomH = rowSizes[bottomRowIndex]
-                        drawRect(
-                            color = DDZColor.Primary.copy(alpha = 0.10f),
-                            topLeft = Offset(tableLeftPx, topY),
-                            size = androidx.compose.ui.geometry.Size(tableWidthPx, topH)
-                        )
-                        drawRect(
-                            color = DDZColor.Primary.copy(alpha = 0.10f),
-                            topLeft = Offset(tableLeftPx, bottomY),
-                            size = androidx.compose.ui.geometry.Size(tableWidthPx, bottomH)
-                        )
-                        val lineY = tableTopPx + rowOffsets[boundary]
+                    renderedScene.geometry.grid.rowEdges.getOrNull(boundary)?.let { edge ->
+                        val y = renderedScene.tableRect.top + edge
                         drawLine(
                             color = DDZColor.Primary,
-                            start = Offset(tableLeftPx, lineY),
-                            end = Offset(tableLeftPx + tableWidthPx, lineY),
-                            strokeWidth = 4f
+                            start = Offset(renderedScene.tableRect.left, y),
+                            end = Offset(renderedScene.tableRect.right, y),
+                            strokeWidth = 4f,
                         )
                     }
                 }
                 activeColBoundary?.let { boundary ->
-                    if (boundary in 1 until cols) {
-                        val leftColIndex = boundary - 1
-                        val rightColIndex = boundary
-                        val leftX = tableLeftPx + colOffsets[leftColIndex]
-                        val leftW = colSizes[leftColIndex]
-                        val rightX = tableLeftPx + colOffsets[rightColIndex]
-                        val rightW = colSizes[rightColIndex]
-                        drawRect(
-                            color = DDZColor.Primary.copy(alpha = 0.10f),
-                            topLeft = Offset(leftX, tableTopPx),
-                            size = androidx.compose.ui.geometry.Size(leftW, tableHeightPx)
-                        )
-                        drawRect(
-                            color = DDZColor.Primary.copy(alpha = 0.10f),
-                            topLeft = Offset(rightX, tableTopPx),
-                            size = androidx.compose.ui.geometry.Size(rightW, tableHeightPx)
-                        )
-                        val lineX = tableLeftPx + colOffsets[boundary]
+                    renderedScene.geometry.grid.colEdges.getOrNull(boundary)?.let { edge ->
+                        val x = renderedScene.tableRect.left + edge
                         drawLine(
                             color = DDZColor.Primary,
-                            start = Offset(lineX, tableTopPx),
-                            end = Offset(lineX, tableTopPx + tableHeightPx),
-                            strokeWidth = 4f
+                            start = Offset(x, renderedScene.tableRect.top),
+                            end = Offset(x, renderedScene.tableRect.bottom),
+                            strokeWidth = 4f,
                         )
                     }
                 }
@@ -302,204 +260,76 @@ fun RealTableGridSection(
 
             // 편집 화면 선택 강조:
             // - 테이블 테마(밝음/어두움)에 맞춰 fill/border 색을 분기해 가독성을 유지한다.
-            val effectiveSelectionIds = if (isStructureMode && structureSelectedCellIds.isNotEmpty()) {
-                structureSelectedCellIds
-            } else {
-                selectedCellId?.let { setOf(it) } ?: emptySet()
-            }
-            effectiveSelectionIds.forEach { selectedId ->
-                val selected = templateState.cells.firstOrNull { it.cellId == selectedId } ?: return@forEach
-                val l = tableLeftPx + colOffsets[selected.colIndex]
-                val t = tableTopPx + rowOffsets[selected.rowIndex]
-                val w = colSizes[selected.colIndex]
-                val h = rowSizes[selected.rowIndex]
-                drawRect(
-                    color = if (isStructureMode) selectedFillColor.copy(alpha = 0.14f) else selectedFillColor,
-                    topLeft = Offset(l, t),
-                    size = androidx.compose.ui.geometry.Size(w, h)
-                )
-                val selectionStrokeWidth = if (selected.cellId == editingCellId) 4f else 3f
-                drawRect(
-                    color = selectedBorderColor,
-                    topLeft = Offset(l, t),
-                    size = androidx.compose.ui.geometry.Size(w, h),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = selectionStrokeWidth)
-                )
-            }
-        }
+                val effectiveSelectionIds = if (isStructureMode && structureSelectedCellIds.isNotEmpty()) {
+                    structureSelectedCellIds
+                } else {
+                    selectedCellId?.let { setOf(it) } ?: emptySet()
+                }
+                val selectedRects = effectiveSelectionIds.mapNotNull { selectedId ->
+                    rootHitRects.firstOrNull { it.cellId == selectedId }
+                }
 
-
-        if (isStructureMode) {
-            // 구조 모드: 표 바깥 핸들(삼각형) + 넓은 hit target으로 비율 조절 문맥을 분리한다.
-            val handleGapPx = with(density) { STRUCTURE_HANDLE_GAP_DP.toPx() }
-            val handleHitPx = with(density) { 26.dp.toPx() }
-            val rowTriangleSize = 12.dp
-            val colTriangleSize = 12.dp
-            val minSegmentPx = with(density) { 24.dp.toPx() }
-
-            for (boundary in 1 until rows) {
-                val yPx = tableTopPx + rowOffsets[boundary]
-                val rowHandleActive = activeRowBoundary == boundary
-                val rowTriangleDp = if (rowHandleActive) 15.dp else rowTriangleSize
-                Box(
-                    modifier = Modifier
-                        .offset(
-                            x = with(density) { (tableLeftPx + tableWidthPx + handleGapPx).toDp() },
-                            y = with(density) { (yPx - handleHitPx / 2f).toDp() }
+                selectedRects.forEach { rect ->
+                    val l = renderedScene.tableRect.left + rect.left
+                    val t = renderedScene.tableRect.top + rect.top
+                    val spanW = rect.right - rect.left
+                    val spanH = rect.bottom - rect.top
+                    drawRect(
+                        color = if (isStructureMode) selectedFillColor.copy(alpha = 0.14f) else selectedFillColor,
+                        topLeft = Offset(l, t),
+                        size = androidx.compose.ui.geometry.Size(spanW, spanH)
+                    )
+                    if (!isStructureMode) {
+                        val selectionStrokeWidth = if (rect.cellId == editingCellId) 4f else 3f
+                        drawRect(
+                            color = selectedBorderColor,
+                            topLeft = Offset(l, t),
+                            size = androidx.compose.ui.geometry.Size(spanW, spanH),
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = selectionStrokeWidth)
                         )
-                        .size(with(density) { (if (rowHandleActive) handleHitPx + 6.dp.toPx() else handleHitPx).toDp() })
-                        .background(
-                            if (rowHandleActive) DDZColor.Primary.copy(alpha = 0.18f) else Color.Transparent,
-                            RoundedCornerShape(999.dp)
-                        )
-                        .pointerInput(boundary, rows) {
-                            var startWeights: List<Float> = emptyList()
-                            var startSizes: List<Float> = emptyList()
-                            var accumulatedDelta = 0f
-                            detectDragGestures(
-                                onDragStart = {
-                                    onStartRowWeightsDrag()
-                                    activeRowBoundary = boundary
-                                    startWeights = previewRowWeights
-                                    startSizes = computeSizes(
-                                        total = tableHeightPx,
-                                        weights = resolveWeightsOrOnes(startWeights, rows),
-                                    )
-                                    accumulatedDelta = 0f
-                                },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    accumulatedDelta += dragAmount.y
-                                    previewRowWeights = applyBoundaryDragPreviewFromStart(
-                                        startWeights = startWeights,
-                                        boundaryIndex = boundary,
-                                        accumulatedDeltaPx = accumulatedDelta,
-                                        startSegmentSizesPx = startSizes,
-                                        minSegmentPx = minSegmentPx,
-                                    )
-                                },
-                                onDragCancel = {
-                                    if (startWeights.isNotEmpty()) previewRowWeights = startWeights
-                                    activeRowBoundary = null
-                                    onFinishRowWeightsDrag()
-                                },
-                                onDragEnd = {
-                                    if (startWeights.isNotEmpty()) {
-                                        if (weightsAlmostEqual(startWeights, previewRowWeights)) {
-                                            previewRowWeights = startWeights
-                                        } else {
-                                            onCommitRowWeightsDragEnd(previewRowWeights)
-                                        }
-                                    }
-                                    activeRowBoundary = null
-                                    onFinishRowWeightsDrag()
-                                }
-                            )
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Canvas(
-                        modifier = Modifier
-                            .width(rowTriangleDp)
-                            .height(rowTriangleDp)
-                    ) {
-                        val path = Path().apply {
-                            moveTo(0f, size.height / 2f)
-                            lineTo(size.width, 0f)
-                            lineTo(size.width, size.height)
-                            close()
-                        }
-                        drawPath(path = path, color = if (rowHandleActive) DDZColor.Primary else DDZColor.Primary.copy(alpha = 0.86f))
                     }
                 }
-            }
 
-            for (boundary in 1 until cols) {
-                val xPx = tableLeftPx + colOffsets[boundary]
-                val colHandleActive = activeColBoundary == boundary
-                val colTriangleDp = if (colHandleActive) 15.dp else colTriangleSize
-                Box(
-                    modifier = Modifier
-                        .offset(
-                            x = with(density) { (xPx - handleHitPx / 2f).toDp() },
-                            y = with(density) { (tableTopPx + tableHeightPx + handleGapPx).toDp() }
-                        )
-                        .size(with(density) { (if (colHandleActive) handleHitPx + 6.dp.toPx() else handleHitPx).toDp() })
-                        .background(
-                            if (colHandleActive) DDZColor.Primary.copy(alpha = 0.18f) else Color.Transparent,
-                            RoundedCornerShape(999.dp)
-                        )
-                        .pointerInput(boundary, cols) {
-                            var startWeights: List<Float> = emptyList()
-                            var startSizes: List<Float> = emptyList()
-                            var accumulatedDelta = 0f
-                            detectDragGestures(
-                                onDragStart = {
-                                    onStartColumnWeightsDrag()
-                                    activeColBoundary = boundary
-                                    startWeights = previewColWeights
-                                    startSizes = computeSizes(
-                                        total = tableWidthPx,
-                                        weights = resolveWeightsOrOnes(startWeights, cols),
-                                    )
-                                    accumulatedDelta = 0f
-                                },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    accumulatedDelta += dragAmount.x
-                                    previewColWeights = applyBoundaryDragPreviewFromStart(
-                                        startWeights = startWeights,
-                                        boundaryIndex = boundary,
-                                        accumulatedDeltaPx = accumulatedDelta,
-                                        startSegmentSizesPx = startSizes,
-                                        minSegmentPx = minSegmentPx,
-                                    )
-                                },
-                                onDragCancel = {
-                                    if (startWeights.isNotEmpty()) previewColWeights = startWeights
-                                    activeColBoundary = null
-                                    onFinishColumnWeightsDrag()
-                                },
-                                onDragEnd = {
-                                    if (startWeights.isNotEmpty()) {
-                                        if (weightsAlmostEqual(startWeights, previewColWeights)) {
-                                            previewColWeights = startWeights
-                                        } else {
-                                            onCommitColumnWeightsDragEnd(previewColWeights)
-                                        }
-                                    }
-                                    activeColBoundary = null
-                                    onFinishColumnWeightsDrag()
-                                }
-                            )
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Canvas(
-                        modifier = Modifier
-                            .width(colTriangleDp)
-                            .height(colTriangleDp)
-                    ) {
-                        val path = Path().apply {
-                            moveTo(size.width / 2f, 0f)
-                            lineTo(0f, size.height)
-                            lineTo(size.width, size.height)
-                            close()
-                        }
-                        drawPath(path = path, color = if (colHandleActive) DDZColor.Primary else DDZColor.Primary.copy(alpha = 0.86f))
-                    }
+                if (isStructureMode && selectedRects.isNotEmpty()) {
+                    val left = selectedRects.minOf { it.left }
+                    val top = selectedRects.minOf { it.top }
+                    val right = selectedRects.maxOf { it.right }
+                    val bottom = selectedRects.maxOf { it.bottom }
+                    drawRect(
+                        color = selectedBorderColor,
+                        topLeft = Offset(
+                            renderedScene.tableRect.left + left,
+                            renderedScene.tableRect.top + top,
+                        ),
+                        size = androidx.compose.ui.geometry.Size(
+                            right - left,
+                            bottom - top,
+                        ),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f),
+                    )
+                }
+
+                if (isStructureMode && DEBUG_ROOT_HIT_RECTS) {
+                    rootHitRects.forEach { rect ->
+                        drawRect(
+                            color = Color.Red.copy(alpha = 0.75f),
+                            topLeft = Offset(renderedScene.tableRect.left + rect.left, renderedScene.tableRect.top + rect.top),
+                        size = androidx.compose.ui.geometry.Size(
+                            rect.right - rect.left,
+                            rect.bottom - rect.top,
+                        ),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
+                    )
                 }
             }
         }
 
-        templateState.cells.forEach { cell ->
-            if (cell.rowIndex !in 0 until rows || cell.colIndex !in 0 until cols) return@forEach
-
-            val cellX = tableLeftPx + colOffsets[cell.colIndex]
-            val cellY = tableTopPx + rowOffsets[cell.rowIndex]
-            val cellW = colSizes[cell.colIndex]
-            val cellH = rowSizes[cell.rowIndex]
-            val isEditingCell = cell.cellId == editingCellId
+        rootHitRects.forEach { rect ->
+            val cell = rootCellById[rect.cellId] ?: return@forEach
+            val cellX = renderedScene.tableRect.left + rect.left
+            val cellY = renderedScene.tableRect.top + rect.top
+            val cellW = rect.right - rect.left
+            val cellH = rect.bottom - rect.top
             val nameIdx = deriveFileNameCellSlotsFromDrafts(templateState.fileNameSlotDrafts).indexOf(cell.cellId).takeIf { it >= 0 }
             val pathIdx = derivePathSlotIndexByCellId(templateState.pathSlotDrafts, cell.cellId)
 
@@ -527,7 +357,6 @@ fun RealTableGridSection(
                     .padding(horizontal = 6.dp, vertical = 4.dp)
             ) {
                 CellHeaderBadgesOverlay(
-                    cell = cell,
                     fileNameSlotIndex = nameIdx,
                     pathSlotIndex = pathIdx,
                     modifier = Modifier
@@ -538,34 +367,137 @@ fun RealTableGridSection(
         }
 
         if (isStructureMode) {
+            val boundaryHitSize = 20.dp
+            val boundaryHitPx = with(density) { boundaryHitSize.toPx() }
+            val minRowPx = with(density) { 44.dp.toPx() }
+            val minColPx = with(density) { 72.dp.toPx() }
+
+            for (boundary in 1 until rows) {
+                val edge = renderedScene.geometry.grid.rowEdges.getOrNull(boundary) ?: continue
+                val previousEdge = renderedScene.geometry.grid.rowEdges.getOrNull(boundary - 1) ?: continue
+                val boundaryYPx = renderedScene.tableRect.top + edge
+                Box(
+                    modifier = Modifier
+                        .offset(
+                            x = with(density) { renderedScene.tableRect.left.toDp() },
+                            y = with(density) { (boundaryYPx - boundaryHitPx / 2f).toDp() },
+                        )
+                        .width(with(density) { renderedScene.tableRect.width().toDp() })
+                        .height(boundaryHitSize)
+                        .zIndex(3f)
+                        .pointerInput(boundary, templateState.rowWeights) {
+                            var startWeights = emptyList<Float>()
+                            var startSizePx = 1f
+                            var accumulatedDelta = 0f
+                            detectDragGestures(
+                                onDragStart = {
+                                    startWeights = previewRowWeights
+                                    startSizePx = (edge - previousEdge).coerceAtLeast(1f)
+                                    accumulatedDelta = 0f
+                                    activeRowBoundary = boundary
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    if (startWeights.isEmpty()) return@detectDragGestures
+                                    accumulatedDelta += dragAmount.y
+                                    val targetPx = (startSizePx + accumulatedDelta).coerceAtLeast(minRowPx)
+                                    val rowIndex = boundary - 1
+                                    val next = startWeights.toMutableList()
+                                    next[rowIndex] = (startWeights[rowIndex] * (targetPx / startSizePx))
+                                        .coerceAtLeast(0.1f)
+                                    previewRowWeights = next
+                                },
+                                onDragCancel = {
+                                    if (startWeights.isNotEmpty()) previewRowWeights = startWeights
+                                    activeRowBoundary = null
+                                },
+                                onDragEnd = {
+                                    if (startWeights.isNotEmpty() && startWeights != previewRowWeights) {
+                                        onCommitRowWeights(previewRowWeights)
+                                    }
+                                    activeRowBoundary = null
+                                },
+                            )
+                        },
+                )
+            }
+
+            for (boundary in 1 until cols) {
+                val edge = renderedScene.geometry.grid.colEdges.getOrNull(boundary) ?: continue
+                val previousEdge = renderedScene.geometry.grid.colEdges.getOrNull(boundary - 1) ?: continue
+                val boundaryXPx = renderedScene.tableRect.left + edge
+                Box(
+                    modifier = Modifier
+                        .offset(
+                            x = with(density) { (boundaryXPx - boundaryHitPx / 2f).toDp() },
+                            y = with(density) { renderedScene.tableRect.top.toDp() },
+                        )
+                        .width(boundaryHitSize)
+                        .height(with(density) { renderedScene.tableRect.height().toDp() })
+                        .zIndex(3f)
+                        .pointerInput(boundary, templateState.colWeights) {
+                            var startWeights = emptyList<Float>()
+                            var startSizePx = 1f
+                            var accumulatedDelta = 0f
+                            detectDragGestures(
+                                onDragStart = {
+                                    startWeights = previewColWeights
+                                    startSizePx = (edge - previousEdge).coerceAtLeast(1f)
+                                    accumulatedDelta = 0f
+                                    activeColBoundary = boundary
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    if (startWeights.isEmpty()) return@detectDragGestures
+                                    accumulatedDelta += dragAmount.x
+                                    val targetPx = (startSizePx + accumulatedDelta).coerceAtLeast(minColPx)
+                                    val colIndex = boundary - 1
+                                    val next = startWeights.toMutableList()
+                                    next[colIndex] = (startWeights[colIndex] * (targetPx / startSizePx))
+                                        .coerceAtLeast(0.1f)
+                                    previewColWeights = next
+                                },
+                                onDragCancel = {
+                                    if (startWeights.isNotEmpty()) previewColWeights = startWeights
+                                    activeColBoundary = null
+                                },
+                                onDragEnd = {
+                                    if (startWeights.isNotEmpty() && startWeights != previewColWeights) {
+                                        onCommitColumnWeights(previewColWeights)
+                                    }
+                                    activeColBoundary = null
+                                },
+                            )
+                        },
+                )
+            }
+        }
+
+        if (isStructureMode) {
             Box(
                 modifier = Modifier
                     .offset(
-                        x = with(density) { tableLeftPx.toDp() },
-                        y = with(density) { tableTopPx.toDp() }
+                        x = with(density) { renderedScene.tableRect.left.toDp() },
+                        y = with(density) { renderedScene.tableRect.top.toDp() }
                     )
-                    .width(with(density) { tableWidthPx.toDp() })
-                    .height(with(density) { tableHeightPx.toDp() })
+                    .width(with(density) { renderedScene.tableRect.width().toDp() })
+                    .height(with(density) { renderedScene.tableRect.height().toDp() })
                     .zIndex(2f)
-                    .pointerInput(rows, cols, rowOffsets, colOffsets) {
+                    .pointerInput(rows, cols, rootHitRects, renderedScene.tableRect) {
                         detectTapGestures { offset ->
-                            cellIdFromOffset(
-                                cells = templateState.cells,
-                                colOffsets = colOffsets,
-                                rowOffsets = rowOffsets,
+                            hitTestRootCellId(
+                                rootRects = rootHitRects,
                                 localX = offset.x,
                                 localY = offset.y,
                             )?.let(onSelectCell)
                         }
                     }
-                    .pointerInput(rows, cols, rowOffsets, colOffsets) {
+                    .pointerInput(rows, cols, rootHitRects) {
                         var startCellId: String? = null
                         detectDragGestures(
                             onDragStart = { offset ->
-                                startCellId = cellIdFromOffset(
-                                    cells = templateState.cells,
-                                    colOffsets = colOffsets,
-                                    rowOffsets = rowOffsets,
+                                startCellId = hitTestRootCellId(
+                                    rootRects = rootHitRects,
                                     localX = offset.x,
                                     localY = offset.y,
                                 )
@@ -574,10 +506,8 @@ fun RealTableGridSection(
                             onDrag = { change, _ ->
                                 change.consume()
                                 val start = startCellId ?: return@detectDragGestures
-                                val end = cellIdFromOffset(
-                                    cells = templateState.cells,
-                                    colOffsets = colOffsets,
-                                    rowOffsets = rowOffsets,
+                                val end = hitTestRootCellId(
+                                    rootRects = rootHitRects,
                                     localX = change.position.x,
                                     localY = change.position.y,
                                     clampToBounds = true,
@@ -591,22 +521,30 @@ fun RealTableGridSection(
     }
 }
 
-
-private fun resolveWeightsOrOnes(weights: List<Float>?, count: Int): List<Float> {
-    if (count <= 0) return emptyList()
-    return TableLayoutCalculator.resolveWeights(weights, count)
-}
-
-private fun computeSizes(total: Float, weights: List<Float>): List<Float> {
-    return TableLayoutCalculator.computeSizes(total, weights)
-}
-
-private fun cumulativeOffsets(sizes: List<Float>): List<Float> {
-    val offsets = MutableList(sizes.size + 1) { 0f }
-    for (idx in sizes.indices) {
-        offsets[idx + 1] = offsets[idx] + sizes[idx]
+private fun hitTestRootCellId(
+    rootRects: List<RenderRootRect>,
+    localX: Float,
+    localY: Float,
+    clampToBounds: Boolean = false,
+): String? {
+    if (rootRects.isEmpty()) return null
+    val maxRight = rootRects.maxOf { it.right }
+    val maxBottom = rootRects.maxOf { it.bottom }
+    val x = when {
+        clampToBounds -> localX.coerceIn(0f, maxRight)
+        localX !in 0f..maxRight -> return null
+        else -> localX
     }
-    return offsets
+    val y = when {
+        clampToBounds -> localY.coerceIn(0f, maxBottom)
+        localY !in 0f..maxBottom -> return null
+        else -> localY
+    }
+    return rootRects.firstOrNull { rect ->
+        val containsX = if (x == maxRight) x >= rect.left && x <= rect.right else x >= rect.left && x < rect.right
+        val containsY = if (y == maxBottom) y >= rect.top && y <= rect.bottom else y >= rect.top && y < rect.bottom
+        containsX && containsY
+    }?.cellId
 }
 
 private fun dataTypeLabelKo(dataType: TableCellDataType): String =
@@ -618,78 +556,3 @@ private fun dataTypeLabelKo(dataType: TableCellDataType): String =
         TableCellDataType.TIME -> "시간"
         TableCellDataType.ROTATING_TEXT -> "순환텍스트"
     }
-
-
-private fun applyBoundaryDragPreviewFromStart(
-    startWeights: List<Float>,
-    boundaryIndex: Int,
-    accumulatedDeltaPx: Float,
-    startSegmentSizesPx: List<Float>,
-    minSegmentPx: Float,
-): List<Float> {
-    if (boundaryIndex <= 0 || boundaryIndex >= startWeights.size) return startWeights
-    val leftIndex = boundaryIndex - 1
-    val rightIndex = boundaryIndex
-    val leftSize = startSegmentSizesPx.getOrNull(leftIndex) ?: return startWeights
-    val rightSize = startSegmentSizesPx.getOrNull(rightIndex) ?: return startWeights
-
-    val boundedDelta = accumulatedDeltaPx
-        .coerceAtMost(rightSize - minSegmentPx)
-        .coerceAtLeast(-(leftSize - minSegmentPx))
-
-    val pairSize = leftSize + rightSize
-    if (pairSize <= 0f) return startWeights
-
-    val nextLeftSize = (leftSize + boundedDelta).coerceAtLeast(minSegmentPx)
-    val pairWeight = (startWeights[leftIndex] + startWeights[rightIndex]).coerceAtLeast(0.0001f)
-    val nextLeftWeight = pairWeight * (nextLeftSize / pairSize)
-    val nextRightWeight = (pairWeight - nextLeftWeight).coerceAtLeast(0.0001f)
-
-    return startWeights.toMutableList().apply {
-        this[leftIndex] = nextLeftWeight
-        this[rightIndex] = nextRightWeight
-    }
-}
-
-private fun weightsAlmostEqual(a: List<Float>, b: List<Float>): Boolean {
-    if (a.size != b.size) return false
-    return a.indices.all { index -> kotlin.math.abs(a[index] - b[index]) < 0.0001f }
-}
-
-
-private fun cellIdFromOffset(
-    cells: List<TableCellState>,
-    colOffsets: List<Float>,
-    rowOffsets: List<Float>,
-    localX: Float,
-    localY: Float,
-    clampToBounds: Boolean = false,
-): String? {
-    if (colOffsets.size < 2 || rowOffsets.size < 2) return null
-    val maxX = colOffsets.last()
-    val maxY = rowOffsets.last()
-    val adjustedX = when {
-        clampToBounds -> localX.coerceIn(0f, maxX)
-        localX < 0f || localX > maxX -> return null
-        else -> localX
-    }
-    val adjustedY = when {
-        clampToBounds -> localY.coerceIn(0f, maxY)
-        localY < 0f || localY > maxY -> return null
-        else -> localY
-    }
-
-    val colIndex = findIndexByOffsets(adjustedX, colOffsets) ?: return null
-    val rowIndex = findIndexByOffsets(adjustedY, rowOffsets) ?: return null
-    return cells.firstOrNull { it.rowIndex == rowIndex && it.colIndex == colIndex }?.cellId
-}
-
-private fun findIndexByOffsets(value: Float, offsets: List<Float>): Int? {
-    if (offsets.size < 2) return null
-    val lastBoundary = offsets.last()
-    if (value < 0f || value > lastBoundary) return null
-    if (value == lastBoundary) return offsets.lastIndex - 1
-    return (0 until offsets.lastIndex).firstOrNull { idx ->
-        value >= offsets[idx] && value < offsets[idx + 1]
-    }
-}

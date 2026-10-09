@@ -8,6 +8,7 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.watermark.drawWatermarkTableOnCanvas
+import com.dudoziworkshop.dzlog.watermark.drawWatermarkTableOnCanvasWithResolvedGeometry
 
 /**
  * 표 자체 속성(구조 + 내부 분배 + 셀 값) payload.
@@ -116,6 +117,34 @@ object TableRenderAdapter {
             overrideOffsetLeftPx = placement.overrideOffsetLeftPx,
             overrideOffsetTopPx = placement.overrideOffsetTopPx,
             rotationCwDeg = placement.rotationCwDeg,
+            placeholderCellIndexes = payload.placeholderCellIndexes,
+            placeholderTextColorArgb = style.placeholderTextColorArgb,
+        )
+    }
+
+    fun drawScene(
+        canvas: Canvas,
+        scene: RenderedTableScene,
+        payload: TableRenderPayload,
+        style: TableRenderStyle,
+        rotationCwDeg: Int = 0,
+    ) {
+        drawWatermarkTableOnCanvasWithResolvedGeometry(
+            canvas = canvas,
+            tableRect = scene.tableRect,
+            rowEdges = scene.geometry.grid.rowEdges,
+            colEdges = scene.geometry.grid.colEdges,
+            cells = payload.cells,
+            rows = payload.rows.coerceAtLeast(1),
+            cols = payload.cols.coerceAtLeast(1),
+            bgAlpha = style.bgAlpha.coerceIn(0, 255),
+            valueScale = TableScaleCalculator.clampValueScale(style.valueScale),
+            textColorMode = style.textColorMode,
+            manualTextColor = style.manualTextColor,
+            textAlign = style.textAlign,
+            bgStyle = style.bgStyle.coerceIn(0, 2),
+            drawGrid = style.drawGrid,
+            rotationCwDeg = rotationCwDeg,
             placeholderCellIndexes = payload.placeholderCellIndexes,
             placeholderTextColorArgb = style.placeholderTextColorArgb,
         )
