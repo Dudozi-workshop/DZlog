@@ -7,9 +7,27 @@ import kotlin.math.abs
 /** Select the visible-table corner nearest the center of the photographed area. */
 internal enum class ResizeHandleCorner { TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT }
 
-internal fun chooseResizeHandleCorner(table: RectF, photo: RectF): ResizeHandleCorner {
-    val right = abs(table.right - photo.centerX()) <= abs(table.left - photo.centerX())
-    val bottom = abs(table.bottom - photo.centerY()) <= abs(table.top - photo.centerY())
+internal fun chooseResizeHandleCorner(table: RectF, photo: RectF): ResizeHandleCorner =
+    chooseResizeHandleCorner(
+        tableLeft = table.left,
+        tableTop = table.top,
+        tableRight = table.right,
+        tableBottom = table.bottom,
+        photoCenterX = photo.centerX(),
+        photoCenterY = photo.centerY(),
+    )
+
+/** Pure Kotlin coordinates make this corner policy testable without Android graphics mocks. */
+internal fun chooseResizeHandleCorner(
+    tableLeft: Float,
+    tableTop: Float,
+    tableRight: Float,
+    tableBottom: Float,
+    photoCenterX: Float,
+    photoCenterY: Float,
+): ResizeHandleCorner {
+    val right = abs(tableRight - photoCenterX) <= abs(tableLeft - photoCenterX)
+    val bottom = abs(tableBottom - photoCenterY) <= abs(tableTop - photoCenterY)
     return when {
         right && bottom -> ResizeHandleCorner.BOTTOM_RIGHT
         right -> ResizeHandleCorner.TOP_RIGHT
