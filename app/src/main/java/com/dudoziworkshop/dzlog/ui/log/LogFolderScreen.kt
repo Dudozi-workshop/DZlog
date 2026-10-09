@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
@@ -35,6 +37,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
@@ -74,6 +78,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.TimeZone
+import java.util.Locale
 
 /** One screen for every folder depth; the route state is the actual relative path. */
 @Composable
@@ -101,6 +106,9 @@ fun LogFolderScreen(
         mutableStateOf<Map<String, GalleryFolderSummary>>(cached?.summariesByPath ?: emptyMap())
     }
     var photos by remember(relativePath) { mutableStateOf(cached?.directPhotos ?: emptyList()) }
+    var photoSort by rememberSaveable(relativePath) { mutableStateOf(GalleryPhotoSort.NEWEST) }
+    var showPhotoSort by remember(relativePath) { mutableStateOf(false) }
+    val sortedPhotos = remember(photos, photoSort) { photoSort.sorted(photos) }
     var error by remember(relativePath) { mutableStateOf<String?>(null) }
     var loading by remember(relativePath) { mutableStateOf(cached == null) }
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -375,15 +383,32 @@ fun LogFolderScreen(
                     }
                 }
                 item {
-                    Text("사진 ${currentSummary?.directPhotoCount ?: photos.size}장", fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(top = 8.dp))
+                    Row(Modifier.fillMaxWidth().padding(top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("사진 ${currentSummary?.directPhotoCount ?: photos.size}장", fontWeight = FontWeight.SemiBold)
+                        Box {
+                            TextButton(onClick = { showPhotoSort = true }, enabled = photos.isNotEmpty()) {
+                                Text(photoSort.label)
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = "사진 정렬")
+                            }
+                            DropdownMenu(expanded = showPhotoSort, onDismissRequest = { showPhotoSort = false }) {
+                                GalleryPhotoSort.entries.forEach { sort ->
+                                    DropdownMenuItem(
+                                        text = { Text(if (photoSort == sort) "✓ ${sort.label}" else sort.label) },
+                                        onClick = { photoSort = sort; showPhotoSort = false },
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
                 if (photos.isEmpty()) {
                     item { Text("이 폴더에 저장된 사진이 없습니다.", color = DDZColor.TextSecondary) }
                 } else {
-                    items(photos.chunked(3)) { rowPhotos ->
+                    items(sortedPhotos.chunked(3)) { rowPhotos ->
                         GalleryPhotoRow(rowPhotos, selectedPhotoIds, ::togglePhoto, ::togglePhoto) { photo ->
-                            onOpenPhoto(photos, photos.indexOfFirst { it.id == photo.id })
+                            onOpenPhoto(sortedPhotos, sortedPhotos.indexOfFirst { it.id == photo.id })
                         }
                     }
                 }
@@ -599,4 +624,18 @@ fun LogFolderScreen(
             )
         }
     }
+}
+
+/** Sort the displayed copy; keep the MediaStore snapshot and ID-based selection intact. */
+internal enum class GalleryPhotoSort(val label: String) {
+    NEWEST("최신순"), OLDEST("오래된순"), NAME("이름순");
+
+    fun sorted(photos: List<MediaImageItem>): List<MediaImageItem> = photos.sortedWith(
+        when (this) {
+            NEWEST -> compareByDescending<MediaImageItem> { it.dateAddedSeconds }.thenByDescending { it.id }
+            OLDEST -> compareBy<MediaImageItem> { it.dateAddedSeconds }.thenBy { it.id }
+            NAME -> compareBy<MediaImageItem> { it.displayName.lowercase(Locale.ROOT) }
+                .thenBy { it.displayName }.thenByDescending { it.id }
+        },
+    )
 }
