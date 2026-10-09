@@ -24,4 +24,29 @@ class GalleryFolderOperationPolicyTest {
         }
         GalleryFolderOperationPolicy.validateMove("Pictures/DZlog/A/", "Pictures/DZlog/B/")
     }
+    @Test
+    fun renamed_path_keeps_parent_and_rejects_original() {
+        org.junit.Assert.assertEquals(
+            "Pictures/DZlog/A/New/",
+            GalleryFolderOperationPolicy.renamedPath("Pictures/DZlog/A/Old/", "New"),
+        )
+        assertThrows(IllegalArgumentException::class.java) {
+            GalleryFolderOperationPolicy.renamedPath("Pictures/DZlog/", "X")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            GalleryFolderOperationPolicy.renamedPath("Pictures/DZlog/A/original/", "X")
+        }
+    }
+
+    @Test
+    fun move_resolves_destination_and_rejects_current_parent() {
+        org.junit.Assert.assertEquals(
+            "Pictures/DZlog/B/A/",
+            GalleryFolderOperationPolicy.movedPath("Pictures/DZlog/A/", "Pictures/DZlog/B/"),
+        )
+        assertThrows(IllegalArgumentException::class.java) {
+            GalleryFolderOperationPolicy.movedPath("Pictures/DZlog/A/", "Pictures/DZlog/")
+        }
+    }
+
 }
