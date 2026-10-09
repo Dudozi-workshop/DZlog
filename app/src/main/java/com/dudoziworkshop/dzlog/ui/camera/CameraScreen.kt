@@ -15,6 +15,8 @@ import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -526,8 +528,19 @@ fun CameraPreview(
             )
         }
 
-        // CaptureResultOverlay already handles tap-to-dismiss over the preview.
-        // Avoid a second full-screen hit layer that competes with modal controls.
+        if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode != ContinuousPreviewMode.OFF) {
+            // CaptureResultOverlay covers only the photo area. Keep the original
+            // full-screen tap-to-dismiss shield so top/bottom controls cannot run
+            // while the captured photo is being reviewed.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { ui.capture.capturedUri = null }
+            )
+        }
 
         if (ui.showWizard) {
             CameraSettingsOverlayPanel(
