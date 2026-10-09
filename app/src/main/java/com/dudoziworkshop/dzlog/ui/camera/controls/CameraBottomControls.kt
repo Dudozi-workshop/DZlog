@@ -285,13 +285,15 @@ internal fun CameraBottomControls(
             }
         }
 
-        // Camera zoom remains directly available even when the tool menu is closed.
+        // Keep zoom near the shutter and out of the expanded tool panels.
+        if (!showToolMenu && selectedTool == null && !ui.isTableSelected) {
         Box(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .padding(top = 8.dp, end = 10.dp),
-            contentAlignment = if (ui.isZoomChipExpanded) Alignment.TopCenter else Alignment.TopEnd,
+                .align(Alignment.BottomCenter)
+                .padding(bottom = DDZSpacing.screenPadding + with(density) {
+                    bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing
+                }),
+            contentAlignment = Alignment.Center,
         ) {
             ZoomControlSection(
                 zoomRatioTenths = ui.capture.actualZoomTenths,
@@ -310,6 +312,7 @@ internal fun CameraBottomControls(
                     scope.launch { settingsWriter.setZoomTenths(normalized) }
                 },
             )
+        }
         }
     }
 }
@@ -567,12 +570,13 @@ private fun UndoCaptureButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
-        backgroundColor = Color.Transparent
+        backgroundColor = if (enabled) DDZColor.SageLight else DDZColor.Surface.copy(alpha = 0.35f),
+        borderColor = if (enabled) DDZColor.SageDarkStrong else DDZColor.Border.copy(alpha = 0.35f),
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.Undo,
             contentDescription = "직전 촬영 삭제",
-            tint = if (enabled) DDZColor.SageDarkStrong else DDZColor.TextMuted
+            tint = if (enabled) DDZColor.SageDarkStrong else DDZColor.TextMuted.copy(alpha = 0.35f),
         )
     }
 }
