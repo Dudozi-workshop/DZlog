@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import android.content.Intent
+import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -18,7 +20,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderStorage
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
@@ -61,6 +68,7 @@ fun LogFolderScreen(
 ) {
     val context = LocalContext.current
     val reader = remember(context) { DzlogMediaStoreReader(context.contentResolver) }
+    val folderStorage = remember(context) { GalleryFolderStorage(context.applicationContext) }
     val favoriteIds by remember(context) { FavoritesProvider.repo(context) }.favoriteIdsFlow.collectAsState(initial = emptySet())
     var selectedTab by remember { mutableStateOf(GalleryTab.ALL) }
     var allPhotos by remember { mutableStateOf<List<MediaImageItem>>(emptyList()) }
@@ -68,6 +76,10 @@ fun LogFolderScreen(
     var photos by remember(relativePath) { mutableStateOf<List<MediaImageItem>>(emptyList()) }
     var error by remember(relativePath) { mutableStateOf<String?>(null) }
     var loading by remember(relativePath) { mutableStateOf(true) }
+    var showCreateDialog by remember { mutableStateOf(false) }
+    var newFolderName by remember { mutableStateOf("") }
+    var folderOperationError by remember { mutableStateOf<String?>(null) }
+    var connected by remember { mutableStateOf(folderStorage.isConnected()) }
 
     var access by remember { mutableStateOf(GalleryMediaAccessPolicy.state(context)) }
     var reloadKey by remember { androidx.compose.runtime.mutableIntStateOf(0) }
@@ -77,8 +89,18 @@ fun LogFolderScreen(
         access = GalleryMediaAccessPolicy.state(context)
         reloadKey++
     }
+    val folderPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        if (uri != null) {
+            runCatching { folderStorage.connect(uri) }
+                .onSuccess { connected = true; folderOperationError = null; reloadKey++ }
+                .onFailure { folderOperationError = it.message ?: "폴더 연결 실패" }
+        }
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         access = GalleryMediaAccessPolicy.state(context)
+        connected = folderStorage.isConnected()
         reloadKey++
     }
 
@@ -86,7 +108,11 @@ fun LogFolderScreen(
         loading = true
         val result = runCatching {
             withContext(Dispatchers.IO) {
-                val folder = reader.loadFolderIndex(relativePath)
+                val folder = reader.loadFolderIndex(
+                    relativePath,
+                    existingFolderPaths = if (folderStorage.isConnected())
+                        folderStorage.listImmediateFolderPaths(relativePath) else emptyList(),
+                )
                 Triple(folder, reader.loadImages(relativePath), if (relativePath == GalleryFolderIndexPolicy.ROOT) reader.loadImagesUnderPrefix(relativePath) else emptyList())
             }
         }
@@ -132,6 +158,31 @@ fun LogFolderScreen(
                     )
                 }
             }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (!connected) {
+                OutlinedButton(onClick = { folderPicker.launch(null) }) {
+                    Text("폴더 연결")
+                }
+            }
+            Button(
+                onClick = {
+                    folderOperationError = null
+                    if (connected) showCreateDialog = true else folderPicker.launch(null)
+                },
+            ) { Text("새 폴더") }
+        }
+        if (!connected) {
+            Text(
+                "빈 폴더를 만들거나 표시하려면 시스템 파일 선택기에서 Pictures/DZlog를 연결하세요.",
+                color = DDZColor.TextSecondary,
+            )
+        }
+        folderOperationError?.let { message ->
+            Text(message, color = DDZColor.Destructive)
         }
         if (access != GalleryMediaAccess.FULL) {
             Column(
@@ -221,6 +272,35 @@ fun LogFolderScreen(
                     }
                 }
             }
+        }
+        if (showCreateDialog) {
+            AlertDialog(
+                onDismissRequest = { showCreateDialog = false },
+                title = { Text("새 폴더") },
+                text = {
+                    OutlinedTextField(
+                        value = newFolderName,
+                        onValueChange = { newFolderName = it },
+                        label = { Text("폴더 이름") },
+                        singleLine = true,
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        runCatching { folderStorage.createFolder(relativePath, newFolderName) }
+                            .onSuccess {
+                                showCreateDialog = false
+                                newFolderName = ""
+                                folderOperationError = null
+                                reloadKey++
+                            }
+                            .onFailure { folderOperationError = it.message ?: "폴더 생성 실패" }
+                    }) { Text("생성") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCreateDialog = false }) { Text("취소") }
+                },
+            )
         }
     }
 }
