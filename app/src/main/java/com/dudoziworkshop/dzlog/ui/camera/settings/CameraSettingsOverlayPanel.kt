@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
@@ -53,6 +54,7 @@ private val PANEL_CORNER_RADIUS = DDZLayout.Radius.Medium
 // 토큰 정책: 패널 헤더 터치 영역은 compact control 규격을 사용한다.
 private val PANEL_HEADER_ICON_TOUCH = DDZLayout.Control.Compact
 private val PANEL_HEADER_ICON_SIZE = 12.dp
+private val PANEL_SETTING_ROW_HEIGHT = 44.dp
 
 @Composable
 internal fun CameraSettingsOverlayPanel(
@@ -188,11 +190,13 @@ private val CompactCameraSegments = DDZSegmentedControlStyles.CameraPanel.copy(
 @Composable
 private fun CompactSettingsRow(label: String, content: @Composable RowScope.() -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+        modifier = Modifier.fillMaxWidth().height(PANEL_SETTING_ROW_HEIGHT),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text(label, modifier = Modifier.width(55.dp), style = DDZTypography.Caption.copy(fontSize = 11.sp), color = DDZColor.Primary, maxLines = 1)
+        Box(modifier = Modifier.width(55.dp).height(PANEL_SETTING_ROW_HEIGHT), contentAlignment = Alignment.Center) {
+            Text(label, style = DDZTypography.Caption.copy(fontSize = 11.sp), color = DDZColor.Primary, textAlign = TextAlign.Center, maxLines = 1)
+        }
         content()
     }
 }
