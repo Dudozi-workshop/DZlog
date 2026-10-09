@@ -1,0 +1,228 @@
+package com.dudoziworkshop.dzlog.ui.log
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryChildFolder
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
+import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+
+enum class GalleryTab(val label: String) {
+    ALL("전체"),
+    FOLDERS("폴더"),
+    FAVORITES("즐겨찾기"),
+}
+
+/** Main gallery shares the same folder list and thumbnail primitives as subfolders. */
+@Composable
+internal fun LogGalleryHomeContent(
+    selectedTab: GalleryTab,
+    onTabChange: (GalleryTab) -> Unit,
+    folderIndex: GalleryFolderIndex,
+    allImages: List<MediaImageItem>,
+    favoriteIds: Set<Long>,
+    onOpenFolder: (String) -> Unit,
+    onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
+    onOpenOriginal: (String) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(DDZColor.SurfaceSoft, RoundedCornerShape(15.dp))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        GalleryTab.entries.forEach { tab ->
+            val active = tab == selectedTab
+            Box(
+                modifier = Modifier.weight(1f)
+                    .background(
+                        if (active) DDZColor.Surface else DDZColor.SurfaceSoft,
+                        RoundedCornerShape(12.dp),
+                    )
+                    .clickable { onTabChange(tab) }
+                    .padding(vertical = 11.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    tab.label,
+                    color = if (active) DDZColor.TextPrimary else DDZColor.TextSecondary,
+                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                )
+            }
+        }
+    }
+
+    val root = folderIndex.relativePath
+    val recent = allImages.take(9)
+    val favorites = allImages.filter { it.id in favoriteIds }
+    val directPhotos = allImages.filter { it.relativePath.trimEnd('/') == root.trimEnd('/') }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        when (selectedTab) {
+            GalleryTab.ALL -> {
+                item {
+                    GallerySectionTitle("최근 촬영", recent.size.takeIf { it > 0 }?.let { "최근 ${it}장" })
+                }
+                if (recent.isEmpty()) {
+                    item { GalleryEmptyText("저장된 사진이 없습니다.") }
+                } else {
+                    items(recent.chunked(3)) { row ->
+                        GalleryPhotoRow(row) { photo -> onOpenPhoto(listOf(photo), 0) }
+                    }
+                }
+                item { GallerySectionTitle("저장 폴더", "${folderIndex.children.size}개") }
+                if (folderIndex.children.isEmpty()) {
+                    item { GalleryEmptyText("저장 폴더가 없습니다.") }
+                } else {
+                    items(folderIndex.children, key = { "folder-${it.relativePath}" }) { folder ->
+                        GalleryFolderRow(folder) { onOpenFolder(folder.relativePath) }
+                    }
+                }
+            }
+            GalleryTab.FOLDERS -> {
+                item { GallerySectionTitle("저장 폴더", "${folderIndex.children.size}개") }
+                if (folderIndex.children.isEmpty()) {
+                    item { GalleryEmptyText("저장 폴더가 없습니다.") }
+                } else {
+                    items(folderIndex.children, key = { "folder-${it.relativePath}" }) { folder ->
+                        GalleryFolderRow(folder) { onOpenFolder(folder.relativePath) }
+                    }
+                }
+                item { GallerySectionTitle("사진", "${directPhotos.size}장") }
+                if (directPhotos.isEmpty()) {
+                    item { GalleryEmptyText("DZlog 기본 위치에 저장된 사진이 없습니다.") }
+                } else {
+                    items(directPhotos.chunked(3)) { row ->
+                        GalleryPhotoRow(row) { photo ->
+                            onOpenPhoto(directPhotos, directPhotos.indexOfFirst { it.id == photo.id })
+                        }
+                    }
+                }
+                if (folderIndex.directOriginalCount > 0) {
+                    item {
+                        GalleryOriginalRow(folderIndex.directOriginalCount) {
+                            onOpenOriginal(root + "original/")
+                        }
+                    }
+                }
+            }
+            GalleryTab.FAVORITES -> {
+                item { GallerySectionTitle("즐겨찾기", "${favorites.size}장") }
+                if (favorites.isEmpty()) {
+                    item { GalleryEmptyText("즐겨찾기한 사진이 없습니다.") }
+                } else {
+                    items(favorites.chunked(3)) { row ->
+                        GalleryPhotoRow(row) { photo -> onOpenPhoto(listOf(photo), 0) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun GallerySectionTitle(title: String, count: String? = null) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(title, color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold)
+        if (count != null) {
+            Text(count, color = DDZColor.TextSecondary)
+        }
+    }
+}
+
+@Composable
+internal fun GalleryEmptyText(message: String) {
+    Text(
+        message,
+        color = DDZColor.TextSecondary,
+        modifier = Modifier.padding(vertical = 12.dp),
+    )
+}
+
+@Composable
+internal fun GalleryFolderRow(folder: GalleryChildFolder, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(DDZColor.Surface, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 13.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                if (folder.totalImageCount == 0) "비어 있음" else "${folder.totalImageCount}장",
+                color = DDZColor.TextSecondary,
+            )
+        }
+        Icon(Icons.Default.ChevronRight, contentDescription = "폴더 열기", tint = DDZColor.IconMuted)
+    }
+}
+
+@Composable
+internal fun GalleryOriginalRow(count: Int, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
+        Text("원본사진", modifier = Modifier.weight(1f))
+        Text("${count}장", color = DDZColor.TextSecondary)
+        Icon(Icons.Default.ChevronRight, contentDescription = "원본사진 열기")
+    }
+}
+
+@Composable
+internal fun GalleryPhotoRow(
+    photos: List<MediaImageItem>,
+    onPhotoClick: (MediaImageItem) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        photos.forEach { photo ->
+            Box(
+                modifier = Modifier.weight(1f).aspectRatio(1f)
+                    .clickable { onPhotoClick(photo) },
+            ) {
+                DzThumbnail(photo.uri.toString())
+            }
+        }
+        repeat(3 - photos.size) {
+            Box(modifier = Modifier.weight(1f))
+        }
+    }
+}
