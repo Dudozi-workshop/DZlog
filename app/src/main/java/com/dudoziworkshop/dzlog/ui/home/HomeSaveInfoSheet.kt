@@ -23,7 +23,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 @Composable
 internal fun HomeSaveInfoSheet(
     fileName: String?,
-    relativePath: String?,
+    relativePaths: List<String>,
     onOpenSaveSettings: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -42,30 +42,10 @@ internal fun HomeSaveInfoSheet(
                 style = DDZTypography.SectionTitle,
                 color = DDZColor.TextPrimary,
             )
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(
-                    text = "파일명",
-                    style = DDZTypography.Caption,
-                    color = DDZColor.TextSecondary,
-                )
-                Text(
-                    text = fileName ?: "계산 중…",
-                    style = DDZTypography.Body.copy(fontWeight = FontWeight.Medium),
-                    color = DDZColor.TextPrimary,
-                )
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(
-                    text = "저장경로",
-                    style = DDZTypography.Caption,
-                    color = DDZColor.TextSecondary,
-                )
-                Text(
-                    text = relativePath ?: "계산 중…",
-                    style = DDZTypography.Body,
-                    color = DDZColor.TextPrimary,
-                )
-            }
+            com.dudoziworkshop.dzlog.ui.common.NextCaptureInfoFields(
+                fileName = fileName ?: "계산 중…",
+                relativePaths = if (relativePaths.isEmpty()) listOf("계산 중…") else relativePaths,
+            )
             DDZButton(
                 text = "저장 설정 열기",
                 leadingIcon = Icons.Default.Settings,
