@@ -20,16 +20,20 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
@@ -58,10 +62,12 @@ internal fun CameraSettingsOverlayPanel(
     onCaptureAspectChange: (CaptureAspect) -> Unit,
     saveMode: SaveMode,
     onSaveModeChange: (SaveMode) -> Unit,
-    showTable: Boolean,
-    onShowTableChange: (Boolean) -> Unit,
     continuousPreviewMode: ContinuousPreviewMode,
     onContinuousPreviewModeChange: (ContinuousPreviewMode) -> Unit,
+    captureSoundEnabled: Boolean,
+    onCaptureSoundChange: (Boolean) -> Unit,
+    captureHapticEnabled: Boolean,
+    onCaptureHapticChange: (Boolean) -> Unit,
     volumeKeyAction: VolumeKeyAction,
     onVolumeKeyActionChange: (VolumeKeyAction) -> Unit,
     onDismiss: () -> Unit
@@ -165,18 +171,24 @@ internal fun CameraSettingsOverlayPanel(
                     )
                 )
 
+                SettingSectionTitle("촬영 피드백")
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onShowTableChange(!showTable) }
-                        .padding(vertical = 2.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(0.95f),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    SettingSectionTitle("표 미리보기")
-                    Switch(
-                        checked = showTable,
-                        onCheckedChange = onShowTableChange,
+                    CameraFeedbackChip(
+                        icon = Icons.Default.VolumeUp,
+                        label = "소리",
+                        selected = captureSoundEnabled,
+                        onClick = { onCaptureSoundChange(!captureSoundEnabled) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    CameraFeedbackChip(
+                        icon = Icons.Default.Vibration,
+                        label = "진동",
+                        selected = captureHapticEnabled,
+                        onClick = { onCaptureHapticChange(!captureHapticEnabled) },
+                        modifier = Modifier.weight(1f),
                     )
                 }
 
@@ -214,5 +226,36 @@ private fun CompactSegments(options: List<DDZSegmentedControlOption>) {
     DDZSegmentedControl(
         options = options,
         style = DDZSegmentedControlStyles.CameraPanel
+    )
+}
+
+@Composable
+private fun CameraFeedbackChip(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        modifier = modifier.height(36.dp),
+        label = { Text(text = label, style = DDZTypography.Caption, maxLines = 1) },
+        leadingIcon = {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.width(16.dp),
+            )
+        },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = DDZColor.Surface,
+            labelColor = DDZColor.TextMuted,
+            iconColor = DDZColor.TextMuted,
+            selectedContainerColor = DDZColor.SageLight,
+            selectedLabelColor = DDZColor.SageDarkStrong,
+            selectedLeadingIconColor = DDZColor.SageDarkStrong,
+        ),
     )
 }
