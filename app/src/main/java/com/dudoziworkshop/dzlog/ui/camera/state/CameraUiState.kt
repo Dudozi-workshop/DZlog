@@ -51,6 +51,7 @@ internal class CameraPrefsState {
     var wmTextAlign by mutableIntStateOf(WatermarkTextAlign.LEFT)
     var wmGridEnabled by mutableStateOf(true)
     var wmRotationCwDeg by mutableIntStateOf(0)
+    var wmTableLocked by mutableStateOf(false)
 }
 
 @Stable
