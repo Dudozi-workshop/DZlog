@@ -8,12 +8,19 @@ import android.app.Activity
 import android.os.Build
 import android.provider.MediaStore
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -28,8 +35,10 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
@@ -350,119 +359,148 @@ fun LogFolderScreen(
                     onClick = { startFolderManagement(relativePath, "move") }) { Text("이동") }
             }
         }
-        if (selectionActive && selectedPhotoIds.isNotEmpty()) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Button(onClick = ::startPhotoMove, enabled = !photoMoveBusy) { Text("이동") }
-            }
-        }
         folderOperationError?.let { message ->
             Text(message, color = DDZColor.Destructive)
         }
-        if (loading && index == null) {
-            GalleryLoadingSkeleton()
-        } else if (error != null) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("사진 목록을 표시할 수 없습니다.", color = DDZColor.TextSecondary)
-                OutlinedButton(onClick = { reloadKey++ }) { Text("다시 시도") }
-            }
-        } else if (root && showRecentPhotos) {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                if (recentPhotos.isEmpty()) {
-                    item { GalleryEmptyText("저장된 사진이 없습니다.") }
-                } else {
-                    items(recentPhotos.chunked(3)) { row ->
-                        GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
-                            onOpenPhoto(recentPhotos, recentPhotos.indexOfFirst { it.id == photo.id })
-                        }
-                    }
+        Column(Modifier.weight(1f)) {
+            if (loading && index == null) {
+                GalleryLoadingSkeleton()
+            } else if (error != null) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("사진 목록을 표시할 수 없습니다.", color = DDZColor.TextSecondary)
+                    OutlinedButton(onClick = { reloadKey++ }) { Text("다시 시도") }
                 }
-            }
-        } else if (root && index != null) {
-            LogGalleryHomeContent(
-                selectedTab = selectedTab,
-                onTabChange = { if (!selectionActive) selectedTab = it },
-                folderIndex = requireNotNull(index),
-                summariesByPath = summariesByPath,
-                allImages = allPhotos,
-                favoriteIds = favoriteIds,
-                onOpenFolder = { if (!selectionActive) onOpenFolder(it) },
-                onOpenPhoto = onOpenPhoto,
-                onOpenOriginal = { if (!selectionActive) onOpenOriginal(it) },
-                onOpenRecentPhotos = { if (!selectionActive) showRecentPhotos = true },
-                onManageFolder = ::startFolderManagement,
-                canManageFolders = connected && !folderManagementBusy && !selectionActive,
-                onCreateFolder = { folderOperationError = null; showCreateDialog = true },
-                selectedIds = selectedPhotoIds,
-                selectionActive = selectionActive,
-                onLongPressPhoto = ::enterSelection,
-                onSelectPhoto = ::togglePhoto,
-            )
-        } else {
-            val current = index
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                item {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("하위 폴더", fontWeight = FontWeight.SemiBold)
-                        TextButton(onClick = { folderOperationError = null; showCreateDialog = true }) {
-                            Icon(Icons.Default.CreateNewFolder, contentDescription = null)
-                            Text(" 새 폴더")
-                        }
-                    }
-                }
-                if (current != null && current.children.isNotEmpty()) {
-                    items(current.children, key = { it.relativePath }) { folder ->
-                        val summary = summariesByPath[folder.relativePath]
-                        GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
-                            canManage = connected && !folderManagementBusy && !selectionActive,
-                            onManage = { action -> startFolderManagement(folder.relativePath, action) },
-                        ) {
-                            if (!selectionActive) onOpenFolder(folder.relativePath)
-                        }
-                    }
-                }
-                item {
-                    Row(Modifier.fillMaxWidth().padding(top = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("사진 ${currentSummary?.directPhotoCount ?: photos.size}장", fontWeight = FontWeight.SemiBold)
-                        Box {
-                            TextButton(onClick = { showPhotoSort = true }, enabled = photos.isNotEmpty()) {
-                                Text(photoSort.label)
-                                Icon(Icons.Default.ArrowDropDown, contentDescription = "사진 정렬")
+            } else if (root && showRecentPhotos) {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    if (recentPhotos.isEmpty()) {
+                        item { GalleryEmptyText("저장된 사진이 없습니다.") }
+                    } else {
+                        items(recentPhotos.chunked(3)) { row ->
+                            GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
+                                onOpenPhoto(recentPhotos, recentPhotos.indexOfFirst { it.id == photo.id })
                             }
-                            DropdownMenu(expanded = showPhotoSort, onDismissRequest = { showPhotoSort = false }) {
-                                GalleryPhotoSort.entries.forEach { sort ->
-                                    DropdownMenuItem(
-                                        text = { Text(if (photoSort == sort) "✓ ${sort.label}" else sort.label) },
-                                        onClick = { photoSort = sort; showPhotoSort = false },
-                                    )
+                        }
+                    }
+                }
+            } else if (root && index != null) {
+                LogGalleryHomeContent(
+                    selectedTab = selectedTab,
+                    onTabChange = { if (!selectionActive) selectedTab = it },
+                    folderIndex = requireNotNull(index),
+                    summariesByPath = summariesByPath,
+                    allImages = allPhotos,
+                    favoriteIds = favoriteIds,
+                    onOpenFolder = { if (!selectionActive) onOpenFolder(it) },
+                    onOpenPhoto = onOpenPhoto,
+                    onOpenOriginal = { if (!selectionActive) onOpenOriginal(it) },
+                    onOpenRecentPhotos = { if (!selectionActive) showRecentPhotos = true },
+                    onManageFolder = ::startFolderManagement,
+                    canManageFolders = connected && !folderManagementBusy && !selectionActive,
+                    onCreateFolder = { folderOperationError = null; showCreateDialog = true },
+                    selectedIds = selectedPhotoIds,
+                    selectionActive = selectionActive,
+                    onLongPressPhoto = ::enterSelection,
+                    onSelectPhoto = ::togglePhoto,
+                )
+            } else {
+                val current = index
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    item {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("하위 폴더", fontWeight = FontWeight.SemiBold)
+                            TextButton(onClick = { folderOperationError = null; showCreateDialog = true }) {
+                                Icon(Icons.Default.CreateNewFolder, contentDescription = null)
+                                Text(" 새 폴더")
+                            }
+                        }
+                    }
+                    if (current != null && current.children.isNotEmpty()) {
+                        items(current.children, key = { it.relativePath }) { folder ->
+                            val summary = summariesByPath[folder.relativePath]
+                            GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
+                                canManage = connected && !folderManagementBusy && !selectionActive,
+                                onManage = { action -> startFolderManagement(folder.relativePath, action) },
+                            ) {
+                                if (!selectionActive) onOpenFolder(folder.relativePath)
+                            }
+                        }
+                    }
+                    item {
+                        Row(Modifier.fillMaxWidth().padding(top = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("사진 ${currentSummary?.directPhotoCount ?: photos.size}장", fontWeight = FontWeight.SemiBold)
+                            Box {
+                                TextButton(onClick = { showPhotoSort = true }, enabled = photos.isNotEmpty()) {
+                                    Text(photoSort.label)
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = "사진 정렬")
+                                }
+                                DropdownMenu(expanded = showPhotoSort, onDismissRequest = { showPhotoSort = false }) {
+                                    GalleryPhotoSort.entries.forEach { sort ->
+                                        DropdownMenuItem(
+                                            text = { Text(if (photoSort == sort) "✓ ${sort.label}" else sort.label) },
+                                            onClick = { photoSort = sort; showPhotoSort = false },
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                if (photos.isEmpty()) {
-                    item { Text("이 폴더에 저장된 사진이 없습니다.", color = DDZColor.TextSecondary) }
-                } else {
-                    items(sortedPhotos.chunked(3)) { rowPhotos ->
-                        GalleryPhotoRow(rowPhotos, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
-                            onOpenPhoto(sortedPhotos, sortedPhotos.indexOfFirst { it.id == photo.id })
+                    if (photos.isEmpty()) {
+                        item { Text("이 폴더에 저장된 사진이 없습니다.", color = DDZColor.TextSecondary) }
+                    } else {
+                        items(sortedPhotos.chunked(3)) { rowPhotos ->
+                            GalleryPhotoRow(rowPhotos, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
+                                onOpenPhoto(sortedPhotos, sortedPhotos.indexOfFirst { it.id == photo.id })
+                            }
+                        }
+                    }
+                    if (current != null && current.directOriginalCount > 0) {
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth()
+                                    .clickable(enabled = !selectionActive) { onOpenOriginal(relativePath + "original/") }
+                                    .padding(vertical = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
+                                Text("원본사진 ${current.directOriginalCount}장", modifier = Modifier.weight(1f))
+                                Icon(Icons.Default.ChevronRight, contentDescription = "원본사진 열기")
+                            }
                         }
                     }
                 }
-                if (current != null && current.directOriginalCount > 0) {
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth()
-                                .clickable(enabled = !selectionActive) { onOpenOriginal(relativePath + "original/") }
-                                .padding(vertical = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
-                            Text("원본사진 ${current.directOriginalCount}장", modifier = Modifier.weight(1f))
-                            Icon(Icons.Default.ChevronRight, contentDescription = "원본사진 열기")
-                        }
+            }
+        }
+        if (selectionActive) {
+            val actionsEnabled = selectedPhotoIds.isNotEmpty() && !photoMoveBusy && pendingPhotoPlan == null
+            Row(Modifier.fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                .padding(vertical = 8.dp)
+                .background(DDZColor.SurfaceSoft, RoundedCornerShape(16.dp))) {
+                TextButton(modifier = Modifier.weight(1f), enabled = actionsEnabled, onClick = ::startPhotoMove) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.DriveFileMove, contentDescription = null)
+                        Text("이동")
+                    }
+                }
+                TextButton(modifier = Modifier.weight(1f), enabled = actionsEnabled, onClick = {
+                    val selected = (if (root) allPhotos else photos).filter { it.id in selectedPhotoIds }
+                    runCatching { shareGalleryImages(context, selected) }.onFailure {
+                        folderOperationError = it.message ?: "공유 화면을 열지 못했습니다."
+                    }
+                }) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.Share, contentDescription = null)
+                        Text("공유")
+                    }
+                }
+                // Deletion stays unavailable until its confirmation and permission flow is implemented.
+                TextButton(modifier = Modifier.weight(1f), enabled = false, onClick = {}) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.Delete, contentDescription = null)
+                        Text("삭제")
                     }
                 }
             }
