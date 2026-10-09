@@ -230,6 +230,34 @@ class DzlogMediaStoreReader(
      * future SAF directory enumerator; MediaStore alone cannot discover empty folders.
      * Execute on Dispatchers.IO (not on the Compose main thread).
      */
+    data class GallerySnapshot(
+        val index: com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex,
+        val directPhotos: List<MediaImageItem>,
+        val allPhotos: List<MediaImageItem>,
+    )
+
+    /**
+     * Exactly one MediaStore query per navigation, including the root.
+     * An inaccessible SAF tree must not hide already-readable pictures.
+     */
+    fun loadGallerySnapshot(
+        relativePath: String,
+        existingFolderPaths: List<String> = emptyList(),
+    ): GallerySnapshot {
+        val prefix = MediaStoreQueryPolicy.normalizeRelativePath(relativePath)
+        val all = loadImagesUnderPrefix(prefix)
+        val index = com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy.index(
+            currentRelativePath = prefix,
+            imageRelativePaths = all.map { it.relativePath },
+            existingFolderPaths = existingFolderPaths,
+        )
+        return GallerySnapshot(
+            index = index,
+            directPhotos = all.filter { it.relativePath.trimEnd('/') == prefix.trimEnd('/') },
+            allPhotos = all,
+        )
+    }
+
     fun loadFolderIndex(
         relativePath: String,
         existingFolderPaths: List<String> = emptyList(),
