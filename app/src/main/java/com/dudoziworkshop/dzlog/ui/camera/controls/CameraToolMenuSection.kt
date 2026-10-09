@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.GridOn
@@ -41,11 +40,9 @@ internal fun CameraToolMenuSection(
     flashMode: CameraFlashMode,
     focusMode: CameraFocusMode,
     showGrid: Boolean,
-    rotationCwDeg: Int,
     assistShutterEnabled: Boolean,
     onSelectTool: (CameraOverlayTool) -> Unit,
     onToggleGrid: () -> Unit,
-    onRotateTable: () -> Unit,
     onToggleAssistShutter: () -> Unit,
 ) {
     Row(
@@ -87,17 +84,6 @@ internal fun CameraToolMenuSection(
             Icon(
                 imageVector = Icons.Default.GridOn,
                 contentDescription = if (showGrid) "격자 숨기기" else "격자 표시",
-                modifier = Modifier.size(16.dp),
-            )
-        }
-        // Temporary access until the table-selection toolbar owns rotation.
-        ToolMenuChip(
-            selected = rotationCwDeg == 90,
-            onClick = onRotateTable
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.RotateRight,
-                contentDescription = "표 90도 회전",
                 modifier = Modifier.size(16.dp),
             )
         }
