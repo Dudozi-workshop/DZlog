@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.data.mediastore
 import android.content.ContentProvider
 import android.content.ContentValues
 import android.content.Context
+import android.content.pm.ProviderInfo
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
@@ -30,6 +31,11 @@ class GalleryFolderDeletionTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         context.getSharedPreferences("dzlog_gallery_folder_tree", Context.MODE_PRIVATE).edit().clear().commit()
         provider = TreeProvider()
+        provider.attachInfo(context, ProviderInfo().apply {
+            authority = "com.android.externalstorage.documents"
+            exported = true
+            grantUriPermissions = true
+        })
         ShadowContentResolver.registerProviderInternal("com.android.externalstorage.documents", provider)
         provider.rows[rootId] = DocumentsContract.Document.MIME_TYPE_DIR
         provider.rows["$rootId/A"] = DocumentsContract.Document.MIME_TYPE_DIR
