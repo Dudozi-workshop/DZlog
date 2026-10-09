@@ -53,6 +53,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dudoziworkshop.dzlog.domain.naming.buildNamingSlotPreview
+import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
+import java.util.Date
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
@@ -603,6 +606,27 @@ fun TableEditorV2Screen(
             onNextCounterChange = { next -> counterController.edit(session, next) },
             onSyncCounter = { saveScope.launch { counterController.sync(context, session) } },
             onResetCounter = { showCounterResetDialog = true },
+            onManualPreview = { isFileName, index, value ->
+                val source = if (isFileName) saveRulesDraft.fileNameItems else saveRulesDraft.pathItems
+                val pendingItems = source.filterNotNull().mapIndexed { i, item ->
+                    if (i == index) item.copy(value = value) else item
+                }.let { it + List((source.size - it.size).coerceAtLeast(0)) { null } }
+                val pendingRules = if (isFileName) saveRulesDraft.copy(fileNameItems = pendingItems)
+                    else saveRulesDraft.copy(pathItems = pendingItems)
+                val pendingTemplate = applyMockSaveRulesDraft(session.finalTemplateForSave(), pendingRules)
+                buildNamingSlotPreview(
+                    isFileName = isFileName,
+                    slotIndex = index,
+                    resolvedCells = preview.plan.resolvedCells,
+                    slotDrafts = if (isFileName) pendingTemplate.fileNameSlotDrafts else pendingTemplate.pathSlotDrafts,
+                    fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+                    counterDigits = session.draftCounterPadding,
+                    usedCounter = preview.previewNaming.usedCounter,
+                    now = Date(),
+                    dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+                    timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
+                )
+            },
             onDraftChange = session::commitSaveRulesChange,
         )
     }

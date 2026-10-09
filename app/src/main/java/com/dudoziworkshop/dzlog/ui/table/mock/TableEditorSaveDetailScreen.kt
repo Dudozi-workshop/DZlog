@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.domain.naming.NamingSlotPreview
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -57,6 +58,7 @@ internal fun TableEditorSaveDetailScreen(
     onNextCounterChange: (Int) -> Unit,
     onSyncCounter: () -> Unit,
     onResetCounter: () -> Unit,
+    onManualPreview: (Boolean, Int, String) -> NamingSlotPreview,
     onDraftChange: (MockSaveRulesDraft) -> Unit,
 ) {
     var showCounterInput by remember { mutableStateOf(false) }
@@ -100,6 +102,7 @@ internal fun TableEditorSaveDetailScreen(
                         cells = cells,
                         rows = rows,
                         cols = cols,
+                        onManualPreview = onManualPreview,
                         onItemsChange = { onDraftChange(draft.copy(fileNameItems = it)) },
                     )
                     DDZSettingRow(
@@ -121,6 +124,7 @@ internal fun TableEditorSaveDetailScreen(
                         cells = cells,
                         rows = rows,
                         cols = cols,
+                        onManualPreview = onManualPreview,
                         onItemsChange = { onDraftChange(draft.copy(pathItems = it)) },
                     )
                     if (draft.pathItems.all { it == null }) {

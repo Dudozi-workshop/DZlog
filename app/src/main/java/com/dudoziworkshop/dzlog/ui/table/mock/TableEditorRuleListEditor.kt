@@ -1,7 +1,10 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,7 +36,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.domain.naming.NamingSlotPreview
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -59,6 +66,7 @@ internal fun TableEditorRuleListEditor(
     cells: List<TableEditorCellUiModel>,
     rows: Int,
     cols: Int,
+    onManualPreview: (Boolean, Int, String) -> NamingSlotPreview,
     onItemsChange: (List<MockRuleItem?>) -> Unit,
 ) {
     val compactItems = items.filterNotNull()
@@ -291,13 +299,46 @@ internal fun TableEditorRuleListEditor(
                     title = if (isFileName) "직접 입력" else "폴더명 입력",
                     onDismiss = { editorTarget = null },
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
                         DDZTextField(
                             modifier = Modifier.fillMaxWidth(),
                             value = manualDraft,
                             onValueChange = { manualDraft = it },
                             label = if (isFileName) "파일명 값" else "폴더명",
                         )
+                        val pendingPreview = editingIndex?.let { index ->
+                            onManualPreview(isFileName, index, manualDraft)
+                        }
+                        if (pendingPreview != null) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth()
+                                    .background(DDZColor.SurfaceSoft, RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text("미리보기", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+                                Text(
+                                    buildAnnotatedString {
+                                        append(pendingPreview.text)
+                                        if (pendingPreview.highlightStart >= 0 &&
+                                            pendingPreview.highlightEnd > pendingPreview.highlightStart &&
+                                            pendingPreview.highlightEnd <= pendingPreview.text.length
+                                        ) {
+                                            addStyle(
+                                                SpanStyle(color = DDZColor.SelectedDark, fontWeight = FontWeight.Bold),
+                                                pendingPreview.highlightStart,
+                                                pendingPreview.highlightEnd,
+                                            )
+                                        }
+                                    },
+                                    style = DDZTypography.Body,
+                                    color = DDZColor.TextPrimary,
+                                )
+                            }
+                        }
                         DDZButton(
                             text = "확인",
                             modifier = Modifier.fillMaxWidth(),
