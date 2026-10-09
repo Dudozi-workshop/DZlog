@@ -73,6 +73,50 @@ class GalleryFolderStorage(context: Context) {
         return relativePath.trimEnd('/') + "/" + name + "/"
     }
 
+    /** Renames a directory in-place without touching camera template preferences. */
+    fun renameFolder(sourcePath: String, newName: String): String {
+        val target = com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
+            .renamedPath(sourcePath, newName)
+        if (target == sourcePath) return sourcePath
+        val tree = connectedTree() ?: error("먼저 DZlog 폴더 접근을 연결해 주세요.")
+        val source = resolveDirectory(tree, sourcePath) ?: error("원본 폴더를 찾지 못했습니다.")
+        val parentPath = requireNotNull(GalleryFolderIndexPolicy.parentOf(sourcePath))
+        val parent = resolveDirectory(tree, parentPath) ?: error("상위 폴더를 찾지 못했습니다.")
+        val requested = target.trimEnd('/').substringAfterLast('/')
+        require(listChildren(tree, parent).none { it.name.equals(requested, true) }) {
+            "동일한 이름의 폴더가 이미 존재합니다."
+        }
+        val renamed = DocumentsContract.renameDocument(resolver, source, requested)
+            ?: error("폴더 이름 변경을 완료하지 못했습니다.")
+        require(queryName(renamed) == requested) { "변경된 폴더 이름을 확인하지 못했습니다." }
+        return target
+    }
+
+    /** Moves the whole directory, including originals and nested media. */
+    fun moveFolder(sourcePath: String, destinationParentPath: String): String {
+        val target = com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
+            .movedPath(sourcePath, destinationParentPath)
+        val tree = connectedTree() ?: error("먼저 DZlog 폴더 접근을 연결해 주세요.")
+        val source = resolveDirectory(tree, sourcePath) ?: error("원본 폴더를 찾지 못했습니다.")
+        val oldParentPath = requireNotNull(GalleryFolderIndexPolicy.parentOf(sourcePath))
+        val oldParent = resolveDirectory(tree, oldParentPath) ?: error("기존 상위 폴더를 찾지 못했습니다.")
+        val destination = resolveDirectory(tree, destinationParentPath)
+            ?: error("이동할 대상 폴더가 존재하지 않습니다.")
+        val name = sourcePath.trimEnd('/').substringAfterLast('/')
+        require(listChildren(tree, destination).none { it.name.equals(name, true) }) {
+            "대상 위치에 동일한 이름이 이미 존재합니다."
+        }
+        val moved = DocumentsContract.moveDocument(resolver, source, oldParent, destination)
+            ?: error("이 저장소에서는 폴더 이동을 지원하지 않습니다.")
+        require(queryName(moved) == name) { "이동한 폴더 이름을 확인하지 못했습니다." }
+        return target
+    }
+
+    private fun queryName(uri: Uri): String? = resolver.query(
+        uri, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+        null, null, null,
+    )?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+
     private fun connectedTree(): Uri? {
         val encoded = preferences.getString(TREE_KEY, null) ?: return null
         val tree = runCatching { Uri.parse(encoded) }.getOrNull() ?: return null
