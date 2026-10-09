@@ -339,17 +339,20 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATE_ADDED
         )
-        return queryImages(where, projection)
+        return queryImages(where, projection, requireReadable = true)
     }
 
     private fun queryImages(
         where: MediaStoreQueryPolicy.WhereClause,
         projection: Array<String>,
+        requireReadable: Boolean = false,
     ): List<MediaImageItem> {
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val out = mutableListOf<MediaImageItem>()
 
-        contentResolver.query(uri, projection, where.selection, where.selectionArgs, sortOrderDateAddedDesc)?.use { c ->
+        val cursor = contentResolver.query(uri, projection, where.selection, where.selectionArgs, sortOrderDateAddedDesc)
+        check(!requireReadable || cursor != null) { "사진 목록을 조회하지 못했습니다. 다시 시도해 주세요." }
+        cursor?.use { c ->
             val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val nameIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
             val relIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
