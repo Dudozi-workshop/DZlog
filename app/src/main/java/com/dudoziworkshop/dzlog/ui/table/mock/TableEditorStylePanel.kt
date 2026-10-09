@@ -8,6 +8,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Icon
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -19,8 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
-import com.dudoziworkshop.dzlog.ui.common.DDZButton
-import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
 @Composable
@@ -31,13 +37,26 @@ internal fun TableEditorStylePanel(
     onAdvancedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val choiceColors = SegmentedButtonDefaults.colors(
+        activeContainerColor = DDZColor.SelectedSoft,
+        activeContentColor = DDZColor.SelectedDark,
+        activeBorderColor = DDZColor.SageBorder,
+        inactiveContainerColor = DDZColor.Surface,
+        inactiveContentColor = DDZColor.TextPrimary,
+        inactiveBorderColor = DDZColor.Border,
+    )
+    val sliderColors = SliderDefaults.colors(
+        thumbColor = DDZColor.SelectedDark,
+        activeTrackColor = DDZColor.Selected,
+        inactiveTrackColor = DDZColor.Border,
+    )
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(DDZColor.Surface)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("배경", color = DDZColor.TextSecondary)
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -57,17 +76,20 @@ internal fun TableEditorStylePanel(
                         }))
                     },
                     shape = SegmentedButtonDefaults.itemShape(index, 3),
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    colors = choiceColors,
                 ) { Text(label) }
             }
         }
 
-        Text("글자 크기  " + draft.valueScale + "%", color = DDZColor.TextSecondary)
+        StyleValueLabel("글자 크기", "${draft.valueScale}%")
         Slider(
             value = draft.valueScale / 100f,
             onValueChange = { value ->
                 onDraftChange(draft.copy(valueScale = (value * 100).toInt().coerceIn(60, 160)))
             },
             valueRange = 0.6f..1.6f,
+            colors = sliderColors,
         )
 
         Text("정렬", color = DDZColor.TextSecondary)
@@ -77,6 +99,8 @@ internal fun TableEditorStylePanel(
                     selected = draft.textAlign == index,
                     onClick = { onDraftChange(draft.copy(textAlign = index)) },
                     shape = SegmentedButtonDefaults.itemShape(index, 3),
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    colors = choiceColors,
                 ) { Text(label) }
             }
         }
@@ -86,33 +110,53 @@ internal fun TableEditorStylePanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("테두리 표시")
+            Text("테두리 표시", color = DDZColor.TextPrimary)
             Switch(
                 checked = draft.gridEnabled,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = DDZColor.Surface,
+                    checkedTrackColor = DDZColor.Selected,
+                    uncheckedThumbColor = DDZColor.TextSecondary,
+                    uncheckedTrackColor = DDZColor.SurfaceSoft,
+                    uncheckedBorderColor = DDZColor.Border,
+                ),
                 onCheckedChange = { onDraftChange(draft.copy(gridEnabled = it)) },
             )
         }
 
-        DDZButton(
-            text = if (showAdvanced) "고급 설정 접기" else "더보기",
-            modifier = Modifier.fillMaxWidth(),
-            style = DDZButtonStyle.Secondary,
+        TextButton(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
             onClick = { onAdvancedChange(!showAdvanced) },
-        )
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text("고급 설정", color = DDZColor.TextSecondary)
+                Icon(
+                    imageVector = if (showAdvanced) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = if (showAdvanced) "고급 설정 접기" else "고급 설정 펼치기",
+                    tint = DDZColor.TextSecondary,
+                )
+            }
+        }
 
         if (showAdvanced) {
-            Text(
-                "배경 투명도  " + ((draft.bgAlpha / 255f) * 100).toInt() + "%",
-                color = DDZColor.TextSecondary,
-            )
+            StyleValueLabel("배경 투명도", "${((draft.bgAlpha / 255f) * 100).toInt()}%")
             Slider(
                 value = draft.bgAlpha.toFloat(),
                 onValueChange = { value ->
                     onDraftChange(draft.copy(bgAlpha = value.toInt().coerceIn(0, 255)))
                 },
                 valueRange = 0f..255f,
+                colors = sliderColors,
                 enabled = draft.bgStyle != 2,
             )
+
+            if (draft.bgStyle == 2) {
+                Text("투명 배경에서는 투명도를 조절하지 않아요.", color = DDZColor.TextSecondary)
+            }
 
             Text("글자 색", color = DDZColor.TextSecondary)
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -132,10 +176,24 @@ internal fun TableEditorStylePanel(
                             })
                         },
                         shape = SegmentedButtonDefaults.itemShape(index, 3),
+                        modifier = Modifier.heightIn(min = 48.dp),
+                        colors = choiceColors,
                     ) { Text(label) }
                 }
             }
         }
 
+    }
+}
+
+@Composable
+private fun StyleValueLabel(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = DDZColor.TextSecondary)
+        Text(value, color = DDZColor.TextPrimary)
     }
 }
