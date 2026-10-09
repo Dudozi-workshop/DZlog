@@ -20,6 +20,18 @@ data class GalleryFolderIndex(
 object GalleryFolderIndexPolicy {
     const val ROOT = "Pictures/DZlog/"
 
+    /** Folder navigation is based on the actual relative path. Root has no parent. */
+    fun parentOf(relativePath: String): String? {
+        val current = normalize(relativePath)
+        require(current == ROOT || current.startsWith(ROOT)) {
+            "Gallery folder must be inside Pictures/DZlog/"
+        }
+        if (current == ROOT) return null
+        val tail = current.removePrefix(ROOT).trimEnd('/')
+        val parent = tail.substringBeforeLast('/', missingDelimiterValue = "")
+        return if (parent.isBlank()) ROOT else ROOT + parent + "/"
+    }
+
     fun index(
         currentRelativePath: String,
         imageRelativePaths: List<String>,
@@ -33,7 +45,6 @@ object GalleryFolderIndexPolicy {
         val folderTotals = linkedMapOf<String, Int>()
         var directCount = 0
         var directOriginal = 0
-        val originals = current + "original/"
 
         for (imagePath in imageRelativePaths) {
             val path = normalize(imagePath)

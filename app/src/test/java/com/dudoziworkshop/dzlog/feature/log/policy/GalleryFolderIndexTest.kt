@@ -52,4 +52,20 @@ class GalleryFolderIndexTest {
         assertEquals(2, index.children.size)
         assertTrue(index.children.all { it.totalImageCount == 0 })
     }
+    @Test
+    fun parent_navigation_reaches_root_from_five_levels() {
+        var path: String? = "Pictures/DZlog/A/B/C/D/E/"
+        for (expected in listOf(
+            "Pictures/DZlog/A/B/C/D/",
+            "Pictures/DZlog/A/B/C/",
+            "Pictures/DZlog/A/B/",
+            "Pictures/DZlog/A/",
+            "Pictures/DZlog/",
+        )) {
+            path = GalleryFolderIndexPolicy.parentOf(requireNotNull(path))
+            assertEquals(expected, path)
+        }
+        assertEquals(null, GalleryFolderIndexPolicy.parentOf(GalleryFolderIndexPolicy.ROOT))
+    }
+
 }
