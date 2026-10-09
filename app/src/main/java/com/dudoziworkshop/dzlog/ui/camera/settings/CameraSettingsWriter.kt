@@ -19,6 +19,7 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_OFFSET_Y
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_ROTATION_CW_90
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_WIDTH
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_HEIGHT
+import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_LOCKED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_WM_TABLE_ANCHOR
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.preferences.persistCaptureAspect
@@ -89,6 +90,10 @@ internal class CameraSettingsWriter(
             it[KEY_WM_OFFSET_X] = (x10000.coerceIn(0, 10000) / 100f).toInt().coerceIn(0, 100)
             it[KEY_WM_OFFSET_Y] = (y10000.coerceIn(0, 10000) / 100f).toInt().coerceIn(0, 100)
         }
+    }
+
+    suspend fun setWmTableLocked(locked: Boolean) {
+        context.dataStore.edit { it[KEY_WM_TABLE_LOCKED] = locked }
     }
 
     suspend fun setWmRotationCwDeg(rotationCwDeg: Int) {
