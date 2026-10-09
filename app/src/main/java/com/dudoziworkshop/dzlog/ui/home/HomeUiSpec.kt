@@ -90,6 +90,25 @@ internal object HomeAmbientSpec {
     val GlowHeight = 140.dp
     val GlowBlurRadius = 28.dp
 
+
+    // C-Lite ambient motion: each value is a HALF-cycle, so Reverse doubles it.
+    // Movement intentionally desynchronizes the leaves without changing the shadow opacity.
+    val ShadowTravelX = 5.dp
+    val ShadowTravelY = 1.5.dp
+    const val ShadowRotationDegrees = 0.65f
+    const val ShadowHalfCycleMillis = 7_000  // 14 s round trip
+    const val Leaf1HalfCycleMillis = 4_700   // 9.4 s round trip
+    const val Leaf2HalfCycleMillis = 5_800   // 11.6 s round trip
+    const val Leaf3HalfCycleMillis = 6_400   // 12.8 s round trip
+    const val Leaf4HalfCycleMillis = 5_200   // 10.4 s round trip
+    const val GlowHalfCycleMillis = 10_000   // 20 s round trip
+
+    const val Leaf1SwayDegrees = 1.8f
+    const val Leaf2SwayDegrees = 1.3f
+    const val Leaf3SwayDegrees = 2.0f
+    const val Leaf4SwayDegrees = 1.6f
+    const val GlowOpacityMin = 0.94f
+
     const val ShadowAlpha = 0.12f
     const val StemAlpha = 0.075f
     const val GlowAlpha = 0.035f
