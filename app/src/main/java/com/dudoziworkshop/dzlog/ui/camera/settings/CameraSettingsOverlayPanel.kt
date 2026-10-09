@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
@@ -20,10 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.Vibration
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,7 +30,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
@@ -47,9 +43,9 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
-private const val PANEL_WIDTH_FRACTION = 0.6f
+private const val PANEL_WIDTH_FRACTION = 0.88f
 private const val PANEL_DIM_ALPHA = 0.2f
-private val PANEL_MAX_WIDTH = 420.dp
+private val PANEL_MAX_WIDTH = 460.dp
 // 1단계 라운딩 토큰: 패널 외곽은 Medium 기준선을 사용한다.
 private val PANEL_CORNER_RADIUS = DDZLayout.Radius.Medium
 // 토큰 정책: 패널 헤더 터치 영역은 compact control 규격을 사용한다.
@@ -98,6 +94,7 @@ internal fun CameraSettingsOverlayPanel(
                 )
                 .fillMaxWidth(PANEL_WIDTH_FRACTION)
                 .widthIn(max = PANEL_MAX_WIDTH)
+                .heightIn(max = 700.dp)
                 .zIndex(30f),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(PANEL_CORNER_RADIUS),
             tonalElevation = 0.dp,
@@ -108,7 +105,7 @@ internal fun CameraSettingsOverlayPanel(
                 // UX 3차 보정: 내부 상단 여백을 제거해 패널 시작점을 safe 영역 바로 아래로 더 밀착시킨다.
                 modifier = Modifier
                     .verticalScroll(rememberScrollState())
-                    .padding(start = 8.dp, end = 8.dp, top = 0.dp, bottom = 6.dp),
+                    .padding(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Row(
@@ -173,18 +170,16 @@ internal fun CameraSettingsOverlayPanel(
 
                 SettingSectionTitle("촬영 피드백")
                 Row(
-                    modifier = Modifier.fillMaxWidth(0.95f),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     CameraFeedbackChip(
-                        icon = Icons.Default.VolumeUp,
                         label = "소리",
                         selected = captureSoundEnabled,
                         onClick = { onCaptureSoundChange(!captureSoundEnabled) },
                         modifier = Modifier.weight(1f),
                     )
                     CameraFeedbackChip(
-                        icon = Icons.Default.Vibration,
                         label = "진동",
                         selected = captureHapticEnabled,
                         onClick = { onCaptureHapticChange(!captureHapticEnabled) },
@@ -231,31 +226,27 @@ private fun CompactSegments(options: List<DDZSegmentedControlOption>) {
 
 @Composable
 private fun CameraFeedbackChip(
-    icon: ImageVector,
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    FilterChip(
-        selected = selected,
+    Surface(
         onClick = onClick,
-        modifier = modifier.height(36.dp),
-        label = { Text(text = label, style = DDZTypography.Caption, maxLines = 1) },
-        leadingIcon = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.width(16.dp),
-            )
-        },
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = DDZColor.Surface,
-            labelColor = DDZColor.TextMuted,
-            iconColor = DDZColor.TextMuted,
-            selectedContainerColor = DDZColor.SageLight,
-            selectedLabelColor = DDZColor.SageDarkStrong,
-            selectedLeadingIconColor = DDZColor.SageDarkStrong,
+        modifier = modifier.height(40.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(DDZLayout.Radius.Small),
+        color = if (selected) DDZColor.SageLight else DDZColor.Surface,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (selected) DDZColor.SageBorder else DDZColor.Border,
         ),
-    )
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = label,
+                style = DDZTypography.Caption,
+                color = if (selected) DDZColor.SageDarkStrong else DDZColor.TextMuted,
+            )
+        }
+    }
 }
