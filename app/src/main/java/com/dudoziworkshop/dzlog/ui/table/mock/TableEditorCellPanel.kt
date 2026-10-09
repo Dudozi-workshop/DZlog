@@ -130,11 +130,7 @@ internal fun TableEditorCellUiModelEditor(
 
             TableEditorCellType.DATE -> {
                 Text(
-                    text = when (cell.formatPattern.ifBlank { "yyyyMMdd" }) {
-                        "yyMMdd" -> "261007"
-                        "MMdd" -> "1007"
-                        else -> "20261007"
-                    },
+                    text = cell.previewValue ?: cell.value,
                     fontWeight = FontWeight.Bold,
                 )
                 DDZSettingRow(
@@ -145,7 +141,7 @@ internal fun TableEditorCellUiModelEditor(
             }
 
             TableEditorCellType.TIME -> {
-                Text("1251", fontWeight = FontWeight.Bold)
+                Text(cell.previewValue ?: cell.value, fontWeight = FontWeight.Bold)
                 DDZSettingRow(
                     label = "시간 형식",
                     value = "HHmm · 분 단위 고정",
@@ -156,7 +152,7 @@ internal fun TableEditorCellUiModelEditor(
             TableEditorCellType.ROTATING_TEXT -> {
                 val selectedSet = phraseSets.firstOrNull { it.id == cell.phraseSetId }
                 Text(
-                    selectedSet?.items?.firstOrNull().orEmpty().ifBlank { "문구 세트를 선택하세요" },
+                    (cell.previewValue ?: cell.value).ifBlank { "문구 세트를 선택하세요" },
                     fontWeight = FontWeight.Bold,
                 )
                 DDZSettingRow(

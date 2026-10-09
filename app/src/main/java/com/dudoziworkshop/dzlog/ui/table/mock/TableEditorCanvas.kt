@@ -159,7 +159,7 @@ internal fun ColumnScope.MockTableCanvas(
                     contentAlignment = cellAlignment,
                 ) {
                     Text(
-                        cell.value,
+                        cell.previewValue ?: cell.value,
                         color = if (isSelected) DDZColor.PrimaryDark else textColor,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         fontSize = (14f * fontScale.coerceIn(0.6f, 1.6f)).sp,
