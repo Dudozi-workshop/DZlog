@@ -3,7 +3,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.preview
 
 import android.graphics.RectF
-import android.os.SystemClock
 import android.util.Log
 import android.view.View
 import androidx.camera.core.Camera
@@ -49,7 +48,6 @@ import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.ui.camera.controller.bindCamera
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import kotlinx.coroutines.delay
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -65,7 +63,9 @@ internal fun CameraPreviewArea(
     capturedUri: android.net.Uri?,
     onDismissCaptured: () -> Unit,
     tapFocusUi: TapFocusUiState?,
-    onTapFocusUiChange: (TapFocusUiState?) -> Unit
+    onTapFocusUiChange: (TapFocusUiState?) -> Unit,
+    isTableSelected: Boolean,
+    onTableSelectionChange: (Boolean) -> Unit,
 ) {
     val context = args.context
     val lifecycleOwner = args.lifecycleOwner
@@ -96,7 +96,7 @@ internal fun CameraPreviewArea(
         var watermarkRawRect by remember { mutableStateOf<RectF?>(null) }
         var watermarkDragActive by remember { mutableStateOf(false) }
         var suppressWatermarkTapUntilMs by remember { mutableLongStateOf(0L) }
-        var isWatermarkArmed by remember { mutableStateOf(false) }
+        val isWatermarkArmed = isTableSelected
         var previewBoundsOffsetX10000 by remember { mutableIntStateOf(args.watermarkUi.boundsOffsetX10000.coerceIn(0, 10000)) }
         var previewBoundsOffsetY10000 by remember { mutableIntStateOf(args.watermarkUi.boundsOffsetY10000.coerceIn(0, 10000)) }
         var previewOffsetX by remember { mutableIntStateOf((previewBoundsOffsetX10000 / 100f).roundToInt().coerceIn(0, 100)) }
@@ -107,16 +107,11 @@ internal fun CameraPreviewArea(
         var dragTableWidthPx by remember { mutableFloatStateOf(0f) }
         var dragTableHeightPx by remember { mutableFloatStateOf(0f) }
         var pendingLocalOffsetSync by remember { mutableStateOf(false) }
-        var watermarkLastInteractionMs by remember { mutableLongStateOf(0L) }
         val dragTouchSlop = LocalViewConfiguration.current.touchSlop
 
         fun commitWatermarkOffsetIfNeeded() {
             args.onWatermarkOffsetRatioCommit(previewOffsetX, previewOffsetY)
             args.onWatermarkBoundsOffset10000Commit(previewBoundsOffsetX10000, previewBoundsOffsetY10000)
-        }
-
-        fun markWatermarkInteraction() {
-            watermarkLastInteractionMs = SystemClock.uptimeMillis()
         }
 
         LaunchedEffect(args.watermarkUi.boundsOffsetX10000, args.watermarkUi.boundsOffsetY10000) {
@@ -136,19 +131,9 @@ internal fun CameraPreviewArea(
             dragPreviewOffsetPx = null
         }
 
-        LaunchedEffect(isWatermarkArmed, watermarkDragActive, watermarkLastInteractionMs) {
-            if (!isWatermarkArmed || watermarkDragActive) return@LaunchedEffect
-            val timeoutMs = 1_000L
-            val waitMs = (watermarkLastInteractionMs + timeoutMs - SystemClock.uptimeMillis()).coerceAtLeast(0L)
-            delay(waitMs)
-            if (
-                isWatermarkArmed &&
-                !watermarkDragActive &&
-                (SystemClock.uptimeMillis() - watermarkLastInteractionMs) >= timeoutMs
-            ) {
-                commitWatermarkOffsetIfNeeded()
-                isWatermarkArmed = false
-            }
+        // Selection stays visible until the user deselects, captures, or navigates away.
+        LaunchedEffect(args.showWmPreview) {
+            if (!args.showWmPreview) onTableSelectionChange(false)
         }
 
         fun updateCaptureRect() {
@@ -262,10 +247,8 @@ internal fun CameraPreviewArea(
                 dragTableHeightPx = dragTableHeightPx,
                 dragPreviewOffsetPx = dragPreviewOffsetPx,
                 onTapFocusUiChange = onTapFocusUiChange,
-                onOpenTableEditor = args.onOpenTableEditor,
                 onCommitWatermarkOffsetIfNeeded = ::commitWatermarkOffsetIfNeeded,
-                onMarkWatermarkInteraction = ::markWatermarkInteraction,
-                onWatermarkArmedChange = { isWatermarkArmed = it },
+                onWatermarkArmedChange = onTableSelectionChange,
                 onWatermarkDragActiveChange = { watermarkDragActive = it },
                 onDragStartLeftPxChange = { dragStartLeftPx = it },
                 onDragStartTopPxChange = { dragStartTopPx = it },
