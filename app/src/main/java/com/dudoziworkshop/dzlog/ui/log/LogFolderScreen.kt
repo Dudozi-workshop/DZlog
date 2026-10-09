@@ -106,6 +106,8 @@ fun LogFolderScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var newFolderName by remember { mutableStateOf("") }
     var manageAction by remember { mutableStateOf<String?>(null) }
+    var managedFolderPath by remember(relativePath) { mutableStateOf(relativePath) }
+    var folderManagementBusy by remember { mutableStateOf(false) }
     var renameName by remember { mutableStateOf("") }
     var moveTarget by remember { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
     var destinationPaths by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -219,6 +221,27 @@ fun LogFolderScreen(
             }
         }
     }
+    fun startFolderManagement(path: String, action: String) {
+        if (folderManagementBusy || selectedPhotoIds.isNotEmpty()) return
+        managedFolderPath = path
+        folderOperationError = null
+        managementConfirmed = false
+        renameName = path.trimEnd('/').substringAfterLast('/')
+        moveTarget = GalleryFolderIndexPolicy.ROOT
+        destinationPaths = emptyList()
+        manageAction = action
+        if (action == "move") {
+            scope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    runCatching { folderStorage.listDestinationFolders(path) }
+                }
+                if (managedFolderPath == path && manageAction == action) {
+                    result.onSuccess { destinationPaths = it }
+                        .onFailure { folderOperationError = it.message ?: "이동할 폴더를 읽지 못했습니다." }
+                }
+            }
+        }
+    }
     val root = relativePath == GalleryFolderIndexPolicy.ROOT
     val recentPhotos = remember(allPhotos) {
         allPhotos.filterNot { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }
@@ -274,22 +297,10 @@ fun LogFolderScreen(
         }
         if (!root && connected) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = {
-                    renameName = relativePath.trimEnd('/').substringAfterLast('/')
-                    managementConfirmed = false
-                    manageAction = "rename"
-                }) { Text("이름 변경") }
-                OutlinedButton(onClick = {
-                    moveTarget = GalleryFolderIndexPolicy.ROOT
-                    destinationPaths = emptyList()
-                    scope.launch {
-                        destinationPaths = withContext(Dispatchers.IO) {
-                            runCatching { folderStorage.listDestinationFolders(relativePath) }.getOrDefault(emptyList())
-                        }
-                    }
-                    managementConfirmed = false
-                    manageAction = "move"
-                }) { Text("이동") }
+                OutlinedButton(enabled = !folderManagementBusy && selectedPhotoIds.isEmpty(),
+                    onClick = { startFolderManagement(relativePath, "rename") }) { Text("이름 변경") }
+                OutlinedButton(enabled = !folderManagementBusy && selectedPhotoIds.isEmpty(),
+                    onClick = { startFolderManagement(relativePath, "move") }) { Text("이동") }
             }
         }
         if (selectedPhotoIds.isNotEmpty()) {
@@ -333,6 +344,8 @@ fun LogFolderScreen(
                 onOpenPhoto = onOpenPhoto,
                 onOpenOriginal = onOpenOriginal,
                 onOpenRecentPhotos = { showRecentPhotos = true },
+                onManageFolder = ::startFolderManagement,
+                canManageFolders = connected && !folderManagementBusy && selectedPhotoIds.isEmpty(),
                 onCreateFolder = { folderOperationError = null; showCreateDialog = true },
                 selectedIds = selectedPhotoIds,
                 onLongPressPhoto = ::togglePhoto,
@@ -353,7 +366,10 @@ fun LogFolderScreen(
                 if (current != null && current.children.isNotEmpty()) {
                     items(current.children, key = { it.relativePath }) { folder ->
                         val summary = summariesByPath[folder.relativePath]
-                        GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get)) {
+                        GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
+                            canManage = connected && !folderManagementBusy && selectedPhotoIds.isEmpty(),
+                            onManage = { action -> startFolderManagement(folder.relativePath, action) },
+                        ) {
                             onOpenFolder(folder.relativePath)
                         }
                     }
@@ -459,12 +475,16 @@ fun LogFolderScreen(
         }
         if (manageAction != null) {
             AlertDialog(
-                onDismissRequest = { manageAction = null },
+                onDismissRequest = { if (!folderManagementBusy) manageAction = null },
                 title = { Text(if (manageAction == "rename") "폴더 이름 변경" else "폴더 이동") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(managedFolderPath.removePrefix(GalleryFolderIndexPolicy.ROOT),
+                            color = DDZColor.TextSecondary)
+                        folderOperationError?.let { Text(it, color = DDZColor.Destructive) }
                         if (manageAction == "rename") {
                             OutlinedTextField(
+                                enabled = !folderManagementBusy,
                                 value = renameName,
                                 onValueChange = { renameName = it },
                                 label = { Text("새 폴더 이름") },
@@ -475,7 +495,7 @@ fun LogFolderScreen(
                             Column(modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp)
                                 .verticalScroll(rememberScrollState())) {
                                 destinationPaths.forEach { destination ->
-                                    OutlinedButton(onClick = { moveTarget = destination }) {
+                                    OutlinedButton(enabled = !folderManagementBusy, onClick = { moveTarget = destination }) {
                                         val label = destination.removePrefix(GalleryFolderIndexPolicy.ROOT)
                                             .ifBlank { "DZlog" }
                                         Text(if (moveTarget == destination) "✓ $label" else label)
@@ -483,7 +503,7 @@ fun LogFolderScreen(
                                 }
                             }
                         }
-                        val impact = GalleryFolderOperationPolicy.captureImpact(relativePath, capturePathDrafts)
+                        val impact = GalleryFolderOperationPolicy.captureImpact(managedFolderPath, capturePathDrafts)
                         Text(
                             when (impact) {
                                 CapturePathImpact.MATCH -> "이 폴더는 현재 저장설정의 촬영 경로입니다. 변경 후 촬영 사진은 기존 설정 경로에 저장될 수 있습니다."
@@ -494,6 +514,7 @@ fun LogFolderScreen(
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             androidx.compose.material3.Checkbox(
+                                enabled = !folderManagementBusy,
                                 checked = managementConfirmed,
                                 onCheckedChange = { managementConfirmed = it },
                             )
@@ -502,33 +523,41 @@ fun LogFolderScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(enabled = managementConfirmed && (manageAction != "move" || destinationPaths.contains(moveTarget)), onClick = {
+                    TextButton(enabled = !folderManagementBusy && managementConfirmed && (manageAction != "move" || destinationPaths.contains(moveTarget)), onClick = {
                         val action = manageAction
+                        val sourcePath = managedFolderPath
+                        val requestedName = renameName
+                        val destination = moveTarget
+                        folderManagementBusy = true
                         scope.launch {
                             val result = withContext(Dispatchers.IO) {
                                 runCatching {
                                     val targetPath = if (action == "rename")
-                                        GalleryFolderOperationPolicy.renamedPath(relativePath, renameName)
-                                    else GalleryFolderOperationPolicy.movedPath(relativePath, moveTarget)
-                                    folderCatalog.relocateFolder(relativePath, targetPath) {
+                                        GalleryFolderOperationPolicy.renamedPath(sourcePath, requestedName)
+                                    else GalleryFolderOperationPolicy.movedPath(sourcePath, destination)
+                                    folderCatalog.relocateFolder(sourcePath, targetPath) {
                                         if (action == "rename")
-                                            folderStorage.renameFolder(relativePath, renameName)
-                                        else folderStorage.moveFolder(relativePath, moveTarget)
+                                            folderStorage.renameFolder(sourcePath, requestedName)
+                                        else folderStorage.moveFolder(sourcePath, destination)
                                     }
                                 }
                             }
+                            folderManagementBusy = false
+                            GallerySnapshotMemory.cache.invalidate()
                             result.onSuccess { newPath ->
                                 manageAction = null
                                 folderOperationError = null
-                                GallerySnapshotMemory.cache.invalidate()
-                                onOpenFolder(newPath)
+                                if (sourcePath == relativePath) onOpenFolder(newPath)
                                 reloadKey++
-                            }.onFailure { folderOperationError = it.message ?: "폴더 관리 실패" }
+                            }.onFailure {
+                                folderOperationError = it.message ?: "폴더 관리 실패"
+                                reloadKey++
+                            }
                         }
                     }) { Text("변경") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { manageAction = null }) { Text("취소") }
+                    TextButton(enabled = !folderManagementBusy, onClick = { manageAction = null }) { Text("취소") }
                 },
             )
         }

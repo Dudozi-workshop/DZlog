@@ -18,14 +18,20 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,6 +68,8 @@ internal fun LogGalleryHomeContent(
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
     onOpenOriginal: (String) -> Unit,
     onOpenRecentPhotos: () -> Unit,
+    onManageFolder: (String, String) -> Unit,
+    canManageFolders: Boolean,
     onCreateFolder: () -> Unit = {},
     selectedIds: Set<Long> = emptySet(),
     onLongPressPhoto: (MediaImageItem) -> Unit = {},
@@ -148,7 +156,10 @@ internal fun LogGalleryHomeContent(
                 } else {
                     items(folderIndex.children, key = { "folder-${it.relativePath}" }) { folder ->
                         val summary = summariesByPath[folder.relativePath]
-                        GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get)) {
+                        GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
+                            canManage = canManageFolders,
+                            onManage = { action -> onManageFolder(folder.relativePath, action) },
+                        ) {
                             onOpenFolder(folder.relativePath)
                         }
                     }
@@ -161,7 +172,10 @@ internal fun LogGalleryHomeContent(
                 } else {
                     items(folderIndex.children, key = { "folder-${it.relativePath}" }) { folder ->
                         val summary = summariesByPath[folder.relativePath]
-                        GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get)) {
+                        GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
+                            canManage = canManageFolders,
+                            onManage = { action -> onManageFolder(folder.relativePath, action) },
+                        ) {
                             onOpenFolder(folder.relativePath)
                         }
                     }
@@ -232,8 +246,11 @@ internal fun GalleryFolderRow(
     folder: GalleryChildFolder,
     summary: GalleryFolderSummary?,
     coverImage: MediaImageItem?,
+    canManage: Boolean,
+    onManage: (String) -> Unit,
     onClick: () -> Unit,
 ) {
+    var menuExpanded by remember(folder.relativePath) { mutableStateOf(false) }
     Row(
         modifier = Modifier.fillMaxWidth()
             .background(DDZColor.Surface, RoundedCornerShape(14.dp))
@@ -268,7 +285,19 @@ internal fun GalleryFolderRow(
                 fontSize = 12.sp,
             )
         }
-        Icon(Icons.Default.ChevronRight, contentDescription = "폴더 열기", tint = DDZColor.IconMuted)
+        Box {
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(Icons.Default.MoreVert, contentDescription = "${folder.name} 폴더 관리", tint = DDZColor.IconMuted)
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                DropdownMenuItem(text = { Text("이름 변경") }, enabled = canManage,
+                    onClick = { menuExpanded = false; onManage("rename") })
+                DropdownMenuItem(text = { Text("이동") }, enabled = canManage,
+                    onClick = { menuExpanded = false; onManage("move") })
+                // Enable only after recursive deletion, permission and partial-failure handling are implemented.
+                DropdownMenuItem(text = { Text("삭제") }, enabled = false, onClick = {})
+            }
+        }
     }
 }
 
