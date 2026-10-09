@@ -466,6 +466,7 @@ fun TableEditorV2Screen(
                             )
                         },
                         onClose = { selectionState.clearEditSelection() },
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                 }
             } else {

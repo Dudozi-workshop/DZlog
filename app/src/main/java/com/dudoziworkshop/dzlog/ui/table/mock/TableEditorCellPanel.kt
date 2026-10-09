@@ -1,7 +1,8 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,7 +10,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -45,6 +50,7 @@ internal fun TableEditorCellUiModelEditor(
     onUpdatePhraseSet: (String, (com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> Unit,
     onDeletePhraseSet: (String) -> Unit,
     onClose: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var showTypePicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -54,9 +60,10 @@ internal fun TableEditorCellUiModelEditor(
     var editingPhraseSetId by remember { mutableStateOf<String?>(null) }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(DDZColor.Surface)
+            .verticalScroll(rememberScrollState())
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -66,13 +73,13 @@ internal fun TableEditorCellUiModelEditor(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("선택한 셀", fontWeight = FontWeight.Bold)
-            Text(
-                "×",
-                modifier = Modifier
-                    .clickable(onClick = onClose)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                color = DDZColor.TextMuted,
-            )
+            IconButton(onClick = onClose) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "셀 편집 닫기",
+                    tint = DDZColor.TextMuted,
+                )
+            }
         }
 
         when (cell.type) {
