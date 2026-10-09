@@ -19,6 +19,7 @@ import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.data.template.savedTableTemplatesFromJson
 import com.dudoziworkshop.dzlog.data.template.savedTableTemplatesToJson
 import com.dudoziworkshop.dzlog.data.template.toJsonString
+import org.json.JSONArray
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -73,9 +74,7 @@ class LocalTemplateBackupRepository(private val context: Context) {
     suspend fun preview(archive: LocalTemplateBackup): LocalTemplateMergePreview {
         val prefs = context.dataStore.data.first()
         val stored = prefs[KEY_TABLE_TEMPLATES_JSON]
-        val items = if (stored == null) emptyList() else requireNotNull(savedTableTemplatesFromJson(stored)) {
-            "현재 템플릿 저장소를 읽을 수 없습니다."
-        }
+        val items = if (stored == null) emptyList() else readCurrentCatalogSafely(stored)
         return LocalTemplateBackupMerge.preview(items, archive)
     }
 
@@ -88,9 +87,7 @@ class LocalTemplateBackupRepository(private val context: Context) {
             var imported: LocalTemplateMergeResult? = null
             context.dataStore.edit { prefs ->
                 val stored = prefs[KEY_TABLE_TEMPLATES_JSON]
-                val existing = if (stored == null) emptyList() else requireNotNull(savedTableTemplatesFromJson(stored)) {
-                    "현재 템플릿 저장소가 손상되었습니다."
-                }
+                val existing = if (stored == null) emptyList() else readCurrentCatalogSafely(stored)
                 val originalActive = prefs[KEY_ACTIVE_TABLE_TEMPLATE_ID]
                     ?.takeIf { id -> existing.any { it.id == id } }
                     ?: existing.maxByOrNull { it.modifiedAt }?.id
@@ -118,14 +115,25 @@ class LocalTemplateBackupRepository(private val context: Context) {
             requireNotNull(imported)
         }
 
+    private fun readCurrentCatalogSafely(json: String): List<SavedTableTemplate> {
+        val count = runCatching { JSONArray(json).length() }.getOrElse {
+            throw IllegalArgumentException("현재 템플릿 저장소 형식이 올바르지 않습니다.", it)
+        }
+        val items = requireNotNull(savedTableTemplatesFromJson(json)) {
+            "현재 템플릿 저장소를 읽을 수 없습니다."
+        }
+        require(items.size == count && items.map { it.id }.toSet().size == count) {
+            "일부 기존 템플릿을 읽지 못해 가져오기를 중단했습니다."
+        }
+        return items
+    }
+
     private suspend fun currentCatalog(): Pair<List<SavedTableTemplate>, String?> {
         val prefs = context.dataStore.data.first()
         val stored = requireNotNull(prefs[KEY_TABLE_TEMPLATES_JSON]) {
             "저장된 템플릿을 먼저 확인해 주세요."
         }
-        val items = requireNotNull(savedTableTemplatesFromJson(stored)) {
-            "현재 템플릿 저장소를 읽을 수 없습니다."
-        }
+        val items = readCurrentCatalogSafely(stored)
         require(items.isNotEmpty()) { "백업할 템플릿이 없습니다." }
         val activeId = prefs[KEY_ACTIVE_TABLE_TEMPLATE_ID]
             ?.takeIf { id -> items.any { it.id == id } }
