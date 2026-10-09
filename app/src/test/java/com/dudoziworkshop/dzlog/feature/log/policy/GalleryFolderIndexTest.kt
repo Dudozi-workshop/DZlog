@@ -68,4 +68,11 @@ class GalleryFolderIndexTest {
         assertEquals(null, GalleryFolderIndexPolicy.parentOf(GalleryFolderIndexPolicy.ROOT))
     }
 
+    @Test
+    fun breadcrumbs_keep_full_relative_paths_at_arbitrary_depth() {
+        val result = GalleryFolderIndexPolicy.breadcrumbs("Pictures/DZlog/A/B/C/D/E/")
+        assertEquals(listOf("DZlog", "A", "B", "C", "D", "E"), result.map { it.label })
+        assertEquals("Pictures/DZlog/A/B/C/", result[3].relativePath)
+        assertEquals(1, GalleryFolderIndexPolicy.breadcrumbs("Pictures/DZlog/").size)
+    }
 }
