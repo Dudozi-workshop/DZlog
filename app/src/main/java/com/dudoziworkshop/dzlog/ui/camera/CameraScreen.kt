@@ -528,17 +528,8 @@ fun CameraPreview(
             )
         }
 
-        if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode != ContinuousPreviewMode.OFF) {
-            // UX 보정: 결과 미리보기 노출 시에는 화면 어디를 눌러도 닫히도록 전체 영역 dismiss를 제공한다.
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { ui.capture.capturedUri = null }
-            )
-        }
+        // CaptureResultOverlay already handles tap-to-dismiss over the preview.
+        // Avoid a second full-screen hit layer that competes with modal controls.
 
         if (ui.showWizard) {
             CameraSettingsOverlayPanel(
