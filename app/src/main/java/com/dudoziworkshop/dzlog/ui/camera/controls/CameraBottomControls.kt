@@ -81,6 +81,7 @@ internal fun CameraBottomControls(
     onUndoDelete: (targetUris: List<Uri>) -> Unit,
     onTriggerCapture: () -> Unit,
     onOpenQuickValues: () -> Unit,
+    onOpenTableEditor: () -> Unit,
     onShutterButtonTopYChange: (Float?) -> Unit,
     hapticEnabled: Boolean,
 ) {
@@ -117,6 +118,7 @@ internal fun CameraBottomControls(
             onUndoDelete = onUndoDelete,
             onShutterButtonTopYChange = onShutterButtonTopYChange,
             onOpenQuickValues = {
+                ui.isTableSelected = false
                 ui.dismissToolOverlays()
                 onOpenQuickValues()
             },
@@ -135,9 +137,9 @@ internal fun CameraBottomControls(
             focusMode = ui.focusMode,
             focusUiValue = ui.focusUiValue,
             showGrid = ui.prefs.showGrid,
-            rotationCwDeg = ui.prefs.wmRotationCwDeg,
             bottomOffset = with(density) { bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing },
             onSelectTool = { selectedTool ->
+                ui.isTableSelected = false
                 ui.isZoomChipExpanded = false
                 ui.showToolMenu = false
                 ui.selectedTool = selectedTool
@@ -165,11 +167,6 @@ internal fun CameraBottomControls(
                 ui.prefs.showGrid = next
                 scope.launch { settingsWriter.setShowGrid(next) }
             },
-            onRotateTable = {
-                val next = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
-                ui.prefs.wmRotationCwDeg = next
-                scope.launch { settingsWriter.setWmRotationCwDeg(next) }
-            },
             assistShutterEnabled = ui.prefs.assistShutterEnabled,
             onToggleAssistShutter = {
                 val next = !ui.prefs.assistShutterEnabled
@@ -178,6 +175,29 @@ internal fun CameraBottomControls(
             },
             hapticEnabled = hapticEnabled,
         )
+
+        if (ui.isTableSelected) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = DDZSpacing.screenPadding + with(density) {
+                        bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing
+                    }),
+            ) {
+                CameraTableSelectionToolbar(
+                    onOpenDetails = {
+                        ui.isTableSelected = false
+                        ui.dismissToolOverlays()
+                        onOpenTableEditor()
+                    },
+                    onRotate = {
+                        val next = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
+                        ui.prefs.wmRotationCwDeg = next
+                        scope.launch { settingsWriter.setWmRotationCwDeg(next) }
+                    },
+                )
+            }
+        }
 
         // Camera zoom remains directly available even when the tool menu is closed.
         Box(
@@ -193,6 +213,7 @@ internal fun CameraBottomControls(
                 expanded = ui.isZoomChipExpanded,
                 hapticEnabled = hapticEnabled,
                 onToggleExpanded = {
+                    ui.isTableSelected = false
                     val next = !ui.isZoomChipExpanded
                     ui.dismissToolOverlays()
                     ui.isZoomChipExpanded = next
@@ -253,6 +274,7 @@ private fun BoxScope.CameraBottomBarRow(
             Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
                 CameraToolEntryButton(
                     onClick = {
+                        ui.isTableSelected = false
                         if (ui.showToolMenu) {
                             ui.showToolMenu = false
                         } else if (ui.isToolPanelExpanded) {
@@ -310,7 +332,6 @@ private fun BoxScope.CameraToolOverlayPanel(
     focusMode: CameraFocusMode,
     focusUiValue: Float,
     showGrid: Boolean,
-    rotationCwDeg: Int,
     bottomOffset: androidx.compose.ui.unit.Dp,
     onSelectTool: (CameraOverlayTool) -> Unit,
     onOpenSelectedToolPanel: () -> Unit,
@@ -319,7 +340,6 @@ private fun BoxScope.CameraToolOverlayPanel(
     onFocusUiValueChange: (Float) -> Unit,
     onFlashModeChange: (CameraFlashMode) -> Unit,
     onToggleGrid: () -> Unit,
-    onRotateTable: () -> Unit,
     assistShutterEnabled: Boolean,
     onToggleAssistShutter: () -> Unit,
     hapticEnabled: Boolean,
@@ -338,11 +358,9 @@ private fun BoxScope.CameraToolOverlayPanel(
                 flashMode = flashMode,
                 focusMode = focusMode,
                 showGrid = showGrid,
-                rotationCwDeg = rotationCwDeg,
                 assistShutterEnabled = assistShutterEnabled,
                 onSelectTool = onSelectTool,
                 onToggleGrid = onToggleGrid,
-                onRotateTable = onRotateTable,
                 onToggleAssistShutter = onToggleAssistShutter,
             )
             compactTool == CameraOverlayTool.ZOOM && !isToolPanelExpanded -> ZoomControlSection(
