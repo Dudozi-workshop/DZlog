@@ -4,6 +4,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,6 +47,9 @@ import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderStorage
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
+import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
+import com.dudoziworkshop.dzlog.feature.log.policy.CapturePathImpact
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
@@ -62,6 +67,7 @@ fun LogFolderScreen(
     onOpenFolder: (String) -> Unit,
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
     onOpenOriginal: (String) -> Unit,
+    capturePathDrafts: List<List<TableEditorSlotDraft?>> = emptyList(),
 ) {
     val context = LocalContext.current
     val reader = remember(context) { DzlogMediaStoreReader(context.contentResolver) }
@@ -79,6 +85,8 @@ fun LogFolderScreen(
     var manageAction by remember { mutableStateOf<String?>(null) }
     var renameName by remember { mutableStateOf("") }
     var moveTarget by remember { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
+    var destinationPaths by remember { mutableStateOf<List<String>>(emptyList()) }
+    var managementConfirmed by remember { mutableStateOf(false) }
     var folderOperationError by remember { mutableStateOf<String?>(null) }
     var connected by remember { mutableStateOf(folderStorage.isConnected()) }
 
@@ -164,10 +172,13 @@ fun LogFolderScreen(
             if (!root && connected) {
                 OutlinedButton(onClick = {
                     renameName = relativePath.trimEnd('/').substringAfterLast('/')
+                    managementConfirmed = false
                     manageAction = "rename"
                 }) { Text("이름 변경") }
                 OutlinedButton(onClick = {
                     moveTarget = GalleryFolderIndexPolicy.ROOT
+                    destinationPaths = runCatching { folderStorage.listDestinationFolders(relativePath) }.getOrDefault(emptyList())
+                    managementConfirmed = false
                     manageAction = "move"
                 }) { Text("이동") }
             }
@@ -259,23 +270,38 @@ fun LogFolderScreen(
                                 singleLine = true,
                             )
                         } else {
-                            Text("이동할 상위 폴더를 선택하세요.")
-                            GalleryFolderIndexPolicy.breadcrumbs(relativePath).dropLast(1)
-                                .forEach { crumb ->
-                                    OutlinedButton(onClick = { moveTarget = crumb.relativePath }) {
-                                        Text(if (moveTarget == crumb.relativePath)
-                                            "✓ ${crumb.label}" else crumb.label)
+                            Text("이동할 위치를 선택하세요.")
+                            Column(modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp)
+                                .verticalScroll(rememberScrollState())) {
+                                destinationPaths.forEach { destination ->
+                                    OutlinedButton(onClick = { moveTarget = destination }) {
+                                        val label = destination.removePrefix(GalleryFolderIndexPolicy.ROOT)
+                                            .ifBlank { "DZlog" }
+                                        Text(if (moveTarget == destination) "✓ $label" else label)
                                     }
                                 }
+                            }
                         }
+                        val impact = GalleryFolderOperationPolicy.captureImpact(relativePath, capturePathDrafts)
                         Text(
-                            "폴더 내부 사진·원본사진도 함께 변경됩니다. 촬영 저장설정은 자동 변경되지 않으므로, 설정된 저장경로가 영향받을 수 있습니다.",
+                            when (impact) {
+                                CapturePathImpact.MATCH -> "이 폴더는 현재 저장설정의 촬영 경로입니다. 변경 후 촬영 사진은 기존 설정 경로에 저장될 수 있습니다."
+                                CapturePathImpact.POSSIBLE -> "날짜·표 값 등의 가변 저장경로가 이 폴더를 사용할 수 있습니다."
+                                CapturePathImpact.NONE -> "폴더 안의 사진·원본·하위 폴더가 함께 이동합니다. 촬영 저장설정은 변경하지 않습니다."
+                            },
                             color = DDZColor.TextSecondary,
                         )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.Checkbox(
+                                checked = managementConfirmed,
+                                onCheckedChange = { managementConfirmed = it },
+                            )
+                            Text("파일과 저장경로 영향을 확인했습니다.")
+                        }
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = {
+                    TextButton(enabled = managementConfirmed && (manageAction != "move" || destinationPaths.contains(moveTarget)), onClick = {
                         val action = manageAction
                         runCatching {
                             if (action == "rename")
