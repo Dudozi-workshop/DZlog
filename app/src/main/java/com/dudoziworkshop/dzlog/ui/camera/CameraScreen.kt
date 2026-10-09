@@ -51,6 +51,7 @@ import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
@@ -58,6 +59,8 @@ import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraBottomControls
+import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTableResizeBaseline
+import com.dudoziworkshop.dzlog.ui.camera.controls.resizeCameraTableKeepingCenter
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraQuickValueSheet
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTopBar
 import com.dudoziworkshop.dzlog.ui.camera.controls.FloatingAssistShutterButton
@@ -176,6 +179,7 @@ fun CameraPreview(
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var showQuickValueSheet by remember { mutableStateOf(false) }
+    var cornerResizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
     BackHandler(enabled = ui.isTableSelected) {
@@ -402,6 +406,37 @@ fun CameraPreview(
                     onTableSelectionChange = { selected ->
                         if (selected) ui.dismissToolOverlays()
                         ui.isTableSelected = selected
+                    },
+                    onCornerResizeScale = { scale, finished ->
+                        if (!finished) {
+                            val baseline = cornerResizeBaseline ?: CameraTableResizeBaseline(
+                                widthRatio = ui.prefs.wmTableWidthRatio,
+                                heightRatio = ui.prefs.wmTableHeightRatio,
+                                rotationCwDeg = ui.prefs.wmRotationCwDeg,
+                                anchor = ui.prefs.wmTableAnchor,
+                                x10000 = ui.prefs.wmBoundsOffsetX10000,
+                                y10000 = ui.prefs.wmBoundsOffsetY10000,
+                                photoAspect = ui.prefs.captureAspect.ratioF,
+                            ).also { cornerResizeBaseline = it }
+                            val result = resizeCameraTableKeepingCenter(baseline, scale)
+                            ui.prefs.wmTableWidthRatio = result.widthRatio
+                            ui.prefs.wmTableHeightRatio = result.heightRatio
+                            ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
+                            ui.prefs.wmBoundsOffsetX10000 = result.x10000
+                            ui.prefs.wmBoundsOffsetY10000 = result.y10000
+                            ui.prefs.wmOffsetXRatio = (result.x10000 / 100f).toInt()
+                            ui.prefs.wmOffsetYRatio = (result.y10000 / 100f).toInt()
+                        } else if (cornerResizeBaseline != null) {
+                            cornerResizeBaseline = null
+                            scope.launch {
+                                settingsWriter.setWmTableSizeAndPosition(
+                                    ui.prefs.wmTableWidthRatio,
+                                    ui.prefs.wmTableHeightRatio,
+                                    ui.prefs.wmBoundsOffsetX10000,
+                                    ui.prefs.wmBoundsOffsetY10000,
+                                )
+                            }
+                        }
                     },
                     boundCamera = boundCamera,
                     onBoundCameraChange = { boundCamera = it },
