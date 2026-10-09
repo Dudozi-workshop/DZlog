@@ -133,6 +133,10 @@ fun LogFolderScreen(
     var selectedPhotoIds by remember(relativePath) { mutableStateOf<Set<Long>>(emptySet()) }
     var selectionActive by remember(relativePath) { mutableStateOf(false) }
     var showPhotoMove by remember { mutableStateOf(false) }
+    var showMoveDestination by remember { mutableStateOf(false) }
+    var photoMoveLoading by remember { mutableStateOf(false) }
+    var photoMoveLoadVersion by remember { mutableStateOf(0) }
+    var photoMoveLoadError by remember { mutableStateOf<String?>(null) }
     var includeOriginals by remember { mutableStateOf<Boolean?>(null) }
     var photoMoveTarget by remember { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
     var photoMoveFolders by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -225,28 +229,47 @@ fun LogFolderScreen(
         selectionActive = true
         selectedPhotoIds = if (photo.id in selectedPhotoIds) selectedPhotoIds - photo.id else selectedPhotoIds + photo.id
     }
+    fun loadMoveDestinations() {
+        val requestVersion = ++photoMoveLoadVersion
+        val requestedIds = selectedPhotoIds
+        photoMoveLoading = true
+        photoMoveLoadError = null
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val loaded = reader.loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT)
+                    require(loaded.count { it.id in requestedIds } == requestedIds.size) {
+                        "선택한 사진 일부를 찾지 못했습니다. 취소 후 목록을 다시 확인해 주세요."
+                    }
+                    val allFolders = loaded.map { it.relativePath } +
+                        folderCatalog.listDescendantPaths(GalleryFolderIndexPolicy.ROOT)
+                    val paths = mutableSetOf(GalleryFolderIndexPolicy.ROOT)
+                    allFolders.forEach { path ->
+                        var current = path
+                        while (current.startsWith(GalleryFolderIndexPolicy.ROOT)) {
+                            if (!GalleryPhotoMovePolicy.isOriginalPath(current)) paths += current
+                            current = GalleryFolderIndexPolicy.parentOf(current) ?: break
+                        }
+                    }
+                    loaded to paths.sorted()
+                }
+            }
+            if (requestVersion != photoMoveLoadVersion || !showPhotoMove) return@launch
+            result.onSuccess { (images, paths) -> moveAllPhotos = images; photoMoveFolders = paths }
+                .onFailure { photoMoveLoadError = it.message ?: "이동할 폴더를 불러오지 못했습니다." }
+            photoMoveLoading = false
+        }
+    }
     fun startPhotoMove() {
+        if (selectedPhotoIds.isEmpty() || photoMoveBusy || pendingPhotoPlan != null) return
+        folderOperationError = null
         showPhotoMove = true
+        showMoveDestination = true
         includeOriginals = null
         photoMoveTarget = GalleryFolderIndexPolicy.ROOT
-        scope.launch {
-            val loaded = withContext(Dispatchers.IO) { reader.loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT) }
-            moveAllPhotos = loaded
-            photoMoveFolders = withContext(Dispatchers.IO) {
-                val rootImages = loaded
-                val allFolders = rootImages.map { it.relativePath }.toMutableSet()
-                allFolders += folderCatalog.listImmediatePaths(GalleryFolderIndexPolicy.ROOT)
-                val result = mutableSetOf(GalleryFolderIndexPolicy.ROOT)
-                allFolders.forEach { path ->
-                    var current = path
-                    while (current.startsWith(GalleryFolderIndexPolicy.ROOT)) {
-                        if (!GalleryPhotoMovePolicy.isOriginalPath(current)) result += current
-                        current = GalleryFolderIndexPolicy.parentOf(current) ?: break
-                    }
-                }
-                result.sorted()
-            }
-        }
+        moveAllPhotos = emptyList()
+        photoMoveFolders = emptyList()
+        loadMoveDestinations()
     }
     fun startFolderManagement(path: String, action: String) {
         if (folderManagementBusy || selectionActive) return
@@ -505,24 +528,37 @@ fun LogFolderScreen(
                 }
             }
         }
-        if (showPhotoMove) {
-            val selected = (if (root) allPhotos else photos).filter { it.id in selectedPhotoIds }
+        if (showPhotoMove && showMoveDestination) {
+            GalleryMoveDestinationPicker(
+                allPhotos = moveAllPhotos,
+                knownFolderPaths = photoMoveFolders,
+                selectedIds = selectedPhotoIds,
+                initialPath = photoMoveTarget,
+                loading = photoMoveLoading,
+                loadError = photoMoveLoadError,
+                onRetry = ::loadMoveDestinations,
+                loadPhysicalChildren = { path -> withContext(Dispatchers.IO) { folderStorage.listImmediateFolderPaths(path) } },
+                onCancel = { showPhotoMove = false; showMoveDestination = false },
+                onChoose = { path ->
+                    photoMoveTarget = path
+                    photoMoveFolders = (photoMoveFolders + path).distinct()
+                    showMoveDestination = false
+                },
+            )
+        }
+        if (showPhotoMove && !showMoveDestination) {
+            val selected = moveAllPhotos.filter { it.id in selectedPhotoIds }
             val originalMatches = GalleryPhotoMovePolicy.pairedOriginals(selected, moveAllPhotos)
             AlertDialog(
                 onDismissRequest = { if (!photoMoveBusy) showPhotoMove = false },
                 title = { Text("사진 이동") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        folderOperationError?.let { Text(it, color = DDZColor.Destructive) }
                         Text("선택한 사진 ${selected.size}장")
-                        Text("이동할 폴더")
-                        Column(Modifier.fillMaxWidth().heightIn(max = 180.dp).verticalScroll(rememberScrollState())) {
-                            photoMoveFolders.forEach { folder ->
-                                OutlinedButton(onClick = { photoMoveTarget = folder }) {
-                                    Text((if (photoMoveTarget == folder) "✓ " else "") +
-                                        folder.removePrefix(GalleryFolderIndexPolicy.ROOT).ifBlank { "DZlog" })
-                                }
-                            }
-                        }
+                        Text("이동 위치")
+                        Text(photoMoveTarget.removePrefix(GalleryFolderIndexPolicy.ROOT).ifBlank { "DZlog" })
+                        TextButton(onClick = { showMoveDestination = true }) { Text("위치 다시 선택") }
                         if (originalMatches.isNotEmpty()) {
                             Text("연결 후보 원본 ${originalMatches.size}장도 함께 이동할까요?")
                             Row {
