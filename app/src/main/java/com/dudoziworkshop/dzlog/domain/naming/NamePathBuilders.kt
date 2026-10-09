@@ -400,3 +400,38 @@ fun buildGalleryRelativePathFromSlotDrafts(
     timeFormat = timeFormat,
 )
 
+
+/** Preview highlight belongs to a slot index, never to a matching substring. */
+data class NamingSlotPreview(val text: String, val highlightStart: Int, val highlightEnd: Int)
+
+fun buildNamingSlotPreview(
+    isFileName: Boolean,
+    slotIndex: Int,
+    resolvedCells: List<ResolvedCell>,
+    slotDrafts: List<TableEditorSlotDraft?>,
+    fnDelim: String,
+    counterDigits: Int,
+    usedCounter: Int?,
+    now: Date,
+    dateFormat: String,
+    timeFormat: String,
+): NamingSlotPreview {
+    val text = if (isFileName) {
+        buildFileName(resolvedCells, slotDrafts, fnDelim, counterDigits, usedCounter, now, dateFormat, timeFormat)
+    } else {
+        buildSavePath(resolvedCells, slotDrafts, now, dateFormat, timeFormat)
+    }
+    val byId = resolvedCells.associateBy { it.id }
+    val tokens = normalizeSlotDrafts(slotDrafts, if (isFileName) FILE_NAME_SLOT_COUNT else PATH_SLOT_UI_MAX_COUNT)
+        .map { draft ->
+            if (isFileName) resolveFileNameSlotToken(draft, byId, resolvedCells, now, dateFormat, timeFormat)
+            else resolvePathSlotToken(draft, byId, resolvedCells, now, dateFormat, timeFormat)
+        }
+    val token = tokens.getOrNull(slotIndex).orEmpty()
+    if (token.isBlank()) return NamingSlotPreview(text, 0, 0)
+    val separator = if (isFileName) fnDelim.ifBlank { "_" } else "/"
+    val preceding = tokens.take(slotIndex).filter { it.isNotBlank() }
+    val start = (if (isFileName) 0 else "Pictures/DZlog/".length) +
+        preceding.sumOf { it.length + separator.length }
+    return NamingSlotPreview(text, start, start + token.length)
+}
