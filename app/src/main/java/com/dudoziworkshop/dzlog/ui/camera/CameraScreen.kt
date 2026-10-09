@@ -8,6 +8,7 @@ package com.dudoziworkshop.dzlog.ui.camera
 import android.Manifest
 import android.annotation.SuppressLint
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
@@ -177,6 +178,9 @@ fun CameraPreview(
     var showQuickValueSheet by remember { mutableStateOf(false) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
+    BackHandler(enabled = ui.isTableSelected) {
+        ui.isTableSelected = false
+    }
     val threeButtonEquivalentBottomPadding = rememberThreeButtonNavEquivalentBottomPadding()
     val layout = rememberCameraLayoutState()
 
@@ -313,6 +317,7 @@ fun CameraPreview(
         volumeKeyAction = appSettings.volumeKeyAction,
         onCapture = {
             ui.dismissToolOverlays()
+            ui.isTableSelected = false
             triggerCapture()
         },
         onZoomDelta = { deltaTenths ->
@@ -352,10 +357,12 @@ fun CameraPreview(
             CameraTopBar(
                 topDisplayName = topDisplayName,
                 onOpenTableEditor = {
+                    ui.isTableSelected = false
                     ui.dismissToolOverlays()
                     onOpenTableEditor()
                 },
                 onOpenSettings = {
+                    ui.isTableSelected = false
                     ui.dismissToolOverlays()
                     ui.showWizard = true
                 },
@@ -391,6 +398,11 @@ fun CameraPreview(
 
                 CameraPreviewArea(
                     args = previewAreaArgs,
+                    isTableSelected = ui.isTableSelected,
+                    onTableSelectionChange = { selected ->
+                        if (selected) ui.dismissToolOverlays()
+                        ui.isTableSelected = selected
+                    },
                     boundCamera = boundCamera,
                     onBoundCameraChange = { boundCamera = it },
                     onBoundImageCaptureChange = { boundImageCapture = it },
@@ -424,10 +436,16 @@ fun CameraPreview(
                         onUndoDelete = { uris -> undoDeleteController.delete(uris) },
                         onTriggerCapture = {
                             ui.dismissToolOverlays()
+                            ui.isTableSelected = false
                             triggerCapture()
                         },
                         onShutterButtonTopYChange = { layout.onShutterButtonTopYChange(it) },
                         onOpenQuickValues = { showQuickValueSheet = true },
+                        onOpenTableEditor = {
+                            ui.isTableSelected = false
+                            ui.dismissToolOverlays()
+                            onOpenTableEditor()
+                        },
                         hapticEnabled = appSettings.hapticEnabled,
                     )
                 }
@@ -448,6 +466,7 @@ fun CameraPreview(
                     },
                     onTapCapture = {
                         ui.dismissToolOverlays()
+                        ui.isTableSelected = false
                         triggerCapture()
                     },
                     modifier = Modifier
