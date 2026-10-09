@@ -106,6 +106,30 @@ class GalleryFolderCatalogSummaryTest {
         assertEquals(before, catalog.listDescendantPaths(root))
     }
 
+    @Test fun deletionPrunesOnlyVerifiedSubtreeAndPersistsSibling() {
+        val a = catalog.create(root, "A", emptyList())
+        catalog.create(a, "Empty", emptyList())
+        val aa = catalog.create(root, "AA", emptyList())
+        assertEquals(true, catalog.deleteFolder(a) { true })
+        assertEquals(listOf(aa), GalleryFolderCatalog(context).listDescendantPaths(root))
+    }
+
+    @Test fun partialOrUnverifiedDeletionPreservesCatalog() {
+        val a = catalog.create(root, "A", emptyList())
+        catalog.create(a, "Empty", emptyList())
+        val before = catalog.listDescendantPaths(root)
+        assertEquals(false, catalog.deleteFolder(a) { false })
+        assertEquals(before, catalog.listDescendantPaths(root))
+        assertEquals(true, runCatching { catalog.deleteFolder(a) { error("Unreadable") } }.isFailure)
+        assertEquals(before, catalog.listDescendantPaths(root))
+    }
+
+    @Test fun deletingRootNeverInvokesStorage() {
+        var calls = 0
+        assertEquals(true, runCatching { catalog.deleteFolder(root) { calls++; true } }.isFailure)
+        assertEquals(0, calls)
+    }
+
     @Test
     fun virtualDestinationCollisionIsRejectedBeforeChangingStorage() {
         val source = catalog.create(root, "Source", emptyList())
