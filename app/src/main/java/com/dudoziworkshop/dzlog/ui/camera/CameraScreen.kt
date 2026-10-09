@@ -182,8 +182,15 @@ fun CameraPreview(
     var cornerResizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
-    BackHandler(enabled = ui.isTableSelected) {
-        ui.isTableSelected = false
+    BackHandler(enabled = ui.showWizard || ui.isTableResizePanelOpen || ui.showToolMenu ||
+        ui.isToolPanelExpanded || ui.isZoomChipExpanded || ui.selectedTool != null || ui.isTableSelected) {
+        when {
+            ui.showWizard -> ui.showWizard = false
+            ui.isTableResizePanelOpen -> ui.isTableResizePanelOpen = false
+            ui.showToolMenu || ui.isToolPanelExpanded || ui.isZoomChipExpanded || ui.selectedTool != null ->
+                ui.dismissToolOverlays()
+            ui.isTableSelected -> ui.isTableSelected = false
+        }
     }
     val threeButtonEquivalentBottomPadding = rememberThreeButtonNavEquivalentBottomPadding()
     val layout = rememberCameraLayoutState()
