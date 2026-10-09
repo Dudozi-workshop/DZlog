@@ -621,6 +621,7 @@ fun AppRoot() {
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
+                    onOpenSaveSettings = ::openActiveSaveSettings,
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
                     sessionCaptureStack = cameraSessionCaptureStack
@@ -651,6 +652,7 @@ fun AppRoot() {
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
+                    onOpenSaveSettings = ::openActiveSaveSettings,
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
                     sessionCaptureStack = cameraSessionCaptureStack
