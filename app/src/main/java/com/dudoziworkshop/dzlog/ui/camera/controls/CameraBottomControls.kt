@@ -96,6 +96,7 @@ internal fun CameraBottomControls(
     var bottomBarHeightPx by remember { mutableIntStateOf(0) }
     var resizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     LaunchedEffect(ui.isTableSelected, ui.isTableResizePanelOpen) {
+        if (!ui.isTableSelected) ui.isTableResizePanelOpen = false
         if (!ui.isTableSelected || !ui.isTableResizePanelOpen) resizeBaseline = null
     }
 
