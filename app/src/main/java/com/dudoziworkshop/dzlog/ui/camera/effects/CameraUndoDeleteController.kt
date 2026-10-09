@@ -19,7 +19,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 
 internal data class UndoDeleteController(
-    val pendingUris: List<Uri>?,
+    val isBusy: Boolean,
     val delete: (targetUris: List<Uri>) -> Unit,
 )
 
@@ -34,17 +34,22 @@ internal fun rememberUndoDeleteController(
     val latestOnRestore = rememberUpdatedState(onRestore)
 
     var pendingUndoDeleteUris by remember { mutableStateOf<List<Uri>?>(null) }
+    var isDeleting by remember { mutableStateOf(false) }
 
     val undoDeleteLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         val pendingUris = pendingUndoDeleteUris ?: return@rememberLauncherForActivityResult
-        if (result.resultCode == Activity.RESULT_OK) {
-            latestOnCommitted.value()
-        } else {
-            latestOnRestore.value(pendingUris)
+        try {
+            if (result.resultCode == Activity.RESULT_OK) {
+                latestOnCommitted.value()
+            } else {
+                latestOnRestore.value(pendingUris)
+            }
+        } finally {
+            pendingUndoDeleteUris = null
+            isDeleting = false
         }
-        pendingUndoDeleteUris = null
     }
 
     fun launchScopedDeleteRequest(targetUris: List<Uri>): Boolean {
@@ -59,7 +64,10 @@ internal fun rememberUndoDeleteController(
     }
 
     fun performUndoDelete(targetUris: List<Uri>) {
-        if (targetUris.isEmpty()) return
+        if (targetUris.isEmpty()) {
+            isDeleting = false
+            return
+        }
 
         val deletedAll = runCatching {
             targetUris.all { uri ->
@@ -68,30 +76,42 @@ internal fun rememberUndoDeleteController(
         }.getOrElse { throwable ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && throwable is RecoverableSecurityException) {
                 pendingUndoDeleteUris = targetUris
-                undoDeleteLauncher.launch(
-                    IntentSenderRequest.Builder(throwable.userAction.actionIntent.intentSender).build()
-                )
+                runCatching {
+                    undoDeleteLauncher.launch(
+                        IntentSenderRequest.Builder(throwable.userAction.actionIntent.intentSender).build()
+                    )
+                }.onFailure {
+                    pendingUndoDeleteUris = null
+                    isDeleting = false
+                    latestOnRestore.value(targetUris)
+                }
                 return
             }
             false
         }
 
-        if (!deletedAll) {
-            latestOnRestore.value(targetUris)
-            return
+        try {
+            if (deletedAll) latestOnCommitted.value()
+            else latestOnRestore.value(targetUris)
+        } finally {
+            isDeleting = false
         }
-
-        latestOnCommitted.value()
     }
 
     fun delete(targetUris: List<Uri>) {
-        if (pendingUndoDeleteUris != null) return
-        if (launchScopedDeleteRequest(targetUris)) return
+        if (isDeleting || pendingUndoDeleteUris != null || targetUris.isEmpty()) return
+        isDeleting = true
+        val launched = runCatching { launchScopedDeleteRequest(targetUris) }.getOrElse {
+            isDeleting = false
+            latestOnRestore.value(targetUris)
+            return
+        }
+        if (launched) return
         scope.launch { performUndoDelete(targetUris) }
     }
 
     return UndoDeleteController(
-        pendingUris = pendingUndoDeleteUris,
+        isBusy = isDeleting,
         delete = ::delete,
     )
 }
