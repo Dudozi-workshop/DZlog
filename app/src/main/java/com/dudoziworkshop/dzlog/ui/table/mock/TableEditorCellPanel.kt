@@ -29,7 +29,6 @@ import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
-import com.dudoziworkshop.dzlog.ui.common.DDZContentDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZSettingRow
 import com.dudoziworkshop.dzlog.ui.common.DDZTextField
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
@@ -52,12 +51,10 @@ internal fun TableEditorCellUiModelEditor(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var showTypePicker by remember { mutableStateOf(false) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showPhrasePicker by remember { mutableStateOf(false) }
-    var showCreatePhraseSet by remember { mutableStateOf(false) }
-    var createPhraseSetName by remember { mutableStateOf("") }
-    var editingPhraseSetId by remember { mutableStateOf<String?>(null) }
+    var showTypePicker by remember(cell.id) { mutableStateOf(false) }
+    var showDatePicker by remember(cell.id) { mutableStateOf(false) }
+    var showPhrasePicker by remember(cell.id) { mutableStateOf(false) }
+    var editingPhraseSetId by remember(cell.id) { mutableStateOf<String?>(null) }
 
     Column(
         modifier = modifier
@@ -194,35 +191,14 @@ internal fun TableEditorCellUiModelEditor(
     }
 
     if (showTypePicker) {
-        DDZBottomSheet(
-            title = "셀에 무엇을 표시할까요?",
+        TableEditorCellTypeSheet(
+            selectedType = cell.type,
+            onSelect = { type ->
+                onTypeChange(type)
+                showTypePicker = false
+            },
             onDismiss = { showTypePicker = false },
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                TableEditorCellType.entries.chunked(2).forEach { row ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        row.forEach { type ->
-                            DDZButton(
-                                text = if (type == cell.type) type.label + " ✓" else type.label,
-                                modifier = Modifier.weight(1f),
-                                style = DDZButtonStyle.Secondary,
-                                onClick = {
-                                    onTypeChange(type)
-                                    showTypePicker = false
-                                },
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(18.dp))
-            }
-        }
+        )
     }
 
     if (showDatePicker) {
@@ -251,99 +227,20 @@ internal fun TableEditorCellUiModelEditor(
     }
 
     if (showPhrasePicker) {
-        DDZBottomSheet(
-            title = "문구 세트",
+        TableEditorPhraseSetSheet(
+            cellId = cell.id,
+            phraseSets = phraseSets,
+            selectedSetId = cell.phraseSetId,
+            onSelect = { id ->
+                onPhraseSetChange(id)
+                showPhrasePicker = false
+            },
+            onEdit = { id ->
+                editingPhraseSetId = id
+                showPhrasePicker = false
+            },
+            onCreate = onCreatePhraseSet,
             onDismiss = { showPhrasePicker = false },
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-
-                DDZButton(
-                    text = "+ 새 문구 세트",
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = {
-                        createPhraseSetName = ""
-                        showCreatePhraseSet = true
-                    },
-                )
-
-                if (phraseSets.isEmpty()) {
-                    Text("등록된 문구 세트가 없습니다.", color = DDZColor.TextMuted)
-                } else {
-                    phraseSets.forEach { set ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            DDZButton(
-                                text = set.name + " · " + set.items.size + "개" +
-                                    if (cell.phraseSetId == set.id) " ✓" else "",
-                                modifier = Modifier.weight(1f),
-                                style = DDZButtonStyle.Secondary,
-                                onClick = {
-                                    onPhraseSetChange(set.id)
-                                    showPhrasePicker = false
-                                },
-                            )
-                            DDZButton(
-                                text = "편집",
-                                style = DDZButtonStyle.Text,
-                                minHeight = 40.dp,
-                                onClick = {
-                                    editingPhraseSetId = set.id
-                                    showPhrasePicker = false
-                                },
-                            )
-                        }
-                    }
-
-                    DDZButton(
-                        text = "선택 해제",
-                        modifier = Modifier.fillMaxWidth(),
-                        style = DDZButtonStyle.Text,
-                        onClick = {
-                            onPhraseSetChange(null)
-                            showPhrasePicker = false
-                        },
-                    )
-                }
-                Spacer(Modifier.height(18.dp))
-            }
-        }
-    }
-
-    if (showCreatePhraseSet) {
-        DDZContentDialog(
-            title = "새 문구 세트",
-            onDismiss = { showCreatePhraseSet = false },
-            content = {
-                DDZTextField(
-                    value = createPhraseSetName,
-                    onValueChange = { createPhraseSetName = it },
-                    label = "세트 이름",
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            },
-            actions = {
-                DDZButton(
-                    text = "취소",
-                    style = DDZButtonStyle.Secondary,
-                    modifier = Modifier.weight(1f),
-                    onClick = { showCreatePhraseSet = false },
-                )
-                DDZButton(
-                    text = "추가",
-                    enabled = createPhraseSetName.trim().isNotBlank(),
-                    modifier = Modifier.weight(1f),
-                    onClick = {
-                        onCreatePhraseSet(createPhraseSetName.trim())
-                        showCreatePhraseSet = false
-                    },
-                )
-            },
         )
     }
 
