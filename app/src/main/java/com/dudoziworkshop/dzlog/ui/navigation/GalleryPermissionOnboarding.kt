@@ -53,7 +53,7 @@ internal fun GalleryPermissionOnboarding() {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("이전에 촬영한 사진을 갤러리에서 바로 불러올 수 있도록 사진 접근 권한을 요청합니다.")
-                    Text("지금 건너뛰어도 카메라는 사용할 수 있습니다. 빈 폴더를 만들 때는 별도의 폴더 접근 동의가 필요합니다.")
+                    Text("지금 건너뛰어도 카메라는 사용할 수 있습니다. 새 폴더는 갤러리에서 바로 만들 수 있습니다.")
                 }
             },
             confirmButton = {
