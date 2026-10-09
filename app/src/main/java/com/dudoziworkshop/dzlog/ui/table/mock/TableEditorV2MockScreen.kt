@@ -146,7 +146,8 @@ fun TableEditorV2Screen(
     var mode by remember { mutableStateOf(MockMode.EDIT) }
     var showStyle by remember { mutableStateOf(false) }
     var showSaveRules by remember { mutableStateOf(openSaveSettingsInitially) }
-    var saveDetail by remember { mutableStateOf<TableEditorSaveDetail?>(null) }
+    var saveDetailTrail by remember { mutableStateOf(emptyList<TableEditorSaveDetail>()) }
+    val saveDetail = saveDetailTrail.lastOrNull()
     var showCounterResetDialog by remember { mutableStateOf(false) }
     var showBackSaveDialog by remember { mutableStateOf(false) }
     var showAdvancedStyle by remember { mutableStateOf(false) }
@@ -158,26 +159,39 @@ fun TableEditorV2Screen(
     val counterController = rememberTableEditorCounterOrchestrator(context, session, showSaveRules)
     val namingPreview = tableEditorNamingPreview(context, session)
 
+    val activeTab = when {
+        mode == MockMode.LAYOUT -> MockBottomTab.STRUCTURE
+        showStyle -> MockBottomTab.STYLE
+        showSaveRules -> MockBottomTab.SAVE
+        else -> MockBottomTab.CONTENT
+    }
+
     fun requestBack() {
-        if (mode == MockMode.LAYOUT) {
-            mode = MockMode.EDIT
-            selectionState.clearLayoutSelection()
-            return
-        }
-        if (session.isDirty || isUnsavedNewTemplate) {
-            showBackSaveDialog = true
-        } else {
-            onBack()
+        when (resolveTableEditorBackAction(
+            isSaving = saveCoordinator.isSaving,
+            hasDetail = saveDetail != null,
+            activeTab = activeTab,
+            hasAdvancedStyle = showAdvancedStyle,
+            hasSelectedCell = selectedCellId != null,
+            hasUnsavedChanges = session.isDirty || isUnsavedNewTemplate,
+        )) {
+            TableEditorBackAction.IGNORE -> Unit
+            TableEditorBackAction.CLOSE_DETAIL -> saveDetailTrail = saveDetailTrail.dropLast(1)
+            TableEditorBackAction.CLOSE_ADVANCED_STYLE -> showAdvancedStyle = false
+            TableEditorBackAction.CLOSE_PANEL -> {
+                mode = MockMode.EDIT
+                showStyle = false
+                showSaveRules = false
+                showAdvancedStyle = false
+                selectionState.clearAll()
+            }
+            TableEditorBackAction.CLOSE_CELL -> selectionState.clearEditSelection()
+            TableEditorBackAction.CONFIRM_EXIT -> showBackSaveDialog = true
+            TableEditorBackAction.EXIT -> onBack()
         }
     }
 
-    BackHandler {
-        if (saveDetail != null) {
-            saveDetail = null
-        } else {
-            requestBack()
-        }
-    }
+    BackHandler { requestBack() }
 
 
     Scaffold(
@@ -225,38 +239,33 @@ fun TableEditorV2Screen(
         },
         bottomBar = {
             MockBottomBar(
-                active = when {
-                    mode == MockMode.LAYOUT -> MockBottomTab.STRUCTURE
-                    showStyle -> MockBottomTab.STYLE
-                    showSaveRules -> MockBottomTab.SAVE
-                    else -> MockBottomTab.CONTENT
-                },
+                active = activeTab,
                 onContent = {
                     mode = MockMode.EDIT
                     selectionState.clearLayoutSelection()
                     showStyle = false
                     showSaveRules = false
-                    saveDetail = null
+                    saveDetailTrail = emptyList()
                 },
                 onLayout = {
                     selectionState.clearEditSelection()
                     showStyle = false
                     showSaveRules = false
-                    saveDetail = null
+                    saveDetailTrail = emptyList()
                     mode = MockMode.LAYOUT
                 },
                 onStyle = {
                     mode = MockMode.EDIT
                     selectionState.clearLayoutSelection()
                     showSaveRules = false
-                    saveDetail = null
+                    saveDetailTrail = emptyList()
                     showStyle = true
                 },
                 onSaveRules = {
                     mode = MockMode.EDIT
                     selectionState.clearLayoutSelection()
                     showStyle = false
-                    saveDetail = null
+                    saveDetailTrail = emptyList()
                     showSaveRules = true
                 },
             )
@@ -357,7 +366,7 @@ fun TableEditorV2Screen(
                     saveMode = session.draftSaveMode,
                     counterPadding = session.draftCounterPadding,
                     nextCounter = session.draftNextCounter ?: 1,
-                    onOpenDetail = { saveDetail = it },
+                    onOpenDetail = { saveDetailTrail = saveDetailTrail + it },
                 )
             } else if (showStyle) {
                 TableEditorStylePanel(
@@ -585,8 +594,8 @@ fun TableEditorV2Screen(
             cols = cols,
             isCounterBusy = counterController.busy,
             counterStatus = counterController.status,
-            onBack = { saveDetail = null },
-            onOpenDetail = { saveDetail = it },
+            onBack = { requestBack() },
+            onOpenDetail = { saveDetailTrail = saveDetailTrail + it },
             onSaveModeChange = session::commitSaveModeChange,
             onCounterPaddingChange = session::commitCounterPaddingChange,
             onNextCounterChange = { next -> counterController.edit(session, next) },
