@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -70,8 +72,19 @@ internal fun CameraNextCaptureInfoPopup(
                         Icon(Icons.Default.Close, contentDescription = "닫기")
                     }
                 }
-                Text("다음 파일명", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                Text(nextFileName, style = DDZTypography.Body, color = DDZColor.TextStrong)
+                Text("파일명", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                Surface(
+                    color = DDZColor.Surface,
+                    border = BorderStroke(1.dp, DDZColor.Border),
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text(
+                        nextFileName.removeSuffix(".jpg").removeSuffix(".jpeg"),
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        style = DDZTypography.Body,
+                        color = DDZColor.TextStrong,
+                    )
+                }
                 Text("저장 경로", style = DDZTypography.Caption, color = DDZColor.TextMuted)
                 Text(relativePath.ifBlank { "기본 저장 경로" }, style = DDZTypography.Body, color = DDZColor.TextStrong)
                 Button(onClick = onOpenSaveSettings, modifier = Modifier.fillMaxWidth()) {
