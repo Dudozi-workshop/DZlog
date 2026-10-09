@@ -13,6 +13,8 @@ import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreviewInput
 import com.dudoziworkshop.dzlog.domain.preview.buildCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.buildScope
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequest
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
 import java.util.Date
 
 internal data class CameraDerivedState(
@@ -33,6 +35,7 @@ internal fun computeCameraDerivedState(
     includeFilenameInCounterScope: Boolean,
     saveMode: SaveMode,
     syncedNextCounter: Int?,
+    syncedRequest: CounterRequest?,
     tableResolver: TableResolver,
 ): CameraDerivedState {
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
@@ -64,6 +67,16 @@ internal fun computeCameraDerivedState(
     )
 
     val finalCapturePreview: FinalCapturePreview? = run {
+        val currentRequest = CounterRequestResolver.fromCamera(
+            saveMode = saveMode,
+            relativePathKey = counterScope.relativePathKey,
+            prefix = counterScope.streamPrefix,
+            scanPrefix = captureScopeState.scanPrefix,
+            includePathInScope = includePathInCounterScope,
+            includeFilenameInScope = includeFilenameInCounterScope,
+        )
+        // Never reuse the previous folder/name/mode's seed while a new read is pending.
+        if (syncedRequest != currentRequest) return@run null
         val syncedCounter = syncedNextCounter ?: return@run null
         buildCapturePreview(
             scopeState = captureScopeState,

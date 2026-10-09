@@ -214,6 +214,7 @@ fun CameraPreview(
         appSettings.includeFilenameInCounterScope,
         appSettings.saveMode,
         ui.counter.scopeNextCounter,
+        ui.counter.syncedRequest,
     ) {
         computeCameraDerivedState(
             tableTemplateState = tableTemplateState,
@@ -224,6 +225,7 @@ fun CameraPreview(
             includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
             saveMode = appSettings.saveMode,
             syncedNextCounter = ui.counter.scopeNextCounter,
+            syncedRequest = ui.counter.syncedRequest,
             tableResolver = tableResolver,
         )
     }
@@ -467,7 +469,7 @@ fun CameraPreview(
                         .padding(bottom = threeButtonEquivalentBottomPadding)
                 ) {
                     val canTriggerCapture = isCaptureReady(
-                        scopeNextCounter = ui.counter.scopeNextCounter,
+                        scopeNextCounter = displayCounter,
                         capturedUri = ui.capture.capturedUri,
                         isCapturing = ui.capture.isCapturing,
                         boundImageCaptureAvailable = (boundImageCapture != null),
