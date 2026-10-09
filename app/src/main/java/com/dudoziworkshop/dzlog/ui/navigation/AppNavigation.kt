@@ -80,6 +80,7 @@ enum class AppScreen {
 enum class GridEntrySource {
     NORMAL,
     HOME_RECENT,
+    CAMERA_RECENT,
 }
 
 enum class ViewerEntrySource {
@@ -405,6 +406,7 @@ fun AppRoot() {
         return when {
             viewerEntrySource == ViewerEntrySource.CAMERA_RECENT -> AppScreen.CAMERA
             gridEntrySource == GridEntrySource.HOME_RECENT -> AppScreen.HOME
+            gridEntrySource == GridEntrySource.CAMERA_RECENT -> AppScreen.CAMERA
             else -> albumGridEntryScreen
         }
     }
@@ -485,17 +487,20 @@ fun AppRoot() {
         )
 
         if (screen == AppScreen.CAMERA) {
-            // 정책: Camera recent는 Grid를 거치지 않고 Viewer로 직행한다.
-            openWaterGrid(location, clearGridItems = false)
-            viewerEntrySource = ViewerEntrySource.CAMERA_RECENT
+            // Recent thumbnail opens the containing album grid, not the single-photo viewer.
+            openWaterGrid(location)
+            if (isOriginalRelativePath(location.relativePath)) {
+                openOriginalGridFrom(
+                    parent = OriginalParent.LIST,
+                    originalPath = location.relativePath,
+                    returnLocationIfWater = null,
+                )
+            }
+            albumGridEntryScreen = AppScreen.ALBUM_FOLDER
             albumEntryScreen = AppScreen.CAMERA
-            val reloaded = runCatching {
-                DzlogMediaStoreReader(context.contentResolver).loadImages(location.relativePath)
-            }.getOrDefault(emptyList())
-            gridItems = reloaded
-            val safeStart = startIndex.coerceIn(0, (reloaded.size - 1).coerceAtLeast(0))
-            viewerStartIndex = safeStart
-            navigateTo(AppScreen.ALBUM_VIEWER)
+            gridEntrySource = GridEntrySource.CAMERA_RECENT
+            viewerEntrySource = ViewerEntrySource.GRID
+            navigateTo(AppScreen.ALBUM_GRID)
             return
         }
 
@@ -560,10 +565,10 @@ fun AppRoot() {
             return
         }
 
-        screen = if (gridEntrySource == GridEntrySource.HOME_RECENT) {
-            AppScreen.HOME
-        } else {
-            albumGridEntryScreen
+        screen = when (gridEntrySource) {
+            GridEntrySource.HOME_RECENT -> AppScreen.HOME
+            GridEntrySource.CAMERA_RECENT -> AppScreen.CAMERA
+            GridEntrySource.NORMAL -> albumGridEntryScreen
         }
     }
 
