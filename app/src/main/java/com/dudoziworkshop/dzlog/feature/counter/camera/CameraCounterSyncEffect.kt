@@ -91,6 +91,7 @@ internal fun CameraCounterSyncEffect(
             previousRequestKey = syncMemory.previousRequestKey,
             currentRequestKey = requestKey,
         )
+        ui.counter.syncedRequest = null
         val readResult = readCameraCounterSafely { counterFacade.read(counterRequest) }
         currentCoroutineContext().ensureActive()
         val read = readResult.getOrElse { error ->
@@ -107,6 +108,8 @@ internal fun CameraCounterSyncEffect(
             previousRequestKey = syncMemory.previousRequestKey,
             currentRequestKey = requestKey,
         )
+
+        ui.counter.syncedRequest = counterRequest
 
         // 상태 전이는 단일 시점 copy로 기록해 이전/다음 사이클 경계를 명확히 유지한다.
         // NOTE: 이 값은 다음 LaunchedEffect cycle에서 read 되므로 dead assignment가 아니다.

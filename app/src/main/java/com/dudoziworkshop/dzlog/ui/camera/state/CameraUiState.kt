@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequest
 import com.dudoziworkshop.dzlog.data.counter.COUNTER_DIGITS_DEFAULT
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
@@ -72,6 +73,7 @@ internal class CaptureUiState {
 internal class CounterScopeState {
     // null = 카운터 readback 동기화 전(초기 렌더) 상태
     var scopeNextCounter by mutableStateOf<Int?>(null)
+    var syncedRequest by mutableStateOf<CounterRequest?>(null)
 }
 
 @Stable
