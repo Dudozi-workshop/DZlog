@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,15 +23,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Checkbox
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryChildFolder
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummaryPolicy
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
 enum class GalleryTab(val label: String) {
@@ -45,6 +51,7 @@ internal fun LogGalleryHomeContent(
     selectedTab: GalleryTab,
     onTabChange: (GalleryTab) -> Unit,
     folderIndex: GalleryFolderIndex,
+    summariesByPath: Map<String, GalleryFolderSummary>,
     allImages: List<MediaImageItem>,
     favoriteIds: Set<Long>,
     onOpenFolder: (String) -> Unit,
@@ -86,6 +93,8 @@ internal fun LogGalleryHomeContent(
     val recent = allImages.filterNot { it.relativePath.trimEnd('/').endsWith("/original") }.take(9)
     val favorites = allImages.filter { it.id in favoriteIds }
     val directPhotos = allImages.filter { it.relativePath.trimEnd('/') == root.trimEnd('/') }
+    // Summary IDs are MediaStore IDs, so resolve them against this same snapshot.
+    val imagesById = remember(allImages) { allImages.associateBy { it.id.toString() } }
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
@@ -108,7 +117,10 @@ internal fun LogGalleryHomeContent(
                     item { GalleryEmptyText("저장 폴더가 없습니다.") }
                 } else {
                     items(folderIndex.children, key = { "folder-${it.relativePath}" }) { folder ->
-                        GalleryFolderRow(folder) { onOpenFolder(folder.relativePath) }
+                        val summary = summariesByPath[folder.relativePath]
+                        GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get)) {
+                            onOpenFolder(folder.relativePath)
+                        }
                     }
                 }
             }
@@ -118,7 +130,10 @@ internal fun LogGalleryHomeContent(
                     item { GalleryEmptyText("저장 폴더가 없습니다.") }
                 } else {
                     items(folderIndex.children, key = { "folder-${it.relativePath}" }) { folder ->
-                        GalleryFolderRow(folder) { onOpenFolder(folder.relativePath) }
+                        val summary = summariesByPath[folder.relativePath]
+                        GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get)) {
+                            onOpenFolder(folder.relativePath)
+                        }
                     }
                 }
                 item { GallerySectionTitle("사진", "${directPhotos.size}장") }
@@ -183,7 +198,12 @@ internal fun GalleryEmptyText(message: String) {
 }
 
 @Composable
-internal fun GalleryFolderRow(folder: GalleryChildFolder, onClick: () -> Unit) {
+internal fun GalleryFolderRow(
+    folder: GalleryChildFolder,
+    summary: GalleryFolderSummary?,
+    coverImage: MediaImageItem?,
+    onClick: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth()
             .background(DDZColor.Surface, RoundedCornerShape(14.dp))
@@ -192,12 +212,26 @@ internal fun GalleryFolderRow(folder: GalleryChildFolder, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
+        Box(
+            modifier = Modifier.size(48.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(DDZColor.SurfaceSoft),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (coverImage != null) {
+                DzThumbnail(coverImage.uri.toString())
+            } else {
+                Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
+            }
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                if (folder.totalImageCount == 0) "비어 있음" else "${folder.totalImageCount}장",
+                if (summary == null) "집계 정보 없음" else
+                    "사진 ${summary.totalPhotoCount} · 하위 ${summary.directChildFolderCount} · 최근 " +
+                        GalleryFolderSummaryPolicy.compactDate(summary.latestPhotoEpochMillis),
                 color = DDZColor.TextSecondary,
+                fontSize = 12.sp,
             )
         }
         Icon(Icons.Default.ChevronRight, contentDescription = "폴더 열기", tint = DDZColor.IconMuted)

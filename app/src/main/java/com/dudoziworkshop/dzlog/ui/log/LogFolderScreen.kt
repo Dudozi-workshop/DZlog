@@ -60,6 +60,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.feature.log.policy.CapturePathImpact
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -89,6 +90,9 @@ fun LogFolderScreen(
     val cached = remember(relativePath) { GallerySnapshotMemory.cache.get(relativePath) }
     var allPhotos by remember(relativePath) { mutableStateOf(cached?.allPhotos ?: emptyList()) }
     var index by remember(relativePath) { mutableStateOf<GalleryFolderIndex?>(cached?.index) }
+    var summariesByPath by remember(relativePath) {
+        mutableStateOf<Map<String, GalleryFolderSummary>>(cached?.summariesByPath ?: emptyMap())
+    }
     var photos by remember(relativePath) { mutableStateOf(cached?.directPhotos ?: emptyList()) }
     var error by remember(relativePath) { mutableStateOf<String?>(null) }
     var loading by remember(relativePath) { mutableStateOf(cached == null) }
@@ -166,6 +170,7 @@ fun LogFolderScreen(
         result.onSuccess { snapshot ->
             GallerySnapshotMemory.cache.put(relativePath, snapshot)
             index = snapshot.index
+            summariesByPath = snapshot.summariesByPath
             photos = snapshot.directPhotos
             if (relativePath == GalleryFolderIndexPolicy.ROOT) allPhotos = snapshot.allPhotos
             error = null
@@ -275,6 +280,7 @@ fun LogFolderScreen(
                 selectedTab = selectedTab,
                 onTabChange = { selectedTab = it },
                 folderIndex = requireNotNull(index),
+                summariesByPath = summariesByPath,
                 allImages = allPhotos,
                 favoriteIds = favoriteIds,
                 onOpenFolder = onOpenFolder,
