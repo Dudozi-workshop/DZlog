@@ -71,6 +71,7 @@ internal fun GalleryFolderDeleteDialog(
         confirmButton = {
             val confirmed = plan
             TextButton(enabled = !busy, onClick = {
+                if (busy) return@TextButton
                 if (confirmed == null) {
                     busy = true
                     error = null
@@ -107,7 +108,7 @@ internal fun GalleryFolderDeleteDialog(
             }
         },
         dismissButton = {
-            TextButton(enabled = !busy, onClick = onCancel) { Text("취소") }
+            TextButton(enabled = !busy, onClick = { if (!busy) onCancel() }) { Text("취소") }
         },
     )
 }
