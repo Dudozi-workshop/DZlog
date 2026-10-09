@@ -65,6 +65,7 @@ internal fun CameraPreviewArea(
     tapFocusUi: TapFocusUiState?,
     onTapFocusUiChange: (TapFocusUiState?) -> Unit,
     isTableSelected: Boolean,
+    isTableLocked: Boolean,
     onTableSelectionChange: (Boolean) -> Unit,
     onCornerResizeScale: (Float, Boolean) -> Unit,
 ) {
@@ -242,6 +243,7 @@ internal fun CameraPreviewArea(
                 watermarkBoundsRect = watermarkBoundsRect,
                 watermarkRawRect = watermarkRawRect,
                 isWatermarkArmed = isWatermarkArmed,
+                isTableLocked = isTableLocked,
                 dragTouchSlop = dragTouchSlop,
                 dragStartLeftPx = dragStartLeftPx,
                 dragStartTopPx = dragStartTopPx,
