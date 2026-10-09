@@ -17,6 +17,8 @@ data class GalleryFolderIndex(
     val children: List<GalleryChildFolder>,
 )
 
+data class GalleryBreadcrumb(val label: String, val relativePath: String)
+
 object GalleryFolderIndexPolicy {
     const val ROOT = "Pictures/DZlog/"
 
@@ -30,6 +32,23 @@ object GalleryFolderIndexPolicy {
         val tail = current.removePrefix(ROOT).trimEnd('/')
         val parent = tail.substringBeforeLast('/', missingDelimiterValue = "")
         return if (parent.isBlank()) ROOT else ROOT + parent + "/"
+    }
+
+    /** Includes a clickable root followed by every folder ancestor and current folder. */
+    fun breadcrumbs(relativePath: String): List<GalleryBreadcrumb> {
+        val path = normalize(relativePath)
+        require(path == ROOT || path.startsWith(ROOT)) {
+            "Gallery folder must be inside Pictures/DZlog/"
+        }
+        val segments = path.removePrefix(ROOT).trimEnd('/')
+            .split('/').filter { it.isNotBlank() }
+        val result = mutableListOf(GalleryBreadcrumb("DZlog", ROOT))
+        var prefix = ROOT
+        segments.forEach { segment ->
+            prefix += "$segment/"
+            result += GalleryBreadcrumb(segment, prefix)
+        }
+        return result
     }
 
     fun index(
