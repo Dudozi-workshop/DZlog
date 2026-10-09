@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -13,11 +14,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.FlashAuto
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -26,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraOverlayTool
@@ -40,22 +44,25 @@ internal fun CameraToolMenuSection(
     flashMode: CameraFlashMode,
     focusMode: CameraFocusMode,
     showGrid: Boolean,
+    showTable: Boolean,
     assistShutterEnabled: Boolean,
     onSelectTool: (CameraOverlayTool) -> Unit,
     onToggleGrid: () -> Unit,
+    onToggleTable: () -> Unit,
     onToggleAssistShutter: () -> Unit,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier
             .clip(ToolMenuChipShape)
             .background(DDZColor.Surface.copy(alpha = 0.94f), ToolMenuChipShape)
             .border(1.dp, DDZColor.SageBorder, ToolMenuChipShape)
-            .padding(horizontal = 8.dp, vertical = 8.dp)
+            .padding(horizontal = 4.dp, vertical = 5.dp)
     ) {
         ToolMenuChip(
             selected = selectedTool == CameraOverlayTool.FOCUS,
+            label = "초점",
             onClick = { onSelectTool(CameraOverlayTool.FOCUS) }
         ) {
             Icon(
@@ -69,6 +76,7 @@ internal fun CameraToolMenuSection(
         }
         ToolMenuChip(
             selected = selectedTool == CameraOverlayTool.FLASH,
+            label = "플래시",
             onClick = { onSelectTool(CameraOverlayTool.FLASH) }
         ) {
             Icon(
@@ -79,6 +87,7 @@ internal fun CameraToolMenuSection(
         }
         ToolMenuChip(
             selected = showGrid,
+            label = "격자",
             onClick = onToggleGrid
         ) {
             Icon(
@@ -88,7 +97,19 @@ internal fun CameraToolMenuSection(
             )
         }
         ToolMenuChip(
+            selected = showTable,
+            label = "표",
+            onClick = onToggleTable,
+        ) {
+            Icon(
+                imageVector = Icons.Default.TableChart,
+                contentDescription = if (showTable) "표 숨기기" else "표 표시",
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        ToolMenuChip(
             selected = assistShutterEnabled,
+            label = "보조 셔터",
             onClick = onToggleAssistShutter
         ) {
             Icon(
@@ -103,6 +124,7 @@ internal fun CameraToolMenuSection(
 @Composable
 private fun ToolMenuChip(
     selected: Boolean,
+    label: String,
     onClick: () -> Unit,
     content: @Composable () -> Unit,
 ) {
@@ -113,13 +135,24 @@ private fun ToolMenuChip(
             .clip(ToolMenuChipShape)
             .background(chipBg, ToolMenuChipShape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 7.dp, vertical = 5.dp),
         contentAlignment = Alignment.Center
     ) {
         CompositionLocalProvider(
             LocalContentColor provides iconTint
         ) {
-            content()
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                content()
+                Text(
+                    text = label,
+                    style = DDZTypography.Caption,
+                    color = iconTint,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
