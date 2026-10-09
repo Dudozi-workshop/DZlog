@@ -610,6 +610,7 @@ fun AppRoot() {
         modifier = Modifier
             .fillMaxSize()
     ) {
+        GalleryPermissionOnboarding()
         if (keepCameraAliveBehindAlbum) {
             Box(modifier = Modifier.alpha(0f)) {
                 CameraScreen(
