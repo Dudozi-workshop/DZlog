@@ -2,6 +2,8 @@ package com.dudoziworkshop.dzlog.ui.table.mock
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +18,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,6 +62,8 @@ internal fun TableEditorSaveDetailScreen(
     var showCounterInput by remember { mutableStateOf(false) }
     var counterInputDraft by remember(nextCounter) { mutableStateOf(nextCounter.toString()) }
 
+    val scrollState = key(detail) { rememberScrollState() }
+
     Scaffold(
         containerColor = DDZColor.Background,
         topBar = {
@@ -78,6 +83,7 @@ internal fun TableEditorSaveDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
