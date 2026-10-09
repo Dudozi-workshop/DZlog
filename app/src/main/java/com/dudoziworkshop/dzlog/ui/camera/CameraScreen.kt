@@ -63,6 +63,7 @@ import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTableResizeBaseline
 import com.dudoziworkshop.dzlog.ui.camera.controls.resizeCameraTableKeepingCenter
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraQuickValueSheet
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTopBar
+import com.dudoziworkshop.dzlog.ui.camera.controls.CameraNextCaptureInfoPopup
 import com.dudoziworkshop.dzlog.ui.camera.controls.FloatingAssistShutterButton
 import com.dudoziworkshop.dzlog.ui.camera.controls.buildCameraTriggerCapture
 import com.dudoziworkshop.dzlog.ui.camera.controls.isCaptureReady
@@ -94,6 +95,7 @@ fun CameraScreen(
     tableTemplateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
     onOpenTableEditor: () -> Unit,
+    onOpenSaveSettings: () -> Unit,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
@@ -120,6 +122,7 @@ fun CameraScreen(
                 tableTemplateState = tableTemplateState,
                 onTemplateChange = onTemplateChange,
                 onOpenTableEditor = onOpenTableEditor,
+                onOpenSaveSettings = onOpenSaveSettings,
                 onOpenAlbum = onOpenAlbum,
                 onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
                 sessionCaptureStack = sessionCaptureStack,
@@ -143,6 +146,7 @@ fun CameraPreview(
     tableTemplateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
     onOpenTableEditor: () -> Unit,
+    onOpenSaveSettings: () -> Unit,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
@@ -273,6 +277,7 @@ fun CameraPreview(
     )
 
     val topDisplayName = derivedState.topDisplayName
+    var showNextCaptureInfo by remember { mutableStateOf(false) }
 
     fun resetZoomToDefault() {
         ui.prefs.zoomRatioTenths = 10
@@ -367,10 +372,10 @@ fun CameraPreview(
         ) {
             CameraTopBar(
                 topDisplayName = topDisplayName,
-                onOpenTableEditor = {
+                onOpenCaptureInfo = {
                     ui.isTableSelected = false
                     ui.dismissToolOverlays()
-                    onOpenTableEditor()
+                    showNextCaptureInfo = true
                 },
                 onOpenSettings = {
                     ui.isTableSelected = false
@@ -539,6 +544,18 @@ fun CameraPreview(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                     ) { ui.capture.capturedUri = null }
+            )
+        }
+
+        if (showNextCaptureInfo) {
+            CameraNextCaptureInfoPopup(
+                nextFileName = topDisplayName,
+                relativePath = finalCapturePreview?.relativePathPreview ?: captureScopeState.relativePathPreview,
+                onOpenSaveSettings = {
+                    showNextCaptureInfo = false
+                    onOpenSaveSettings()
+                },
+                onDismiss = { showNextCaptureInfo = false },
             )
         }
 
