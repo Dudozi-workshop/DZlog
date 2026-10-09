@@ -130,8 +130,7 @@ internal fun CameraBottomControls(
             onUndoDelete = onUndoDelete,
             onShutterButtonTopYChange = onShutterButtonTopYChange,
             onOpenQuickValues = {
-                ui.isTableSelected = false
-                ui.dismissToolOverlays()
+                ui.dismissCameraInteractions()
                 onOpenQuickValues()
             },
             onBottomBarHeightChange = { bottomBarHeightPx = it }
@@ -151,11 +150,11 @@ internal fun CameraBottomControls(
             showGrid = ui.prefs.showGrid,
             bottomOffset = with(density) { bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing },
             onSelectTool = { selectedTool ->
-                ui.isTableSelected = false
+                ui.dismissTableSelection()
                 ui.isZoomChipExpanded = false
                 ui.showToolMenu = false
                 ui.selectedTool = selectedTool
-                ui.isToolPanelExpanded = false
+                ui.isToolPanelExpanded = true
             },
             onOpenSelectedToolPanel = { if (!ui.isPinchZoomActive) ui.isToolPanelExpanded = true },
             onZoomTenthsChange = { next ->
@@ -342,7 +341,7 @@ private fun BoxScope.CameraBottomBarRow(
                 RecentCaptureThumbButton(
                     latestImage = latestImage,
                     onClick = {
-                        ui.dismissToolOverlays()
+                        ui.dismissCameraInteractions()
                         if (latestImage == null) {
                             onOpenAlbum()
                         } else {
@@ -356,7 +355,8 @@ private fun BoxScope.CameraBottomBarRow(
             Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
                 CameraToolEntryButton(
                     onClick = {
-                        ui.isTableSelected = false
+                        ui.dismissTableSelection()
+                        ui.isZoomChipExpanded = false
                         if (ui.showToolMenu) {
                             ui.showToolMenu = false
                         } else if (ui.isToolPanelExpanded) {
@@ -389,7 +389,7 @@ private fun BoxScope.CameraBottomBarRow(
                 UndoCaptureButton(
                     enabled = sessionCaptureStack.isNotEmpty() && !undoPending,
                     onClick = {
-                        ui.dismissToolOverlays()
+                        ui.dismissCameraInteractions()
                         if (undoPending) return@UndoCaptureButton
                         val targetUris = UndoCapturePolicy.consumeLatestCapture(stack = sessionCaptureStack)
                         if (targetUris.isEmpty()) return@UndoCaptureButton
@@ -560,12 +560,12 @@ private fun UndoCaptureButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
-        backgroundColor = if (enabled) DDZColor.SagePrimary else Color.Transparent
+        backgroundColor = Color.Transparent
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.Undo,
-            contentDescription = "Undo",
-            tint = if (enabled) Color.White else DDZColor.SageDark
+            contentDescription = "직전 촬영 삭제",
+            tint = if (enabled) DDZColor.SageDarkStrong else DDZColor.TextMuted
         )
     }
 }
