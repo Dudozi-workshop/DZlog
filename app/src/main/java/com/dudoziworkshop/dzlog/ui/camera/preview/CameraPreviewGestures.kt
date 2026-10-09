@@ -43,9 +43,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
     dragTableHeightPx: Float,
     dragPreviewOffsetPx: Offset?,
     onTapFocusUiChange: (TapFocusUiState?) -> Unit,
-    onOpenTableEditor: () -> Unit,
     onCommitWatermarkOffsetIfNeeded: () -> Unit,
-    onMarkWatermarkInteraction: () -> Unit,
     onWatermarkArmedChange: (Boolean) -> Unit,
     onWatermarkDragActiveChange: (Boolean) -> Unit,
     onDragStartLeftPxChange: (Float) -> Unit,
@@ -66,24 +64,16 @@ internal fun Modifier.cameraPreviewGestureModifier(
     onRequestedZoomTenthsCommit: (Int) -> Unit,
     onActualZoomTenthsChange: (Int) -> Unit,
 ): Modifier = this
-    .pointerInput(boundCamera, captureRect, tapFocusUi, focusMode) {
+    .pointerInput(boundCamera, captureRect, tapFocusUi, focusMode, isWatermarkArmed, watermarkBoundsRect) {
         detectTapGestures { offset ->
             if (SystemClock.uptimeMillis() < suppressWatermarkTapUntilMs) return@detectTapGestures
             if (watermarkBoundsRect?.contains(offset.x, offset.y) == true) {
-                if (isWatermarkArmed) {
-                    onCommitWatermarkOffsetIfNeeded()
-                    onOpenTableEditor()
-                    onWatermarkArmedChange(false)
-                } else {
-                    onWatermarkArmedChange(true)
-                    onMarkWatermarkInteraction()
-                }
+                onWatermarkArmedChange(true)
                 return@detectTapGestures
             }
             if (isWatermarkArmed) {
                 onCommitWatermarkOffsetIfNeeded()
                 onWatermarkArmedChange(false)
-                return@detectTapGestures
             }
             if (focusMode == CameraFocusMode.MANUAL) return@detectTapGestures
             val activeCamera = boundCamera ?: return@detectTapGestures
@@ -146,7 +136,6 @@ internal fun Modifier.cameraPreviewGestureModifier(
                 onDragTableWidthPxChange(localDragTableWidthPx)
                 onDragTableHeightPxChange(localDragTableHeightPx)
                 onDragPreviewOffsetPxChange(localDragPreviewOffsetPx)
-                onMarkWatermarkInteraction()
             }
 
             while (true) {
@@ -222,7 +211,6 @@ internal fun Modifier.cameraPreviewGestureModifier(
 
                 localDragPreviewOffsetPx = nextOffsetPx
                 onDragPreviewOffsetPxChange(nextOffsetPx)
-                onMarkWatermarkInteraction()
             }
 
             if (localDragEnabled && localDragStartedAfterSlop) {
@@ -254,7 +242,6 @@ internal fun Modifier.cameraPreviewGestureModifier(
                 onPendingLocalOffsetSyncChange(true)
                 onWatermarkBoundsOffset10000Preview(committedX10000, committedY10000)
                 onWatermarkOffsetRatioPreview(committedXRatio, committedYRatio)
-                onMarkWatermarkInteraction()
                 onCommitWatermarkOffsetIfNeeded()
             }
             onWatermarkDragActiveChange(false)
