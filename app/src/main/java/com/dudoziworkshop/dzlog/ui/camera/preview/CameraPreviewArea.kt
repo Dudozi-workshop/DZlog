@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -111,6 +112,9 @@ internal fun CameraPreviewArea(
         var dragTableHeightPx by remember { mutableFloatStateOf(0f) }
         var pendingLocalOffsetSync by remember { mutableStateOf(false) }
         val dragTouchSlop = LocalViewConfiguration.current.touchSlop
+        val liveWatermarkBounds = rememberUpdatedState(watermarkBoundsRect)
+        val liveWatermarkRawRect = rememberUpdatedState(watermarkRawRect)
+        val liveHandleCorner = rememberUpdatedState(activeHandleCorner)
 
         fun commitWatermarkOffsetIfNeeded() {
             args.onWatermarkOffsetRatioCommit(previewOffsetX, previewOffsetY)
@@ -240,8 +244,8 @@ internal fun CameraPreviewArea(
                 tapFocusUi = tapFocusUi,
                 focusMode = args.focusMode,
                 suppressWatermarkTapUntilMs = suppressWatermarkTapUntilMs,
-                watermarkBoundsRect = watermarkBoundsRect,
-                watermarkRawRect = watermarkRawRect,
+                watermarkBoundsRectState = liveWatermarkBounds,
+                watermarkRawRectState = liveWatermarkRawRect,
                 isWatermarkArmed = isWatermarkArmed,
                 isTableLocked = isTableLocked,
                 dragTouchSlop = dragTouchSlop,
@@ -272,7 +276,7 @@ internal fun CameraPreviewArea(
                 onRequestedZoomTenthsCommit = args.onRequestedZoomTenthsCommit,
                 onActualZoomTenthsChange = args.onActualZoomTenthsChange,
                 onCornerResizeScale = onCornerResizeScale,
-                activeHandleCorner = activeHandleCorner,
+                activeHandleCornerState = liveHandleCorner,
                 onActiveHandleCornerChange = { activeHandleCorner = it },
             )
 
