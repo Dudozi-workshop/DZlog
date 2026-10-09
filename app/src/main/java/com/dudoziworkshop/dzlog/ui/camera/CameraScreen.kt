@@ -476,7 +476,7 @@ fun CameraPreview(
                         onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
                         sessionCaptureStack = sessionCaptureStack,
                         undoPending = undoDeleteController.isBusy,
-                        onUndoDelete = { uris -> undoDeleteController.delete(uris) },
+                        onUndoDelete = { undoDeleteController.deleteLatest(sessionCaptureStack) },
                         onTriggerCapture = {
                             ui.dismissCameraInteractions()
                             triggerCapture()
