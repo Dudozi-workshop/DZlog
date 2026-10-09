@@ -1,7 +1,5 @@
 package com.dudoziworkshop.dzlog.ui.log
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
@@ -45,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderCatalog
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderStorage
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
@@ -75,6 +74,7 @@ fun LogFolderScreen(
     val scope = rememberCoroutineScope()
     val reader = remember(context) { DzlogMediaStoreReader(context.contentResolver) }
     val folderStorage = remember(context) { GalleryFolderStorage(context.applicationContext) }
+    val folderCatalog = remember(context) { GalleryFolderCatalog(context.applicationContext) }
     val favoriteIds by remember(context) { FavoritesProvider.repo(context) }.favoriteIdsFlow.collectAsState(initial = emptySet())
     var selectedTab by remember { mutableStateOf(GalleryTab.ALL) }
     val cached = remember(relativePath) { GallerySnapshotMemory.cache.get(relativePath) }
@@ -94,15 +94,6 @@ fun LogFolderScreen(
     var connected by remember { mutableStateOf(folderStorage.isConnected()) }
 
     var reloadKey by remember { androidx.compose.runtime.mutableIntStateOf(0) }
-    val folderPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocumentTree(),
-    ) { uri ->
-        if (uri != null) {
-            runCatching { folderStorage.connect(uri) }
-                .onSuccess { connected = true; folderOperationError = null; showCreateDialog = true; GallerySnapshotMemory.cache.invalidate(relativePath); reloadKey++ }
-                .onFailure { folderOperationError = it.message ?: "폴더 연결 실패" }
-        }
-    }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         connected = folderStorage.isConnected()
         reloadKey++
@@ -112,10 +103,14 @@ fun LogFolderScreen(
         loading = index == null
         val result = runCatching {
             withContext(Dispatchers.IO) {
-                val folders = if (folderStorage.isConnected())
+                val physicalFolders = if (folderStorage.isConnected())
                     runCatching { folderStorage.listImmediateFolderPaths(relativePath) }.getOrDefault(emptyList())
                     else emptyList()
-                reader.loadGallerySnapshot(relativePath, existingFolderPaths = folders)
+                val catalogFolders = folderCatalog.listImmediatePaths(relativePath)
+                reader.loadGallerySnapshot(
+                    relativePath,
+                    existingFolderPaths = (physicalFolders + catalogFolders).distinct(),
+                )
             }
         }
         result.onSuccess { snapshot ->
@@ -169,7 +164,7 @@ fun LogFolderScreen(
             Button(
                 onClick = {
                     folderOperationError = null
-                    if (connected) showCreateDialog = true else folderPicker.launch(folderStorage.pickerInitialUri())
+                    showCreateDialog = true
                 },
             ) { Text("새 폴더") }
             if (!root && connected) {
@@ -350,7 +345,11 @@ fun LogFolderScreen(
                     TextButton(onClick = {
                         scope.launch {
                             val result = withContext(Dispatchers.IO) {
-                                runCatching { folderStorage.createFolder(relativePath, newFolderName) }
+                                runCatching {
+                                    val existing = reader.loadGallerySnapshot(relativePath).index.children
+                                        .map { it.relativePath }
+                                    folderCatalog.create(relativePath, newFolderName, existing)
+                                }
                             }
                             result.onSuccess {
                                 showCreateDialog = false
