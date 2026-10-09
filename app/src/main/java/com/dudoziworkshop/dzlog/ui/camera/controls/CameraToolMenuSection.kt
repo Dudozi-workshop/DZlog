@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
@@ -55,6 +59,7 @@ internal fun CameraToolMenuSection(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier
+            .fillMaxWidth(0.90f)
             .clip(ToolMenuChipShape)
             .background(DDZColor.Surface.copy(alpha = 0.94f), ToolMenuChipShape)
             .border(1.dp, DDZColor.SageBorder, ToolMenuChipShape)
@@ -109,7 +114,7 @@ internal fun CameraToolMenuSection(
         }
         ToolMenuChip(
             selected = assistShutterEnabled,
-            label = "보조 셔터",
+            label = "보조",
             onClick = onToggleAssistShutter
         ) {
             Icon(
@@ -122,7 +127,7 @@ internal fun CameraToolMenuSection(
 }
 
 @Composable
-private fun ToolMenuChip(
+private fun RowScope.ToolMenuChip(
     selected: Boolean,
     label: String,
     onClick: () -> Unit,
@@ -132,10 +137,12 @@ private fun ToolMenuChip(
     val iconTint = if (selected) DDZColor.SageDarkStrong else DDZColor.SageDark
     Box(
         modifier = Modifier
+            .weight(1f)
+            .heightIn(min = 48.dp)
             .clip(ToolMenuChipShape)
             .background(chipBg, ToolMenuChipShape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 7.dp, vertical = 5.dp),
+            .padding(horizontal = 2.dp, vertical = 5.dp),
         contentAlignment = Alignment.Center
     ) {
         CompositionLocalProvider(
@@ -151,6 +158,7 @@ private fun ToolMenuChip(
                     style = DDZTypography.Caption,
                     color = iconTint,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
