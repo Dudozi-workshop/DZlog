@@ -207,13 +207,13 @@ internal fun TableEditorSaveDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        (1..6).forEach { digits ->
+                        (1..4).forEach { digits ->
                             DDZButton(
                                 text = digits.toString(),
                                 modifier = Modifier.weight(1f),
-                                minHeight = 40.dp,
+                                minHeight = 48.dp,
                                 style = DDZButtonStyle.Secondary,
-                                containerColorOverride = if (counterPadding == digits) DDZColor.SelectedSoft else null,
+                                containerColorOverride = if (counterPadding.coerceIn(1, 4) == digits) DDZColor.SelectedSoft else null,
                                 onClick = { onCounterPaddingChange(digits) },
                             )
                         }
