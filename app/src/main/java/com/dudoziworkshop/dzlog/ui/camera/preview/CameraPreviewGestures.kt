@@ -36,6 +36,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
     watermarkBoundsRect: RectF?,
     watermarkRawRect: RectF?,
     isWatermarkArmed: Boolean,
+    isTableLocked: Boolean,
     dragTouchSlop: Float,
     dragStartLeftPx: Float,
     dragStartTopPx: Float,
@@ -118,9 +119,9 @@ internal fun Modifier.cameraPreviewGestureModifier(
             val corner = watermarkBoundsRect
             val selectedCorner = corner?.let { activeHandleCorner ?: chooseResizeHandleCorner(it, captureRect) }
             val handleCenter = if (corner != null && selectedCorner != null) handleCornerPoint(corner, selectedCorner) else null
-            val cornerHit = isWatermarkArmed && handleCenter != null &&
+            val cornerHit = !isTableLocked && isWatermarkArmed && handleCenter != null &&
                 hypot((firstDown.position.x - handleCenter.x).toDouble(), (firstDown.position.y - handleCenter.y).toDouble()) < dragTouchSlop * 3f
-            val localDragEnabled = !cornerHit && isWatermarkArmed && watermarkBoundsRect != null && watermarkRawRect != null &&
+            val localDragEnabled = !isTableLocked && !cornerHit && isWatermarkArmed && watermarkBoundsRect != null && watermarkRawRect != null &&
                 watermarkBoundsRect.contains(firstDown.position.x, firstDown.position.y)
             var localDragStartLeftPx = dragStartLeftPx
             var localDragStartTopPx = dragStartTopPx
