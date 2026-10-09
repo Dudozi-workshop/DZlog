@@ -7,8 +7,7 @@ package com.dudoziworkshop.dzlog.ui.log
 
 import android.content.Intent
 import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -73,8 +72,8 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
-import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
-import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryViewerDeletePolicy
+import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -95,46 +94,16 @@ fun LogViewerScreen(
 ) {
     val context = LocalContext.current
     val resolver = context.contentResolver
-    val reader = remember { DzlogMediaStoreReader(resolver) }
+    val reader = remember(resolver) { DzlogMediaStoreReader(resolver) }
     val favoritesRepository = remember(context) { FavoritesProvider.repo(context) }
     val favoriteIds by favoritesRepository.favoriteIdsFlow.collectAsState(initial = emptySet())
     val scope = rememberCoroutineScope()
     val filmstripListState = rememberLazyListState()
 
-    fun reloadAfterDelete() {
-        // Recent/favorites can span several directories; querying the gallery root
-        // as one exact folder would incorrectly drop every other viewer item.
-        scope.launch {
-            val reloaded = runCatching {
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    if (items.all { it.relativePath.trimEnd('/') == relativePath.trimEnd('/') }) {
-                        reader.loadImages(relativePath)
-                    } else {
-                        val available = reader.loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT)
-                            .associateBy { it.id }
-                        items.mapNotNull { available[it.id] }
-                    }
-                }
-            }.getOrNull() ?: return@launch
-            onItemsReloaded(reloaded)
-            if (reloaded.isEmpty()) onRequestCloseViewer()
-        }
-    }
-
-    val deleteLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult()
-    ) {
-        reloadAfterDelete()
-    }
-
-    fun startDeleteRequest(uris: List<android.net.Uri>) {
-        launchMediaDeleteRequest(
-            resolver = resolver,
-            uris = uris,
-            onLaunchIntentSender = deleteLauncher::launch,
-            onLegacyDeleteCompleted = ::reloadAfterDelete
-        )
-    }
+    var deleteItem by remember { mutableStateOf<MediaImageItem?>(null) }
+    var pendingViewerIndex by remember { mutableStateOf<Int?>(null) }
+    var emptyAfterDelete by remember { mutableStateOf(false) }
+    BackHandler(enabled = deleteItem != null) { /* The deletion dialog owns dismissal. */ }
 
     val safeStart = startIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
     val pagerState = rememberPagerState(initialPage = safeStart, pageCount = { items.size })
@@ -143,18 +112,12 @@ fun LogViewerScreen(
     var infoSheetItem by remember { mutableStateOf<MediaImageItem?>(null) }
     var isCurrentImageZoomed by remember { mutableStateOf(false) }
 
-    LaunchedEffect(safeStart) {
+    LaunchedEffect(items) {
         if (items.isNotEmpty()) {
-            pagerState.scrollToPage(safeStart)
+            val target = (pendingViewerIndex ?: pagerState.currentPage).coerceIn(items.indices)
+            pagerState.scrollToPage(target)
         }
-    }
-
-    LaunchedEffect(items.size) {
-        if (items.isEmpty()) return@LaunchedEffect
-        val targetPage = pagerState.currentPage.coerceIn(0, (items.size - 1).coerceAtLeast(0))
-        if (targetPage != pagerState.currentPage) {
-            pagerState.scrollToPage(targetPage)
-        }
+        pendingViewerIndex = null
     }
 
     val currentItem = items.getOrNull(pagerState.currentPage)
@@ -177,7 +140,7 @@ fun LogViewerScreen(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
                 // 정책: 확대 상태에서는 부모 pager 스크롤을 명시적으로 잠근다.
-                userScrollEnabled = !isCurrentImageZoomed
+                userScrollEnabled = !isCurrentImageZoomed && deleteItem == null
             ) { page ->
                 val item = items[page]
                 Box(
@@ -186,17 +149,17 @@ fun LogViewerScreen(
                 ) {
                     DzFullImage(
                         uriString = item.uri.toString(),
-                        canGoPrevious = page > 0,
-                        canGoNext = page < items.lastIndex,
+                        canGoPrevious = page > 0 && deleteItem == null,
+                        canGoNext = page < items.lastIndex && deleteItem == null,
                         onGoPrevious = {
-                            if (page > 0) {
+                            if (page > 0 && deleteItem == null) {
                                 scope.launch {
                                     pagerState.animateScrollToPage(page - 1)
                                 }
                             }
                         },
                         onGoNext = {
-                            if (page < items.lastIndex) {
+                            if (page < items.lastIndex && deleteItem == null) {
                                 scope.launch {
                                     pagerState.animateScrollToPage(page + 1)
                                 }
@@ -223,8 +186,10 @@ fun LogViewerScreen(
         ) {
             ViewerTopOverlay(
                 current = currentItem,
-                onBack = onBack,
+                onBack = { if (deleteItem == null) onBack() },
+                enabled = deleteItem == null,
                 onShare = {
+                    if (deleteItem != null) return@ViewerTopOverlay
                     val item = currentItem ?: return@ViewerTopOverlay
                     shareImages(context, listOf(item))
                 }
@@ -260,7 +225,9 @@ fun LogViewerScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     ViewerBottomPill(
+                        enabled = deleteItem == null && currentItem != null,
                         onFavorite = {
+                            if (deleteItem != null) return@ViewerBottomPill
                             val item = currentItem ?: return@ViewerBottomPill
                             scope.launch {
                                 favoritesRepository.toggleFavorite(item)
@@ -268,11 +235,13 @@ fun LogViewerScreen(
                         },
                         isFavorite = currentItem?.id?.let(favoriteIds::contains) == true,
                         onInfo = {
-                            if (currentItem != null) infoSheetItem = currentItem
+                            if (deleteItem == null && currentItem != null) infoSheetItem = currentItem
                         },
                         onDelete = {
-                            val item = currentItem ?: return@ViewerBottomPill
-                            startDeleteRequest(listOf(item.uri))
+                            if (deleteItem == null && currentItem != null) {
+                                emptyAfterDelete = false
+                                deleteItem = currentItem
+                            }
                         }
                     )
 
@@ -282,7 +251,7 @@ fun LogViewerScreen(
                         favoriteIds = favoriteIds,
                         listState = filmstripListState,
                         onThumbnailClick = { index ->
-                            scope.launch {
+                            if (deleteItem == null) scope.launch {
                                 pagerState.animateScrollToPage(index)
                                 filmstripListState.animateScrollToItem(index)
                             }
@@ -291,6 +260,24 @@ fun LogViewerScreen(
                 }
             }
         }
+    }
+
+    deleteItem?.let { requested ->
+        GalleryViewerDeleteDialog(
+            item = requested,
+            reader = reader,
+            onVerified = { deletedIds ->
+                val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, deletedIds)
+                pendingViewerIndex = update.currentIndex
+                emptyAfterDelete = update.ids.isEmpty()
+                GallerySnapshotMemory.cache.invalidate()
+                onItemsReloaded(items.filter { it.id !in deletedIds })
+            },
+            onClose = {
+                deleteItem = null
+                if (emptyAfterDelete) onRequestCloseViewer()
+            },
+        )
     }
 
     val sheetItem = infoSheetItem
@@ -308,6 +295,7 @@ fun LogViewerScreen(
 @Composable
 private fun ViewerTopOverlay(
     current: MediaImageItem?,
+    enabled: Boolean,
     onBack: () -> Unit,
     onShare: () -> Unit,
 ) {
@@ -326,7 +314,7 @@ private fun ViewerTopOverlay(
             modifier = Modifier.weight(1f),
             contentAlignment = Alignment.CenterStart
         ) {
-            IconButton(onClick = onBack) {
+            IconButton(onClick = onBack, enabled = enabled) {
                 Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
             }
         }
@@ -347,7 +335,7 @@ private fun ViewerTopOverlay(
         ) {
             IconButton(
                 onClick = onShare,
-                enabled = current != null
+                enabled = enabled && current != null
             ) {
                 Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White)
             }
@@ -357,6 +345,7 @@ private fun ViewerTopOverlay(
 
 @Composable
 private fun ViewerBottomPill(
+    enabled: Boolean,
     onFavorite: () -> Unit,
     isFavorite: Boolean,
     onInfo: () -> Unit,
@@ -371,17 +360,17 @@ private fun ViewerBottomPill(
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onFavorite) {
+        IconButton(onClick = onFavorite, enabled = enabled) {
             Icon(
                 imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                 contentDescription = "Favorite",
                 tint = if (isFavorite) Color(0xFFFF5C7A) else Color.White
             )
         }
-        IconButton(onClick = onInfo) {
+        IconButton(onClick = onInfo, enabled = enabled) {
             Icon(Icons.Default.Info, contentDescription = "Info", tint = Color.White)
         }
-        IconButton(onClick = onDelete) {
+        IconButton(onClick = onDelete, enabled = enabled) {
             Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
         }
     }
