@@ -86,7 +86,18 @@ internal fun CameraNextCaptureInfoPopup(
                     )
                 }
                 Text("저장 경로", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                Text(relativePath.ifBlank { "기본 저장 경로" }, style = DDZTypography.Body, color = DDZColor.TextStrong)
+                Surface(
+                    color = DDZColor.Surface,
+                    border = BorderStroke(1.dp, DDZColor.Border),
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text(
+                        relativePath.ifBlank { "기본 저장 경로" },
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        style = DDZTypography.Body,
+                        color = DDZColor.TextStrong,
+                    )
+                }
                 Button(onClick = onOpenSaveSettings, modifier = Modifier.fillMaxWidth()) {
                     Text("저장 설정으로 이동")
                 }
