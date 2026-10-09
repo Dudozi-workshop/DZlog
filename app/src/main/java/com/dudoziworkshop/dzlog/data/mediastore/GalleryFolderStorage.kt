@@ -47,6 +47,32 @@ class GalleryFolderStorage(context: Context) {
             .toList()
     }
 
+    /** Folder destinations only; never includes files or the source subtree. */
+    fun listDestinationFolders(sourcePath: String): List<String> {
+        val tree = connectedTree() ?: return listOf(GalleryFolderIndexPolicy.ROOT)
+        val root = GalleryFolderIndexPolicy.ROOT
+        val result = mutableListOf(root)
+        val queue = ArrayDeque<Pair<String, Uri>>()
+        queue.add(root to DocumentsContract.buildDocumentUriUsingTree(
+            tree, DocumentsContract.getTreeDocumentId(tree),
+        ))
+        while (queue.isNotEmpty()) {
+            val (path, parent) = queue.removeFirst()
+            if (result.size >= 300) break
+            listChildren(tree, parent).filter {
+                it.mimeType == DocumentsContract.Document.MIME_TYPE_DIR &&
+                    !it.name.equals("original", true)
+            }.forEach { entry ->
+                val childPath = path + entry.name + "/"
+                if (childPath != sourcePath && !childPath.startsWith(sourcePath)) {
+                    result += childPath
+                    queue.add(childPath to DocumentsContract.buildDocumentUriUsingTree(tree, entry.id))
+                }
+            }
+        }
+        return result.filter { it != GalleryFolderIndexPolicy.parentOf(sourcePath) }
+    }
+
     fun createFolder(relativePath: String, rawName: String): String {
         val name = GalleryFolderNamePolicy.normalize(rawName)
         val tree = connectedTree()
