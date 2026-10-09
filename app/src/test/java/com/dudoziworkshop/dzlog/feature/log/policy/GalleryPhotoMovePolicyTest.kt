@@ -5,7 +5,10 @@ import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class GalleryPhotoMovePolicyTest {
     private fun photo(id: Long, folder: String, name: String = "0001.jpg") =
         MediaImageItem(id, Uri.parse("content://media/$id"), name, folder, 1)
