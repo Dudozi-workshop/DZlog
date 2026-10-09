@@ -417,6 +417,7 @@ internal fun CameraPreviewArea(
                     onDismissCaptured = onDismissCaptured,
                     tapFocusUi = tapFocusUi,
                     isWatermarkArmed = isWatermarkArmed,
+                    isTableLocked = isTableLocked,
                     watermarkOffsetOverridePx = effectiveOverrideOffsetPx,
                     dragVisibleOffsetPx = dragPreviewOffsetPx,
                     activeHandleCorner = activeHandleCorner,
