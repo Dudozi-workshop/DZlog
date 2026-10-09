@@ -142,6 +142,8 @@ fun LogFolderScreen(
     var photoMoveBusy by remember { mutableStateOf(false) }
     var moveAllPhotos by remember { mutableStateOf<List<MediaImageItem>>(emptyList()) }
     var pendingPhotoPlan by remember { mutableStateOf<com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePlan?>(null) }
+    var retryPhotoPlan by remember { mutableStateOf<com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePlan?>(null) }
+    var showPhotoMoveRetry by remember { mutableStateOf(false) }
 
     var reloadKey by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     fun finishPhotoMove(plan: com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePlan) {
@@ -151,17 +153,25 @@ fun LogFolderScreen(
                 runCatching { GalleryPhotoMover(context.contentResolver).move(plan) }
             }
             photoMoveBusy = false
+            GallerySnapshotMemory.cache.invalidate()
+            reloadKey++
             result.onSuccess { moved ->
-                if (moved.moved > 0) {
-                    GallerySnapshotMemory.cache.invalidate()
-                    selectedPhotoIds = emptySet()
-                    selectionActive = false
-                    reloadKey++
-                }
+                selectedPhotoIds = selectedPhotoIds - moved.movedIds
+                val failedItems = plan.items.filter { it.id in moved.failedIds }
+                retryPhotoPlan = if (failedItems.isEmpty()) null else plan.copy(
+                    items = failedItems,
+                    destinations = plan.destinations.filterKeys { it in moved.failedIds },
+                    pairedOriginalCount = failedItems.count { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) },
+                )
+                selectionActive = selectedPhotoIds.isNotEmpty() || moved.failed > 0
                 folderOperationError = if (moved.failed > 0) {
-                    "이동 ${moved.moved}장, 미완료 ${moved.failed}장. ${moved.detail.orEmpty()}"
-                } else "사진 ${moved.moved}장 이동 완료"
-            }.onFailure { folderOperationError = it.message ?: "사진 이동 실패" }
+                    "이동 ${moved.moved}개 · 미완료 ${moved.failed}개. ${moved.detail.orEmpty()}"
+                } else "파일 ${moved.moved}개 이동 완료"
+            }.onFailure {
+                retryPhotoPlan = plan
+                selectionActive = true
+                folderOperationError = it.message ?: "사진 이동 실패"
+            }
             pendingPhotoPlan = null
         }
     }
@@ -176,6 +186,20 @@ fun LogFolderScreen(
             photoMoveBusy = false
             folderOperationError = "사진 수정 권한이 허용되지 않아 이동을 취소했습니다."
         }
+    }
+
+    fun requestPhotoMove(prepared: com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePlan) {
+        if (photoMoveBusy || pendingPhotoPlan != null) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            runCatching {
+                pendingPhotoPlan = prepared
+                val request = MediaStore.createWriteRequest(context.contentResolver, prepared.items.map { it.uri })
+                photoWritePermission.launch(IntentSenderRequest.Builder(request.intentSender).build())
+            }.onFailure {
+                pendingPhotoPlan = null
+                folderOperationError = "사진 수정 권한 요청을 열지 못했습니다."
+            }
+        } else finishPhotoMove(prepared)
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -262,6 +286,7 @@ fun LogFolderScreen(
     fun startPhotoMove() {
         if (selectedPhotoIds.isEmpty() || photoMoveBusy || pendingPhotoPlan != null) return
         folderOperationError = null
+        retryPhotoPlan = null
         showPhotoMove = true
         showMoveDestination = true
         photoMoveTarget = GalleryFolderIndexPolicy.ROOT
@@ -382,6 +407,15 @@ fun LogFolderScreen(
         }
         folderOperationError?.let { message ->
             Text(message, color = DDZColor.Destructive)
+        }
+        retryPhotoPlan?.let { retry ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("미완료 파일 ${retry.items.size}개", modifier = Modifier.weight(1f))
+                TextButton(enabled = !photoMoveBusy && pendingPhotoPlan == null,
+                    onClick = { showPhotoMoveRetry = true }) { Text("재시도") }
+                TextButton(enabled = !photoMoveBusy && pendingPhotoPlan == null,
+                    onClick = { retryPhotoPlan = null }) { Text("닫기") }
+            }
         }
         Column(Modifier.weight(1f)) {
             if (loading && index == null) {
@@ -554,19 +588,31 @@ fun LogFolderScreen(
                 onCancel = { showPhotoMove = false },
                 onConfirm = { prepared ->
                     showPhotoMove = false
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        runCatching {
-                            pendingPhotoPlan = prepared
-                            val request = MediaStore.createWriteRequest(
-                                context.contentResolver, prepared.items.map { it.uri },
-                            )
-                            photoWritePermission.launch(IntentSenderRequest.Builder(request.intentSender).build())
-                        }.onFailure {
-                            pendingPhotoPlan = null
-                            folderOperationError = "사진 수정 권한 요청을 열지 못했습니다."
-                        }
-                    } else finishPhotoMove(prepared)
+                    requestPhotoMove(prepared)
                 },
+            )
+        }
+        val retryPlan = retryPhotoPlan
+        if (showPhotoMoveRetry && retryPlan != null) {
+            AlertDialog(
+                onDismissRequest = { showPhotoMoveRetry = false },
+                title = { Text("미완료 파일 이동 확인") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("이동 위치")
+                        retryPlan.destinations.values.distinct().forEach { Text(it) }
+                        val originals = retryPlan.items.count { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }
+                        Text("결과사진 ${retryPlan.items.size - originals}장 · 원본사진 ${originals}장")
+                        Text("총 재시도 파일 ${retryPlan.items.size}개")
+                    }
+                },
+                confirmButton = {
+                    TextButton(enabled = !photoMoveBusy && pendingPhotoPlan == null, onClick = {
+                        showPhotoMoveRetry = false
+                        requestPhotoMove(retryPlan)
+                    }) { Text("재시도") }
+                },
+                dismissButton = { TextButton(onClick = { showPhotoMoveRetry = false }) { Text("취소") } },
             )
         }
         if (manageAction != null) {
