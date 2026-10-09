@@ -94,6 +94,7 @@ internal fun CameraPreviewArea(
         var usableTopRatio by remember { mutableFloatStateOf(0f) }
         var usableBottomRatio by remember { mutableFloatStateOf(1f) }
         var watermarkBoundsRect by remember { mutableStateOf<RectF?>(null) }
+        var activeHandleCorner by remember { mutableStateOf<ResizeHandleCorner?>(null) }
         var watermarkRawRect by remember { mutableStateOf<RectF?>(null) }
         var watermarkDragActive by remember { mutableStateOf(false) }
         var suppressWatermarkTapUntilMs by remember { mutableLongStateOf(0L) }
@@ -269,6 +270,8 @@ internal fun CameraPreviewArea(
                 onRequestedZoomTenthsCommit = args.onRequestedZoomTenthsCommit,
                 onActualZoomTenthsChange = args.onActualZoomTenthsChange,
                 onCornerResizeScale = onCornerResizeScale,
+                activeHandleCorner = activeHandleCorner,
+                onActiveHandleCornerChange = { activeHandleCorner = it },
             )
 
         val plan = remember(
@@ -414,6 +417,7 @@ internal fun CameraPreviewArea(
                     isWatermarkArmed = isWatermarkArmed,
                     watermarkOffsetOverridePx = effectiveOverrideOffsetPx,
                     dragVisibleOffsetPx = dragPreviewOffsetPx,
+                    activeHandleCorner = activeHandleCorner,
                     onWatermarkBoundsRectChange = { watermarkBoundsRect = it },
                     onWatermarkRawRectChange = { watermarkRawRect = it }
                 )
