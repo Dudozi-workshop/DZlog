@@ -8,24 +8,15 @@ import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderNamePolicy
 
 /**
- * Physical empty folders live in the user-granted Pictures/DZlog SAF tree.
- * MediaStore still owns photo indexing; do not create dummy media files.
+ * Optional SAF integration supports physical directory management when a tree grant exists.
+ * New empty folders are handled by GalleryFolderCatalog without SAF permission.
+ * MediaStore continues to own photo indexing; never create dummy media files.
  */
 class GalleryFolderStorage(context: Context) {
     private val resolver = context.contentResolver
     private val preferences = context.getSharedPreferences("dzlog_gallery_folder_tree", Context.MODE_PRIVATE)
 
     private data class Entry(val id: String, val name: String, val mimeType: String)
-
-    /**
-     * Open Android's tree picker at the actual DZlog directory.
-     * Opening at storage root is misleading: Android 11+ forbids selecting it.
-     * Providers may ignore the hint, in which case the user navigates manually.
-     */
-    fun pickerInitialUri(): Uri = DocumentsContract.buildDocumentUri(
-        "com.android.externalstorage.documents",
-        "primary:Pictures/DZlog",
-    )
 
     fun isConnected(): Boolean = connectedTree() != null
 
