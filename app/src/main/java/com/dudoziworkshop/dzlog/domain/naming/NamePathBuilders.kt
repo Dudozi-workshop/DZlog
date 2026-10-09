@@ -364,6 +364,22 @@ fun buildCounterPath(baseRelativePath: String, saveMode: SaveMode): String {
 }
 
 
+/**
+ * 카메라 안내 화면의 실제 저장 폴더 목록.
+ * 촬영 저장 정책과 동일하게 합성 사진은 기본 경로, 원본은 original/ 경로에 둔다.
+ * 저장 방식 텍스트를 중복 표시하지 않되, BOTH 모드의 두 경로를 누락하지 않는다.
+ */
+fun capturePhysicalSavePaths(baseRelativePath: String, saveMode: SaveMode): List<String> {
+    val base = buildCounterPath(baseRelativePath, SaveMode.WATERMARK_ONLY)
+    val original = buildCounterPath(base, SaveMode.ORIGINAL_ONLY)
+    return when (saveMode) {
+        SaveMode.ORIGINAL_ONLY -> listOf(original)
+        SaveMode.WATERMARK_ONLY -> listOf(base)
+        SaveMode.BOTH -> listOf(base, original)
+    }
+}
+
+
 // legacy 호환 래퍼: 신규 코드는 buildFileName 사용
 fun buildDisplayNameFromSlotDrafts(
     resolvedCells: List<ResolvedCell>,
