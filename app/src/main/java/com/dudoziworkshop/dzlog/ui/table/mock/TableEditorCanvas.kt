@@ -58,7 +58,7 @@ internal fun ColumnScope.MockTableCanvas(
     onCellRangeDrag: (String, String) -> Unit,
     onClearLayoutSelection: () -> Unit,
 ) {
-    val background = DDZColor.Background
+    val background = Color.Transparent
     val resolvedAlpha = (bgAlpha.coerceIn(0, 255) / 255f)
     val cellBackground = when {
         transparentTable -> Color.Transparent
@@ -90,12 +90,15 @@ internal fun ColumnScope.MockTableCanvas(
         val previousWorkingWidth = (maxWidth - 52.dp).coerceAtLeast(1.dp)
         val expandedWorkingWidth = (maxWidth - 16.dp).coerceAtLeast(1.dp)
         val editorScale = (expandedWorkingWidth / previousWorkingWidth).coerceAtLeast(1f)
-        val stableTableHeight = (baseTableHeight * editorScale)
-            .coerceAtMost((maxHeight - 16.dp).coerceAtLeast(120.dp))
+        val naturalTableHeight = baseTableHeight * editorScale
+        val fitScale = ((maxHeight - 16.dp).coerceAtLeast(1.dp) / naturalTableHeight)
+            .coerceIn(0f, 1f)
+        val stableTableHeight = naturalTableHeight * fitScale
+        val stableTableWidth = expandedWorkingWidth * fitScale
 
         BoxWithConstraints(
             modifier = Modifier
-                .width(expandedWorkingWidth)
+                .width(stableTableWidth)
                 .height(stableTableHeight)
                 .border(2.dp, DDZColor.Primary, RoundedCornerShape(4.dp))
         ) {

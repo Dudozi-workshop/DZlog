@@ -14,7 +14,7 @@ internal object SaveSessionCoordinator {
     suspend fun persist(context: Context, catalog: TableTemplateCatalogCoordinator,
         items: List<SavedTableTemplate>, activeId: String?, template: TableTemplateState,
         style: TableStyleState, includePath: Boolean, includeFilename: Boolean,
-        saveMode: SaveMode, padding: Int, next: Int?, usesAutoNext: Boolean): List<SavedTableTemplate> {
+        saveMode: SaveMode, padding: Int, next: Int?, usesAutoNext: Boolean, rollbackActiveId: String? = activeId): List<SavedTableTemplate> {
         require(template.rows > 0 && template.cols > 0) { "표 크기가 올바르지 않습니다." }
         require(template.cells.map { it.cellId }.distinct().size == template.cells.size) { "셀 ID가 중복됩니다." }
         require(padding in 0..6 && (next == null || next >= 1)) { "자동번호 설정이 올바르지 않습니다." }
@@ -29,7 +29,7 @@ internal object SaveSessionCoordinator {
             return updated
         } catch (failure: Exception) {
             // Compensating writes; deliberately not a cross-store DB transaction.
-            runCatching { catalog.persist(items, activeId) }.exceptionOrNull()?.let(failure::addSuppressed)
+            runCatching { catalog.persist(items, rollbackActiveId) }.exceptionOrNull()?.let(failure::addSuppressed)
             runCatching { AppSettingsStore.setSaveSettings(context, previousSettings.includePathInCounterScope,
                 previousSettings.includeFilenameInCounterScope, previousSettings.saveMode,
                 previousSettings.counterPadding) }.exceptionOrNull()?.let(failure::addSuppressed)

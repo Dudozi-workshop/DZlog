@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -147,6 +148,8 @@ fun AppRoot() {
     var pendingNewTemplateId by remember { mutableStateOf<String?>(null) }
     var pendingNewTemplatePreviousActiveId by remember { mutableStateOf<String?>(null) }
     var openSaveSettingsInitially by remember { mutableStateOf(false) }
+    // An editor-only choice; camera activation is committed by saveV2EditSession.
+    var editorReplacementId by remember { mutableStateOf<String?>(null) }
     val appScope = rememberCoroutineScope()
 
     DisposableEffect(screen, view) {
@@ -233,7 +236,9 @@ fun AppRoot() {
     ): Boolean {
         if (!hasRestoredTemplate) return false
 
-        val activeId = tableTemplateViewModel.activeTemplateId
+        val previousActiveId = tableTemplateViewModel.activeTemplateId
+        val activeId = editorReplacementId ?: previousActiveId
+        if (activeId == null || tableTemplateViewModel.templates.none { it.id == activeId }) return false
 
         return runCatching {
             val updatedItems = SaveSessionCoordinator.persist(
@@ -249,6 +254,7 @@ fun AppRoot() {
                 padding = counterPadding,
                 next = nextCounter,
                 usesAutoNext = usesAutoNext,
+                rollbackActiveId = previousActiveId,
             )
 
             tableTemplateViewModel.setCatalog(updatedItems, activeId)
@@ -666,25 +672,39 @@ fun AppRoot() {
             }
 
             AppScreen.TABLE_EDITOR -> {
-                TableEditorV2Screen(
-                    templateState = tableTemplateState,
-                    includePathInCounterScope = appSettings.includePathInCounterScope,
-                    includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-                    saveMode = appSettings.saveMode,
-                    counterPadding = appSettings.counterPadding,
-                    styleState = activeSavedTableStyle(
-                        tableTemplateViewModel.templates,
-                        tableTemplateViewModel.activeTemplateId,
-                    ),
-                    isUnsavedNewTemplate = pendingNewTemplateId == tableTemplateViewModel.activeTemplateId,
-                    openSaveSettingsInitially = openSaveSettingsInitially,
-                    onSave = ::saveV2EditSession,
-                    onDiscardUnsavedNewTemplate = ::discardPendingNewTemplate,
-                    onBack = {
-                        openSaveSettingsInitially = false
-                        screen = previousScreen
-                    },
-                )
+                val editingId = editorReplacementId ?: tableTemplateViewModel.activeTemplateId
+                val editingTemplate = tableTemplateViewModel.templates.firstOrNull { it.id == editingId }
+                key(editingId) {
+                    TableEditorV2Screen(
+                        templateState = editingTemplate?.templateState ?: tableTemplateState,
+                        includePathInCounterScope = appSettings.includePathInCounterScope,
+                        includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+                        saveMode = appSettings.saveMode,
+                        counterPadding = appSettings.counterPadding,
+                        styleState = activeSavedTableStyle(
+                            tableTemplateViewModel.templates,
+                            editingId,
+                        ),
+                        isUnsavedNewTemplate = pendingNewTemplateId != null && pendingNewTemplateId == editingId,
+                        openSaveSettingsInitially = openSaveSettingsInitially,
+                        onSave = ::saveV2EditSession,
+                        onDiscardUnsavedNewTemplate = ::discardPendingNewTemplate,
+                        templateId = editingId,
+                        templateName = editingTemplate?.name ?: "새 템플릿",
+                        templates = tableTemplateViewModel.templates,
+                        hasPendingTemplateSelection = editingId != tableTemplateViewModel.activeTemplateId,
+                        onSwitchTemplate = { targetId ->
+                            if (tableTemplateViewModel.templates.any { it.id == targetId }) {
+                                editorReplacementId = targetId
+                            }
+                        },
+                        onBack = {
+                            editorReplacementId = null
+                            openSaveSettingsInitially = false
+                            screen = previousScreen
+                        },
+                    )
+                }
             }
 
             AppScreen.SETTINGS -> SettingsScreen(

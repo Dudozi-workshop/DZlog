@@ -6,6 +6,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.text.style.TextOverflow
+import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
+import com.dudoziworkshop.dzlog.ui.common.DDZCard
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -122,6 +127,11 @@ fun TableEditorV2Screen(
     ) -> Boolean,
     onDiscardUnsavedNewTemplate: () -> Unit = {},
     onBack: () -> Unit,
+    templateId: String? = null,
+    templateName: String = "새 템플릿",
+    templates: List<SavedTableTemplate> = emptyList(),
+    hasPendingTemplateSelection: Boolean = false,
+    onSwitchTemplate: (String) -> Unit = {},
 ) {
     val session = remember {
         TableEditorV2SessionState(
@@ -151,6 +161,8 @@ fun TableEditorV2Screen(
     val saveDetail = saveDetailTrail.lastOrNull()
     var showCounterResetDialog by remember { mutableStateOf(false) }
     var showBackSaveDialog by remember { mutableStateOf(false) }
+    var showTemplatePicker by remember { mutableStateOf(false) }
+    var pendingSwitchId by remember { mutableStateOf<String?>(null) }
     var showAdvancedStyle by remember { mutableStateOf(false) }
     var layoutBoundaryDragActive by remember { mutableStateOf(false) }
     val saveCoordinator = remember { TableEditorV2SaveCoordinator() }
@@ -178,7 +190,7 @@ fun TableEditorV2Screen(
             activeTab = activeTab,
             hasAdvancedStyle = showAdvancedStyle,
             hasSelectedCell = selectedCellId != null,
-            hasUnsavedChanges = session.isDirty || isUnsavedNewTemplate,
+            hasUnsavedChanges = session.isDirty || isUnsavedNewTemplate || hasPendingTemplateSelection,
         )) {
             TableEditorBackAction.IGNORE -> Unit
             TableEditorBackAction.CLOSE_DETAIL -> saveDetailTrail = saveDetailTrail.dropLast(1)
@@ -280,6 +292,7 @@ fun TableEditorV2Screen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding()
         ) {
             Text(
                 text = when {
@@ -292,74 +305,105 @@ fun TableEditorV2Screen(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
             )
 
-            MockTableCanvas(
-                cells = cells,
-                rows = rows,
-                cols = cols,
-                selectedCellId = selectedCellId,
-                selectedIds = cells
-                    .filter { it.domainCellId in layoutSelection.selectedCellIds }
-                    .map { it.id }
-                    .toSet(),
-                darkTable = draftStyleState.bgStyle == 0,
-                transparentTable = draftStyleState.bgStyle == 2,
-                gridEnabled = draftStyleState.gridEnabled,
-                bgAlpha = draftStyleState.bgAlpha,
-                fontScale = draftStyleState.valueScale / 100f,
-                textAlignIndex = draftStyleState.textAlign,
-                textColorMode = draftStyleState.textColorMode,
-                manualTextColor = draftStyleState.manualTextColor,
-                layoutMode = mode == MockMode.LAYOUT,
-                rowWeights = draftTemplateState.rowWeights,
-                colWeights = draftTemplateState.colWeights,
-                onBoundaryDragStart = {
-                    if (!layoutBoundaryDragActive) {
-                        session.beginContinuousTemplateChange()
-                        layoutBoundaryDragActive = true
+            DDZCard(
+                modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(12.dp),
+            ) {
+                Column(Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("현재 템플릿", color = DDZColor.TextMuted, fontSize = 11.sp)
+                            Text(
+                                templateName,
+                                color = DDZColor.TextPrimary,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        DDZButton(
+                            text = "교체",
+                            style = DDZButtonStyle.Secondary,
+                            minHeight = 48.dp,
+                            enabled = !saveCoordinator.isSaving && templates.any { it.id != templateId },
+                            onClick = { showTemplatePicker = true },
+                        )
                     }
-                },
-                onRowBoundaryDrag = { boundaryIndex, deltaFraction ->
-                    session.replaceTemplateDraftWithoutHistory(
-                        adjustMockRowBoundary(
-                            templateState = draftTemplateState,
-                            boundaryIndex = boundaryIndex,
-                            deltaFraction = deltaFraction,
-                        )
+                    MockTableCanvas(
+                        cells = cells,
+                        rows = rows,
+                        cols = cols,
+                        selectedCellId = selectedCellId,
+                        selectedIds = cells
+                            .filter { it.domainCellId in layoutSelection.selectedCellIds }
+                            .map { it.id }
+                            .toSet(),
+                        darkTable = draftStyleState.bgStyle == 0,
+                        transparentTable = draftStyleState.bgStyle == 2,
+                        gridEnabled = draftStyleState.gridEnabled,
+                        bgAlpha = draftStyleState.bgAlpha,
+                        fontScale = draftStyleState.valueScale / 100f,
+                        textAlignIndex = draftStyleState.textAlign,
+                        textColorMode = draftStyleState.textColorMode,
+                        manualTextColor = draftStyleState.manualTextColor,
+                        layoutMode = mode == MockMode.LAYOUT,
+                        rowWeights = draftTemplateState.rowWeights,
+                        colWeights = draftTemplateState.colWeights,
+                        onBoundaryDragStart = {
+                            if (!layoutBoundaryDragActive) {
+                                session.beginContinuousTemplateChange()
+                                layoutBoundaryDragActive = true
+                            }
+                        },
+                        onRowBoundaryDrag = { boundaryIndex, deltaFraction ->
+                            session.replaceTemplateDraftWithoutHistory(
+                                adjustMockRowBoundary(
+                                    templateState = draftTemplateState,
+                                    boundaryIndex = boundaryIndex,
+                                    deltaFraction = deltaFraction,
+                                )
+                            )
+                        },
+                        onColBoundaryDrag = { boundaryIndex, deltaFraction ->
+                            session.replaceTemplateDraftWithoutHistory(
+                                adjustMockColumnBoundary(
+                                    templateState = draftTemplateState,
+                                    boundaryIndex = boundaryIndex,
+                                    deltaFraction = deltaFraction,
+                                )
+                            )
+                        },
+                        onBoundaryDragEnd = {
+                            layoutBoundaryDragActive = false
+                        },
+                        onCellClick = { domainCellId ->
+                            if (mode == MockMode.LAYOUT) {
+                                selectionState.selectLayoutCell(
+                                    templateState = draftTemplateState,
+                                    tappedDomainCellId = domainCellId,
+                                )
+                            } else {
+                                selectionState.selectEditCell(domainCellId)
+                            }
+                        },
+                        onCellRangeDrag = { startId, endId ->
+                            selectionState.selectLayoutRange(
+                                templateState = draftTemplateState,
+                                startDomainCellId = startId,
+                                endDomainCellId = endId,
+                            )
+                        },
+                        onClearLayoutSelection = {
+                            selectionState.clearLayoutSelection()
+                        },
                     )
-                },
-                onColBoundaryDrag = { boundaryIndex, deltaFraction ->
-                    session.replaceTemplateDraftWithoutHistory(
-                        adjustMockColumnBoundary(
-                            templateState = draftTemplateState,
-                            boundaryIndex = boundaryIndex,
-                            deltaFraction = deltaFraction,
-                        )
-                    )
-                },
-                onBoundaryDragEnd = {
-                    layoutBoundaryDragActive = false
-                },
-                onCellClick = { domainCellId ->
-                    if (mode == MockMode.LAYOUT) {
-                        selectionState.selectLayoutCell(
-                            templateState = draftTemplateState,
-                            tappedDomainCellId = domainCellId,
-                        )
-                    } else {
-                        selectionState.selectEditCell(domainCellId)
-                    }
-                },
-                onCellRangeDrag = { startId, endId ->
-                    selectionState.selectLayoutRange(
-                        templateState = draftTemplateState,
-                        startDomainCellId = startId,
-                        endDomainCellId = endId,
-                    )
-                },
-                onClearLayoutSelection = {
-                    selectionState.clearLayoutSelection()
-                },
-            )
+
+                }
+            }
 
             Spacer(Modifier.height(12.dp))
 
@@ -531,6 +575,69 @@ fun TableEditorV2Screen(
         }
     }
 
+    if (showTemplatePicker) {
+        TableEditorTemplatePicker(
+            templates = templates,
+            currentTemplateId = templateId,
+            onDismiss = { showTemplatePicker = false },
+            onSelect = { targetId ->
+                showTemplatePicker = false
+                if (targetId != templateId) {
+                    if (session.isDirty || isUnsavedNewTemplate) pendingSwitchId = targetId
+                    else onSwitchTemplate(targetId)
+                }
+            },
+        )
+    }
+
+    if (pendingSwitchId != null) {
+        DDZContentDialog(
+            title = "템플릿을 교체할까요?",
+            onDismiss = { if (!saveCoordinator.isSaving) pendingSwitchId = null },
+            content = {
+                Text("현재 변경사항을 저장한 뒤 교체할 수 있어요.", color = DDZColor.TextSecondary)
+            },
+            actions = {
+                // Stack the longer labels so all three choices remain readable on small screens.
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DDZButton(
+                        text = "저장하고 교체",
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !saveCoordinator.isSaving,
+                        onClick = {
+                            val targetId = pendingSwitchId ?: return@DDZButton
+                            saveScope.launch {
+                                if (saveCoordinator.save(session, onSave)) {
+                                    pendingSwitchId = null
+                                    onSwitchTemplate(targetId)
+                                }
+                            }
+                        },
+                    )
+                    DDZButton(
+                        text = "저장 안 하고 교체",
+                        style = DDZButtonStyle.Text,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !saveCoordinator.isSaving,
+                        onClick = {
+                            val targetId = pendingSwitchId ?: return@DDZButton
+                            if (isUnsavedNewTemplate) onDiscardUnsavedNewTemplate()
+                            pendingSwitchId = null
+                            onSwitchTemplate(targetId)
+                        },
+                    )
+                    DDZButton(
+                        text = "취소",
+                        style = DDZButtonStyle.Secondary,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !saveCoordinator.isSaving,
+                        onClick = { pendingSwitchId = null },
+                    )
+                }
+            },
+        )
+    }
+
     if (pendingMergeDecision != null) {
         DDZConfirmDialog(
             title = "셀을 병합할까요?",
@@ -659,7 +766,7 @@ fun TableEditorV2Screen(
     if (showBackSaveDialog) {
         DDZContentDialog(
             title = "변경사항을 저장할까요?",
-            onDismiss = { showBackSaveDialog = false },
+            onDismiss = { if (!saveCoordinator.isSaving) showBackSaveDialog = false },
             content = {
                 Text(
                     text = "저장하지 않으면 이번 편집 내용은 모두 사라집니다.",
@@ -669,6 +776,7 @@ fun TableEditorV2Screen(
             actions = {
                 DDZButton(
                     text = "저장 안 함",
+                    enabled = !saveCoordinator.isSaving,
                     style = DDZButtonStyle.Text,
                     modifier = Modifier.weight(1f),
                     onClick = {
@@ -681,6 +789,7 @@ fun TableEditorV2Screen(
                 )
                 DDZButton(
                     text = "취소",
+                    enabled = !saveCoordinator.isSaving,
                     style = DDZButtonStyle.Secondary,
                     modifier = Modifier.weight(1f),
                     onClick = { showBackSaveDialog = false },
