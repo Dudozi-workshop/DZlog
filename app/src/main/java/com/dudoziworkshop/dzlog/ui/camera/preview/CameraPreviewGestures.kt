@@ -110,7 +110,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
             )
         }
     }
-    .pointerInput(boundCamera, captureRect, isWatermarkArmed) {
+    .pointerInput(boundCamera, captureRect, isWatermarkArmed, isTableLocked) {
         val pinchScaleDeadZone = 0.01f
         awaitEachGesture {
             val activeCamera = boundCamera ?: return@awaitEachGesture
