@@ -64,6 +64,8 @@ internal fun Modifier.cameraPreviewGestureModifier(
     onRequestedZoomTenthsCommit: (Int) -> Unit,
     onActualZoomTenthsChange: (Int) -> Unit,
     onCornerResizeScale: (Float, Boolean) -> Unit,
+    activeHandleCorner: ResizeHandleCorner?,
+    onActiveHandleCornerChange: (ResizeHandleCorner?) -> Unit,
 ): Modifier = this
     .pointerInput(boundCamera, captureRect, tapFocusUi, focusMode, isWatermarkArmed, watermarkBoundsRect) {
         detectTapGestures { offset ->
@@ -114,8 +116,10 @@ internal fun Modifier.cameraPreviewGestureModifier(
             var pinchActiveNotified = false
             val firstDown = awaitFirstDown(requireUnconsumed = false)
             val corner = watermarkBoundsRect
-            val cornerHit = isWatermarkArmed && corner != null &&
-                hypot((firstDown.position.x - corner.right).toDouble(), (firstDown.position.y - corner.bottom).toDouble()) < dragTouchSlop * 3.5f
+            val selectedCorner = corner?.let { activeHandleCorner ?: chooseResizeHandleCorner(it, captureRect) }
+            val handleCenter = if (corner != null && selectedCorner != null) handleCornerPoint(corner, selectedCorner) else null
+            val cornerHit = isWatermarkArmed && handleCenter != null &&
+                hypot((firstDown.position.x - handleCenter.x).toDouble(), (firstDown.position.y - handleCenter.y).toDouble()) < dragTouchSlop * 3f
             val localDragEnabled = !cornerHit && isWatermarkArmed && watermarkBoundsRect != null && watermarkRawRect != null &&
                 watermarkBoundsRect.contains(firstDown.position.x, firstDown.position.y)
             var localDragStartLeftPx = dragStartLeftPx
@@ -128,8 +132,11 @@ internal fun Modifier.cameraPreviewGestureModifier(
             var localDragStartedAfterSlop = false
 
             onWatermarkDragActiveChange(false)
-            if (cornerHit) onCornerResizeScale(1f, false)
-            val resizeAnchor = corner?.let { Offset(it.left, it.top) }
+            if (cornerHit) {
+                onActiveHandleCornerChange(selectedCorner)
+                onCornerResizeScale(1f, false)
+            }
+            val resizeAnchor = if (corner != null && selectedCorner != null) oppositeHandleCornerPoint(corner, selectedCorner) else null
             val resizeStartDistance = if (cornerHit && resizeAnchor != null) hypot(
                 (firstDown.position.x - resizeAnchor.x).toDouble(),
                 (firstDown.position.y - resizeAnchor.y).toDouble(),
@@ -233,7 +240,10 @@ internal fun Modifier.cameraPreviewGestureModifier(
                 onDragPreviewOffsetPxChange(nextOffsetPx)
             }
 
-            if (cornerHit) onCornerResizeScale(1f, true)
+            if (cornerHit) {
+                onCornerResizeScale(1f, true)
+                onActiveHandleCornerChange(null)
+            }
             if (localDragEnabled && localDragStartedAfterSlop) {
                 onSuppressWatermarkTapUntilMsChange(SystemClock.uptimeMillis() + 180L)
                 onWatermarkArmedChange(true)
