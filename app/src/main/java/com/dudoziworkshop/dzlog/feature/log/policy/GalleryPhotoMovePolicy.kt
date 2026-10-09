@@ -10,7 +10,7 @@ data class GalleryPhotoMovePlan(
 
 /**
  * A historical original is paired only when its exact filename occurs once in
- * the immediate original/ sibling of the selected capture. Never guess based
+ * both the capture directory and its immediate original/ sibling. Never guess based
  * on timestamps, suffixes or positions.
  */
 object GalleryPhotoMovePolicy {
@@ -26,6 +26,10 @@ object GalleryPhotoMovePolicy {
         return selected.asSequence()
             .filterNot { isOriginalPath(it.relativePath) }
             .mapNotNull { photo ->
+                val captures = byFolderAndName[
+                    (photo.relativePath.trimEnd('/') + "/") to photo.displayName
+                ].orEmpty()
+                if (captures.singleOrNull()?.id != photo.id) return@mapNotNull null
                 val siblings = byFolderAndName[
                     (photo.relativePath.trimEnd('/') + "/original/") to photo.displayName
                 ].orEmpty()

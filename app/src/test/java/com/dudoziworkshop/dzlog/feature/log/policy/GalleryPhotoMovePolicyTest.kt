@@ -32,6 +32,32 @@ class GalleryPhotoMovePolicyTest {
     }
 
     @Test
+    fun duplicate_capture_names_make_an_otherwise_unique_original_ambiguous() {
+        val source = photo(1, "Pictures/DZlog/A/")
+        val duplicate = photo(2, "Pictures/DZlog/A/")
+        val original = photo(3, "Pictures/DZlog/A/original/")
+        assertEquals(emptyList<MediaImageItem>(),
+            GalleryPhotoMovePolicy.pairedOriginals(listOf(source), listOf(source, duplicate, original)))
+    }
+
+    @Test
+    fun a_capture_missing_from_the_snapshot_is_not_paired() {
+        val source = photo(1, "Pictures/DZlog/A/")
+        val original = photo(2, "Pictures/DZlog/A/original/")
+        assertEquals(emptyList<MediaImageItem>(),
+            GalleryPhotoMovePolicy.pairedOriginals(listOf(source), listOf(original)))
+    }
+
+    @Test
+    fun similar_names_and_similar_folder_prefixes_are_not_paired() {
+        val source = photo(1, "Pictures/DZlog/A/", "0001.jpg")
+        val differentlyNamed = photo(2, "Pictures/DZlog/A/original/", "0001.JPG")
+        val differentFolder = photo(3, "Pictures/DZlog/AA/original/", "0001.jpg")
+        assertEquals(emptyList<MediaImageItem>(),
+            GalleryPhotoMovePolicy.pairedOriginals(listOf(source), listOf(source, differentlyNamed, differentFolder)))
+    }
+
+    @Test
     fun optional_original_keeps_original_subfolder() {
         val main = photo(1, "Pictures/DZlog/A/")
         val original = photo(2, "Pictures/DZlog/A/original/")
