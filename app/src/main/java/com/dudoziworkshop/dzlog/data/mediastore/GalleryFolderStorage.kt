@@ -17,6 +17,16 @@ class GalleryFolderStorage(context: Context) {
 
     private data class Entry(val id: String, val name: String, val mimeType: String)
 
+    /**
+     * Open Android's tree picker at the actual DZlog directory.
+     * Opening at storage root is misleading: Android 11+ forbids selecting it.
+     * Providers may ignore the hint, in which case the user navigates manually.
+     */
+    fun pickerInitialUri(): Uri = DocumentsContract.buildDocumentUri(
+        "com.android.externalstorage.documents",
+        "primary:Pictures/DZlog",
+    )
+
     fun isConnected(): Boolean = connectedTree() != null
 
     fun connect(treeUri: Uri) {
