@@ -182,9 +182,10 @@ fun CameraPreview(
     var cornerResizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
-    BackHandler(enabled = ui.showWizard || ui.isTableResizePanelOpen || ui.showToolMenu ||
+    BackHandler(enabled = ui.capture.capturedUri != null || ui.showWizard || ui.isTableResizePanelOpen || ui.showToolMenu ||
         ui.isToolPanelExpanded || ui.isZoomChipExpanded || ui.selectedTool != null || ui.isTableSelected) {
         when {
+            ui.capture.capturedUri != null -> ui.capture.capturedUri = null
             ui.showWizard -> ui.showWizard = false
             ui.isTableResizePanelOpen -> ui.isTableResizePanelOpen = false
             ui.showToolMenu || ui.isToolPanelExpanded || ui.isZoomChipExpanded || ui.selectedTool != null ->
@@ -327,8 +328,7 @@ fun CameraPreview(
     CameraVolumeKeyEffect(
         volumeKeyAction = appSettings.volumeKeyAction,
         onCapture = {
-            ui.dismissToolOverlays()
-            ui.isTableSelected = false
+            ui.dismissCameraInteractions()
             triggerCapture()
         },
         onZoomDelta = { deltaTenths ->
@@ -475,7 +475,7 @@ fun CameraPreview(
                         onOpenAlbum = onOpenAlbum,
                         onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
                         sessionCaptureStack = sessionCaptureStack,
-                        undoPending = (undoDeleteController.pendingUris != null),
+                        undoPending = undoDeleteController.isBusy,
                         onUndoDelete = { uris -> undoDeleteController.delete(uris) },
                         onTriggerCapture = {
                             ui.dismissCameraInteractions()
