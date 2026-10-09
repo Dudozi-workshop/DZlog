@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -89,61 +88,52 @@ fun WatermarkPreviewOverlay(
     val overrideRawLeftPx = rawRect.left - previewContentRect.left
     val overrideRawTopPx = rawRect.top - previewContentRect.top
 
-    LaunchedEffect(
-        rawRect.left,
-        rawRect.top,
-        rawRect.right,
-        rawRect.bottom,
-        boundsRect.left,
-        boundsRect.top,
-        boundsRect.right,
-        boundsRect.bottom
-    ) {
-        onBoundsRectChange(RectF(boundsRect))
-        onRawRectChange(RectF(rawRect))
-    }
-
     val cells = request.watermarkCells
+    val placement = buildCameraPreviewPlacement(
+            anchor = request.watermark.anchor,
+            offsetXRatio = request.watermark.offsetXRatio,
+            offsetYRatio = request.watermark.offsetYRatio,
+            tableWidthRatio = cameraPreviewShape.tableWidthRatio,
+            tableHeightRatio = cameraPreviewShape.tableHeightRatio,
+            overrideOffsetLeftPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawLeftPx else null,
+            overrideOffsetTopPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawTopPx else null,
+            rotationCwDeg = request.watermark.rotationCwDeg,
+        )
+        val baseline = buildCameraTableSceneFromPlacement(
+            bounds = previewContentRect,
+            placement = placement,
+            cells = cells,
+            templateCells = request.tableTemplate.cells,
+            rows = request.tableTemplate.rows,
+            cols = request.tableTemplate.cols,
+            valueScale = request.watermark.valueScale,
+            baseScaleRatio = cameraPreviewShape.tableWidthRatio,
+            rowWeights = request.tableTemplate.rowWeights,
+            colWeights = request.tableTemplate.colWeights,
+        )
+        val rendered = dragVisibleOffsetPx?.let { offset ->
+            moveCameraTableSceneToVisibleBounds(
+                rendered = baseline,
+                photoBounds = previewContentRect,
+                rotationCwDeg = request.watermark.rotationCwDeg,
+                leftPx = offset.x,
+                topPx = offset.y,
+                templateCells = request.tableTemplate.cells,
+                rows = request.tableTemplate.rows,
+                cols = request.tableTemplate.cols,
+            )
+        } ?: baseline
+    val visibleBounds = computeWatermarkBoundsRect(rendered.scene.tableRect, request.watermark.rotationCwDeg)
+    LaunchedEffect(visibleBounds.left, visibleBounds.top, visibleBounds.right, visibleBounds.bottom) {
+        onBoundsRectChange(RectF(visibleBounds))
+        onRawRectChange(RectF(rendered.scene.tableRect))
+    }
     Canvas(
         modifier = Modifier
             .fillMaxSize()
             .zIndex(1f)
     ) {
         drawIntoCanvas { canvas ->
-            val placement = buildCameraPreviewPlacement(
-                anchor = request.watermark.anchor,
-                offsetXRatio = request.watermark.offsetXRatio,
-                offsetYRatio = request.watermark.offsetYRatio,
-                tableWidthRatio = cameraPreviewShape.tableWidthRatio,
-                tableHeightRatio = cameraPreviewShape.tableHeightRatio,
-                overrideOffsetLeftPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawLeftPx else null,
-                overrideOffsetTopPx = if (request.watermark.anchor == WatermarkTableAnchor.CUSTOM) overrideRawTopPx else null,
-                rotationCwDeg = request.watermark.rotationCwDeg,
-            )
-            val baseline = buildCameraTableSceneFromPlacement(
-                bounds = previewContentRect,
-                placement = placement,
-                cells = cells,
-                templateCells = request.tableTemplate.cells,
-                rows = request.tableTemplate.rows,
-                cols = request.tableTemplate.cols,
-                valueScale = request.watermark.valueScale,
-                baseScaleRatio = cameraPreviewShape.tableWidthRatio,
-                rowWeights = request.tableTemplate.rowWeights,
-                colWeights = request.tableTemplate.colWeights,
-            )
-            val rendered = dragVisibleOffsetPx?.let { offset ->
-                moveCameraTableSceneToVisibleBounds(
-                    rendered = baseline,
-                    photoBounds = previewContentRect,
-                    rotationCwDeg = request.watermark.rotationCwDeg,
-                    leftPx = offset.x,
-                    topPx = offset.y,
-                    templateCells = request.tableTemplate.cells,
-                    rows = request.tableTemplate.rows,
-                    cols = request.tableTemplate.cols,
-                )
-            } ?: baseline
             TableRenderAdapter.drawScene(
                 canvas = canvas.nativeCanvas,
                 scene = rendered.scene,
