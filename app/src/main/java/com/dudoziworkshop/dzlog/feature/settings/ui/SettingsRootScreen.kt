@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.feature.settings.ui
 
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -19,14 +20,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Hd
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -40,7 +41,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,20 +58,20 @@ import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 private val SettingsGroupShape = RoundedCornerShape(14.dp)
 private val SETTINGS_QUALITY_ITEMS = listOf(
-    QualityUiItem(PhotoQualityMode.SPEED, "속도 우선", "저장 속도가 빠르고 용량이 작아요", Icons.Default.Bolt),
-    QualityUiItem(PhotoQualityMode.BALANCED, "균형", "속도와 화질의 균형을 맞춰요", Icons.Default.Tune),
-    QualityUiItem(PhotoQualityMode.QUALITY, "화질 우선", "더 선명하지만 저장이 느릴 수 있어요", Icons.Default.Hd),
+    QualityUiItem(PhotoQualityMode.SPEED, "속도 우선", "빠르게 저장하고 용량을 줄여요"),
+    QualityUiItem(PhotoQualityMode.BALANCED, "균형", "속도와 화질을 균형 있게 유지해요"),
+    QualityUiItem(PhotoQualityMode.QUALITY, "화질 우선", "더 선명하지만 저장이 느릴 수 있어요"),
 )
 
 private data class QualityUiItem(
     val mode: PhotoQualityMode,
     val title: String,
     val description: String,
-    val icon: ImageVector,
 )
 
 @Composable
@@ -82,17 +82,53 @@ fun SettingsRootScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val settings by AppSettingsStore.flow(context).collectAsState(initial = AppSettings.Default)
-    var showingQuality by rememberSaveable { mutableStateOf(false) }
+    var isQualityExpanded by remember { mutableStateOf(false) }
+    var isQualitySaving by remember { mutableStateOf(false) }
     val version = remember(context) { buildAppVersionLabel(context) }
 
-    BackHandler(enabled = showingQuality) { showingQuality = false }
+    fun selectQuality(item: QualityUiItem) {
+        if (isQualitySaving) return
+        if (settings.photoQualityMode == item.mode) {
+            isQualityExpanded = false
+            return
+        }
+        isQualitySaving = true
+        scope.launch {
+            try {
+                applySettingsAction(context, SettingsAction.PhotoQualityModeChanged(item.mode))
+                isQualityExpanded = false
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Toast.makeText(context, "사진 품질을 저장하지 못했습니다.", Toast.LENGTH_SHORT).show()
+            } finally {
+                isQualitySaving = false
+            }
+        }
+    }
+
+    fun changeAssistShutter(enabled: Boolean) {
+        scope.launch {
+            try {
+                applySettingsAction(context, SettingsAction.AssistShutterEnabledChanged(enabled))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Toast.makeText(context, "보조 셔터 설정을 저장하지 못했습니다.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    BackHandler(enabled = isQualityExpanded) { isQualityExpanded = false }
 
     Scaffold(
         containerColor = DDZColor.Background,
         topBar = {
             DDZTopBar(
-                title = if (showingQuality) "사진 품질" else "설정",
-                onBack = if (showingQuality) ({ showingQuality = false }) else onBack,
+                title = "설정",
+                onBack = {
+                    if (isQualityExpanded) isQualityExpanded = false else onBack()
+                },
             )
         },
     ) { innerPadding ->
@@ -108,139 +144,157 @@ fun SettingsRootScreen(
                     .padding(horizontal = DDZSpacing.screenPadding, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(22.dp),
             ) {
-                if (showingQuality) {
-                    Text(
-                        text = "사진 저장 품질을 선택하세요.",
-                        style = DDZTypography.Body,
-                        color = DDZColor.TextSecondary,
-                    )
+                SettingsBrandHeader()
+
+                SettingsSection(title = "앱 환경") {
                     SettingsGroup {
-                        SETTINGS_QUALITY_ITEMS.forEachIndexed { index, item ->
-                            SettingsActionRow(
-                                icon = item.icon,
-                                title = item.title,
-                                subtitle = item.description,
-                                onClick = {
-                                    scope.launch {
-                                        applySettingsAction(
-                                            context,
-                                            SettingsAction.PhotoQualityModeChanged(item.mode),
-                                        )
-                                    }
-                                    showingQuality = false
-                                },
-                                trailing = {
-                                    if (settings.photoQualityMode == item.mode) {
-                                        Icon(
-                                            imageVector = Icons.Default.CheckCircle,
-                                            contentDescription = "선택됨",
-                                            tint = DDZColor.SelectedDark,
-                                            modifier = Modifier.size(20.dp),
-                                        )
-                                    }
-                                },
-                            )
-                            if (index != SETTINGS_QUALITY_ITEMS.lastIndex) SettingsDivider()
-                        }
-                    }
-                } else {
-                    SettingsBrandHeader()
-
-                    SettingsSection(title = "앱 환경") {
-                        SettingsGroup {
-                            val qualityLabel = SETTINGS_QUALITY_ITEMS
-                                .firstOrNull { it.mode == settings.photoQualityMode }?.title ?: "균형"
-                            SettingsActionRow(
-                                icon = Icons.Default.Image,
-                                title = "사진 품질",
-                                subtitle = "화질과 저장 성능",
-                                onClick = { showingQuality = true },
-                                trailing = {
-                                    Text(
-                                        text = qualityLabel,
-                                        style = DDZTypography.Caption,
-                                        color = DDZColor.TextSecondary,
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.ChevronRight,
-                                        contentDescription = null,
-                                        tint = DDZColor.IconMuted,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                },
-                            )
+                        val qualityLabel = SETTINGS_QUALITY_ITEMS
+                            .firstOrNull { it.mode == settings.photoQualityMode }?.title ?: "균형"
+                        SettingsActionRow(
+                            icon = Icons.Default.Image,
+                            title = "사진 품질",
+                            subtitle = "화질과 저장 성능",
+                            onClick = { isQualityExpanded = !isQualityExpanded },
+                            trailing = {
+                                Text(
+                                    text = qualityLabel,
+                                    style = DDZTypography.Caption,
+                                    color = DDZColor.TextSecondary,
+                                )
+                                Icon(
+                                    imageVector = if (isQualityExpanded) {
+                                        Icons.Default.KeyboardArrowUp
+                                    } else {
+                                        Icons.Default.KeyboardArrowDown
+                                    },
+                                    contentDescription = if (isQualityExpanded) "접기" else "펼치기",
+                                    tint = DDZColor.IconMuted,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                        )
+                        if (isQualityExpanded) {
                             SettingsDivider()
-                            SettingsActionRow(
-                                icon = Icons.Default.CameraAlt,
-                                title = "플로팅 보조 셔터",
-                                subtitle = "촬영 화면에 보조 버튼 표시",
-                                onClick = {
-                                    scope.launch {
-                                        applySettingsAction(
-                                            context,
-                                            SettingsAction.AssistShutterEnabledChanged(!settings.assistShutterEnabled),
-                                        )
-                                    }
-                                },
-                                trailing = {
-                                    Switch(
-                                        checked = settings.assistShutterEnabled,
-                                        onCheckedChange = { enabled ->
-                                            scope.launch {
-                                                applySettingsAction(
-                                                    context,
-                                                    SettingsAction.AssistShutterEnabledChanged(enabled),
-                                                )
-                                            }
-                                        },
-                                        colors = SwitchDefaults.colors(
-                                            checkedTrackColor = DDZColor.Selected,
-                                            uncheckedTrackColor = DDZColor.Border,
-                                            checkedThumbColor = DDZColor.Surface,
-                                            uncheckedThumbColor = DDZColor.Surface,
-                                        ),
+                            Column(
+                                modifier = Modifier.padding(vertical = 6.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                SETTINGS_QUALITY_ITEMS.forEach { item ->
+                                    QualityInlineOptionRow(
+                                        item = item,
+                                        selected = settings.photoQualityMode == item.mode,
+                                        enabled = !isQualitySaving,
+                                        onClick = { selectQuality(item) },
                                     )
-                                },
-                            )
+                                }
+                            }
                         }
+                        SettingsDivider()
+                        SettingsActionRow(
+                            icon = Icons.Default.CameraAlt,
+                            title = "플로팅 보조 셔터",
+                            subtitle = "촬영 화면에 보조 버튼 표시",
+                            onClick = {
+                                changeAssistShutter(!settings.assistShutterEnabled)
+                            },
+                            trailing = {
+                                Switch(
+                                    checked = settings.assistShutterEnabled,
+                                    onCheckedChange = ::changeAssistShutter,
+                                    colors = SwitchDefaults.colors(
+                                        checkedTrackColor = DDZColor.Selected,
+                                        uncheckedTrackColor = DDZColor.Border,
+                                        checkedThumbColor = DDZColor.Surface,
+                                        uncheckedThumbColor = DDZColor.Surface,
+                                    ),
+                                )
+                            },
+                        )
                     }
+                }
 
-                    // Data management appears here once local backup/import is implemented.
-                    // Do not expose nonfunctional actions or alter camera/table editor settings.
-
-                    SettingsSection(title = "정보 및 지원") {
-                        SettingsGroup {
-                            SettingsActionRow(
-                                icon = Icons.Default.FavoriteBorder,
-                                title = "도움 주신 분들",
-                                subtitle = "DZlog를 함께 만들어주신 분들",
-                                onClick = onOpenCredits,
-                                trailing = {
-                                    Icon(
-                                        imageVector = Icons.Default.ChevronRight,
-                                        contentDescription = null,
-                                        tint = DDZColor.IconMuted,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                },
-                            )
-                        }
+                // Show data management only when local backup/import actually works.
+                SettingsSection(title = "정보 및 지원") {
+                    SettingsGroup {
+                        SettingsActionRow(
+                            icon = Icons.Default.FavoriteBorder,
+                            title = "도움 주신 분들",
+                            subtitle = "DZlog를 함께 만들어주신 분들",
+                            onClick = onOpenCredits,
+                            trailing = {
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = DDZColor.IconMuted,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                        )
                     }
                 }
             }
 
-            if (!showingQuality) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp, bottom = 18.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(text = "DZlog", style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
-                    Text(text = version, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
-                }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, bottom = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(text = "DZlog", style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
+                Text(text = version, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
             }
+        }
+    }
+}
+
+@Composable
+private fun QualityInlineOptionRow(
+    item: QualityUiItem,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 2.dp)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(10.dp),
+        color = if (selected) DDZColor.SelectedSoft.copy(alpha = 0.8f) else DDZColor.Surface,
+    ) {
+        Row(
+            modifier = Modifier
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = item.title,
+                    style = DDZTypography.Body,
+                    color = DDZColor.TextPrimary,
+                )
+                Text(
+                    text = item.description,
+                    style = DDZTypography.Caption,
+                    color = DDZColor.TextSecondary,
+                )
+            }
+            Icon(
+                imageVector = if (selected) {
+                    Icons.Default.CheckCircle
+                } else {
+                    Icons.Default.RadioButtonUnchecked
+                },
+                contentDescription = if (selected) "선택됨" else null,
+                tint = if (selected) DDZColor.SelectedDark else DDZColor.IconMuted,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }
