@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.HorizontalDivider
@@ -99,7 +101,9 @@ internal fun CameraSettingsOverlayPanel(
         ) {
             Column(
                 // UX 3차 보정: 내부 상단 여백을 제거해 패널 시작점을 safe 영역 바로 아래로 더 밀착시킨다.
-                modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 0.dp, bottom = 6.dp),
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 8.dp, end = 8.dp, top = 0.dp, bottom = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Row(
@@ -138,16 +142,16 @@ internal fun CameraSettingsOverlayPanel(
                     )
                 )
 
-                SettingSectionTitle("저장 방식")
+                SettingSectionTitle("사진 저장")
                 CompactSegments(
                     options = listOf(
-                        DDZSegmentedControlOption("원본", saveMode == SaveMode.ORIGINAL_ONLY) { onSaveModeChange(SaveMode.ORIGINAL_ONLY) },
-                        DDZSegmentedControlOption("워터마크", saveMode == SaveMode.WATERMARK_ONLY) { onSaveModeChange(SaveMode.WATERMARK_ONLY) },
+                        DDZSegmentedControlOption("원본만", saveMode == SaveMode.ORIGINAL_ONLY) { onSaveModeChange(SaveMode.ORIGINAL_ONLY) },
+                        DDZSegmentedControlOption("표 포함", saveMode == SaveMode.WATERMARK_ONLY) { onSaveModeChange(SaveMode.WATERMARK_ONLY) },
                         DDZSegmentedControlOption("둘 다", saveMode == SaveMode.BOTH) { onSaveModeChange(SaveMode.BOTH) }
                     )
                 )
 
-                SettingSectionTitle("미리보기")
+                SettingSectionTitle("촬영 후 사진 확인")
                 CompactSegments(
                     options = listOf(
                         DDZSegmentedControlOption("없음", continuousPreviewMode == ContinuousPreviewMode.OFF) {
@@ -162,7 +166,7 @@ internal fun CameraSettingsOverlayPanel(
                     )
                 )
 
-                SettingSectionTitle("화면 표기")
+                SettingSectionTitle("촬영 화면 표시")
                 CompactSegments(
                     options = listOf(
                         DDZSegmentedControlOption("그리드", showGrid) { onShowGridChange(!showGrid) },
