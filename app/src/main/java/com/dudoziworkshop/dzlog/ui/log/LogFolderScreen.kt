@@ -76,6 +76,9 @@ fun LogFolderScreen(
     var loading by remember(relativePath) { mutableStateOf(cached == null) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var newFolderName by remember { mutableStateOf("") }
+    var manageAction by remember { mutableStateOf<String?>(null) }
+    var renameName by remember { mutableStateOf("") }
+    var moveTarget by remember { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
     var folderOperationError by remember { mutableStateOf<String?>(null) }
     var connected by remember { mutableStateOf(folderStorage.isConnected()) }
 
@@ -158,6 +161,16 @@ fun LogFolderScreen(
                     if (connected) showCreateDialog = true else folderPicker.launch(null)
                 },
             ) { Text("새 폴더") }
+            if (!root && connected) {
+                OutlinedButton(onClick = {
+                    renameName = relativePath.trimEnd('/').substringAfterLast('/')
+                    manageAction = "rename"
+                }) { Text("이름 변경") }
+                OutlinedButton(onClick = {
+                    moveTarget = GalleryFolderIndexPolicy.ROOT
+                    manageAction = "move"
+                }) { Text("이동") }
+            }
         }
         folderOperationError?.let { message ->
             Text(message, color = DDZColor.Destructive)
@@ -231,6 +244,56 @@ fun LogFolderScreen(
                     }
                 }
             }
+        }
+        if (manageAction != null) {
+            AlertDialog(
+                onDismissRequest = { manageAction = null },
+                title = { Text(if (manageAction == "rename") "폴더 이름 변경" else "폴더 이동") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (manageAction == "rename") {
+                            OutlinedTextField(
+                                value = renameName,
+                                onValueChange = { renameName = it },
+                                label = { Text("새 폴더 이름") },
+                                singleLine = true,
+                            )
+                        } else {
+                            Text("이동할 상위 폴더를 선택하세요.")
+                            GalleryFolderIndexPolicy.breadcrumbs(relativePath).dropLast(1)
+                                .forEach { crumb ->
+                                    OutlinedButton(onClick = { moveTarget = crumb.relativePath }) {
+                                        Text(if (moveTarget == crumb.relativePath)
+                                            "✓ ${crumb.label}" else crumb.label)
+                                    }
+                                }
+                        }
+                        Text(
+                            "폴더 내부 사진·원본사진도 함께 변경됩니다. 촬영 저장설정은 자동 변경되지 않으므로, 설정된 저장경로가 영향받을 수 있습니다.",
+                            color = DDZColor.TextSecondary,
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val action = manageAction
+                        runCatching {
+                            if (action == "rename")
+                                folderStorage.renameFolder(relativePath, renameName)
+                            else folderStorage.moveFolder(relativePath, moveTarget)
+                        }.onSuccess { newPath ->
+                            manageAction = null
+                            folderOperationError = null
+                            GallerySnapshotMemory.cache.invalidate()
+                            onOpenFolder(newPath)
+                            reloadKey++
+                        }.onFailure { folderOperationError = it.message ?: "폴더 관리 실패" }
+                    }) { Text("변경") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { manageAction = null }) { Text("취소") }
+                },
+            )
         }
         if (showCreateDialog) {
             AlertDialog(
