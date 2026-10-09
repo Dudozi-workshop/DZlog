@@ -395,10 +395,10 @@ private fun BoxScope.CameraBottomBarRow(
 
             Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
                 UndoCaptureButton(
-                    enabled = sessionCaptureStack.isNotEmpty() && !undoPending,
+                    enabled = sessionCaptureStack.isNotEmpty() && !undoPending && !ui.capture.isCapturing,
                     onClick = {
                         ui.dismissCameraInteractions()
-                        if (undoPending) return@UndoCaptureButton
+                        if (undoPending || ui.capture.isCapturing || ui.capture.captureGate.get()) return@UndoCaptureButton
                         onUndoDelete()
                     }
                 )
