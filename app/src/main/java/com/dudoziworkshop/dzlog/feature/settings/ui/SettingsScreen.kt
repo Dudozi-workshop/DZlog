@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.feature.settings.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
