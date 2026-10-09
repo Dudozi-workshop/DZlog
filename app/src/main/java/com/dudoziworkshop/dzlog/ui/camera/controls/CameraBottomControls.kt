@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
@@ -95,6 +96,9 @@ internal fun CameraBottomControls(
     var bottomBarHeightPx by remember { mutableIntStateOf(0) }
     var resizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     var resizeScale by remember { mutableFloatStateOf(1f) }
+    LaunchedEffect(ui.isTableSelected) {
+        if (!ui.isTableSelected) resizeBaseline = null
+    }
 
     val showToolMenu = ui.showToolMenu
     val selectedTool = ui.selectedTool
@@ -261,8 +265,6 @@ internal fun CameraBottomControls(
                     },
                 )
             }
-        } else {
-            resizeBaseline = null
         }
 
         // Camera zoom remains directly available even when the tool menu is closed.
