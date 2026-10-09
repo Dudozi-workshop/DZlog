@@ -137,7 +137,6 @@ fun LogFolderScreen(
     var photoMoveLoading by remember { mutableStateOf(false) }
     var photoMoveLoadVersion by remember { mutableStateOf(0) }
     var photoMoveLoadError by remember { mutableStateOf<String?>(null) }
-    var includeOriginals by remember { mutableStateOf<Boolean?>(null) }
     var photoMoveTarget by remember { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
     var photoMoveFolders by remember { mutableStateOf<List<String>>(emptyList()) }
     var photoMoveBusy by remember { mutableStateOf(false) }
@@ -265,7 +264,6 @@ fun LogFolderScreen(
         folderOperationError = null
         showPhotoMove = true
         showMoveDestination = true
-        includeOriginals = null
         photoMoveTarget = GalleryFolderIndexPolicy.ROOT
         moveAllPhotos = emptyList()
         photoMoveFolders = emptyList()
@@ -547,67 +545,28 @@ fun LogFolderScreen(
             )
         }
         if (showPhotoMove && !showMoveDestination) {
-            val selected = moveAllPhotos.filter { it.id in selectedPhotoIds }
-            val originalMatches = GalleryPhotoMovePolicy.pairedOriginals(selected, moveAllPhotos)
-            AlertDialog(
-                onDismissRequest = { if (!photoMoveBusy) showPhotoMove = false },
-                title = { Text("사진 이동") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        folderOperationError?.let { Text(it, color = DDZColor.Destructive) }
-                        Text("선택한 사진 ${selected.size}장")
-                        Text("이동 위치")
-                        Text(photoMoveTarget.removePrefix(GalleryFolderIndexPolicy.ROOT).ifBlank { "DZlog" })
-                        TextButton(onClick = { showMoveDestination = true }) { Text("위치 다시 선택") }
-                        if (originalMatches.isNotEmpty()) {
-                            Text("연결 후보 원본 ${originalMatches.size}장도 함께 이동할까요?")
-                            Row {
-                                OutlinedButton(onClick = { includeOriginals = false }) {
-                                    Text(if (includeOriginals == false) "✓ 사진만" else "사진만")
-                                }
-                                OutlinedButton(onClick = { includeOriginals = true }) {
-                                    Text(if (includeOriginals == true) "✓ 원본 포함" else "원본 포함")
-                                }
-                            }
-                        } else {
-                            Text("연결된 원본사진 없음")
+            GalleryPhotoMoveConfirmation(
+                selected = moveAllPhotos.filter { it.id in selectedPhotoIds },
+                allPhotos = moveAllPhotos,
+                destinationPath = photoMoveTarget,
+                busy = photoMoveBusy,
+                onChangeDestination = { showMoveDestination = true },
+                onCancel = { showPhotoMove = false },
+                onConfirm = { prepared ->
+                    showPhotoMove = false
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        runCatching {
+                            pendingPhotoPlan = prepared
+                            val request = MediaStore.createWriteRequest(
+                                context.contentResolver, prepared.items.map { it.uri },
+                            )
+                            photoWritePermission.launch(IntentSenderRequest.Builder(request.intentSender).build())
+                        }.onFailure {
+                            pendingPhotoPlan = null
+                            folderOperationError = "사진 수정 권한 요청을 열지 못했습니다."
                         }
-                        Text("촬영 저장규칙은 변경되지 않습니다.", color = DDZColor.TextSecondary)
-                    }
+                    } else finishPhotoMove(prepared)
                 },
-                confirmButton = {
-                    TextButton(
-                        enabled = !photoMoveBusy && photoMoveFolders.contains(photoMoveTarget) &&
-                            (originalMatches.isEmpty() || includeOriginals != null),
-                        onClick = {
-                            val plan = runCatching {
-                                GalleryPhotoMovePolicy.plan(
-                                    selected, originalMatches, photoMoveTarget, includeOriginals == true,
-                                )
-                            }
-                            plan.onSuccess { prepared ->
-                                showPhotoMove = false
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                    runCatching {
-                                        pendingPhotoPlan = prepared
-                                        val request = MediaStore.createWriteRequest(
-                                            context.contentResolver, prepared.items.map { it.uri },
-                                        )
-                                        photoWritePermission.launch(
-                                            IntentSenderRequest.Builder(request.intentSender).build()
-                                        )
-                                    }.onFailure {
-                                        pendingPhotoPlan = null
-                                        folderOperationError = "사진 수정 권한 요청을 열지 못했습니다."
-                                    }
-                                } else {
-                                    finishPhotoMove(prepared)
-                                }
-                            }.onFailure { folderOperationError = it.message ?: "사진 이동 준비 실패" }
-                        },
-                    ) { Text(if (photoMoveBusy) "이동 중" else "이동") }
-                },
-                dismissButton = { TextButton(onClick = { showPhotoMove = false }) { Text("취소") } },
             )
         }
         if (manageAction != null) {
