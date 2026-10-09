@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderStorage
+import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
@@ -67,11 +68,12 @@ fun LogFolderScreen(
     val folderStorage = remember(context) { GalleryFolderStorage(context.applicationContext) }
     val favoriteIds by remember(context) { FavoritesProvider.repo(context) }.favoriteIdsFlow.collectAsState(initial = emptySet())
     var selectedTab by remember { mutableStateOf(GalleryTab.ALL) }
-    var allPhotos by remember { mutableStateOf<List<MediaImageItem>>(emptyList()) }
-    var index by remember(relativePath) { mutableStateOf<GalleryFolderIndex?>(null) }
-    var photos by remember(relativePath) { mutableStateOf<List<MediaImageItem>>(emptyList()) }
+    val cached = remember(relativePath) { GallerySnapshotMemory.cache.get(relativePath) }
+    var allPhotos by remember(relativePath) { mutableStateOf(cached?.allPhotos ?: emptyList()) }
+    var index by remember(relativePath) { mutableStateOf<GalleryFolderIndex?>(cached?.index) }
+    var photos by remember(relativePath) { mutableStateOf(cached?.directPhotos ?: emptyList()) }
     var error by remember(relativePath) { mutableStateOf<String?>(null) }
-    var loading by remember(relativePath) { mutableStateOf(true) }
+    var loading by remember(relativePath) { mutableStateOf(cached == null) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var newFolderName by remember { mutableStateOf("") }
     var folderOperationError by remember { mutableStateOf<String?>(null) }
@@ -83,7 +85,7 @@ fun LogFolderScreen(
     ) { uri ->
         if (uri != null) {
             runCatching { folderStorage.connect(uri) }
-                .onSuccess { connected = true; folderOperationError = null; reloadKey++ }
+                .onSuccess { connected = true; folderOperationError = null; GallerySnapshotMemory.cache.invalidate(relativePath); reloadKey++ }
                 .onFailure { folderOperationError = it.message ?: "폴더 연결 실패" }
         }
     }
@@ -93,7 +95,7 @@ fun LogFolderScreen(
     }
 
     LaunchedEffect(reader, relativePath, reloadKey) {
-        loading = true
+        loading = index == null
         val result = runCatching {
             withContext(Dispatchers.IO) {
                 val folders = if (folderStorage.isConnected())
@@ -103,11 +105,12 @@ fun LogFolderScreen(
             }
         }
         result.onSuccess { snapshot ->
+            GallerySnapshotMemory.cache.put(relativePath, snapshot)
             index = snapshot.index
             photos = snapshot.directPhotos
             if (relativePath == GalleryFolderIndexPolicy.ROOT) allPhotos = snapshot.allPhotos
             error = null
-        }.onFailure { error = it.message ?: "폴더를 불러오지 못했습니다." }
+        }.onFailure { if (index == null) error = "목록을 불러오지 못했습니다." }
         loading = false
     }
 
@@ -160,7 +163,7 @@ fun LogFolderScreen(
             Text(message, color = DDZColor.Destructive)
         }
         if (loading && index == null) {
-            CircularProgressIndicator(modifier = Modifier.padding(20.dp))
+            GalleryLoadingSkeleton()
         } else if (error != null) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("사진 목록을 표시할 수 없습니다.", color = DDZColor.TextSecondary)
@@ -248,6 +251,7 @@ fun LogFolderScreen(
                                 showCreateDialog = false
                                 newFolderName = ""
                                 folderOperationError = null
+                                GallerySnapshotMemory.cache.invalidate(relativePath)
                                 reloadKey++
                             }
                             .onFailure { folderOperationError = it.message ?: "폴더 생성 실패" }
