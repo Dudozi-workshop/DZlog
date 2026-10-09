@@ -95,8 +95,8 @@ internal fun CameraBottomControls(
     val density = LocalDensity.current
     var bottomBarHeightPx by remember { mutableIntStateOf(0) }
     var resizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
-    LaunchedEffect(ui.isTableSelected) {
-        if (!ui.isTableSelected) resizeBaseline = null
+    LaunchedEffect(ui.isTableSelected, ui.isTableResizePanelOpen) {
+        if (!ui.isTableSelected || !ui.isTableResizePanelOpen) resizeBaseline = null
     }
 
     val showToolMenu = ui.showToolMenu
@@ -197,7 +197,7 @@ internal fun CameraBottomControls(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 val baseline = resizeBaseline
-                if (baseline != null && !ui.prefs.wmTableLocked) {
+                if (baseline != null && ui.isTableResizePanelOpen && !ui.prefs.wmTableLocked) {
                     val sliderRange = cameraTableScaleRange(baseline)
                     Column(
                         modifier = Modifier
@@ -235,6 +235,7 @@ internal fun CameraBottomControls(
                 CameraTableSelectionToolbar(
                     onOpenDetails = {
                         resizeBaseline = null
+                        ui.isTableResizePanelOpen = false
                         ui.isTableSelected = false
                         ui.dismissToolOverlays()
                         onOpenTableEditor()
@@ -242,6 +243,7 @@ internal fun CameraBottomControls(
                     onRotate = {
                         if (!ui.prefs.wmTableLocked) {
                         resizeBaseline = null
+                        ui.isTableResizePanelOpen = false
                         val next = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
                         ui.prefs.wmRotationCwDeg = next
                         scope.launch { settingsWriter.setWmRotationCwDeg(next) }
@@ -252,13 +254,16 @@ internal fun CameraBottomControls(
                         val next = !ui.prefs.wmTableLocked
                         ui.prefs.wmTableLocked = next
                         resizeBaseline = null
+                        ui.isTableResizePanelOpen = false
                         scope.launch { settingsWriter.setWmTableLocked(next) }
                     },
                     onResize = {
                         if (!ui.prefs.wmTableLocked) {
-                        if (resizeBaseline != null) {
+                        if (ui.isTableResizePanelOpen) {
                             resizeBaseline = null
+                            ui.isTableResizePanelOpen = false
                         } else {
+                            ui.isTableResizePanelOpen = true
                             resizeBaseline = CameraTableResizeBaseline(
                                 widthRatio = ui.prefs.wmTableWidthRatio,
                                 heightRatio = ui.prefs.wmTableHeightRatio,
