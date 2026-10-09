@@ -24,6 +24,7 @@ internal fun CameraPreviewOverlays(
     onDismissCaptured: () -> Unit,
     tapFocusUi: TapFocusUiState?,
     isWatermarkArmed: Boolean,
+    isTableLocked: Boolean,
     watermarkOffsetOverridePx: Offset?,
     dragVisibleOffsetPx: Offset?,
     activeHandleCorner: ResizeHandleCorner?,
@@ -48,6 +49,7 @@ internal fun CameraPreviewOverlays(
         dragVisibleOffsetPx = dragVisibleOffsetPx,
         activeHandleCorner = activeHandleCorner,
         isArmed = isWatermarkArmed,
+        isTableLocked = isTableLocked,
         onBoundsRectChange = onWatermarkBoundsRectChange,
         onRawRectChange = onWatermarkRawRectChange
     )
