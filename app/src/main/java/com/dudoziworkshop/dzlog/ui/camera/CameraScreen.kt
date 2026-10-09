@@ -554,11 +554,6 @@ fun CameraPreview(
                     ui.prefs.saveMode = mode
                     scope.launch { settingsWriter.setSaveMode(mode) }
                 },
-                showGrid = ui.prefs.showGrid,
-                onShowGridChange = { checked ->
-                    ui.prefs.showGrid = checked
-                    scope.launch { settingsWriter.setShowGrid(checked) }
-                },
                 showTable = ui.prefs.showWmPreview,
                 onShowTableChange = { checked ->
                     ui.prefs.showWmPreview = checked
