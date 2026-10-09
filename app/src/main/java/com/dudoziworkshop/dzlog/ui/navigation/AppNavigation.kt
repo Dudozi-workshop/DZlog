@@ -296,6 +296,21 @@ fun AppRoot() {
         }
     }
 
+    fun openActiveHomeTableEditor() {
+        val hasActiveTemplate = tableTemplateViewModel.activeTemplateId != null &&
+            tableTemplateViewModel.templates.any { it.id == tableTemplateViewModel.activeTemplateId }
+
+        if (!hasActiveTemplate) {
+            templateListEntryScreen = screen
+            screen = AppScreen.TABLE_TEMPLATES
+            return
+        }
+
+        openSaveSettingsInitially = false
+        previousScreen = screen
+        screen = AppScreen.TABLE_EDITOR
+    }
+
     fun openActiveSaveSettings() {
         val hasActiveTemplate = tableTemplateViewModel.activeTemplateId != null &&
             tableTemplateViewModel.templates.any { it.id == tableTemplateViewModel.activeTemplateId }
@@ -638,10 +653,7 @@ fun AppRoot() {
                     .orEmpty(),
                 onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
                 onStartCamera = { navigateTo(AppScreen.CAMERA) },
-                onOpenTableEditor = {
-                    openSaveSettingsInitially = false
-                    navigateTo(AppScreen.TABLE_TEMPLATES)
-                },
+                onOpenTableEditor = ::openActiveHomeTableEditor,
                 onOpenSaveSettings = ::openActiveSaveSettings,
                 onOpenAlbum = ::openAlbumRoot,
                 onOpenRecentCaptureGrid = ::openRecentCaptureGrid
