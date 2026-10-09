@@ -296,6 +296,22 @@ fun AppRoot() {
         }
     }
 
+    fun selectHomeTemplate(templateId: String) {
+        val target = tableTemplateViewModel.templates.firstOrNull { it.id == templateId } ?: return
+        appScope.launch {
+            val activated = runCatching {
+                tableCatalogCoordinator.activate(
+                    items = tableTemplateViewModel.templates,
+                    activeTemplateId = target.id,
+                )
+                tableTemplateViewModel.activate(target.id)
+            }
+            activated.onFailure {
+                Toast.makeText(context, "템플릿 변경에 실패했습니다.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     fun openActiveHomeTableEditor() {
         val hasActiveTemplate = tableTemplateViewModel.activeTemplateId != null &&
             tableTemplateViewModel.templates.any { it.id == tableTemplateViewModel.activeTemplateId }
@@ -651,6 +667,13 @@ fun AppRoot() {
                     .firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }
                     ?.name
                     .orEmpty(),
+                templates = tableTemplateViewModel.templates,
+                activeTemplateId = tableTemplateViewModel.activeTemplateId,
+                onSelectTemplate = ::selectHomeTemplate,
+                onManageTemplates = {
+                    templateListEntryScreen = AppScreen.HOME
+                    navigateTo(AppScreen.TABLE_TEMPLATES)
+                },
                 onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
                 onStartCamera = { navigateTo(AppScreen.CAMERA) },
                 onOpenTableEditor = ::openActiveHomeTableEditor,
