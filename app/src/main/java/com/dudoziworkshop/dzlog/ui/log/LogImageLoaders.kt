@@ -5,6 +5,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Box
@@ -23,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,14 +34,18 @@ import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import com.dudoziworkshop.dzlog.feature.log.policy.isPhotoInfoSwipe
+import kotlin.math.abs
 
 private const val MinScale = 1f
 private const val MaxScale = 4f
@@ -75,6 +82,8 @@ fun DzFullImage(
     onZoomedStateChange: (Boolean) -> Unit,
     onSingleTap: () -> Unit,
     modifier: Modifier = Modifier,
+    swipeUpEnabled: Boolean = false,
+    onSwipeUp: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val request = ImageRequest.Builder(context)
@@ -90,6 +99,8 @@ fun DzFullImage(
     var offset by remember(uriString) { mutableStateOf(Offset.Zero) }
     var isAtLeftEdge by remember(uriString) { mutableStateOf(false) }
     var isAtRightEdge by remember(uriString) { mutableStateOf(false) }
+    val latestSwipeUp by rememberUpdatedState(onSwipeUp)
+    val infoSwipeThreshold = with(LocalDensity.current) { 64.dp.toPx() }
 
     LaunchedEffect(uriString) {
         // 정책: 사진 전환(URI 변경) 시 1x 초기 상태를 부모에 즉시 반영해 pager 잠금을 해제한다.
@@ -219,9 +230,42 @@ fun DzFullImage(
         Modifier
     }
 
+    val infoSwipeModifier = if (swipeUpEnabled && scale <= MinScale) {
+        Modifier.pointerInput(uriString, swipeUpEnabled, scale <= MinScale, infoSwipeThreshold) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                var total = Offset.Zero
+                var claimed = false
+                while (true) {
+                    val event = awaitPointerEvent()
+                    // Pinch and an already claimed horizontal pager/pan take priority.
+                    if (event.changes.count { it.pressed } > 1) break
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (change.isConsumed) break
+                    total += change.positionChange()
+                    if (!change.pressed) {
+                        if (claimed && isPhotoInfoSwipe(total.x, total.y, infoSwipeThreshold)) {
+                            change.consume()
+                            latestSwipeUp()
+                        }
+                        break
+                    }
+                    if (!claimed) {
+                        val slop = viewConfiguration.touchSlop
+                        if (abs(total.x) > slop && abs(total.x) >= abs(total.y)) break
+                        if (total.y > slop) break
+                        claimed = total.y < -slop && abs(total.y) > abs(total.x) * 1.25f
+                    }
+                    if (claimed) change.consume()
+                }
+            }
+        }
+    } else Modifier
+
     Box(
         modifier = modifier
             .fillMaxSize()
+            .then(infoSwipeModifier)
             .onSizeChanged {
                 containerSize = it
                 offset = clampOffset(offset, scale)

@@ -14,6 +14,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -67,6 +69,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,9 +87,12 @@ import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
+import com.dudoziworkshop.dzlog.feature.log.policy.FilmstripItemBounds
+import com.dudoziworkshop.dzlog.feature.log.policy.nearestFilmstripIndex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -110,6 +116,8 @@ fun LogViewerScreen(
     val favoriteIds by favoritesRepository.favoriteIdsFlow.collectAsState(initial = emptySet())
     val scope = rememberCoroutineScope()
     val filmstripListState = rememberLazyListState()
+    val filmstripDragged by filmstripListState.interactionSource.collectIsDraggedAsState()
+    var filmstripDriven by remember { mutableStateOf(false) }
 
     var originalPreview by remember { mutableStateOf<MediaImageItem?>(null) }
     var originalLoading by remember { mutableStateOf(false) }
@@ -172,9 +180,35 @@ fun LogViewerScreen(
         }
     }
 
-    LaunchedEffect(filmstripExpanded, uiVisible, pagerState.currentPage, items.size) {
-        if (filmstripExpanded && uiVisible && pagerState.currentPage in items.indices) {
-            filmstripListState.scrollToItem(pagerState.currentPage)
+    LaunchedEffect(filmstripDragged) {
+        if (filmstripDragged && filmstripExpanded && uiVisible && !operationLocked && originalPreview == null) {
+            filmstripDriven = true
+        }
+    }
+
+    // User-driven strip scroll changes the main photo, including the final fling.
+    // Programmatic centering must not feed back into the pager.
+    LaunchedEffect(filmstripExpanded, uiVisible, items, operationLocked, originalPreview) {
+        if (!filmstripExpanded || !uiVisible || operationLocked || originalPreview != null) {
+            filmstripDriven = false
+            return@LaunchedEffect
+        }
+        snapshotFlow {
+            val layout = filmstripListState.layoutInfo
+            Triple(filmstripDriven, filmstripListState.isScrollInProgress,
+                nearestFilmstripIndex(layout.viewportStartOffset, layout.viewportEndOffset,
+                    layout.visibleItemsInfo.map { FilmstripItemBounds(it.index, it.offset, it.size) }))
+        }.collect { (driven, moving, index) ->
+            if (driven && index != null && index in items.indices) {
+                if (pagerState.currentPage != index) pagerState.scrollToPage(index)
+                if (!moving) filmstripDriven = false
+            }
+        }
+    }
+
+    LaunchedEffect(filmstripExpanded, uiVisible, pagerState.settledPage, items.size, filmstripDriven) {
+        if (filmstripExpanded && uiVisible && !filmstripDriven && pagerState.settledPage in items.indices) {
+            filmstripListState.animateScrollToItem(pagerState.settledPage)
         }
     }
 
@@ -219,6 +253,8 @@ fun LogViewerScreen(
                             zoomedImageIds = if (zoomed) zoomedImageIds + item.id else zoomedImageIds - item.id
                         },
                         onSingleTap = { uiVisible = !uiVisible },
+                        swipeUpEnabled = !operationLocked && infoSheetItem == null,
+                        onSwipeUp = { items.getOrNull(pagerState.currentPage)?.let { infoSheetItem = it } },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -235,6 +271,8 @@ fun LogViewerScreen(
                     onGoNext = {},
                     onZoomedStateChange = {},
                     onSingleTap = { uiVisible = !uiVisible },
+                    swipeUpEnabled = !operationLocked && infoSheetItem == null,
+                    onSwipeUp = { infoSheetItem = original },
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -341,8 +379,10 @@ fun LogViewerScreen(
                             currentPage = pagerState.currentPage,
                             favoriteIds = favoriteIds,
                             listState = filmstripListState,
+                            enabled = !operationLocked,
                             onThumbnailClick = { index ->
                                 if (!operationLocked && originalPreview == null && index in items.indices) scope.launch {
+                                    filmstripDriven = false
                                     pagerState.animateScrollToPage(index)
                                 }
                             }
@@ -538,6 +578,7 @@ private fun ThumbnailFilmstrip(
     currentPage: Int,
     favoriteIds: Set<Long>,
     listState: LazyListState,
+    enabled: Boolean,
     onThumbnailClick: (Int) -> Unit,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -546,6 +587,8 @@ private fun ThumbnailFilmstrip(
 
         LazyRow(
             state = listState,
+            flingBehavior = rememberSnapFlingBehavior(lazyListState = listState),
+            userScrollEnabled = enabled,
             contentPadding = PaddingValues(horizontal = sidePadding),
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -562,7 +605,7 @@ private fun ThumbnailFilmstrip(
                             color = if (selected) Color.White else Color.Gray,
                             shape = RoundedCornerShape(8.dp)
                         )
-                        .clickable { onThumbnailClick(index) },
+                        .clickable(enabled = enabled) { onThumbnailClick(index) },
                     color = Color.Black
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
