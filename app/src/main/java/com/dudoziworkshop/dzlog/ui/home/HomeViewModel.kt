@@ -32,6 +32,8 @@ import kotlinx.coroutines.withContext
 internal data class HomeUiState(
     val settings: AppSettings = AppSettings.Default,
     val nextCounterPreview: Int = 1,
+    val nextFilenamePreview: String? = null,
+    val nextRelativePathPreview: String? = null,
     val latestImage: MediaImageItem? = null,
     val latestImageTimeText: String = "-",
 )
@@ -79,6 +81,14 @@ internal class HomeViewModel(
         }
     }
 
+    fun refreshSavePreview() {
+        if (!isActive) return
+        val templateState = activeTemplateState ?: return
+        viewModelScope.launch {
+            recomputeCounter(templateState, _uiState.value.settings)
+        }
+    }
+
     fun deactivate() {
         isActive = false
         previewJob?.cancel()
@@ -118,10 +128,10 @@ internal class HomeViewModel(
         templateState: TableTemplateState,
         settings: AppSettings,
     ) {
-        val previewPipeline = buildPreview(
-            PreviewInput(
+        val now = Date()
+        val previewInput = PreviewInput(
                 templateState = templateState,
-                captureNow = Date(),
+                captureNow = now,
                 counterDigits = settings.counterPadding,
                 dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
                 timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
@@ -131,8 +141,8 @@ internal class HomeViewModel(
                 saveMode = settings.saveMode,
                 scopeNextCounter = HOME_PREVIEW_COUNTER_SEED,
                 phraseProgressCursor = settings.phraseProgressCursor,
-            ),
-        )
+            )
+        val previewPipeline = buildPreview(previewInput)
         val counterRequest = CounterRequestResolver.fromHome(
             counterScope = previewPipeline.previewNaming.counterScope,
             saveMode = settings.saveMode,
@@ -146,8 +156,19 @@ internal class HomeViewModel(
             fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
         ).read(counterRequest)
 
+        // Rebuild once with the resolved counter, keeping the same timestamp and
+        // phrase selection used to calculate the counter scope above.
+        val nextCounter = counterRead.next.coerceAtLeast(1)
+        val resolvedPreview = buildPreview(
+            previewInput.copy(
+                scopeNextCounter = nextCounter,
+                selectedPhraseTextByCellIdOverride = previewPipeline.selectedPhraseTextByCellId,
+            ),
+        )
         _uiState.value = _uiState.value.copy(
-            nextCounterPreview = counterRead.next.coerceAtLeast(1),
+            nextCounterPreview = nextCounter,
+            nextFilenamePreview = resolvedPreview.previewNaming.displayName,
+            nextRelativePathPreview = resolvedPreview.previewNaming.relativePath,
         )
 
         CounterDebugDump.dump(
