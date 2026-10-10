@@ -63,6 +63,12 @@ internal object HomeAmbientSpec {
     const val FarFadeStart = 0.18f
     const val FarFadeEnd = 0.33f
     const val ShadowOpacity = 0.90f
+    // Fractions of the visible screen, NOT of the source PNG.
+    // On top-right silhouettes fade left and downward before reaching a crop edge.
+    const val ShadowLeftFadeStart = 0.45f
+    const val ShadowLeftFadeEnd = 0.69f
+    const val ShadowFarFadeStart = 0.22f
+    const val ShadowFarFadeEnd = 0.43f
     val BlurRadius = 1.5.dp
 
     val GlowOffsetX = 45.dp
