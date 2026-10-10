@@ -52,12 +52,12 @@ internal object HomeUiSpec {
 
 internal object HomeAmbientSpec {
     // Single approved top-right shadow. The image and viewport scale independently.
-    const val ViewportWidthFraction = 0.53f
-    const val ViewportHeightFraction = 0.34f
+    const val ViewportWidthFraction = 0.57f
+    const val ViewportHeightFraction = 0.38f
     const val ImageWidthFraction = 0.85f
     const val ImageHeightToWidthRatio = 640f / 480f
     const val ImageRightOffsetFraction = 0.005f
-    const val ImageTopOffsetFraction = -0.01f
+    val ImageTopInset = 16.dp
     const val ShadowOpacity = 0.78f
     val BlurRadius = 1.5.dp
 
@@ -67,6 +67,7 @@ internal object HomeAmbientSpec {
     const val LeftFadeEnd = 0.29f
     const val FarFadeStart = 0.50f
     const val FarFadeEnd = 0.90f
+    const val EntryFadeEnd = 0.055f
 
     // Movement stays inside the mask's feathered safety envelope.
     const val MotionSafeXFraction = 0.048f
