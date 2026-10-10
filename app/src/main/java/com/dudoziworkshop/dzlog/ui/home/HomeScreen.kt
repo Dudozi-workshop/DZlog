@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -115,135 +114,131 @@ fun HomeScreen(
                     bottom = HomeUiSpec.BottomContentPadding + bottomInset,
                 ),
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = (availableScreenHeight - HomeUiSpec.BottomContentPadding - bottomInset).coerceAtLeast(0.dp)),
-                verticalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column {
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(HomeUiSpec.HeaderHeight),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "DZlog",
-                        style = DDZTypography.HomeMainTitle.copy(letterSpacing = HomeUiSpec.BrandLetterSpacing),
-                        color = DDZColor.PrimaryDark,
-                        modifier = Modifier.weight(1f),
-                    )
-                    DDZIconButton(
-                        icon = Icons.Default.Settings,
-                        contentDescription = stringResource(com.dudoziworkshop.dzlog.R.string.home_settings_content_description),
-                        onClick = onOpenSettings,
-                    )
-                }
-
-                Spacer(Modifier.height(heroTopGap))
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showTemplatePicker = true }
-                        .padding(horizontal = HomeUiSpec.CurrentCaptureInnerHorizontalPadding),
-                    horizontalAlignment = Alignment.Start,
-                ) {
-                    Text(
-                        text = stringResource(com.dudoziworkshop.dzlog.R.string.home_current_capture),
-                        style = DDZTypography.Caption.copy(fontWeight = FontWeight.Medium),
-                        color = DDZColor.TextSecondary,
-                    )
-                    Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = normalizedTemplateName,
-                            style = DDZTypography.ScreenTitle.copy(
-                                fontSize = HomeUiSpec.TemplateNameSize,
-                                lineHeight = HomeUiSpec.TemplateNameLineHeight,
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                            color = DDZColor.TextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false),
-                        )
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = "템플릿 선택",
-                            tint = DDZColor.TextSecondary,
-                        )
-                    }
-                    Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
-                    Text(
-                        text = stringResource(com.dudoziworkshop.dzlog.R.string.home_next_capture, nextCounterText),
-                        style = DDZTypography.Secondary,
-                        color = DDZColor.TextSecondary,
-                    )
-                }
-                }
-
-                Spacer(Modifier.height(HomeUiSpec.MinimumSectionBreathingRoom))
-
-                DDZButton(
-                    text = stringResource(com.dudoziworkshop.dzlog.R.string.home_start_capture),
-                    onClick = onStartCamera,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset),
-                    style = DDZButtonStyle.Primary,
-                    minHeight = HomeUiSpec.PrimaryButtonHeight,
-                    shape = RoundedCornerShape(HomeUiSpec.PrimaryButtonRadius),
-                    textStyleOverride = DDZTypography.ButtonText.copy(
-                        fontSize = HomeUiSpec.PrimaryButtonTextSize,
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                )
-
-                Spacer(Modifier.height(HomeUiSpec.MinimumSectionBreathingRoom))
-
-                Column {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset),
-                ) {
-                    HomeRecentCaptureSection(
-                        image = latestImage,
-                        timeText = uiState.latestImageTimeText,
-                        onOpenAlbum = onOpenAlbum,
-                        onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
-                    )
-                }
-
-                Spacer(Modifier.height(sectionGap))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset),
-                    horizontalArrangement = Arrangement.spacedBy(HomeUiSpec.UtilityButtonGap),
-                ) {
-                    HomeUtilityButton(
-                        label = stringResource(com.dudoziworkshop.dzlog.R.string.home_table_settings),
-                        icon = Icons.Default.GridView,
-                        onClick = onOpenTableEditor,
-                        modifier = Modifier.weight(1f),
-                    )
-                    HomeUtilityButton(
-                        label = stringResource(com.dudoziworkshop.dzlog.R.string.home_save_settings),
-                        icon = Icons.Default.Folder,
-                        onClick = {
-                            homeViewModel.refreshSavePreview()
-                            showSaveInfo = true
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                }
-            }
+            HomeThreeZoneLayout(
+                minViewportHeight = (availableScreenHeight - HomeUiSpec.BottomContentPadding - bottomInset).coerceAtLeast(0.dp),
+                minTopGap = HomeUiSpec.MinimumTopGap,
+                minBottomGap = HomeUiSpec.MinimumBottomGap,
+                targetActionCenterFraction = HomeUiSpec.CaptureCenterFraction,
+                modifier = Modifier.fillMaxWidth(),
+                top = {
+                    
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(HomeUiSpec.HeaderHeight),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = "DZlog",
+                                        style = DDZTypography.HomeMainTitle.copy(letterSpacing = HomeUiSpec.BrandLetterSpacing),
+                                        color = DDZColor.PrimaryDark,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    DDZIconButton(
+                                        icon = Icons.Default.Settings,
+                                        contentDescription = stringResource(com.dudoziworkshop.dzlog.R.string.home_settings_content_description),
+                                        onClick = onOpenSettings,
+                                    )
+                                }
+                    
+                                Spacer(Modifier.height(heroTopGap))
+                    
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { showTemplatePicker = true }
+                                        .padding(horizontal = HomeUiSpec.CurrentCaptureInnerHorizontalPadding),
+                                    horizontalAlignment = Alignment.Start,
+                                ) {
+                                    Text(
+                                        text = stringResource(com.dudoziworkshop.dzlog.R.string.home_current_capture),
+                                        style = DDZTypography.Caption.copy(fontWeight = FontWeight.Medium),
+                                        color = DDZColor.TextSecondary,
+                                    )
+                                    Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = normalizedTemplateName,
+                                            style = DDZTypography.ScreenTitle.copy(
+                                                fontSize = HomeUiSpec.TemplateNameSize,
+                                                lineHeight = HomeUiSpec.TemplateNameLineHeight,
+                                                fontWeight = FontWeight.SemiBold,
+                                            ),
+                                            color = DDZColor.TextPrimary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false),
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Default.ChevronRight,
+                                            contentDescription = "템플릿 선택",
+                                            tint = DDZColor.TextSecondary,
+                                        )
+                                    }
+                                    Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
+                                    Text(
+                                        text = stringResource(com.dudoziworkshop.dzlog.R.string.home_next_capture, nextCounterText),
+                                        style = DDZTypography.Secondary,
+                                        color = DDZColor.TextSecondary,
+                                    )
+                                }
+                },
+                action = {
+                                DDZButton(
+                                    text = stringResource(com.dudoziworkshop.dzlog.R.string.home_start_capture),
+                                    onClick = onStartCamera,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset),
+                                    style = DDZButtonStyle.Primary,
+                                    minHeight = HomeUiSpec.PrimaryButtonHeight,
+                                    shape = RoundedCornerShape(HomeUiSpec.PrimaryButtonRadius),
+                                    textStyleOverride = DDZTypography.ButtonText.copy(
+                                        fontSize = HomeUiSpec.PrimaryButtonTextSize,
+                                        fontWeight = FontWeight.SemiBold,
+                                    ),
+                                )
+                },
+                bottom = {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset),
+                                ) {
+                                    HomeRecentCaptureSection(
+                                        image = latestImage,
+                                        timeText = uiState.latestImageTimeText,
+                                        onOpenAlbum = onOpenAlbum,
+                                        onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
+                                    )
+                                }
+                    
+                                Spacer(Modifier.height(sectionGap))
+                    
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset),
+                                    horizontalArrangement = Arrangement.spacedBy(HomeUiSpec.UtilityButtonGap),
+                                ) {
+                                    HomeUtilityButton(
+                                        label = stringResource(com.dudoziworkshop.dzlog.R.string.home_table_settings),
+                                        icon = Icons.Default.GridView,
+                                        onClick = onOpenTableEditor,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    HomeUtilityButton(
+                                        label = stringResource(com.dudoziworkshop.dzlog.R.string.home_save_settings),
+                                        icon = Icons.Default.Folder,
+                                        onClick = {
+                                            homeViewModel.refreshSavePreview()
+                                            showSaveInfo = true
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                },
+            )
         }
     }
     if (showSaveInfo) {
