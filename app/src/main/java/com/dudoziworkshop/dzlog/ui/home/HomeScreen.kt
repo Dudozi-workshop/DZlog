@@ -98,6 +98,7 @@ fun HomeScreen(
 
     BoxWithConstraints(modifier = Modifier.dzScreen()) {
         val bottomInset = rememberThreeButtonNavEquivalentBottomPadding()
+        val availableScreenHeight = maxHeight
         val horizontalPad = clampDp(maxWidth * 0.055f, HomeUiSpec.HorizontalPaddingMin, HomeUiSpec.HorizontalPaddingMax)
         val sectionGap = clampDp(maxHeight * 0.020f, HomeUiSpec.SectionGapMin, HomeUiSpec.SectionGapMax)
         val heroTopGap = clampDp(maxHeight * 0.048f, HomeUiSpec.HeroTopGapMin, HomeUiSpec.HeroTopGapMax)
@@ -117,7 +118,7 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = (maxHeight - HomeUiSpec.BottomContentPadding - bottomInset).coerceAtLeast(0.dp)),
+                    .heightIn(min = (availableScreenHeight - HomeUiSpec.BottomContentPadding - bottomInset).coerceAtLeast(0.dp)),
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column {
