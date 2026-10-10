@@ -55,7 +55,7 @@ internal object HomeAmbientSpec {
     const val ViewportWidthFraction = 0.53f
     const val ViewportHeightFraction = 0.34f
     const val ImageWidthFraction = 0.85f
-    const val ImageHeightToWidthRatio = 4f / 3f
+    const val ImageHeightToWidthRatio = 185f / 220f
     const val ImageRightOffsetFraction = 0.005f
     const val ImageTopOffsetFraction = -0.01f
     const val ShadowOpacity = 0.84f
