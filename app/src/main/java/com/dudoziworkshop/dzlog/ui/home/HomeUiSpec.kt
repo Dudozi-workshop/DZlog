@@ -51,24 +51,16 @@ internal object HomeUiSpec {
 }
 
 internal object HomeAmbientSpec {
-    // Match approved B silhouette on the current C-1 home layout.
-    // Approved image on a full-screen viewport; the source PNG is never cropped.
-    const val ShadowImageWidthFraction = 0.87f
-    const val ShadowHeightToWidthRatio = 640f / 480f
-    const val ShadowRightOffsetFraction = 0.05f
-    const val ShadowTopOffsetFraction = -0.025f
-    // Screen-relative mask fades; keep the entire sway inside the fade region.
-    const val LeftFadeStart = 0.56f
-    const val LeftFadeEnd = 0.77f
-    const val FarFadeStart = 0.18f
-    const val FarFadeEnd = 0.33f
-    const val ShadowOpacity = 0.90f
-    // Fractions of the visible screen, NOT of the source PNG.
-    // On top-right silhouettes fade left and downward before reaching a crop edge.
-    const val ShadowLeftFadeStart = 0.45f
-    const val ShadowLeftFadeEnd = 0.69f
-    const val ShadowFarFadeStart = 0.22f
-    const val ShadowFarFadeEnd = 0.43f
+    // Upper-right shadow: fixed relative viewport with a soft left/bottom edge.
+    // Later lower-right variants will invert the vertical fade.
+    const val VisibleShadowWidthFraction = 0.29f
+    const val VisibleShadowHeightFraction = 0.29f
+    const val ImageToViewportWidthRatio = 2.0f
+    // Dimensions of current drawable (220x185); do not stretch the silhouette.
+    const val ShadowHeightToWidthRatio = 185f / 220f
+    const val ImageOffsetXFraction = 0.12f
+    const val ImageOffsetYFraction = -0.03f
+    const val ShadowOpacity = 0.86f
     val BlurRadius = 1.5.dp
 
     val GlowOffsetX = 45.dp
@@ -78,7 +70,6 @@ internal object HomeAmbientSpec {
     val GlowBlurRadius = 28.dp
     const val GlowAlpha = 0.035f
 
-    // Preserve the original slow C-Lite sway, now applied to the entire botanical silhouette.
     const val BranchLegMillis = 6_000
     const val SunlightLegMillis = 10_000
     val BranchTravelX = 6.dp
