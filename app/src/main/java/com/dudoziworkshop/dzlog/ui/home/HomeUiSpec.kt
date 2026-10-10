@@ -9,6 +9,7 @@ internal object HomeUiSpec {
     val HorizontalPaddingMax = 24.dp
     val HeroTopGapMin = 30.dp
     val HeroTopGapMax = 52.dp
+    val MinimumSectionBreathingRoom = 20.dp
     val SectionGapMin = 14.dp
     val SectionGapMax = 22.dp
 
@@ -51,7 +52,8 @@ internal object HomeAmbientSpec {
     // Match approved B silhouette on the current C-1 home layout.
     val CanvasWidth = 300.dp
     val CanvasHeight = 252.dp
-    val CanvasOffsetX = 12.dp
+    // Expose only the rightmost quarter of the mirrored silhouette.
+    val CanvasOffsetX = 225.dp
     val CanvasOffsetY = (-15).dp
     val BlurRadius = 3.dp
 
