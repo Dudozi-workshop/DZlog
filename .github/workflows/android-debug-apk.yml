@@ -5,6 +5,7 @@ on:
     branches:
       - feat/table-editor-v2-ux-mock
       - feat/table-detail-v2
+      - feat/table-preview-template-switch
   workflow_dispatch:
 
 permissions:
