@@ -6,6 +6,7 @@ on:
       - feat/table-editor-v2-ux-mock
       - feat/table-detail-v2
       - feat/gallery-v2
+      - feat/settings-r31-ux
   workflow_dispatch:
     inputs:
       build_apk:

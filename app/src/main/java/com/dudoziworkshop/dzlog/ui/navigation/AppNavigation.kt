@@ -717,7 +717,11 @@ fun AppRoot() {
 
             AppScreen.SETTINGS -> SettingsScreen(
                 onBack = { screen = AppScreen.HOME },
-                onOpenCredits = { navigateTo(AppScreen.CREDITS) }
+                onOpenCredits = { navigateTo(AppScreen.CREDITS) },
+                onImported = { result ->
+                    // DataStore is committed before this callback; keep the live VM in sync.
+                    tableTemplateViewModel.setCatalog(result.templates, result.activeTemplateId)
+                }
             )
             AppScreen.CREDITS -> CreditsScreen(
                 onBack = { screen = AppScreen.SETTINGS }
