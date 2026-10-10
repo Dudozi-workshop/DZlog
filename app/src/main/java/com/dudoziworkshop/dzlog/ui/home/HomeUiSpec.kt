@@ -55,10 +55,10 @@ internal object HomeAmbientSpec {
     const val ViewportWidthFraction = 0.53f
     const val ViewportHeightFraction = 0.34f
     const val ImageWidthFraction = 0.85f
-    const val ImageHeightToWidthRatio = 185f / 220f
+    const val ImageHeightToWidthRatio = 640f / 480f
     const val ImageRightOffsetFraction = 0.005f
     const val ImageTopOffsetFraction = -0.01f
-    const val ShadowOpacity = 0.84f
+    const val ShadowOpacity = 0.78f
     val BlurRadius = 1.5.dp
 
     // Left and lower edges fade to fully transparent *inside* the viewport.
@@ -69,13 +69,19 @@ internal object HomeAmbientSpec {
     const val FarFadeEnd = 0.90f
 
     // Movement stays inside the mask's feathered safety envelope.
-    const val MotionSafeXFraction = 0.024f
-    const val MotionSafeYFraction = 0.012f
-    const val BranchLegMillis = 6_000
+    const val MotionSafeXFraction = 0.048f
+    const val MotionSafeYFraction = 0.025f
+    const val SwayXLegMillis = 7_200
+    const val SwayYLegMillis = 9_600
+    const val RotationLegMillis = 11_400
+    const val ScaleLegMillis = 12_600
+    const val OpacityLegMillis = 13_700
     const val SunlightLegMillis = 10_000
-    val BranchTravelX = 4.dp
-    val BranchTravelY = 1.5.dp
-    const val BranchRotation = 0.55f
+    val BranchTravelX = 7.dp
+    val BranchTravelY = 2.5.dp
+    const val BranchRotation = 1.05f
+    const val BranchScale = 0.011f
+    const val ShadowOpacityDrift = 0.032f
 
     val GlowOffsetX = 45.dp
     val GlowOffsetY = (-35).dp
