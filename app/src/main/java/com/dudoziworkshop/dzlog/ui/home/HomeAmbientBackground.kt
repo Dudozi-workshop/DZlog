@@ -79,12 +79,23 @@ internal fun HomeAmbientBackground(
             windowHeight.value * HomeAmbientSpec.MotionSafeYFraction,
         )
         val density = LocalDensity.current.density
-        val swayX = drift(HomeAmbientSpec.BranchLegMillis, safeAmplitudeX, "leaf sway x") * density
-        val swayY = drift(HomeAmbientSpec.BranchLegMillis, safeAmplitudeY, "leaf sway y") * density
+        // Independent cycles avoid the mechanical feeling of all axes reversing together.
+        val swayX = drift(HomeAmbientSpec.SwayXLegMillis, safeAmplitudeX, "leaf sway x") * density
+        val swayY = drift(HomeAmbientSpec.SwayYLegMillis, safeAmplitudeY, "leaf sway y") * density
         val swayAngle = drift(
-            HomeAmbientSpec.BranchLegMillis,
+            HomeAmbientSpec.RotationLegMillis,
             HomeAmbientSpec.BranchRotation,
             "leaf sway angle",
+        )
+        val swayScale = drift(
+            HomeAmbientSpec.ScaleLegMillis,
+            HomeAmbientSpec.BranchScale,
+            "leaf sway scale",
+        )
+        val swayOpacity = drift(
+            HomeAmbientSpec.OpacityLegMillis,
+            HomeAmbientSpec.ShadowOpacityDrift,
+            "leaf light variation",
         )
         val sunlight = drift(HomeAmbientSpec.SunlightLegMillis, 0.06f, "sunlight")
 
@@ -116,7 +127,9 @@ internal fun HomeAmbientBackground(
                         translationX = swayX
                         translationY = swayY
                         rotationZ = swayAngle
-                        alpha = HomeAmbientSpec.ShadowOpacity
+                        scaleX = 1f + swayScale
+                        scaleY = 1f + swayScale
+                        alpha = (HomeAmbientSpec.ShadowOpacity + swayOpacity).coerceIn(0f, 1f)
                         transformOrigin = TransformOrigin(0.9f, 0f)
                     }
                     .blur(HomeAmbientSpec.BlurRadius),
