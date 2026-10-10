@@ -5,7 +5,14 @@ on:
     branches:
       - feat/table-editor-v2-ux-mock
       - feat/table-detail-v2
+      - feat/gallery-v2
   workflow_dispatch:
+    inputs:
+      build_apk:
+        description: "Build an APK for device QA"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -46,7 +53,29 @@ jobs:
       - name: Run unit tests
         run: ./gradlew :app:testDebugUnitTest --stacktrace
 
+      - name: Verify gallery folder summary test results
+        if: github.ref_name == 'feat/gallery-v2'
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          report = Path('app/build/test-results/testDebugUnitTest/TEST-com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummaryPolicyTest.xml')
+          suite = ET.parse(report).getroot()
+          cases = suite.findall('testcase')
+          for case in cases:
+              status = 'FAIL' if case.find('failure') is not None or case.find('error') is not None else 'SKIP' if case.find('skipped') is not None else 'PASS'
+              print(f"GalleryFolderSummaryPolicyTest.{case.attrib['name']}: {status}")
+          assert len(cases) == 10, f'Expected 10 gallery summary tests, found {len(cases)}'
+          assert all(case.find('failure') is None and case.find('error') is None and case.find('skipped') is None for case in cases), 'Gallery summary tests did not all pass'
+          print('GalleryFolderSummaryPolicyTest: 10/10 PASS (Android Gradle XML)')
+          PY
+
+      - name: Compile debug Kotlin
+        run: ./gradlew :app:compileDebugKotlin
+
   debug-apk:
+    if: >-
+      github.ref_name != 'feat/gallery-v2' || (github.event_name == 'workflow_dispatch' && inputs.build_apk) || (github.event_name == 'push' && github.event.head_commit.message == 'ci(gallery): build requested device QA APK')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -98,30 +127,41 @@ jobs:
           FIRST_CODE=$((1000000 + GITHUB_RUN_NUMBER * 2))
           NEXT_CODE=$((FIRST_CODE + 1))
           EXPECTED_CERT="$(sha256sum "$RUNNER_TEMP/dzlog-test-cert.der" | cut -d ' ' -f 1)"
+          EXPECTED_PACKAGE="com.dudoziworkshop.dzlog"
+          EXTRA_GRADLE_ARGS=()
+          if [[ "$GITHUB_REF_NAME" == "feat/gallery-v2" ]]; then
+            EXPECTED_PACKAGE="com.dudoziworkshop.dzlog.gallerydev"
+            EXTRA_GRADLE_ARGS+=("-PdzlogGalleryStandalone=true")
+          fi
           verify_apk() {
             local apk="$1" code="$2" cert badging
             cert="$("$APKSIGNER" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
             test "$cert" = "$EXPECTED_CERT"
             badging="$("$AAPT" dump badging "$apk" | sed -n '1p')"
-            [[ "$badging" == *"name='com.dudoziworkshop.dzlog'"* ]]
+            [[ "$badging" == *"name='$EXPECTED_PACKAGE'"* ]]
             [[ "$badging" == *"versionCode='$code'"* ]]
-            echo "Verified APK: package=com.dudoziworkshop.dzlog versionCode=$code certificate=$cert"
+            echo "Verified APK: package=$EXPECTED_PACKAGE versionCode=$code certificate=$cert"
           }
-          ./gradlew :app:assembleDebug -PdzlogDebugVersionCode="$FIRST_CODE" --stacktrace
+          ./gradlew :app:assembleDebug -PdzlogDebugVersionCode="$FIRST_CODE" "${EXTRA_GRADLE_ARGS[@]}" --stacktrace
           cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/DZlog-baseline.apk"
           verify_apk "$RUNNER_TEMP/DZlog-baseline.apk" "$FIRST_CODE"
-          ./gradlew :app:assembleDebug -PdzlogDebugVersionCode="$NEXT_CODE" --stacktrace
+          ./gradlew :app:assembleDebug -PdzlogDebugVersionCode="$NEXT_CODE" "${EXTRA_GRADLE_ARGS[@]}" --stacktrace
           verify_apk app/build/outputs/apk/debug/app-debug.apk "$NEXT_CODE"
           echo "Update prerequisites verified: same package and certificate; increasing versionCode. Device install remains a manual check."
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk DZlog-v2-test.apk
+        run: |
+          if [[ "$GITHUB_REF_NAME" == "feat/gallery-v2" ]]; then
+            cp app/build/outputs/apk/debug/app-debug.apk DZlog-gallery-dev.apk
+          else
+            cp app/build/outputs/apk/debug/app-debug.apk DZlog-v2-test.apk
+          fi
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: DZlog-v2-test-apk
-          path: DZlog-v2-test.apk
+          name: ${{ github.ref_name == 'feat/gallery-v2' && 'DZlog-gallery-dev-apk' || 'DZlog-v2-test-apk' }}
+          path: ${{ github.ref_name == 'feat/gallery-v2' && 'DZlog-gallery-dev.apk' || 'DZlog-v2-test.apk' }}
           if-no-files-found: error
           retention-days: 14
 

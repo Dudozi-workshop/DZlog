@@ -20,6 +20,7 @@ extensions.configure<ApplicationExtension> {
         targetSdk = 34
         versionCode = 2
         versionName = "0.0.0"
+        manifestPlaceholders["dzlogAppLabel"] = "@string/app_name"
     }
 
     // CI restores a persistent test key from GitHub Secrets; release signing is independent.
@@ -33,6 +34,12 @@ extensions.configure<ApplicationExtension> {
     }
 
     buildTypes {
+        getByName("debug") {
+            if (providers.gradleProperty("dzlogGalleryStandalone").orNull == "true") {
+                applicationIdSuffix = ".gallerydev"
+                manifestPlaceholders["dzlogAppLabel"] = "DZlog Gallery"
+            }
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

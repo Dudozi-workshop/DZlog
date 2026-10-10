@@ -17,8 +17,16 @@ data class GalleryFolderIndex(
     val children: List<GalleryChildFolder>,
 )
 
+data class GalleryBreadcrumb(val label: String, val relativePath: String)
+
 object GalleryFolderIndexPolicy {
     const val ROOT = "Pictures/DZlog/"
+
+    /** Show a leaf's direct originals in place, without adding a navigation step. */
+    fun showsOriginalsDirectly(index: GalleryFolderIndex?): Boolean = index != null &&
+        normalize(index.relativePath) != ROOT &&
+        !index.relativePath.trimEnd('/').substringAfterLast('/').equals("original", true) &&
+        index.directImageCount == 0 && index.directOriginalCount > 0 && index.children.isEmpty()
 
     /** Folder navigation is based on the actual relative path. Root has no parent. */
     fun parentOf(relativePath: String): String? {
@@ -30,6 +38,23 @@ object GalleryFolderIndexPolicy {
         val tail = current.removePrefix(ROOT).trimEnd('/')
         val parent = tail.substringBeforeLast('/', missingDelimiterValue = "")
         return if (parent.isBlank()) ROOT else ROOT + parent + "/"
+    }
+
+    /** Includes a clickable root followed by every folder ancestor and current folder. */
+    fun breadcrumbs(relativePath: String): List<GalleryBreadcrumb> {
+        val path = normalize(relativePath)
+        require(path == ROOT || path.startsWith(ROOT)) {
+            "Gallery folder must be inside Pictures/DZlog/"
+        }
+        val segments = path.removePrefix(ROOT).trimEnd('/')
+            .split('/').filter { it.isNotBlank() }
+        val result = mutableListOf(GalleryBreadcrumb("DZlog", ROOT))
+        var prefix = ROOT
+        segments.forEach { segment ->
+            prefix += "$segment/"
+            result += GalleryBreadcrumb(segment, prefix)
+        }
+        return result
     }
 
     fun index(

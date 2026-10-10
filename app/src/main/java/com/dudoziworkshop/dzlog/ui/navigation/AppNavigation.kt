@@ -725,6 +725,7 @@ fun AppRoot() {
             AppScreen.ALBUM_FOLDER -> {
                 LogFolderScreen(
                     relativePath = albumFolderPath,
+                    capturePathDrafts = (tableTemplateViewModel.templates.map { it.templateState.pathSlotDrafts } + listOf(tableTemplateState.pathSlotDrafts)).distinct(),
                     onBack = {
                         val parent = GalleryFolderIndexPolicy.parentOf(albumFolderPath)
                         if (parent != null) albumFolderPath = parent
@@ -732,12 +733,12 @@ fun AppRoot() {
                     },
                     onOpenFolder = { folder -> albumFolderPath = folder },
                     onOpenPhoto = { photos, index ->
-                        val relativePath = albumFolderPath
+                        val relativePath = photos.getOrNull(index)?.relativePath ?: albumFolderPath
                         albumLocation = AlbumLocation(
                             g1 = "",
                             g2Label = "",
                             relativePath = relativePath,
-                            originalLinkPath = relativePath + "original/",
+                            originalLinkPath = if (isOriginalRelativePath(relativePath)) null else relativePath + "original/",
                         )
                         gridItems = photos
                         viewerStartIndex = index
@@ -747,18 +748,9 @@ fun AppRoot() {
                         screen = AppScreen.ALBUM_VIEWER
                     },
                     onOpenOriginal = { originalPath ->
-                        albumLocation = AlbumLocation(
-                            g1 = "",
-                            g2Label = ORIGINAL_PHOTOS_TITLE,
-                            relativePath = originalPath,
-                            originalLinkPath = null,
-                        )
                         clearOriginalContext()
                         resetGridUiState()
-                        albumGridEntryScreen = AppScreen.ALBUM_FOLDER
-                        gridEntrySource = GridEntrySource.NORMAL
-                        viewerEntrySource = ViewerEntrySource.GRID
-                        screen = AppScreen.ALBUM_GRID
+                        albumFolderPath = originalPath
                     },
                 )
             }
@@ -778,8 +770,17 @@ fun AppRoot() {
                     items = gridItems,
                     isSelectionMode = isSelectionMode,
                     selectedIds = selectedIds,
-                    onItemsLoaded = { gridItems = it },
-                    onOpenViewer = { idx ->
+                    onItemsLoaded = { loaded ->
+                        gridItems = loaded
+                        selectedIds = selectedIds.intersect(loaded.mapTo(mutableSetOf()) { it.id })
+                        if (selectedIds.isEmpty()) isSelectionMode = false
+                    },
+                    onDeleted = { verifiedIds ->
+                        selectedIds = selectedIds - verifiedIds
+                        if (selectedIds.isEmpty()) isSelectionMode = false
+                    },
+                    onOpenViewer = { photos, idx ->
+                        gridItems = photos
                         viewerStartIndex = idx
                         viewerEntrySource = ViewerEntrySource.GRID
                         screen = AppScreen.ALBUM_VIEWER
@@ -810,9 +811,9 @@ fun AppRoot() {
                         isSelectionMode = false
                         selectedIds = emptySet()
                     },
-                    onSelectAll = {
-                        isSelectionMode = true
-                        selectedIds = gridItems.map { it.id }.toSet()
+                    onSelectAll = { visibleIds ->
+                        selectedIds = visibleIds
+                        isSelectionMode = visibleIds.isNotEmpty()
                     },
                     onBack = { handleAlbumGridBack() }
                 )
@@ -840,6 +841,7 @@ fun AppRoot() {
             }
             }
         }
+        GalleryPermissionOnboarding()
     }
 }
 
