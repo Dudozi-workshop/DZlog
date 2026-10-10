@@ -21,7 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.DropdownMenu
@@ -45,10 +45,9 @@ import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryChildFolder
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
-import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummaryPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import java.util.TimeZone
+import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 enum class GalleryTab(val label: String) {
     ALL("전체"),
@@ -216,19 +215,19 @@ internal fun LogGalleryHomeContent(
 }
 
 @Composable
-internal fun GallerySectionTitle(title: String, count: String? = null, onCreateFolder: (() -> Unit)? = null) {
+internal fun GallerySectionTitle(title: String, count: String? = null, onCreateFolder: (() -> Unit)? = null, createEnabled: Boolean = true) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold)
+        Text(title, color = DDZColor.TextPrimary, style = DDZTypography.SectionTitle)
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (count != null && onCreateFolder == null) Text(count, color = DDZColor.TextSecondary)
             if (onCreateFolder != null) {
-                TextButton(onClick = onCreateFolder) {
-                    Icon(Icons.Default.CreateNewFolder, contentDescription = null)
-                    Text(" 새 폴더")
+                TextButton(onClick = onCreateFolder, enabled = createEnabled) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(17.dp))
+                    Text("새 폴더", modifier = Modifier.padding(start = 6.dp), style = DDZTypography.SectionTitle)
                 }
             }
         }
@@ -276,17 +275,13 @@ internal fun GalleryFolderRow(
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                if (summary == null) "집계 정보 없음" else
-                    "사진 ${summary.totalPhotoCount} · 하위 ${summary.directChildFolderCount} · 최근 " +
-                        GalleryFolderSummaryPolicy.compactDate(
-                            epochMillis = summary.latestPhotoEpochMillis,
-                            referenceMillis = System.currentTimeMillis(),
-                            timeZone = TimeZone.getDefault(),
-                        ),
-                color = DDZColor.TextSecondary,
-                fontSize = 12.sp,
-            )
+            val details = if (summary == null) "집계 정보 없음" else buildList {
+                val results = summary.totalPhotoCount - summary.originalPhotoCount
+                if (results > 0) add("사진 ${results}장")
+                if (summary.originalPhotoCount > 0) add("원본 ${summary.originalPhotoCount}장")
+                if (summary.directChildFolderCount > 0) add("하위 폴더 ${summary.directChildFolderCount}개")
+            }.joinToString(" · ")
+            if (details.isNotEmpty()) Text(details, color = DDZColor.TextSecondary, style = DDZTypography.Secondary)
         }
         Box {
             IconButton(onClick = { menuExpanded = true }) {

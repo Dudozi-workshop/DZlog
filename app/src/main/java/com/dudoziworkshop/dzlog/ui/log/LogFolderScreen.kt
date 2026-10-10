@@ -32,7 +32,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.DriveFileMove
@@ -63,7 +62,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderCatalog
@@ -77,16 +75,15 @@ import com.dudoziworkshop.dzlog.feature.log.policy.CapturePathImpact
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
-import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummaryPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.TimeZone
 import java.util.Locale
 
 /** One screen for every folder depth; the route state is the actual relative path. */
@@ -367,7 +364,11 @@ fun LogFolderScreen(
         loadMoveDestinations()
     }
     fun startFolderManagement(path: String, action: String) {
-        if (folderManagementBusy || selectionActive || manageAction != null || deleteBusy || photoMoveBusy) return
+        if (folderManagementBusy || folderAccessBusy || selectionActive || manageAction != null || deleteBusy || photoMoveBusy) return
+        if (!connected) {
+            showFolderAccessHelp = true
+            return
+        }
         managedFolderPath = path
         folderOperationError = null
         managementConfirmed = false
@@ -432,25 +433,8 @@ fun LogFolderScreen(
                 } }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
                 }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(title, color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold)
-                    Text(if (showRecentPhotos) "사진 ${recentPhotos.size}장" else
-                        relativePath.removePrefix(GalleryFolderIndexPolicy.ROOT).ifBlank { "Pictures / DZlog" },
-                        color = DDZColor.TextSecondary, maxLines = 1,
-                        overflow = TextOverflow.Ellipsis)
-                    if (!root && currentSummary != null) {
-                        Text(
-                            "사진 ${currentSummary.totalPhotoCount} · 하위 ${currentSummary.directChildFolderCount} · 최근 " +
-                                GalleryFolderSummaryPolicy.compactDate(
-                                    epochMillis = currentSummary.latestPhotoEpochMillis,
-                                    referenceMillis = System.currentTimeMillis(),
-                                    timeZone = TimeZone.getDefault(),
-                                ),
-                            color = DDZColor.TextSecondary,
-                            fontSize = 12.sp,
-                        )
-                    }
-                }
+                Text(title, modifier = Modifier.weight(1f), color = DDZColor.TextPrimary,
+                    style = DDZTypography.ScreenTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         if (!root) {
@@ -471,12 +455,6 @@ fun LogFolderScreen(
                         }.padding(vertical = 5.dp),
                     )
                 }
-            }
-        }
-        if (!connected && !selectionActive) {
-            TextButton(enabled = !folderAccessBusy && !folderManagementBusy,
-                onClick = { showFolderAccessHelp = true }) {
-                Text(if (folderAccessBusy) "폴더 접근 연결 중…" else "폴더 접근 연결")
             }
         }
         if (!root && connected) {
@@ -550,7 +528,7 @@ fun LogFolderScreen(
                     onOpenOriginal = { if (!selectionActive && !navigationLocked) onOpenOriginal(it) },
                     onOpenRecentPhotos = { if (!selectionActive && !navigationLocked) showRecentPhotos = true },
                     onManageFolder = ::startFolderManagement,
-                    canManageFolders = connected && !navigationLocked && !selectionActive,
+                    canManageFolders = !navigationLocked && !selectionActive && !folderAccessBusy,
                     onCreateFolder = { if (!selectionActive && !navigationLocked) { folderOperationError = null; showCreateDialog = true } },
                     selectedIds = selectedPhotoIds,
                     selectionActive = selectionActive,
@@ -561,26 +539,21 @@ fun LogFolderScreen(
                 val current = index
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     item {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("하위 폴더", fontWeight = FontWeight.SemiBold)
-                            TextButton(enabled = !selectionActive && !navigationLocked, onClick = { if (!selectionActive && !navigationLocked) { folderOperationError = null; showCreateDialog = true } }) {
-                                Icon(Icons.Default.CreateNewFolder, contentDescription = null)
-                                Text(" 새 폴더")
-                            }
-                        }
+                        GallerySectionTitle("하위 폴더", createEnabled = !selectionActive && !navigationLocked,
+                            onCreateFolder = { folderOperationError = null; showCreateDialog = true })
                     }
                     if (current != null && current.children.isNotEmpty()) {
                         items(current.children, key = { it.relativePath }) { folder ->
                             val summary = summariesByPath[folder.relativePath]
                             GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
-                                canManage = connected && !navigationLocked && !selectionActive,
+                                canManage = !navigationLocked && !selectionActive && !folderAccessBusy,
                                 onManage = { action -> startFolderManagement(folder.relativePath, action) },
                             ) {
                                 if (!selectionActive && !navigationLocked) onOpenFolder(folder.relativePath)
                             }
                         }
                     }
-                    item {
+                    if (photos.isNotEmpty()) item {
                         Row(Modifier.fillMaxWidth().padding(top = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween) {
@@ -601,14 +574,15 @@ fun LogFolderScreen(
                             }
                         }
                     }
-                    if (photos.isEmpty()) {
-                        item { Text("이 폴더에 저장된 사진이 없습니다.", color = DDZColor.TextSecondary) }
-                    } else {
+                    if (photos.isNotEmpty()) {
                         items(sortedPhotos.chunked(3)) { rowPhotos ->
                             GalleryPhotoRow(rowPhotos, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
                                 if (!navigationLocked) onOpenPhoto(sortedPhotos, sortedPhotos.indexOfFirst { it.id == photo.id })
                             }
                         }
+                    }
+                    if (current != null && current.children.isEmpty() && photos.isEmpty() && current.directOriginalCount == 0) {
+                        item { GalleryEmptyText("빈 폴더입니다.") }
                     }
                     if (current != null && current.directOriginalCount > 0) {
                         item {
