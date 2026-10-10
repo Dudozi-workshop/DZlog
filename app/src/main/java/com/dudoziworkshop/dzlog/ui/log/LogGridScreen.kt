@@ -48,7 +48,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -70,7 +69,6 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.floor
 
@@ -106,10 +104,10 @@ fun LogGridScreen(
 
     var error by remember(relativePath) { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
-    var originalCount by remember { mutableIntStateOf(0) }
-    var originalLatestUri by remember { mutableStateOf<String?>(null) }
+    var originalCardError by remember(originalRelativePath) { mutableStateOf<String?>(null) }
+    var originalCount by remember(originalRelativePath) { mutableIntStateOf(0) }
+    var originalLatestUri by remember(originalRelativePath) { mutableStateOf<String?>(null) }
 
-    val scope = rememberCoroutineScope()
     var reloadRequestToken by remember { mutableIntStateOf(0) }
     var favoriteOnly by rememberSaveable { mutableStateOf(false) }
     var deleteSelection by remember(relativePath) { mutableStateOf<List<MediaImageItem>?>(null) }
@@ -159,19 +157,26 @@ fun LogGridScreen(
         if (originalRelativePath.isNullOrBlank()) {
             originalCount = 0
             originalLatestUri = null
-        } else {
-            val (count, latestUri) = withContext(Dispatchers.IO) {
-                val count = reader.countImagesInRelativePath(originalRelativePath)
-                val latest = reader.loadLatestImageInRelativePath(originalRelativePath)?.uri?.toString()
-                count to latest
+            originalCardError = null
+            return
+        }
+        try {
+            // Count and cover come from one successful exact-folder snapshot.
+            val originals = withContext(Dispatchers.IO) {
+                reader.loadImages(originalRelativePath, requireReadable = true)
             }
-            originalCount = count
-            originalLatestUri = latestUri
+            originalCount = originals.size
+            originalLatestUri = originals.firstOrNull()?.uri?.toString()
+            originalCardError = null
+        } catch (t: kotlinx.coroutines.CancellationException) {
+            throw t
+        } catch (t: Exception) {
+            originalCardError = "원본사진 정보 갱신에 실패했습니다. 마지막으로 확인한 정보를 유지합니다."
         }
     }
 
-    LaunchedEffect(originalRelativePath) {
-        reloadOriginalCard()
+    LaunchedEffect(originalRelativePath, reloadRequestToken, actionLocked) {
+        if (!actionLocked) reloadOriginalCard()
     }
 
     // ✅ 앱 밖 변경(휴지통 복구/삭제 등)을 앱이 즉시 반영하도록 MediaStore 변경 감지
@@ -183,9 +188,6 @@ fun LogGridScreen(
                 // 선택 모드 중엔 자동 재조회로 UI가 흔들리고 버벅임이 심해져서 차단
                 if (isSelectionMode || actionLocked) return
                 reloadImages()
-                scope.launch {
-                    reloadOriginalCard()
-                }
             }
         }
 
@@ -309,10 +311,11 @@ fun LogGridScreen(
 
             Spacer(Modifier.height(12.dp))
 
-            if (error != null) {
-                Text(requireNotNull(error), color = DDZColor.TextSecondary)
+            val loadError = error ?: originalCardError
+            if (loadError != null) {
+                Text(loadError, color = DDZColor.TextSecondary)
                 TextButton(enabled = !actionLocked, onClick = { reloadImages() }) { Text("다시 시도") }
-                if (items.isEmpty()) return@Column
+                if (error != null && items.isEmpty()) return@Column
             }
 
             // ✅ 최초/재진입 시 empty 먼저 그려지는 깜빡임 방지
