@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -427,7 +428,9 @@ fun LogFolderScreen(
     val title = if (showRecentPhotos) "최근 촬영" else if (displayFolderPath == GalleryFolderIndexPolicy.ROOT) "갤러리"
         else displayFolderPath.trimEnd('/').substringAfterLast('/')
     val imagesById = remember(allPhotos) { allPhotos.associateBy { it.id.toString() } }
-    Column(modifier = Modifier.dzScreen().padding(horizontal = 16.dp)) {
+    Column(modifier = Modifier.dzScreen()
+        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+        .padding(horizontal = 16.dp)) {
         if (selectionActive) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = ::cancelSelection, enabled = !photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null) { Text("취소") }
@@ -516,7 +519,8 @@ fun LogFolderScreen(
                     OutlinedButton(onClick = { reloadKey++ }) { Text("다시 시도") }
                 }
             } else if (root && showRecentPhotos) {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(5.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp)) {
                     if (recentPhotos.isEmpty()) {
                         item { GalleryEmptyText("저장된 사진이 없습니다.") }
                     } else {
@@ -549,7 +553,8 @@ fun LogFolderScreen(
                 )
             } else {
                 val current = index
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp)) {
                     if (!originalGrid) item {
                         GallerySectionTitle("하위 폴더", createEnabled = !selectionActive && !navigationLocked,
                             onCreateFolder = { folderOperationError = null; showCreateDialog = true })
@@ -660,7 +665,6 @@ fun LogFolderScreen(
         if (selectionActive) {
             val actionsEnabled = selectedPhotoIds.isNotEmpty() && !photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null
             Row(Modifier.fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                 .padding(vertical = 8.dp)
                 .background(DDZColor.SurfaceSoft, RoundedCornerShape(16.dp))) {
                 TextButton(modifier = Modifier.weight(1f), enabled = actionsEnabled, onClick = ::startPhotoMove) {
