@@ -73,7 +73,7 @@ jobs:
         run: ./gradlew :app:compileDebugKotlin
 
   debug-apk:
-    if: github.ref_name != 'feat/gallery-v2' || (github.event_name == 'workflow_dispatch' && inputs.build_apk)
+    if: github.ref_name != 'feat/gallery-v2' || (github.event_name == 'workflow_dispatch' && inputs.build_apk) || (github.event_name == 'push' && github.event.head_commit.message == 'ci(gallery): build requested device QA APK')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
