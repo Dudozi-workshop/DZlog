@@ -64,9 +64,9 @@ jobs:
           for case in cases:
               status = 'FAIL' if case.find('failure') is not None or case.find('error') is not None else 'SKIP' if case.find('skipped') is not None else 'PASS'
               print(f"GalleryFolderSummaryPolicyTest.{case.attrib['name']}: {status}")
-          assert len(cases) == 7, f'Expected 7 gallery summary tests, found {len(cases)}'
+          assert len(cases) == 10, f'Expected 10 gallery summary tests, found {len(cases)}'
           assert all(case.find('failure') is None and case.find('error') is None and case.find('skipped') is None for case in cases), 'Gallery summary tests did not all pass'
-          print('GalleryFolderSummaryPolicyTest: 7/7 PASS (Android Gradle XML)')
+          print('GalleryFolderSummaryPolicyTest: 10/10 PASS (Android Gradle XML)')
           PY
 
       - name: Compile debug Kotlin
