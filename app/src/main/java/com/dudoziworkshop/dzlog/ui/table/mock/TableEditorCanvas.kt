@@ -229,9 +229,9 @@ internal fun ColumnScope.MockTableCanvas(
                     ) {
                         Box(
                             Modifier
-                                .width(3.dp)
-                                .height(18.dp)
-                                .background(DDZColor.Primary.copy(alpha = 0.65f))
+                                .offset(y = (-6).dp)
+                                .size(12.dp, 4.dp)
+                                .background(DDZColor.Primary.copy(alpha = 0.65f), RoundedCornerShape(2.dp))
                         )
                     }
                 }
@@ -257,9 +257,9 @@ internal fun ColumnScope.MockTableCanvas(
                     ) {
                         Box(
                             Modifier
-                                .height(3.dp)
-                                .width(18.dp)
-                                .background(DDZColor.Primary.copy(alpha = 0.65f))
+                                .offset(x = (-6).dp)
+                                .size(4.dp, 12.dp)
+                                .background(DDZColor.Primary.copy(alpha = 0.65f), RoundedCornerShape(2.dp))
                         )
                     }
                 }
@@ -267,3 +267,4 @@ internal fun ColumnScope.MockTableCanvas(
         }
     }
 }
+

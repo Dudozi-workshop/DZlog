@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 @Composable
 internal fun TableEditorStylePanel(
@@ -56,9 +57,9 @@ internal fun TableEditorStylePanel(
             .background(DDZColor.Surface)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 18.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("배경", color = DDZColor.TextSecondary)
+        Text("배경", style = DDZTypography.SettingLabel, color = DDZColor.TextSecondary)
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             listOf("밝게", "어둡게", "투명").forEachIndexed { index, label ->
                 val selected = when (index) {
@@ -78,7 +79,7 @@ internal fun TableEditorStylePanel(
                     shape = SegmentedButtonDefaults.itemShape(index, 3),
                     modifier = Modifier.heightIn(min = 48.dp),
                     colors = choiceColors,
-                ) { Text(label) }
+                ) { Text(label, style = DDZTypography.ButtonText) }
             }
         }
 
@@ -92,7 +93,7 @@ internal fun TableEditorStylePanel(
             colors = sliderColors,
         )
 
-        Text("정렬", color = DDZColor.TextSecondary)
+        Text("정렬", style = DDZTypography.SettingLabel, color = DDZColor.TextSecondary)
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             listOf("왼쪽", "가운데", "오른쪽").forEachIndexed { index, label ->
                 SegmentedButton(
@@ -101,7 +102,7 @@ internal fun TableEditorStylePanel(
                     shape = SegmentedButtonDefaults.itemShape(index, 3),
                     modifier = Modifier.heightIn(min = 48.dp),
                     colors = choiceColors,
-                ) { Text(label) }
+                ) { Text(label, style = DDZTypography.ButtonText) }
             }
         }
 
@@ -110,7 +111,7 @@ internal fun TableEditorStylePanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("테두리 표시", color = DDZColor.TextPrimary)
+            Text("테두리 표시", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
             Switch(
                 checked = draft.gridEnabled,
                 colors = SwitchDefaults.colors(
@@ -133,7 +134,7 @@ internal fun TableEditorStylePanel(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text("고급 설정", color = DDZColor.TextSecondary)
+                Text("고급 설정", style = DDZTypography.SettingLabel, color = DDZColor.TextSecondary)
                 Icon(
                     imageVector = if (showAdvanced) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                     contentDescription = if (showAdvanced) "고급 설정 접기" else "고급 설정 펼치기",
@@ -155,10 +156,10 @@ internal fun TableEditorStylePanel(
             )
 
             if (draft.bgStyle == 2) {
-                Text("투명 배경에서는 투명도를 조절하지 않아요.", color = DDZColor.TextSecondary)
+                Text("투명 배경에서는 투명도를 조절하지 않아요.", style = DDZTypography.Secondary, color = DDZColor.TextSecondary)
             }
 
-            Text("글자 색", color = DDZColor.TextSecondary)
+            Text("글자 색", style = DDZTypography.SettingLabel, color = DDZColor.TextSecondary)
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 listOf("자동", "흰색", "검정").forEachIndexed { index, label ->
                     val selected = when (index) {
@@ -178,7 +179,7 @@ internal fun TableEditorStylePanel(
                         shape = SegmentedButtonDefaults.itemShape(index, 3),
                         modifier = Modifier.heightIn(min = 48.dp),
                         colors = choiceColors,
-                    ) { Text(label) }
+                    ) { Text(label, style = DDZTypography.ButtonText) }
                 }
             }
         }
@@ -193,7 +194,8 @@ private fun StyleValueLabel(label: String, value: String) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, color = DDZColor.TextSecondary)
-        Text(value, color = DDZColor.TextPrimary)
+        Text(label, style = DDZTypography.SettingLabel, color = DDZColor.TextSecondary)
+        Text(value, style = DDZTypography.Body, color = DDZColor.TextPrimary)
     }
 }
+

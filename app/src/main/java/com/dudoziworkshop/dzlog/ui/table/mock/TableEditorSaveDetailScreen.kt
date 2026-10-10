@@ -87,7 +87,7 @@ internal fun TableEditorSaveDetailScreen(
                 .padding(padding)
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             when (detail) {
                 TableEditorSaveDetail.FILE_NAME -> {
@@ -95,7 +95,7 @@ internal fun TableEditorSaveDetailScreen(
                         label = "현재 파일명",
                         value = fileNamePreview,
                     )
-                    Text("파일명 구성", style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
+                    Text("파일명 구성", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                     TableEditorRuleListEditor(
                         isFileName = true,
                         items = draft.fileNameItems,
@@ -117,7 +117,7 @@ internal fun TableEditorSaveDetailScreen(
                         label = "현재 저장 위치",
                         value = pathPreview,
                     )
-                    Text("폴더 구성", style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
+                    Text("폴더 구성", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                     TableEditorRuleListEditor(
                         isFileName = false,
                         items = draft.pathItems,
@@ -139,7 +139,7 @@ internal fun TableEditorSaveDetailScreen(
                 TableEditorSaveDetail.SAVE_MODE -> {
                     Text(
                         "저장할 이미지",
-                        style = DDZTypography.SectionTitle,
+                        style = DDZTypography.SettingLabel,
                         color = DDZColor.TextPrimary,
                     )
                     SaveModeOption(
@@ -163,7 +163,7 @@ internal fun TableEditorSaveDetailScreen(
                 }
 
                 TableEditorSaveDetail.AUTO_NUMBER -> {
-                    Text("다음 번호", style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
+                    Text("다음 번호", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -189,7 +189,7 @@ internal fun TableEditorSaveDetailScreen(
                             Text(
                                 text = formatMockCounter(nextCounter, counterPadding),
                                 modifier = Modifier.padding(vertical = 14.dp),
-                                style = DDZTypography.SectionTitle,
+                                style = DDZTypography.SettingLabel,
                                 color = DDZColor.TextPrimary,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             )
@@ -202,7 +202,7 @@ internal fun TableEditorSaveDetailScreen(
                         )
                     }
 
-                    Text("자릿수", style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
+                    Text("자릿수", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -253,7 +253,7 @@ internal fun TableEditorSaveDetailScreen(
                 }
 
                 TableEditorSaveDetail.AUTO_NUMBER_ADVANCED -> {
-                    Text("번호 구분 기준", style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
+                    Text("번호 구분 기준", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                     ScopeOption(
                         title = "저장 위치별 번호 분리",
                         description = "폴더가 다르면 번호를 따로 사용합니다.",
@@ -311,7 +311,7 @@ private fun PreviewCard(label: String, value: String) {
         modifier = Modifier
             .fillMaxWidth()
             .background(DDZColor.SurfaceSoft, RoundedCornerShape(16.dp))
-            .padding(16.dp),
+            .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(label, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
@@ -376,5 +376,6 @@ private fun ScopeOption(
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
+
 
 

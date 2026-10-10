@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 @Composable
 internal fun MockLayoutPanel(
@@ -42,7 +43,7 @@ internal fun MockLayoutPanel(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("구조", fontWeight = FontWeight.Bold, color = DDZColor.TextPrimary)
+        Text("구조", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -115,3 +116,4 @@ private fun StructureActionButton(
         Text(label, color = tint, fontSize = 12.sp, maxLines = 1)
     }
 }
+
