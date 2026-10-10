@@ -11,8 +11,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,7 +20,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -70,40 +72,66 @@ internal fun HomeAmbientBackground(
     ) {
         BoxWithConstraints(
             modifier = Modifier
+                .align(Alignment.TopEnd)
                 .fillMaxSize()
-                .homeShadowBoundaryMask(
-                    origin = HomeShadowOrigin.TopEnd,
-                    leftFadeStart = HomeAmbientSpec.LeftFadeStart,
-                    leftFadeEnd = HomeAmbientSpec.LeftFadeEnd,
-                    farFadeStart = HomeAmbientSpec.FarFadeStart,
-                    farFadeEnd = HomeAmbientSpec.FarFadeEnd,
-                )
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    // An anchored botanical shadow fades before reaching the *inner*
+                    // (left and bottom) boundaries. This mask stays fixed while the
+                    // image sways, so its moving edge never hits a visible hard crop.
+                    drawRect(
+                        brush = Brush.horizontalGradient(
+                            0f to Color.Transparent,
+                            0.55f to Color.White,
+                            1f to Color.White,
+                        ),
+                        blendMode = BlendMode.DstIn,
+                    )
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            0f to Color.White,
+                            0.57f to Color.White,
+                            1f to Color.Transparent,
+                        ),
+                        blendMode = BlendMode.DstIn,
+                    )
+                }
                 .clipToBounds(),
         ) {
-            // Place the complete image behind the screen-sized viewing window.
-            // Keep the same relative composition across phone resolutions.
-            val imageWidth = maxWidth * HomeAmbientSpec.ShadowImageWidthFraction
-            val imageHeight = imageWidth * HomeAmbientSpec.ShadowHeightToWidthRatio
-            Image(
-                painter = painterResource(R.drawable.home_leaf_shadow_c),
-                contentDescription = null,
-                contentScale = ContentScale.FillBounds,
+            val viewportWidth = maxWidth * HomeAmbientSpec.VisibleShadowWidthFraction
+            val viewportHeight = maxHeight * HomeAmbientSpec.VisibleShadowHeightFraction
+            Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .offset(
-                        x = maxWidth * HomeAmbientSpec.ShadowRightOffsetFraction,
-                        y = maxHeight * HomeAmbientSpec.ShadowTopOffsetFraction,
-                    )
-                    .size(width = imageWidth, height = imageHeight)
-                    .graphicsLayer {
-                        translationX = swayX
-                        translationY = swayY
-                        rotationZ = swayAngle
-                        alpha = HomeAmbientSpec.ShadowOpacity
-                        transformOrigin = TransformOrigin(0.85f, 0f)
-                    }
-                    .blur(HomeAmbientSpec.BlurRadius),
-            )
+                    .size(viewportWidth, viewportHeight)
+                    .clipToBounds(),
+            ) {
+                val imageWidth = viewportWidth * HomeAmbientSpec.ImageToViewportWidthRatio
+                Image(
+                    painter = painterResource(R.drawable.home_leaf_shadow_c),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(
+                            x = imageWidth * HomeAmbientSpec.ImageOffsetXFraction,
+                            y = viewportHeight * HomeAmbientSpec.ImageOffsetYFraction,
+                        )
+                        .size(
+                            width = imageWidth,
+                            height = imageWidth * HomeAmbientSpec.ShadowHeightToWidthRatio,
+                        )
+                        .graphicsLayer {
+                            translationX = swayX
+                            translationY = swayY
+                            rotationZ = swayAngle
+                            alpha = HomeAmbientSpec.ShadowOpacity
+                            transformOrigin = TransformOrigin(0.85f, 0f)
+                        }
+                        .blur(HomeAmbientSpec.BlurRadius),
+                )
+            }
         }
 
         Box(
