@@ -121,6 +121,7 @@ fun HomeScreen(
                 targetActionCenterFraction = HomeUiSpec.CaptureCenterFraction,
                 modifier = Modifier.fillMaxWidth(),
                 top = {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                     
                                 Row(
                                     modifier = Modifier
@@ -182,6 +183,7 @@ fun HomeScreen(
                                         color = DDZColor.TextSecondary,
                                     )
                                 }
+                    }
                 },
                 action = {
                                 DDZButton(
@@ -200,6 +202,7 @@ fun HomeScreen(
                                 )
                 },
                 bottom = {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -233,7 +236,8 @@ fun HomeScreen(
                                         onClick = {
                                             homeViewModel.refreshSavePreview()
                                             showSaveInfo = true
-                                        },
+                                            }
+                },
                                         modifier = Modifier.weight(1f),
                                     )
                                 }
