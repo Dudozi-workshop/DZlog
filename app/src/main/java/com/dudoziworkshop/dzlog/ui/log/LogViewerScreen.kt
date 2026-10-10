@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -81,6 +82,10 @@ import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryViewerDeletePolicy
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -106,10 +111,15 @@ fun LogViewerScreen(
     val scope = rememberCoroutineScope()
     val filmstripListState = rememberLazyListState()
 
+    var originalPreview by remember { mutableStateOf<MediaImageItem?>(null) }
+    var originalLoading by remember { mutableStateOf(false) }
+    var originalError by remember { mutableStateOf<String?>(null) }
     var deleteItem by remember { mutableStateOf<MediaImageItem?>(null) }
     var pendingViewerIndex by remember { mutableStateOf<Int?>(null) }
     var emptyAfterDelete by remember { mutableStateOf(false) }
-    BackHandler(enabled = deleteItem != null) { /* The deletion dialog owns dismissal. */ }
+    val operationLocked = deleteItem != null || originalLoading
+    BackHandler(enabled = originalPreview != null && !operationLocked) { originalPreview = null }
+    BackHandler(enabled = operationLocked) { /* The deletion dialog owns dismissal. */ }
 
     val safeStart = startIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
     val pagerState = rememberPagerState(initialPage = safeStart, pageCount = { items.size })
@@ -127,7 +137,38 @@ fun LogViewerScreen(
         pendingViewerIndex = null
     }
 
-    val currentItem = items.getOrNull(pagerState.currentPage)
+    val resultItem = items.getOrNull(pagerState.currentPage)
+    val currentItem = originalPreview ?: resultItem
+    LaunchedEffect(resultItem?.id) { originalPreview = null }
+
+    fun showOriginal() {
+        if (operationLocked) return
+        if (originalPreview != null) {
+            originalPreview = null
+            return
+        }
+        val requested = resultItem ?: return
+        originalLoading = true
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val snapshot = reader.loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT)
+                    require(snapshot.singleOrNull { it.id == requested.id } == requested) {
+                        "사진 정보가 변경됐습니다. 갤러리에서 다시 확인해 주세요."
+                    }
+                    requireNotNull(GalleryPhotoMovePolicy.pairedOriginals(listOf(requested), snapshot).singleOrNull()) {
+                        "정확히 연결된 원본사진을 찾지 못했습니다."
+                    }
+                }
+            }
+            originalLoading = false
+            result.onSuccess {
+                if (items.getOrNull(pagerState.currentPage)?.id == requested.id) originalPreview = it
+                else originalError = "현재 사진이 바뀌었습니다. 다시 원본 보기를 선택해 주세요."
+            }
+                .onFailure { originalError = it.message ?: "원본사진을 확인하지 못했습니다." }
+        }
+    }
 
     LaunchedEffect(pagerState.currentPage, items.size) {
         if (items.isEmpty()) return@LaunchedEffect
@@ -152,7 +193,7 @@ fun LogViewerScreen(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
                 // 정책: 확대 상태에서는 부모 pager 스크롤을 명시적으로 잠근다.
-                userScrollEnabled = !isCurrentImageZoomed && deleteItem == null
+                userScrollEnabled = !isCurrentImageZoomed && !operationLocked && originalPreview == null
             ) { page ->
                 val item = items[page]
                 Box(
@@ -161,17 +202,17 @@ fun LogViewerScreen(
                 ) {
                     DzFullImage(
                         uriString = item.uri.toString(),
-                        canGoPrevious = page > 0 && deleteItem == null,
-                        canGoNext = page < items.lastIndex && deleteItem == null,
+                        canGoPrevious = page > 0 && !operationLocked,
+                        canGoNext = page < items.lastIndex && !operationLocked,
                         onGoPrevious = {
-                            if (page > 0 && deleteItem == null) {
+                            if (page > 0 && !operationLocked) {
                                 scope.launch {
                                     pagerState.animateScrollToPage(page - 1)
                                 }
                             }
                         },
                         onGoNext = {
-                            if (page < items.lastIndex && deleteItem == null) {
+                            if (page < items.lastIndex && !operationLocked) {
                                 scope.launch {
                                     pagerState.animateScrollToPage(page + 1)
                                 }
@@ -190,6 +231,21 @@ fun LogViewerScreen(
             }
         }
 
+        originalPreview?.let { original ->
+            Box(Modifier.fillMaxSize().background(Color.Black)) {
+                DzFullImage(
+                    uriString = original.uri.toString(),
+                    canGoPrevious = false,
+                    canGoNext = false,
+                    onGoPrevious = {},
+                    onGoNext = {},
+                    onZoomedStateChange = {},
+                    onSingleTap = { uiVisible = !uiVisible },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+
         AnimatedVisibility(
             visible = uiVisible,
             enter = fadeIn(),
@@ -198,12 +254,15 @@ fun LogViewerScreen(
         ) {
             ViewerTopOverlay(
                 current = currentItem,
-                onBack = { if (deleteItem == null) onBack() },
-                enabled = deleteItem == null,
+                onBack = { if (!operationLocked) { if (originalPreview != null) originalPreview = null else onBack() } },
+                enabled = !operationLocked,
                 currentIndex = pagerState.currentPage,
                 total = items.size,
+                showingOriginal = originalPreview != null || currentItem?.let { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) } == true,
+                originalActionLabel = if (originalPreview != null) "결과사진으로 돌아가기" else "원본 보기",
+                onOriginal = if (originalPreview != null || resultItem?.let { !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) } == true) ::showOriginal else null,
                 onInfo = {
-                    if (deleteItem == null && currentItem != null) infoSheetItem = currentItem
+                    if (!operationLocked && currentItem != null) infoSheetItem = currentItem
                 }
             )
         }
@@ -237,9 +296,9 @@ fun LogViewerScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     ViewerBottomPill(
-                        enabled = deleteItem == null && currentItem != null,
+                        enabled = !operationLocked && currentItem != null,
                         onFavorite = {
-                            if (deleteItem != null) return@ViewerBottomPill
+                            if (operationLocked) return@ViewerBottomPill
                             val item = currentItem ?: return@ViewerBottomPill
                             scope.launch {
                                 favoritesRepository.toggleFavorite(item)
@@ -247,15 +306,15 @@ fun LogViewerScreen(
                         },
                         isFavorite = currentItem?.id?.let(favoriteIds::contains) == true,
                         onShare = {
-                            if (deleteItem != null) return@ViewerBottomPill
+                            if (operationLocked) return@ViewerBottomPill
                             val item = currentItem ?: return@ViewerBottomPill
                             shareImages(context, listOf(item))
                         },
                         onInfo = {
-                            if (deleteItem == null && currentItem != null) infoSheetItem = currentItem
+                            if (!operationLocked && currentItem != null) infoSheetItem = currentItem
                         },
                         onDelete = {
-                            if (deleteItem == null && currentItem != null) {
+                            if (!operationLocked && currentItem != null) {
                                 emptyAfterDelete = false
                                 deleteItem = currentItem
                             }
@@ -264,7 +323,7 @@ fun LogViewerScreen(
 
                     TextButton(
                         onClick = { filmstripExpanded = !filmstripExpanded },
-                        enabled = deleteItem == null && items.isNotEmpty(),
+                        enabled = !operationLocked && originalPreview == null && items.isNotEmpty(),
                     ) {
                         Icon(
                             imageVector = if (filmstripExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
@@ -276,14 +335,14 @@ fun LogViewerScreen(
                             color = Color.White,
                         )
                     }
-                    if (filmstripExpanded) {
+                    if (filmstripExpanded && originalPreview == null) {
                         ThumbnailFilmstrip(
                             items = items,
                             currentPage = pagerState.currentPage,
                             favoriteIds = favoriteIds,
                             listState = filmstripListState,
                             onThumbnailClick = { index ->
-                                if (deleteItem == null && index in items.indices) scope.launch {
+                                if (!operationLocked && originalPreview == null && index in items.indices) scope.launch {
                                     pagerState.animateScrollToPage(index)
                                 }
                             }
@@ -299,15 +358,29 @@ fun LogViewerScreen(
             item = requested,
             reader = reader,
             onVerified = { deletedIds ->
-                val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, deletedIds)
-                pendingViewerIndex = update.currentIndex
-                emptyAfterDelete = update.ids.isEmpty()
+                if (originalPreview?.id in deletedIds) originalPreview = null
                 GallerySnapshotMemory.cache.invalidate()
-                onItemsReloaded(items.filter { it.id !in deletedIds })
+                if (items.any { it.id in deletedIds }) {
+                    val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, deletedIds)
+                    pendingViewerIndex = update.currentIndex
+                    emptyAfterDelete = update.ids.isEmpty()
+                    onItemsReloaded(items.filter { it.id !in deletedIds })
+                }
             },
             onClose = {
                 deleteItem = null
                 if (emptyAfterDelete) onRequestCloseViewer()
+            },
+        )
+    }
+
+    if (originalLoading || originalError != null) {
+        AlertDialog(
+            onDismissRequest = { if (!originalLoading) originalError = null },
+            title = { Text(if (originalLoading) "원본 확인 중" else "원본 보기") },
+            text = { Text(originalError ?: "연결된 원본사진을 확인하고 있습니다.") },
+            confirmButton = {
+                if (!originalLoading) TextButton(onClick = { originalError = null }) { Text("확인") }
             },
         )
     }
@@ -331,6 +404,9 @@ private fun ViewerTopOverlay(
     onBack: () -> Unit,
     currentIndex: Int,
     total: Int,
+    showingOriginal: Boolean,
+    originalActionLabel: String,
+    onOriginal: (() -> Unit)?,
     onInfo: () -> Unit,
 ) {
     var menuExpanded by remember(current?.id, enabled) { mutableStateOf(false) }
@@ -362,7 +438,7 @@ private fun ViewerTopOverlay(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "${if (current == null) 0 else currentIndex + 1} / $total",
+                text = "${if (showingOriginal) "원본 · " else ""}${if (current == null) 0 else currentIndex + 1} / $total",
                 color = Color.White,
                 style = MaterialTheme.typography.labelSmall,
             )
@@ -372,6 +448,13 @@ private fun ViewerTopOverlay(
                 Icon(Icons.Default.MoreVert, contentDescription = "사진 메뉴", tint = Color.White)
             }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                if (onOriginal != null) DropdownMenuItem(
+                    text = { Text(originalActionLabel) },
+                    onClick = {
+                        menuExpanded = false
+                        if (enabled) onOriginal()
+                    },
+                )
                 DropdownMenuItem(
                     text = { Text("사진 정보") },
                     onClick = {
