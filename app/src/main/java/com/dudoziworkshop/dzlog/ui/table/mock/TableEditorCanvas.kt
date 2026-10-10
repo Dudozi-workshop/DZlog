@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -58,6 +60,11 @@ internal fun ColumnScope.MockTableCanvas(
     onCellRangeDrag: (String, String) -> Unit,
     onClearLayoutSelection: () -> Unit,
 ) {
+    // Pointer handlers live across recompositions; never retain an old draft/callback.
+    val latestRowDrag by rememberUpdatedState(onRowBoundaryDrag)
+    val latestColDrag by rememberUpdatedState(onColBoundaryDrag)
+    val latestDragStart by rememberUpdatedState(onBoundaryDragStart)
+    val latestDragEnd by rememberUpdatedState(onBoundaryDragEnd)
     val background = Color.Transparent
     val resolvedAlpha = (bgAlpha.coerceIn(0, 255) / 255f)
     val cellBackground = when {
@@ -212,25 +219,25 @@ internal fun ColumnScope.MockTableCanvas(
                     val x = colSizes.take(boundaryIndex + 1).fold(0.dp) { acc, value -> acc + value }
                     Box(
                         modifier = Modifier
-                            .offset(x = x - 10.dp)
-                            .width(20.dp)
+                            .offset(x = x - 14.dp)
+                            .width(28.dp)
                             .fillMaxHeight()
                             .pointerInput(boundaryIndex, totalWidthPx) {
                                 detectDragGestures(
-                                    onDragStart = { onBoundaryDragStart() },
-                                    onDragEnd = onBoundaryDragEnd,
-                                    onDragCancel = onBoundaryDragEnd,
+                                    onDragStart = { latestDragStart() },
+                                    onDragEnd = { latestDragEnd() },
+                                    onDragCancel = { latestDragEnd() },
                                 ) { change, dragAmount ->
                                     change.consume()
-                                    onColBoundaryDrag(boundaryIndex, dragAmount.x / totalWidthPx)
+                                    latestColDrag(boundaryIndex, dragAmount.x / totalWidthPx)
                                 }
                             },
                         contentAlignment = Alignment.TopCenter,
                     ) {
                         Box(
                             Modifier
-                                .offset(y = (-6).dp)
-                                .size(12.dp, 4.dp)
+                                .offset(y = 2.dp)
+                                .size(4.dp, 16.dp)
                                 .background(DDZColor.Primary.copy(alpha = 0.65f), RoundedCornerShape(2.dp))
                         )
                     }
@@ -240,25 +247,25 @@ internal fun ColumnScope.MockTableCanvas(
                     val y = rowSizes.take(boundaryIndex + 1).fold(0.dp) { acc, value -> acc + value }
                     Box(
                         modifier = Modifier
-                            .offset(y = y - 10.dp)
-                            .height(20.dp)
+                            .offset(y = y - 14.dp)
+                            .height(28.dp)
                             .fillMaxWidth()
                             .pointerInput(boundaryIndex, totalHeightPx) {
                                 detectDragGestures(
-                                    onDragStart = { onBoundaryDragStart() },
-                                    onDragEnd = onBoundaryDragEnd,
-                                    onDragCancel = onBoundaryDragEnd,
+                                    onDragStart = { latestDragStart() },
+                                    onDragEnd = { latestDragEnd() },
+                                    onDragCancel = { latestDragEnd() },
                                 ) { change, dragAmount ->
                                     change.consume()
-                                    onRowBoundaryDrag(boundaryIndex, dragAmount.y / totalHeightPx)
+                                    latestRowDrag(boundaryIndex, dragAmount.y / totalHeightPx)
                                 }
                             },
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         Box(
                             Modifier
-                                .offset(x = (-6).dp)
-                                .size(4.dp, 12.dp)
+                                .offset(x = 2.dp)
+                                .size(16.dp, 4.dp)
                                 .background(DDZColor.Primary.copy(alpha = 0.65f), RoundedCornerShape(2.dp))
                         )
                     }

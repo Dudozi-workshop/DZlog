@@ -11,6 +11,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,10 +52,11 @@ internal fun TableEditorTemplatePicker(
                     Row(
                         modifier = Modifier.fillMaxWidth()
                             .clickable { onSelect(template.id) }
-                            .padding(horizontal = 14.dp, vertical = 14.dp),
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        TemplateMiniPreview(template.templateState)
                         Column(Modifier.weight(1f)) {
                             Text(
                                 template.name,
@@ -62,7 +67,8 @@ internal fun TableEditorTemplatePicker(
                             )
                         }
                         if (template.id == currentTemplateId) {
-                            Text("편집 중", color = DDZColor.Primary, fontSize = 12.sp)
+                            Icon(Icons.Default.Check, contentDescription = "편집 중",
+                                tint = DDZColor.Primary, modifier = Modifier.size(18.dp))
                         }
                     }
                 }

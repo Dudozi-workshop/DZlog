@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -77,9 +77,9 @@ internal fun TableEditorStylePanel(
                         }))
                     },
                     shape = SegmentedButtonDefaults.itemShape(index, 3),
-                    modifier = Modifier.heightIn(min = 48.dp),
+                    modifier = Modifier.height(36.dp),
                     colors = choiceColors,
-                ) { Text(label, style = DDZTypography.ButtonText) }
+                ) { Text(label, style = DDZTypography.Caption) }
             }
         }
 
@@ -100,9 +100,9 @@ internal fun TableEditorStylePanel(
                     selected = draft.textAlign == index,
                     onClick = { onDraftChange(draft.copy(textAlign = index)) },
                     shape = SegmentedButtonDefaults.itemShape(index, 3),
-                    modifier = Modifier.heightIn(min = 48.dp),
+                    modifier = Modifier.height(36.dp),
                     colors = choiceColors,
-                ) { Text(label, style = DDZTypography.ButtonText) }
+                ) { Text(label, style = DDZTypography.Caption) }
             }
         }
 
@@ -126,7 +126,7 @@ internal fun TableEditorStylePanel(
         }
 
         TextButton(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            modifier = Modifier.fillMaxWidth().height(40.dp),
             onClick = { onAdvancedChange(!showAdvanced) },
         ) {
             Row(
@@ -177,9 +177,9 @@ internal fun TableEditorStylePanel(
                             })
                         },
                         shape = SegmentedButtonDefaults.itemShape(index, 3),
-                        modifier = Modifier.heightIn(min = 48.dp),
+                        modifier = Modifier.height(36.dp),
                         colors = choiceColors,
-                    ) { Text(label, style = DDZTypography.ButtonText) }
+                    ) { Text(label, style = DDZTypography.Caption) }
                 }
             }
         }

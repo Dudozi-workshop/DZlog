@@ -15,6 +15,75 @@ import org.junit.Test
 class TableEditorV2SessionStateTest {
 
     @Test
+    fun confirmed_populated_merge_updates_preview_save_and_undo_restores_values() {
+        val blank = newBlankTableTemplateState(2, 2)
+        val initial = blank.copy(cells = blank.cells.map {
+            it.copy(rawText = "${it.rowIndex},${it.colIndex}")
+        })
+        val selection = selectMockLayoutRange(initial, initial.cells.first().cellId, initial.cells.last().cellId)
+        val decision = TableEditorV2StructureController.resolveMergeDecision(initial, selection)
+        assertEquals(com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType.CONFIRM_MERGE, decision.type)
+        val session = TableEditorV2SessionState(initial, TableStyleState(), true, true)
+        session.commitTemplateChange(TableEditorV2StructureController.applyMergeDecision(session.draftTemplateState, decision))
+        val visible = mockCellsFromTemplate(session.draftTemplateState).filterNot { it.isCovered }
+        assertEquals(1, visible.size)
+        assertEquals("0,0", visible.single().value)
+        assertEquals(2, visible.single().rowSpan)
+        assertEquals(2, visible.single().colSpan)
+        assertEquals(2, session.finalTemplateForSave().cells.first().colSpan)
+        assertTrue(session.isDirty)
+        assertTrue(session.undo())
+        assertEquals(initial, session.draftTemplateState)
+        assertFalse(session.isDirty)
+    }
+
+    @Test
+    fun complete_existing_merge_can_be_extended_after_confirmation() {
+        val blank = newBlankTableTemplateState(2, 2)
+        val populated = blank.copy(cells = blank.cells.map { it.copy(rawText = "value") })
+        val topRow = selectMockLayoutRange(populated, populated.cells[0].cellId, populated.cells[1].cellId)
+        val mergedRow = TableEditorV2StructureController.applyMergeDecision(populated,
+            TableEditorV2StructureController.resolveMergeDecision(populated, topRow))
+        val whole = selectMockLayoutRange(mergedRow, mergedRow.cells.first().cellId, mergedRow.cells.last().cellId)
+        val decision = TableEditorV2StructureController.resolveMergeDecision(mergedRow, whole)
+        assertEquals(com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType.CONFIRM_MERGE, decision.type)
+        val merged = TableEditorV2StructureController.applyMergeDecision(mergedRow, decision)
+        assertEquals(1, mockCellsFromTemplate(merged).count { !it.isCovered })
+        assertEquals(2, merged.cells.first().rowSpan)
+        assertEquals(2, merged.cells.first().colSpan)
+    }
+
+    @Test
+    fun a_populated_non_anchor_cell_requires_confirmation_even_if_anchor_is_blank() {
+        val blank = newBlankTableTemplateState(1, 2)
+        val initial = blank.copy(cells = blank.cells.mapIndexed { index, cell ->
+            cell.copy(rawText = if (index == 1) "discarded" else "")
+        })
+        val selection = selectMockLayoutRange(initial, initial.cells.first().cellId, initial.cells.last().cellId)
+        assertEquals(com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType.CONFIRM_MERGE,
+            TableEditorV2StructureController.resolveMergeDecision(initial, selection).type)
+    }
+
+    @Test
+    fun boundary_drag_accumulates_keeps_total_and_undoes_as_one_action() {
+        val initial = newBlankTableTemplateState(2, 2)
+        val session = TableEditorV2SessionState(initial, TableStyleState(), true, true)
+        session.beginContinuousTemplateChange()
+        repeat(5) {
+            session.replaceTemplateDraftWithoutHistory(adjustMockColumnBoundary(session.draftTemplateState, 0, 0.02f))
+            session.replaceTemplateDraftWithoutHistory(adjustMockRowBoundary(session.draftTemplateState, 0, -0.02f))
+        }
+        assertEquals(1.2f, session.draftTemplateState.colWeights!![0], 0.0001f)
+        assertEquals(0.8f, session.draftTemplateState.rowWeights!![0], 0.0001f)
+        assertEquals(2f, session.draftTemplateState.colWeights!!.sum(), 0.0001f)
+        assertEquals(session.draftTemplateState.colWeights, session.finalTemplateForSave().colWeights)
+        assertTrue(session.isDirty)
+        assertTrue(session.undo())
+        assertEquals(initial, session.draftTemplateState)
+        assertFalse(session.canUndo)
+    }
+
+    @Test
     fun commit_undo_and_save_baseline_are_owned_by_session() {
         val initial = newBlankTableTemplateState(rows = 1, cols = 1)
         val session = TableEditorV2SessionState(

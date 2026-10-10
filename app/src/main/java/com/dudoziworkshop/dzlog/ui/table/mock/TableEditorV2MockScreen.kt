@@ -8,6 +8,9 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.heightIn
@@ -16,7 +19,6 @@ import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.ui.common.DDZCard
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -58,6 +60,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -107,7 +110,7 @@ internal data class TableEditorCellUiModel(
     val previewValue: String? = null,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TableEditorV2Screen(
     templateState: TableTemplateState,
@@ -171,6 +174,8 @@ fun TableEditorV2Screen(
     val saveCoordinator = remember { TableEditorV2SaveCoordinator() }
     val saveScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val imeVisible = WindowInsets.isImeVisible
 
     val counterController = rememberTableEditorCounterOrchestrator(context, session, showSaveRules)
     val preview = tableEditorPreview(context, session)
@@ -187,6 +192,10 @@ fun TableEditorV2Screen(
     }
 
     fun requestBack() {
+        if (imeVisible) {
+            keyboard?.hide()
+            return
+        }
         when (resolveTableEditorBackAction(
             isSaving = saveCoordinator.isSaving,
             hasDetail = saveDetail != null,
@@ -215,6 +224,7 @@ fun TableEditorV2Screen(
 
 
     Scaffold(
+        modifier = Modifier.imePadding(),
         containerColor = DDZColor.Background,
         topBar = {
             DDZTopBar(
@@ -258,7 +268,7 @@ fun TableEditorV2Screen(
             )
         },
         bottomBar = {
-            Column(Modifier.imePadding()) {
+            if (!imeVisible) Column {
                 MockBottomBar(
                     active = activeTab,
                     onContent = {
@@ -315,29 +325,11 @@ fun TableEditorV2Screen(
                     contentPadding = PaddingValues(12.dp),
                 ) {
                     Column(Modifier.fillMaxSize()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text("현재 템플릿", color = DDZColor.TextMuted, fontSize = 11.sp)
-                                Text(
-                                    templateName,
-                                    color = DDZColor.TextPrimary,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                            DDZButton(
-                                text = "교체",
-                                style = DDZButtonStyle.Secondary,
-                                minHeight = 48.dp,
-                                enabled = !saveCoordinator.isSaving && templates.any { it.id != templateId },
-                                onClick = { showTemplatePicker = true },
-                            )
-                        }
+                        TableEditorTemplateSelector(
+                            name = templateName,
+                            enabled = !saveCoordinator.isSaving && templates.any { it.id != templateId },
+                            onClick = { showTemplatePicker = true },
+                        )
                         MockTableCanvas(
                             cells = cells,
                             rows = rows,
@@ -367,7 +359,7 @@ fun TableEditorV2Screen(
                             onRowBoundaryDrag = { boundaryIndex, deltaFraction ->
                                 session.replaceTemplateDraftWithoutHistory(
                                     adjustMockRowBoundary(
-                                        templateState = draftTemplateState,
+                                        templateState = session.draftTemplateState,
                                         boundaryIndex = boundaryIndex,
                                         deltaFraction = deltaFraction,
                                     )
@@ -376,7 +368,7 @@ fun TableEditorV2Screen(
                             onColBoundaryDrag = { boundaryIndex, deltaFraction ->
                                 session.replaceTemplateDraftWithoutHistory(
                                     adjustMockColumnBoundary(
-                                        templateState = draftTemplateState,
+                                        templateState = session.draftTemplateState,
                                         boundaryIndex = boundaryIndex,
                                         deltaFraction = deltaFraction,
                                     )
@@ -652,7 +644,7 @@ fun TableEditorV2Screen(
             onDismiss = { pendingMergeDecision = null },
             onConfirm = {
                 pendingMergeDecision?.let { decision ->
-                    val updated = TableEditorV2StructureController.applyMergeDecision(draftTemplateState, decision)
+                    val updated = TableEditorV2StructureController.applyMergeDecision(session.draftTemplateState, decision)
                     session.commitTemplateChange(updated)
                     selectionState.normalizeLayoutSelection(
                         templateState = updated,

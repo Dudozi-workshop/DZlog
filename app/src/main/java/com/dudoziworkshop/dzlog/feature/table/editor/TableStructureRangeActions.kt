@@ -48,11 +48,13 @@ object TableStructureRangeActions {
             return TableMergeDecision(TableMergeDecisionType.NONE)
         }
 
-        val populatedCount = templateState.cells.count { cell ->
-            range.contains(cell.rowIndex, cell.colIndex) && cell.cellId in populatedCellIds
+        // Even one populated non-anchor cell loses content when the top-left is blank.
+        val losesContent = selectedRoots.any { cell ->
+            cell.cellId in populatedCellIds &&
+                (cell.rowIndex != range.minRow || cell.colIndex != range.minCol)
         }
         return TableMergeDecision(
-            type = if (populatedCount > 1) {
+            type = if (losesContent) {
                 TableMergeDecisionType.CONFIRM_MERGE
             } else {
                 TableMergeDecisionType.MERGE
@@ -255,7 +257,12 @@ object TableStructureRangeActions {
         val expectedCount = range.rowCount * range.colCount
         val inRange = cells.filter { range.contains(it.rowIndex, it.colIndex) }
         if (inRange.size != expectedCount) return false
-        return inRange.none { isCoveredCell(resolution, it.rowIndex, it.colIndex) }
+        // Complete merged blocks may participate in a larger rectangular merge.
+        // A partially selected block was already rejected by expandRangeToMergedBlocks.
+        return resolution.rootCoverages.filter { rangesIntersect(it.range, range) }.all {
+            range.contains(it.range.minRow, it.range.minCol) &&
+                range.contains(it.range.maxRow, it.range.maxCol)
+        }
     }
 
     private fun isCoveredCell(resolution: StructureResolution, row: Int, col: Int): Boolean =
