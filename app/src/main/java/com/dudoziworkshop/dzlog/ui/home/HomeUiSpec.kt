@@ -52,12 +52,13 @@ internal object HomeUiSpec {
 
 internal object HomeAmbientSpec {
     // Match approved B silhouette on the current C-1 home layout.
-    val CanvasWidth = 300.dp
-    val CanvasHeight = 252.dp
-    const val VisibleShadowWidthFraction = 0.28f
-    const val VisibleShadowHeightFraction = 0.30f
-    val CanvasOffsetY = (-15).dp
-    val BlurRadius = 3.dp
+    // Approved image on a full-screen viewport; the source PNG is never cropped.
+    const val ShadowImageWidthFraction = 0.87f
+    const val ShadowHeightToWidthRatio = 640f / 480f
+    const val ShadowRightOffsetFraction = 0.05f
+    const val ShadowTopOffsetFraction = -0.025f
+    const val ShadowOpacity = 0.90f
+    val BlurRadius = 1.5.dp
 
     val GlowOffsetX = 45.dp
     val GlowOffsetY = (-35).dp
@@ -67,9 +68,9 @@ internal object HomeAmbientSpec {
     const val GlowAlpha = 0.035f
 
     // Preserve the original slow C-Lite sway, now applied to the entire botanical silhouette.
-    const val BranchLegMillis = 7_000
+    const val BranchLegMillis = 6_000
     const val SunlightLegMillis = 10_000
-    val BranchTravelX = 5.dp
+    val BranchTravelX = 6.dp
     val BranchTravelY = 1.5.dp
-    const val BranchRotation = 0.75f
+    const val BranchRotation = 0.85f
 }
