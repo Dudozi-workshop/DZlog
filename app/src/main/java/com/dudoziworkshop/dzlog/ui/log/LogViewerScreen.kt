@@ -39,6 +39,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -54,6 +56,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -112,6 +115,7 @@ fun LogViewerScreen(
     val pagerState = rememberPagerState(initialPage = safeStart, pageCount = { items.size })
 
     var uiVisible by remember { mutableStateOf(true) }
+    var filmstripExpanded by remember { mutableStateOf(false) }
     var infoSheetItem by remember { mutableStateOf<MediaImageItem?>(null) }
     var isCurrentImageZoomed by remember { mutableStateOf(false) }
 
@@ -130,7 +134,12 @@ fun LogViewerScreen(
         if (pagerState.currentPage !in items.indices) return@LaunchedEffect
         // 정책: 현재 페이지가 바뀌면 새 이미지는 1x 초기 상태이므로 pager 잠금 상태를 해제한다.
         isCurrentImageZoomed = false
-        filmstripListState.animateScrollToItem(pagerState.currentPage)
+    }
+
+    LaunchedEffect(filmstripExpanded, uiVisible, pagerState.currentPage, items.size) {
+        if (filmstripExpanded && uiVisible && pagerState.currentPage in items.indices) {
+            filmstripListState.scrollToItem(pagerState.currentPage)
+        }
     }
 
     Box(
@@ -253,18 +262,33 @@ fun LogViewerScreen(
                         }
                     )
 
-                    ThumbnailFilmstrip(
-                        items = items,
-                        currentPage = pagerState.currentPage,
-                        favoriteIds = favoriteIds,
-                        listState = filmstripListState,
-                        onThumbnailClick = { index ->
-                            if (deleteItem == null) scope.launch {
-                                pagerState.animateScrollToPage(index)
-                                filmstripListState.animateScrollToItem(index)
+                    TextButton(
+                        onClick = { filmstripExpanded = !filmstripExpanded },
+                        enabled = deleteItem == null && items.isNotEmpty(),
+                    ) {
+                        Icon(
+                            imageVector = if (filmstripExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                            contentDescription = null,
+                            tint = Color.White,
+                        )
+                        Text(
+                            text = if (filmstripExpanded) "사진 목록 접기" else "사진 목록 펼치기",
+                            color = Color.White,
+                        )
+                    }
+                    if (filmstripExpanded) {
+                        ThumbnailFilmstrip(
+                            items = items,
+                            currentPage = pagerState.currentPage,
+                            favoriteIds = favoriteIds,
+                            listState = filmstripListState,
+                            onThumbnailClick = { index ->
+                                if (deleteItem == null && index in items.indices) scope.launch {
+                                    pagerState.animateScrollToPage(index)
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
