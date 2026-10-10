@@ -532,7 +532,7 @@ fun TableEditorV2Screen(
                                     )
                                 },
                                 onClose = {
-                                    keyboardController?.hide()
+                                    keyboard?.hide()
                                     selectionState.clearEditSelection()
                                 },
                                 compactInput = imeVisible,
