@@ -48,64 +48,24 @@ internal object HomeUiSpec {
 }
 
 internal object HomeAmbientSpec {
-    val CanvasWidth = 250.dp
-    val CanvasHeight = 210.dp
-    val CanvasOffsetX = 28.dp
-    val CanvasOffsetY = (-18).dp
-    val BlurRadius = 14.dp
+    // Match approved B silhouette on the current C-1 home layout.
+    val CanvasWidth = 300.dp
+    val CanvasHeight = 252.dp
+    val CanvasOffsetX = 12.dp
+    val CanvasOffsetY = (-15).dp
+    val BlurRadius = 3.dp
 
-    val StemX = 148.dp
-    val StemY = 0.dp
-    val StemWidth = 12.dp
-    val StemHeight = 182.dp
-    const val StemRotation = 20f
-
-    val Leaf1X = 84.dp
-    val Leaf1Y = 22.dp
-    val Leaf1Width = 92.dp
-    val Leaf1Height = 34.dp
-    const val Leaf1Rotation = -24f
-
-    val Leaf2X = 143.dp
-    val Leaf2Y = 56.dp
-    val Leaf2Width = 98.dp
-    val Leaf2Height = 36.dp
-    const val Leaf2Rotation = 24f
-
-    val Leaf3X = 63.dp
-    val Leaf3Y = 91.dp
-    val Leaf3Width = 102.dp
-    val Leaf3Height = 38.dp
-    const val Leaf3Rotation = -18f
-
-    val Leaf4X = 127.dp
-    val Leaf4Y = 128.dp
-    val Leaf4Width = 92.dp
-    val Leaf4Height = 34.dp
-    const val Leaf4Rotation = 18f
-
-    // Soft sunlight enters from outside the upper-right edge.
     val GlowOffsetX = 45.dp
     val GlowOffsetY = (-35).dp
     val GlowWidth = 255.dp
     val GlowHeight = 220.dp
     val GlowBlurRadius = 28.dp
+    const val GlowAlpha = 0.035f
 
-    // C-Lite Motion v2: independent leaf cycles prevent mechanical synchrony.
-    // Animation durations refer to a ONE-WAY leg (RepeatMode.Reverse).
+    // Preserve the original slow C-Lite sway, now applied to the entire botanical silhouette.
     const val BranchLegMillis = 7_000
-    const val Leaf1LegMillis = 4_500
-    const val Leaf2LegMillis = 5_800
-    const val Leaf3LegMillis = 6_500
-    const val Leaf4LegMillis = 5_100
     const val SunlightLegMillis = 10_000
     val BranchTravelX = 5.dp
     val BranchTravelY = 1.5.dp
     const val BranchRotation = 0.75f
-    const val LeafRotation = 1.8f
-
-    // Real-device visibility correction after QA: retain a soft edge while making leaf silhouettes legible.
-    const val ShadowAlpha = 0.22f
-    const val StemAlpha = 0.11f
-    const val GlowAlpha = 0.035f
 }
