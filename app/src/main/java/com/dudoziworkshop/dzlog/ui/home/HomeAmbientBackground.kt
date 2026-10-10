@@ -71,33 +71,7 @@ internal fun HomeAmbientBackground(
             ),
     ) {
         BoxWithConstraints(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .fillMaxSize()
-                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                .drawWithContent {
-                    drawContent()
-                    // An anchored botanical shadow fades before reaching the *inner*
-                    // (left and bottom) boundaries. This mask stays fixed while the
-                    // image sways, so its moving edge never hits a visible hard crop.
-                    drawRect(
-                        brush = Brush.horizontalGradient(
-                            0f to Color.Transparent,
-                            0.55f to Color.White,
-                            1f to Color.White,
-                        ),
-                        blendMode = BlendMode.DstIn,
-                    )
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            0f to Color.White,
-                            0.57f to Color.White,
-                            1f to Color.Transparent,
-                        ),
-                        blendMode = BlendMode.DstIn,
-                    )
-                }
-                .clipToBounds(),
+            modifier = Modifier.fillMaxSize(),
         ) {
             val viewportWidth = maxWidth * HomeAmbientSpec.VisibleShadowWidthFraction
             val viewportHeight = maxHeight * HomeAmbientSpec.VisibleShadowHeightFraction
@@ -105,6 +79,28 @@ internal fun HomeAmbientBackground(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .size(viewportWidth, viewportHeight)
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        // Fade in from the left inner edge and out at the bottom.
+                        // Both masks are stationary while the image moves behind them.
+                        drawRect(
+                            brush = Brush.horizontalGradient(
+                                0f to Color.Transparent,
+                                0.55f to Color.White,
+                                1f to Color.White,
+                            ),
+                            blendMode = BlendMode.DstIn,
+                        )
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                0f to Color.White,
+                                0.57f to Color.White,
+                                1f to Color.Transparent,
+                            ),
+                            blendMode = BlendMode.DstIn,
+                        )
+                    }
                     .clipToBounds(),
             ) {
                 val imageWidth = viewportWidth * HomeAmbientSpec.ImageToViewportWidthRatio
