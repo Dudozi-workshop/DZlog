@@ -114,12 +114,13 @@ fun LogViewerScreen(
     var originalPreview by remember { mutableStateOf<MediaImageItem?>(null) }
     var originalLoading by remember { mutableStateOf(false) }
     var originalError by remember { mutableStateOf<String?>(null) }
+    var moveItem by remember { mutableStateOf<MediaImageItem?>(null) }
     var deleteItem by remember { mutableStateOf<MediaImageItem?>(null) }
     var pendingViewerIndex by remember { mutableStateOf<Int?>(null) }
-    var emptyAfterDelete by remember { mutableStateOf(false) }
-    val operationLocked = deleteItem != null || originalLoading
+    var emptyAfterOperation by remember { mutableStateOf(false) }
+    val operationLocked = deleteItem != null || moveItem != null || originalLoading
     BackHandler(enabled = originalPreview != null && !operationLocked) { originalPreview = null }
-    BackHandler(enabled = operationLocked) { /* The deletion dialog owns dismissal. */ }
+    BackHandler(enabled = operationLocked) { /* The active operation owns dismissal. */ }
 
     val safeStart = startIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
     val pagerState = rememberPagerState(initialPage = safeStart, pageCount = { items.size })
@@ -261,6 +262,12 @@ fun LogViewerScreen(
                 showingOriginal = originalPreview != null || currentItem?.let { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) } == true,
                 originalActionLabel = if (originalPreview != null) "결과사진으로 돌아가기" else "원본 보기",
                 onOriginal = if (originalPreview != null || resultItem?.let { !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) } == true) ::showOriginal else null,
+                onMove = {
+                    if (!operationLocked && currentItem != null) {
+                        emptyAfterOperation = false
+                        moveItem = currentItem
+                    }
+                },
                 onInfo = {
                     if (!operationLocked && currentItem != null) infoSheetItem = currentItem
                 }
@@ -315,7 +322,7 @@ fun LogViewerScreen(
                         },
                         onDelete = {
                             if (!operationLocked && currentItem != null) {
-                                emptyAfterDelete = false
+                                emptyAfterOperation = false
                                 deleteItem = currentItem
                             }
                         }
@@ -363,13 +370,33 @@ fun LogViewerScreen(
                 if (items.any { it.id in deletedIds }) {
                     val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, deletedIds)
                     pendingViewerIndex = update.currentIndex
-                    emptyAfterDelete = update.ids.isEmpty()
+                    emptyAfterOperation = update.ids.isEmpty()
                     onItemsReloaded(items.filter { it.id !in deletedIds })
                 }
             },
             onClose = {
                 deleteItem = null
-                if (emptyAfterDelete) onRequestCloseViewer()
+                if (emptyAfterOperation) onRequestCloseViewer()
+            },
+        )
+    }
+
+    moveItem?.let { requested ->
+        GalleryViewerMoveDialog(
+            item = requested,
+            reader = reader,
+            onVerified = { movedIds ->
+                if (originalPreview?.id in movedIds || resultItem?.id in movedIds) originalPreview = null
+                if (items.any { it.id in movedIds }) {
+                    val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, movedIds)
+                    pendingViewerIndex = update.currentIndex
+                    emptyAfterOperation = update.ids.isEmpty()
+                    onItemsReloaded(items.filter { it.id !in movedIds })
+                }
+            },
+            onClose = {
+                moveItem = null
+                if (emptyAfterOperation) onRequestCloseViewer()
             },
         )
     }
@@ -407,6 +434,7 @@ private fun ViewerTopOverlay(
     showingOriginal: Boolean,
     originalActionLabel: String,
     onOriginal: (() -> Unit)?,
+    onMove: () -> Unit,
     onInfo: () -> Unit,
 ) {
     var menuExpanded by remember(current?.id, enabled) { mutableStateOf(false) }
@@ -453,6 +481,13 @@ private fun ViewerTopOverlay(
                     onClick = {
                         menuExpanded = false
                         if (enabled) onOriginal()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("다른 폴더로 이동") },
+                    onClick = {
+                        menuExpanded = false
+                        if (enabled && current != null) onMove()
                     },
                 )
                 DropdownMenuItem(
