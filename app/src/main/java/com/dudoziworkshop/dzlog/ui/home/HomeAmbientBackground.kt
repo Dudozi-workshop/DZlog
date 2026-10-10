@@ -71,6 +71,13 @@ internal fun HomeAmbientBackground(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
+                .homeShadowBoundaryMask(
+                    origin = HomeShadowOrigin.TopEnd,
+                    leftFadeStart = HomeAmbientSpec.LeftFadeStart,
+                    leftFadeEnd = HomeAmbientSpec.LeftFadeEnd,
+                    farFadeStart = HomeAmbientSpec.FarFadeStart,
+                    farFadeEnd = HomeAmbientSpec.FarFadeEnd,
+                )
                 .clipToBounds(),
         ) {
             // Place the complete image behind the screen-sized viewing window.
