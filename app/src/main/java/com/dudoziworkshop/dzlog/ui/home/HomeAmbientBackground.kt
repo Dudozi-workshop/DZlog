@@ -66,6 +66,8 @@ internal fun HomeAmbientBackground(
         val windowHeight = maxHeight * HomeAmbientSpec.ViewportHeightFraction
         val imageWidth = maxWidth * HomeAmbientSpec.ImageWidthFraction
         val imageHeight = imageWidth * HomeAmbientSpec.ImageHeightToWidthRatio
+        val imageRightOffset = maxWidth * HomeAmbientSpec.ImageRightOffsetFraction
+        val imageTopOffset = maxHeight * HomeAmbientSpec.ImageTopOffsetFraction
 
         // The motion envelope is proportional to the visible window, not device pixels.
         val safeAmplitudeX = minOf(
