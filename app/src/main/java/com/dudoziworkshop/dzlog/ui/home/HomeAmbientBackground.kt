@@ -20,11 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -79,28 +75,13 @@ internal fun HomeAmbientBackground(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .size(viewportWidth, viewportHeight)
-                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                    .drawWithContent {
-                        drawContent()
-                        // Fade in from the left inner edge and out at the bottom.
-                        // Both masks are stationary while the image moves behind them.
-                        drawRect(
-                            brush = Brush.horizontalGradient(
-                                0f to Color.Transparent,
-                                0.55f to Color.White,
-                                1f to Color.White,
-                            ),
-                            blendMode = BlendMode.DstIn,
-                        )
-                        drawRect(
-                            brush = Brush.verticalGradient(
-                                0f to Color.White,
-                                0.57f to Color.White,
-                                1f to Color.Transparent,
-                            ),
-                            blendMode = BlendMode.DstIn,
-                        )
-                    }
+                    .homeShadowBoundaryMask(
+                        origin = HomeShadowOrigin.TopEnd,
+                        leftFadeStart = HomeAmbientSpec.LeftFadeStart,
+                        leftFadeEnd = HomeAmbientSpec.LeftFadeEnd,
+                        farFadeStart = HomeAmbientSpec.FarFadeStart,
+                        farFadeEnd = HomeAmbientSpec.FarFadeEnd,
+                    )
                     .clipToBounds(),
             ) {
                 val imageWidth = viewportWidth * HomeAmbientSpec.ImageToViewportWidthRatio
