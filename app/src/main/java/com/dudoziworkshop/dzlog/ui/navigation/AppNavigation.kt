@@ -705,12 +705,12 @@ fun AppRoot() {
                     },
                     onOpenFolder = { folder -> albumFolderPath = folder },
                     onOpenPhoto = { photos, index ->
-                        val relativePath = albumFolderPath
+                        val relativePath = photos.getOrNull(index)?.relativePath ?: albumFolderPath
                         albumLocation = AlbumLocation(
                             g1 = "",
                             g2Label = "",
                             relativePath = relativePath,
-                            originalLinkPath = relativePath + "original/",
+                            originalLinkPath = if (isOriginalRelativePath(relativePath)) null else relativePath + "original/",
                         )
                         gridItems = photos
                         viewerStartIndex = index
@@ -720,18 +720,9 @@ fun AppRoot() {
                         screen = AppScreen.ALBUM_VIEWER
                     },
                     onOpenOriginal = { originalPath ->
-                        albumLocation = AlbumLocation(
-                            g1 = "",
-                            g2Label = ORIGINAL_PHOTOS_TITLE,
-                            relativePath = originalPath,
-                            originalLinkPath = null,
-                        )
                         clearOriginalContext()
                         resetGridUiState()
-                        albumGridEntryScreen = AppScreen.ALBUM_FOLDER
-                        gridEntrySource = GridEntrySource.NORMAL
-                        viewerEntrySource = ViewerEntrySource.GRID
-                        screen = AppScreen.ALBUM_GRID
+                        albumFolderPath = originalPath
                     },
                 )
             }

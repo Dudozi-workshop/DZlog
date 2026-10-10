@@ -34,6 +34,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Delete
@@ -112,8 +114,15 @@ fun LogFolderScreen(
     }
     var photos by remember(relativePath) { mutableStateOf(cached?.directPhotos ?: emptyList()) }
     var photoSort by rememberSaveable(relativePath) { mutableStateOf(GalleryPhotoSort.NEWEST) }
+    var favoriteOnly by rememberSaveable(relativePath) { mutableStateOf(false) }
     var showPhotoSort by remember(relativePath) { mutableStateOf(false) }
-    val sortedPhotos = remember(photos, photoSort) { photoSort.sorted(photos) }
+    val visiblePhotos = remember(photos, favoriteOnly, favoriteIds) {
+        if (favoriteOnly) photos.filter { it.id in favoriteIds } else photos
+    }
+    val sortedPhotos = remember(visiblePhotos, photoSort) { photoSort.sorted(visiblePhotos) }
+    val originalGrid = GalleryPhotoMovePolicy.isOriginalPath(relativePath)
+    val displayFolderPath = if (originalGrid) GalleryFolderIndexPolicy.parentOf(relativePath)
+        ?: GalleryFolderIndexPolicy.ROOT else relativePath
     var error by remember(relativePath) { mutableStateOf<String?>(null) }
     var loading by remember(relativePath) { mutableStateOf(cached == null) }
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -393,7 +402,7 @@ fun LogFolderScreen(
         allPhotos.filterNot { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }
     }
     val selectablePhotos = when {
-        !root -> photos
+        !root -> visiblePhotos
         showRecentPhotos -> recentPhotos
         selectedTab == GalleryTab.ALL -> recentPhotos.take(9)
         selectedTab == GalleryTab.FOLDERS -> photos
@@ -410,9 +419,8 @@ fun LogFolderScreen(
         if (!photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null) cancelSelection()
     }
     BackHandler(enabled = operationLocked && !photoDeleteLoading) { /* Preserve the active operation and its callbacks. */ }
-    val title = if (showRecentPhotos) "최근 촬영" else if (root) "갤러리"
-        else relativePath.trimEnd('/').substringAfterLast('/')
-    val currentSummary = summariesByPath[relativePath]
+    val title = if (showRecentPhotos) "최근 촬영" else if (displayFolderPath == GalleryFolderIndexPolicy.ROOT) "갤러리"
+        else displayFolderPath.trimEnd('/').substringAfterLast('/')
     val imagesById = remember(allPhotos) { allPhotos.associateBy { it.id.toString() } }
     Column(modifier = Modifier.dzScreen().padding(horizontal = 16.dp)) {
         if (selectionActive) {
@@ -435,6 +443,17 @@ fun LogFolderScreen(
                 }
                 Text(title, modifier = Modifier.weight(1f), color = DDZColor.TextPrimary,
                     style = DDZTypography.ScreenTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (originalGrid) {
+                    Text("원본", style = DDZTypography.Caption, color = DDZColor.Primary,
+                        modifier = Modifier.background(DDZColor.SageLight, RoundedCornerShape(10.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp))
+                }
+                if (!root) IconButton(enabled = !navigationLocked,
+                    onClick = { favoriteOnly = !favoriteOnly }) {
+                    Icon(if (favoriteOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = if (favoriteOnly) "전체 사진 보기" else "즐겨찾기만 보기",
+                        tint = DDZColor.Primary)
+                }
             }
         }
         if (!root) {
@@ -444,11 +463,11 @@ fun LogFolderScreen(
                     .padding(bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                GalleryFolderIndexPolicy.breadcrumbs(relativePath).forEachIndexed { i, crumb ->
+                GalleryFolderIndexPolicy.breadcrumbs(displayFolderPath).forEachIndexed { i, crumb ->
                     if (i > 0) Text(" / ", color = DDZColor.TextSecondary)
                     Text(
                         text = crumb.label,
-                        color = if (crumb.relativePath == relativePath) DDZColor.TextPrimary
+                        color = if (crumb.relativePath == displayFolderPath) DDZColor.TextPrimary
                             else DDZColor.Primary,
                         modifier = Modifier.clickable(enabled = !selectionActive && !navigationLocked) {
                             if (crumb.relativePath != relativePath) onOpenFolder(crumb.relativePath)
@@ -457,7 +476,7 @@ fun LogFolderScreen(
                 }
             }
         }
-        if (!root && connected) {
+        if (!root && !originalGrid && connected) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(enabled = !navigationLocked && !selectionActive,
                     onClick = { startFolderManagement(relativePath, "rename") }) { Text("이름 변경") }
@@ -538,7 +557,7 @@ fun LogFolderScreen(
             } else {
                 val current = index
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    item {
+                    if (!originalGrid) item {
                         GallerySectionTitle("하위 폴더", createEnabled = !selectionActive && !navigationLocked,
                             onCreateFolder = { folderOperationError = null; showCreateDialog = true })
                     }
@@ -553,13 +572,14 @@ fun LogFolderScreen(
                             }
                         }
                     }
-                    if (photos.isNotEmpty()) item {
+                    if (visiblePhotos.isNotEmpty()) item {
                         Row(Modifier.fillMaxWidth().padding(top = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("사진 ${currentSummary?.directPhotoCount ?: photos.size}장", fontWeight = FontWeight.SemiBold)
+                            Text("${if (originalGrid) "원본사진" else "사진"} ${visiblePhotos.size}장",
+                                modifier = Modifier.weight(1f), style = DDZTypography.SectionTitle)
                             Box {
-                                TextButton(onClick = { showPhotoSort = true }, enabled = photos.isNotEmpty()) {
+                                TextButton(onClick = { showPhotoSort = true }, enabled = !navigationLocked && !selectionActive) {
                                     Text(photoSort.label)
                                     Icon(Icons.Default.ArrowDropDown, contentDescription = "사진 정렬")
                                 }
@@ -572,9 +592,13 @@ fun LogFolderScreen(
                                     }
                                 }
                             }
+                            TextButton(enabled = !navigationLocked && !selectionActive && sortedPhotos.isNotEmpty(),
+                                onClick = { selectionActive = true }) { Text("선택") }
                         }
                     }
-                    if (photos.isNotEmpty()) {
+                    if (favoriteOnly && photos.isNotEmpty() && visiblePhotos.isEmpty()) {
+                        item { GalleryEmptyText("즐겨찾기한 사진이 없습니다.") }
+                    } else if (visiblePhotos.isNotEmpty()) {
                         items(sortedPhotos.chunked(3)) { rowPhotos ->
                             GalleryPhotoRow(rowPhotos, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
                                 if (!navigationLocked) onOpenPhoto(sortedPhotos, sortedPhotos.indexOfFirst { it.id == photo.id })
