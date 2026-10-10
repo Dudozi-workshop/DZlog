@@ -60,6 +60,8 @@ internal fun HomeAmbientBackground(
     ) {
         // Both the viewing window and the image use viewport-relative geometry.
         // The drawable is never permanently cropped.
+        val screenWidth = maxWidth
+        val screenHeight = maxHeight
         val windowWidth = maxWidth * HomeAmbientSpec.ViewportWidthFraction
         val windowHeight = maxHeight * HomeAmbientSpec.ViewportHeightFraction
         val imageWidth = maxWidth * HomeAmbientSpec.ImageWidthFraction
@@ -104,8 +106,8 @@ internal fun HomeAmbientBackground(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .offset(
-                        x = maxWidth * HomeAmbientSpec.ImageRightOffsetFraction,
-                        y = maxHeight * HomeAmbientSpec.ImageTopOffsetFraction,
+                        x = screenWidth * HomeAmbientSpec.ImageRightOffsetFraction,
+                        y = screenHeight * HomeAmbientSpec.ImageTopOffsetFraction,
                     )
                     .size(width = imageWidth, height = imageHeight)
                     .graphicsLayer {
