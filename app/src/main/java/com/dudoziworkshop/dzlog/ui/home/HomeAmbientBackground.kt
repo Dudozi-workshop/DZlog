@@ -1,47 +1,39 @@
 package com.dudoziworkshop.dzlog.ui.home
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import com.dudoziworkshop.dzlog.R
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-
-// An asymmetric leaf silhouette, softened by the parent blur layer.
-private val AmbientLeafShape = GenericShape { size, _ ->
-    val w = size.width
-    val h = size.height
-    moveTo(0f, h * 0.53f)
-    cubicTo(w * 0.24f, -h * 0.12f, w * 0.73f, -h * 0.07f, w, h * 0.43f)
-    cubicTo(w * 0.76f, h * 0.94f, w * 0.27f, h * 1.14f, 0f, h * 0.53f)
-    close()
-}
 
 @Composable
 internal fun HomeAmbientBackground(
     modifier: Modifier = Modifier,
 ) {
-    // Infinite transitions follow the Android animator-duration scale.
-    val motion = rememberInfiniteTransition(label = "Home ambient")
+    // Approved B treatment: original C botanical silhouette, soft edge and reduced opacity
+    // are baked into a tiny transparent PNG; do not reconstruct leaves from Compose shapes.
+    val motion = rememberInfiniteTransition(label = "Home botanical light")
     @Composable
     fun drift(duration: Int, amplitude: Float, label: String): Float {
         val value by motion.animateFloat(
@@ -55,14 +47,11 @@ internal fun HomeAmbientBackground(
         )
         return value
     }
+
     val density = LocalDensity.current
-    val branchX = drift(HomeAmbientSpec.BranchLegMillis, HomeAmbientSpec.BranchTravelX.value, "branch x") * density.density
-    val branchY = drift(HomeAmbientSpec.BranchLegMillis, HomeAmbientSpec.BranchTravelY.value, "branch y") * density.density
-    val branchAngle = drift(HomeAmbientSpec.BranchLegMillis, HomeAmbientSpec.BranchRotation, "branch rotation")
-    val leaf1 = drift(HomeAmbientSpec.Leaf1LegMillis, HomeAmbientSpec.LeafRotation, "leaf 1")
-    val leaf2 = drift(HomeAmbientSpec.Leaf2LegMillis, -HomeAmbientSpec.LeafRotation * 0.75f, "leaf 2")
-    val leaf3 = drift(HomeAmbientSpec.Leaf3LegMillis, HomeAmbientSpec.LeafRotation * 0.85f, "leaf 3")
-    val leaf4 = drift(HomeAmbientSpec.Leaf4LegMillis, -HomeAmbientSpec.LeafRotation, "leaf 4")
+    val swayX = drift(HomeAmbientSpec.BranchLegMillis, HomeAmbientSpec.BranchTravelX.value, "leaf sway x") * density.density
+    val swayY = drift(HomeAmbientSpec.BranchLegMillis, HomeAmbientSpec.BranchTravelY.value, "leaf sway y") * density.density
+    val swayAngle = drift(HomeAmbientSpec.BranchLegMillis, HomeAmbientSpec.BranchRotation, "leaf sway angle")
     val sunlight = drift(HomeAmbientSpec.SunlightLegMillis, 0.06f, "sunlight")
 
     Box(
@@ -70,76 +59,32 @@ internal fun HomeAmbientBackground(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(
-                        DDZColor.Background,
-                        DDZColor.AmbientWarm,
-                        DDZColor.Background,
-                    ),
+                    listOf(DDZColor.Background, DDZColor.AmbientWarm, DDZColor.Background),
                 ),
             ),
     ) {
-        Box(
+        Image(
+            painter = painterResource(R.drawable.home_leaf_shadow_c),
+            contentDescription = null,
+            contentScale = ContentScale.FillBounds,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .offset(x = HomeAmbientSpec.CanvasOffsetX, y = HomeAmbientSpec.CanvasOffsetY)
-                .size(width = HomeAmbientSpec.CanvasWidth, height = HomeAmbientSpec.CanvasHeight)
+                .size(HomeAmbientSpec.CanvasWidth, HomeAmbientSpec.CanvasHeight)
                 .graphicsLayer {
-                    translationX = branchX
-                    translationY = branchY
-                    rotationZ = branchAngle
-                    transformOrigin = TransformOrigin(0.8f, 0f)
+                    translationX = swayX
+                    translationY = swayY
+                    rotationZ = swayAngle
+                    transformOrigin = TransformOrigin(0.85f, 0.0f)
                 }
                 .blur(HomeAmbientSpec.BlurRadius),
-        ) {
-            val shadow = DDZColor.PrimaryDark.copy(alpha = HomeAmbientSpec.ShadowAlpha)
-            val shadowSoft = DDZColor.Primary.copy(alpha = HomeAmbientSpec.StemAlpha)
-
-            Box(
-                modifier = Modifier
-                    .offset(x = HomeAmbientSpec.StemX, y = HomeAmbientSpec.StemY)
-                    .size(width = HomeAmbientSpec.StemWidth, height = HomeAmbientSpec.StemHeight)
-                    .rotate(HomeAmbientSpec.StemRotation)
-                    .background(shadowSoft, RoundedCornerShape(50)),
-            )
-            Box(
-                modifier = Modifier
-                    .offset(x = HomeAmbientSpec.Leaf1X, y = HomeAmbientSpec.Leaf1Y)
-                    .size(width = HomeAmbientSpec.Leaf1Width, height = HomeAmbientSpec.Leaf1Height)
-                    .rotate(HomeAmbientSpec.Leaf1Rotation)
-                    .graphicsLayer { rotationZ = leaf1 }
-                    .background(shadow, AmbientLeafShape),
-            )
-            Box(
-                modifier = Modifier
-                    .offset(x = HomeAmbientSpec.Leaf2X, y = HomeAmbientSpec.Leaf2Y)
-                    .size(width = HomeAmbientSpec.Leaf2Width, height = HomeAmbientSpec.Leaf2Height)
-                    .rotate(HomeAmbientSpec.Leaf2Rotation)
-                    .graphicsLayer { rotationZ = leaf2 }
-                    .background(shadow, AmbientLeafShape),
-            )
-            Box(
-                modifier = Modifier
-                    .offset(x = HomeAmbientSpec.Leaf3X, y = HomeAmbientSpec.Leaf3Y)
-                    .size(width = HomeAmbientSpec.Leaf3Width, height = HomeAmbientSpec.Leaf3Height)
-                    .rotate(HomeAmbientSpec.Leaf3Rotation)
-                    .graphicsLayer { rotationZ = leaf3 }
-                    .background(shadow, AmbientLeafShape),
-            )
-            Box(
-                modifier = Modifier
-                    .offset(x = HomeAmbientSpec.Leaf4X, y = HomeAmbientSpec.Leaf4Y)
-                    .size(width = HomeAmbientSpec.Leaf1Width, height = HomeAmbientSpec.Leaf1Height)
-                    .rotate(HomeAmbientSpec.Leaf4Rotation)
-                    .graphicsLayer { rotationZ = leaf4 }
-                    .background(shadow, AmbientLeafShape),
-            )
-        }
+        )
 
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .offset(x = HomeAmbientSpec.GlowOffsetX, y = HomeAmbientSpec.GlowOffsetY)
-                .size(width = HomeAmbientSpec.GlowWidth, height = HomeAmbientSpec.GlowHeight)
+                .size(HomeAmbientSpec.GlowWidth, HomeAmbientSpec.GlowHeight)
                 .blur(HomeAmbientSpec.GlowBlurRadius)
                 .graphicsLayer { alpha = 0.94f + sunlight }
                 .background(
