@@ -25,7 +25,6 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.painterResource
 import com.dudoziworkshop.dzlog.R
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -34,9 +33,8 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 internal fun HomeAmbientBackground(
     modifier: Modifier = Modifier,
 ) {
-    // Approved B treatment: original C botanical silhouette, soft edge and reduced opacity
-    // are baked into a tiny transparent PNG; do not reconstruct leaves from Compose shapes.
     val motion = rememberInfiniteTransition(label = "Home botanical light")
+
     @Composable
     fun drift(duration: Int, amplitude: Float, label: String): Float {
         val value by motion.animateFloat(
@@ -51,13 +49,7 @@ internal fun HomeAmbientBackground(
         return value
     }
 
-    val density = LocalDensity.current
-    val swayX = drift(HomeAmbientSpec.BranchLegMillis, HomeAmbientSpec.BranchTravelX.value, "leaf sway x") * density.density
-    val swayY = drift(HomeAmbientSpec.BranchLegMillis, HomeAmbientSpec.BranchTravelY.value, "leaf sway y") * density.density
-    val swayAngle = drift(HomeAmbientSpec.BranchLegMillis, HomeAmbientSpec.BranchRotation, "leaf sway angle")
-    val sunlight = drift(HomeAmbientSpec.SunlightLegMillis, 0.06f, "sunlight")
-
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(
@@ -66,51 +58,68 @@ internal fun HomeAmbientBackground(
                 ),
             ),
     ) {
-        BoxWithConstraints(
-            modifier = Modifier.fillMaxSize(),
+        // Both the viewing window and the image use viewport-relative geometry.
+        // The drawable is never permanently cropped.
+        val windowWidth = maxWidth * HomeAmbientSpec.ViewportWidthFraction
+        val windowHeight = maxHeight * HomeAmbientSpec.ViewportHeightFraction
+        val imageWidth = maxWidth * HomeAmbientSpec.ImageWidthFraction
+        val imageHeight = imageWidth * HomeAmbientSpec.ImageHeightToWidthRatio
+
+        // The motion envelope is proportional to the visible window, not device pixels.
+        val safeAmplitudeX = minOf(
+            HomeAmbientSpec.BranchTravelX.value,
+            windowWidth.value * HomeAmbientSpec.MotionSafeXFraction,
+        )
+        val safeAmplitudeY = minOf(
+            HomeAmbientSpec.BranchTravelY.value,
+            windowHeight.value * HomeAmbientSpec.MotionSafeYFraction,
+        )
+        val density = LocalDensity.current.density
+        val swayX = drift(HomeAmbientSpec.BranchLegMillis, safeAmplitudeX, "leaf sway x") * density
+        val swayY = drift(HomeAmbientSpec.BranchLegMillis, safeAmplitudeY, "leaf sway y") * density
+        val swayAngle = drift(
+            HomeAmbientSpec.BranchLegMillis,
+            HomeAmbientSpec.BranchRotation,
+            "leaf sway angle",
+        )
+        val sunlight = drift(HomeAmbientSpec.SunlightLegMillis, 0.06f, "sunlight")
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(width = windowWidth, height = windowHeight)
+                .homeShadowBoundaryMask(
+                    origin = HomeShadowOrigin.TopEnd,
+                    leftFadeStart = HomeAmbientSpec.LeftFadeStart,
+                    leftFadeEnd = HomeAmbientSpec.LeftFadeEnd,
+                    farFadeStart = HomeAmbientSpec.FarFadeStart,
+                    farFadeEnd = HomeAmbientSpec.FarFadeEnd,
+                )
+                .clipToBounds(),
         ) {
-            val viewportWidth = maxWidth * HomeAmbientSpec.VisibleShadowWidthFraction
-            val viewportHeight = maxHeight * HomeAmbientSpec.VisibleShadowHeightFraction
-            Box(
+            Image(
+                painter = painterResource(R.drawable.home_leaf_shadow_c),
+                contentDescription = null,
+                contentScale = ContentScale.FillBounds,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .size(viewportWidth, viewportHeight)
-                    .homeShadowBoundaryMask(
-                        origin = HomeShadowOrigin.TopEnd,
-                        leftFadeStart = HomeAmbientSpec.LeftFadeStart,
-                        leftFadeEnd = HomeAmbientSpec.LeftFadeEnd,
-                        farFadeStart = HomeAmbientSpec.FarFadeStart,
-                        farFadeEnd = HomeAmbientSpec.FarFadeEnd,
+                    .offset(
+                        x = maxWidth * HomeAmbientSpec.ImageRightOffsetFraction,
+                        y = maxHeight * HomeAmbientSpec.ImageTopOffsetFraction,
                     )
-                    .clipToBounds(),
-            ) {
-                val imageWidth = viewportWidth * HomeAmbientSpec.ImageToViewportWidthRatio
-                Image(
-                    painter = painterResource(R.drawable.home_leaf_shadow_c),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(
-                            x = imageWidth * HomeAmbientSpec.ImageOffsetXFraction,
-                            y = viewportHeight * HomeAmbientSpec.ImageOffsetYFraction,
-                        )
-                        .size(
-                            width = imageWidth,
-                            height = imageWidth * HomeAmbientSpec.ShadowHeightToWidthRatio,
-                        )
-                        .graphicsLayer {
-                            translationX = swayX
-                            translationY = swayY
-                            rotationZ = swayAngle
-                            alpha = HomeAmbientSpec.ShadowOpacity
-                            transformOrigin = TransformOrigin(0.85f, 0f)
-                        }
-                        .blur(HomeAmbientSpec.BlurRadius),
-                )
-            }
+                    .size(width = imageWidth, height = imageHeight)
+                    .graphicsLayer {
+                        translationX = swayX
+                        translationY = swayY
+                        rotationZ = swayAngle
+                        alpha = HomeAmbientSpec.ShadowOpacity
+                        transformOrigin = TransformOrigin(0.9f, 0f)
+                    }
+                    .blur(HomeAmbientSpec.BlurRadius),
+            )
         }
 
+        // The surrounding light remains separate from the masked leaf silhouette.
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
