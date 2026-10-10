@@ -70,28 +70,29 @@ internal fun HomeAmbientBackground(
     ) {
         BoxWithConstraints(
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .fillMaxWidth(HomeAmbientSpec.VisibleShadowWidthFraction)
-                .height(androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp *
-                    HomeAmbientSpec.VisibleShadowHeightFraction)
+                .fillMaxSize()
                 .clipToBounds(),
         ) {
-            // Crop by a viewport relative to screen width, not by pushing the whole
-            // asset a hard-coded distance outside the screen.
-            val imageWidth = maxWidth * 2.4f
+            // Place the complete image behind the screen-sized viewing window.
+            // Keep the same relative composition across phone resolutions.
+            val imageWidth = maxWidth * HomeAmbientSpec.ShadowImageWidthFraction
+            val imageHeight = imageWidth * HomeAmbientSpec.ShadowHeightToWidthRatio
             Image(
                 painter = painterResource(R.drawable.home_leaf_shadow_c),
                 contentDescription = null,
-                contentScale = ContentScale.Fit,
+                contentScale = ContentScale.FillBounds,
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .offset(x = -imageWidth * 0.52f, y = HomeAmbientSpec.CanvasOffsetY)
-                    .size(width = imageWidth, height = imageWidth * 0.84f)
+                    .align(Alignment.TopEnd)
+                    .offset(
+                        x = maxWidth * HomeAmbientSpec.ShadowRightOffsetFraction,
+                        y = maxHeight * HomeAmbientSpec.ShadowTopOffsetFraction,
+                    )
+                    .size(width = imageWidth, height = imageHeight)
                     .graphicsLayer {
                         translationX = swayX
                         translationY = swayY
                         rotationZ = swayAngle
-                        scaleX = -1f
+                        alpha = HomeAmbientSpec.ShadowOpacity
                         transformOrigin = TransformOrigin(0.85f, 0f)
                     }
                     .blur(HomeAmbientSpec.BlurRadius),
