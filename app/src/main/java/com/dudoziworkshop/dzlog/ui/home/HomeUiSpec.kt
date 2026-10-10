@@ -57,6 +57,11 @@ internal object HomeAmbientSpec {
     const val ShadowHeightToWidthRatio = 640f / 480f
     const val ShadowRightOffsetFraction = 0.05f
     const val ShadowTopOffsetFraction = -0.025f
+    // Screen-relative mask fades; keep the entire sway inside the fade region.
+    const val LeftFadeStart = 0.56f
+    const val LeftFadeEnd = 0.77f
+    const val FarFadeStart = 0.18f
+    const val FarFadeEnd = 0.33f
     const val ShadowOpacity = 0.90f
     val BlurRadius = 1.5.dp
 
