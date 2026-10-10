@@ -57,8 +57,8 @@ internal fun HomeRecentCaptureSection(
     ) {
         Text(
             text = stringResource(com.dudoziworkshop.dzlog.R.string.home_recent_capture),
-            style = DDZTypography.SectionTitle.copy(fontSize = 15.sp),
-            color = DDZColor.TextPrimary,
+            style = DDZTypography.Caption.copy(fontWeight = FontWeight.Medium),
+            color = DDZColor.TextSecondary,
             modifier = Modifier.weight(1f),
         )
         Text(
