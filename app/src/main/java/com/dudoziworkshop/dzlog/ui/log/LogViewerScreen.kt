@@ -128,9 +128,10 @@ fun LogViewerScreen(
     var uiVisible by remember { mutableStateOf(true) }
     var filmstripExpanded by remember { mutableStateOf(false) }
     var infoSheetItem by remember { mutableStateOf<MediaImageItem?>(null) }
-    var isCurrentImageZoomed by remember { mutableStateOf(false) }
+    var zoomedImageIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
 
     LaunchedEffect(items) {
+        zoomedImageIds = zoomedImageIds.intersect(items.mapTo(mutableSetOf()) { it.id })
         if (items.isNotEmpty()) {
             val target = (pendingViewerIndex ?: pagerState.currentPage).coerceIn(items.indices)
             pagerState.scrollToPage(target)
@@ -171,13 +172,6 @@ fun LogViewerScreen(
         }
     }
 
-    LaunchedEffect(pagerState.currentPage, items.size) {
-        if (items.isEmpty()) return@LaunchedEffect
-        if (pagerState.currentPage !in items.indices) return@LaunchedEffect
-        // 정책: 현재 페이지가 바뀌면 새 이미지는 1x 초기 상태이므로 pager 잠금 상태를 해제한다.
-        isCurrentImageZoomed = false
-    }
-
     LaunchedEffect(filmstripExpanded, uiVisible, pagerState.currentPage, items.size) {
         if (filmstripExpanded && uiVisible && pagerState.currentPage in items.indices) {
             filmstripListState.scrollToItem(pagerState.currentPage)
@@ -193,8 +187,9 @@ fun LogViewerScreen(
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
+                key = { page -> items[page].id },
                 // 정책: 확대 상태에서는 부모 pager 스크롤을 명시적으로 잠근다.
-                userScrollEnabled = !isCurrentImageZoomed && !operationLocked && originalPreview == null
+                userScrollEnabled = resultItem?.id !in zoomedImageIds && !operationLocked && originalPreview == null
             ) { page ->
                 val item = items[page]
                 Box(
@@ -220,10 +215,8 @@ fun LogViewerScreen(
                             }
                         },
                         onZoomedStateChange = { zoomed ->
-                            // 현재 페이지의 확대 상태만 pager 잠금 조건으로 사용한다.
-                            if (page == pagerState.currentPage) {
-                                isCurrentImageZoomed = zoomed
-                            }
+                            // Track by photo identity; a list/index change must not unlock a surviving zoomed image.
+                            zoomedImageIds = if (zoomed) zoomedImageIds + item.id else zoomedImageIds - item.id
                         },
                         onSingleTap = { uiVisible = !uiVisible },
                         modifier = Modifier.fillMaxSize(),
