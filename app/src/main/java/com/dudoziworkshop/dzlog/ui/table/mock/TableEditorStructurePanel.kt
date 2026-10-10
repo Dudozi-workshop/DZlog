@@ -2,6 +2,8 @@ package com.dudoziworkshop.dzlog.ui.table.mock
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +29,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 @Composable
 internal fun MockLayoutPanel(
+    modifier: Modifier = Modifier,
     selectedCount: Int,
     rows: Int,
     cols: Int,
@@ -37,13 +40,19 @@ internal fun MockLayoutPanel(
     onDeleteSelection: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .background(DDZColor.Surface)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("구조", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
+        Text(
+            "↔ 열 너비 · ↕ 행 높이\n표 바깥 화살표를 드래그해 조절하세요.",
+            style = DDZTypography.Caption,
+            color = DDZColor.TextMuted,
+        )
 
         Row(
             modifier = Modifier.fillMaxWidth(),

@@ -49,6 +49,7 @@ internal fun TableEditorCellUiModelEditor(
     onUpdatePhraseSet: (String, (com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> Unit,
     onDeletePhraseSet: (String) -> Unit,
     onClose: () -> Unit,
+    compactInput: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var showTypePicker by remember(cell.id) { mutableStateOf(false) }
@@ -62,8 +63,8 @@ internal fun TableEditorCellUiModelEditor(
                 .fillMaxWidth()
                 .background(DDZColor.Surface)
                 .verticalScroll(rememberScrollState())
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 18.dp, vertical = if (compactInput) 8.dp else 18.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compactInput) 4.dp else 12.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -184,7 +185,7 @@ internal fun TableEditorCellUiModelEditor(
                 }
             }
 
-            DDZSettingRow(
+            if (!compactInput) DDZSettingRow(
                 label = "셀 종류",
                 value = cell.type.label,
                 onClick = { showTypePicker = true },
