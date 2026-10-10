@@ -22,6 +22,12 @@ data class GalleryBreadcrumb(val label: String, val relativePath: String)
 object GalleryFolderIndexPolicy {
     const val ROOT = "Pictures/DZlog/"
 
+    /** Show a leaf's direct originals in place, without adding a navigation step. */
+    fun showsOriginalsDirectly(index: GalleryFolderIndex?): Boolean = index != null &&
+        normalize(index.relativePath) != ROOT &&
+        !index.relativePath.trimEnd('/').substringAfterLast('/').equals("original", true) &&
+        index.directImageCount == 0 && index.directOriginalCount > 0 && index.children.isEmpty()
+
     /** Folder navigation is based on the actual relative path. Root has no parent. */
     fun parentOf(relativePath: String): String? {
         val current = normalize(relativePath)

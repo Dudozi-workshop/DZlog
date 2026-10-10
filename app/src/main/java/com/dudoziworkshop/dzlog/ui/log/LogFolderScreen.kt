@@ -112,7 +112,12 @@ fun LogFolderScreen(
     var summariesByPath by remember(relativePath) {
         mutableStateOf<Map<String, GalleryFolderSummary>>(cached?.summariesByPath ?: emptyMap())
     }
-    var photos by remember(relativePath) { mutableStateOf(cached?.directPhotos ?: emptyList()) }
+    var directPhotos by remember(relativePath) { mutableStateOf(cached?.directPhotos ?: emptyList()) }
+    val originalsInPlace = GalleryFolderIndexPolicy.showsOriginalsDirectly(index)
+    val photos = remember(directPhotos, allPhotos, originalsInPlace, relativePath) {
+        if (originalsInPlace) allPhotos.filter { it.relativePath == relativePath + "original/" }
+        else directPhotos
+    }
     var photoSort by rememberSaveable(relativePath) { mutableStateOf(GalleryPhotoSort.NEWEST) }
     var favoriteOnly by rememberSaveable(relativePath) { mutableStateOf(false) }
     var showPhotoSort by remember(relativePath) { mutableStateOf(false) }
@@ -120,8 +125,8 @@ fun LogFolderScreen(
         if (favoriteOnly) photos.filter { it.id in favoriteIds } else photos
     }
     val sortedPhotos = remember(visiblePhotos, photoSort) { photoSort.sorted(visiblePhotos) }
-    val originalGrid = GalleryPhotoMovePolicy.isOriginalPath(relativePath)
-    val displayFolderPath = if (originalGrid) GalleryFolderIndexPolicy.parentOf(relativePath)
+    val originalGrid = GalleryPhotoMovePolicy.isOriginalPath(relativePath) || originalsInPlace
+    val displayFolderPath = if (GalleryPhotoMovePolicy.isOriginalPath(relativePath)) GalleryFolderIndexPolicy.parentOf(relativePath)
         ?: GalleryFolderIndexPolicy.ROOT else relativePath
     var error by remember(relativePath) { mutableStateOf<String?>(null) }
     var loading by remember(relativePath) { mutableStateOf(cached == null) }
@@ -280,7 +285,7 @@ fun LogFolderScreen(
             GallerySnapshotMemory.cache.put(relativePath, snapshot)
             index = snapshot.index
             summariesByPath = snapshot.summariesByPath
-            photos = snapshot.directPhotos
+            directPhotos = snapshot.directPhotos
             allPhotos = snapshot.allPhotos
             error = null
         }.onFailure {
@@ -476,18 +481,6 @@ fun LogFolderScreen(
                 }
             }
         }
-        if (!root && !originalGrid && connected) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(enabled = !navigationLocked && !selectionActive,
-                    onClick = { startFolderManagement(relativePath, "rename") }) { Text("이름 변경") }
-                OutlinedButton(enabled = !navigationLocked && !selectionActive,
-                    onClick = { startFolderManagement(relativePath, "move") }) { Text("이동") }
-                OutlinedButton(enabled = !navigationLocked && !selectionActive,
-                    onClick = { startFolderManagement(relativePath, "delete") }) {
-                    Text("삭제", color = DDZColor.Destructive)
-                }
-            }
-        }
         folderOperationError?.let { message ->
             Text(message, color = DDZColor.Destructive)
         }
@@ -608,7 +601,7 @@ fun LogFolderScreen(
                     if (current != null && current.children.isEmpty() && photos.isEmpty() && current.directOriginalCount == 0) {
                         item { GalleryEmptyText("빈 폴더입니다.") }
                     }
-                    if (current != null && current.directOriginalCount > 0) {
+                    if (!originalGrid && current != null && current.directOriginalCount > 0) {
                         item {
                             Row(
                                 modifier = Modifier.fillMaxWidth()
