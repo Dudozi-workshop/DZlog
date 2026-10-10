@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -67,7 +66,7 @@ internal fun HomeAmbientBackground(
         val imageWidth = maxWidth * HomeAmbientSpec.ImageWidthFraction
         val imageHeight = imageWidth * HomeAmbientSpec.ImageHeightToWidthRatio
         val imageRightOffset = maxWidth * HomeAmbientSpec.ImageRightOffsetFraction
-        val imageTopOffset = maxHeight * HomeAmbientSpec.ImageTopOffsetFraction
+        val imageTopOffset = HomeAmbientSpec.ImageTopInset
 
         // The motion envelope is proportional to the visible window, not device pixels.
         val safeAmplitudeX = minOf(
@@ -97,7 +96,6 @@ internal fun HomeAmbientBackground(
             HomeAmbientSpec.ShadowOpacityDrift,
             "leaf light variation",
         )
-        val sunlight = drift(HomeAmbientSpec.SunlightLegMillis, 0.06f, "sunlight")
 
         Box(
             modifier = Modifier
@@ -120,7 +118,7 @@ internal fun HomeAmbientBackground(
                     .align(Alignment.TopEnd)
                     .offset(
                         x = screenWidth * HomeAmbientSpec.ImageRightOffsetFraction,
-                        y = screenHeight * HomeAmbientSpec.ImageTopOffsetFraction,
+                        y = imageTopOffset,
                     )
                     .size(width = imageWidth, height = imageHeight)
                     .graphicsLayer {
@@ -136,18 +134,5 @@ internal fun HomeAmbientBackground(
             )
         }
 
-        // The surrounding light remains separate from the masked leaf silhouette.
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = HomeAmbientSpec.GlowOffsetX, y = HomeAmbientSpec.GlowOffsetY)
-                .size(HomeAmbientSpec.GlowWidth, HomeAmbientSpec.GlowHeight)
-                .blur(HomeAmbientSpec.GlowBlurRadius)
-                .graphicsLayer { alpha = 0.94f + sunlight }
-                .background(
-                    DDZColor.Primary.copy(alpha = HomeAmbientSpec.GlowAlpha),
-                    RoundedCornerShape(50),
-                ),
-        )
     }
 }
