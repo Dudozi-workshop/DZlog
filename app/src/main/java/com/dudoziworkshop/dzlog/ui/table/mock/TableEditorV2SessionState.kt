@@ -37,7 +37,7 @@ internal class TableEditorV2SessionState(
     var draftSaveMode by mutableStateOf(initialSaveMode)
         private set
 
-    var draftCounterPadding by mutableIntStateOf(initialCounterPadding.coerceIn(0, 6))
+    var draftCounterPadding by mutableIntStateOf(initialCounterPadding.coerceIn(0, 4))
         private set
 
     var draftNextCounter by mutableStateOf<Int?>(null)
@@ -59,7 +59,8 @@ internal class TableEditorV2SessionState(
     private var savedStyleBaseline: TableStyleState = initialStyleState
     private var savedSaveRulesBaseline: MockSaveRulesDraft = saveRulesDraft
     private var savedSaveModeBaseline: SaveMode = draftSaveMode
-    private var savedCounterPaddingBaseline: Int = draftCounterPadding
+    // Keep the persisted baseline so legacy 5/6-digit normalization is saved only by the user.
+    private var savedCounterPaddingBaseline: Int = initialCounterPadding.coerceIn(0, 6)
     private var savedNextCounterBaseline: Int? = draftNextCounter
     private var savedUsesAutoNextBaseline: Boolean = draftUsesAutoNext
     private var counterBaselineInitialized: Boolean = false
@@ -143,7 +144,7 @@ internal class TableEditorV2SessionState(
     }
 
     fun commitCounterPaddingChange(updated: Int) {
-        val normalized = updated.coerceIn(0, 6)
+        val normalized = updated.coerceIn(1, 4)
         if (normalized == draftCounterPadding) return
         pushCurrentSnapshot()
         draftCounterPadding = normalized

@@ -1,6 +1,8 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,15 +27,16 @@ internal fun TableEditorSaveSettingsPanel(
     draft: MockSaveRulesDraft,
     fileNamePreview: String,
     pathPreview: String,
-    saveMode: SaveMode,
     counterPadding: Int,
     nextCounter: Int,
     onOpenDetail: (TableEditorSaveDetail) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(DDZColor.Surface)
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 4.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
@@ -46,11 +49,6 @@ internal fun TableEditorSaveSettingsPanel(
             label = "저장 위치",
             value = pathPreview,
             onClick = { onOpenDetail(TableEditorSaveDetail.SAVE_PATH) },
-        )
-        DDZSettingRow(
-            label = "저장 방식",
-            value = saveModeLabel(saveMode),
-            onClick = { onOpenDetail(TableEditorSaveDetail.SAVE_MODE) },
         )
         DDZSettingRow(
             label = "자동번호",
@@ -68,14 +66,15 @@ internal fun saveModeLabel(mode: SaveMode): String =
     }
 
 internal fun counterPaddingLabel(counterPadding: Int): String =
-    if (counterPadding <= 0) "자릿수 자동" else "${counterPadding}자리"
+    "${counterPadding.coerceIn(1, 4)}자리"
 
 internal fun formatMockCounter(value: Int, counterPadding: Int): String {
     val normalized = value.coerceAtLeast(1).toString()
     return if (counterPadding > 0) {
-        normalized.padStart(counterPadding.coerceIn(1, 6), '0')
+        normalized.padStart(counterPadding.coerceIn(1, 4), '0')
     } else {
         normalized
     }
 }
+
 

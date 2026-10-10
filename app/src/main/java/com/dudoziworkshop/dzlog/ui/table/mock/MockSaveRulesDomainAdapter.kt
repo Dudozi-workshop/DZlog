@@ -13,13 +13,17 @@ import com.dudoziworkshop.dzlog.domain.model.TimeSeparator
 import com.dudoziworkshop.dzlog.feature.table.editor.withDataType
 import java.util.UUID
 
-internal fun mockCellsFromTemplate(templateState: TableTemplateState): List<TableEditorCellUiModel> =
+internal fun mockCellsFromTemplate(
+    templateState: TableTemplateState,
+    resolvedTextByCellId: Map<String, String> = emptyMap(),
+): List<TableEditorCellUiModel> =
     templateState.cells
         .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
         .mapIndexed { index, cell ->
             TableEditorCellUiModel(
                 id = index,
                 domainCellId = cell.cellId,
+                previewValue = resolvedTextByCellId[cell.cellId],
                 value = when (cell.dataType) {
                     TableCellDataType.COUNTER ->
                         (cell.typedValue as? CellValue.CounterSeed)?.start?.toString() ?: "1"
@@ -369,12 +373,10 @@ private fun MockRuleItem?.toDomainDraft(): TableEditorSlotDraft? {
 
 
 private fun dateFormatExample(pattern: String?): String =
-    when (pattern) {
-        "yyyy-MM-dd" -> "2026-10-08"
-        "yy.MM.dd" -> "26.10.08"
-        "MM월 dd일" -> "10월 08일"
-        else -> "20261008"
-    }
+    runCatching {
+        java.text.SimpleDateFormat(pattern?.takeIf { it.isNotBlank() } ?: "yyyyMMdd", java.util.Locale.getDefault())
+            .format(java.util.Date())
+    }.getOrElse { "" }
 
 private fun timeFormatExample(pattern: String?): String =
     when (pattern) {

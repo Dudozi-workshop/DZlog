@@ -167,5 +167,60 @@ class TableEditorV2SessionStateTest {
         assertFalse(session.isDirty)
     }
 
+    @Test
+    fun legacy_padding_normalizes_in_draft_and_save_preserves_manual_counter() = runBlocking {
+        for (legacy in listOf(5, 6)) {
+            val session = TableEditorV2SessionState(
+                newBlankTableTemplateState(1, 1), TableStyleState(), true, true,
+                initialCounterPadding = legacy,
+            )
+            assertEquals(4, session.draftCounterPadding)
+            assertTrue(session.isDirty)
+            session.initializeCounterState(12345, false)
+            var savedPadding = 0
+            var savedNext: Int? = null
+            var savedAuto = true
+            val saved = TableEditorV2SaveCoordinator().save(session) { _, _, _, _, _, padding, next, auto ->
+                savedPadding = padding
+                savedNext = next
+                savedAuto = auto
+                true
+            }
+            assertTrue(saved)
+            assertEquals(4, savedPadding)
+            assertEquals(12345, savedNext)
+            assertFalse(savedAuto)
+            assertFalse(session.isDirty)
+        }
+    }
+
+    @Test
+    fun padding_change_and_history_keep_counter_value_and_override_mode() {
+        val session = TableEditorV2SessionState(
+            newBlankTableTemplateState(1, 1), TableStyleState(), true, true,
+            initialCounterPadding = 3,
+        )
+        session.initializeCounterState(12345, false)
+        session.commitCounterPaddingChange(6)
+        assertEquals(4, session.draftCounterPadding)
+        assertEquals(12345, session.draftNextCounter)
+        assertFalse(session.draftUsesAutoNext)
+        assertTrue(session.undo())
+        assertEquals(3, session.draftCounterPadding)
+        assertEquals(12345, session.draftNextCounter)
+        assertTrue(session.redo())
+        assertEquals(4, session.draftCounterPadding)
+        assertEquals(12345, session.draftNextCounter)
+        assertFalse(session.draftUsesAutoNext)
+    }
+
+    @Test
+    fun four_digit_format_never_truncates_large_counters() {
+        assertEquals("0012", formatMockCounter(12, 6))
+        assertEquals("12345", formatMockCounter(12345, 4))
+        assertEquals("1자리", counterPaddingLabel(0))
+        assertEquals("4자리", counterPaddingLabel(6))
+    }
+
 }
 

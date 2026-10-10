@@ -58,7 +58,7 @@ internal fun ColumnScope.MockTableCanvas(
     onCellRangeDrag: (String, String) -> Unit,
     onClearLayoutSelection: () -> Unit,
 ) {
-    val background = DDZColor.Background
+    val background = Color.Transparent
     val resolvedAlpha = (bgAlpha.coerceIn(0, 255) / 255f)
     val cellBackground = when {
         transparentTable -> Color.Transparent
@@ -90,12 +90,15 @@ internal fun ColumnScope.MockTableCanvas(
         val previousWorkingWidth = (maxWidth - 52.dp).coerceAtLeast(1.dp)
         val expandedWorkingWidth = (maxWidth - 16.dp).coerceAtLeast(1.dp)
         val editorScale = (expandedWorkingWidth / previousWorkingWidth).coerceAtLeast(1f)
-        val stableTableHeight = (baseTableHeight * editorScale)
-            .coerceAtMost((maxHeight - 16.dp).coerceAtLeast(120.dp))
+        val naturalTableHeight = baseTableHeight * editorScale
+        val fitScale = ((maxHeight - 16.dp).coerceAtLeast(1.dp) / naturalTableHeight)
+            .coerceIn(0f, 1f)
+        val stableTableHeight = naturalTableHeight * fitScale
+        val stableTableWidth = expandedWorkingWidth * fitScale
 
         BoxWithConstraints(
             modifier = Modifier
-                .width(expandedWorkingWidth)
+                .width(stableTableWidth)
                 .height(stableTableHeight)
                 .border(2.dp, DDZColor.Primary, RoundedCornerShape(4.dp))
         ) {
@@ -159,7 +162,7 @@ internal fun ColumnScope.MockTableCanvas(
                     contentAlignment = cellAlignment,
                 ) {
                     Text(
-                        cell.value,
+                        cell.previewValue ?: cell.value,
                         color = if (isSelected) DDZColor.PrimaryDark else textColor,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         fontSize = (14f * fontScale.coerceIn(0.6f, 1.6f)).sp,
@@ -226,9 +229,9 @@ internal fun ColumnScope.MockTableCanvas(
                     ) {
                         Box(
                             Modifier
-                                .width(3.dp)
-                                .height(18.dp)
-                                .background(DDZColor.Primary.copy(alpha = 0.65f))
+                                .offset(y = (-6).dp)
+                                .size(12.dp, 4.dp)
+                                .background(DDZColor.Primary.copy(alpha = 0.65f), RoundedCornerShape(2.dp))
                         )
                     }
                 }
@@ -254,9 +257,9 @@ internal fun ColumnScope.MockTableCanvas(
                     ) {
                         Box(
                             Modifier
-                                .height(3.dp)
-                                .width(18.dp)
-                                .background(DDZColor.Primary.copy(alpha = 0.65f))
+                                .offset(x = (-6).dp)
+                                .size(4.dp, 12.dp)
+                                .background(DDZColor.Primary.copy(alpha = 0.65f), RoundedCornerShape(2.dp))
                         )
                     }
                 }
@@ -264,3 +267,4 @@ internal fun ColumnScope.MockTableCanvas(
         }
     }
 }
+
