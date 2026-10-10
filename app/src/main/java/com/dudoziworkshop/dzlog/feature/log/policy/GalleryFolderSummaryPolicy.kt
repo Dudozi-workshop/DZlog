@@ -50,12 +50,18 @@ object GalleryFolderSummaryPolicy {
             .distinct()
             .count()
 
-        val cover = inScope.asSequence()
-            .filterNot { it.isOriginal }
-            .sortedWith(
-                compareByDescending<GallerySummaryImage> { effectiveDate(it) ?: Long.MIN_VALUE }
-                    .thenBy { it.stableId }
-            ).firstOrNull()?.stableId
+        // Prefer this folder's results, then descendant results, then originals.
+        // The summary already holds the complete snapshot; no extra storage query is needed.
+        val cover = inScope.minWithOrNull(
+            compareBy<GallerySummaryImage> {
+                when {
+                    it.isOriginal -> 2
+                    normalizeFolderPath(it.directoryPath) == target -> 0
+                    else -> 1
+                }
+            }.thenByDescending { effectiveDate(it) ?: Long.MIN_VALUE }
+                .thenBy { it.stableId }
+        )?.stableId
 
         return GalleryFolderSummary(
             totalPhotoCount = inScope.size,

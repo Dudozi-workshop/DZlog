@@ -73,7 +73,7 @@ class GalleryFolderSummaryPolicyTest {
     }
 
     @Test
-    fun coverUsesNewestResultNotOriginalIncludingDescendants() {
+    fun directResultTakesPriorityOverNewerDescendantsAndOriginals() {
         val newest = at(2026, 10, 9)
         val older = at(2026, 10, 8)
         val images = listOf(
@@ -82,7 +82,7 @@ class GalleryFolderSummaryPolicyTest {
             image("originalNewest", "Pictures/DZlog/A/B/original", original = true, captured = newest + 60000),
         )
         val actual = GalleryFolderSummaryPolicy.summarize("Pictures/DZlog/A", images, emptyList())
-        assertEquals("resultNew", actual.coverImageId)
+        assertEquals("resultOld", actual.coverImageId)
         assertEquals(newest + 60000, actual.latestPhotoEpochMillis)
     }
 
@@ -100,7 +100,7 @@ class GalleryFolderSummaryPolicyTest {
     }
 
     @Test
-    fun originalOnlyAndEmptyFoldersHaveNoCover() {
+    fun originalOnlyFolderHasCoverAndEmptyFolderHasNone() {
         val originalOnly = GalleryFolderSummaryPolicy.summarize(
             "Pictures/DZlog/A",
             listOf(image("original", "Pictures/DZlog/A/original", original = true)),
@@ -108,11 +108,55 @@ class GalleryFolderSummaryPolicyTest {
         )
         assertEquals(1, originalOnly.totalPhotoCount)
         assertEquals(1, originalOnly.originalPhotoCount)
-        assertNull(originalOnly.coverImageId)
+        assertEquals("original", originalOnly.coverImageId)
         val empty = GalleryFolderSummaryPolicy.summarize("Pictures/DZlog/B", emptyList(), emptyList())
         assertEquals(0, empty.totalPhotoCount)
         assertNull(empty.coverImageId)
         assertNull(empty.latestPhotoEpochMillis)
+    }
+
+    @Test
+    fun newestDescendantResultIsUsedWhenThereIsNoDirectResult() {
+        val actual = GalleryFolderSummaryPolicy.summarize(
+            "Pictures/DZlog/A",
+            listOf(
+                image("older", "Pictures/DZlog/A/B", captured = 100),
+                image("newest", "Pictures/DZlog/A/C/deeper", captured = 200),
+                image("original", "Pictures/DZlog/A/original", original = true, captured = 300),
+                image("sibling", "Pictures/DZlog/AA", captured = 400),
+            ),
+            emptyList(),
+        )
+        assertEquals("newest", actual.coverImageId)
+        assertEquals(0, actual.directPhotoCount)
+        assertEquals(3, actual.totalPhotoCount)
+    }
+
+    @Test
+    fun newestOriginalDescendantIsUsedWhenThereAreNoResults() {
+        val actual = GalleryFolderSummaryPolicy.summarize(
+            "Pictures/DZlog/A/",
+            listOf(
+                image("older", "Pictures/DZlog/A/B/original", original = true, captured = 100),
+                image("newest", "Pictures/DZlog/A/C/original", original = true, added = 200),
+                image("outside", "Pictures/DZlog/AA/original", original = true, captured = 300),
+            ),
+            emptyList(),
+        )
+        assertEquals("newest", actual.coverImageId)
+        assertEquals(2, actual.originalPhotoCount)
+    }
+
+    @Test
+    fun equalOrUnknownDatesChooseStableCoverRegardlessOfInputOrder() {
+        val images = listOf(
+            image("b", "Pictures/DZlog/A/B"),
+            image("a", "Pictures/DZlog/A/C"),
+        )
+        val first = GalleryFolderSummaryPolicy.summarize("Pictures/DZlog/A", images, emptyList())
+        val reversed = GalleryFolderSummaryPolicy.summarize("Pictures/DZlog/A", images.reversed(), emptyList())
+        assertEquals("a", first.coverImageId)
+        assertEquals(first.coverImageId, reversed.coverImageId)
     }
 
     @Test
