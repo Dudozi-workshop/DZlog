@@ -75,6 +75,7 @@ internal fun HomeAmbientBackground(
                     translationX = swayX
                     translationY = swayY
                     rotationZ = swayAngle
+                    scaleX = -1f
                     transformOrigin = TransformOrigin(0.85f, 0.0f)
                 }
                 .blur(HomeAmbientSpec.BlurRadius),
