@@ -51,16 +51,20 @@ internal object HomeUiSpec {
 }
 
 internal object HomeAmbientSpec {
-    // Upper-right shadow: fixed relative viewport with a soft left/bottom edge.
-    // Later lower-right variants will invert the vertical fade.
-    const val VisibleShadowWidthFraction = 0.29f
-    const val VisibleShadowHeightFraction = 0.29f
-    const val ImageToViewportWidthRatio = 2.0f
-    // Dimensions of current drawable (220x185); do not stretch the silhouette.
+    // One approved botanical shadow. Keep the original PNG untouched.
+    // The window is screen-relative and stays independent from image size.
+    const val VisibleShadowWidthFraction = 0.43f
+    const val VisibleShadowHeightFraction = 0.38f
+    const val ImageToViewportWidthRatio = 1.52f
+    const val ImageOffsetXFraction = 0.015f
+    const val ImageOffsetYFraction = -0.05f
+    // Current installed asset is 220x185; do not stretch its aspect ratio.
     const val ShadowHeightToWidthRatio = 185f / 220f
-    const val ImageOffsetXFraction = 0.12f
-    const val ImageOffsetYFraction = -0.03f
-    const val ShadowOpacity = 0.86f
+    const val ShadowOpacity = 0.90f
+    const val LeftFadeStart = 0.0f
+    const val LeftFadeEnd = 0.42f
+    const val FarFadeStart = 0.55f
+    const val FarFadeEnd = 1.0f
     val BlurRadius = 1.5.dp
 
     val GlowOffsetX = 45.dp
@@ -70,6 +74,7 @@ internal object HomeAmbientSpec {
     val GlowBlurRadius = 28.dp
     const val GlowAlpha = 0.035f
 
+    // Preserve slow whole-image movement for v1; per-leaf motion comes later.
     const val BranchLegMillis = 6_000
     const val SunlightLegMillis = 10_000
     val BranchTravelX = 6.dp
