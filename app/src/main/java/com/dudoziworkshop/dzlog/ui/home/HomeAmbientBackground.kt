@@ -9,7 +9,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -63,23 +67,35 @@ internal fun HomeAmbientBackground(
                 ),
             ),
     ) {
-        Image(
-            painter = painterResource(R.drawable.home_leaf_shadow_c),
-            contentDescription = null,
-            contentScale = ContentScale.FillBounds,
+        BoxWithConstraints(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .offset(x = HomeAmbientSpec.CanvasOffsetX, y = HomeAmbientSpec.CanvasOffsetY)
-                .size(HomeAmbientSpec.CanvasWidth, HomeAmbientSpec.CanvasHeight)
-                .graphicsLayer {
-                    translationX = swayX
-                    translationY = swayY
-                    rotationZ = swayAngle
-                    scaleX = -1f
-                    transformOrigin = TransformOrigin(0.85f, 0.0f)
-                }
-                .blur(HomeAmbientSpec.BlurRadius),
-        )
+                .fillMaxWidth(HomeAmbientSpec.VisibleShadowWidthFraction)
+                .height(androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp *
+                    HomeAmbientSpec.VisibleShadowHeightFraction)
+                .clipToBounds(),
+        ) {
+            // Crop by a viewport relative to screen width, not by pushing the whole
+            // asset a hard-coded distance outside the screen.
+            val imageWidth = maxWidth * 2.4f
+            Image(
+                painter = painterResource(R.drawable.home_leaf_shadow_c),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset(x = -imageWidth * 0.52f, y = HomeAmbientSpec.CanvasOffsetY)
+                    .size(width = imageWidth, height = imageWidth * 0.84f)
+                    .graphicsLayer {
+                        translationX = swayX
+                        translationY = swayY
+                        rotationZ = swayAngle
+                        scaleX = -1f
+                        transformOrigin = TransformOrigin(0.85f, 0f)
+                    }
+                    .blur(HomeAmbientSpec.BlurRadius),
+            )
+        }
 
         Box(
             modifier = Modifier
