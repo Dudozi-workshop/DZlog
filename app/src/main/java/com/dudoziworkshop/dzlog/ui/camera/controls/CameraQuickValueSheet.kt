@@ -113,16 +113,9 @@ internal fun CameraQuickValueSheet(
                     Text("빠른 수정", style = DDZTypography.SettingLabel, color = DDZColor.Surface, modifier = Modifier.weight(1f))
                     TextButton(onClick = ::dismiss) { Text("완료", color = DDZColor.Surface) }
                 }
-                Surface(Modifier.fillMaxWidth().weight(1f).padding(DDZSpacing.screenPadding),
-                    shape = RoundedCornerShape(DDZLayout.Radius.Medium), color = DDZColor.SurfaceSoft) {
-                    Column(Modifier.padding(DDZSpacing.controlGap)) {
-                        if (templateName.isNotBlank()) Text("템플릿  $templateName", style = DDZTypography.Caption,
-                            color = DDZColor.TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        CameraQuickTablePreview(template, watermarkCells, style, captureAspect, tableWidthRatio, tableHeightRatio,
-                            selectedId, cells.map { it.cellId }.toSet(), ::select,
-                            Modifier.fillMaxWidth().weight(1f).padding(vertical = DDZSpacing.itemGap))
-                    }
-                }
+                CameraQuickTablePreview(template, templateName, watermarkCells, style, captureAspect, tableWidthRatio, tableHeightRatio,
+                    selectedId, cells.map { it.cellId }.toSet(), ::select,
+                    Modifier.fillMaxWidth().weight(1f).padding(DDZSpacing.screenPadding))
                 Surface(Modifier.fillMaxWidth(), color = DDZColor.Surface,
                     shape = RoundedCornerShape(topStart = DDZLayout.Radius.Medium, topEnd = DDZLayout.Radius.Medium)) {
                     Column(Modifier.padding(horizontal = DDZSpacing.controlGap, vertical = DDZSpacing.itemGap)) {
