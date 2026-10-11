@@ -23,7 +23,7 @@ class TableEditorV2SessionStateTest {
         assertEquals(1, legacyStyle.textColorMode)
         assertTrue(session.isDirty)
         assertFalse(session.canUndo)
-        session.commitStyleChange(session.draftStyleState.copy(bgStyle = 0))
+        session.commitStyleChange(session.draftStyleState.copy(bgStyle = 1))
         assertTrue(session.undo())
         assertEquals(0, session.draftStyleState.textColorMode)
         session.markSaved(session.finalTemplateForSave())
