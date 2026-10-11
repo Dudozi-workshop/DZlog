@@ -15,7 +15,13 @@ object DDZLayout {
     }
 
     object Icon {
+        val Small = 20.dp
         val Touch = 32.dp
+    }
+
+    object ListItem {
+        val CompactMinHeight = 64.dp
+        val CompactThumbnailSize = 40.dp
     }
 
     object Control {

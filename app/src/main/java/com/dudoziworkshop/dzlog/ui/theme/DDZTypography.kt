@@ -15,6 +15,9 @@ object DDZTypography {
     val Caption = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal)
 
     val ButtonText = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    // Semantic aliases for reusable compact section headers and text actions.
+    val CompactSectionTitle = ButtonText
+    val TextAction = ButtonText
     val SegmentSmall = TextStyle(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium)
 
     // Compatibility aliases while existing screens migrate to the v1 hierarchy.

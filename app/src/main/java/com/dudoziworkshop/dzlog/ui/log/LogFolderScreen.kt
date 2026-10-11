@@ -82,6 +82,7 @@ import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.Dispatchers
@@ -553,11 +554,16 @@ fun LogFolderScreen(
                 )
             } else {
                 val current = index
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(bottom = 24.dp)) {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
+                    contentPadding = PaddingValues(bottom = DDZSpacing.sectionGap)) {
                     if (!originalGrid) item {
-                        GallerySectionTitle("하위 폴더", createEnabled = !selectionActive && !navigationLocked,
-                            onCreateFolder = { folderOperationError = null; showCreateDialog = true })
+                        GallerySectionTitle(
+                            title = "하위 폴더",
+                            actionLabel = "새 폴더",
+                            onAction = { folderOperationError = null; showCreateDialog = true },
+                            actionEnabled = !selectionActive && !navigationLocked,
+                            showAddIcon = true,
+                        )
                     }
                     if (current != null && current.children.isNotEmpty()) {
                         items(current.children, key = { it.relativePath }) { folder ->
@@ -575,7 +581,7 @@ fun LogFolderScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("${if (originalGrid) "원본사진" else "사진"} ${visiblePhotos.size}장",
-                                modifier = Modifier.weight(1f), style = DDZTypography.SectionTitle)
+                                modifier = Modifier.weight(1f), style = DDZTypography.CompactSectionTitle)
                             Box {
                                 TextButton(onClick = { showPhotoSort = true }, enabled = !navigationLocked && !selectionActive) {
                                     Text(photoSort.label)

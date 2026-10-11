@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -48,6 +50,8 @@ import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
+import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 enum class GalleryTab(val label: String) {
@@ -79,9 +83,9 @@ internal fun LogGalleryHomeContent(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth()
-            .background(DDZColor.SurfaceSoft, RoundedCornerShape(15.dp))
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+            .background(DDZColor.SurfaceSoft, MaterialTheme.shapes.medium)
+            .padding(DDZSpacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(DDZSpacing.xs),
     ) {
         GalleryTab.entries.forEach { tab ->
             val active = tab == selectedTab
@@ -89,7 +93,7 @@ internal fun LogGalleryHomeContent(
                 modifier = Modifier.weight(1f)
                     .background(
                         if (active) DDZColor.Surface else DDZColor.SurfaceSoft,
-                        RoundedCornerShape(12.dp),
+                        MaterialTheme.shapes.small,
                     )
                     .clickable(enabled = !selectionActive) { onTabChange(tab) }
                     .padding(vertical = 11.dp),
@@ -113,22 +117,18 @@ internal fun LogGalleryHomeContent(
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
+        contentPadding = PaddingValues(bottom = DDZSpacing.sectionGap),
     ) {
         when (selectedTab) {
             GalleryTab.ALL -> {
                 item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("최근 촬영", color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold)
-                        TextButton(onClick = onOpenRecentPhotos, enabled = recent.isNotEmpty() && !selectionActive) {
-                            Text("전체보기")
-                        }
-                    }
+                    GallerySectionTitle(
+                        title = "최근 촬영",
+                        actionLabel = "전체보기",
+                        onAction = onOpenRecentPhotos,
+                        actionEnabled = recent.isNotEmpty() && !selectionActive,
+                    )
                 }
                 if (recent.isEmpty()) {
                     item { GalleryEmptyText("저장된 사진이 없습니다.") }
@@ -154,7 +154,13 @@ internal fun LogGalleryHomeContent(
                         }
                     }
                 }
-                item { GallerySectionTitle("저장 폴더", "${folderIndex.children.size}개", onCreateFolder) }
+                item { GallerySectionTitle(
+                    title = "저장 폴더",
+                    count = "${folderIndex.children.size}개",
+                    actionLabel = "새 폴더",
+                    onAction = onCreateFolder,
+                    showAddIcon = true,
+                ) }
                 if (folderIndex.children.isEmpty()) {
                     item { GalleryEmptyText("저장 폴더가 없습니다.") }
                 } else {
@@ -170,7 +176,13 @@ internal fun LogGalleryHomeContent(
                 }
             }
             GalleryTab.FOLDERS -> {
-                item { GallerySectionTitle("저장 폴더", "${folderIndex.children.size}개", onCreateFolder) }
+                item { GallerySectionTitle(
+                    title = "저장 폴더",
+                    count = "${folderIndex.children.size}개",
+                    actionLabel = "새 폴더",
+                    onAction = onCreateFolder,
+                    showAddIcon = true,
+                ) }
                 if (folderIndex.children.isEmpty()) {
                     item { GalleryEmptyText("저장 폴더가 없습니다.") }
                 } else {
@@ -217,19 +229,34 @@ internal fun LogGalleryHomeContent(
 }
 
 @Composable
-internal fun GallerySectionTitle(title: String, count: String? = null, onCreateFolder: (() -> Unit)? = null, createEnabled: Boolean = true) {
+internal fun GallerySectionTitle(
+    title: String,
+    count: String? = null,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+    actionEnabled: Boolean = true,
+    showAddIcon: Boolean = false,
+) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 2.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = DDZSpacing.screenPadding, bottom = DDZSpacing.xs),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, color = DDZColor.TextPrimary, style = DDZTypography.SectionTitle)
+        Text(title, color = DDZColor.TextPrimary, style = DDZTypography.CompactSectionTitle)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (count != null && onCreateFolder == null) Text(count, color = DDZColor.TextSecondary)
-            if (onCreateFolder != null) {
-                TextButton(onClick = onCreateFolder, enabled = createEnabled) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(17.dp))
-                    Text("새 폴더", modifier = Modifier.padding(start = 6.dp), style = DDZTypography.SectionTitle)
+            if (count != null && onAction == null) {
+                Text(count, color = DDZColor.TextSecondary, style = DDZTypography.Body)
+            }
+            if (actionLabel != null && onAction != null) {
+                TextButton(onClick = onAction, enabled = actionEnabled) {
+                    if (showAddIcon) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(17.dp))
+                    }
+                    Text(
+                        actionLabel,
+                        modifier = if (showAddIcon) Modifier.padding(start = DDZSpacing.xs) else Modifier,
+                        style = DDZTypography.TextAction,
+                    )
                 }
             }
         }
@@ -257,15 +284,16 @@ internal fun GalleryFolderRow(
     var menuExpanded by remember(folder.relativePath) { mutableStateOf(false) }
     Row(
         modifier = Modifier.fillMaxWidth()
-            .background(DDZColor.Surface, RoundedCornerShape(14.dp))
+            .background(DDZColor.Surface, MaterialTheme.shapes.medium)
             .clickable(onClick = onClick)
-            .padding(horizontal = 13.dp, vertical = 13.dp),
+            .defaultMinSize(minHeight = DDZLayout.ListItem.CompactMinHeight)
+            .padding(horizontal = DDZSpacing.controlGap, vertical = DDZSpacing.itemGap),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(DDZSpacing.compactCardContentGap),
     ) {
         Box(
-            modifier = Modifier.size(48.dp)
-                .clip(RoundedCornerShape(8.dp))
+            modifier = Modifier.size(DDZLayout.ListItem.CompactThumbnailSize)
+                .clip(MaterialTheme.shapes.small)
                 .background(DDZColor.SurfaceSoft),
             contentAlignment = Alignment.Center,
         ) {
@@ -287,7 +315,12 @@ internal fun GalleryFolderRow(
         }
         Box {
             IconButton(onClick = { menuExpanded = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "${folder.name} 폴더 관리", tint = DDZColor.IconMuted)
+                Icon(
+                    Icons.Default.MoreVert,
+                    contentDescription = "${folder.name} 폴더 관리",
+                    modifier = Modifier.size(DDZLayout.Icon.Small),
+                    tint = DDZColor.IconMuted,
+                )
             }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                 DropdownMenuItem(text = { Text("이름 변경") }, enabled = canManage,
