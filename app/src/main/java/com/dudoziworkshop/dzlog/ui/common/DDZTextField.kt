@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.common
 
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -19,6 +20,8 @@ fun DDZTextField(
     placeholder: String? = null,
     enabled: Boolean = true,
     singleLine: Boolean = true,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
@@ -29,6 +32,8 @@ fun DDZTextField(
         modifier = modifier,
         enabled = enabled,
         singleLine = singleLine,
+        keyboardOptions = keyboardOptions,
+        trailingIcon = trailingIcon,
         shape = RoundedCornerShape(12.dp),
         textStyle = typography.Body,
         label = label?.let {

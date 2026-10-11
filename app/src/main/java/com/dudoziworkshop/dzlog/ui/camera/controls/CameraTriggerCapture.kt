@@ -33,6 +33,7 @@ internal fun buildCameraTriggerCapture(
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
     latestImageController: LatestImageController,
     onTemplateChange: (TableTemplateState) -> Unit,
+    onCaptureCommitted: () -> Unit,
     buildWatermarkConfig: (
         anchor: WatermarkTableAnchor,
         offsetXRatio: Int,
@@ -75,6 +76,7 @@ internal fun buildCameraTriggerCapture(
             UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
             // 실제 촬영 저장 완료(세션 stack 반영 완료) 시점 이벤트다.
             // 버튼 클릭 시점이 아니라 완료 시점에만 발행해 본체 카운터 동기화가 즉시 반영되게 한다.
+            onCaptureCommitted()
             cameraViewModel.onCaptureCommitted()
             latestImageController.reload()
         },

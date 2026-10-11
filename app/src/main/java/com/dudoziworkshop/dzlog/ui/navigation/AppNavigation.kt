@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -148,6 +149,8 @@ fun AppRoot() {
     var pendingNewTemplateId by remember { mutableStateOf<String?>(null) }
     var pendingNewTemplatePreviousActiveId by remember { mutableStateOf<String?>(null) }
     var openSaveSettingsInitially by remember { mutableStateOf(false) }
+    // An editor-only choice; camera activation is committed by saveV2EditSession.
+    var editorReplacementId by remember { mutableStateOf<String?>(null) }
     val appScope = rememberCoroutineScope()
 
     DisposableEffect(screen, view) {
@@ -234,7 +237,9 @@ fun AppRoot() {
     ): Boolean {
         if (!hasRestoredTemplate) return false
 
-        val activeId = tableTemplateViewModel.activeTemplateId
+        val previousActiveId = tableTemplateViewModel.activeTemplateId
+        val activeId = editorReplacementId ?: previousActiveId
+        if (activeId == null || tableTemplateViewModel.templates.none { it.id == activeId }) return false
 
         return runCatching {
             val updatedItems = SaveSessionCoordinator.persist(
@@ -250,6 +255,7 @@ fun AppRoot() {
                 padding = counterPadding,
                 next = nextCounter,
                 usesAutoNext = usesAutoNext,
+                rollbackActiveId = previousActiveId,
             )
 
             tableTemplateViewModel.setCatalog(updatedItems, activeId)
@@ -294,6 +300,37 @@ fun AppRoot() {
             previousScreen = AppScreen.TABLE_TEMPLATES
             screen = AppScreen.TABLE_EDITOR
         }
+    }
+
+    fun selectHomeTemplate(templateId: String) {
+        val target = tableTemplateViewModel.templates.firstOrNull { it.id == templateId } ?: return
+        appScope.launch {
+            val activated = runCatching {
+                tableCatalogCoordinator.activate(
+                    items = tableTemplateViewModel.templates,
+                    activeTemplateId = target.id,
+                )
+                tableTemplateViewModel.activate(target.id)
+            }
+            activated.onFailure {
+                Toast.makeText(context, "템플릿 변경에 실패했습니다.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun openActiveHomeTableEditor() {
+        val hasActiveTemplate = tableTemplateViewModel.activeTemplateId != null &&
+            tableTemplateViewModel.templates.any { it.id == tableTemplateViewModel.activeTemplateId }
+
+        if (!hasActiveTemplate) {
+            templateListEntryScreen = screen
+            screen = AppScreen.TABLE_TEMPLATES
+            return
+        }
+
+        openSaveSettingsInitially = false
+        previousScreen = screen
+        screen = AppScreen.TABLE_EDITOR
     }
 
     fun openActiveSaveSettings() {
@@ -616,6 +653,7 @@ fun AppRoot() {
             .fillMaxSize()
     ) {
         if (keepCameraAliveBehindAlbum) {
+            val captureTemplateId = tableTemplateViewModel.activeTemplateId
             Box(modifier = Modifier.alpha(0f)) {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
@@ -624,7 +662,14 @@ fun AppRoot() {
                     onOpenSaveSettings = ::openActiveSaveSettings,
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
-                    sessionCaptureStack = cameraSessionCaptureStack
+                    sessionCaptureStack = cameraSessionCaptureStack,
+                    onCaptureCommitted = {
+                        captureTemplateId?.let { id ->
+                            val timestamp = System.currentTimeMillis()
+                            tableTemplateViewModel.markUsed(id, timestamp)
+                            appScope.launch { tableCatalogCoordinator.markUsed(id, timestamp) }
+                        }
+                    },
                 )
             }
         }
@@ -636,18 +681,24 @@ fun AppRoot() {
                     .firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }
                     ?.name
                     .orEmpty(),
-                onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
-                onStartCamera = { navigateTo(AppScreen.CAMERA) },
-                onOpenTableEditor = {
-                    openSaveSettingsInitially = false
+                templates = tableTemplateViewModel.templates,
+                activeTemplateId = tableTemplateViewModel.activeTemplateId,
+                onSelectTemplate = ::selectHomeTemplate,
+                onManageTemplates = {
+                    templateListEntryScreen = AppScreen.HOME
                     navigateTo(AppScreen.TABLE_TEMPLATES)
                 },
+                onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
+                onStartCamera = { navigateTo(AppScreen.CAMERA) },
+                onOpenTableEditor = ::openActiveHomeTableEditor,
                 onOpenSaveSettings = ::openActiveSaveSettings,
                 onOpenAlbum = ::openAlbumRoot,
                 onOpenRecentCaptureGrid = ::openRecentCaptureGrid
             )
 
             AppScreen.CAMERA -> {
+                // Captured by this trigger's closure, never read a later active selection at completion.
+                val captureTemplateId = tableTemplateViewModel.activeTemplateId
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
@@ -655,7 +706,14 @@ fun AppRoot() {
                     onOpenSaveSettings = ::openActiveSaveSettings,
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
-                    sessionCaptureStack = cameraSessionCaptureStack
+                    sessionCaptureStack = cameraSessionCaptureStack,
+                    onCaptureCommitted = {
+                        captureTemplateId?.let { id ->
+                            val timestamp = System.currentTimeMillis()
+                            tableTemplateViewModel.markUsed(id, timestamp)
+                            appScope.launch { tableCatalogCoordinator.markUsed(id, timestamp) }
+                        }
+                    },
                 )
             }
 
@@ -673,30 +731,49 @@ fun AppRoot() {
             }
 
             AppScreen.TABLE_EDITOR -> {
-                TableEditorV2Screen(
-                    templateState = tableTemplateState,
-                    includePathInCounterScope = appSettings.includePathInCounterScope,
-                    includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
-                    saveMode = appSettings.saveMode,
-                    counterPadding = appSettings.counterPadding,
-                    styleState = activeSavedTableStyle(
-                        tableTemplateViewModel.templates,
-                        tableTemplateViewModel.activeTemplateId,
-                    ),
-                    isUnsavedNewTemplate = pendingNewTemplateId == tableTemplateViewModel.activeTemplateId,
-                    openSaveSettingsInitially = openSaveSettingsInitially,
-                    onSave = ::saveV2EditSession,
-                    onDiscardUnsavedNewTemplate = ::discardPendingNewTemplate,
-                    onBack = {
-                        openSaveSettingsInitially = false
-                        screen = previousScreen
-                    },
-                )
+                val editingId = editorReplacementId ?: tableTemplateViewModel.activeTemplateId
+                val editingTemplate = tableTemplateViewModel.templates.firstOrNull { it.id == editingId }
+                key(editingId) {
+                    TableEditorV2Screen(
+                        templateState = if (editorReplacementId == null) tableTemplateState
+                        else editingTemplate?.templateState ?: tableTemplateState,
+                        includePathInCounterScope = appSettings.includePathInCounterScope,
+                        includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+                        saveMode = appSettings.saveMode,
+                        counterPadding = appSettings.counterPadding,
+                        styleState = activeSavedTableStyle(
+                            tableTemplateViewModel.templates,
+                            editingId,
+                        ),
+                        isUnsavedNewTemplate = pendingNewTemplateId != null && pendingNewTemplateId == editingId,
+                        openSaveSettingsInitially = openSaveSettingsInitially,
+                        onSave = ::saveV2EditSession,
+                        onDiscardUnsavedNewTemplate = ::discardPendingNewTemplate,
+                        templateId = editingId,
+                        templateName = editingTemplate?.name ?: "새 템플릿",
+                        templates = tableTemplateViewModel.templates,
+                        hasPendingTemplateSelection = editingId != tableTemplateViewModel.activeTemplateId,
+                        onSwitchTemplate = { targetId ->
+                            if (tableTemplateViewModel.templates.any { it.id == targetId }) {
+                                editorReplacementId = targetId
+                            }
+                        },
+                        onBack = {
+                            editorReplacementId = null
+                            openSaveSettingsInitially = false
+                            screen = previousScreen
+                        },
+                    )
+                }
             }
 
             AppScreen.SETTINGS -> SettingsScreen(
                 onBack = { screen = AppScreen.HOME },
-                onOpenCredits = { navigateTo(AppScreen.CREDITS) }
+                onOpenCredits = { navigateTo(AppScreen.CREDITS) },
+                onImported = { result ->
+                    // DataStore is committed before this callback; keep the live VM in sync.
+                    tableTemplateViewModel.setCatalog(result.templates, result.activeTemplateId)
+                }
             )
             AppScreen.CREDITS -> CreditsScreen(
                 onBack = { screen = AppScreen.SETTINGS }
@@ -704,6 +781,7 @@ fun AppRoot() {
             AppScreen.ALBUM_FOLDER -> {
                 LogFolderScreen(
                     relativePath = albumFolderPath,
+                    capturePathDrafts = (tableTemplateViewModel.templates.map { it.templateState.pathSlotDrafts } + listOf(tableTemplateState.pathSlotDrafts)).distinct(),
                     onBack = {
                         val parent = GalleryFolderIndexPolicy.parentOf(albumFolderPath)
                         if (parent != null) albumFolderPath = parent
@@ -711,12 +789,12 @@ fun AppRoot() {
                     },
                     onOpenFolder = { folder -> albumFolderPath = folder },
                     onOpenPhoto = { photos, index ->
-                        val relativePath = albumFolderPath
+                        val relativePath = photos.getOrNull(index)?.relativePath ?: albumFolderPath
                         albumLocation = AlbumLocation(
                             g1 = "",
                             g2Label = "",
                             relativePath = relativePath,
-                            originalLinkPath = relativePath + "original/",
+                            originalLinkPath = if (isOriginalRelativePath(relativePath)) null else relativePath + "original/",
                         )
                         gridItems = photos
                         viewerStartIndex = index
@@ -726,18 +804,9 @@ fun AppRoot() {
                         screen = AppScreen.ALBUM_VIEWER
                     },
                     onOpenOriginal = { originalPath ->
-                        albumLocation = AlbumLocation(
-                            g1 = "",
-                            g2Label = ORIGINAL_PHOTOS_TITLE,
-                            relativePath = originalPath,
-                            originalLinkPath = null,
-                        )
                         clearOriginalContext()
                         resetGridUiState()
-                        albumGridEntryScreen = AppScreen.ALBUM_FOLDER
-                        gridEntrySource = GridEntrySource.NORMAL
-                        viewerEntrySource = ViewerEntrySource.GRID
-                        screen = AppScreen.ALBUM_GRID
+                        albumFolderPath = originalPath
                     },
                 )
             }
@@ -757,8 +826,17 @@ fun AppRoot() {
                     items = gridItems,
                     isSelectionMode = isSelectionMode,
                     selectedIds = selectedIds,
-                    onItemsLoaded = { gridItems = it },
-                    onOpenViewer = { idx ->
+                    onItemsLoaded = { loaded ->
+                        gridItems = loaded
+                        selectedIds = selectedIds.intersect(loaded.mapTo(mutableSetOf()) { it.id })
+                        if (selectedIds.isEmpty()) isSelectionMode = false
+                    },
+                    onDeleted = { verifiedIds ->
+                        selectedIds = selectedIds - verifiedIds
+                        if (selectedIds.isEmpty()) isSelectionMode = false
+                    },
+                    onOpenViewer = { photos, idx ->
+                        gridItems = photos
                         viewerStartIndex = idx
                         viewerEntrySource = ViewerEntrySource.GRID
                         screen = AppScreen.ALBUM_VIEWER
@@ -789,9 +867,9 @@ fun AppRoot() {
                         isSelectionMode = false
                         selectedIds = emptySet()
                     },
-                    onSelectAll = {
-                        isSelectionMode = true
-                        selectedIds = gridItems.map { it.id }.toSet()
+                    onSelectAll = { visibleIds ->
+                        selectedIds = visibleIds
+                        isSelectionMode = visibleIds.isNotEmpty()
                     },
                     onBack = { handleAlbumGridBack() }
                 )
@@ -819,6 +897,7 @@ fun AppRoot() {
             }
             }
         }
+        GalleryPermissionOnboarding()
     }
 }
 

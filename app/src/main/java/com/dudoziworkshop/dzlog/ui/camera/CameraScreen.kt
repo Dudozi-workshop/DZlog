@@ -100,6 +100,7 @@ fun CameraScreen(
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
+    onCaptureCommitted: () -> Unit = {},
 ) {
     val context = LocalContext.current
 
@@ -127,6 +128,7 @@ fun CameraScreen(
                 onOpenAlbum = onOpenAlbum,
                 onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
                 sessionCaptureStack = sessionCaptureStack,
+                onCaptureCommitted = onCaptureCommitted,
             )
         } else {
             Text(
@@ -151,6 +153,7 @@ fun CameraPreview(
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
+    onCaptureCommitted: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
@@ -184,6 +187,7 @@ fun CameraPreview(
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var showQuickValueSheet by remember { mutableStateOf(false) }
+    var quickFocusedCellId by remember { mutableStateOf<String?>(null) }
     var cornerResizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
@@ -311,6 +315,7 @@ fun CameraPreview(
         captureFeedback = captureFeedback,
         sessionCaptureStack = sessionCaptureStack,
         latestImageController = latestImageController,
+        onCaptureCommitted = onCaptureCommitted,
         onTemplateChange = onTemplateChange,
         buildWatermarkConfig = ::buildWatermarkConfig,
     )
@@ -421,6 +426,7 @@ fun CameraPreview(
                     args = previewAreaArgs,
                     isTableSelected = ui.isTableSelected,
                     isTableLocked = ui.prefs.wmTableLocked,
+                    quickFocusedCellId = quickFocusedCellId,
                     onTableSelectionChange = { selected ->
                         if (selected) ui.dismissToolOverlays()
                         ui.isTableSelected = selected
@@ -531,9 +537,9 @@ fun CameraPreview(
             CameraQuickValueSheet(
                 template = tableTemplateState,
                 onDismiss = { showQuickValueSheet = false },
-                onApply = { updatedTemplate ->
+                onCellFocus = { quickFocusedCellId = it },
+                onValueChange = { updatedTemplate ->
                     onTemplateChange(updatedTemplate)
-                    showQuickValueSheet = false
                 },
             )
         }

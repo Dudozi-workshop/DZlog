@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.table
 
+import com.dudoziworkshop.dzlog.ui.common.DDZCellTypeIcons
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,8 +25,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.ExposurePlus1
-import androidx.compose.material.icons.filled.Numbers
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -579,12 +579,12 @@ private fun DataTypeCardGrid2(
     compact: Boolean = false
 ) {
     val items = listOf(
-        Triple(TableCellDataType.TEXT, Icons.Default.TextFields, "텍스트"),
-        Triple(TableCellDataType.NUMBER, Icons.Default.Numbers, "숫자"),
-        Triple(TableCellDataType.DATE, Icons.Default.DateRange, "날짜"),
-        Triple(TableCellDataType.TIME, Icons.Default.AccessTime, "시간"),
-        Triple(TableCellDataType.COUNTER, Icons.Default.ExposurePlus1, "자동번호"),
-        Triple(TableCellDataType.ROTATING_TEXT, Icons.Default.Autorenew, "순환문구")
+        Triple(TableCellDataType.TEXT, DDZCellTypeIcons.Text, "텍스트"),
+        Triple(TableCellDataType.NUMBER, DDZCellTypeIcons.Number, "숫자"),
+        Triple(TableCellDataType.DATE, DDZCellTypeIcons.Date, "날짜"),
+        Triple(TableCellDataType.TIME, DDZCellTypeIcons.Time, "시간"),
+        Triple(TableCellDataType.COUNTER, DDZCellTypeIcons.AutoNumber, "자동번호"),
+        Triple(TableCellDataType.ROTATING_TEXT, DDZCellTypeIcons.RotatingText, "순환문구")
     )
 
     val rows = items.chunked(2)

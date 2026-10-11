@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -18,9 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -32,7 +29,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.R
-import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZCard
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -41,11 +37,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 private val CARD_SHAPE = RoundedCornerShape(20.dp)
 
 private val specialThanks = listOf("루루", "채채", "작은박")
-private val supporters = listOf("아무개", "아무개", "아무개")
-private val privateTesters = listOf("아무개", "아무개")
-private val ideaFeedback = listOf("아무개", "아무개")
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CreditsScreen(
     onBack: () -> Unit,
@@ -56,16 +48,15 @@ fun CreditsScreen(
     ) {
         Scaffold(
             containerColor = DDZColor.Background,
-            topBar = { DDZTopBar(title = "도움 주신 분들", onBack = onBack) },
-            bottomBar = { SupportButton(onClick = {}) }
+            topBar = { DDZTopBar(title = "도움 주신 분들", onBack = onBack) }
         ) { innerPadding ->
-            // 주요 정책: 상/하단은 고정하고 중앙 콘텐츠만 스크롤되도록 유지한다.
+            // 상단 네비게이션은 고정하고 감사 명단만 스크롤한다.
             Column(
                 modifier = Modifier
                     .padding(innerPadding)
                     .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 HeaderCard()
 
@@ -76,26 +67,6 @@ fun CreditsScreen(
                     Chips()
                 }
 
-                CreditsSectionCard(
-                    icon = Icons.Default.Star,
-                    title = "후원해주신 분들"
-                ) {
-                    ContributorLines(names = supporters)
-                }
-
-                CreditsSectionCard(
-                    icon = Icons.Default.Build,
-                    title = "앱 개발에 도움 주신 분들"
-                ) {
-                    ContributorGroup(
-                        subtitle = "# 비공개 테스터",
-                        names = privateTesters
-                    )
-                    ContributorGroup(
-                        subtitle = "# 아이디어 및 피드백",
-                        names = ideaFeedback
-                    )
-                }
             }
         }
     }
@@ -121,12 +92,12 @@ private fun HeaderCard() {
                 modifier = Modifier.size(56.dp)
             )
             Text(
-                text = "DZLog",
+                text = "DZlog",
                 style = DDZTypography.ScreenTitle,
                 color = DDZColor.PrimaryDark
             )
             Text(
-                text = "촬영·기록·정리를 한 번에",
+                text = "함께해 주셔서 감사합니다",
                 style = DDZTypography.Caption,
                 color = DDZColor.TextSecondary
             )
@@ -195,46 +166,3 @@ private fun Chips() {
     }
 }
 
-@Composable
-private fun ContributorLines(names: List<String>) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        names.forEach { name ->
-            Text(
-                text = name,
-                style = DDZTypography.Caption,
-                color = DDZColor.TextPrimary,
-                modifier = Modifier.padding(start = 4.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun ContributorGroup(
-    subtitle: String,
-    names: List<String>,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = subtitle,
-            style = DDZTypography.Body,
-            color = DDZColor.PrimaryDark
-        )
-        ContributorLines(names = names)
-    }
-}
-
-@Composable
-private fun SupportButton(
-    onClick: () -> Unit,
-) {
-    Surface(color = DDZColor.Background) {
-        DDZButton(
-            text = "후원하기",
-            onClick = onClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-        )
-    }
-}

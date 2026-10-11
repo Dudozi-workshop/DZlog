@@ -85,6 +85,20 @@ class TableStructureMutationTest {
         assertEquals(mergedTemplate, removeNext)
     }
 
+    @Test
+    fun additions_reach_six_by_six_and_preserve_existing_cells_at_limit() {
+        val base = defaultTableTemplateState()
+        var next = base
+        while (next.rows < 6) next = addRow(next)
+        while (next.cols < 6) next = addColumn(next)
+        assertEquals(6, next.rows)
+        assertEquals(6, next.cols)
+        assertRectangularInvariant(next)
+        assertTrue(base.cells.all { old -> next.cells.any { it.cellId == old.cellId && it.rawText == old.rawText } })
+        assertEquals(next, addRow(next))
+        assertEquals(next, addColumn(next))
+    }
+
     private fun cellAtFirstRow(template: TableTemplateState, col: Int): TableCellState {
         return template.cells.first { it.rowIndex == 0 && it.colIndex == col }
     }

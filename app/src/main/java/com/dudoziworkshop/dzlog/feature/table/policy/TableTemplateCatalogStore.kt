@@ -76,7 +76,12 @@ suspend fun persistTableTemplateCatalog(
         ?: normalized.firstOrNull()
 
     context.dataStore.edit { prefs ->
-        prefs[KEY_TABLE_TEMPLATES_JSON] = savedTableTemplatesToJson(normalized)
+        // Capture completion may race an editor/counter update. Preserve newer usage metadata atomically.
+        val previousUse = prefs[KEY_TABLE_TEMPLATES_JSON]?.let(::savedTableTemplatesFromJson)
+            .orEmpty().associate { it.id to it.lastUsedAt }
+        prefs[KEY_TABLE_TEMPLATES_JSON] = savedTableTemplatesToJson(normalized.map {
+            it.copy(lastUsedAt = maxOf(it.lastUsedAt, previousUse[it.id] ?: 0L))
+        })
         if (active == null) {
             prefs.remove(KEY_ACTIVE_TABLE_TEMPLATE_ID)
             prefs.remove(KEY_TABLE_TEMPLATE_JSON)
@@ -101,4 +106,14 @@ suspend fun activateSavedTableTemplate(
         items = items,
         activeTemplateId = activeTemplateId,
     )
+}
+
+suspend fun markSavedTableTemplateUsed(context: Context, id: String, timestamp: Long) {
+    context.dataStore.edit { prefs ->
+        val items = prefs[KEY_TABLE_TEMPLATES_JSON]?.let(::savedTableTemplatesFromJson) ?: return@edit
+        if (items.none { it.id == id }) return@edit
+        prefs[KEY_TABLE_TEMPLATES_JSON] = savedTableTemplatesToJson(items.map {
+            if (it.id == id) it.copy(lastUsedAt = maxOf(it.lastUsedAt, timestamp)) else it
+        })
+    }
 }

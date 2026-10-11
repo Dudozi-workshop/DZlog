@@ -7,14 +7,15 @@ package com.dudoziworkshop.dzlog.ui.log
 
 import android.content.Intent
 import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -40,11 +41,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,6 +59,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,6 +69,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,9 +82,17 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
-import com.dudoziworkshop.dzlog.feature.log.policy.launchMediaDeleteRequest
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryViewerDeletePolicy
+import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
+import com.dudoziworkshop.dzlog.feature.log.policy.FilmstripItemBounds
+import com.dudoziworkshop.dzlog.feature.log.policy.nearestFilmstripIndex
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -94,66 +111,105 @@ fun LogViewerScreen(
 ) {
     val context = LocalContext.current
     val resolver = context.contentResolver
-    val reader = remember { DzlogMediaStoreReader(resolver) }
+    val reader = remember(resolver) { DzlogMediaStoreReader(resolver) }
     val favoritesRepository = remember(context) { FavoritesProvider.repo(context) }
     val favoriteIds by favoritesRepository.favoriteIdsFlow.collectAsState(initial = emptySet())
     val scope = rememberCoroutineScope()
     val filmstripListState = rememberLazyListState()
+    val filmstripDragged by filmstripListState.interactionSource.collectIsDraggedAsState()
+    var filmstripDriven by remember { mutableStateOf(false) }
 
-    fun reloadAfterDelete() {
-        runCatching { reader.loadImages(relativePath) }
-            .onSuccess { reloaded ->
-                onItemsReloaded(reloaded)
-                if (reloaded.isEmpty()) {
-                    onRequestCloseViewer()
-                }
-            }
-    }
-
-    val deleteLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult()
-    ) {
-        reloadAfterDelete()
-    }
-
-    fun startDeleteRequest(uris: List<android.net.Uri>) {
-        launchMediaDeleteRequest(
-            resolver = resolver,
-            uris = uris,
-            onLaunchIntentSender = deleteLauncher::launch,
-            onLegacyDeleteCompleted = ::reloadAfterDelete
-        )
-    }
+    var originalPreview by remember { mutableStateOf<MediaImageItem?>(null) }
+    var originalLoading by remember { mutableStateOf(false) }
+    var originalError by remember { mutableStateOf<String?>(null) }
+    var moveItem by remember { mutableStateOf<MediaImageItem?>(null) }
+    var deleteItem by remember { mutableStateOf<MediaImageItem?>(null) }
+    var pendingViewerIndex by remember { mutableStateOf<Int?>(null) }
+    var emptyAfterOperation by remember { mutableStateOf(false) }
+    val operationLocked = deleteItem != null || moveItem != null || originalLoading
+    BackHandler(enabled = originalPreview != null && !operationLocked) { originalPreview = null }
+    BackHandler(enabled = operationLocked) { /* The active operation owns dismissal. */ }
 
     val safeStart = startIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
     val pagerState = rememberPagerState(initialPage = safeStart, pageCount = { items.size })
 
-    var uiVisible by remember { mutableStateOf(false) }
+    var uiVisible by remember { mutableStateOf(true) }
+    var filmstripExpanded by remember { mutableStateOf(false) }
     var infoSheetItem by remember { mutableStateOf<MediaImageItem?>(null) }
-    var isCurrentImageZoomed by remember { mutableStateOf(false) }
+    var zoomedImageIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
 
-    LaunchedEffect(safeStart) {
+    LaunchedEffect(items) {
+        zoomedImageIds = zoomedImageIds.intersect(items.mapTo(mutableSetOf()) { it.id })
         if (items.isNotEmpty()) {
-            pagerState.scrollToPage(safeStart)
+            val target = (pendingViewerIndex ?: pagerState.currentPage).coerceIn(items.indices)
+            pagerState.scrollToPage(target)
+        }
+        pendingViewerIndex = null
+    }
+
+    val resultItem = items.getOrNull(pagerState.currentPage)
+    val currentItem = originalPreview ?: resultItem
+    LaunchedEffect(resultItem?.id) { originalPreview = null }
+
+    fun showOriginal() {
+        if (operationLocked) return
+        if (originalPreview != null) {
+            originalPreview = null
+            return
+        }
+        val requested = resultItem ?: return
+        originalLoading = true
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val snapshot = reader.loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT)
+                    require(snapshot.singleOrNull { it.id == requested.id } == requested) {
+                        "사진 정보가 변경됐습니다. 갤러리에서 다시 확인해 주세요."
+                    }
+                    requireNotNull(GalleryPhotoMovePolicy.pairedOriginals(listOf(requested), snapshot).singleOrNull()) {
+                        "정확히 연결된 원본사진을 찾지 못했습니다."
+                    }
+                }
+            }
+            originalLoading = false
+            result.onSuccess {
+                if (items.getOrNull(pagerState.currentPage)?.id == requested.id) originalPreview = it
+                else originalError = "현재 사진이 바뀌었습니다. 다시 원본 보기를 선택해 주세요."
+            }
+                .onFailure { originalError = it.message ?: "원본사진을 확인하지 못했습니다." }
         }
     }
 
-    LaunchedEffect(items.size) {
-        if (items.isEmpty()) return@LaunchedEffect
-        val targetPage = pagerState.currentPage.coerceIn(0, (items.size - 1).coerceAtLeast(0))
-        if (targetPage != pagerState.currentPage) {
-            pagerState.scrollToPage(targetPage)
+    LaunchedEffect(filmstripDragged) {
+        if (filmstripDragged && filmstripExpanded && uiVisible && !operationLocked && originalPreview == null) {
+            filmstripDriven = true
         }
     }
 
-    val currentItem = items.getOrNull(pagerState.currentPage)
+    // User-driven strip scroll changes the main photo, including the final fling.
+    // Programmatic centering must not feed back into the pager.
+    LaunchedEffect(filmstripExpanded, uiVisible, items, operationLocked, originalPreview) {
+        if (!filmstripExpanded || !uiVisible || operationLocked || originalPreview != null) {
+            filmstripDriven = false
+            return@LaunchedEffect
+        }
+        snapshotFlow {
+            val layout = filmstripListState.layoutInfo
+            Triple(filmstripDriven, filmstripListState.isScrollInProgress,
+                nearestFilmstripIndex(layout.viewportStartOffset, layout.viewportEndOffset,
+                    layout.visibleItemsInfo.map { FilmstripItemBounds(it.index, it.offset, it.size) }))
+        }.collect { (driven, moving, index) ->
+            if (driven && index != null && index in items.indices) {
+                if (pagerState.currentPage != index) pagerState.scrollToPage(index)
+                if (!moving) filmstripDriven = false
+            }
+        }
+    }
 
-    LaunchedEffect(pagerState.currentPage, items.size) {
-        if (items.isEmpty()) return@LaunchedEffect
-        if (pagerState.currentPage !in items.indices) return@LaunchedEffect
-        // 정책: 현재 페이지가 바뀌면 새 이미지는 1x 초기 상태이므로 pager 잠금 상태를 해제한다.
-        isCurrentImageZoomed = false
-        filmstripListState.animateScrollToItem(pagerState.currentPage)
+    LaunchedEffect(filmstripExpanded, uiVisible, pagerState.settledPage, items.size, filmstripDriven) {
+        if (filmstripExpanded && uiVisible && !filmstripDriven && pagerState.settledPage in items.indices) {
+            filmstripListState.animateScrollToItem(pagerState.settledPage)
+        }
     }
 
     Box(
@@ -165,8 +221,9 @@ fun LogViewerScreen(
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
+                key = { page -> items[page].id },
                 // 정책: 확대 상태에서는 부모 pager 스크롤을 명시적으로 잠근다.
-                userScrollEnabled = !isCurrentImageZoomed
+                userScrollEnabled = resultItem?.id !in zoomedImageIds && !operationLocked && originalPreview == null
             ) { page ->
                 val item = items[page]
                 Box(
@@ -175,32 +232,49 @@ fun LogViewerScreen(
                 ) {
                     DzFullImage(
                         uriString = item.uri.toString(),
-                        canGoPrevious = page > 0,
-                        canGoNext = page < items.lastIndex,
+                        canGoPrevious = page > 0 && !operationLocked,
+                        canGoNext = page < items.lastIndex && !operationLocked,
                         onGoPrevious = {
-                            if (page > 0) {
+                            if (page > 0 && !operationLocked) {
                                 scope.launch {
                                     pagerState.animateScrollToPage(page - 1)
                                 }
                             }
                         },
                         onGoNext = {
-                            if (page < items.lastIndex) {
+                            if (page < items.lastIndex && !operationLocked) {
                                 scope.launch {
                                     pagerState.animateScrollToPage(page + 1)
                                 }
                             }
                         },
                         onZoomedStateChange = { zoomed ->
-                            // 현재 페이지의 확대 상태만 pager 잠금 조건으로 사용한다.
-                            if (page == pagerState.currentPage) {
-                                isCurrentImageZoomed = zoomed
-                            }
+                            // Track by photo identity; a list/index change must not unlock a surviving zoomed image.
+                            zoomedImageIds = if (zoomed) zoomedImageIds + item.id else zoomedImageIds - item.id
                         },
                         onSingleTap = { uiVisible = !uiVisible },
+                        swipeUpEnabled = !operationLocked && infoSheetItem == null,
+                        onSwipeUp = { items.getOrNull(pagerState.currentPage)?.let { infoSheetItem = it } },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
+            }
+        }
+
+        originalPreview?.let { original ->
+            Box(Modifier.fillMaxSize().background(Color.Black)) {
+                DzFullImage(
+                    uriString = original.uri.toString(),
+                    canGoPrevious = false,
+                    canGoNext = false,
+                    onGoPrevious = {},
+                    onGoNext = {},
+                    onZoomedStateChange = {},
+                    onSingleTap = { uiVisible = !uiVisible },
+                    swipeUpEnabled = !operationLocked && infoSheetItem == null,
+                    onSwipeUp = { infoSheetItem = original },
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
 
@@ -212,10 +286,21 @@ fun LogViewerScreen(
         ) {
             ViewerTopOverlay(
                 current = currentItem,
-                onBack = onBack,
-                onShare = {
-                    val item = currentItem ?: return@ViewerTopOverlay
-                    shareImages(context, listOf(item))
+                onBack = { if (!operationLocked) { if (originalPreview != null) originalPreview = null else onBack() } },
+                enabled = !operationLocked,
+                currentIndex = pagerState.currentPage,
+                total = items.size,
+                showingOriginal = originalPreview != null || currentItem?.let { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) } == true,
+                originalActionLabel = if (originalPreview != null) "결과사진으로 돌아가기" else "원본 보기",
+                onOriginal = if (originalPreview != null || resultItem?.let { !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) } == true) ::showOriginal else null,
+                onMove = {
+                    if (!operationLocked && currentItem != null) {
+                        emptyAfterOperation = false
+                        moveItem = currentItem
+                    }
+                },
+                onInfo = {
+                    if (!operationLocked && currentItem != null) infoSheetItem = currentItem
                 }
             )
         }
@@ -249,37 +334,115 @@ fun LogViewerScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     ViewerBottomPill(
+                        enabled = !operationLocked && currentItem != null,
                         onFavorite = {
+                            if (operationLocked) return@ViewerBottomPill
                             val item = currentItem ?: return@ViewerBottomPill
                             scope.launch {
                                 favoritesRepository.toggleFavorite(item)
                             }
                         },
                         isFavorite = currentItem?.id?.let(favoriteIds::contains) == true,
+                        onShare = {
+                            if (operationLocked) return@ViewerBottomPill
+                            val item = currentItem ?: return@ViewerBottomPill
+                            shareImages(context, listOf(item))
+                        },
                         onInfo = {
-                            if (currentItem != null) infoSheetItem = currentItem
+                            if (!operationLocked && currentItem != null) infoSheetItem = currentItem
                         },
                         onDelete = {
-                            val item = currentItem ?: return@ViewerBottomPill
-                            startDeleteRequest(listOf(item.uri))
-                        }
-                    )
-
-                    ThumbnailFilmstrip(
-                        items = items,
-                        currentPage = pagerState.currentPage,
-                        favoriteIds = favoriteIds,
-                        listState = filmstripListState,
-                        onThumbnailClick = { index ->
-                            scope.launch {
-                                pagerState.animateScrollToPage(index)
-                                filmstripListState.animateScrollToItem(index)
+                            if (!operationLocked && currentItem != null) {
+                                emptyAfterOperation = false
+                                deleteItem = currentItem
                             }
                         }
                     )
+
+                    TextButton(
+                        onClick = { filmstripExpanded = !filmstripExpanded },
+                        enabled = !operationLocked && originalPreview == null && items.isNotEmpty(),
+                    ) {
+                        Icon(
+                            imageVector = if (filmstripExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                            contentDescription = null,
+                            tint = Color.White,
+                        )
+                        Text(
+                            text = if (filmstripExpanded) "사진 목록 접기" else "사진 목록 펼치기",
+                            color = Color.White,
+                        )
+                    }
+                    if (filmstripExpanded && originalPreview == null) {
+                        ThumbnailFilmstrip(
+                            items = items,
+                            currentPage = pagerState.currentPage,
+                            favoriteIds = favoriteIds,
+                            listState = filmstripListState,
+                            enabled = !operationLocked,
+                            onThumbnailClick = { index ->
+                                if (!operationLocked && originalPreview == null && index in items.indices) scope.launch {
+                                    filmstripDriven = false
+                                    pagerState.animateScrollToPage(index)
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
+    }
+
+    deleteItem?.let { requested ->
+        GalleryViewerDeleteDialog(
+            item = requested,
+            reader = reader,
+            onVerified = { deletedIds ->
+                if (originalPreview?.id in deletedIds) originalPreview = null
+                GallerySnapshotMemory.cache.invalidate()
+                if (items.any { it.id in deletedIds }) {
+                    val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, deletedIds)
+                    pendingViewerIndex = update.currentIndex
+                    emptyAfterOperation = update.ids.isEmpty()
+                    onItemsReloaded(items.filter { it.id !in deletedIds })
+                }
+            },
+            onClose = {
+                deleteItem = null
+                if (emptyAfterOperation) onRequestCloseViewer()
+            },
+        )
+    }
+
+    moveItem?.let { requested ->
+        GalleryViewerMoveDialog(
+            item = requested,
+            reader = reader,
+            onVerified = { movedIds ->
+                if (originalPreview?.id in movedIds || resultItem?.id in movedIds) originalPreview = null
+                if (items.any { it.id in movedIds }) {
+                    val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, movedIds)
+                    pendingViewerIndex = update.currentIndex
+                    emptyAfterOperation = update.ids.isEmpty()
+                    onItemsReloaded(items.filter { it.id !in movedIds })
+                }
+            },
+            onClose = {
+                moveItem = null
+                if (emptyAfterOperation) onRequestCloseViewer()
+            },
+        )
+    }
+
+    if (originalLoading || originalError != null) {
+        AlertDialog(
+            onDismissRequest = { if (!originalLoading) originalError = null },
+            title = { Text(if (originalLoading) "원본 확인 중" else "원본 보기") },
+            text = { Text(originalError ?: "연결된 원본사진을 확인하고 있습니다.") },
+            confirmButton = {
+                if (!originalLoading) TextButton(onClick = { originalError = null }) { Text("확인") }
+            },
+        )
     }
 
     val sheetItem = infoSheetItem
@@ -297,12 +460,21 @@ fun LogViewerScreen(
 @Composable
 private fun ViewerTopOverlay(
     current: MediaImageItem?,
+    enabled: Boolean,
     onBack: () -> Unit,
-    onShare: () -> Unit,
+    currentIndex: Int,
+    total: Int,
+    showingOriginal: Boolean,
+    originalActionLabel: String,
+    onOriginal: (() -> Unit)?,
+    onMove: () -> Unit,
+    onInfo: () -> Unit,
 ) {
+    var menuExpanded by remember(current?.id, enabled) { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(Brush.verticalGradient(listOf(Color(0xAA000000), Color.Transparent)))
             .windowInsetsPadding(
                 WindowInsets.safeDrawing.only(
                     WindowInsetsSides.Top + WindowInsetsSides.Horizontal
@@ -311,34 +483,53 @@ private fun ViewerTopOverlay(
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
-            }
+        IconButton(onClick = onBack, enabled = enabled) {
+            Icon(Icons.Default.ArrowBack, contentDescription = "뒤로가기", tint = Color.White)
         }
-        Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "DZLOG VIEWER",
+                text = current?.displayName.orEmpty(),
                 color = Color.White,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "${if (showingOriginal) "원본 · " else ""}${if (current == null) 0 else currentIndex + 1} / $total",
+                color = Color.White,
+                style = MaterialTheme.typography.labelSmall,
             )
         }
-        Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.CenterEnd
-        ) {
-            IconButton(
-                onClick = onShare,
-                enabled = current != null
-            ) {
-                Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White)
+        Box {
+            IconButton(onClick = { menuExpanded = true }, enabled = enabled && current != null) {
+                Icon(Icons.Default.MoreVert, contentDescription = "사진 메뉴", tint = Color.White)
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                if (onOriginal != null) DropdownMenuItem(
+                    text = { Text(originalActionLabel) },
+                    onClick = {
+                        menuExpanded = false
+                        if (enabled) onOriginal()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("다른 폴더로 이동") },
+                    onClick = {
+                        menuExpanded = false
+                        if (enabled && current != null) onMove()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("사진 정보") },
+                    onClick = {
+                        menuExpanded = false
+                        if (enabled && current != null) onInfo()
+                    },
+                )
             }
         }
     }
@@ -346,8 +537,10 @@ private fun ViewerTopOverlay(
 
 @Composable
 private fun ViewerBottomPill(
+    enabled: Boolean,
     onFavorite: () -> Unit,
     isFavorite: Boolean,
+    onShare: () -> Unit,
     onInfo: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -360,18 +553,21 @@ private fun ViewerBottomPill(
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onFavorite) {
+        IconButton(onClick = onFavorite, enabled = enabled) {
             Icon(
                 imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = "Favorite",
+                contentDescription = if (isFavorite) "즐겨찾기 해제" else "즐겨찾기 추가",
                 tint = if (isFavorite) Color(0xFFFF5C7A) else Color.White
             )
         }
-        IconButton(onClick = onInfo) {
-            Icon(Icons.Default.Info, contentDescription = "Info", tint = Color.White)
+        IconButton(onClick = onShare, enabled = enabled) {
+            Icon(Icons.Default.Share, contentDescription = "공유", tint = Color.White)
         }
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
+        IconButton(onClick = onInfo, enabled = enabled) {
+            Icon(Icons.Default.Info, contentDescription = "사진 정보", tint = Color.White)
+        }
+        IconButton(onClick = onDelete, enabled = enabled) {
+            Icon(Icons.Default.Delete, contentDescription = "사진 삭제", tint = Color.White)
         }
     }
 }
@@ -382,6 +578,7 @@ private fun ThumbnailFilmstrip(
     currentPage: Int,
     favoriteIds: Set<Long>,
     listState: LazyListState,
+    enabled: Boolean,
     onThumbnailClick: (Int) -> Unit,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -390,6 +587,8 @@ private fun ThumbnailFilmstrip(
 
         LazyRow(
             state = listState,
+            flingBehavior = rememberSnapFlingBehavior(lazyListState = listState),
+            userScrollEnabled = enabled,
             contentPadding = PaddingValues(horizontal = sidePadding),
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -406,7 +605,7 @@ private fun ThumbnailFilmstrip(
                             color = if (selected) Color.White else Color.Gray,
                             shape = RoundedCornerShape(8.dp)
                         )
-                        .clickable { onThumbnailClick(index) },
+                        .clickable(enabled = enabled) { onThumbnailClick(index) },
                     color = Color.Black
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {

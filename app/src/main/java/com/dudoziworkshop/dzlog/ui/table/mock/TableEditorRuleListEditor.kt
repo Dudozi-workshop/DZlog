@@ -1,7 +1,10 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,11 +12,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Autorenew
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
@@ -33,7 +47,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.domain.naming.NamingSlotPreview
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -59,6 +77,7 @@ internal fun TableEditorRuleListEditor(
     cells: List<TableEditorCellUiModel>,
     rows: Int,
     cols: Int,
+    onManualPreview: (Boolean, Int, String) -> NamingSlotPreview,
     onItemsChange: (List<MockRuleItem?>) -> Unit,
 ) {
     val compactItems = items.filterNotNull()
@@ -118,6 +137,9 @@ internal fun TableEditorRuleListEditor(
         emitCompacted(reordered)
     }
 
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    if (compactItems.isNotEmpty()) Text("항목을 왼쪽으로 밀면 삭제할 수 있어요.",
+        style = DDZTypography.Caption, color = DDZColor.TextMuted)
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
@@ -204,9 +226,10 @@ internal fun TableEditorRuleListEditor(
                                 .padding(vertical = 5.dp),
                             style = DDZTypography.SettingLabel,
                             color = DDZColor.TextPrimary,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
                         )
                         Row(
-                            modifier = Modifier
+                            modifier = Modifier.widthIn(max = 112.dp)
                                 .clickable {
                                     editingIndex = index
                                     editorTarget = RuleEditorTarget.TYPE
@@ -215,13 +238,18 @@ internal fun TableEditorRuleListEditor(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            Icon(ruleTypeIcon(item.sourceType), contentDescription = null,
+                                tint = DDZColor.TextSecondary, modifier = Modifier.size(16.dp))
                             Text(
                                 text = ruleTypeLabel(item.sourceType),
+                                modifier = Modifier.weight(1f, fill = false),
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 style = DDZTypography.Caption,
                                 color = DDZColor.TextSecondary,
                             )
                             Icon(
                                 imageVector = Icons.Default.ChevronRight,
+                                modifier = Modifier.size(18.dp),
                                 contentDescription = null,
                                 tint = DDZColor.TextSecondary,
                             )
@@ -242,6 +270,8 @@ internal fun TableEditorRuleListEditor(
             editorTarget = RuleEditorTarget.ADD
         },
     )
+
+    }
 
     val target = editorTarget
     if (target != null) {
@@ -291,13 +321,46 @@ internal fun TableEditorRuleListEditor(
                     title = if (isFileName) "직접 입력" else "폴더명 입력",
                     onDismiss = { editorTarget = null },
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
                         DDZTextField(
                             modifier = Modifier.fillMaxWidth(),
                             value = manualDraft,
                             onValueChange = { manualDraft = it },
                             label = if (isFileName) "파일명 값" else "폴더명",
                         )
+                        val pendingPreview = editingIndex?.let { index ->
+                            onManualPreview(isFileName, index, manualDraft)
+                        }
+                        if (pendingPreview != null) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth()
+                                    .background(DDZColor.SurfaceSoft, RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text("미리보기", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+                                Text(
+                                    buildAnnotatedString {
+                                        append(pendingPreview.text)
+                                        if (pendingPreview.highlightStart >= 0 &&
+                                            pendingPreview.highlightEnd > pendingPreview.highlightStart &&
+                                            pendingPreview.highlightEnd <= pendingPreview.text.length
+                                        ) {
+                                            addStyle(
+                                                SpanStyle(color = DDZColor.SelectedDark, fontWeight = FontWeight.Bold),
+                                                pendingPreview.highlightStart,
+                                                pendingPreview.highlightEnd,
+                                            )
+                                        }
+                                    },
+                                    style = DDZTypography.Body,
+                                    color = DDZColor.TextPrimary,
+                                )
+                            }
+                        }
                         DDZButton(
                             text = "확인",
                             modifier = Modifier.fillMaxWidth(),
@@ -318,25 +381,21 @@ internal fun TableEditorRuleListEditor(
             }
 
             target == RuleEditorTarget.VALUE && active?.sourceType == MockRuleSourceType.DATE -> {
-                ChoiceSheet(
-                    title = "날짜 형식",
-                    options = listOf("20261008", "2026-10-08", "26.10.08", "10월 08일"),
+                TableEditorDateFormatSheet(
+                    selectedPattern = active.formatPattern ?: "yyyyMMdd",
                     onDismiss = { editorTarget = null },
-                    onSelect = { value ->
-                        val index = editingIndex ?: return@ChoiceSheet
-                        replaceAt(
-                            index,
-                            MockRuleItem(
-                                sourceType = MockRuleSourceType.DATE,
-                                value = value,
-                                formatPattern = when (value) {
-                                    "2026-10-08" -> "yyyy-MM-dd"
-                                    "26.10.08" -> "yy.MM.dd"
-                                    "10월 08일" -> "MM월 dd일"
-                                    else -> "yyyyMMdd"
-                                },
+                    onSelect = { pattern ->
+                        val index = editingIndex
+                        if (index != null) {
+                            replaceAt(
+                                index,
+                                active.copy(
+                                    value = java.text.SimpleDateFormat(pattern, java.util.Locale.getDefault())
+                                        .format(java.util.Date()),
+                                    formatPattern = pattern,
+                                ),
                             )
-                        )
+                        }
                     },
                 )
             }
@@ -383,27 +442,26 @@ internal fun TableEditorRuleListEditor(
                     onDismiss = { editorTarget = null },
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(
-                            MockRuleSourceType.CELL,
-                            MockRuleSourceType.MANUAL,
-                            MockRuleSourceType.DATE,
-                            MockRuleSourceType.TIME,
-                            MockRuleSourceType.ROTATING_TEXT,
-                        ).forEach { type ->
-                            DDZButton(
-                                text = ruleTypeLabel(type),
-                                modifier = Modifier.fillMaxWidth(),
-                                style = DDZButtonStyle.Secondary,
-                                onClick = {
-                                    val next = defaultRuleItem(type)
-                                    if (target == RuleEditorTarget.ADD) {
-                                        append(next)
-                                    } else {
-                                        val index = editingIndex ?: return@DDZButton
-                                        replaceAt(index, next)
-                                    }
-                                },
-                            )
+                        saveRuleSourceChoices.chunked(2).forEach { choices ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                choices.forEach { type ->
+                                    val isSelected = target == RuleEditorTarget.TYPE && active?.sourceType == type
+                                    DDZButton(
+                                        text = ruleTypeLabel(type), leadingIcon = ruleTypeIcon(type),
+                                        modifier = Modifier.weight(1f).semantics { selected = isSelected },
+                                        minHeight = 56.dp, style = DDZButtonStyle.Secondary,
+                                        containerColorOverride = if (isSelected) DDZColor.SelectedSoft else DDZColor.Surface,
+                                        onClick = {
+                                            val next = defaultRuleItem(type)
+                                            if (target == RuleEditorTarget.ADD) append(next)
+                                            else {
+                                                val index = editingIndex ?: return@DDZButton
+                                                replaceAt(index, next)
+                                            }
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -458,3 +516,11 @@ private fun ruleTypeLabel(type: MockRuleSourceType): String =
         MockRuleSourceType.TIME -> "시간"
         MockRuleSourceType.ROTATING_TEXT -> "순환문구"
     }
+
+private fun ruleTypeIcon(type: MockRuleSourceType): ImageVector = when (type) {
+    MockRuleSourceType.CELL -> Icons.Filled.GridView
+    MockRuleSourceType.MANUAL -> Icons.Filled.TextFields
+    MockRuleSourceType.DATE -> Icons.Filled.DateRange
+    MockRuleSourceType.TIME -> Icons.Filled.AccessTime
+    MockRuleSourceType.ROTATING_TEXT -> Icons.Filled.Autorenew
+}

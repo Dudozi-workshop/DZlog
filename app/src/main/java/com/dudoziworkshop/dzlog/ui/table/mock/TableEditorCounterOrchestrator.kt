@@ -7,9 +7,14 @@ import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
+import com.dudoziworkshop.dzlog.domain.preview.PreviewState
+import com.dudoziworkshop.dzlog.domain.preview.TickUnit
+import com.dudoziworkshop.dzlog.domain.preview.computeNextDelayMillis
 import com.dudoziworkshop.dzlog.domain.preview.buildPreview
 import com.dudoziworkshop.dzlog.feature.counter.table.SaveSettingsCounterController
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import java.util.Date
 
 internal class TableEditorCounterOrchestrator {
@@ -85,12 +90,17 @@ internal fun rememberTableEditorCounterOrchestrator(context: Context, session: T
 }
 
 @Composable
-internal fun tableEditorNamingPreview(context: Context, session: TableEditorV2SessionState): Pair<String, String> {
+internal fun tableEditorPreview(context: Context, session: TableEditorV2SessionState): PreviewState {
     val settings by remember(context) { AppSettingsStore.flow(context) }.collectAsState(AppSettings.Default)
-    val preview = buildPreview(PreviewInput(session.finalTemplateForSave(), Date(), session.draftCounterPadding,
+    val now by produceState(initialValue = Date()) {
+        while (isActive) {
+            delay(computeNextDelayMillis(TickUnit.MINUTE))
+            value = Date()
+        }
+    }
+    return buildPreview(PreviewInput(session.finalTemplateForSave(), now, session.draftCounterPadding,
         NamingFormatDefaults.DATE_FORMAT_DEFAULT, NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
         NamingFormatDefaults.FILE_NAME_DELIMITER, session.saveRulesDraft.includePathInScope,
         session.saveRulesDraft.includeFilenameInScope, session.draftSaveMode, session.draftNextCounter,
         settings.phraseProgressCursor))
-    return preview.previewNaming.displayName to preview.previewNaming.relativePath
 }

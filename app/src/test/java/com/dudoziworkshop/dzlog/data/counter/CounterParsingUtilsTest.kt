@@ -30,13 +30,11 @@ class CounterParsingUtilsTest {
 
     @Test
     fun parse_is_padding_agnostic_when_digits_config_changes() {
-        val parsed = parseCounterForPolicy(
-            displayName = "ANY_PREFIX_27.jpg",
-            fileNamePrefix = "*",
-            fnDelim = "_"
-        )
-
-        assertEquals(27, parsed)
+        for (suffix in listOf("12", "012", "0012", "00012", "000012")) {
+            assertEquals(12, parseCounterForPolicy("ABC_DEF_${suffix}.jpg", "ABC_DEF", "_"))
+        }
+        assertEquals(12345, parseCounterForPolicy("ABC_DEF_12345.jpg", "ABC_DEF", "_"))
+        assertNull(parseCounterForPolicy("UNRELATED_000012.jpg", "ABC_DEF", "_"))
     }
 
     @Test

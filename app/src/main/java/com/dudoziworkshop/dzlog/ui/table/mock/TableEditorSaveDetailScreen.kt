@@ -2,6 +2,8 @@ package com.dudoziworkshop.dzlog.ui.table.mock
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +18,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -23,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.domain.naming.NamingSlotPreview
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -54,10 +58,13 @@ internal fun TableEditorSaveDetailScreen(
     onNextCounterChange: (Int) -> Unit,
     onSyncCounter: () -> Unit,
     onResetCounter: () -> Unit,
+    onManualPreview: (Boolean, Int, String) -> NamingSlotPreview,
     onDraftChange: (MockSaveRulesDraft) -> Unit,
 ) {
     var showCounterInput by remember { mutableStateOf(false) }
     var counterInputDraft by remember(nextCounter) { mutableStateOf(nextCounter.toString()) }
+
+    val scrollState = key(detail) { rememberScrollState() }
 
     Scaffold(
         containerColor = DDZColor.Background,
@@ -78,8 +85,9 @@ internal fun TableEditorSaveDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             when (detail) {
                 TableEditorSaveDetail.FILE_NAME -> {
@@ -87,13 +95,14 @@ internal fun TableEditorSaveDetailScreen(
                         label = "현재 파일명",
                         value = fileNamePreview,
                     )
-                    Text("파일명 구성", style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
+                    Text("파일명 구성", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                     TableEditorRuleListEditor(
                         isFileName = true,
                         items = draft.fileNameItems,
                         cells = cells,
                         rows = rows,
                         cols = cols,
+                        onManualPreview = onManualPreview,
                         onItemsChange = { onDraftChange(draft.copy(fileNameItems = it)) },
                     )
                     DDZSettingRow(
@@ -108,13 +117,14 @@ internal fun TableEditorSaveDetailScreen(
                         label = "현재 저장 위치",
                         value = pathPreview,
                     )
-                    Text("폴더 구성", style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
+                    Text("폴더 구성", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                     TableEditorRuleListEditor(
                         isFileName = false,
                         items = draft.pathItems,
                         cells = cells,
                         rows = rows,
                         cols = cols,
+                        onManualPreview = onManualPreview,
                         onItemsChange = { onDraftChange(draft.copy(pathItems = it)) },
                     )
                     if (draft.pathItems.all { it == null }) {
@@ -129,7 +139,7 @@ internal fun TableEditorSaveDetailScreen(
                 TableEditorSaveDetail.SAVE_MODE -> {
                     Text(
                         "저장할 이미지",
-                        style = DDZTypography.SectionTitle,
+                        style = DDZTypography.SettingLabel,
                         color = DDZColor.TextPrimary,
                     )
                     SaveModeOption(
@@ -153,7 +163,7 @@ internal fun TableEditorSaveDetailScreen(
                 }
 
                 TableEditorSaveDetail.AUTO_NUMBER -> {
-                    Text("다음 번호", style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
+                    Text("다음 번호", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -179,7 +189,7 @@ internal fun TableEditorSaveDetailScreen(
                             Text(
                                 text = formatMockCounter(nextCounter, counterPadding),
                                 modifier = Modifier.padding(vertical = 14.dp),
-                                style = DDZTypography.SectionTitle,
+                                style = DDZTypography.SettingLabel,
                                 color = DDZColor.TextPrimary,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             )
@@ -192,18 +202,18 @@ internal fun TableEditorSaveDetailScreen(
                         )
                     }
 
-                    Text("자릿수", style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
+                    Text("자릿수", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        (1..6).forEach { digits ->
+                        (1..4).forEach { digits ->
                             DDZButton(
                                 text = digits.toString(),
                                 modifier = Modifier.weight(1f),
-                                minHeight = 40.dp,
+                                minHeight = 48.dp,
                                 style = DDZButtonStyle.Secondary,
-                                containerColorOverride = if (counterPadding == digits) DDZColor.SelectedSoft else null,
+                                containerColorOverride = if (counterPadding.coerceIn(1, 4) == digits) DDZColor.SelectedSoft else null,
                                 onClick = { onCounterPaddingChange(digits) },
                             )
                         }
@@ -243,7 +253,7 @@ internal fun TableEditorSaveDetailScreen(
                 }
 
                 TableEditorSaveDetail.AUTO_NUMBER_ADVANCED -> {
-                    Text("번호 구분 기준", style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
+                    Text("번호 구분 기준", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                     ScopeOption(
                         title = "저장 위치별 번호 분리",
                         description = "폴더가 다르면 번호를 따로 사용합니다.",
@@ -301,7 +311,7 @@ private fun PreviewCard(label: String, value: String) {
         modifier = Modifier
             .fillMaxWidth()
             .background(DDZColor.SurfaceSoft, RoundedCornerShape(16.dp))
-            .padding(16.dp),
+            .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(label, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
@@ -366,5 +376,6 @@ private fun ScopeOption(
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
+
 
 

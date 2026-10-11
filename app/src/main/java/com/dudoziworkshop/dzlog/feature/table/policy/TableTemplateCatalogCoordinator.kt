@@ -8,6 +8,8 @@ import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 class TableTemplateCatalogCoordinator(
     private val context: Context,
 ) {
+    suspend fun markUsed(id: String, timestamp: Long) = markSavedTableTemplateUsed(context, id, timestamp)
+
     suspend fun load(): TableTemplateCatalogSnapshot =
         loadOrMigrateTableTemplateCatalog(context)
 

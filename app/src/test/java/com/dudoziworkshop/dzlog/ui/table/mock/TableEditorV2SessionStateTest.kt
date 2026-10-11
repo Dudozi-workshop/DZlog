@@ -15,6 +15,142 @@ import org.junit.Test
 class TableEditorV2SessionStateTest {
 
     @Test
+    fun legacy_manual_text_color_becomes_automatic_in_draft_without_mutating_saved_input() {
+        val initial = newBlankTableTemplateState(2, 2)
+        val legacyStyle = TableStyleState(textColorMode = 1, manualTextColor = 0, valueScale = 120)
+        val session = TableEditorV2SessionState(initial, legacyStyle, true, true)
+        assertEquals(legacyStyle.copy(textColorMode = 0), session.draftStyleState)
+        assertEquals(1, legacyStyle.textColorMode)
+        assertTrue(session.isDirty)
+        assertFalse(session.canUndo)
+        session.commitStyleChange(session.draftStyleState.copy(bgStyle = 1))
+        assertTrue(session.undo())
+        assertEquals(0, session.draftStyleState.textColorMode)
+        session.markSaved(session.finalTemplateForSave())
+        assertFalse(session.isDirty)
+    }
+
+
+    @Test
+    fun equalization_preserves_cells_other_axis_and_style_and_supports_save_undo_redo() {
+        val blank = newBlankTableTemplateState(2, 3)
+        val topRow = selectMockLayoutRange(blank, blank.cells[0].cellId, blank.cells[1].cellId)
+        val merged = TableEditorV2StructureController.applyMergeDecision(blank,
+            TableEditorV2StructureController.resolveMergeDecision(blank, topRow))
+        val initial = merged.copy(
+            rowWeights = listOf(0.5f, 1.5f),
+            colWeights = listOf(0.5f, 1f, 1.5f),
+            cells = merged.cells.map { it.copy(rawText = "retained") },
+        )
+        val style = TableStyleState(valueScale = 120)
+        val session = TableEditorV2SessionState(initial, style, true, true)
+        session.commitTemplateChange(TableEditorV2StructureController.equalizeColumns(session.draftTemplateState))
+        assertEquals(initial.cells, session.draftTemplateState.cells)
+        assertEquals(initial.rowWeights, session.draftTemplateState.rowWeights)
+        assertEquals(style, session.draftStyleState)
+        val widths = com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator.computeSizes(300f,
+            com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator.resolveWeights(
+                session.finalTemplateForSave().colWeights, initial.cols))
+        assertEquals(listOf(100f, 100f, 100f), widths)
+        assertEquals(300f, widths.sum(), 0.0001f)
+        val equalColumns = session.draftTemplateState
+        session.commitTemplateChange(TableEditorV2StructureController.equalizeRows(session.draftTemplateState))
+        assertEquals(initial.cells, session.finalTemplateForSave().cells)
+        val heights = com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator.computeSizes(200f,
+            com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator.resolveWeights(
+                session.finalTemplateForSave().rowWeights, initial.rows))
+        assertEquals(listOf(100f, 100f), heights)
+        assertEquals(style, session.draftStyleState)
+        assertTrue(session.undo())
+        assertEquals(equalColumns, session.draftTemplateState)
+        assertTrue(session.undo())
+        assertEquals(initial, session.draftTemplateState)
+        assertFalse(session.isDirty)
+        assertTrue(session.redo())
+        assertEquals(equalColumns, session.draftTemplateState)
+    }
+
+    @Test
+    fun equalizing_an_already_equal_table_does_not_create_a_change_or_undo_entry() {
+        val initial = newBlankTableTemplateState(1, 3).copy(colWeights = listOf(2f, 2f, 2f))
+        val session = TableEditorV2SessionState(initial, TableStyleState(), true, true)
+        session.commitTemplateChange(TableEditorV2StructureController.equalizeRows(session.draftTemplateState))
+        session.commitTemplateChange(TableEditorV2StructureController.equalizeColumns(session.draftTemplateState))
+        assertEquals(initial, session.draftTemplateState)
+        assertFalse(session.isDirty)
+        assertFalse(session.canUndo)
+    }
+
+    @Test
+    fun confirmed_populated_merge_updates_preview_save_and_undo_restores_values() {
+        val blank = newBlankTableTemplateState(2, 2)
+        val initial = blank.copy(cells = blank.cells.map {
+            it.copy(rawText = "${it.rowIndex},${it.colIndex}")
+        })
+        val selection = selectMockLayoutRange(initial, initial.cells.first().cellId, initial.cells.last().cellId)
+        val decision = TableEditorV2StructureController.resolveMergeDecision(initial, selection)
+        assertEquals(com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType.CONFIRM_MERGE, decision.type)
+        val session = TableEditorV2SessionState(initial, TableStyleState(), true, true)
+        session.commitTemplateChange(TableEditorV2StructureController.applyMergeDecision(session.draftTemplateState, decision))
+        val visible = mockCellsFromTemplate(session.draftTemplateState).filterNot { it.isCovered }
+        assertEquals(1, visible.size)
+        assertEquals("0,0", visible.single().value)
+        assertEquals(2, visible.single().rowSpan)
+        assertEquals(2, visible.single().colSpan)
+        assertEquals(2, session.finalTemplateForSave().cells.first().colSpan)
+        assertTrue(session.isDirty)
+        assertTrue(session.undo())
+        assertEquals(initial, session.draftTemplateState)
+        assertFalse(session.isDirty)
+    }
+
+    @Test
+    fun complete_existing_merge_can_be_extended_after_confirmation() {
+        val blank = newBlankTableTemplateState(2, 2)
+        val populated = blank.copy(cells = blank.cells.map { it.copy(rawText = "value") })
+        val topRow = selectMockLayoutRange(populated, populated.cells[0].cellId, populated.cells[1].cellId)
+        val mergedRow = TableEditorV2StructureController.applyMergeDecision(populated,
+            TableEditorV2StructureController.resolveMergeDecision(populated, topRow))
+        val whole = selectMockLayoutRange(mergedRow, mergedRow.cells.first().cellId, mergedRow.cells.last().cellId)
+        val decision = TableEditorV2StructureController.resolveMergeDecision(mergedRow, whole)
+        assertEquals(com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType.CONFIRM_MERGE, decision.type)
+        val merged = TableEditorV2StructureController.applyMergeDecision(mergedRow, decision)
+        assertEquals(1, mockCellsFromTemplate(merged).count { !it.isCovered })
+        assertEquals(2, merged.cells.first().rowSpan)
+        assertEquals(2, merged.cells.first().colSpan)
+    }
+
+    @Test
+    fun a_populated_non_anchor_cell_requires_confirmation_even_if_anchor_is_blank() {
+        val blank = newBlankTableTemplateState(1, 2)
+        val initial = blank.copy(cells = blank.cells.mapIndexed { index, cell ->
+            cell.copy(rawText = if (index == 1) "discarded" else "")
+        })
+        val selection = selectMockLayoutRange(initial, initial.cells.first().cellId, initial.cells.last().cellId)
+        assertEquals(com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType.CONFIRM_MERGE,
+            TableEditorV2StructureController.resolveMergeDecision(initial, selection).type)
+    }
+
+    @Test
+    fun boundary_drag_accumulates_keeps_total_and_undoes_as_one_action() {
+        val initial = newBlankTableTemplateState(2, 2)
+        val session = TableEditorV2SessionState(initial, TableStyleState(), true, true)
+        session.beginContinuousTemplateChange()
+        repeat(5) {
+            session.replaceTemplateDraftWithoutHistory(adjustMockColumnBoundary(session.draftTemplateState, 0, 0.02f))
+            session.replaceTemplateDraftWithoutHistory(adjustMockRowBoundary(session.draftTemplateState, 0, -0.02f))
+        }
+        assertEquals(1.2f, session.draftTemplateState.colWeights!![0], 0.0001f)
+        assertEquals(0.8f, session.draftTemplateState.rowWeights!![0], 0.0001f)
+        assertEquals(2f, session.draftTemplateState.colWeights!!.sum(), 0.0001f)
+        assertEquals(session.draftTemplateState.colWeights, session.finalTemplateForSave().colWeights)
+        assertTrue(session.isDirty)
+        assertTrue(session.undo())
+        assertEquals(initial, session.draftTemplateState)
+        assertFalse(session.canUndo)
+    }
+
+    @Test
     fun commit_undo_and_save_baseline_are_owned_by_session() {
         val initial = newBlankTableTemplateState(rows = 1, cols = 1)
         val session = TableEditorV2SessionState(
@@ -165,6 +301,61 @@ class TableEditorV2SessionStateTest {
         assertTrue(session.isDirty)
         assertTrue(coordinator.save(session) { _, _, _, _, _, _, _, _ -> true })
         assertFalse(session.isDirty)
+    }
+
+    @Test
+    fun legacy_padding_normalizes_in_draft_and_save_preserves_manual_counter() = runBlocking {
+        for (legacy in listOf(5, 6)) {
+            val session = TableEditorV2SessionState(
+                newBlankTableTemplateState(1, 1), TableStyleState(), true, true,
+                initialCounterPadding = legacy,
+            )
+            assertEquals(4, session.draftCounterPadding)
+            assertTrue(session.isDirty)
+            session.initializeCounterState(12345, false)
+            var savedPadding = 0
+            var savedNext: Int? = null
+            var savedAuto = true
+            val saved = TableEditorV2SaveCoordinator().save(session) { _, _, _, _, _, padding, next, auto ->
+                savedPadding = padding
+                savedNext = next
+                savedAuto = auto
+                true
+            }
+            assertTrue(saved)
+            assertEquals(4, savedPadding)
+            assertEquals(12345, savedNext)
+            assertFalse(savedAuto)
+            assertFalse(session.isDirty)
+        }
+    }
+
+    @Test
+    fun padding_change_and_history_keep_counter_value_and_override_mode() {
+        val session = TableEditorV2SessionState(
+            newBlankTableTemplateState(1, 1), TableStyleState(), true, true,
+            initialCounterPadding = 3,
+        )
+        session.initializeCounterState(12345, false)
+        session.commitCounterPaddingChange(6)
+        assertEquals(4, session.draftCounterPadding)
+        assertEquals(12345, session.draftNextCounter)
+        assertFalse(session.draftUsesAutoNext)
+        assertTrue(session.undo())
+        assertEquals(3, session.draftCounterPadding)
+        assertEquals(12345, session.draftNextCounter)
+        assertTrue(session.redo())
+        assertEquals(4, session.draftCounterPadding)
+        assertEquals(12345, session.draftNextCounter)
+        assertFalse(session.draftUsesAutoNext)
+    }
+
+    @Test
+    fun four_digit_format_never_truncates_large_counters() {
+        assertEquals("0012", formatMockCounter(12, 6))
+        assertEquals("12345", formatMockCounter(12345, 4))
+        assertEquals("1자리", counterPaddingLabel(0))
+        assertEquals("4자리", counterPaddingLabel(6))
     }
 
 }

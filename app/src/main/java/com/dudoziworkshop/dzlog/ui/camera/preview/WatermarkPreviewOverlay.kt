@@ -10,6 +10,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
@@ -43,7 +44,8 @@ internal fun WatermarkPreviewOverlay(
     isArmed: Boolean,
     isTableLocked: Boolean,
     onBoundsRectChange: (RectF?) -> Unit,
-    onRawRectChange: (RectF?) -> Unit
+    onRawRectChange: (RectF?) -> Unit,
+    quickFocusedCellId: String? = null,
 ) {
     if (!enabled || previewContentRect == null) {
         LaunchedEffect(enabled, previewContentRect) {
@@ -157,6 +159,22 @@ internal fun WatermarkPreviewOverlay(
                 ),
                 rotationCwDeg = request.watermark.rotationCwDeg,
             )
+            // Editing feedback belongs only to the preview, never to the saved watermark.
+            rendered.scene.rootRects.firstOrNull { it.cellId == quickFocusedCellId }?.let { rect ->
+                val native = canvas.nativeCanvas
+                native.save()
+                native.rotate(request.watermark.rotationCwDeg.toFloat(), rendered.scene.tableRect.centerX(), rendered.scene.tableRect.centerY())
+                val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                    color = DDZColor.SageDarkStrong.copy(alpha = 0.82f).toArgb()
+                    style = android.graphics.Paint.Style.STROKE
+                    strokeWidth = 2.dp.toPx()
+                }
+                native.drawRect(
+                    rendered.scene.tableRect.left + rect.left, rendered.scene.tableRect.top + rect.top,
+                    rendered.scene.tableRect.left + rect.right, rendered.scene.tableRect.top + rect.bottom, paint,
+                )
+                native.restore()
+            }
             if (isArmed) {
                 drawRect(
                     color = DDZColor.Surface.copy(alpha = 0.85f),

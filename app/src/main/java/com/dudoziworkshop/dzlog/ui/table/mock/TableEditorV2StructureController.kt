@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.ui.table.mock
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 
 internal object TableEditorV2StructureController {
 
@@ -29,6 +30,19 @@ internal object TableEditorV2StructureController {
         selection: MockLayoutSelection,
     ): TableTemplateState =
         removeMockLayoutColumns(templateState, selection)
+
+    // Equalization changes only the internal distribution, never cell/merge data or style.
+    fun equalizeRows(templateState: TableTemplateState): TableTemplateState {
+        val weights = TableLayoutCalculator.resolveWeights(templateState.rowWeights, templateState.rows)
+        return if (weights.distinct().size <= 1) templateState
+        else templateState.copy(rowWeights = List(weights.size) { weights.average().toFloat() })
+    }
+
+    fun equalizeColumns(templateState: TableTemplateState): TableTemplateState {
+        val weights = TableLayoutCalculator.resolveWeights(templateState.colWeights, templateState.cols)
+        return if (weights.distinct().size <= 1) templateState
+        else templateState.copy(colWeights = List(weights.size) { weights.average().toFloat() })
+    }
 
     fun resolveMergeDecision(
         templateState: TableTemplateState,

@@ -6,6 +6,35 @@ import org.junit.Test
 
 class GalleryFolderIndexTest {
     @Test
+    fun originals_only_leaf_uses_direct_originals_but_back_still_reaches_its_parent() {
+        val path = "Pictures/DZlog/A/B/"
+        val index = GalleryFolderIndexPolicy.index(path, listOf(path + "original/", path + "original/"))
+        assertTrue(GalleryFolderIndexPolicy.showsOriginalsDirectly(index))
+        assertEquals("Pictures/DZlog/A/", GalleryFolderIndexPolicy.parentOf(index.relativePath))
+    }
+
+    @Test
+    fun originals_do_not_hide_results_or_even_an_empty_child_folder() {
+        val path = "Pictures/DZlog/A/"
+        assertEquals(false, GalleryFolderIndexPolicy.showsOriginalsDirectly(
+            GalleryFolderIndexPolicy.index(path, listOf(path, path + "original/"))))
+        assertEquals(false, GalleryFolderIndexPolicy.showsOriginalsDirectly(
+            GalleryFolderIndexPolicy.index(path, listOf(path + "original/"), listOf(path + "Empty/"))))
+    }
+
+    @Test
+    fun root_empty_unknown_and_explicit_original_paths_do_not_redirect() {
+        val root = GalleryFolderIndexPolicy.ROOT
+        assertEquals(false, GalleryFolderIndexPolicy.showsOriginalsDirectly(null))
+        assertEquals(false, GalleryFolderIndexPolicy.showsOriginalsDirectly(
+            GalleryFolderIndexPolicy.index(root, listOf(root + "original/"))))
+        assertEquals(false, GalleryFolderIndexPolicy.showsOriginalsDirectly(
+            GalleryFolderIndexPolicy.index(root + "Empty/", emptyList())))
+        assertEquals(false, GalleryFolderIndexPolicy.showsOriginalsDirectly(
+            GalleryFolderIndexPolicy.index(root + "A/original/", listOf(root + "A/original/original/"))))
+    }
+
+    @Test
     fun root_recognizes_arbitrary_depth_and_direct_photos() {
         val root = GalleryFolderIndexPolicy.ROOT
         val index = GalleryFolderIndexPolicy.index(
@@ -68,4 +97,11 @@ class GalleryFolderIndexTest {
         assertEquals(null, GalleryFolderIndexPolicy.parentOf(GalleryFolderIndexPolicy.ROOT))
     }
 
+    @Test
+    fun breadcrumbs_keep_full_relative_paths_at_arbitrary_depth() {
+        val result = GalleryFolderIndexPolicy.breadcrumbs("Pictures/DZlog/A/B/C/D/E/")
+        assertEquals(listOf("DZlog", "A", "B", "C", "D", "E"), result.map { it.label })
+        assertEquals("Pictures/DZlog/A/B/C/", result[3].relativePath)
+        assertEquals(1, GalleryFolderIndexPolicy.breadcrumbs("Pictures/DZlog/").size)
+    }
 }

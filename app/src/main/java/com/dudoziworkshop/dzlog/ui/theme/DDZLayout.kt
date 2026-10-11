@@ -15,7 +15,13 @@ object DDZLayout {
     }
 
     object Icon {
+        val Small = 20.dp
         val Touch = 32.dp
+    }
+
+    object ListItem {
+        val CompactMinHeight = 64.dp
+        val CompactThumbnailSize = 40.dp
     }
 
     object Control {
@@ -23,5 +29,16 @@ object DDZLayout {
         val Standard = 34.dp
         val Button = 54.dp
         val CameraSmall = 40.dp
+    }
+
+    object QuickInput {
+        val RowHeight = 56.dp
+        val Touch = 44.dp
+        val Icon = 16.dp
+        val MapWidth = 22.dp
+        val MapHeight = 16.dp
+        val ExpandedHeight = 160.dp
+        val MinListHeight = 168.dp
+        val MaxListHeight = 336.dp
     }
 }

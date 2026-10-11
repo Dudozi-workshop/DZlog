@@ -203,5 +203,24 @@ class MockLayoutDomainAdapterTest {
         assertTrue(next.pathSlotDrafts.none { it?.cellId == g1Cell.cellId })
     }
 
+    @Test
+    fun `terminal handles change only the final cell and equalization preserves extent`() {
+        val base = newBlankTableTemplateState(rows = 2, cols = 3)
+        val wider = adjustMockColumnBoundary(base, 2, 0.2f)
+        assertEquals(listOf(1f, 1f), wider.colWeights!!.take(2))
+        assertEquals(1.6f, wider.colWeights!!.last(), 0.0001f)
+        val taller = adjustMockRowBoundary(wider, 1, 0.25f)
+        assertEquals(1f, taller.rowWeights!!.first(), 0.0001f)
+        assertEquals(1.5f, taller.rowWeights!!.last(), 0.0001f)
+        assertEquals(base.cells, taller.cells)
+        val equal = TableEditorV2StructureController.equalizeRows(TableEditorV2StructureController.equalizeColumns(taller))
+        assertEquals(taller.colWeights!!.sum(), equal.colWeights!!.sum(), 0.0001f)
+        assertEquals(taller.rowWeights!!.sum(), equal.rowWeights!!.sum(), 0.0001f)
+        assertEquals(1, equal.colWeights!!.distinct().size)
+        assertEquals(1, equal.rowWeights!!.distinct().size)
+        assertEquals(0.2f, adjustMockRowBoundary(taller, 1, -100f).rowWeights!!.last(), 0.0001f)
+        assertEquals(6f, adjustMockColumnBoundary(taller, 2, 100f).colWeights!!.last(), 0.0001f)
+        assertEquals(taller, adjustMockColumnBoundary(taller, 2, Float.NaN))
+    }
 
 }

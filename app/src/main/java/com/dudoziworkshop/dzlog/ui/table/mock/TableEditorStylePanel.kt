@@ -1,141 +1,104 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
-import com.dudoziworkshop.dzlog.ui.common.DDZButton
-import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import kotlin.math.roundToInt
 
 @Composable
 internal fun TableEditorStylePanel(
     draft: TableStyleState,
-    showAdvanced: Boolean,
     onDraftChange: (TableStyleState) -> Unit,
-    onAdvancedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(DDZColor.Surface)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-    ) {
-        Text("배경", color = DDZColor.TextSecondary)
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            listOf("밝게", "어둡게", "투명").forEachIndexed { index, label ->
-                val selected = when (index) {
-                    0 -> draft.bgStyle == 1
-                    1 -> draft.bgStyle == 0
-                    else -> draft.bgStyle == 2
-                }
-                SegmentedButton(
-                    selected = selected,
-                    onClick = {
-                        onDraftChange(draft.copy(bgStyle = when (index) {
-                            0 -> 1
-                            1 -> 0
-                            else -> 2
-                        }))
-                    },
-                    shape = SegmentedButtonDefaults.itemShape(index, 3),
-                ) { Text(label) }
+    val sliderColors = SliderDefaults.colors(thumbColor = DDZColor.SelectedDark,
+        activeTrackColor = DDZColor.Selected, inactiveTrackColor = DDZColor.Border)
+    Column(modifier.fillMaxWidth().background(DDZColor.Surface)
+        .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)) {
+        CompactStyleRow("배경") {
+            StyleChoices(listOf("밝게", "어둡게", "투명"), when (draft.bgStyle) { 1 -> 0; 0 -> 1; else -> 2 }) {
+                onDraftChange(draft.copy(bgStyle = listOf(1, 0, 2)[it]))
             }
         }
-
-        Text("글자 크기  " + draft.valueScale + "%", color = DDZColor.TextSecondary)
-        Slider(
-            value = draft.valueScale / 100f,
-            onValueChange = { value ->
-                onDraftChange(draft.copy(valueScale = (value * 100).toInt().coerceIn(60, 160)))
-            },
-            valueRange = 0.6f..1.6f,
-        )
-
-        Text("정렬", color = DDZColor.TextSecondary)
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            listOf("왼쪽", "가운데", "오른쪽").forEachIndexed { index, label ->
-                SegmentedButton(
-                    selected = draft.textAlign == index,
-                    onClick = { onDraftChange(draft.copy(textAlign = index)) },
-                    shape = SegmentedButtonDefaults.itemShape(index, 3),
-                ) { Text(label) }
+        if (draft.bgStyle != 2) {
+            CompactStyleRow("배경 투명도") {
+                Slider(value = draft.bgAlpha.toFloat(), valueRange = 0f..255f,
+                    modifier = Modifier.weight(1f), colors = sliderColors,
+                    onValueChange = { onDraftChange(draft.copy(bgAlpha = it.roundToInt())) })
+                StylePercent((draft.bgAlpha / 255f * 100).roundToInt())
             }
         }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text("테두리 표시")
-            Switch(
-                checked = draft.gridEnabled,
-                onCheckedChange = { onDraftChange(draft.copy(gridEnabled = it)) },
-            )
+        CompactStyleRow("글자 크기") {
+            Slider(value = draft.valueScale.toFloat(), valueRange = 60f..160f,
+                modifier = Modifier.weight(1f), colors = sliderColors,
+                onValueChange = { onDraftChange(draft.copy(valueScale = it.roundToInt())) })
+            StylePercent(draft.valueScale)
         }
-
-        DDZButton(
-            text = if (showAdvanced) "고급 설정 접기" else "더보기",
-            modifier = Modifier.fillMaxWidth(),
-            style = DDZButtonStyle.Secondary,
-            onClick = { onAdvancedChange(!showAdvanced) },
-        )
-
-        if (showAdvanced) {
-            Text(
-                "배경 투명도  " + ((draft.bgAlpha / 255f) * 100).toInt() + "%",
-                color = DDZColor.TextSecondary,
-            )
-            Slider(
-                value = draft.bgAlpha.toFloat(),
-                onValueChange = { value ->
-                    onDraftChange(draft.copy(bgAlpha = value.toInt().coerceIn(0, 255)))
-                },
-                valueRange = 0f..255f,
-                enabled = draft.bgStyle != 2,
-            )
-
-            Text("글자 색", color = DDZColor.TextSecondary)
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                listOf("자동", "흰색", "검정").forEachIndexed { index, label ->
-                    val selected = when (index) {
-                        0 -> draft.textColorMode == 0
-                        1 -> draft.textColorMode == 1 && draft.manualTextColor == 0
-                        else -> draft.textColorMode == 1 && draft.manualTextColor == 1
-                    }
-                    SegmentedButton(
-                        selected = selected,
-                        onClick = {
-                            onDraftChange(when (index) {
-                                0 -> draft.copy(textColorMode = 0)
-                                1 -> draft.copy(textColorMode = 1, manualTextColor = 0)
-                                else -> draft.copy(textColorMode = 1, manualTextColor = 1)
-                            })
-                        },
-                        shape = SegmentedButtonDefaults.itemShape(index, 3),
-                    ) { Text(label) }
+        CompactStyleRow("정렬") {
+            StyleChoices(listOf("왼쪽", "가운데", "오른쪽"), draft.textAlign) {
+                onDraftChange(draft.copy(textAlign = it))
+            }
+        }
+        CompactStyleRow("테두리") {
+            Spacer(Modifier.weight(1f))
+            Box(Modifier.size(48.dp).toggleable(value = draft.gridEnabled, role = Role.Switch,
+                onValueChange = { onDraftChange(draft.copy(gridEnabled = it)) }), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(width = 32.dp, height = 18.dp)
+                    .background(if (draft.gridEnabled) DDZColor.Selected else DDZColor.SurfaceSoft, CircleShape)
+                    .border(1.dp, if (draft.gridEnabled) DDZColor.Selected else DDZColor.Border, CircleShape)) {
+                    Box(Modifier.align(if (draft.gridEnabled) Alignment.CenterEnd else Alignment.CenterStart)
+                        .padding(horizontal = 2.dp).size(14.dp)
+                        .background(if (draft.gridEnabled) DDZColor.Surface else DDZColor.TextSecondary, CircleShape))
                 }
             }
         }
-
     }
+}
+
+@Composable
+private fun CompactStyleRow(label: String, content: @Composable RowScope.() -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(label, modifier = Modifier.width(80.dp), style = DDZTypography.Caption, color = DDZColor.TextPrimary)
+        content()
+    }
+}
+
+@Composable
+private fun StyleChoices(labels: List<String>, current: Int, onSelect: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        labels.forEachIndexed { index, label ->
+            Box(Modifier.weight(1f).height(48.dp).semantics { selected = index == current }
+                .clickable(role = Role.RadioButton) { onSelect(index) }, contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxWidth().height(32.dp)
+                    .background(if (index == current) DDZColor.SelectedSoft else DDZColor.SurfaceSoft, RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center) {
+                    Text(label, style = DDZTypography.Caption, maxLines = 1,
+                        color = if (index == current) DDZColor.SelectedDark else DDZColor.TextSecondary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StylePercent(value: Int) {
+    Text("$value%", modifier = Modifier.width(42.dp), style = DDZTypography.Caption, color = DDZColor.TextSecondary)
 }

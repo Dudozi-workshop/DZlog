@@ -9,6 +9,9 @@ internal object HomeUiSpec {
     val HorizontalPaddingMax = 24.dp
     val HeroTopGapMin = 30.dp
     val HeroTopGapMax = 52.dp
+    val MinimumTopGap = 32.dp
+    val MinimumBottomGap = 24.dp
+    const val CaptureCenterFraction = 0.50f
     val SectionGapMin = 14.dp
     val SectionGapMax = 22.dp
 
@@ -21,13 +24,13 @@ internal object HomeUiSpec {
     val PrimaryButtonTextSize = 15.sp
     val PrimaryButtonHorizontalInset = 10.dp
 
-    const val RecentImageWidthFraction = 0.94f
+    const val RecentImageWidthFraction = 0.81f
     const val RecentImageAspectRatio = 1.58f
     val RecentImageRadius = 15.dp
 
-    val UtilityButtonHeight = 44.dp
+    val UtilityButtonHeight = 58.dp
     val UtilityButtonRadius = 13.dp
-    val UtilityButtonTextSize = 13.sp
+    val UtilityButtonTextSize = 12.sp
     val UtilityButtonGap = 10.dp
 
     val BrandLetterSpacing = 1.1.sp
@@ -48,49 +51,43 @@ internal object HomeUiSpec {
 }
 
 internal object HomeAmbientSpec {
-    val CanvasWidth = 250.dp
-    val CanvasHeight = 210.dp
-    val CanvasOffsetX = 28.dp
-    val CanvasOffsetY = (-18).dp
-    val BlurRadius = 22.dp
+    // Single approved top-right shadow. The image and viewport scale independently.
+    const val ViewportWidthFraction = 0.57f
+    const val ViewportHeightFraction = 0.38f
+    const val ImageWidthFraction = 0.85f
+    const val ImageHeightToWidthRatio = 640f / 480f
+    const val ImageRightOffsetFraction = 0.005f
+    val ImageTopInset = 16.dp
+    const val ShadowOpacity = 0.78f
+    val BlurRadius = 1.5.dp
 
-    val StemX = 148.dp
-    val StemY = 0.dp
-    val StemWidth = 12.dp
-    val StemHeight = 182.dp
-    const val StemRotation = 20f
+    // Left and lower edges fade to fully transparent *inside* the viewport.
+    // The far-end fade must complete before the hard viewport boundary.
+    const val LeftFadeStart = 0.01f
+    const val LeftFadeEnd = 0.29f
+    const val FarFadeStart = 0.50f
+    const val FarFadeEnd = 0.90f
+    const val EntryFadeEnd = 0.055f
 
-    val Leaf1X = 84.dp
-    val Leaf1Y = 22.dp
-    val Leaf1Width = 92.dp
-    val Leaf1Height = 34.dp
-    const val Leaf1Rotation = -24f
+    // Movement stays inside the mask's feathered safety envelope.
+    const val MotionSafeXFraction = 0.048f
+    const val MotionSafeYFraction = 0.025f
+    const val SwayXLegMillis = 7_200
+    const val SwayYLegMillis = 9_600
+    const val RotationLegMillis = 11_400
+    const val ScaleLegMillis = 12_600
+    const val OpacityLegMillis = 13_700
+    const val SunlightLegMillis = 10_000
+    val BranchTravelX = 7.dp
+    val BranchTravelY = 2.5.dp
+    const val BranchRotation = 1.05f
+    const val BranchScale = 0.011f
+    const val ShadowOpacityDrift = 0.032f
 
-    val Leaf2X = 143.dp
-    val Leaf2Y = 56.dp
-    val Leaf2Width = 98.dp
-    val Leaf2Height = 36.dp
-    const val Leaf2Rotation = 24f
-
-    val Leaf3X = 63.dp
-    val Leaf3Y = 91.dp
-    val Leaf3Width = 102.dp
-    val Leaf3Height = 38.dp
-    const val Leaf3Rotation = -18f
-
-    val Leaf4X = 127.dp
-    val Leaf4Y = 128.dp
-    val Leaf4Width = 92.dp
-    val Leaf4Height = 34.dp
-    const val Leaf4Rotation = 18f
-
-    val GlowOffsetX = (-52).dp
-    val GlowOffsetY = 118.dp
-    val GlowWidth = 170.dp
-    val GlowHeight = 140.dp
+    val GlowOffsetX = 45.dp
+    val GlowOffsetY = (-35).dp
+    val GlowWidth = 255.dp
+    val GlowHeight = 220.dp
     val GlowBlurRadius = 28.dp
-
-    const val ShadowAlpha = 0.12f
-    const val StemAlpha = 0.075f
     const val GlowAlpha = 0.035f
 }

@@ -232,7 +232,12 @@ private fun adjustBoundaryWeights(
     boundaryIndex: Int,
     deltaFraction: Float,
 ): List<Float> {
-    if (weights.size < 2 || boundaryIndex !in 0 until weights.lastIndex) return weights
+    if (!deltaFraction.isFinite() || boundaryIndex !in weights.indices) return weights
+    // The terminal handle changes only the last cell; internal handles preserve the pair total.
+    if (boundaryIndex == weights.lastIndex) {
+        val next = (weights.last() + deltaFraction * weights.sum()).coerceIn(MOCK_MIN_WEIGHT, 6f)
+        return if (next == weights.last()) weights else weights.toMutableList().also { it[boundaryIndex] = next }
+    }
     val total = weights.sum().coerceAtLeast(0.0001f)
     val deltaWeight = deltaFraction * total
     val left = weights[boundaryIndex]
