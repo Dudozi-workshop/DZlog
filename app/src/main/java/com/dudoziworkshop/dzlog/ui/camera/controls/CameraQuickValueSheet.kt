@@ -25,6 +25,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -46,7 +48,7 @@ internal fun CameraQuickValueSheet(template: TableTemplateState, onDismiss: () -
     onValueChange: (TableTemplateState) -> Unit, onCellFocus: (String?) -> Unit,
 ) {
     val cells = quickEditableCells(template)
-    val values = remember { cells.associate { it.cellId to it.rawText }.toMutableStateMap() }
+    val values = remember { cells.map { it.cellId to it.rawText }.toMutableStateMap() }
     val focus = LocalFocusManager.current
     val requesters = remember(cells.map { it.cellId }) { cells.map { FocusRequester() } }
     DisposableEffect(Unit) { onDispose { onCellFocus(null) } }
@@ -123,7 +125,7 @@ private fun QuickValueRow(cell: TableCellState, template: TableTemplateState, in
                 }
             }
             if (!focused && !expanded) Box {
-                IconButton(onClick = { showLocation = !showLocation }, modifier = Modifier.size(DDZLayout.QuickInput.Touch)) {
+                IconButton(onClick = { showLocation = !showLocation }, modifier = Modifier.size(DDZLayout.QuickInput.Touch).semantics { contentDescription = "셀 위치: ${quickCellPosition(cell)}" }) {
                     QuickCellMap(template, cell.cellId, Modifier.size(DDZLayout.QuickInput.MapWidth, DDZLayout.QuickInput.MapHeight))
                 }
                 if (showLocation) Popup(alignment = Alignment.TopEnd, onDismissRequest = { showLocation = false }, properties = PopupProperties(focusable = true)) {
