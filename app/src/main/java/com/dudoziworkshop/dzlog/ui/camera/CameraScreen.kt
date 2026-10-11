@@ -187,6 +187,7 @@ fun CameraPreview(
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var showQuickValueSheet by remember { mutableStateOf(false) }
+    var quickFocusedCellId by remember { mutableStateOf<String?>(null) }
     var cornerResizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
@@ -425,6 +426,7 @@ fun CameraPreview(
                     args = previewAreaArgs,
                     isTableSelected = ui.isTableSelected,
                     isTableLocked = ui.prefs.wmTableLocked,
+                    quickFocusedCellId = quickFocusedCellId,
                     onTableSelectionChange = { selected ->
                         if (selected) ui.dismissToolOverlays()
                         ui.isTableSelected = selected
@@ -535,9 +537,9 @@ fun CameraPreview(
             CameraQuickValueSheet(
                 template = tableTemplateState,
                 onDismiss = { showQuickValueSheet = false },
-                onApply = { updatedTemplate ->
+                onCellFocus = { quickFocusedCellId = it },
+                onValueChange = { updatedTemplate ->
                     onTemplateChange(updatedTemplate)
-                    showQuickValueSheet = false
                 },
             )
         }

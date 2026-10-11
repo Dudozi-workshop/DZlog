@@ -33,6 +33,7 @@ import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZTextField
+import com.dudoziworkshop.dzlog.ui.common.input.decimalInputOrPrevious
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -70,80 +71,80 @@ internal fun TableEditorCellUiModelEditor(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("선택한 셀", style = DDZTypography.SettingLabel)
-                IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = "셀 편집 닫기",
-                        tint = DDZColor.TextMuted,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-            }
+                Column(Modifier.weight(1f)) {
+                    when (cell.type) {
+                        TableEditorCellType.TEXT,
+                        TableEditorCellType.NUMBER -> {
+                            DDZTextField(
+                                modifier = Modifier.fillMaxWidth(),
+                                value = cell.value,
+                                onValueChange = { input ->
+                                    onValueChange(if (cell.type == TableEditorCellType.NUMBER) decimalInputOrPrevious(input, cell.value) else input)
+                                },
+                                label = "값",
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = if (cell.type == TableEditorCellType.NUMBER) KeyboardType.Decimal else KeyboardType.Text,
+                                ),
+                                trailingIcon = if (cell.type == TableEditorCellType.NUMBER) {
+                                    { androidx.compose.material3.TextButton(onClick = {
+                                        onValueChange(if (cell.value.startsWith("-")) cell.value.drop(1) else "-${cell.value}")
+                                    }) { Text("±") } }
+                                } else null,
+                            )
+                        }
 
-            when (cell.type) {
-                TableEditorCellType.TEXT,
-                TableEditorCellType.NUMBER -> {
-                    DDZTextField(
-                        modifier = Modifier.fillMaxWidth(),
-                        value = cell.value,
-                        onValueChange = onValueChange,
-                        label = "값",
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = if (cell.type == TableEditorCellType.NUMBER) KeyboardType.Number else KeyboardType.Text,
-                        ),
-                    )
-                }
+                        TableEditorCellType.COUNTER -> {
+                            val currentCounter = cell.value.toIntOrNull()?.coerceAtLeast(0) ?: 1
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                DDZButton(
+                                    text = "−",
+                                    style = DDZButtonStyle.Secondary,
+                                    minHeight = 40.dp,
+                                    onClick = { onValueChange((currentCounter - 1).coerceAtLeast(0).toString()) },
+                                )
+                                DDZTextField(
+                                    modifier = Modifier.weight(1f),
+                                    value = currentCounter.toString(),
+                                    onValueChange = { input ->
+                                        val digits = input.filter { it.isDigit() }
+                                        if (digits.isNotBlank()) {
+                                            onValueChange(digits)
+                                        }
+                                    },
+                                    label = "시작 번호",
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                )
+                                DDZButton(
+                                    text = "+",
+                                    style = DDZButtonStyle.Secondary,
+                                    minHeight = 40.dp,
+                                    onClick = { onValueChange((currentCounter + 1).toString()) },
+                                )
+                            }
+                        }
 
-                TableEditorCellType.COUNTER -> {
-                    val currentCounter = cell.value.toIntOrNull()?.coerceAtLeast(0) ?: 1
-                    Text("자동번호", fontWeight = FontWeight.Bold)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        DDZButton(
-                            text = "−",
-                            style = DDZButtonStyle.Secondary,
-                            minHeight = 40.dp,
-                            onClick = { onValueChange((currentCounter - 1).coerceAtLeast(0).toString()) },
-                        )
-                        DDZTextField(
-                            modifier = Modifier.weight(1f),
-                            value = currentCounter.toString(),
-                            onValueChange = { input ->
-                                val digits = input.filter { it.isDigit() }
-                                if (digits.isNotBlank()) {
-                                    onValueChange(digits)
-                                }
-                            },
-                            label = "시작 번호",
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        )
-                        DDZButton(
-                            text = "+",
-                            style = DDZButtonStyle.Secondary,
-                            minHeight = 40.dp,
-                            onClick = { onValueChange((currentCounter + 1).toString()) },
-                        )
+                        TableEditorCellType.DATE,
+                        TableEditorCellType.TIME,
+                        TableEditorCellType.ROTATING_TEXT -> {
+                            Text(
+                                text = (cell.previewValue ?: cell.value).ifBlank {
+                                    if (cell.type == TableEditorCellType.ROTATING_TEXT) "문구 세트를 선택하세요" else ""
+                                },
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
-
-                TableEditorCellType.DATE,
-                TableEditorCellType.TIME,
-                TableEditorCellType.ROTATING_TEXT -> {
-                    Text(
-                        text = (cell.previewValue ?: cell.value).ifBlank {
-                            if (cell.type == TableEditorCellType.ROTATING_TEXT) "문구 세트를 선택하세요" else ""
-                        },
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Filled.Close, "셀 편집 닫기", tint = DDZColor.TextMuted, modifier = Modifier.size(16.dp))
                 }
             }
 

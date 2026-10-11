@@ -30,6 +30,7 @@ internal fun CameraPreviewOverlays(
     activeHandleCorner: ResizeHandleCorner?,
     onWatermarkBoundsRectChange: (RectF?) -> Unit,
     onWatermarkRawRectChange: (RectF?) -> Unit,
+    quickFocusedCellId: String? = null,
 ) {
     CaptureAreaMaskOverlay(captureRect = previewContentRect)
 
@@ -42,6 +43,7 @@ internal fun CameraPreviewOverlays(
     }
 
     WatermarkPreviewOverlay(
+        quickFocusedCellId = quickFocusedCellId,
         enabled = showWmPreview,
         request = previewRequest,
         previewContentRect = previewContentRect,

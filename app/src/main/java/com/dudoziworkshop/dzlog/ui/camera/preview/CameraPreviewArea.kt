@@ -69,6 +69,7 @@ internal fun CameraPreviewArea(
     isTableLocked: Boolean,
     onTableSelectionChange: (Boolean) -> Unit,
     onCornerResizeScale: (Float, Boolean) -> Unit,
+    quickFocusedCellId: String? = null,
 ) {
     val context = args.context
     val lifecycleOwner = args.lifecycleOwner
@@ -411,6 +412,7 @@ internal fun CameraPreviewArea(
                 )
 
                 CameraPreviewOverlays(
+                    quickFocusedCellId = quickFocusedCellId,
                     previewContentRect = previewContentRect,
                     previewRequest = previewRequest,
                     showWmPreview = args.showWmPreview,

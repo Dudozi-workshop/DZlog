@@ -183,8 +183,10 @@ private val CompactCameraSegments = DDZSegmentedControlStyles.CameraPanel.copy(
     minItemHeight = 40.dp,
     outerHorizontalPadding = 0.dp,
     innerHorizontalPadding = 1.dp,
+    innerVerticalPadding = 0.dp,
     itemHorizontalPadding = 1.dp,
     itemSpacing = 1.dp,
+    selectedContainerColor = DDZColor.SageLight,
     textStyle = DDZTypography.Caption.copy(fontSize = 11.sp),
 )
 
