@@ -64,6 +64,7 @@ internal fun CameraQuickValueSheet(template: TableTemplateState, onDismiss: () -
             if (cells.isEmpty()) Text("변경할 값이 없습니다.", color = DDZColor.TextMuted)
             cells.forEachIndexed { index, cell -> key(cell.cellId) {
                 QuickValueRow(cell, template, values[cell.cellId] ?: cell.rawText, requesters[index],
+                    isLast = index == cells.lastIndex,
                     onFocus = { onCellFocus(if (it) cell.cellId else null) },
                     onNext = { if (index < cells.lastIndex) requesters[index + 1].requestFocus() else focus.clearFocus() },
                     onChange = { text -> values[cell.cellId] = text; onValueChange(updateQuickCellValues(template, values.toMap())) },
@@ -75,7 +76,7 @@ internal fun CameraQuickValueSheet(template: TableTemplateState, onDismiss: () -
 
 @Composable
 private fun QuickValueRow(cell: TableCellState, template: TableTemplateState, initialText: String,
-    requester: FocusRequester, onFocus: (Boolean) -> Unit, onNext: () -> Unit, onChange: (String) -> Unit,
+    requester: FocusRequester, isLast: Boolean, onFocus: (Boolean) -> Unit, onNext: () -> Unit, onChange: (String) -> Unit,
 ) {
     var value by remember(cell.cellId) { mutableStateOf(TextFieldValue(initialText)) }
     var focused by remember { mutableStateOf(false) }
@@ -104,8 +105,8 @@ private fun QuickValueRow(cell: TableCellState, template: TableTemplateState, in
                         .onFocusChanged { focused = it.isFocused; if (!expanded) onFocus(it.isFocused) }
                         .padding(horizontal = DDZSpacing.controlGap, vertical = DDZSpacing.controlGap),
                     textStyle = DDZTypography.Body.copy(color = DDZColor.TextPrimary), cursorBrush = SolidColor(DDZColor.SageDarkStrong),
-                    keyboardOptions = KeyboardOptions(keyboardType = if (number) KeyboardType.Decimal else KeyboardType.Text, imeAction = ImeAction.Next),
-                    keyboardActions = KeyboardActions(onNext = { onNext() }),
+                    keyboardOptions = KeyboardOptions(keyboardType = if (number) KeyboardType.Decimal else KeyboardType.Text, imeAction = if (isLast) ImeAction.Done else ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { onNext() }, onDone = { onNext() }),
                     decorationBox = { field ->
                         Box {
                             if (value.text.isEmpty()) Text("값 입력", color = DDZColor.TextMuted, style = DDZTypography.Body)
