@@ -89,6 +89,8 @@ internal fun CameraQuickTablePreview(
         else -> TextAlign.Start
     })
     BoxWithConstraints(modifier, contentAlignment = Alignment.TopCenter) {
+        val viewportHeight = maxHeight
+        val viewportWidth = maxWidth
         val padding = DDZSpacing.controlGap
         val headingHeight = if (templateName.isBlank()) 0.dp else DDZLayout.Control.Compact
         val hintHeight = DDZLayout.Control.Compact
@@ -148,7 +150,7 @@ internal fun CameraQuickTablePreview(
                             val links = quickCellLinks(template, rect.cellId)
                             val requester = remember(rect.cellId) { BringIntoViewRequester() }
                             // Follow cell navigation / keyboard resizing, never zoom on each keystroke.
-                            LaunchedEffect(active, maxHeight, maxWidth) {
+                            LaunchedEffect(active, viewportHeight, viewportWidth) {
                                 if (active) {
                                     withFrameNanos { }
                                     requester.bringIntoView()
