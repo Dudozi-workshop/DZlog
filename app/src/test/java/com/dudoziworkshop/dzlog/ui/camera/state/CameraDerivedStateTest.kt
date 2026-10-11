@@ -114,7 +114,9 @@ class CameraDerivedStateTest {
     @Test fun quickDraftEditsKeepCameraSnapshotAndRequireTheDraftsOwnCounterRead() {
         val sourceCell = template.cells.single()
         val linked = template.copy(
-            fileNameSlotDrafts = listOf(TableEditorSlotDraft("CELL", "셀", cellId = sourceCell.cellId)),
+            fileNameSlotDrafts = List(FILE_NAME_SLOT_COUNT) {
+                if (it == 0) TableEditorSlotDraft("CELL", "셀", cellId = sourceCell.cellId) else null
+            },
             pathSlotDrafts = listOf(TableEditorSlotDraft("CELL", "셀", cellId = sourceCell.cellId)))
         val cameraRequest = request(linked)
         val original = state(linked, request = cameraRequest)
