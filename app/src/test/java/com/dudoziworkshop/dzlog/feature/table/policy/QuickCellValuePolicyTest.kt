@@ -31,12 +31,31 @@ class QuickCellValuePolicyTest {
         assertEquals("-", updateQuickCellValues(changed, mapOf("number" to "-")).cells[1].rawText)
     }
 
+    @Test fun navigationSkipsAutomaticAndCoveredCellsAndStopsAtEnds() {
+        val text = TableCellState(0, 0, cellId = "text", colSpan = 2)
+        val covered = TableCellState(0, 1, cellId = "covered")
+        val date = TableCellState(0, 2, cellId = "date", dataType = TableCellDataType.DATE)
+        val number = TableCellState(1, 0, cellId = "number", dataType = TableCellDataType.NUMBER)
+        val counter = TableCellState(1, 1, cellId = "counter", dataType = TableCellDataType.COUNTER)
+        val time = TableCellState(1, 2, cellId = "time", dataType = TableCellDataType.TIME)
+        val template = TableTemplateState(2, 3, listOf(number, covered, time, counter, date, text))
+        val cells = quickEditableCells(template)
+        assertEquals(listOf("text", "number"), cells.map { it.cellId })
+        assertEquals("number", adjacentQuickCellId(cells, "text", 1))
+        assertEquals("text", adjacentQuickCellId(cells, "number", -1))
+        assertNull(adjacentQuickCellId(cells, "text", -1))
+        assertNull(adjacentQuickCellId(cells, "number", 1))
+        assertNull(adjacentQuickCellId(cells, "covered", 1))
+        assertNull(adjacentQuickCellId(emptyList(), null, 1))
+        assertNull(adjacentQuickCellId(cells, "text", 0))
+    }
+
     @Test fun mergedCoveredCellsAreNotListedAndPositionShowsRange() {
         val root = TableCellState(0, 0, cellId = "root", colSpan = 2, kind = TableCellKind.INPUT)
         val covered = TableCellState(0, 1, cellId = "covered", kind = TableCellKind.INPUT)
         val base = TableCellState(1, 0, cellId = "base")
         val template = TableTemplateState(2, 2, listOf(base, covered, root))
-        assertEquals(listOf(root), quickEditableCells(template))
+        assertEquals(listOf(root, base), quickEditableCells(template))
         assertEquals("1행 1~2열", quickCellPosition(root))
         assertEquals(listOf(base), quickEditableCells(template.copy(cells = listOf(base))))
     }

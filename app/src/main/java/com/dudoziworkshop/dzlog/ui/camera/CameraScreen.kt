@@ -18,12 +18,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -68,6 +62,7 @@ import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraBottomControls
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTableResizeBaseline
 import com.dudoziworkshop.dzlog.ui.camera.controls.resizeCameraTableKeepingCenter
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraQuickValueSheet
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTopBar
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraNextCaptureInfoPopup
@@ -108,6 +103,7 @@ fun CameraScreen(
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
     onCaptureCommitted: () -> Unit = {},
     onQuickTemplatePreview: (TableTemplateState) -> Unit = onTemplateChange,
+    quickTemplateName: String = "",
 ) {
     val context = LocalContext.current
 
@@ -131,6 +127,7 @@ fun CameraScreen(
                 tableTemplateState = tableTemplateState,
                 onTemplateChange = onTemplateChange,
                 onQuickTemplatePreview = onQuickTemplatePreview,
+                quickTemplateName = quickTemplateName,
                 onOpenTableEditor = onOpenTableEditor,
                 onOpenSaveSettings = onOpenSaveSettings,
                 onOpenAlbum = onOpenAlbum,
@@ -163,6 +160,7 @@ fun CameraPreview(
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
     onCaptureCommitted: () -> Unit = {},
     onQuickTemplatePreview: (TableTemplateState) -> Unit = onTemplateChange,
+    quickTemplateName: String = "",
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
@@ -196,7 +194,6 @@ fun CameraPreview(
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var showQuickValueSheet by remember { mutableStateOf(false) }
-    var quickFocusedCellId by remember { mutableStateOf<String?>(null) }
     var cornerResizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
@@ -349,7 +346,7 @@ fun CameraPreview(
     }
 
     CameraVolumeKeyEffect(
-        volumeKeyAction = appSettings.volumeKeyAction,
+        volumeKeyAction = if (showQuickValueSheet) VolumeKeyAction.NONE else appSettings.volumeKeyAction,
         onCapture = {
             ui.dismissCameraInteractions()
             triggerCapture()
@@ -379,8 +376,7 @@ fun CameraPreview(
         )
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize().imePadding()) {
-        val quickPanelMaxHeight = (maxHeight * 0.4f).coerceAtMost(224.dp)
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -389,7 +385,7 @@ fun CameraPreview(
                     layout.onCameraRootHeightPxChange(coordinates.size.height.toFloat())
                 }
         ) {
-            if (!showQuickValueSheet) CameraTopBar(
+            CameraTopBar(
                 topDisplayName = topDisplayName,
                 hasAutoCounter = displayCounter != null,
                 onOpenCaptureInfo = {
@@ -422,7 +418,7 @@ fun CameraPreview(
                     dateFormat = dateFormat,
                     timeFormat = timeFormat,
                     fnDelim = fnDelim,
-                    shutterButtonTopY = if (showQuickValueSheet) null else layout.shutterButtonTopY,
+                    shutterButtonTopY = layout.shutterButtonTopY,
                     safeTopY = layout.safeTopY,
                     safeBottomY = layout.safeBottomY,
                     usableVerticalMarginPx = layout.usableVerticalMarginPx,
@@ -436,8 +432,6 @@ fun CameraPreview(
                     args = previewAreaArgs,
                     isTableSelected = ui.isTableSelected,
                     isTableLocked = ui.prefs.wmTableLocked,
-                    quickFocusedCellId = quickFocusedCellId,
-                    quickEditing = showQuickValueSheet,
                     onTableSelectionChange = { selected ->
                         if (selected) ui.dismissToolOverlays()
                         ui.isTableSelected = selected
@@ -482,7 +476,7 @@ fun CameraPreview(
                     onTapFocusUiChange = { ui.capture.tapFocusUi = it }
                 )
 
-                if (!showQuickValueSheet) Box(
+                Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = threeButtonEquivalentBottomPadding)
@@ -519,7 +513,7 @@ fun CameraPreview(
                     )
                 }
 
-                if (!showQuickValueSheet) FloatingAssistShutterButton(
+                FloatingAssistShutterButton(
                     enabled = ui.prefs.assistShutterEnabled,
                     xRatio = ui.prefs.assistShutterXRatio,
                     yRatio = ui.prefs.assistShutterYRatio,
@@ -542,18 +536,25 @@ fun CameraPreview(
                         .zIndex(80f)
                 )
             }
-            if (showQuickValueSheet) {
-                Box(Modifier.windowInsetsPadding(WindowInsets.navigationBars)) {
-                    CameraQuickValueSheet(
-                        template = tableTemplateState,
-                        maxPanelHeight = quickPanelMaxHeight,
-                        onDismiss = { quickFocusedCellId = null; showQuickValueSheet = false },
-                        onCellFocus = { quickFocusedCellId = it },
-                        onValueChange = onQuickTemplatePreview,
-                        onCommit = onTemplateChange,
-                    )
-                }
-            }
+        }
+        if (showQuickValueSheet) {
+            CameraQuickValueSheet(
+                template = tableTemplateState,
+                templateName = quickTemplateName,
+                counterDigits = ui.prefs.counterDigits,
+                counterSeed = displayCounter,
+                phraseCursor = appSettings.phraseProgressCursor,
+                now = ui.capture.now,
+                captureAspect = ui.prefs.captureAspect,
+                style = TableRenderStyle(bgStyle = ui.prefs.wmBgStyle, bgAlpha = ui.prefs.wmBgAlpha,
+                    valueScale = ui.prefs.wmValueScale, textColorMode = ui.prefs.wmTextColorMode,
+                    manualTextColor = ui.prefs.wmManualTextColor, textAlign = ui.prefs.wmTextAlign),
+                tableWidthRatio = ui.prefs.wmTableWidthRatio,
+                tableHeightRatio = ui.prefs.wmTableHeightRatio,
+                onDismiss = { showQuickValueSheet = false },
+                onValueChange = onQuickTemplatePreview,
+                onCommit = onTemplateChange,
+            )
         }
 
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode != ContinuousPreviewMode.OFF) {
@@ -610,7 +611,7 @@ fun CameraPreview(
                 onCaptureHapticChange = { checked ->
                     scope.launch { AppSettingsStore.setCaptureHapticEnabled(context, checked) }
                 },
-                volumeKeyAction = appSettings.volumeKeyAction,
+                volumeKeyAction = if (showQuickValueSheet) VolumeKeyAction.NONE else appSettings.volumeKeyAction,
                 onVolumeKeyActionChange = { action ->
                     scope.launch { settingsWriter.setVolumeKeyAction(action) }
                 },
