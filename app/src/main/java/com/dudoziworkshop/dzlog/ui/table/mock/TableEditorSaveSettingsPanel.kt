@@ -15,7 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
-import com.dudoziworkshop.dzlog.ui.common.DDZSettingRow
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
 internal enum class TableEditorSaveDetail {
@@ -41,22 +40,22 @@ internal fun TableEditorSaveSettingsPanel(
             .fillMaxWidth()
             .background(DDZColor.Surface)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 4.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        DDZSettingRow(
+        TableEditorSettingRow(
             label = "파일명",
             leadingIcon = Icons.Filled.TextFields,
             value = fileNamePreview,
             onClick = { onOpenDetail(TableEditorSaveDetail.FILE_NAME) },
         )
-        DDZSettingRow(
+        TableEditorSettingRow(
             label = "저장 위치",
             leadingIcon = Icons.Filled.Folder,
             value = pathPreview,
             onClick = { onOpenDetail(TableEditorSaveDetail.SAVE_PATH) },
         )
-        DDZSettingRow(
+        TableEditorSettingRow(
             label = "자동번호",
             leadingIcon = Icons.Filled.Tag,
             value = "다음 ${formatMockCounter(nextCounter, counterPadding)} · ${counterPaddingLabel(counterPadding)}",

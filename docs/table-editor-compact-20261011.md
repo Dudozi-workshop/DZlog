@@ -34,3 +34,11 @@ Full application UI/system-bar consistency audit remains separate follow-up work
 - Content keeps the selected-cell header and value above the scrolling type-specific settings. Padding is 16dp horizontal / 8dp vertical, with a 40dp close button and 18dp icon. Keyboard mode keeps only the fixed input area.
 - Structure add buttons retain the existing row/column icons with +; delete buttons use − and destructive red, faded when unavailable.
 - Shared panel height and preview fit policy are unchanged. Static review passed; final-HEAD CI and device checks are tracked in PR #32.
+
+## Consistent compact tabs
+
+- Equalization uses row height on the left / column width on the right, matching add/delete.
+- Content and Save retain two-line settings: title above value, 16dp icons with 4dp icon/text gaps, and single-line ellipsis for values. Style retains single-row controls. The panel inset is 16dp horizontal / 8dp vertical, with 4dp gaps.
+- Cell type values and filename/path rule type values include their existing icons. Rule type badges have a bounded width and long values use ellipsis.
+- Text color control is removed. Editor draft uses automatic text contrast, including legacy manual colors; persistence changes only when explicitly saved. A regression verifies draft normalization, undo, and saved baseline.
+- Final-HEAD CI/APK status and device checklist are tracked in PR #32.

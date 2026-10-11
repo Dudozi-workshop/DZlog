@@ -31,7 +31,8 @@ internal class TableEditorV2SessionState(
     var draftTemplateState by mutableStateOf(initialTemplateState)
         private set
 
-    var draftStyleState by mutableStateOf(initialStyleState)
+    // Normalize only the edit draft; legacy persisted colors change when the user saves.
+    var draftStyleState by mutableStateOf(initialStyleState.copy(textColorMode = 0))
         private set
 
     var draftSaveMode by mutableStateOf(initialSaveMode)

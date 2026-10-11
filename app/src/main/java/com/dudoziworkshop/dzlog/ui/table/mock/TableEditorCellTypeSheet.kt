@@ -60,7 +60,7 @@ internal fun TableEditorCellTypeSheet(
     }
 }
 
-private fun TableEditorCellType.choiceIcon(): ImageVector = when (this) {
+internal fun TableEditorCellType.choiceIcon(): ImageVector = when (this) {
     TableEditorCellType.TEXT -> Icons.Filled.TextFields
     TableEditorCellType.NUMBER -> Icons.Filled.Numbers
     TableEditorCellType.COUNTER -> Icons.Filled.Tag

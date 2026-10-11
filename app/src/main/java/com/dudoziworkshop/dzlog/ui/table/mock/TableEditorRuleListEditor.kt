@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -223,9 +226,10 @@ internal fun TableEditorRuleListEditor(
                                 .padding(vertical = 5.dp),
                             style = DDZTypography.SettingLabel,
                             color = DDZColor.TextPrimary,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
                         )
                         Row(
-                            modifier = Modifier
+                            modifier = Modifier.widthIn(max = 112.dp)
                                 .clickable {
                                     editingIndex = index
                                     editorTarget = RuleEditorTarget.TYPE
@@ -234,13 +238,18 @@ internal fun TableEditorRuleListEditor(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            Icon(ruleTypeIcon(item.sourceType), contentDescription = null,
+                                tint = DDZColor.TextSecondary, modifier = Modifier.size(16.dp))
                             Text(
                                 text = ruleTypeLabel(item.sourceType),
+                                modifier = Modifier.weight(1f, fill = false),
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 style = DDZTypography.Caption,
                                 color = DDZColor.TextSecondary,
                             )
                             Icon(
                                 imageVector = Icons.Default.ChevronRight,
+                                modifier = Modifier.size(18.dp),
                                 contentDescription = null,
                                 tint = DDZColor.TextSecondary,
                             )

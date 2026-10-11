@@ -51,14 +51,6 @@ internal fun TableEditorStylePanel(
                 onValueChange = { onDraftChange(draft.copy(valueScale = it.roundToInt())) })
             StylePercent(draft.valueScale)
         }
-        CompactStyleRow("글자 색") {
-            StyleChoices(listOf("자동", "흰색", "검정"),
-                if (draft.textColorMode == 0) 0 else if (draft.manualTextColor == 0) 1 else 2) {
-                onDraftChange(when (it) { 0 -> draft.copy(textColorMode = 0)
-                    1 -> draft.copy(textColorMode = 1, manualTextColor = 0)
-                    else -> draft.copy(textColorMode = 1, manualTextColor = 1) })
-            }
-        }
         CompactStyleRow("정렬") {
             StyleChoices(listOf("왼쪽", "가운데", "오른쪽"), draft.textAlign) {
                 onDraftChange(draft.copy(textAlign = it))

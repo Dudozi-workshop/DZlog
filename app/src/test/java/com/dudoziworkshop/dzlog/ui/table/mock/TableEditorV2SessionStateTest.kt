@@ -15,6 +15,23 @@ import org.junit.Test
 class TableEditorV2SessionStateTest {
 
     @Test
+    fun legacy_manual_text_color_becomes_automatic_in_draft_without_mutating_saved_input() {
+        val initial = newBlankTableTemplateState(2, 2)
+        val legacyStyle = TableStyleState(textColorMode = 1, manualTextColor = 0, valueScale = 120)
+        val session = TableEditorV2SessionState(initial, legacyStyle, true, true)
+        assertEquals(legacyStyle.copy(textColorMode = 0), session.draftStyleState)
+        assertEquals(1, legacyStyle.textColorMode)
+        assertTrue(session.isDirty)
+        assertFalse(session.canUndo)
+        session.commitStyleChange(session.draftStyleState.copy(bgStyle = 0))
+        assertTrue(session.undo())
+        assertEquals(0, session.draftStyleState.textColorMode)
+        session.markSaved(session.finalTemplateForSave())
+        assertFalse(session.isDirty)
+    }
+
+
+    @Test
     fun equalization_preserves_cells_other_axis_and_style_and_supports_save_undo_redo() {
         val blank = newBlankTableTemplateState(2, 3)
         val topRow = selectMockLayoutRange(blank, blank.cells[0].cellId, blank.cells[1].cellId)

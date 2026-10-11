@@ -68,10 +68,10 @@ internal fun MockLayoutPanel(
             onClick = onMergeSelection)
         HorizontalDivider(color = DDZColor.Border)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewColumn, "열 너비 균등",
-                enabled = cols > 1, onClick = onEqualizeColumns)
             StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewStream, "행 높이 균등",
                 enabled = rows > 1, onClick = onEqualizeRows)
+            StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewColumn, "열 너비 균등",
+                enabled = cols > 1, onClick = onEqualizeColumns)
         }
 
     }

@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
-import com.dudoziworkshop.dzlog.ui.common.DDZSettingRow
 import com.dudoziworkshop.dzlog.ui.common.DDZTextField
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -153,19 +152,19 @@ internal fun TableEditorCellUiModelEditor(
                         "촬영 성공 후 다음 번호로 증가합니다.", color = DDZColor.TextMuted,
                         style = DDZTypography.Caption,
                     )
-                    TableEditorCellType.DATE -> DDZSettingRow(
+                    TableEditorCellType.DATE -> TableEditorSettingRow(
                         label = "날짜 형식",
                         value = tableEditorDateFormatLabel(cell.formatPattern),
                         onClick = { showDatePicker = true },
                     )
-                    TableEditorCellType.TIME -> DDZSettingRow(
+                    TableEditorCellType.TIME -> TableEditorSettingRow(
                         label = "시간 형식",
                         value = "HHmm · 분 단위 고정",
                         onClick = onApplyTimePolicy,
                     )
                     TableEditorCellType.ROTATING_TEXT -> {
                         val selectedSet = phraseSets.firstOrNull { it.id == cell.phraseSetId }
-                        DDZSettingRow(
+                        TableEditorSettingRow(
                             label = "문구 세트",
                             value = selectedSet?.name ?: "선택 안 함",
                             onClick = { showPhrasePicker = true },
@@ -189,9 +188,10 @@ internal fun TableEditorCellUiModelEditor(
                     else -> Unit
                 }
 
-                DDZSettingRow(
+                TableEditorSettingRow(
                     label = "셀 종류",
                     value = cell.type.label,
+                    valueIcon = cell.type.choiceIcon(),
                     onClick = { showTypePicker = true },
                 )
             }
