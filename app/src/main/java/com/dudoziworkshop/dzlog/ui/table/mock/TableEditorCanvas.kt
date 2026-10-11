@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,11 +17,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,7 +31,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -248,6 +250,11 @@ internal fun ColumnScope.MockTableCanvas(
                         modifier = Modifier
                             .offset(x = gutter + x - 16.dp, y = 2.dp)
                             .size(32.dp)
+                            .background(
+                                if (activeColumn == boundaryIndex) DDZColor.SelectedSoft else DDZColor.Surface,
+                                CircleShape,
+                            )
+                            .border(1.dp, DDZColor.BorderStrong, CircleShape)
                             .pointerInput(boundaryIndex, totalWidthPx) {
                                 detectDragGestures(
                                     onDragStart = { activeColumn = boundaryIndex; latestDragStart() },
@@ -260,8 +267,8 @@ internal fun ColumnScope.MockTableCanvas(
                             },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(
-                            Icons.Filled.SwapHoriz,
+                        BoundaryDirectionArrow(
+                            horizontal = true,
                             contentDescription = "${boundaryIndex + 1}열과 ${boundaryIndex + 2}열 너비 조절",
                             modifier = Modifier.size(18.dp),
                             tint = if (activeColumn == boundaryIndex) DDZColor.PrimaryDark else DDZColor.Primary,
@@ -275,6 +282,11 @@ internal fun ColumnScope.MockTableCanvas(
                         modifier = Modifier
                             .offset(x = 2.dp, y = gutter + y - 16.dp)
                             .size(32.dp)
+                            .background(
+                                if (activeRow == boundaryIndex) DDZColor.SelectedSoft else DDZColor.Surface,
+                                CircleShape,
+                            )
+                            .border(1.dp, DDZColor.BorderStrong, CircleShape)
                             .pointerInput(boundaryIndex, totalHeightPx) {
                                 detectDragGestures(
                                     onDragStart = { activeRow = boundaryIndex; latestDragStart() },
@@ -287,8 +299,8 @@ internal fun ColumnScope.MockTableCanvas(
                             },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(
-                            Icons.Filled.SwapVert,
+                        BoundaryDirectionArrow(
+                            horizontal = false,
                             contentDescription = "${boundaryIndex + 1}행과 ${boundaryIndex + 2}행 높이 조절",
                             modifier = Modifier.size(18.dp),
                             tint = if (activeRow == boundaryIndex) DDZColor.PrimaryDark else DDZColor.Primary,
@@ -300,3 +312,29 @@ internal fun ColumnScope.MockTableCanvas(
     }
 }
 
+
+/** One shaft with an arrowhead at each end; not the two-arrow swap icon. */
+@Composable
+private fun BoundaryDirectionArrow(
+    horizontal: Boolean,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    tint: Color,
+) {
+    Canvas(modifier.semantics { this.contentDescription = contentDescription }) {
+        rotate(if (horizontal) 0f else 90f) {
+            val left = size.width * 0.18f
+            val right = size.width * 0.82f
+            val middle = size.height * 0.5f
+            val head = size.width * 0.20f
+            val stroke = 1.5.dp.toPx()
+            fun segment(from: Offset, to: Offset) =
+                drawLine(tint, from, to, strokeWidth = stroke, cap = StrokeCap.Round)
+            segment(Offset(left, middle), Offset(right, middle))
+            segment(Offset(left, middle), Offset(left + head, middle - head))
+            segment(Offset(left, middle), Offset(left + head, middle + head))
+            segment(Offset(right, middle), Offset(right - head, middle - head))
+            segment(Offset(right, middle), Offset(right - head, middle + head))
+        }
+    }
+}

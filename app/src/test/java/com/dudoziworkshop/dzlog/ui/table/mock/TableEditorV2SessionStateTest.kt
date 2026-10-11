@@ -15,6 +15,56 @@ import org.junit.Test
 class TableEditorV2SessionStateTest {
 
     @Test
+    fun equalization_preserves_cells_other_axis_and_style_and_supports_save_undo_redo() {
+        val blank = newBlankTableTemplateState(2, 3)
+        val topRow = selectMockLayoutRange(blank, blank.cells[0].cellId, blank.cells[1].cellId)
+        val merged = TableEditorV2StructureController.applyMergeDecision(blank,
+            TableEditorV2StructureController.resolveMergeDecision(blank, topRow))
+        val initial = merged.copy(
+            rowWeights = listOf(0.5f, 1.5f),
+            colWeights = listOf(0.5f, 1f, 1.5f),
+            cells = merged.cells.map { it.copy(rawText = "retained") },
+        )
+        val style = TableStyleState(valueScale = 120)
+        val session = TableEditorV2SessionState(initial, style, true, true)
+        session.commitTemplateChange(TableEditorV2StructureController.equalizeColumns(session.draftTemplateState))
+        assertEquals(initial.cells, session.draftTemplateState.cells)
+        assertEquals(initial.rowWeights, session.draftTemplateState.rowWeights)
+        assertEquals(style, session.draftStyleState)
+        val widths = com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator.computeSizes(300f,
+            com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator.resolveWeights(
+                session.finalTemplateForSave().colWeights, initial.cols))
+        assertEquals(listOf(100f, 100f, 100f), widths)
+        assertEquals(300f, widths.sum(), 0.0001f)
+        val equalColumns = session.draftTemplateState
+        session.commitTemplateChange(TableEditorV2StructureController.equalizeRows(session.draftTemplateState))
+        assertEquals(initial.cells, session.finalTemplateForSave().cells)
+        val heights = com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator.computeSizes(200f,
+            com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator.resolveWeights(
+                session.finalTemplateForSave().rowWeights, initial.rows))
+        assertEquals(listOf(100f, 100f), heights)
+        assertEquals(style, session.draftStyleState)
+        assertTrue(session.undo())
+        assertEquals(equalColumns, session.draftTemplateState)
+        assertTrue(session.undo())
+        assertEquals(initial, session.draftTemplateState)
+        assertFalse(session.isDirty)
+        assertTrue(session.redo())
+        assertEquals(equalColumns, session.draftTemplateState)
+    }
+
+    @Test
+    fun equalizing_an_already_equal_table_does_not_create_a_change_or_undo_entry() {
+        val initial = newBlankTableTemplateState(1, 3).copy(colWeights = listOf(2f, 2f, 2f))
+        val session = TableEditorV2SessionState(initial, TableStyleState(), true, true)
+        session.commitTemplateChange(TableEditorV2StructureController.equalizeRows(session.draftTemplateState))
+        session.commitTemplateChange(TableEditorV2StructureController.equalizeColumns(session.draftTemplateState))
+        assertEquals(initial, session.draftTemplateState)
+        assertFalse(session.isDirty)
+        assertFalse(session.canUndo)
+    }
+
+    @Test
     fun confirmed_populated_merge_updates_preview_save_and_undo_restores_values() {
         val blank = newBlankTableTemplateState(2, 2)
         val initial = blank.copy(cells = blank.cells.map {

@@ -589,6 +589,17 @@ fun TableEditorV2Screen(
                             onDeleteSelection = {
                                 showLayoutDeleteSheet = true
                             },
+                            onEqualizeColumns = {
+                                session.commitTemplateChange(
+                                    TableEditorV2StructureController.equalizeColumns(session.draftTemplateState)
+                                )
+                            },
+                            onEqualizeRows = {
+                                session.commitTemplateChange(
+                                    TableEditorV2StructureController.equalizeRows(session.draftTemplateState)
+                                )
+                            },
+                            onClearSelection = selectionState::clearLayoutSelection,
                         )
                     }
                 }
