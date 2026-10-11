@@ -129,5 +129,5 @@ private fun PreviewRow(icon: ImageVector, label: String, texts: List<String>, ra
                 }
             }
         }
-}
+    }
 }

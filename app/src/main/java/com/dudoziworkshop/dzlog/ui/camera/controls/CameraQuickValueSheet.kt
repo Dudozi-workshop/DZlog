@@ -46,7 +46,6 @@ import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
-import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.feature.table.policy.*
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZCellTypeIcons
@@ -138,7 +137,6 @@ internal fun CameraQuickValueSheet(
             if (it.type == TableCellDataType.COUNTER) it.copy(resolvedText = "", isEmpty = true) else it
         }
     }
-    val watermarkCells = remember(resolvedCells) { WatermarkBuilder.buildTableCells(resolvedCells) }
     fun commit() {
         if (draft.dirty && !switching) { latestCommit.value(draft.template); draft.dirty = false }
     }
@@ -194,7 +192,7 @@ internal fun CameraQuickValueSheet(
                 }
                 CameraQuickNamingPreview(previewTemplate, resolvedCells, selectedId, counterDigits, previewCounter, now, saveMode,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = DDZSpacing.screenPadding))
-                CameraQuickTablePreview(previewTemplate, templateName, watermarkCells, style,
+                CameraQuickTablePreview(previewTemplate, templateName, resolvedCells, style,
                     selectedId, cells.map { it.cellId }.toSet(), ::select,
                     onLocked = { id -> Toast.makeText(context,
                         listOf("자동으로 표시되는 값이에요. 변경은 표 상세설정에서 가능해요.",

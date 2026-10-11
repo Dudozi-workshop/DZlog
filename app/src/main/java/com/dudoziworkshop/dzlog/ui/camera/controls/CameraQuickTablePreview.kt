@@ -45,7 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
+import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
 import com.dudoziworkshop.dzlog.feature.table.policy.quickCellPosition
 import com.dudoziworkshop.dzlog.feature.table.policy.quickRootCells
 import com.dudoziworkshop.dzlog.feature.table.policy.quickCellLinks
@@ -63,7 +63,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 internal fun CameraQuickTablePreview(
     template: TableTemplateState,
     templateName: String,
-    cells: List<WatermarkBuilder.WatermarkCell>,
+    cells: List<ResolvedCell>,
     style: TableRenderStyle,
     selectedId: String?,
     editableIds: Set<String>,
@@ -79,9 +79,7 @@ internal fun CameraQuickTablePreview(
     var showPicker by remember { mutableStateOf(false) }
     val roots = remember(template.cells) { quickRootCells(template) }
     val rootCells = remember(roots) { roots.map { RenderRootCell(it.cellId, it.rowIndex, it.colIndex, it.rowSpan, it.colSpan) } }
-    val values = remember(template.cells, cells) { template.cells.mapIndexed { index, cell ->
-        cell.cellId to cells.getOrNull(index)?.valueText.orEmpty()
-    }.toMap() }
+    val values = remember(cells) { cells.associate { it.id to it.resolvedText } }
     val vertical = rememberScrollState()
     val horizontal = rememberScrollState()
     val measurer = rememberTextMeasurer(cacheSize = template.rows * template.cols)
