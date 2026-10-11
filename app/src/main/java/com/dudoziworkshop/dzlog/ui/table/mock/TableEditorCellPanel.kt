@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -90,6 +92,9 @@ internal fun TableEditorCellUiModelEditor(
                         value = cell.value,
                         onValueChange = onValueChange,
                         label = "값",
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = if (cell.type == TableEditorCellType.NUMBER) KeyboardType.Number else KeyboardType.Text,
+                        ),
                     )
                 }
 
@@ -117,6 +122,7 @@ internal fun TableEditorCellUiModelEditor(
                                 }
                             },
                             label = "시작 번호",
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         )
                         DDZButton(
                             text = "+",

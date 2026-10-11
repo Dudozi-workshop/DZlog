@@ -42,3 +42,9 @@ Full application UI/system-bar consistency audit remains separate follow-up work
 - Cell type values and filename/path rule type values include their existing icons. Rule type badges have a bounded width and long values use ellipsis.
 - Text color control is removed. Editor draft uses automatic text contrast, including legacy manual colors; persistence changes only when explicitly saved. A regression verifies draft normalization, undo, and saved baseline.
 - Final-HEAD CI/APK status and device checklist are tracked in PR #32.
+
+## Cell icons and numeric keyboard
+
+- Shared DDZCellTypeIcons uses Material Filled Pin (123) for Number and ExposurePlus1 (+1) for AutoNumber; current/legacy editors and save settings reuse the same definitions.
+- Number cell values and auto-number start inputs request KeyboardType.Number. Text cells keep KeyboardType.Text, and unrelated DDZTextField callers retain the default keyboard.
+- Static review passed. Final-HEAD CI/APK results are tracked in PR #32. No additional device review requested for the icon change.

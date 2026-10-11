@@ -10,10 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Tag
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.ui.common.DDZCellTypeIcons
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
@@ -57,7 +57,7 @@ internal fun TableEditorSaveSettingsPanel(
         )
         TableEditorSettingRow(
             label = "자동번호",
-            leadingIcon = Icons.Filled.Tag,
+            leadingIcon = DDZCellTypeIcons.AutoNumber,
             value = "다음 ${formatMockCounter(nextCounter, counterPadding)} · ${counterPaddingLabel(counterPadding)}",
             onClick = { onOpenDetail(TableEditorSaveDetail.AUTO_NUMBER) },
         )

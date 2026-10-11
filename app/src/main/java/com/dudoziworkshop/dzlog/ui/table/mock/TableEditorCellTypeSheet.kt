@@ -7,19 +7,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Autorenew
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Numbers
-import androidx.compose.material.icons.filled.Tag
-import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.ui.common.DDZCellTypeIcons
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -61,10 +55,10 @@ internal fun TableEditorCellTypeSheet(
 }
 
 internal fun TableEditorCellType.choiceIcon(): ImageVector = when (this) {
-    TableEditorCellType.TEXT -> Icons.Filled.TextFields
-    TableEditorCellType.NUMBER -> Icons.Filled.Numbers
-    TableEditorCellType.COUNTER -> Icons.Filled.Tag
-    TableEditorCellType.DATE -> Icons.Filled.DateRange
-    TableEditorCellType.TIME -> Icons.Filled.AccessTime
-    TableEditorCellType.ROTATING_TEXT -> Icons.Filled.Autorenew
+    TableEditorCellType.TEXT -> DDZCellTypeIcons.Text
+    TableEditorCellType.NUMBER -> DDZCellTypeIcons.Number
+    TableEditorCellType.COUNTER -> DDZCellTypeIcons.AutoNumber
+    TableEditorCellType.DATE -> DDZCellTypeIcons.Date
+    TableEditorCellType.TIME -> DDZCellTypeIcons.Time
+    TableEditorCellType.ROTATING_TEXT -> DDZCellTypeIcons.RotatingText
 }
