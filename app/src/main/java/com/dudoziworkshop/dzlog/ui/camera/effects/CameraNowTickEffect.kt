@@ -18,8 +18,8 @@ internal fun CameraNowTickEffect(
     onNowChange: (Date) -> Unit,
 ) {
     val latestOnNowChange = rememberUpdatedState(onNowChange)
-    LaunchedEffect(cells, lifecycleOwner) {
-        val unit = cameraNowTickUnit(cells)
+    val unit = cameraNowTickUnit(cells)
+    LaunchedEffect(unit, lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             latestOnNowChange.value(Date())
             while (true) {

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -70,6 +71,7 @@ internal fun CameraPreviewArea(
     onTableSelectionChange: (Boolean) -> Unit,
     onCornerResizeScale: (Float, Boolean) -> Unit,
     quickFocusedCellId: String? = null,
+    quickEditing: Boolean = false,
 ) {
     val context = args.context
     val lifecycleOwner = args.lifecycleOwner
@@ -387,9 +389,10 @@ internal fun CameraPreviewArea(
 
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .width(if (quickEditing) minOf(maxWidth, maxHeight * previewBoxLayout.safeAspect) else maxWidth)
                     .aspectRatio(previewBoxLayout.safeAspect)
-                    .offset { IntOffset(0, previewBoxLayout.topOffsetPx.roundToInt()) }
+                    .offset { IntOffset(0, if (quickEditing) 0 else previewBoxLayout.topOffsetPx.roundToInt()) }
                     .onSizeChanged { size ->
                         previewBoxWidthPx = size.width.toFloat()
                         previewBoxHeightPx = size.height.toFloat()

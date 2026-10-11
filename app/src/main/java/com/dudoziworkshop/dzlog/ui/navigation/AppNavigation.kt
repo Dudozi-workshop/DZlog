@@ -215,13 +215,14 @@ fun AppRoot() {
             pendingNewTemplatePreviousActiveId = null
         }
         if (!hasRestoredTemplate) return
+        val savedActiveId = tableTemplateViewModel.activeTemplateId
         appScope.launch {
             val next = tableCatalogCoordinator.updateActiveTemplate(
                 items = tableTemplateViewModel.templates,
-                activeTemplateId = tableTemplateViewModel.activeTemplateId,
+                activeTemplateId = savedActiveId,
                 templateState = updated,
             )
-            tableTemplateViewModel.setCatalog(next, tableTemplateViewModel.activeTemplateId)
+            tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated)
         }
     }
 
@@ -658,6 +659,7 @@ fun AppRoot() {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
+                    onQuickTemplatePreview = tableTemplateViewModel::updateStateOnly,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
                     onOpenSaveSettings = ::openActiveSaveSettings,
                     onOpenAlbum = ::openAlbumRoot,
@@ -702,6 +704,7 @@ fun AppRoot() {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
+                    onQuickTemplatePreview = tableTemplateViewModel::updateStateOnly,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
                     onOpenSaveSettings = ::openActiveSaveSettings,
                     onOpenAlbum = ::openAlbumRoot,

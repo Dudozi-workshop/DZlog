@@ -18,6 +18,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -101,6 +107,7 @@ fun CameraScreen(
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
     onCaptureCommitted: () -> Unit = {},
+    onQuickTemplatePreview: (TableTemplateState) -> Unit = onTemplateChange,
 ) {
     val context = LocalContext.current
 
@@ -123,6 +130,7 @@ fun CameraScreen(
             CameraPreview(
                 tableTemplateState = tableTemplateState,
                 onTemplateChange = onTemplateChange,
+                onQuickTemplatePreview = onQuickTemplatePreview,
                 onOpenTableEditor = onOpenTableEditor,
                 onOpenSaveSettings = onOpenSaveSettings,
                 onOpenAlbum = onOpenAlbum,
@@ -154,6 +162,7 @@ fun CameraPreview(
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
     onCaptureCommitted: () -> Unit = {},
+    onQuickTemplatePreview: (TableTemplateState) -> Unit = onTemplateChange,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
@@ -370,7 +379,8 @@ fun CameraPreview(
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().imePadding()) {
+        val quickPanelMaxHeight = (maxHeight * 0.4f).coerceAtMost(224.dp)
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -379,7 +389,7 @@ fun CameraPreview(
                     layout.onCameraRootHeightPxChange(coordinates.size.height.toFloat())
                 }
         ) {
-            CameraTopBar(
+            if (!showQuickValueSheet) CameraTopBar(
                 topDisplayName = topDisplayName,
                 hasAutoCounter = displayCounter != null,
                 onOpenCaptureInfo = {
@@ -412,7 +422,7 @@ fun CameraPreview(
                     dateFormat = dateFormat,
                     timeFormat = timeFormat,
                     fnDelim = fnDelim,
-                    shutterButtonTopY = layout.shutterButtonTopY,
+                    shutterButtonTopY = if (showQuickValueSheet) null else layout.shutterButtonTopY,
                     safeTopY = layout.safeTopY,
                     safeBottomY = layout.safeBottomY,
                     usableVerticalMarginPx = layout.usableVerticalMarginPx,
@@ -427,6 +437,7 @@ fun CameraPreview(
                     isTableSelected = ui.isTableSelected,
                     isTableLocked = ui.prefs.wmTableLocked,
                     quickFocusedCellId = quickFocusedCellId,
+                    quickEditing = showQuickValueSheet,
                     onTableSelectionChange = { selected ->
                         if (selected) ui.dismissToolOverlays()
                         ui.isTableSelected = selected
@@ -471,7 +482,7 @@ fun CameraPreview(
                     onTapFocusUiChange = { ui.capture.tapFocusUi = it }
                 )
 
-                Box(
+                if (!showQuickValueSheet) Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = threeButtonEquivalentBottomPadding)
@@ -498,7 +509,7 @@ fun CameraPreview(
                             triggerCapture()
                         },
                         onShutterButtonTopYChange = { layout.onShutterButtonTopYChange(it) },
-                        onOpenQuickValues = { showQuickValueSheet = true },
+                        onOpenQuickValues = { ui.dismissCameraInteractions(); showQuickValueSheet = true },
                         onOpenTableEditor = {
                             ui.isTableSelected = false
                             ui.dismissToolOverlays()
@@ -508,7 +519,7 @@ fun CameraPreview(
                     )
                 }
 
-                FloatingAssistShutterButton(
+                if (!showQuickValueSheet) FloatingAssistShutterButton(
                     enabled = ui.prefs.assistShutterEnabled,
                     xRatio = ui.prefs.assistShutterXRatio,
                     yRatio = ui.prefs.assistShutterYRatio,
@@ -531,17 +542,18 @@ fun CameraPreview(
                         .zIndex(80f)
                 )
             }
-        }
-
-        if (showQuickValueSheet) {
-            CameraQuickValueSheet(
-                template = tableTemplateState,
-                onDismiss = { showQuickValueSheet = false },
-                onCellFocus = { quickFocusedCellId = it },
-                onValueChange = { updatedTemplate ->
-                    onTemplateChange(updatedTemplate)
-                },
-            )
+            if (showQuickValueSheet) {
+                Box(Modifier.windowInsetsPadding(WindowInsets.navigationBars)) {
+                    CameraQuickValueSheet(
+                        template = tableTemplateState,
+                        maxPanelHeight = quickPanelMaxHeight,
+                        onDismiss = { quickFocusedCellId = null; showQuickValueSheet = false },
+                        onCellFocus = { quickFocusedCellId = it },
+                        onValueChange = onQuickTemplatePreview,
+                        onCommit = onTemplateChange,
+                    )
+                }
+            }
         }
 
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode != ContinuousPreviewMode.OFF) {

@@ -32,6 +32,14 @@ class TableTemplateCatalogViewModel : ViewModel() {
         tableTemplateState = state
     }
 
+    /** Keep newer live input when an earlier disk write finishes. */
+    fun applyPersistedCatalog(items: List<SavedTableTemplate>, savedActiveId: String?, savedState: TableTemplateState) {
+        if (activeTemplateId != savedActiveId) return
+        val liveState = tableTemplateState
+        setCatalog(items, savedActiveId)
+        if (liveState != savedState) tableTemplateState = liveState
+    }
+
     fun setCatalog(items: List<SavedTableTemplate>, activeId: String?) {
         val previousUse = templates.associate { it.id to it.lastUsedAt }
         templates = items.map { it.copy(lastUsedAt = maxOf(it.lastUsedAt, previousUse[it.id] ?: 0L)) }.sortedByDescending { it.modifiedAt }
