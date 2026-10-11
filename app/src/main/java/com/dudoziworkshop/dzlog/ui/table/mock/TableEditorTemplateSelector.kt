@@ -28,9 +28,9 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 @Composable
-internal fun TableEditorTemplateSelector(name: String, enabled: Boolean, onClick: () -> Unit) {
+internal fun TableEditorTemplateSelector(name: String, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
             .clickable(enabled = enabled, role = Role.Button, onClickLabel = "템플릿 교체", onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -46,7 +46,7 @@ internal fun TableEditorTemplateSelector(name: String, enabled: Boolean, onClick
 }
 
 @Composable
-internal fun TemplateMiniPreview(template: TableTemplateState) {
+fun TemplateMiniPreview(template: TableTemplateState) {
     val rows = TableLayoutCalculator.resolveWeights(template.rowWeights, template.rows)
     val cols = TableLayoutCalculator.resolveWeights(template.colWeights, template.cols)
     val roots = TableStructureRangeActions.rootCells(template.cells)

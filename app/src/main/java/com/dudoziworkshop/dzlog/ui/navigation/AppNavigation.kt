@@ -653,6 +653,7 @@ fun AppRoot() {
             .fillMaxSize()
     ) {
         if (keepCameraAliveBehindAlbum) {
+            val captureTemplateId = tableTemplateViewModel.activeTemplateId
             Box(modifier = Modifier.alpha(0f)) {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
@@ -661,7 +662,14 @@ fun AppRoot() {
                     onOpenSaveSettings = ::openActiveSaveSettings,
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
-                    sessionCaptureStack = cameraSessionCaptureStack
+                    sessionCaptureStack = cameraSessionCaptureStack,
+                    onCaptureCommitted = {
+                        captureTemplateId?.let { id ->
+                            val timestamp = System.currentTimeMillis()
+                            tableTemplateViewModel.markUsed(id, timestamp)
+                            appScope.launch { tableCatalogCoordinator.markUsed(id, timestamp) }
+                        }
+                    },
                 )
             }
         }
@@ -689,6 +697,8 @@ fun AppRoot() {
             )
 
             AppScreen.CAMERA -> {
+                // Captured by this trigger's closure, never read a later active selection at completion.
+                val captureTemplateId = tableTemplateViewModel.activeTemplateId
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
@@ -696,7 +706,14 @@ fun AppRoot() {
                     onOpenSaveSettings = ::openActiveSaveSettings,
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
-                    sessionCaptureStack = cameraSessionCaptureStack
+                    sessionCaptureStack = cameraSessionCaptureStack,
+                    onCaptureCommitted = {
+                        captureTemplateId?.let { id ->
+                            val timestamp = System.currentTimeMillis()
+                            tableTemplateViewModel.markUsed(id, timestamp)
+                            appScope.launch { tableCatalogCoordinator.markUsed(id, timestamp) }
+                        }
+                    },
                 )
             }
 

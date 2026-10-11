@@ -70,6 +70,7 @@ internal fun ColumnScope.MockTableCanvas(
     onClearLayoutSelection: () -> Unit,
 ) {
     // Pointer handlers live across recompositions; never retain an old draft/callback.
+    val latestClear by rememberUpdatedState(onClearLayoutSelection)
     val latestRowDrag by rememberUpdatedState(onRowBoundaryDrag)
     val latestColDrag by rememberUpdatedState(onColBoundaryDrag)
     val latestDragStart by rememberUpdatedState(onBoundaryDragStart)
@@ -102,7 +103,8 @@ internal fun ColumnScope.MockTableCanvas(
         modifier = Modifier
             .fillMaxWidth()
             .weight(1f)
-            .background(background),
+            .background(background)
+            .pointerInput(layoutMode) { detectTapGestures { if (layoutMode) latestClear() } },
         contentAlignment = Alignment.Center,
     ) {
         // Reserve identical gutters in every tab. Handles are siblings of the grid,
@@ -111,11 +113,12 @@ internal fun ColumnScope.MockTableCanvas(
         val previousWorkingWidth = (maxWidth - 52.dp).coerceAtLeast(1.dp)
         val expandedWorkingWidth = (maxWidth - gutter * 2).coerceAtLeast(1.dp)
         val editorScale = (expandedWorkingWidth / previousWorkingWidth).coerceAtLeast(0.01f)
-        val naturalTableHeight = baseTableHeight * editorScale
-        val fitScale = ((maxHeight - gutter * 2).coerceAtLeast(1.dp) / naturalTableHeight)
-            .coerceIn(0f, 1f)
+        val naturalTableWidth = expandedWorkingWidth * (resolvedColWeights.sum() / cols.coerceAtLeast(1))
+        val naturalTableHeight = baseTableHeight * editorScale * (resolvedRowWeights.sum() / rows.coerceAtLeast(1))
+        val fitScale = minOf(expandedWorkingWidth / naturalTableWidth,
+            (maxHeight - gutter * 2).coerceAtLeast(1.dp) / naturalTableHeight, 1f).coerceAtLeast(0.01f)
         val stableTableHeight = naturalTableHeight * fitScale
-        val stableTableWidth = expandedWorkingWidth * fitScale
+        val stableTableWidth = naturalTableWidth * fitScale
 
         BoxWithConstraints(
             modifier = Modifier
@@ -131,6 +134,8 @@ internal fun ColumnScope.MockTableCanvas(
             val rowSizes = resolvedRowWeights.map { totalHeight * (it / rowWeightSum) }
             val totalWidthPx = with(density) { totalWidth.toPx().coerceAtLeast(1f) }
             val totalHeightPx = with(density) { totalHeight.toPx().coerceAtLeast(1f) }
+            val latestWidthPx by rememberUpdatedState(totalWidthPx)
+            val latestHeightPx by rememberUpdatedState(totalHeightPx)
             val rootHitRects = cells.filterNot { it.isCovered }.map { cell ->
                 val startRow = cell.rowIndex.coerceIn(0, (rows - 1).coerceAtLeast(0))
                 val startCol = cell.colIndex.coerceIn(0, (cols - 1).coerceAtLeast(0))
@@ -244,64 +249,66 @@ internal fun ColumnScope.MockTableCanvas(
             }
 
             if (layoutMode) {
-                for (boundaryIndex in 0 until (cols - 1).coerceAtLeast(0)) {
+                for (boundaryIndex in 0 until cols.coerceAtLeast(0)) {
                     val x = colSizes.take(boundaryIndex + 1).fold(0.dp) { acc, value -> acc + value }
                     Box(
                         modifier = Modifier
-                            .offset(x = gutter + x - 16.dp, y = 2.dp)
+                            .offset(x = if (boundaryIndex == cols - 1) gutter + totalWidth + 2.dp else gutter + x - 16.dp,
+                                y = if (boundaryIndex == cols - 1) gutter + totalHeight / 2 - 16.dp else 2.dp)
                             .size(32.dp)
                             .background(
                                 if (activeColumn == boundaryIndex) DDZColor.SelectedSoft else DDZColor.Surface,
                                 CircleShape,
                             )
                             .border(1.dp, DDZColor.BorderStrong, CircleShape)
-                            .pointerInput(boundaryIndex, totalWidthPx) {
+                            .pointerInput(boundaryIndex) {
                                 detectDragGestures(
                                     onDragStart = { activeColumn = boundaryIndex; latestDragStart() },
                                     onDragEnd = { activeColumn = null; latestDragEnd() },
                                     onDragCancel = { activeColumn = null; latestDragEnd() },
                                 ) { change, dragAmount ->
                                     change.consume()
-                                    latestColDrag(boundaryIndex, dragAmount.x / totalWidthPx)
+                                    latestColDrag(boundaryIndex, dragAmount.x / latestWidthPx)
                                 }
                             },
                         contentAlignment = Alignment.Center,
                     ) {
                         BoundaryDirectionArrow(
                             horizontal = true,
-                            contentDescription = "${boundaryIndex + 1}열과 ${boundaryIndex + 2}열 너비 조절",
+                            contentDescription = if (boundaryIndex == cols - 1) "마지막 열 너비 조절" else "${boundaryIndex + 1}열과 ${boundaryIndex + 2}열 너비 조절",
                             modifier = Modifier.size(18.dp),
                             tint = if (activeColumn == boundaryIndex) DDZColor.PrimaryDark else DDZColor.Primary,
                         )
                     }
                 }
 
-                for (boundaryIndex in 0 until (rows - 1).coerceAtLeast(0)) {
+                for (boundaryIndex in 0 until rows.coerceAtLeast(0)) {
                     val y = rowSizes.take(boundaryIndex + 1).fold(0.dp) { acc, value -> acc + value }
                     Box(
                         modifier = Modifier
-                            .offset(x = 2.dp, y = gutter + y - 16.dp)
+                            .offset(x = if (boundaryIndex == rows - 1) gutter + totalWidth / 2 - 16.dp else 2.dp,
+                                y = if (boundaryIndex == rows - 1) gutter + totalHeight + 2.dp else gutter + y - 16.dp)
                             .size(32.dp)
                             .background(
                                 if (activeRow == boundaryIndex) DDZColor.SelectedSoft else DDZColor.Surface,
                                 CircleShape,
                             )
                             .border(1.dp, DDZColor.BorderStrong, CircleShape)
-                            .pointerInput(boundaryIndex, totalHeightPx) {
+                            .pointerInput(boundaryIndex) {
                                 detectDragGestures(
                                     onDragStart = { activeRow = boundaryIndex; latestDragStart() },
                                     onDragEnd = { activeRow = null; latestDragEnd() },
                                     onDragCancel = { activeRow = null; latestDragEnd() },
                                 ) { change, dragAmount ->
                                     change.consume()
-                                    latestRowDrag(boundaryIndex, dragAmount.y / totalHeightPx)
+                                    latestRowDrag(boundaryIndex, dragAmount.y / latestHeightPx)
                                 }
                             },
                         contentAlignment = Alignment.Center,
                     ) {
                         BoundaryDirectionArrow(
                             horizontal = false,
-                            contentDescription = "${boundaryIndex + 1}행과 ${boundaryIndex + 2}행 높이 조절",
+                            contentDescription = if (boundaryIndex == rows - 1) "마지막 행 높이 조절" else "${boundaryIndex + 1}행과 ${boundaryIndex + 2}행 높이 조절",
                             modifier = Modifier.size(18.dp),
                             tint = if (activeRow == boundaryIndex) DDZColor.PrimaryDark else DDZColor.Primary,
                         )

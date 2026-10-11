@@ -126,6 +126,9 @@ internal fun TableEditorRuleListEditor(
         emitCompacted(reordered)
     }
 
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    if (compactItems.isNotEmpty()) Text("항목을 왼쪽으로 밀면 삭제할 수 있어요.",
+        style = DDZTypography.Caption, color = DDZColor.TextMuted)
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
@@ -250,6 +253,8 @@ internal fun TableEditorRuleListEditor(
             editorTarget = RuleEditorTarget.ADD
         },
     )
+
+    }
 
     val target = editorTarget
     if (target != null) {

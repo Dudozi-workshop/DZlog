@@ -158,7 +158,6 @@ fun TableEditorV2Screen(
     val selectionState = remember { TableEditorV2SelectionState() }
     val selectedCellId = selectionState.selectedCellId
     val layoutSelection = selectionState.layoutSelection
-    var showLayoutDeleteSheet by remember { mutableStateOf(false) }
     var pendingMergeDecision by remember { mutableStateOf<TableMergeDecision?>(null) }
     var mode by remember { mutableStateOf(MockMode.EDIT) }
     var showStyle by remember { mutableStateOf(false) }
@@ -169,7 +168,6 @@ fun TableEditorV2Screen(
     var showBackSaveDialog by remember { mutableStateOf(false) }
     var showTemplatePicker by remember { mutableStateOf(false) }
     var pendingSwitchId by remember { mutableStateOf<String?>(null) }
-    var showAdvancedStyle by remember { mutableStateOf(false) }
     var layoutBoundaryDragActive by remember { mutableStateOf(false) }
     val saveCoordinator = remember { TableEditorV2SaveCoordinator() }
     val saveScope = rememberCoroutineScope()
@@ -200,18 +198,17 @@ fun TableEditorV2Screen(
             isSaving = saveCoordinator.isSaving,
             hasDetail = saveDetail != null,
             activeTab = activeTab,
-            hasAdvancedStyle = showAdvancedStyle,
+            hasAdvancedStyle = false,
             hasSelectedCell = selectedCellId != null,
             hasUnsavedChanges = session.isDirty || isUnsavedNewTemplate || hasPendingTemplateSelection,
         )) {
             TableEditorBackAction.IGNORE -> Unit
             TableEditorBackAction.CLOSE_DETAIL -> saveDetailTrail = saveDetailTrail.dropLast(1)
-            TableEditorBackAction.CLOSE_ADVANCED_STYLE -> showAdvancedStyle = false
+            TableEditorBackAction.CLOSE_ADVANCED_STYLE -> Unit
             TableEditorBackAction.CLOSE_PANEL -> {
                 mode = MockMode.EDIT
                 showStyle = false
                 showSaveRules = false
-                showAdvancedStyle = false
                 selectionState.clearAll()
             }
             TableEditorBackAction.CLOSE_CELL -> selectionState.clearEditSelection()
@@ -231,26 +228,6 @@ fun TableEditorV2Screen(
                 title = "표 편집",
                 onBack = { requestBack() },
                 actions = {
-                    DDZTopBarIconButton(
-                        icon = Icons.Filled.Undo,
-                        contentDescription = "실행 취소",
-                        enabled = session.canUndo && !saveCoordinator.isSaving,
-                        onClick = {
-                            if (session.undo()) {
-                                selectionState.clearAll()
-                            }
-                        },
-                    )
-                    DDZTopBarIconButton(
-                        icon = Icons.Filled.Redo,
-                        contentDescription = "다시 실행",
-                        enabled = session.canRedo && !saveCoordinator.isSaving,
-                        onClick = {
-                            if (session.redo()) {
-                                selectionState.clearAll()
-                            }
-                        },
-                    )
                     DDZButton(
                         text = if (mode == MockMode.LAYOUT) "완료" else "저장",
                         enabled = !saveCoordinator.isSaving,
@@ -313,28 +290,28 @@ fun TableEditorV2Screen(
                 max = if (imeVisible) maxHeight * 0.55f else panelHeight
             )
             Column(modifier = Modifier.fillMaxSize()) {
-                Text(
-                    text = when {
-                        showStyle -> "스타일 변경은 미리보기에 반영됩니다. 상단 저장으로 확정하세요."
-                        showSaveRules -> "저장설정을 선택해 편집하세요."
-                        mode == MockMode.EDIT -> "셀을 선택해 내용을 편집하세요."
-                        else -> "셀을 선택해 구조를 변경하세요."
-                    },
-                    color = DDZColor.TextMuted,
-                    modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 20.dp, vertical = 8.dp),
-                    maxLines = 2,
-                )
-
                 DDZCard(
                     modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp),
                     contentPadding = PaddingValues(12.dp),
                 ) {
                     Column(Modifier.fillMaxSize()) {
-                        TableEditorTemplateSelector(
-                            name = templateName,
-                            enabled = !saveCoordinator.isSaving && templates.any { it.id != templateId },
-                            onClick = { showTemplatePicker = true },
-                        )
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            TableEditorTemplateSelector(
+                                modifier = Modifier.weight(1f), name = templateName,
+                                enabled = !saveCoordinator.isSaving && templates.any { it.id != templateId },
+                                onClick = { showTemplatePicker = true },
+                            )
+                            DDZTopBarIconButton(
+                                icon = Icons.Filled.Undo, contentDescription = "실행 취소",
+                                enabled = session.canUndo && !saveCoordinator.isSaving,
+                                onClick = { if (session.undo()) selectionState.clearAll() },
+                            )
+                            DDZTopBarIconButton(
+                                icon = Icons.Filled.Redo, contentDescription = "다시 실행",
+                                enabled = session.canRedo && !saveCoordinator.isSaving,
+                                onClick = { if (session.redo()) selectionState.clearAll() },
+                            )
+                        }
                         MockTableCanvas(
                             cells = cells,
                             rows = rows,
@@ -407,7 +384,17 @@ fun TableEditorV2Screen(
                     }
                 }
 
-                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = when {
+                        showStyle -> "스타일을 조절한 뒤 상단 저장을 눌러주세요."
+                        showSaveRules -> "저장설정을 선택해 편집하세요."
+                        mode == MockMode.EDIT -> "셀을 선택해 내용을 편집하세요."
+                        else -> "표 바깥 ↔ · ↕ 를 드래그해 크기를 조절하세요."
+                    },
+                    color = DDZColor.TextMuted,
+                    modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 20.dp, vertical = 8.dp),
+                    maxLines = 2,
+                )
 
                 Box(
                     Modifier.fillMaxWidth()
@@ -428,9 +415,7 @@ fun TableEditorV2Screen(
                     } else if (showStyle) {
                         TableEditorStylePanel(
                             draft = draftStyleState,
-                            showAdvanced = showAdvancedStyle,
                             onDraftChange = session::commitStyleChange,
-                            onAdvancedChange = { showAdvancedStyle = it },
                             modifier = editorPanelModifier,
                         )
                     } else if (mode == MockMode.EDIT) {
@@ -538,12 +523,6 @@ fun TableEditorV2Screen(
                                 compactInput = imeVisible,
                                 modifier = editorPanelModifier,
                             )
-                        } else {
-                            Text(
-                                "셀을 선택하면 내용을 편집할 수 있어요.",
-                                modifier = Modifier.padding(18.dp),
-                                color = DDZColor.TextMuted,
-                            )
                         }
                     } else {
                         MockLayoutPanel(
@@ -586,8 +565,13 @@ fun TableEditorV2Screen(
                                     TableMergeDecisionType.NONE -> Unit
                                 }
                             },
-                            onDeleteSelection = {
-                                showLayoutDeleteSheet = true
+                            onDeleteRows = {
+                                session.commitTemplateChange(TableEditorV2StructureController.removeRows(session.draftTemplateState, layoutSelection))
+                                selectionState.clearLayoutSelection()
+                            },
+                            onDeleteColumns = {
+                                session.commitTemplateChange(TableEditorV2StructureController.removeColumns(session.draftTemplateState, layoutSelection))
+                                selectionState.clearLayoutSelection()
                             },
                             onEqualizeColumns = {
                                 session.commitTemplateChange(
@@ -599,7 +583,6 @@ fun TableEditorV2Screen(
                                     TableEditorV2StructureController.equalizeRows(session.draftTemplateState)
                                 )
                             },
-                            onClearSelection = selectionState::clearLayoutSelection,
                         )
                     }
                 }
@@ -689,39 +672,6 @@ fun TableEditorV2Screen(
                 pendingMergeDecision = null
             },
         )
-    }
-
-    if (showLayoutDeleteSheet) {
-        DDZQuickChoiceDialog(
-            onDismiss = { showLayoutDeleteSheet = false },
-        ) {
-            DDZButton(
-                text = "행 삭제",
-                leadingIcon = Icons.Filled.ViewStream,
-                style = DDZButtonStyle.Destructive,
-                modifier = Modifier.weight(1f),
-                onClick = {
-                    session.commitTemplateChange(
-                        TableEditorV2StructureController.removeRows(draftTemplateState, layoutSelection)
-                    )
-                    selectionState.clearLayoutSelection()
-                    showLayoutDeleteSheet = false
-                },
-            )
-            DDZButton(
-                text = "열 삭제",
-                leadingIcon = Icons.Filled.ViewColumn,
-                style = DDZButtonStyle.Destructive,
-                modifier = Modifier.weight(1f),
-                onClick = {
-                    session.commitTemplateChange(
-                        TableEditorV2StructureController.removeColumns(draftTemplateState, layoutSelection)
-                    )
-                    selectionState.clearLayoutSelection()
-                    showLayoutDeleteSheet = false
-                },
-            )
-        }
     }
 
     saveDetail?.let { detail ->

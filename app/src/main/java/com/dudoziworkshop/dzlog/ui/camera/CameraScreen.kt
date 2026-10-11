@@ -100,6 +100,7 @@ fun CameraScreen(
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
+    onCaptureCommitted: () -> Unit = {},
 ) {
     val context = LocalContext.current
 
@@ -127,6 +128,7 @@ fun CameraScreen(
                 onOpenAlbum = onOpenAlbum,
                 onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
                 sessionCaptureStack = sessionCaptureStack,
+                onCaptureCommitted = onCaptureCommitted,
             )
         } else {
             Text(
@@ -151,6 +153,7 @@ fun CameraPreview(
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
+    onCaptureCommitted: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
@@ -311,6 +314,7 @@ fun CameraPreview(
         captureFeedback = captureFeedback,
         sessionCaptureStack = sessionCaptureStack,
         latestImageController = latestImageController,
+        onCaptureCommitted = onCaptureCommitted,
         onTemplateChange = onTemplateChange,
         buildWatermarkConfig = ::buildWatermarkConfig,
     )

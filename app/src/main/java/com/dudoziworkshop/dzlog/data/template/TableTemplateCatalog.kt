@@ -12,6 +12,7 @@ data class SavedTableTemplate(
     val templateState: TableTemplateState,
     val styleState: TableStyleState,
     val modifiedAt: Long,
+    val lastUsedAt: Long = 0L,
 )
 
 fun createSavedTableTemplate(
@@ -36,6 +37,7 @@ fun savedTableTemplatesToJson(items: List<SavedTableTemplate>): String {
                 .put("id", item.id)
                 .put("name", item.name)
                 .put("modifiedAt", item.modifiedAt)
+                .put("lastUsedAt", item.lastUsedAt)
                 .put("template", JSONObject(item.templateState.toJsonString()))
                 .put(
                     "style",
@@ -84,6 +86,7 @@ fun savedTableTemplatesFromJson(json: String): List<SavedTableTemplate>? = runCa
                     templateState = template,
                     styleState = style,
                     modifiedAt = item.optLong("modifiedAt", 0L),
+                    lastUsedAt = item.optLong("lastUsedAt", 0L).coerceAtLeast(0L),
                 )
             )
         }
@@ -106,3 +109,14 @@ fun duplicateTemplateName(baseName: String, items: List<SavedTableTemplate>): St
     while ("$base $suffix" in names) suffix += 1
     return "$base $suffix"
 }
+
+enum class TableTemplateSort(val label: String) {
+    MODIFIED("최근 수정순"), USED("최근 사용순"), NAME("이름순")
+}
+
+fun sortTableTemplates(items: List<SavedTableTemplate>, sort: TableTemplateSort): List<SavedTableTemplate> =
+    when (sort) {
+        TableTemplateSort.MODIFIED -> items.sortedWith(compareByDescending<SavedTableTemplate> { it.modifiedAt }.thenBy { it.id })
+        TableTemplateSort.USED -> items.sortedWith(compareByDescending<SavedTableTemplate> { it.lastUsedAt }.thenByDescending { it.modifiedAt }.thenBy { it.id })
+        TableTemplateSort.NAME -> items.sortedWith(compareBy<SavedTableTemplate> { it.name.lowercase(java.util.Locale.ROOT) }.thenBy { it.id })
+    }

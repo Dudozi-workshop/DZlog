@@ -35,13 +35,13 @@ internal object TableEditorV2StructureController {
     fun equalizeRows(templateState: TableTemplateState): TableTemplateState {
         val weights = TableLayoutCalculator.resolveWeights(templateState.rowWeights, templateState.rows)
         return if (weights.distinct().size <= 1) templateState
-        else templateState.copy(rowWeights = null)
+        else templateState.copy(rowWeights = List(weights.size) { weights.average().toFloat() })
     }
 
     fun equalizeColumns(templateState: TableTemplateState): TableTemplateState {
         val weights = TableLayoutCalculator.resolveWeights(templateState.colWeights, templateState.cols)
         return if (weights.distinct().size <= 1) templateState
-        else templateState.copy(colWeights = null)
+        else templateState.copy(colWeights = List(weights.size) { weights.average().toFloat() })
     }
 
     fun resolveMergeDecision(

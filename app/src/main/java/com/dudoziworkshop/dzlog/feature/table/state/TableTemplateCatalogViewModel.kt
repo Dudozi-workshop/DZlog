@@ -20,7 +20,8 @@ class TableTemplateCatalogViewModel : ViewModel() {
         private set
 
     fun restoreCatalog(items: List<SavedTableTemplate>, activeId: String?) {
-        templates = items.sortedByDescending { it.modifiedAt }
+        val previousUse = templates.associate { it.id to it.lastUsedAt }
+        templates = items.map { it.copy(lastUsedAt = maxOf(it.lastUsedAt, previousUse[it.id] ?: 0L)) }.sortedByDescending { it.modifiedAt }
         activeTemplateId = activeId?.takeIf { id -> templates.any { it.id == id } }
         tableTemplateState = templates.firstOrNull { it.id == activeTemplateId }?.templateState
             ?: templates.firstOrNull()?.templateState
@@ -32,11 +33,16 @@ class TableTemplateCatalogViewModel : ViewModel() {
     }
 
     fun setCatalog(items: List<SavedTableTemplate>, activeId: String?) {
-        templates = items.sortedByDescending { it.modifiedAt }
+        val previousUse = templates.associate { it.id to it.lastUsedAt }
+        templates = items.map { it.copy(lastUsedAt = maxOf(it.lastUsedAt, previousUse[it.id] ?: 0L)) }.sortedByDescending { it.modifiedAt }
         activeTemplateId = activeId?.takeIf { id -> templates.any { it.id == id } }
         tableTemplateState = templates.firstOrNull { it.id == activeTemplateId }?.templateState
             ?: templates.firstOrNull()?.templateState
             ?: newBlankTableTemplateState()
+    }
+
+    fun markUsed(id: String, timestamp: Long) {
+        templates = templates.map { if (it.id == id) it.copy(lastUsedAt = maxOf(it.lastUsedAt, timestamp)) else it }
     }
 
     fun activate(id: String) {
