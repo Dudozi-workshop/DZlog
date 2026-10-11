@@ -11,6 +11,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloseFullscreen
@@ -186,12 +188,13 @@ internal fun CameraQuickValueSheet(
                     TextButton(enabled = !switching, onClick = ::dismiss) { Text("완료", color = DDZColor.Surface) }
                 }
                 CameraQuickNamingPreview(previewTemplate, resolvedCells, selectedId, counterDigits, previewCounter, now, saveMode,
-                    compact = focused || expanded,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = DDZSpacing.screenPadding))
                 CameraQuickTablePreview(previewTemplate, templateName, watermarkCells, style, captureAspect, tableWidthRatio, tableHeightRatio,
                     selectedId, cells.map { it.cellId }.toSet(), ::select,
-                    onLocked = { Toast.makeText(context,
-                        "자동으로 표시되는 값이에요. 변경은 표 상세설정에서 가능해요.", Toast.LENGTH_SHORT).show() },
+                    onLocked = { id -> Toast.makeText(context,
+                        listOf("자동으로 표시되는 값이에요. 변경은 표 상세설정에서 가능해요.",
+                            quickCellLinks(previewTemplate, id).description).filter { it.isNotBlank() }.joinToString("\n"),
+                        Toast.LENGTH_SHORT).show() },
                     templates = templates, activeTemplateId = activeTemplateId, switching = switching,
                     onTemplateSelect = { id ->
                         inputDone()
@@ -216,6 +219,7 @@ internal fun CameraQuickValueSheet(
                         if (selected == null) {
                             Text("변경할 텍스트·숫자 셀이 없습니다.", style = DDZTypography.Body, color = DDZColor.TextMuted)
                         } else {
+                            val links = quickCellLinks(previewTemplate, selected.cellId)
                             val number = selected.dataType == TableCellDataType.NUMBER
                             val previous = adjacentQuickCellId(cells, selected.cellId, -1)
                             val next = adjacentQuickCellId(cells, selected.cellId, 1)
@@ -226,6 +230,16 @@ internal fun CameraQuickValueSheet(
                                     modifier = Modifier.padding(horizontal = DDZSpacing.xs))
                                 Text(quickCellPosition(selected), style = DDZTypography.Caption, color = DDZColor.TextMuted,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                if (links.count > 0) IconButton(enabled = !switching, onClick = {
+                                    Toast.makeText(context, links.description, Toast.LENGTH_SHORT).show()
+                                }, modifier = Modifier.size(DDZLayout.QuickInput.Touch)) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(DDZSpacing.xs)) {
+                                        if (links.fileName) Icon(Icons.Filled.Description, links.description,
+                                            Modifier.size(DDZLayout.QuickInput.CellMarker), tint = DDZColor.SelectionEmphasis)
+                                        if (links.path) Icon(Icons.Filled.Folder, if (links.fileName) null else links.description,
+                                            Modifier.size(DDZLayout.QuickInput.CellMarker), tint = DDZColor.SelectionEmphasis)
+                                    }
+                                }
                                 IconButton(enabled = previous != null && !switching, onClick = { previous?.let(::select) }, modifier = Modifier.size(DDZLayout.QuickInput.Touch)) {
                                     Icon(Icons.Filled.ChevronLeft, "이전 셀", Modifier.size(DDZLayout.QuickInput.Icon))
                                 }
@@ -244,14 +258,16 @@ internal fun CameraQuickValueSheet(
                                 }
                             }
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                                Surface(Modifier.weight(1f), color = DDZColor.Background,
-                                    shape = RoundedCornerShape(DDZLayout.Radius.Small), border = BorderStroke(1.dp, if (focused) DDZColor.SageBorder else DDZColor.Border)) {
+                                Surface(Modifier.weight(1f), color = if (focused) DDZColor.SelectedSoft else DDZColor.Background,
+                                    shape = RoundedCornerShape(DDZLayout.Radius.Small), border = BorderStroke(
+                                        if (focused) DDZLayout.QuickInput.SelectionBorder else 1.dp,
+                                        if (focused) DDZColor.SelectionEmphasis else DDZColor.Border)) {
                                     Box {
                                         BasicTextField(value = value, onValueChange = ::change, singleLine = number, readOnly = switching,
                                             modifier = Modifier.fillMaxWidth().height(if (expanded && !number) expandedHeight else DDZLayout.QuickInput.Touch)
                                                 .focusRequester(requester).onFocusChanged { focused = it.isFocused }
                                                 .padding(start = DDZSpacing.itemGap, end = DDZLayout.QuickInput.Touch, top = DDZSpacing.controlGap, bottom = DDZSpacing.itemGap),
-                                            textStyle = DDZTypography.Body.copy(color = DDZColor.TextPrimary), cursorBrush = SolidColor(DDZColor.SageDarkStrong),
+                                            textStyle = DDZTypography.Body.copy(color = DDZColor.TextPrimary), cursorBrush = SolidColor(DDZColor.SelectionEmphasis),
                                             keyboardOptions = KeyboardOptions(keyboardType = if (number) KeyboardType.Decimal else KeyboardType.Text,
                                                 imeAction = if (number) ImeAction.Done else ImeAction.Default),
                                             keyboardActions = KeyboardActions(onDone = { inputDone() }),
@@ -271,7 +287,7 @@ internal fun CameraQuickValueSheet(
                                         }
                                     }
                                 }
-                                TextButton(enabled = !switching, onClick = ::inputDone, modifier = Modifier.height(DDZLayout.QuickInput.Touch)) { Text("입력", color = DDZColor.SageDarkStrong) }
+                                TextButton(enabled = !switching, onClick = ::inputDone, modifier = Modifier.height(DDZLayout.QuickInput.Touch)) { Text("입력", color = DDZColor.SelectionEmphasis) }
                             }
                         }
                     }

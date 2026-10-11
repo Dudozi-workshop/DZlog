@@ -19,6 +19,9 @@ object DDZColor {
     val Selected = Color(0xFF7E9670)
     val SelectedDark = Color(0xFF617757)
     val SelectedSoft = Color(0xFFE3EBDD)
+    // Compact editing emphasis: A proposal, shared by cells, linked text and input focus.
+    val SelectionEmphasis = Color(0xFF35513A)
+    val SelectionOverlay = Selected.copy(alpha = 0.22f)
 
     // Text / icon hierarchy
     val TextPrimary = Color(0xFF332A25)

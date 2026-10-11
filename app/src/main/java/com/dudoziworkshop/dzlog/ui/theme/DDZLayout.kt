@@ -36,6 +36,7 @@ object DDZLayout {
         val Touch = 44.dp
         val Icon = 16.dp
         val CellMarker = 12.dp
+        val SelectionBorder = 2.dp
         val MapWidth = 22.dp
         val MapHeight = 16.dp
         val ExpandedHeight = 160.dp
