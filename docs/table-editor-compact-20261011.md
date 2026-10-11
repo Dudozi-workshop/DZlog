@@ -27,3 +27,10 @@ Full application UI/system-bar consistency audit remains separate follow-up work
 - Save settings labels have small existing file/folder/number icons. File/path add/type menus share a 2×2 icon+text layout for cell/manual/date/time. Legacy rotating-text records remain readable but cannot be newly selected; rotating cells remain usable through cell references.
 - Editor-only fitting permits upscaling to maximize the preview at the saved aspect. A drag holds its starting zoom and never zooms in automatically; growing geometry can zoom out only to stay within the viewport. Release smoothly refits in 180ms. Fit does not change template data or edit history.
 - Added fit regression checks for shrink/release aspect retention and viewport containment on growth/tall shapes. Final CI/APK status is recorded in PR #32; device interaction checks remain pending.
+
+## Style order and fixed cell value
+
+- Style rows: background, background opacity (only for light/dark backgrounds), text size, text color, alignment, border. Hiding opacity preserves its saved value.
+- Content keeps the selected-cell header and value above the scrolling type-specific settings. Padding is 16dp horizontal / 8dp vertical, with a 40dp close button and 18dp icon. Keyboard mode keeps only the fixed input area.
+- Structure add buttons retain the existing row/column icons with +; delete buttons use − and destructive red, faded when unavailable.
+- Shared panel height and preview fit policy are unchanged. Static review passed; final-HEAD CI and device checks are tracked in PR #32.

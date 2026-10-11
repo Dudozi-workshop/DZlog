@@ -52,16 +52,16 @@ internal fun MockLayoutPanel(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewStream,
                 if (rows >= TableEditorPolicy.MAX_ROWS) "최대 ${TableEditorPolicy.MAX_ROWS}행" else "행 추가",
-                enabled = rows < TableEditorPolicy.MAX_ROWS, onClick = onAddRow)
+                operation = "+", enabled = rows < TableEditorPolicy.MAX_ROWS, onClick = onAddRow)
             StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewColumn,
                 if (cols >= TableEditorPolicy.MAX_COLS) "최대 ${TableEditorPolicy.MAX_COLS}열" else "열 추가",
-                enabled = cols < TableEditorPolicy.MAX_COLS, onClick = onAddCol)
+                operation = "+", enabled = cols < TableEditorPolicy.MAX_COLS, onClick = onAddCol)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewStream, "행 삭제",
-                enabled = selectedCount > 0 && rows > 1, danger = true, onClick = onDeleteRows)
+                operation = "−", enabled = selectedCount > 0 && rows > 1, danger = true, onClick = onDeleteRows)
             StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewColumn, "열 삭제",
-                enabled = selectedCount > 0 && cols > 1, danger = true, onClick = onDeleteColumns)
+                operation = "−", enabled = selectedCount > 0 && cols > 1, danger = true, onClick = onDeleteColumns)
         }
         StructureActionButton(Modifier.fillMaxWidth(), Icons.Filled.GridView,
             if (mergedSelection) "병합 해제" else "병합", enabled = selectedCount > 1 || mergedSelection,
@@ -82,13 +82,14 @@ private fun StructureActionButton(
     modifier: Modifier = Modifier,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
+    operation: String? = null,
     enabled: Boolean = true,
     danger: Boolean = false,
     onClick: () -> Unit,
 ) {
     val tint = when {
+        danger -> DDZColor.Destructive.copy(alpha = if (enabled) 1f else 0.45f)
         !enabled -> DDZColor.IconMuted
-        danger -> DDZColor.Destructive
         else -> DDZColor.TextPrimary
     }
     Row(modifier.heightIn(min = structureActionHeight(LocalDensity.current.fontScale))
@@ -96,6 +97,10 @@ private fun StructureActionButton(
         .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+        if (operation != null) {
+            Spacer(Modifier.width(2.dp))
+            Text(operation, color = tint, style = DDZTypography.Caption)
+        }
         Spacer(Modifier.width(8.dp))
         Text(label, color = tint, style = DDZTypography.Caption, maxLines = 1)
     }

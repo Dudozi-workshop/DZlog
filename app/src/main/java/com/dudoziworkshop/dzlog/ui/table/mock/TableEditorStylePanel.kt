@@ -37,11 +37,27 @@ internal fun TableEditorStylePanel(
                 onDraftChange(draft.copy(bgStyle = listOf(1, 0, 2)[it]))
             }
         }
+        if (draft.bgStyle != 2) {
+            CompactStyleRow("배경 투명도") {
+                Slider(value = draft.bgAlpha.toFloat(), valueRange = 0f..255f,
+                    modifier = Modifier.weight(1f), colors = sliderColors,
+                    onValueChange = { onDraftChange(draft.copy(bgAlpha = it.roundToInt())) })
+                StylePercent((draft.bgAlpha / 255f * 100).roundToInt())
+            }
+        }
         CompactStyleRow("글자 크기") {
             Slider(value = draft.valueScale.toFloat(), valueRange = 60f..160f,
                 modifier = Modifier.weight(1f), colors = sliderColors,
                 onValueChange = { onDraftChange(draft.copy(valueScale = it.roundToInt())) })
             StylePercent(draft.valueScale)
+        }
+        CompactStyleRow("글자 색") {
+            StyleChoices(listOf("자동", "흰색", "검정"),
+                if (draft.textColorMode == 0) 0 else if (draft.manualTextColor == 0) 1 else 2) {
+                onDraftChange(when (it) { 0 -> draft.copy(textColorMode = 0)
+                    1 -> draft.copy(textColorMode = 1, manualTextColor = 0)
+                    else -> draft.copy(textColorMode = 1, manualTextColor = 1) })
+            }
         }
         CompactStyleRow("정렬") {
             StyleChoices(listOf("왼쪽", "가운데", "오른쪽"), draft.textAlign) {
@@ -59,20 +75,6 @@ internal fun TableEditorStylePanel(
                         .padding(horizontal = 2.dp).size(14.dp)
                         .background(if (draft.gridEnabled) DDZColor.Surface else DDZColor.TextSecondary, CircleShape))
                 }
-            }
-        }
-        CompactStyleRow("배경 투명도") {
-            Slider(value = draft.bgAlpha.toFloat(), valueRange = 0f..255f,
-                modifier = Modifier.weight(1f), colors = sliderColors, enabled = draft.bgStyle != 2,
-                onValueChange = { onDraftChange(draft.copy(bgAlpha = it.roundToInt())) })
-            StylePercent(if (draft.bgStyle == 2) 0 else (draft.bgAlpha / 255f * 100).roundToInt())
-        }
-        CompactStyleRow("글자 색") {
-            StyleChoices(listOf("자동", "흰색", "검정"),
-                if (draft.textColorMode == 0) 0 else if (draft.manualTextColor == 0) 1 else 2) {
-                onDraftChange(when (it) { 0 -> draft.copy(textColorMode = 0)
-                    1 -> draft.copy(textColorMode = 1, manualTextColor = 0)
-                    else -> draft.copy(textColorMode = 1, manualTextColor = 1) })
             }
         }
     }

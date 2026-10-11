@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -62,9 +64,8 @@ internal fun TableEditorCellUiModelEditor(
             modifier = modifier
                 .fillMaxWidth()
                 .background(DDZColor.Surface)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp, vertical = if (compactInput) 8.dp else 18.dp),
-            verticalArrangement = Arrangement.spacedBy(if (compactInput) 4.dp else 12.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -72,11 +73,12 @@ internal fun TableEditorCellUiModelEditor(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("선택한 셀", style = DDZTypography.SettingLabel)
-                IconButton(onClick = onClose) {
+                IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = "셀 편집 닫기",
                         tint = DDZColor.TextMuted,
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -124,72 +126,75 @@ internal fun TableEditorCellUiModelEditor(
                             onClick = { onValueChange((currentCounter + 1).toString()) },
                         )
                     }
-                    Text("촬영 성공 후 다음 번호로 증가합니다.", color = DDZColor.TextMuted)
                 }
 
-                TableEditorCellType.DATE -> {
+                TableEditorCellType.DATE,
+                TableEditorCellType.TIME,
+                TableEditorCellType.ROTATING_TEXT -> {
                     Text(
-                        text = cell.previewValue ?: cell.value,
+                        text = (cell.previewValue ?: cell.value).ifBlank {
+                            if (cell.type == TableEditorCellType.ROTATING_TEXT) "문구 세트를 선택하세요" else ""
+                        },
                         fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    DDZSettingRow(
+                }
+            }
+
+            // The selected value stays above the scrollable type-specific settings.
+            if (!compactInput) Column(
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                when (cell.type) {
+                    TableEditorCellType.COUNTER -> Text(
+                        "촬영 성공 후 다음 번호로 증가합니다.", color = DDZColor.TextMuted,
+                        style = DDZTypography.Caption,
+                    )
+                    TableEditorCellType.DATE -> DDZSettingRow(
                         label = "날짜 형식",
                         value = tableEditorDateFormatLabel(cell.formatPattern),
                         onClick = { showDatePicker = true },
                     )
-                }
-
-                TableEditorCellType.TIME -> {
-                    Text(cell.previewValue ?: cell.value, fontWeight = FontWeight.Bold)
-                    DDZSettingRow(
+                    TableEditorCellType.TIME -> DDZSettingRow(
                         label = "시간 형식",
                         value = "HHmm · 분 단위 고정",
                         onClick = onApplyTimePolicy,
                     )
-                }
-
-                TableEditorCellType.ROTATING_TEXT -> {
-                    val selectedSet = phraseSets.firstOrNull { it.id == cell.phraseSetId }
-                    Text(
-                        (cell.previewValue ?: cell.value).ifBlank { "문구 세트를 선택하세요" },
-                        fontWeight = FontWeight.Bold,
-                    )
-                    DDZSettingRow(
-                        label = "문구 세트",
-                        value = selectedSet?.name ?: "선택 안 함",
-                        onClick = { showPhrasePicker = true },
-                    )
-                    if (selectedSet != null) {
-                        val everyValue = (cell.everyOverride ?: selectedSet.defaultEvery).coerceAtLeast(1)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text("변경 주기", modifier = Modifier.weight(1f), color = DDZColor.TextMuted)
-                            DDZButton(
-                                text = "−",
-                                style = DDZButtonStyle.Secondary,
-                                minHeight = 40.dp,
-                                onClick = { onPhraseEveryChange((everyValue - 1).coerceAtLeast(1)) },
-                            )
-                            Text(everyValue.toString() + "장")
-                            DDZButton(
-                                text = "+",
-                                style = DDZButtonStyle.Secondary,
-                                minHeight = 40.dp,
-                                onClick = { onPhraseEveryChange(everyValue + 1) },
-                            )
+                    TableEditorCellType.ROTATING_TEXT -> {
+                        val selectedSet = phraseSets.firstOrNull { it.id == cell.phraseSetId }
+                        DDZSettingRow(
+                            label = "문구 세트",
+                            value = selectedSet?.name ?: "선택 안 함",
+                            onClick = { showPhrasePicker = true },
+                        )
+                        if (selectedSet != null) {
+                            val everyValue = (cell.everyOverride ?: selectedSet.defaultEvery).coerceAtLeast(1)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("변경 주기", modifier = Modifier.weight(1f), color = DDZColor.TextMuted)
+                                DDZButton(text = "−", style = DDZButtonStyle.Secondary, minHeight = 40.dp,
+                                    onClick = { onPhraseEveryChange((everyValue - 1).coerceAtLeast(1)) })
+                                Text(everyValue.toString() + "장")
+                                DDZButton(text = "+", style = DDZButtonStyle.Secondary, minHeight = 40.dp,
+                                    onClick = { onPhraseEveryChange(everyValue + 1) })
+                            }
                         }
                     }
+                    else -> Unit
                 }
-            }
 
-            if (!compactInput) DDZSettingRow(
-                label = "셀 종류",
-                value = cell.type.label,
-                onClick = { showTypePicker = true },
-            )
+                DDZSettingRow(
+                    label = "셀 종류",
+                    value = cell.type.label,
+                    onClick = { showTypePicker = true },
+                )
+            }
         }
 
     }
