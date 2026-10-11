@@ -59,6 +59,7 @@ import com.dudoziworkshop.dzlog.ui.log.ORIGINAL_PHOTOS_TITLE
 import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
 import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2Screen
 import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateListScreen
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -224,6 +225,23 @@ fun AppRoot() {
             )
             tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated)
         }
+    }
+
+    // Persist the old quick-edit draft before changing the active template. The dialog
+    // is keyed by active ID, so its input/cursor/frozen table geometry start fresh.
+    suspend fun switchQuickTemplate(templateId: String, current: TableTemplateState): Boolean {
+        val previousId = tableTemplateViewModel.activeTemplateId ?: return false
+        if (!hasRestoredTemplate || tableTemplateViewModel.templates.none { it.id == templateId }) return false
+        if (previousId == templateId) return true
+        return try {
+            val next = tableCatalogCoordinator.updateActiveTemplate(
+                items = tableTemplateViewModel.templates, activeTemplateId = previousId, templateState = current)
+            tableCatalogCoordinator.activate(items = next, activeTemplateId = templateId)
+            tableTemplateViewModel.setCatalog(next, templateId)
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) { false }
     }
 
     suspend fun saveV2EditSession(
@@ -661,6 +679,9 @@ fun AppRoot() {
                     onTemplateChange = ::updateTemplateState,
                     onQuickTemplatePreview = tableTemplateViewModel::updateStateOnly,
                     quickTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
+                    quickTemplates = tableTemplateViewModel.templates,
+                    quickTemplateId = tableTemplateViewModel.activeTemplateId,
+                    onQuickTemplateSelect = ::switchQuickTemplate,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
                     onOpenSaveSettings = ::openActiveSaveSettings,
                     onOpenAlbum = ::openAlbumRoot,
@@ -707,6 +728,9 @@ fun AppRoot() {
                     onTemplateChange = ::updateTemplateState,
                     onQuickTemplatePreview = tableTemplateViewModel::updateStateOnly,
                     quickTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
+                    quickTemplates = tableTemplateViewModel.templates,
+                    quickTemplateId = tableTemplateViewModel.activeTemplateId,
+                    onQuickTemplateSelect = ::switchQuickTemplate,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
                     onOpenSaveSettings = ::openActiveSaveSettings,
                     onOpenAlbum = ::openAlbumRoot,

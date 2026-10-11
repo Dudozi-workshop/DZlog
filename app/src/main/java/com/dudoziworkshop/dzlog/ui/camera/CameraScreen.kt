@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
+import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -42,6 +43,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreSaverImpl
@@ -104,6 +106,9 @@ fun CameraScreen(
     onCaptureCommitted: () -> Unit = {},
     onQuickTemplatePreview: (TableTemplateState) -> Unit = onTemplateChange,
     quickTemplateName: String = "",
+    quickTemplates: List<SavedTableTemplate> = emptyList(),
+    quickTemplateId: String? = null,
+    onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
     val context = LocalContext.current
 
@@ -128,6 +133,9 @@ fun CameraScreen(
                 onTemplateChange = onTemplateChange,
                 onQuickTemplatePreview = onQuickTemplatePreview,
                 quickTemplateName = quickTemplateName,
+                quickTemplates = quickTemplates,
+                quickTemplateId = quickTemplateId,
+                onQuickTemplateSelect = onQuickTemplateSelect,
                 onOpenTableEditor = onOpenTableEditor,
                 onOpenSaveSettings = onOpenSaveSettings,
                 onOpenAlbum = onOpenAlbum,
@@ -161,6 +169,9 @@ fun CameraPreview(
     onCaptureCommitted: () -> Unit = {},
     onQuickTemplatePreview: (TableTemplateState) -> Unit = onTemplateChange,
     quickTemplateName: String = "",
+    quickTemplates: List<SavedTableTemplate> = emptyList(),
+    quickTemplateId: String? = null,
+    onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
@@ -538,23 +549,29 @@ fun CameraPreview(
             }
         }
         if (showQuickValueSheet) {
-            CameraQuickValueSheet(
-                template = tableTemplateState,
-                templateName = quickTemplateName,
-                counterDigits = ui.prefs.counterDigits,
-                counterSeed = displayCounter,
-                phraseCursor = appSettings.phraseProgressCursor,
-                now = ui.capture.now,
-                captureAspect = ui.prefs.captureAspect,
-                style = TableRenderStyle(bgStyle = ui.prefs.wmBgStyle, bgAlpha = ui.prefs.wmBgAlpha,
-                    valueScale = ui.prefs.wmValueScale, textColorMode = ui.prefs.wmTextColorMode,
-                    manualTextColor = ui.prefs.wmManualTextColor, textAlign = ui.prefs.wmTextAlign),
-                tableWidthRatio = ui.prefs.wmTableWidthRatio,
-                tableHeightRatio = ui.prefs.wmTableHeightRatio,
-                onDismiss = { showQuickValueSheet = false },
-                onValueChange = onQuickTemplatePreview,
-                onCommit = onTemplateChange,
-            )
+            key(quickTemplateId) {
+                CameraQuickValueSheet(
+                    template = tableTemplateState,
+                    templateName = quickTemplateName,
+                    counterDigits = ui.prefs.counterDigits,
+                    counterSeed = displayCounter,
+                    phraseCursor = appSettings.phraseProgressCursor,
+                    now = ui.capture.now,
+                    captureAspect = ui.prefs.captureAspect,
+                    style = TableRenderStyle(bgStyle = ui.prefs.wmBgStyle, bgAlpha = ui.prefs.wmBgAlpha,
+                        valueScale = ui.prefs.wmValueScale, textColorMode = ui.prefs.wmTextColorMode,
+                        manualTextColor = ui.prefs.wmManualTextColor, textAlign = ui.prefs.wmTextAlign),
+                    tableWidthRatio = ui.prefs.wmTableWidthRatio,
+                    tableHeightRatio = ui.prefs.wmTableHeightRatio,
+                    saveMode = appSettings.saveMode,
+                    templates = quickTemplates,
+                    activeTemplateId = quickTemplateId,
+                    onTemplateSelect = onQuickTemplateSelect,
+                    onDismiss = { showQuickValueSheet = false },
+                    onValueChange = onQuickTemplatePreview,
+                    onCommit = onTemplateChange,
+                )
+            }
         }
 
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode != ContinuousPreviewMode.OFF) {

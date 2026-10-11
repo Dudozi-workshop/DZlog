@@ -420,6 +420,34 @@ fun buildGalleryRelativePathFromSlotDrafts(
 /** Preview highlight belongs to a slot index, never to a matching substring. */
 data class NamingSlotPreview(val text: String, val highlightStart: Int, val highlightEnd: Int)
 
+/** All occurrences contributed by the selected cell, including repeated CELL slots. */
+data class NamingCellPreview(val text: String, val highlights: List<IntRange>)
+
+fun buildNamingCellPreview(
+    isFileName: Boolean,
+    selectedCellId: String?,
+    resolvedCells: List<ResolvedCell>,
+    slotDrafts: List<TableEditorSlotDraft?>,
+    fnDelim: String,
+    counterDigits: Int,
+    usedCounter: Int?,
+    now: Date,
+    dateFormat: String,
+    timeFormat: String,
+): NamingCellPreview {
+    val base = buildNamingSlotPreview(isFileName, -1, resolvedCells, slotDrafts,
+        fnDelim, counterDigits, usedCounter, now, dateFormat, timeFormat)
+    val count = if (isFileName) FILE_NAME_SLOT_COUNT else PATH_SLOT_UI_MAX_COUNT
+    val ranges = slotDrafts.take(count).mapIndexedNotNull { index, draft ->
+        if (selectedCellId == null || !draft?.kind.equals("CELL", ignoreCase = true) ||
+            draft?.cellId != selectedCellId) return@mapIndexedNotNull null
+        val preview = buildNamingSlotPreview(isFileName, index, resolvedCells, slotDrafts,
+            fnDelim, counterDigits, usedCounter, now, dateFormat, timeFormat)
+        if (preview.highlightEnd > preview.highlightStart) preview.highlightStart until preview.highlightEnd else null
+    }
+    return NamingCellPreview(base.text, ranges)
+}
+
 fun buildNamingSlotPreview(
     isFileName: Boolean,
     slotIndex: Int,
