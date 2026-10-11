@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Tag
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -42,16 +46,19 @@ internal fun TableEditorSaveSettingsPanel(
     ) {
         DDZSettingRow(
             label = "파일명",
+            leadingIcon = Icons.Filled.TextFields,
             value = fileNamePreview,
             onClick = { onOpenDetail(TableEditorSaveDetail.FILE_NAME) },
         )
         DDZSettingRow(
             label = "저장 위치",
+            leadingIcon = Icons.Filled.Folder,
             value = pathPreview,
             onClick = { onOpenDetail(TableEditorSaveDetail.SAVE_PATH) },
         )
         DDZSettingRow(
             label = "자동번호",
+            leadingIcon = Icons.Filled.Tag,
             value = "다음 ${formatMockCounter(nextCounter, counterPadding)} · ${counterPaddingLabel(counterPadding)}",
             onClick = { onOpenDetail(TableEditorSaveDetail.AUTO_NUMBER) },
         )

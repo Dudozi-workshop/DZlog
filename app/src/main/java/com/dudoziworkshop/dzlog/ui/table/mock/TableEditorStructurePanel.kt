@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -72,9 +73,7 @@ internal fun MockLayoutPanel(
             StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewStream, "행 높이 균등",
                 enabled = rows > 1, onClick = onEqualizeRows)
         }
-        Text(if (selectedCount == 0) "${rows}행 × ${cols}열 · 셀을 선택해 병합하거나 삭제하세요."
-            else "${selectedCount}개 셀 선택됨 · ${rows}행 × ${cols}열",
-            style = DDZTypography.Caption, color = DDZColor.TextMuted)
+
     }
 }
 
@@ -92,7 +91,7 @@ private fun StructureActionButton(
         danger -> DDZColor.Destructive
         else -> DDZColor.TextPrimary
     }
-    Row(modifier.heightIn(min = 44.dp)
+    Row(modifier.heightIn(min = structureActionHeight(LocalDensity.current.fontScale))
         .background(if (enabled) DDZColor.Card.copy(alpha = 0.72f) else DDZColor.Card.copy(alpha = 0.36f), RoundedCornerShape(12.dp))
         .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
@@ -101,3 +100,6 @@ private fun StructureActionButton(
         Text(label, color = tint, style = DDZTypography.Caption, maxLines = 1)
     }
 }
+// Four action rows, four 4dp gaps, one divider and 8dp top/bottom padding.
+internal fun structureActionHeight(fontScale: Float) = (44f * fontScale.coerceAtLeast(1f)).dp
+internal fun structurePanelHeight(fontScale: Float) = structureActionHeight(fontScale) * 4 + 33.dp

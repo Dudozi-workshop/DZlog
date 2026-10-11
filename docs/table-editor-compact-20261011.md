@@ -19,3 +19,11 @@ CI unit tests and APK: pending final HEAD build.
 Device verification: pending; check tab preview stability, keyboard spacing, six inline style rows on narrow screens, terminal dragging and undo, direct row/column deletion, and use-order after capture/restart.
 
 Full application UI/system-bar consistency audit remains separate follow-up work.
+
+## Device-feedback refinement
+
+- Normal tab height now derives from four structure action rows, their gaps/divider/padding (209dp at the default font scale). Large fonts expand that reference; short viewports cap it and scroll contents. Removed the structure status/help footer.
+- Preview history icons are 18dp inside compact 40dp buttons. The style border toggle is a 32×18dp track with a 48dp touch area and switch semantics.
+- Save settings labels have small existing file/folder/number icons. File/path add/type menus share a 2×2 icon+text layout for cell/manual/date/time. Legacy rotating-text records remain readable but cannot be newly selected; rotating cells remain usable through cell references.
+- Editor-only fitting permits upscaling to maximize the preview at the saved aspect. A drag holds its starting zoom and never zooms in automatically; growing geometry can zoom out only to stay within the viewport. Release smoothly refits in 180ms. Fit does not change template data or edit history.
+- Added fit regression checks for shrink/release aspect retention and viewport containment on growth/tall shapes. Final CI/APK status is recorded in PR #32; device interaction checks remain pending.

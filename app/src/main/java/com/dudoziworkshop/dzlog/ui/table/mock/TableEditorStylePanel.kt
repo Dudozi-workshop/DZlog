@@ -1,5 +1,8 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -47,10 +50,16 @@ internal fun TableEditorStylePanel(
         }
         CompactStyleRow("테두리") {
             Spacer(Modifier.weight(1f))
-            Switch(checked = draft.gridEnabled, onCheckedChange = { onDraftChange(draft.copy(gridEnabled = it)) },
-                colors = SwitchDefaults.colors(checkedThumbColor = DDZColor.Surface,
-                    checkedTrackColor = DDZColor.Selected, uncheckedThumbColor = DDZColor.TextSecondary,
-                    uncheckedTrackColor = DDZColor.SurfaceSoft, uncheckedBorderColor = DDZColor.Border))
+            Box(Modifier.size(48.dp).toggleable(value = draft.gridEnabled, role = Role.Switch,
+                onValueChange = { onDraftChange(draft.copy(gridEnabled = it)) }), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(width = 32.dp, height = 18.dp)
+                    .background(if (draft.gridEnabled) DDZColor.Selected else DDZColor.SurfaceSoft, CircleShape)
+                    .border(1.dp, if (draft.gridEnabled) DDZColor.Selected else DDZColor.Border, CircleShape)) {
+                    Box(Modifier.align(if (draft.gridEnabled) Alignment.CenterEnd else Alignment.CenterStart)
+                        .padding(horizontal = 2.dp).size(14.dp)
+                        .background(if (draft.gridEnabled) DDZColor.Surface else DDZColor.TextSecondary, CircleShape))
+                }
+            }
         }
         CompactStyleRow("배경 투명도") {
             Slider(value = draft.bgAlpha.toFloat(), valueRange = 0f..255f,

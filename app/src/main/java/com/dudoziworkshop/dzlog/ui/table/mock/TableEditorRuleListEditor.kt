@@ -17,6 +17,14 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Autorenew
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
@@ -425,27 +433,26 @@ internal fun TableEditorRuleListEditor(
                     onDismiss = { editorTarget = null },
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(
-                            MockRuleSourceType.CELL,
-                            MockRuleSourceType.MANUAL,
-                            MockRuleSourceType.DATE,
-                            MockRuleSourceType.TIME,
-                            MockRuleSourceType.ROTATING_TEXT,
-                        ).forEach { type ->
-                            DDZButton(
-                                text = ruleTypeLabel(type),
-                                modifier = Modifier.fillMaxWidth(),
-                                style = DDZButtonStyle.Secondary,
-                                onClick = {
-                                    val next = defaultRuleItem(type)
-                                    if (target == RuleEditorTarget.ADD) {
-                                        append(next)
-                                    } else {
-                                        val index = editingIndex ?: return@DDZButton
-                                        replaceAt(index, next)
-                                    }
-                                },
-                            )
+                        saveRuleSourceChoices.chunked(2).forEach { choices ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                choices.forEach { type ->
+                                    val isSelected = target == RuleEditorTarget.TYPE && active?.sourceType == type
+                                    DDZButton(
+                                        text = ruleTypeLabel(type), leadingIcon = ruleTypeIcon(type),
+                                        modifier = Modifier.weight(1f).semantics { selected = isSelected },
+                                        minHeight = 56.dp, style = DDZButtonStyle.Secondary,
+                                        containerColorOverride = if (isSelected) DDZColor.SelectedSoft else DDZColor.Surface,
+                                        onClick = {
+                                            val next = defaultRuleItem(type)
+                                            if (target == RuleEditorTarget.ADD) append(next)
+                                            else {
+                                                val index = editingIndex ?: return@DDZButton
+                                                replaceAt(index, next)
+                                            }
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -500,3 +507,11 @@ private fun ruleTypeLabel(type: MockRuleSourceType): String =
         MockRuleSourceType.TIME -> "시간"
         MockRuleSourceType.ROTATING_TEXT -> "순환문구"
     }
+
+private fun ruleTypeIcon(type: MockRuleSourceType): ImageVector = when (type) {
+    MockRuleSourceType.CELL -> Icons.Filled.GridView
+    MockRuleSourceType.MANUAL -> Icons.Filled.TextFields
+    MockRuleSourceType.DATE -> Icons.Filled.DateRange
+    MockRuleSourceType.TIME -> Icons.Filled.AccessTime
+    MockRuleSourceType.ROTATING_TEXT -> Icons.Filled.Autorenew
+}

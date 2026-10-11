@@ -1,5 +1,8 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -75,6 +78,7 @@ internal fun ColumnScope.MockTableCanvas(
     val latestColDrag by rememberUpdatedState(onColBoundaryDrag)
     val latestDragStart by rememberUpdatedState(onBoundaryDragStart)
     val latestDragEnd by rememberUpdatedState(onBoundaryDragEnd)
+    var gestureScale by remember(rows, cols) { mutableStateOf<Float?>(null) }
     var activeColumn by remember { mutableStateOf<Int?>(null) }
     var activeRow by remember { mutableStateOf<Int?>(null) }
     val background = Color.Transparent
@@ -115,10 +119,17 @@ internal fun ColumnScope.MockTableCanvas(
         val editorScale = (expandedWorkingWidth / previousWorkingWidth).coerceAtLeast(0.01f)
         val naturalTableWidth = expandedWorkingWidth * (resolvedColWeights.sum() / cols.coerceAtLeast(1))
         val naturalTableHeight = baseTableHeight * editorScale * (resolvedRowWeights.sum() / rows.coerceAtLeast(1))
-        val fitScale = minOf(expandedWorkingWidth / naturalTableWidth,
-            (maxHeight - gutter * 2).coerceAtLeast(1.dp) / naturalTableHeight, 1f).coerceAtLeast(0.01f)
-        val stableTableHeight = naturalTableHeight * fitScale
-        val stableTableWidth = naturalTableWidth * fitScale
+        val fitScale = editorPreviewFitScale(naturalTableWidth.value, naturalTableHeight.value,
+            expandedWorkingWidth.value, (maxHeight - gutter * 2).coerceAtLeast(1.dp).value)
+        val animatedScale by animateFloatAsState(
+            targetValue = editorPreviewDragScale(fitScale, gestureScale),
+            animationSpec = if (gestureScale != null) snap() else tween(durationMillis = 180),
+            label = "editorPreviewFit",
+        )
+        val displayScale = minOf(animatedScale, fitScale)
+        val latestDisplayScale by rememberUpdatedState(displayScale)
+        val stableTableHeight = naturalTableHeight * displayScale
+        val stableTableWidth = naturalTableWidth * displayScale
 
         BoxWithConstraints(
             modifier = Modifier
@@ -263,9 +274,9 @@ internal fun ColumnScope.MockTableCanvas(
                             .border(1.dp, DDZColor.BorderStrong, CircleShape)
                             .pointerInput(boundaryIndex) {
                                 detectDragGestures(
-                                    onDragStart = { activeColumn = boundaryIndex; latestDragStart() },
-                                    onDragEnd = { activeColumn = null; latestDragEnd() },
-                                    onDragCancel = { activeColumn = null; latestDragEnd() },
+                                    onDragStart = { gestureScale = latestDisplayScale; activeColumn = boundaryIndex; latestDragStart() },
+                                    onDragEnd = { activeColumn = null; gestureScale = null; latestDragEnd() },
+                                    onDragCancel = { activeColumn = null; gestureScale = null; latestDragEnd() },
                                 ) { change, dragAmount ->
                                     change.consume()
                                     latestColDrag(boundaryIndex, dragAmount.x / latestWidthPx)
@@ -296,9 +307,9 @@ internal fun ColumnScope.MockTableCanvas(
                             .border(1.dp, DDZColor.BorderStrong, CircleShape)
                             .pointerInput(boundaryIndex) {
                                 detectDragGestures(
-                                    onDragStart = { activeRow = boundaryIndex; latestDragStart() },
-                                    onDragEnd = { activeRow = null; latestDragEnd() },
-                                    onDragCancel = { activeRow = null; latestDragEnd() },
+                                    onDragStart = { gestureScale = latestDisplayScale; activeRow = boundaryIndex; latestDragStart() },
+                                    onDragEnd = { activeRow = null; gestureScale = null; latestDragEnd() },
+                                    onDragCancel = { activeRow = null; gestureScale = null; latestDragEnd() },
                                 ) { change, dragAmount ->
                                     change.consume()
                                     latestRowDrag(boundaryIndex, dragAmount.y / latestHeightPx)

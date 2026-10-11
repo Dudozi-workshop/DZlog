@@ -42,6 +42,8 @@ import androidx.compose.material.icons.filled.ViewStream
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
@@ -80,7 +82,6 @@ import com.dudoziworkshop.dzlog.ui.common.DDZConfirmDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZContentDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZQuickChoiceDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
-import com.dudoziworkshop.dzlog.ui.common.DDZTopBarIconButton
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.launch
 
@@ -285,7 +286,7 @@ fun TableEditorV2Screen(
         ) {
             // Every normal tab owns the same band, including an unselected Content tab.
             // IME mode wraps the compact input instead of preserving an empty band.
-            val panelHeight = (maxHeight * 0.42f).coerceAtMost(320.dp)
+            val panelHeight = structurePanelHeight(LocalDensity.current.fontScale).coerceAtMost(maxHeight * 0.55f)
             val editorPanelModifier = Modifier.heightIn(
                 max = if (imeVisible) maxHeight * 0.55f else panelHeight
             )
@@ -301,12 +302,12 @@ fun TableEditorV2Screen(
                                 enabled = !saveCoordinator.isSaving && templates.any { it.id != templateId },
                                 onClick = { showTemplatePicker = true },
                             )
-                            DDZTopBarIconButton(
+                            CompactHistoryButton(
                                 icon = Icons.Filled.Undo, contentDescription = "실행 취소",
                                 enabled = session.canUndo && !saveCoordinator.isSaving,
                                 onClick = { if (session.undo()) selectionState.clearAll() },
                             )
-                            DDZTopBarIconButton(
+                            CompactHistoryButton(
                                 icon = Icons.Filled.Redo, contentDescription = "다시 실행",
                                 enabled = session.canRedo && !saveCoordinator.isSaving,
                                 onClick = { if (session.redo()) selectionState.clearAll() },
@@ -795,3 +796,12 @@ fun TableEditorV2Screen(
 }
 
 
+
+@Composable
+private fun CompactHistoryButton(icon: ImageVector, contentDescription: String,
+    enabled: Boolean, onClick: () -> Unit) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(40.dp)) {
+        Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(18.dp),
+            tint = if (enabled) DDZColor.TextPrimary else DDZColor.TextDisabled)
+    }
+}

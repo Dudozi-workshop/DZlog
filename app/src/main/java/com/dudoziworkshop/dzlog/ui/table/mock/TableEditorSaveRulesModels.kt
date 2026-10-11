@@ -21,3 +21,7 @@ internal data class MockSaveRulesDraft(
     val includePathInScope: Boolean,
     val includeFilenameInScope: Boolean,
 )
+
+// Legacy ROTATING_TEXT remains readable; new rules reference its cell through CELL.
+internal val saveRuleSourceChoices = listOf(MockRuleSourceType.CELL, MockRuleSourceType.MANUAL,
+    MockRuleSourceType.DATE, MockRuleSourceType.TIME)
