@@ -48,6 +48,7 @@ import com.dudoziworkshop.dzlog.feature.table.state.TableTemplateCatalogViewMode
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.SaveSessionCoordinator
 import com.dudoziworkshop.dzlog.feature.table.policy.TableTemplateCatalogCoordinator
 import com.dudoziworkshop.dzlog.feature.table.policy.activeSavedTableStyle
+import com.dudoziworkshop.dzlog.feature.table.policy.replaceActiveSavedTableTemplate
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
@@ -234,7 +235,7 @@ fun AppRoot() {
         if (!hasRestoredTemplate || tableTemplateViewModel.templates.none { it.id == templateId }) return false
         if (previousId == templateId) return true
         return try {
-            val next = tableCatalogCoordinator.updateActiveTemplate(
+            val next = replaceActiveSavedTableTemplate(
                 items = tableTemplateViewModel.templates, activeTemplateId = previousId, templateState = current)
             tableCatalogCoordinator.activate(items = next, activeTemplateId = templateId)
             tableTemplateViewModel.setCatalog(next, templateId)

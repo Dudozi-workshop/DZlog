@@ -30,7 +30,8 @@ class NamingCellPreviewTest {
         assertEquals("A_B_A_B_0012.jpg", file.text)
         assertEquals(listOf(4 until 7), file.highlights)
         assertEquals("Pictures/DZlog/A_B/A_B/", path.text)
-        assertEquals(listOf(18 until 21), path.highlights)
+        val pathStart = "Pictures/DZlog/A_B/".length
+        assertEquals(listOf(pathStart until pathStart + 3), path.highlights)
         assertEquals(buildFileName(cells, slots, "_", 4, 12, Date(0), "yyyyMMdd", "HHmm"), file.text)
         assertEquals(buildSavePath(cells, slots, Date(0), "yyyyMMdd", "HHmm"), path.text)
     }
@@ -46,7 +47,8 @@ class NamingCellPreviewTest {
         assertEquals("-4.00.jpg", file.text)
         assertEquals(listOf(0 until 5), file.highlights)
         assertEquals("Pictures/DZlog/-4.00/", path.text)
-        assertEquals(listOf(14 until 19), path.highlights)
+        val pathStart = "Pictures/DZlog/".length
+        assertEquals(listOf(pathStart until pathStart + 5), path.highlights)
     }
 
     @Test fun unrelatedAndEmptyReferencesKeepPreviewWithoutEmphasis() {
