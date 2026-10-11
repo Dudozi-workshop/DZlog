@@ -1,9 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import android.graphics.RectF
-import android.graphics.Paint
-import android.graphics.Typeface
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +16,19 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -27,41 +37,34 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
-import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.feature.table.policy.quickCellPosition
 import com.dudoziworkshop.dzlog.feature.table.policy.quickRootCells
 import com.dudoziworkshop.dzlog.feature.table.policy.quickCellLinks
-import com.dudoziworkshop.dzlog.feature.table.policy.quickMarkersFit
-import com.dudoziworkshop.dzlog.watermark.computeBaseTextSizeFromRenderedTable
-import com.dudoziworkshop.dzlog.watermark.applyValueScaleFactor
+import com.dudoziworkshop.dzlog.feature.table.policy.quickEditingSizes
+import com.dudoziworkshop.dzlog.feature.table.policy.quickEditingRows
 import com.dudoziworkshop.dzlog.feature.table.render.*
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
-/** Reuse the capture renderer with live content geometry and editing-only markers. */
+/** Reading-first editing canvas. Its wrapping and markers never alter capture geometry. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun CameraQuickTablePreview(
     template: TableTemplateState,
     templateName: String,
     cells: List<WatermarkBuilder.WatermarkCell>,
     style: TableRenderStyle,
-    captureAspect: CaptureAspect,
-    widthRatio: Int,
-    heightRatio: Int,
     selectedId: String?,
     editableIds: Set<String>,
     onSelect: (String) -> Unit,
@@ -74,47 +77,50 @@ internal fun CameraQuickTablePreview(
 ) {
     val density = LocalDensity.current
     var showPicker by remember { mutableStateOf(false) }
-    val configuration = LocalConfiguration.current
-    val referenceWidth = with(density) { configuration.screenWidthDp.dp.toPx() }.coerceAtLeast(1f)
     val roots = remember(template.cells) { quickRootCells(template) }
-    val baseline = remember(cells, template, referenceWidth, captureAspect, style.valueScale, widthRatio, heightRatio) {
-        buildCameraTableSceneFromPlacement(
-            bounds = RectF(0f, 0f, referenceWidth, referenceWidth / captureAspect.ratioF),
-            placement = buildDesignPreviewPlacement(widthRatio, heightRatio),
-            cells = cells, templateCells = template.cells,
-            rows = template.rows, cols = template.cols,
-            valueScale = style.valueScale, baseScaleRatio = widthRatio,
-            rowWeights = template.rowWeights, colWeights = template.colWeights,
-        )
-    }
-    val aspect = baseline.scene.tableRect.width() / baseline.scene.tableRect.height().coerceAtLeast(1f)
     val rootCells = remember(roots) { roots.map { RenderRootCell(it.cellId, it.rowIndex, it.colIndex, it.rowSpan, it.colSpan) } }
-    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+    val values = remember(template.cells, cells) { template.cells.mapIndexed { index, cell ->
+        cell.cellId to cells.getOrNull(index)?.valueText.orEmpty()
+    }.toMap() }
+    val vertical = rememberScrollState()
+    val horizontal = rememberScrollState()
+    val measurer = rememberTextMeasurer(cacheSize = template.rows * template.cols)
+    val textStyle = DDZTypography.Body.copy(fontWeight = FontWeight.Bold, textAlign = when (style.textAlign) {
+        WatermarkTextAlign.CENTER -> TextAlign.Center
+        WatermarkTextAlign.RIGHT -> TextAlign.End
+        else -> TextAlign.Start
+    })
+    BoxWithConstraints(modifier, contentAlignment = Alignment.TopCenter) {
         val padding = DDZSpacing.controlGap
         val headingHeight = if (templateName.isBlank()) 0.dp else DDZLayout.Control.Compact
         val hintHeight = DDZLayout.Control.Compact
         val availableWidth = (maxWidth - padding * 2).coerceAtLeast(1.dp)
-        val availableHeight = (maxHeight - padding * 2 - headingHeight - hintHeight).coerceAtLeast(1.dp)
-        val width = minOf(availableWidth, availableHeight * aspect).coerceAtLeast(1.dp)
-        val height = (width / aspect).coerceAtLeast(1.dp)
-        val widthPx = with(density) { width.toPx() }
-        val heightPx = with(density) { height.toPx() }
-        val scene = remember(widthPx, heightPx, baseline, rootCells) {
+        val colSizes = remember(availableWidth, template.colWeights, template.cols, density) {
+            quickEditingSizes(template.cols, template.colWeights, with(density) { availableWidth.toPx() },
+                with(density) { DDZLayout.QuickInput.MinCellWidth.toPx() })
+        }
+        val markerBand = DDZLayout.QuickInput.CellMarker + DDZSpacing.xs * 2
+        val cellPadding = DDZSpacing.itemGap
+        val rowSizes = remember(roots, values, colSizes, template.rowWeights, textStyle, density, measurer) {
+            val base = quickEditingSizes(template.rows, template.rowWeights, 0f,
+                with(density) { DDZLayout.QuickInput.RowHeight.toPx() })
+            val required = roots.map { cell ->
+                val width = colSizes.drop(cell.colIndex).take(cell.colSpan).sum() - with(density) { cellPadding.toPx() * 2 }
+                val layout = measurer.measure(values[cell.cellId].orEmpty(), style = textStyle,
+                    constraints = Constraints(maxWidth = width.toInt().coerceAtLeast(1)))
+                layout.size.height + with(density) { (markerBand + cellPadding * 2).toPx() }
+            }
+            quickEditingRows(base, roots, required)
+        }
+        val widthPx = colSizes.sum()
+        val heightPx = rowSizes.sum()
+        val scene = remember(colSizes, rowSizes, rootCells) {
             buildRenderedTableScene(RectF(0f, 0f, widthPx, heightPx), template.rows, template.cols,
-                baseline.resolvedLayout.finalRowWeights, baseline.resolvedLayout.finalColWeights, rootCells)
+                rowSizes, colSizes, rootCells)
         }
-        val payload = remember(cells, baseline) { TableRenderPayload(template.rows, template.cols,
-            baseline.resolvedLayout.finalRowWeights, baseline.resolvedLayout.finalColWeights, cells) }
-        val lineHeight = remember(widthPx, heightPx, template.rows, template.cols, style.valueScale) {
-            Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                typeface = Typeface.DEFAULT_BOLD
-                textSize = applyValueScaleFactor(computeBaseTextSizeFromRenderedTable(
-                    widthPx, heightPx, template.rows, template.cols), style.valueScale)
-            }.fontMetrics.let { it.descent - it.ascent }
-        }
-        val markerPx = with(density) { DDZLayout.QuickInput.CellMarker.toPx() }
-        val gapPx = with(density) { DDZSpacing.xs.toPx() }
-        Surface(Modifier.size(width + padding * 2, height + padding * 2 + headingHeight + hintHeight),
+        val width = with(density) { widthPx.toDp() }
+        val height = with(density) { heightPx.toDp() }
+        Surface(Modifier.fillMaxWidth().heightIn(max = maxHeight),
             shape = RoundedCornerShape(DDZLayout.Radius.Medium), color = DDZColor.SurfaceSoft) {
             Column(Modifier.padding(padding)) {
                 if (templateName.isNotBlank()) Box(Modifier.fillMaxWidth().height(headingHeight)) {
@@ -134,40 +140,48 @@ internal fun CameraQuickTablePreview(
                         }
                     }
                 }
-                Box(Modifier.size(width, height)) {
-                    Canvas(Modifier.fillMaxSize()) {
-                        drawIntoCanvas { canvas -> TableRenderAdapter.drawScene(canvas.nativeCanvas, scene, payload,
-                            style.copy(drawGrid = true)) }
-                    }
-                    scene.rootRects.forEach { rect ->
-                        val cell = template.cells.first { it.cellId == rect.cellId }
-                        val editable = rect.cellId in editableIds
-                        val active = selectedId == rect.cellId
-                        val links = quickCellLinks(template, rect.cellId)
-                        val showLock = !editable && quickMarkersFit(rect.right - rect.left,
-                            ((rect.bottom - rect.top) - lineHeight) / 2f, true, 0, markerPx, gapPx)
-                        val showMarkers = quickMarkersFit(rect.right - rect.left,
-                            ((rect.bottom - rect.top) - lineHeight) / 2f, !editable, links.count, markerPx, gapPx)
-                        Box(Modifier.offset(x = with(density) { rect.left.toDp() }, y = with(density) { rect.top.toDp() })
-                            .size(with(density) { (rect.right - rect.left).toDp() }, with(density) { (rect.bottom - rect.top).toDp() })
-                            .clipToBounds()
-                            .then(if (!editable) Modifier.background(DDZColor.Primary.copy(alpha = 0.12f)) else Modifier)
-                            .then(if (active) Modifier.background(DDZColor.SelectionOverlay).border(DDZLayout.QuickInput.SelectionBorder, DDZColor.SelectionEmphasis) else Modifier)
-                            .clickable(enabled = !switching) { if (editable) onSelect(rect.cellId) else onLocked(rect.cellId) }
-                            .semantics {
-                                selected = active
-                                contentDescription = "${quickCellPosition(cell)}${if (editable) " 값 수정" else " 자동 값"} ${links.description}"
-                            }) {
-                            if (showLock || showMarkers) {
-                                if (showLock) Icon(Icons.Filled.Lock, null, tint = DDZColor.IconMuted,
+                Box(Modifier.fillMaxWidth().weight(1f, fill = false).clipToBounds()
+                    .verticalScroll(vertical).horizontalScroll(horizontal)) {
+                    Box(Modifier.size(width, height)) {
+                        scene.rootRects.forEach { rect ->
+                            val cell = roots.first { it.cellId == rect.cellId }
+                            val editable = rect.cellId in editableIds
+                            val active = selectedId == rect.cellId
+                            val links = quickCellLinks(template, rect.cellId)
+                            val requester = remember(rect.cellId) { BringIntoViewRequester() }
+                            // Follow cell navigation / keyboard resizing, never zoom on each keystroke.
+                            LaunchedEffect(active, maxHeight, maxWidth) {
+                                if (active) {
+                                    withFrameNanos { }
+                                    requester.bringIntoView()
+                                }
+                            }
+                            Box(Modifier.offset(x = with(density) { rect.left.toDp() }, y = with(density) { rect.top.toDp() })
+                                .size(with(density) { (rect.right - rect.left).toDp() }, with(density) { (rect.bottom - rect.top).toDp() })
+                                .bringIntoViewRequester(requester).clipToBounds()
+                                .background(if (active) DDZColor.SelectedSoft else DDZColor.Surface)
+                                .then(if (!editable) Modifier.background(DDZColor.Primary.copy(alpha = 0.12f)) else Modifier)
+                                .border(if (active) DDZLayout.QuickInput.SelectionBorder else 1.dp,
+                                    if (active) DDZColor.SelectionEmphasis else DDZColor.Border)
+                                .clickable(enabled = !switching) { if (editable) onSelect(rect.cellId) else onLocked(rect.cellId) }
+                                .semantics {
+                                    selected = active
+                                    contentDescription = "${quickCellPosition(cell)}${if (editable) " 값 수정" else " 자동 값"} ${links.description}"
+                                }) {
+                                if (!editable) Icon(Icons.Filled.Lock, null, tint = DDZColor.IconMuted,
                                     modifier = Modifier.align(Alignment.TopStart).padding(DDZSpacing.xs).size(DDZLayout.QuickInput.CellMarker))
-                                if (showMarkers) Row(Modifier.align(Alignment.TopEnd).padding(DDZSpacing.xs),
+                                Row(Modifier.align(Alignment.TopEnd).padding(DDZSpacing.xs),
                                     horizontalArrangement = Arrangement.spacedBy(DDZSpacing.xs)) {
                                     val tint = if (active) DDZColor.SelectionEmphasis else DDZColor.IconMuted
                                     if (links.fileName) Icon(Icons.Filled.Description, null,
                                         Modifier.size(DDZLayout.QuickInput.CellMarker), tint = tint)
                                     if (links.path) Icon(Icons.Filled.Folder, null,
                                         Modifier.size(DDZLayout.QuickInput.CellMarker), tint = tint)
+                                }
+                                Box(Modifier.fillMaxSize().padding(top = markerBand)
+                                    .padding(horizontal = cellPadding, vertical = cellPadding), contentAlignment = Alignment.Center) {
+                                    Text(values[rect.cellId].orEmpty(), style = textStyle, color = DDZColor.TextPrimary,
+                                        modifier = Modifier.fillMaxWidth())
                                 }
                             }
                         }

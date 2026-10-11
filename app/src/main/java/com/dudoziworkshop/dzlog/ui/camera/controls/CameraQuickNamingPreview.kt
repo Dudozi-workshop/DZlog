@@ -1,5 +1,9 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -8,10 +12,18 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -62,6 +74,10 @@ internal fun CameraQuickNamingPreview(
 
 @Composable
 private fun PreviewRow(icon: ImageVector, label: String, texts: List<String>, ranges: List<IntRange>) {
+    var expanded by remember { mutableStateOf(false) }
+    var anchorWidth by remember { mutableStateOf(0) }
+    val density = LocalDensity.current
+    BackHandler(enabled = expanded) { expanded = false }
     val fullText = texts.joinToString("\n")
     val allRanges = buildList {
         var offset = 0
@@ -80,18 +96,38 @@ private fun PreviewRow(icon: ImageVector, label: String, texts: List<String>, ra
     }
     val fullAnnotated = annotated(fullText, allRanges)
     val measurer = rememberTextMeasurer()
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(DDZSpacing.xs)) {
-        Icon(icon, null, tint = DDZColor.IconMuted, modifier = Modifier.size(DDZLayout.QuickInput.Icon))
-        Text(label, style = DDZTypography.Caption, color = DDZColor.TextMuted)
-        BoxWithConstraints(Modifier.weight(1f)) {
-            val window = remember(fullAnnotated, constraints.maxWidth, measurer) {
-                val layout = measurer.measure(fullAnnotated, style = DDZTypography.Caption,
-                    constraints = Constraints(maxWidth = constraints.maxWidth.coerceAtLeast(1)))
-                quickNamingWindow(fullText, allRanges, List(layout.lineCount) { layout.getLineStart(it) })
+    Box(Modifier.fillMaxWidth().onSizeChanged { anchorWidth = it.width }) {
+        Row(Modifier.fillMaxWidth().clickable(onClickLabel = "$label 전체 보기") { expanded = !expanded }.padding(vertical = DDZSpacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(DDZSpacing.xs)) {
+            Icon(icon, null, tint = DDZColor.IconMuted, modifier = Modifier.size(DDZLayout.QuickInput.Icon))
+            Text(label, style = DDZTypography.Caption, color = DDZColor.TextMuted)
+            BoxWithConstraints(Modifier.weight(1f)) {
+                val window = remember(fullAnnotated, constraints.maxWidth, measurer) {
+                    val layout = measurer.measure(fullAnnotated, style = DDZTypography.Caption,
+                        constraints = Constraints(maxWidth = constraints.maxWidth.coerceAtLeast(1)))
+                    quickNamingWindow(fullText, allRanges, List(layout.lineCount) { layout.getLineStart(it) }, visibleLines = 1)
+                }
+                Text(annotated(window.text, window.highlights), style = DDZTypography.Caption, color = DDZColor.TextMuted,
+                    minLines = 1, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = fullText })
             }
-            Text(annotated(window.text, window.highlights), style = DDZTypography.Caption, color = DDZColor.TextMuted,
-                minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = fullText })
         }
-    }
+        if (expanded) Popup(popupPositionProvider = remember { object : PopupPositionProvider {
+            override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize,
+                layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset = IntOffset(
+                    anchorBounds.left.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
+                    anchorBounds.bottom.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0)))
+        } },
+            onDismissRequest = { expanded = false },
+            properties = PopupProperties(focusable = false, dismissOnClickOutside = true)) {
+            Surface(Modifier.width(with(density) { anchorWidth.toDp() }).heightIn(max = DDZLayout.QuickInput.MaxListHeight),
+                color = DDZColor.Surface, shape = RoundedCornerShape(DDZLayout.Radius.Small),
+                shadowElevation = DDZSpacing.xs) {
+                Column(Modifier.verticalScroll(rememberScrollState()).padding(DDZSpacing.controlGap),
+                    verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
+                    Text(label, style = DDZTypography.ButtonText, color = DDZColor.TextPrimary)
+                    Text(fullAnnotated, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                }
+            }
+        }
+}
 }

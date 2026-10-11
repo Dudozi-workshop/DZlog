@@ -181,7 +181,12 @@ internal fun CameraQuickValueSheet(
         fun dismiss() { inputDone(); commit(); onDismiss() }
         BoxWithConstraints(Modifier.fillMaxSize().background(DDZColor.PrimaryDark.copy(alpha = 0.72f))
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)).imePadding()) {
-            val expandedHeight = (maxHeight * 0.3f).coerceIn(DDZLayout.QuickInput.Touch, DDZLayout.QuickInput.ExpandedHeight)
+            // Reserve a table viewport even with the keyboard and manual input expansion.
+            val fixedChrome = DDZLayout.QuickInput.Touch * 2 + DDZLayout.Control.Compact * 2 +
+                DDZSpacing.screenPadding * 2 + DDZSpacing.itemGap * 5 + DDZLayout.QuickInput.CellMarker * 2
+            val inputBudget = (maxHeight - fixedChrome - DDZLayout.QuickInput.MinPreviewHeight)
+                .coerceAtLeast(DDZLayout.QuickInput.Touch)
+            val expandedHeight = minOf(DDZLayout.QuickInput.ExpandedHeight, inputBudget)
             Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = DDZSpacing.screenPadding), verticalAlignment = Alignment.CenterVertically) {
                     Text("빠른 수정", style = DDZTypography.SettingLabel, color = DDZColor.Surface, modifier = Modifier.weight(1f))
@@ -189,7 +194,7 @@ internal fun CameraQuickValueSheet(
                 }
                 CameraQuickNamingPreview(previewTemplate, resolvedCells, selectedId, counterDigits, previewCounter, now, saveMode,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = DDZSpacing.screenPadding))
-                CameraQuickTablePreview(previewTemplate, templateName, watermarkCells, style, captureAspect, tableWidthRatio, tableHeightRatio,
+                CameraQuickTablePreview(previewTemplate, templateName, watermarkCells, style,
                     selectedId, cells.map { it.cellId }.toSet(), ::select,
                     onLocked = { id -> Toast.makeText(context,
                         listOf("자동으로 표시되는 값이에요. 변경은 표 상세설정에서 가능해요.",
