@@ -81,6 +81,7 @@ import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZConfirmDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZContentDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZQuickChoiceDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZUnsavedDecisionDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.launch
@@ -607,50 +608,33 @@ fun TableEditorV2Screen(
     }
 
     if (pendingSwitchId != null) {
-        DDZContentDialog(
+        DDZUnsavedDecisionDialog(
             title = "템플릿을 교체할까요?",
-            onDismiss = { if (!saveCoordinator.isSaving) pendingSwitchId = null },
-            content = {
-                Text("현재 변경사항을 저장한 뒤 교체할 수 있어요.", color = DDZColor.TextSecondary)
-            },
-            actions = {
-                // Stack the longer labels so all three choices remain readable on small screens.
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DDZButton(
-                        text = "저장하고 교체",
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !saveCoordinator.isSaving,
-                        onClick = {
-                            val targetId = pendingSwitchId ?: return@DDZButton
-                            saveScope.launch {
-                                if (saveCoordinator.save(session, onSave)) {
-                                    pendingSwitchId = null
-                                    onSwitchTemplate(targetId)
-                                }
-                            }
-                        },
-                    )
-                    DDZButton(
-                        text = "저장 안 하고 교체",
-                        style = DDZButtonStyle.Text,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !saveCoordinator.isSaving,
-                        onClick = {
-                            val targetId = pendingSwitchId ?: return@DDZButton
-                            if (isUnsavedNewTemplate) onDiscardUnsavedNewTemplate()
-                            pendingSwitchId = null
-                            onSwitchTemplate(targetId)
-                        },
-                    )
-                    DDZButton(
-                        text = "취소",
-                        style = DDZButtonStyle.Secondary,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !saveCoordinator.isSaving,
-                        onClick = { pendingSwitchId = null },
-                    )
+            message = "현재 변경사항을 저장한 뒤 교체할 수 있어요.",
+            onCancel = { if (!saveCoordinator.isSaving) pendingSwitchId = null },
+            onDiscard = {
+                val targetId = pendingSwitchId
+                if (targetId != null && !saveCoordinator.isSaving) {
+                    if (isUnsavedNewTemplate) onDiscardUnsavedNewTemplate()
+                    pendingSwitchId = null
+                    onSwitchTemplate(targetId)
                 }
             },
+            onSave = {
+                val targetId = pendingSwitchId
+                if (targetId != null && !saveCoordinator.isSaving) {
+                    saveScope.launch {
+                        if (saveCoordinator.save(session, onSave)) {
+                            pendingSwitchId = null
+                            onSwitchTemplate(targetId)
+                        }
+                    }
+                }
+            },
+            enabled = !saveCoordinator.isSaving,
+            saveText = "저장하고 교체",
+            discardText = "저장 안 하고 교체",
+            verticalActions = true,
         )
     }
 
@@ -747,50 +731,28 @@ fun TableEditorV2Screen(
     }
 
     if (showBackSaveDialog) {
-        DDZContentDialog(
+        DDZUnsavedDecisionDialog(
             title = "변경사항을 저장할까요?",
-            onDismiss = { if (!saveCoordinator.isSaving) showBackSaveDialog = false },
-            content = {
-                Text(
-                    text = "저장하지 않으면 이번 편집 내용은 모두 사라집니다.",
-                    color = DDZColor.TextSecondary,
-                )
+            message = "저장하지 않으면 이번 편집 내용은 모두 사라집니다.",
+            onCancel = { if (!saveCoordinator.isSaving) showBackSaveDialog = false },
+            onDiscard = {
+                if (!saveCoordinator.isSaving) {
+                    if (isUnsavedNewTemplate) onDiscardUnsavedNewTemplate()
+                    showBackSaveDialog = false
+                    onBack()
+                }
             },
-            actions = {
-                DDZButton(
-                    text = "저장 안 함",
-                    enabled = !saveCoordinator.isSaving,
-                    style = DDZButtonStyle.Text,
-                    modifier = Modifier.weight(1f),
-                    onClick = {
-                        if (isUnsavedNewTemplate) {
-                            onDiscardUnsavedNewTemplate()
+            onSave = {
+                if (!saveCoordinator.isSaving) {
+                    saveScope.launch {
+                        if (saveCoordinator.save(session, onSave)) {
+                            showBackSaveDialog = false
+                            onBack()
                         }
-                        showBackSaveDialog = false
-                        onBack()
-                    },
-                )
-                DDZButton(
-                    text = "취소",
-                    enabled = !saveCoordinator.isSaving,
-                    style = DDZButtonStyle.Secondary,
-                    modifier = Modifier.weight(1f),
-                    onClick = { showBackSaveDialog = false },
-                )
-                DDZButton(
-                    text = "저장",
-                    enabled = !saveCoordinator.isSaving,
-                    modifier = Modifier.weight(1f),
-                    onClick = {
-                        saveScope.launch {
-                            if (saveCoordinator.save(session, onSave)) {
-                                showBackSaveDialog = false
-                                onBack()
-                            }
-                        }
-                    },
-                )
+                    }
+                }
             },
+            enabled = !saveCoordinator.isSaving,
         )
     }
 }
