@@ -104,7 +104,6 @@ fun CameraScreen(
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
     onCaptureCommitted: () -> Unit = {},
-    onQuickTemplatePreview: (TableTemplateState) -> Unit = onTemplateChange,
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
@@ -131,7 +130,6 @@ fun CameraScreen(
             CameraPreview(
                 tableTemplateState = tableTemplateState,
                 onTemplateChange = onTemplateChange,
-                onQuickTemplatePreview = onQuickTemplatePreview,
                 quickTemplateName = quickTemplateName,
                 quickTemplates = quickTemplates,
                 quickTemplateId = quickTemplateId,
@@ -167,7 +165,6 @@ fun CameraPreview(
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
     onCaptureCommitted: () -> Unit = {},
-    onQuickTemplatePreview: (TableTemplateState) -> Unit = onTemplateChange,
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
@@ -554,7 +551,10 @@ fun CameraPreview(
                     template = tableTemplateState,
                     templateName = quickTemplateName,
                     counterDigits = ui.prefs.counterDigits,
-                    counterSeed = displayCounter,
+                    counterSeed = ui.counter.scopeNextCounter,
+                    counterRequest = ui.counter.syncedRequest,
+                    includePathInCounterScope = appSettings.includePathInCounterScope,
+                    includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
                     phraseCursor = appSettings.phraseProgressCursor,
                     now = ui.capture.now,
                     captureAspect = ui.prefs.captureAspect,
@@ -568,7 +568,6 @@ fun CameraPreview(
                     activeTemplateId = quickTemplateId,
                     onTemplateSelect = onQuickTemplateSelect,
                     onDismiss = { showQuickValueSheet = false },
-                    onValueChange = onQuickTemplatePreview,
                     onCommit = onTemplateChange,
                 )
             }

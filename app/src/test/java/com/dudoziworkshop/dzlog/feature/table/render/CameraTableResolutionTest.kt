@@ -88,4 +88,20 @@ class CameraTableResolutionTest {
             assertEquals(a, b, 0.0001f)
         }
     }
+    @Test
+    fun deleting_multiline_content_restores_cell_proportions_without_changing_structure() {
+        fun layout(text: String) = computeResolvedRenderLayout(
+            cells = listOf(WatermarkCell(text), WatermarkCell("B3"), WatermarkCell(""), WatermarkCell("")),
+            rows = 2, cols = 2, valueScale = 100,
+            rowWeights = listOf(1f, 1.5f), colWeights = listOf(1f, 2f),
+        )
+        val empty = layout("")
+        val expanded = layout(List(12) { "측정값" }.joinToString("\n"))
+        assertTrue(expanded.intrinsicRowHeightsPx[0] > empty.intrinsicRowHeightsPx[0])
+        assertTrue(expanded.finalRowWeights[0] > empty.finalRowWeights[0])
+        val deleted = layout("")
+        assertEquals(empty.intrinsicRowHeightsPx, deleted.intrinsicRowHeightsPx)
+        assertEquals(empty.finalRowWeights, deleted.finalRowWeights)
+        assertEquals(empty.finalColWeights, deleted.finalColWeights)
+    }
 }

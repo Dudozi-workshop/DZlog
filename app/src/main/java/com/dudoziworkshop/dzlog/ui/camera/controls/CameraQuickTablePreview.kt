@@ -68,20 +68,19 @@ internal fun CameraQuickTablePreview(
     var showPicker by remember { mutableStateOf(false) }
     val configuration = LocalConfiguration.current
     val referenceWidth = with(density) { configuration.screenWidthDp.dp.toPx() }.coerceAtLeast(1f)
-    val initialTemplate = remember { template }
-    val roots = remember { quickRootCells(initialTemplate) }
-    val baseline = remember {
+    val roots = remember(template.cells) { quickRootCells(template) }
+    val baseline = remember(cells, template, referenceWidth, captureAspect, style.valueScale, widthRatio, heightRatio) {
         buildCameraTableSceneFromPlacement(
             bounds = RectF(0f, 0f, referenceWidth, referenceWidth / captureAspect.ratioF),
             placement = buildDesignPreviewPlacement(widthRatio, heightRatio),
-            cells = cells, templateCells = initialTemplate.cells,
-            rows = initialTemplate.rows, cols = initialTemplate.cols,
+            cells = cells, templateCells = template.cells,
+            rows = template.rows, cols = template.cols,
             valueScale = style.valueScale, baseScaleRatio = widthRatio,
-            rowWeights = initialTemplate.rowWeights, colWeights = initialTemplate.colWeights,
+            rowWeights = template.rowWeights, colWeights = template.colWeights,
         )
     }
     val aspect = baseline.scene.tableRect.width() / baseline.scene.tableRect.height().coerceAtLeast(1f)
-    val rootCells = remember { roots.map { RenderRootCell(it.cellId, it.rowIndex, it.colIndex, it.rowSpan, it.colSpan) } }
+    val rootCells = remember(roots) { roots.map { RenderRootCell(it.cellId, it.rowIndex, it.colIndex, it.rowSpan, it.colSpan) } }
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val padding = DDZSpacing.controlGap
         val headingHeight = if (templateName.isBlank()) 0.dp else DDZLayout.Control.Compact
@@ -92,11 +91,11 @@ internal fun CameraQuickTablePreview(
         val height = (width / aspect).coerceAtLeast(1.dp)
         val widthPx = with(density) { width.toPx() }
         val heightPx = with(density) { height.toPx() }
-        val scene = remember(widthPx, heightPx) {
-            buildRenderedTableScene(RectF(0f, 0f, widthPx, heightPx), initialTemplate.rows, initialTemplate.cols,
+        val scene = remember(widthPx, heightPx, baseline, rootCells) {
+            buildRenderedTableScene(RectF(0f, 0f, widthPx, heightPx), template.rows, template.cols,
                 baseline.resolvedLayout.finalRowWeights, baseline.resolvedLayout.finalColWeights, rootCells)
         }
-        val payload = remember(cells) { TableRenderPayload(initialTemplate.rows, initialTemplate.cols,
+        val payload = remember(cells, baseline) { TableRenderPayload(template.rows, template.cols,
             baseline.resolvedLayout.finalRowWeights, baseline.resolvedLayout.finalColWeights, cells) }
         Surface(Modifier.size(width + padding * 2, height + padding * 2 + headingHeight + hintHeight),
             shape = RoundedCornerShape(DDZLayout.Radius.Medium), color = DDZColor.SurfaceSoft) {

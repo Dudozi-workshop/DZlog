@@ -51,10 +51,22 @@ import com.dudoziworkshop.dzlog.ui.common.DDZCellTypeIcons
 import com.dudoziworkshop.dzlog.ui.common.input.decimalInputOrPrevious
 import com.dudoziworkshop.dzlog.ui.theme.*
 import java.util.Date
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequest
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
+import com.dudoziworkshop.dzlog.feature.counter.camera.readCameraCounterSafely
+import com.dudoziworkshop.dzlog.ui.camera.state.computeCameraDerivedState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 
-private class QuickValueDraft(var template: TableTemplateState, var dirty: Boolean = false)
+private class QuickValueDraft(initial: TableTemplateState) {
+    var template by mutableStateOf(initial)
+    var dirty = false
+}
 
 /** Table-first quick editing. Input finishes typing; Complete returns to the camera. */
 @Composable
@@ -63,6 +75,9 @@ internal fun CameraQuickValueSheet(
     templateName: String,
     counterDigits: Int,
     counterSeed: Int?,
+    counterRequest: CounterRequest?,
+    includePathInCounterScope: Boolean,
+    includeFilenameInCounterScope: Boolean,
     phraseCursor: Int,
     now: Date,
     captureAspect: CaptureAspect,
@@ -74,11 +89,11 @@ internal fun CameraQuickValueSheet(
     activeTemplateId: String?,
     onTemplateSelect: suspend (String, TableTemplateState) -> Boolean,
     onDismiss: () -> Unit,
-    onValueChange: (TableTemplateState) -> Unit,
     onCommit: (TableTemplateState) -> Unit,
 ) {
-    val cells = remember(template.cells) { quickEditableCells(template) }
     val draft = remember { QuickValueDraft(template) }
+    val previewTemplate = draft.template
+    val cells = remember(previewTemplate.cells) { quickEditableCells(previewTemplate) }
     val values = remember { cells.map { it.cellId to TextFieldValue(it.rawText, TextRange(it.rawText.length)) }.toMutableStateMap() }
     var selectedId by remember { mutableStateOf(cells.firstOrNull()?.cellId) }
     var expanded by remember { mutableStateOf(false) }
@@ -89,12 +104,35 @@ internal fun CameraQuickValueSheet(
     val latestCommit = rememberUpdatedState(onCommit)
     val lifecycleOwner = LocalLifecycleOwner.current
     val resolver = remember { TableResolver() }
-    val resolvedCells = remember(template, now, counterSeed, counterDigits, phraseCursor) {
-        val phrases = PhraseResolver.resolveSelectedTextByCellId(template.cells, template.phraseSets, phraseCursor)
-        val resolved = resolver.plan(template.cells, now,
+    val context = LocalContext.current
+    val facade = remember(context, counterDigits) { CounterFacade(context, counterDigits) }
+    var localCounterSeed by remember { mutableStateOf(counterSeed) }
+    var localCounterRequest by remember { mutableStateOf(counterRequest) }
+    val derived = remember(previewTemplate, now, counterDigits, phraseCursor, saveMode,
+        includePathInCounterScope, includeFilenameInCounterScope, localCounterSeed, localCounterRequest) {
+        computeCameraDerivedState(previewTemplate, now, counterDigits, phraseCursor,
+            includePathInCounterScope, includeFilenameInCounterScope, saveMode,
+            localCounterSeed, localCounterRequest, resolver)
+    }
+    val request = CounterRequestResolver.fromCamera(saveMode,
+        derived.captureScopeState.counterScope.relativePathKey,
+        derived.captureScopeState.counterScope.streamPrefix, derived.captureScopeState.scanPrefix,
+        includePathInCounterScope, includeFilenameInCounterScope)
+    // Read only the draft's counter stream. Camera state and image lookup stay untouched.
+    LaunchedEffect(request) {
+        if (localCounterRequest == request && localCounterSeed != null) return@LaunchedEffect
+        delay(250)
+        val result = readCameraCounterSafely { withContext(Dispatchers.IO) { facade.read(request) } }
+        ensureActive()
+        result.onSuccess { localCounterSeed = it.next; localCounterRequest = request }
+    }
+    val previewCounter = derived.displayCounter
+    val resolvedCells = remember(previewTemplate, now, previewCounter, counterDigits, phraseCursor) {
+        val phrases = PhraseResolver.resolveSelectedTextByCellId(previewTemplate.cells, previewTemplate.phraseSets, phraseCursor)
+        val resolved = resolver.plan(previewTemplate.cells, now,
             TableResolver.Config(counterDigits, NamingFormatDefaults.DATE_FORMAT_DEFAULT, NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT),
-            counterSeedOverride = counterSeed, selectedPhraseTextByCellId = phrases).resolvedCells
-        if (counterSeed != null) resolved else resolved.map {
+            counterSeedOverride = previewCounter, selectedPhraseTextByCellId = phrases).resolvedCells
+        if (previewCounter != null) resolved else resolved.map {
             if (it.type == TableCellDataType.COUNTER) it.copy(resolvedText = "", isEmpty = true) else it
         }
     }
@@ -147,10 +185,10 @@ internal fun CameraQuickValueSheet(
                     Text("빠른 수정", style = DDZTypography.SettingLabel, color = DDZColor.Surface, modifier = Modifier.weight(1f))
                     TextButton(enabled = !switching, onClick = ::dismiss) { Text("완료", color = DDZColor.Surface) }
                 }
-                CameraQuickNamingPreview(template, resolvedCells, selectedId, counterDigits, counterSeed, now, saveMode,
+                CameraQuickNamingPreview(previewTemplate, resolvedCells, selectedId, counterDigits, previewCounter, now, saveMode,
                     compact = focused || expanded,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = DDZSpacing.screenPadding))
-                CameraQuickTablePreview(template, templateName, watermarkCells, style, captureAspect, tableWidthRatio, tableHeightRatio,
+                CameraQuickTablePreview(previewTemplate, templateName, watermarkCells, style, captureAspect, tableWidthRatio, tableHeightRatio,
                     selectedId, cells.map { it.cellId }.toSet(), ::select,
                     onLocked = { Toast.makeText(context,
                         "자동으로 표시되는 값이에요. 변경은 표 상세설정에서 가능해요.", Toast.LENGTH_SHORT).show() },
@@ -202,7 +240,7 @@ internal fun CameraQuickValueSheet(
                                 values[selected.cellId] = nextValue.copy(text = accepted)
                                 if (accepted != value.text) {
                                     val updated = updateQuickCellValues(draft.template, mapOf(selected.cellId to accepted))
-                                    draft.template = updated; draft.dirty = true; onValueChange(updated)
+                                    draft.template = updated; draft.dirty = true
                                 }
                             }
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {

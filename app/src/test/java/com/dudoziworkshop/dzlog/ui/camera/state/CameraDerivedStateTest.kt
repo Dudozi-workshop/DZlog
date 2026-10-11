@@ -111,4 +111,21 @@ class CameraDerivedStateTest {
         assertNotEquals(state(dated, request = request(dated)).topDisplayName, result.displayName)
     }
 
+    @Test fun quickDraftEditsKeepCameraSnapshotAndRequireTheDraftsOwnCounterRead() {
+        val sourceCell = template.cells.single()
+        val linked = template.copy(
+            fileNameSlotDrafts = listOf(TableEditorSlotDraft("CELL", "셀", cellId = sourceCell.cellId)),
+            pathSlotDrafts = listOf(TableEditorSlotDraft("CELL", "셀", cellId = sourceCell.cellId)))
+        val cameraRequest = request(linked)
+        val original = state(linked, request = cameraRequest)
+        val draft = com.dudoziworkshop.dzlog.feature.table.policy.updateQuickCellValues(
+            linked, mapOf(sourceCell.cellId to "새우"))
+        assertNull(state(draft, request = cameraRequest).displayCounter)
+        val preview = state(draft, request = request(draft), next = 7)
+        assertEquals("새우_7.jpg", preview.topDisplayName)
+        assertEquals("Pictures/DZlog/새우/", preview.finalCapturePreview!!.relativePathPreview)
+        assertEquals(original.topDisplayName, state(linked, request = cameraRequest).topDisplayName)
+        assertEquals(original.displayCounter, state(linked, request = cameraRequest).displayCounter)
+        assertEquals("오징어", linked.cells.single().rawText)
+    }
 }
