@@ -56,6 +56,7 @@ internal fun TableEditorCellUiModelEditor(
     onApplyTimePolicy: () -> Unit,
     onPhraseSetChange: (String?) -> Unit,
     onPhraseEveryChange: (Int) -> Unit,
+    onPhraseProgressChange: (Int, Int) -> Unit,
     onCreatePhraseSet: (String) -> Unit,
     onUpdatePhraseSet: (String, (com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> Unit,
     onDeletePhraseSet: (String) -> Unit,
@@ -70,6 +71,7 @@ internal fun TableEditorCellUiModelEditor(
     var showTypePicker by remember(cell.id) { mutableStateOf(false) }
     var showDatePicker by remember(cell.id) { mutableStateOf(false) }
     var showPhrasePicker by remember(cell.id) { mutableStateOf(false) }
+    var showPhraseProgress by remember(cell.id) { mutableStateOf(false) }
     var editingPhraseSetId by remember(cell.id) { mutableStateOf<String?>(null) }
 
     CompositionLocalProvider(LocalTextStyle provides DDZTypography.Body) {
@@ -221,6 +223,19 @@ internal fun TableEditorCellUiModelEditor(
                                 DDZButton(text = "+", style = DDZButtonStyle.Secondary, minHeight = 40.dp,
                                     onClick = { onPhraseEveryChange(everyValue + 1) })
                             }
+                            if (selectedSet.items.isNotEmpty()) {
+                                val index = cell.phraseIndex.coerceIn(0, selectedSet.items.lastIndex)
+                                val completed = cell.phraseCompletedShots.coerceIn(0, everyValue - 1)
+                                TableEditorSettingRow(label = "현재 문구", value = selectedSet.items[index],
+                                    onClick = { showPhraseProgress = true })
+                                TableEditorSettingRow(label = "저장 완료", value = "$completed / ${everyValue}장 · 조정",
+                                    onClick = { showPhraseProgress = true })
+                                Text("${everyValue - completed}장 더 촬영하면 ${selectedSet.items[(index + 1) % selectedSet.items.size]}",
+                                    style = DDZTypography.Caption, color = DDZColor.TextMuted, maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis)
+                                Text("주기 변경 시 현재 문구의 완료 장수가 초기화됩니다.",
+                                    style = DDZTypography.Caption, color = DDZColor.TextMuted)
+                            }
                         }
                     }
                     else -> Unit
@@ -235,6 +250,12 @@ internal fun TableEditorCellUiModelEditor(
             }
         }
 
+    }
+
+    if (showPhraseProgress) {
+        phraseSets.firstOrNull { it.id == cell.phraseSetId && it.items.isNotEmpty() }?.let { set ->
+            TableEditorPhraseProgressDialog(cell, set, onPhraseProgressChange, { showPhraseProgress = false })
+        }
     }
 
     if (showTypePicker) {

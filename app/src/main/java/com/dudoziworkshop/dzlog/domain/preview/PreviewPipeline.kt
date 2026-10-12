@@ -9,6 +9,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
+import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
 import com.dudoziworkshop.dzlog.domain.table.ResolvePlan
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import java.util.Date
@@ -261,11 +262,13 @@ internal fun buildCapturePreview(
 
     return FinalCapturePreview(
         resolvedCells = finalPlan.resolvedCells,
-        tablePatch = finalPlan.patch,
+        tablePatch = finalPlan.patch.copy(phraseProgressByCellId = CellPhraseProgressPolicy.captureUpdates(
+            scopeState.effectiveCells, input.templateState.phraseSets,
+        )),
         displayName = previewNaming.displayName,
         usedCounter = requireNotNull(previewNaming.usedCounter),
-        // 정책 정리: 문구 진행은 sync 이후 최종 preview가 확정된 뒤에만 다음 커서를 계산한다.
-        nextPhraseProgressCursor = input.phraseProgressCursor.coerceAtLeast(1) + 1,
+        // Legacy cursor is no longer advanced or used to select cell phrases.
+        nextPhraseProgressCursor = input.phraseProgressCursor,
         counterScope = previewNaming.counterScope,
         relativePathPreview = previewNaming.relativePath,
     )

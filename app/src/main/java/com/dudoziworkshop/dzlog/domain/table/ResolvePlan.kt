@@ -12,10 +12,11 @@ data class ResolvePlan(
 
 /**
  * 저장 성공 시에만 적용할 상태 변경분.
- * 현재 리팩터링 범위에서는 COUNTER 커밋만 포함한다.
+ * 자동번호와 셀별 순환문구 진행을 함께 커밋한다.
  */
 data class TablePatch(
-    val updatesByCellId: Map<String, String>
+    val updatesByCellId: Map<String, String>,
+    val phraseProgressByCellId: Map<String, com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgress> = emptyMap()
 ) {
     companion object {
         val EMPTY = TablePatch(emptyMap())

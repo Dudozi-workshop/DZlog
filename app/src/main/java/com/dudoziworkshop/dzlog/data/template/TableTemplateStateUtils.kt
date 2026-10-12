@@ -134,6 +134,8 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         dataType = dataType,
                         phraseSetId = o.optString("phraseSetId").ifBlank { null },
                         everyOverride = if (o.has("everyOverride")) o.optInt("everyOverride").coerceAtLeast(1) else null,
+                        phraseIndex = o.optInt("phraseIndex", 0).coerceAtLeast(0),
+                        phraseCompletedShots = o.optInt("phraseCompletedShots", 0).coerceAtLeast(0),
                         formatPattern = o.optString("formatPattern", ""),
                         counterScopeMode = o.optString("counterScopeMode").takeIf { it.isNotBlank() }
                             ?.let { runCatching { CounterScopeMode.valueOf(it) }.getOrNull() },
@@ -353,6 +355,8 @@ fun TableTemplateState.toJsonString(): String {
 
         c.phraseSetId?.let { o.put("phraseSetId", it) }
         c.everyOverride?.let { o.put("everyOverride", it) }
+        o.put("phraseIndex", c.phraseIndex)
+        o.put("phraseCompletedShots", c.phraseCompletedShots)
 
         // TIME 옵션 저장
         c.timeFormatOptions?.let { t ->

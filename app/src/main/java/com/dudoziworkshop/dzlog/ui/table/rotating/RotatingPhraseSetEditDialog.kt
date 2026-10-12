@@ -179,6 +179,8 @@ fun RotatingPhraseSetEditDialog(
                         Column(Modifier.weight(1f)) {
                             Text(phraseSet.name, style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
                             Text("${phraseSet.items.size}개 문구", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+                            Text("문구 수정·추가·삭제·순서 변경 시 첫 문구부터 시작합니다.",
+                                style = DDZTypography.Caption, color = DDZColor.TextSecondary)
                         }
                         IconButton(onClick = ::openRenameDialog) {
                             Icon(Icons.Default.Edit, "세트 이름 변경", tint = DDZColor.PrimaryDark)

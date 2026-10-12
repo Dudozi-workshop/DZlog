@@ -110,6 +110,6 @@ class PhraseResolverTest {
             progressCursor = 2,
         )
 
-        assertEquals("헐", result["r1"])
+        assertEquals("왜", result["r1"])
     }
 }

@@ -65,7 +65,7 @@ class RotatingCounterProgressTest {
     @Test
     fun preview_capture_and_save_settings_share_cursor_scope_and_number_suffix() {
         for (mode in RotatingCounterProgressMode.entries) for (saveMode in SaveMode.entries) {
-            val template = template(mode)
+            val template = atCursor(template(mode), 2)
             val scope = buildScope(CaptureScopeInput(template, Date(0), 4, "yyyyMMdd", "HHmm", "_", true, saveMode, 2))
             val capture = buildCapturePreview(scope, FinalCapturePreviewInput(template, Date(0), 4,
                 "yyyyMMdd", "HHmm", "_", true, true, saveMode, 12, 2))
@@ -73,7 +73,7 @@ class RotatingCounterProgressTest {
             assertEquals("T1_B_0012.jpg", capture.displayName)
             assertEquals(preview.previewNaming.displayName, capture.displayName)
             assertEquals(preview.plan.resolvedCells, capture.resolvedCells)
-            assertEquals(3, capture.nextPhraseProgressCursor)
+            assertEquals(2, capture.nextPhraseProgressCursor)
             val request = SaveSettingsCounterController.buildRequest(2, template, saveMode, 4, true, true)
             assertEquals(scope.scanPrefix, request.scanPrefix)
             assertEquals(scope.counterScope.streamPrefix, request.prefix)
@@ -104,6 +104,9 @@ class RotatingCounterProgressTest {
 
     private fun preview(template: TableTemplateState, cursor: Int, saveMode: SaveMode = SaveMode.BOTH,
         filenameScope: Boolean = true, pathScope: Boolean = true, next: Int? = null): PreviewState =
-        buildPreview(PreviewInput(template, Date(0), 4, "yyyyMMdd", "HHmm", "_", pathScope,
+        buildPreview(PreviewInput(atCursor(template, cursor), Date(0), 4, "yyyyMMdd", "HHmm", "_", pathScope,
             filenameScope, saveMode, next, cursor))
+    private fun atCursor(template: TableTemplateState, cursor: Int) = template.copy(
+        cells = template.cells.map { it.copy(phraseIndex = (cursor - 1) % 3) })
+
 }

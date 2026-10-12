@@ -31,4 +31,18 @@ class RotatingPhrasePersistenceTest {
             assertEquals(template, tableTemplateStateFromJson(root.toString()))
         }
     }
+    @Test fun cell_progress_round_trips_and_legacy_templates_start_at_zero() {
+        val template = newBlankTableTemplateState(1, 1).let { t ->
+            t.copy(cells = t.cells.map { it.copy(phraseIndex = 2, phraseCompletedShots = 7) })
+        }
+        assertEquals(template, tableTemplateStateFromJson(template.toJsonString()))
+        val root = JSONObject(template.toJsonString())
+        root.getJSONArray("cells").getJSONObject(0).apply {
+            remove("phraseIndex"); remove("phraseCompletedShots")
+        }
+        val restored = requireNotNull(tableTemplateStateFromJson(root.toString())).cells.single()
+        assertEquals(0, restored.phraseIndex)
+        assertEquals(0, restored.phraseCompletedShots)
+    }
+
 }

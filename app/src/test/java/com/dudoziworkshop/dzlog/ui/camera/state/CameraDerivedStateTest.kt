@@ -92,12 +92,13 @@ class CameraDerivedStateTest {
             fileNameSlotDrafts = List(FILE_NAME_SLOT_COUNT) {
                 if (it == 0) TableEditorSlotDraft("CELL", "시료", cellId = phrase.cellId) else null
             }, pathSlotDrafts = listOf(TableEditorSlotDraft("CELL", "시료", cellId = phrase.cellId)))
-        assertNull(state(phrases, request = request(phrases), cursor = 2).finalCapturePreview)
-        val result = state(phrases, request = request(phrases, cursor = 2), cursor = 2).finalCapturePreview!!
+        val changed = phrases.copy(cells = listOf(phrase.copy(phraseIndex = 1)))
+        assertNull(state(changed, request = request(phrases)).finalCapturePreview)
+        val result = state(changed, request = request(changed), cursor = 2).finalCapturePreview!!
         assertEquals("새우", result.resolvedCells.single().resolvedText)
         assertEquals("새우_42.jpg", result.displayName)
         assertEquals("Pictures/DZlog/새우/", result.relativePathPreview)
-        assertEquals(3, result.nextPhraseProgressCursor)
+        assertEquals(2, result.nextPhraseProgressCursor)
     }
 
     @Test fun dateFormatSlotChangeWaitsForTheNewDayRead() {

@@ -64,7 +64,9 @@ fun TableCellState.withDataType(newType: TableCellDataType): TableCellState {
     } else {
         next.copy(
             phraseSetId = null,
-            everyOverride = null
+            everyOverride = null,
+            phraseIndex = 0,
+            phraseCompletedShots = 0
         )
     }
 }

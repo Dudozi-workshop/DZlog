@@ -8,8 +8,8 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
  * 문구 선택 정책 전용 resolver.
  *
  * 정책:
- * - progress 기반으로 현재 문구를 선택한다.
- * - 저장 성공 전에는 progress를 바꾸지 않고, 성공 후 nextProgressCursor를 반영한다.
+ * - 실제 표/파일명/경로는 셀별 진행으로 현재 문구를 선택한다.
+ * - 저장 성공 후에만 TablePatch로 셀별 진행을 반영한다.
  */
 object PhraseResolver {
 
@@ -41,26 +41,22 @@ object PhraseResolver {
      * - 문구 선택 책임은 이 resolver가 담당하고,
      * - TableResolver는 이 맵을 소비해 resolvedCells만 생성한다.
      */
+    @Suppress("UNUSED_PARAMETER") // legacy cursor parameter retained for caller compatibility
     fun resolveSelectedTextByCellId(
         cells: List<TableCellState>,
         phraseSets: List<RotatingPhraseSet>,
         progressCursor: Int,
     ): Map<String, String> {
         val phraseSetMap = phraseSets.associateBy { it.id }
-        val safeProgress = progressCursor.coerceAtLeast(1)
-
         return cells
             .asSequence()
             .filter { it.dataType == TableCellDataType.ROTATING_TEXT }
             .map { cell ->
                 val phraseSetId = cell.phraseSetId?.takeIf { it.isNotBlank() }
                 val phraseSet = phraseSetId?.let { phraseSetMap[it] }
-                val effectiveEvery = (cell.everyOverride ?: phraseSet?.defaultEvery ?: 1).coerceAtLeast(1)
-                cell.cellId to (resolve(
-                    phraseSet = phraseSet,
-                    every = effectiveEvery,
-                    progressCursor = safeProgress
-                )?.text.orEmpty())
+                cell.cellId to (phraseSet?.let { set ->
+                    set.items.getOrNull(CellPhraseProgressPolicy.current(cell, set).index)
+                }.orEmpty())
             }
             .toMap()
     }

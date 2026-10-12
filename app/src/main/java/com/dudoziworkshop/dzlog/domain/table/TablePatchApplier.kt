@@ -5,8 +5,13 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 
 fun TableTemplateState.applyPatch(patch: TablePatch): TableTemplateState {
-    if (patch.updatesByCellId.isEmpty()) return this
+    if (patch.updatesByCellId.isEmpty() && patch.phraseProgressByCellId.isEmpty()) return this
     val updated = cells.map { cell ->
+        patch.phraseProgressByCellId[cell.cellId]?.let { progress ->
+            if (cell.dataType == TableCellDataType.ROTATING_TEXT) {
+                return@map cell.copy(phraseIndex = progress.index, phraseCompletedShots = progress.completedShots)
+            }
+        }
         val newValue = patch.updatesByCellId[cell.cellId] ?: return@map cell
         // 현재 patch는 COUNTER 증가(저장 성공 후) 용도로만 사용한다.
         if (cell.dataType != TableCellDataType.COUNTER) return@map cell

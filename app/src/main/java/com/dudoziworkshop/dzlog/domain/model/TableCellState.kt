@@ -28,6 +28,9 @@ data class TableCellState(
     val dataType: TableCellDataType = TableCellDataType.TEXT,
     val phraseSetId: String? = null,
     val everyOverride: Int? = null,
+    /** Cell-local rotation; old templates deliberately start at the first item. */
+    val phraseIndex: Int = 0,
+    val phraseCompletedShots: Int = 0,
 
     /**
      * Optional display pattern (currently used for DATE; TIME는 향후 timeFormatOptions로 완전 대체).

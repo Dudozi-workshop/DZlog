@@ -57,7 +57,7 @@ class TableEditorCellPreviewTest {
 
     @Test fun rotatingCellAndFilenameUseCurrentCursorInsteadOfFirstPhrase() {
         val cell = TableCellState(rowIndex = 0, colIndex = 0, cellId = "phrase",
-            dataType = TableCellDataType.ROTATING_TEXT, phraseSetId = "set")
+            dataType = TableCellDataType.ROTATING_TEXT, phraseSetId = "set", phraseIndex = 2)
         val template = TableTemplateState(rows = 1, cols = 1, cells = listOf(cell),
             phraseSets = listOf(RotatingPhraseSet("set", "ABC", listOf("A", "B", "C"))),
             fileNameSlotDrafts = List(FILE_NAME_SLOT_COUNT) { index ->
@@ -74,7 +74,7 @@ class TableEditorCellPreviewTest {
     @Test fun phraseEveryOverrideUsesSharedResolver() {
         val template = TableTemplateState(rows = 1, cols = 1,
             cells = listOf(TableCellState(rowIndex = 0, colIndex = 0, cellId = "phrase",
-                dataType = TableCellDataType.ROTATING_TEXT, phraseSetId = "set", everyOverride = 2)),
+                dataType = TableCellDataType.ROTATING_TEXT, phraseSetId = "set", everyOverride = 2, phraseIndex = 1, phraseCompletedShots = 1)),
             phraseSets = listOf(RotatingPhraseSet("set", "ABC", listOf("A", "B", "C"))))
         assertEquals("B", ui(template, cursor = 3).single().previewValue)
     }

@@ -45,6 +45,8 @@ internal fun mockCellsFromTemplate(
                 formatPattern = cell.formatPattern,
                 phraseSetId = cell.phraseSetId,
                 everyOverride = cell.everyOverride,
+                phraseIndex = cell.phraseIndex,
+                phraseCompletedShots = cell.phraseCompletedShots,
                 rowIndex = cell.rowIndex,
                 colIndex = cell.colIndex,
                 rowSpan = cell.rowSpan,
@@ -169,7 +171,8 @@ internal fun applyMockPhraseSet(
                 if (safeId == null) {
                     cell.copy(phraseSetId = null, everyOverride = null)
                 } else {
-                    cell.copy(phraseSetId = safeId)
+                    if (cell.phraseSetId == safeId) cell else
+                        cell.copy(phraseSetId = safeId, phraseIndex = 0, phraseCompletedShots = 0)
                 }
             } else {
                 cell
@@ -190,7 +193,7 @@ internal fun applyMockPhraseEvery(
                 cell.dataType == TableCellDataType.ROTATING_TEXT &&
                 cell.phraseSetId != null
             ) {
-                cell.copy(everyOverride = every.coerceAtLeast(1))
+                cell.copy(everyOverride = every.coerceAtLeast(1), phraseCompletedShots = 0)
             } else {
                 cell
             }
@@ -219,11 +222,20 @@ internal fun updateMockPhraseSet(
     phraseSetId: String,
     transform: (RotatingPhraseSet) -> RotatingPhraseSet,
 ): TableTemplateState =
-    templateState.copy(
-        phraseSets = templateState.phraseSets.map { set ->
-            if (set.id == phraseSetId) transform(set) else set
-        }
-    )
+    templateState.let { state ->
+        val old = state.phraseSets.firstOrNull { it.id == phraseSetId } ?: return@let state
+        val updated = transform(old)
+        state.copy(
+            phraseSets = state.phraseSets.map { if (it.id == phraseSetId) updated else it },
+            cells = state.cells.map { cell ->
+                if (cell.phraseSetId == phraseSetId && old.items != updated.items)
+                    cell.copy(phraseIndex = 0, phraseCompletedShots = 0)
+                else if (cell.phraseSetId == phraseSetId && old.defaultEvery != updated.defaultEvery && cell.everyOverride == null)
+                    cell.copy(phraseCompletedShots = 0)
+                else cell
+            },
+        )
+    }
 
 internal fun deleteMockPhraseSet(
     templateState: TableTemplateState,

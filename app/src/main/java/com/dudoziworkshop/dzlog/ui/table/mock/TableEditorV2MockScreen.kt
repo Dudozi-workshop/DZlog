@@ -110,6 +110,8 @@ internal data class TableEditorCellUiModel(
     val formatPattern: String = "",
     val phraseSetId: String? = null,
     val everyOverride: Int? = null,
+    val phraseIndex: Int = 0,
+    val phraseCompletedShots: Int = 0,
     val rowIndex: Int = 0,
     val colIndex: Int = 0,
     val rowSpan: Int = 1,
@@ -507,6 +509,17 @@ fun TableEditorV2Screen(
                                                         phraseSetId = phraseSetId,
                                                     )
                                                 )
+                                            }
+                                        },
+                                        onPhraseProgressChange = { index, completed ->
+                                            selected.domainCellId?.let { cellId ->
+                                                session.commitTemplateChange(draftTemplateState.copy(
+                                                    cells = draftTemplateState.cells.map { cell ->
+                                                        if (cell.cellId == cellId) cell.copy(
+                                                            phraseIndex = index, phraseCompletedShots = completed
+                                                        ) else cell
+                                                    }
+                                                ))
                                             }
                                         },
                                         onPhraseEveryChange = { every ->
