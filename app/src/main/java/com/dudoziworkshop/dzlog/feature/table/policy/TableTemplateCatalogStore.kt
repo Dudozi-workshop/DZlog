@@ -22,48 +22,69 @@ data class TableTemplateCatalogSnapshot(
     val activeTemplateId: String?,
 )
 
+/** Read-only startup decision for the future onboarding route; no template is created here. */
+suspend fun inspectTableTemplateCatalogStartup(
+    context: Context,
+    verifiedNoExistingMedia: Boolean,
+): CatalogStartupRoute {
+    val prefs = context.dataStore.data.first()
+    val catalog = prefs[KEY_TABLE_TEMPLATES_JSON]
+    val legacy = prefs[KEY_TABLE_TEMPLATE_JSON]
+    return decideCatalogStartupRoute(
+        catalogJson = catalog,
+        legacyJson = legacy,
+        hasOtherSavedState = prefs.asMap().keys.any {
+            it != KEY_TABLE_TEMPLATES_JSON && it != KEY_TABLE_TEMPLATE_JSON
+        },
+        verifiedNoExistingMedia = verifiedNoExistingMedia,
+    )
+}
+
 suspend fun loadOrMigrateTableTemplateCatalog(context: Context): TableTemplateCatalogSnapshot {
     val prefs = context.dataStore.data.first()
     val catalogJson = prefs[KEY_TABLE_TEMPLATES_JSON]
     if (catalogJson != null) {
-        val parsedCatalog = savedTableTemplatesFromJson(catalogJson)
-        if (parsedCatalog != null) {
-            if (parsedCatalog.isEmpty()) {
-                return TableTemplateCatalogSnapshot(
-                    items = emptyList(),
-                    activeTemplateId = null,
-                )
-            }
-            val requestedActive = prefs[KEY_ACTIVE_TABLE_TEMPLATE_ID]
-            val activeId = requestedActive
-                ?.takeIf { id -> parsedCatalog.any { it.id == id } }
-                ?: parsedCatalog.maxByOrNull { it.modifiedAt }!!.id
-            return TableTemplateCatalogSnapshot(
-                items = parsedCatalog.sortedByDescending { it.modifiedAt },
-                activeTemplateId = activeId,
-            )
+        val parsedCatalog = decodeCatalogWithoutDataLoss(catalogJson)
+            ?: error("Stored table catalog is unreadable. Refusing to overwrite it.")
+        if (parsedCatalog.isEmpty()) {
+            return TableTemplateCatalogSnapshot(items = emptyList(), activeTemplateId = null)
         }
+        val requestedActive = prefs[KEY_ACTIVE_TABLE_TEMPLATE_ID]
+        val activeId = requestedActive
+            ?.takeIf { id -> parsedCatalog.any { it.id == id } }
+            ?: parsedCatalog.maxByOrNull { it.modifiedAt }!!.id
+        return TableTemplateCatalogSnapshot(
+            items = parsedCatalog.sortedByDescending { it.modifiedAt },
+            activeTemplateId = activeId,
+        )
     }
 
-    val legacyTemplate = prefs[KEY_TABLE_TEMPLATE_JSON]
-        ?.takeIf { it.isNotBlank() }
-        ?.let(::tableTemplateStateFromJson)
-        ?: defaultTableTemplateState()
+    // Never turn an unreadable saved legacy template into a newly created default.
+    val legacyJson = prefs[KEY_TABLE_TEMPLATE_JSON]
+    val legacyTemplate = if (legacyJson == null) defaultTableTemplateState()
+        else tableTemplateStateFromJson(legacyJson)
+            ?: error("Stored legacy template is unreadable. Refusing to overwrite it.")
     val style = loadTableStyleState(context)
     val migrated = createSavedTableTemplate(
         name = "기본 템플릿",
         templateState = legacyTemplate,
         styleState = style,
     )
-    persistTableTemplateCatalog(
-        context = context,
-        items = listOf(migrated),
-        activeTemplateId = migrated.id,
-    )
-    return TableTemplateCatalogSnapshot(
-        items = listOf(migrated),
-        activeTemplateId = migrated.id,
-    )
+
+    // Only migrate when the keys still match the originally inspected state.
+    // An onboarding confirmation or concurrent restore must not be overwritten.
+    var didMigrate = false
+    context.dataStore.edit { current ->
+        if (current[KEY_TABLE_TEMPLATES_JSON] != null ||
+            current[KEY_TABLE_TEMPLATE_JSON] != legacyJson) return@edit
+        current[KEY_TABLE_TEMPLATES_JSON] = savedTableTemplatesToJson(listOf(migrated))
+        current[KEY_ACTIVE_TABLE_TEMPLATE_ID] = migrated.id
+        current[KEY_TABLE_TEMPLATE_JSON] = migrated.templateState.toJsonString()
+        didMigrate = true
+    }
+    if (!didMigrate) return loadOrMigrateTableTemplateCatalog(context)
+    persistTableStyleState(context, style)
+    return TableTemplateCatalogSnapshot(items = listOf(migrated), activeTemplateId = migrated.id)
 }
 
 suspend fun persistTableTemplateCatalog(
