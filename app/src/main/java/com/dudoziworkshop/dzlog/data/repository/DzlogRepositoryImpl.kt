@@ -40,15 +40,18 @@ class DzlogRepositoryImpl(
         context: Context,
         imageCapture: ImageCapture,
         request: CaptureRequest,
+        onCaptureStarted: () -> Unit,
         onDone: (LogEntry) -> Unit,
         onFail: (String) -> Unit
     ) {
+        val timing = CaptureTimingTracker()
         val executor = ContextCompat.getMainExecutor(context)
 
         // ✅ 임시 파일로 촬영 → Bitmap 디코딩 → MediaStoreSaver.saveJpeg로 최종 저장
         val tmpFile = kotlin.runCatching {
             File.createTempFile("dzlog_", ".jpg", context.cacheDir)
         }.getOrElse {
+            timing.finish("temp_file_error")
             onFail("임시파일 생성 실패: ${it.message}")
             return
         }
@@ -66,7 +69,13 @@ class DzlogRepositoryImpl(
             executor,
             object : ImageCapture.OnImageSavedCallback {
 
+                override fun onCaptureStarted() {
+                    timing.onCaptureStarted()
+                    onCaptureStarted()
+                }
+
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                    timing.onTempFileReady()
                     ioScope.launch {
                         val result = runCatching {
                             val decodedBmp = BitmapFactory.decodeFile(tmpFile.absolutePath)
@@ -74,6 +83,7 @@ class DzlogRepositoryImpl(
                             val exif = ExifInterface(tmpFile)
                             val orientedBmp = applyExifOrientation(decodedBmp, exif)
                             val originalBmp = cropToAspect(orientedBmp, request)
+                            timing.onBitmapReady()
 
                             val baseRel = normalizeCaptureBaseRelativePath(request.relativePath)
                             val origRel = appendOriginalCaptureDirectory(baseRel)
@@ -98,6 +108,7 @@ class DzlogRepositoryImpl(
                                 },
                                 deleteSaved = { uri -> saver.deleteByUri(context, uri) },
                             )
+                            timing.onMediaSaved()
                             val entry = LogEntry(
                                 mediaStoreId = saved.primary.mediaStoreId,
                                 contentUri = saved.primary.uri,
@@ -122,6 +133,7 @@ class DzlogRepositoryImpl(
                         }
 
                         tmpFile.delete()
+                        timing.finish(if (result.isSuccess) "saved" else "save_error")
 
                         withContext(Dispatchers.Main) {
                             result.onSuccess { entry ->
@@ -137,6 +149,7 @@ class DzlogRepositoryImpl(
                 }
 
                 override fun onError(exception: ImageCaptureException) {
+                    timing.finish("camera_error")
                     tmpFile.delete()
                     onFail(exception.message ?: "촬영 실패")
                 }
