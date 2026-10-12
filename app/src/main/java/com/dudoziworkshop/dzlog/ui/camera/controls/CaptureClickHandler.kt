@@ -34,6 +34,7 @@ data class CaptureClickCallbacks(
     val onSetCapturing: (Boolean) -> Unit,
     val onProgressPersistenceFailed: () -> Unit = {},
     val onCaptureStarted: () -> Unit = {},
+    val onImageCaptured: () -> Unit = {},
 )
 
 /**
@@ -141,6 +142,7 @@ internal fun handleCaptureClick(
         imageCapture = imageCaptureNonNull,
         request = req,
         onCaptureStarted = callbacks.onCaptureStarted,
+        onImageCaptured = callbacks.onImageCaptured,
         onDone = { entry ->
             val committedCounter = CaptureNamingPolicy.parseUsedCounterFromDisplayName(
                 displayName = entry.displayName,
