@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.table
 
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import com.dudoziworkshop.dzlog.ui.common.DDZCellTypeIcons
 
 import android.widget.Toast
@@ -31,8 +33,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.AlertDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -472,18 +473,18 @@ internal fun CellSettingsBottomPanel(
                         }
                     },
                     confirmButton = {
-                        TextButton(
+                        DDZDialogAction(style = DDZButtonStyle.Primary,
                             onClick = {
                                 onSetCounterScopeMode(pendingCounterScopeMode)
                                 isCounterScopeDialogOpen = false
                             }
                         ) {
-                            Text("확인", style = DDZTypography.ButtonText, color = DDZColor.Primary)
+                            Text("확인", style = DDZTypography.ButtonText)
                         }
                     },
                     dismissButton = {
-                        TextButton(onClick = { isCounterScopeDialogOpen = false }) {
-                            Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary)
+                        DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = { isCounterScopeDialogOpen = false }) {
+                            Text("취소", style = DDZTypography.ButtonText)
                         }
                     }
                 )

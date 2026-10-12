@@ -5,6 +5,8 @@
 
 package com.dudoziworkshop.dzlog.ui.log
 
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -49,7 +51,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -440,7 +442,7 @@ fun LogViewerScreen(
             title = { Text(if (originalLoading) "원본 확인 중" else "원본 보기") },
             text = { Text(originalError ?: "연결된 원본사진을 확인하고 있습니다.") },
             confirmButton = {
-                if (!originalLoading) TextButton(onClick = { originalError = null }) { Text("확인") }
+                if (!originalLoading) DDZDialogAction(style = DDZButtonStyle.Primary, onClick = { originalError = null }) { Text("확인") }
             },
         )
     }

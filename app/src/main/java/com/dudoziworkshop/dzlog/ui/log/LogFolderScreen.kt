@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.IntentSenderRequest
@@ -40,7 +42,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
@@ -657,14 +659,14 @@ fun LogFolderScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(enabled = !deleteBusy && !photoMoveBusy && pendingPhotoPlan == null, onClick = {
+                    DDZDialogAction(style = DDZButtonStyle.Destructive, enabled = !deleteBusy && !photoMoveBusy && pendingPhotoPlan == null, onClick = {
                         showDeleteRetry = false
                         folderOperationError = null
                         deleteAction.request(deleteRetry)
                     }) { Text("삭제 재시도") }
                 },
                 dismissButton = {
-                    TextButton(enabled = !deleteBusy, onClick = { showDeleteRetry = false }) { Text("취소") }
+                    DDZDialogAction(style = DDZButtonStyle.Secondary, enabled = !deleteBusy, onClick = { showDeleteRetry = false }) { Text("취소") }
                 },
             )
         }
@@ -745,12 +747,12 @@ fun LogFolderScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(enabled = !photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null, onClick = {
+                    DDZDialogAction(style = DDZButtonStyle.Primary, enabled = !photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null, onClick = {
                         showPhotoMoveRetry = false
                         requestPhotoMove(retryPlan)
                     }) { Text("재시도") }
                 },
-                dismissButton = { TextButton(onClick = { showPhotoMoveRetry = false }) { Text("취소") } },
+                dismissButton = { DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = { showPhotoMoveRetry = false }) { Text("취소") } },
             )
         }
         if (showFolderAccessHelp) {
@@ -759,7 +761,7 @@ fun LogFolderScreen(
                 title = { Text("DZlog 폴더 접근 연결") },
                 text = { Text("빈 폴더를 확인하고 폴더 이름을 변경하거나 이동하려면 접근 권한이 필요합니다. 다음 화면에서 내장 저장공간의 Pictures/DZlog 폴더를 선택해 주세요.") },
                 confirmButton = {
-                    TextButton(onClick = {
+                    DDZDialogAction(style = DDZButtonStyle.Primary, onClick = {
                         showFolderAccessHelp = false
                         folderAccessBusy = true
                         folderOperationError = null
@@ -774,7 +776,7 @@ fun LogFolderScreen(
                         }
                     }) { Text("폴더 선택") }
                 },
-                dismissButton = { TextButton(onClick = { showFolderAccessHelp = false }) { Text("취소") } },
+                dismissButton = { DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = { showFolderAccessHelp = false }) { Text("취소") } },
             )
         }
         if (manageAction == "delete") {
@@ -847,7 +849,7 @@ fun LogFolderScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(enabled = !folderManagementBusy && managementConfirmed && (manageAction != "move" || destinationPaths.contains(moveTarget)), onClick = {
+                    DDZDialogAction(style = DDZButtonStyle.Primary, enabled = !folderManagementBusy && managementConfirmed && (manageAction != "move" || destinationPaths.contains(moveTarget)), onClick = {
                         val action = manageAction
                         val sourcePath = managedFolderPath
                         val requestedName = renameName
@@ -881,7 +883,7 @@ fun LogFolderScreen(
                     }) { Text("변경") }
                 },
                 dismissButton = {
-                    TextButton(enabled = !folderManagementBusy, onClick = { manageAction = null }) { Text("취소") }
+                    DDZDialogAction(style = DDZButtonStyle.Secondary, enabled = !folderManagementBusy, onClick = { manageAction = null }) { Text("취소") }
                 },
             )
         }
@@ -898,7 +900,7 @@ fun LogFolderScreen(
                     )
                 },
                 confirmButton = {
-                    TextButton(onClick = {
+                    DDZDialogAction(style = DDZButtonStyle.Primary, onClick = {
                         scope.launch {
                             val result = withContext(Dispatchers.IO) {
                                 runCatching {
@@ -918,7 +920,7 @@ fun LogFolderScreen(
                     }) { Text("생성") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showCreateDialog = false }) { Text("취소") }
+                    DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = { showCreateDialog = false }) { Text("취소") }
                 },
             )
         }

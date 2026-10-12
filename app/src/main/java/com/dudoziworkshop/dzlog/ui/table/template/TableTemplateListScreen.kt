@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.table.template
 
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -243,12 +245,12 @@ fun TableTemplateListScreen(
                 )
             },
             dismissButton = {
-                TextButton(onClick = { renameTarget = null }) {
+                DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = { renameTarget = null }) {
                     Text("취소")
                 }
             },
             confirmButton = {
-                TextButton(
+                DDZDialogAction(style = DDZButtonStyle.Primary,
                     enabled = renameDraft.trim().isNotBlank(),
                     onClick = {
                         onRenameTemplate(target.id, renameDraft.trim())
@@ -267,12 +269,12 @@ fun TableTemplateListScreen(
             title = { Text("템플릿을 삭제할까요?") },
             text = { Text("‘${target.name}’ 템플릿이 삭제됩니다.") },
             dismissButton = {
-                TextButton(onClick = { deleteTarget = null }) {
+                DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = { deleteTarget = null }) {
                     Text("취소")
                 }
             },
             confirmButton = {
-                TextButton(
+                DDZDialogAction(style = DDZButtonStyle.Destructive,
                     onClick = {
                         onDeleteTemplate(target.id)
                         deleteTarget = null

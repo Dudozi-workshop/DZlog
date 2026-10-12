@@ -1,12 +1,13 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.AlertDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,16 +66,16 @@ internal fun GalleryPhotoMoveConfirmation(
             }
         },
         confirmButton = {
-            TextButton(enabled = !busy && plan != null && (showFinal || includeOriginals != null), onClick = {
+            DDZDialogAction(style = DDZButtonStyle.Primary, enabled = !busy && plan != null && (showFinal || includeOriginals != null), onClick = {
                 if (showFinal) onConfirm(requireNotNull(plan)) else finalStep = true
             }) { Text(if (showFinal) "이동" else "다음") }
         },
         dismissButton = {
-            Row {
-                TextButton(enabled = !busy, onClick = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                DDZDialogAction(style = DDZButtonStyle.Secondary, enabled = !busy, onClick = {
                     if (showFinal && originals.isNotEmpty()) finalStep = false else onChangeDestination()
                 }) { Text("이전") }
-                TextButton(enabled = !busy, onClick = onCancel) { Text("취소") }
+                DDZDialogAction(style = DDZButtonStyle.Secondary, enabled = !busy, onClick = onCancel) { Text("취소") }
             }
         },
     )

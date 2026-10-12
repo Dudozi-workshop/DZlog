@@ -1,10 +1,11 @@
 package com.dudoziworkshop.dzlog.ui.table
 
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import androidx.activity.compose.BackHandler
-import androidx.compose.material3.AlertDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -18,6 +19,7 @@ import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseTemplateDialog
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseUiState
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import com.dudoziworkshop.dzlog.ui.common.DDZUnsavedDecisionDialog
 import java.util.UUID
 
 @Composable
@@ -28,18 +30,8 @@ internal fun UnsavedChangesDialog(
     onCancel: () -> Unit,
 ) {
     if (!visible) return
-    AlertDialog(
-        containerColor = DDZColor.Surface,
-        onDismissRequest = onCancel,
-        title = { Text("저장되지 않은 변경사항", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary) },
-        text = { Text("변경사항을 저장하시겠습니까?", style = DDZTypography.Body, color = DDZColor.TextPrimary) },
-        confirmButton = {
-            TextButton(onClick = onSave) { Text("저장", style = DDZTypography.ButtonText, color = DDZColor.Primary) }
-            TextButton(onClick = onDiscard) { Text("저장 안 함", style = DDZTypography.ButtonText, color = DDZColor.Primary) }
-            TextButton(onClick = onCancel) { Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary) }
-        },
-        dismissButton = {}
-    )
+    DDZUnsavedDecisionDialog(title = "저장되지 않은 변경사항", message = "변경사항을 저장하시겠습니까?",
+        onCancel = onCancel, onDiscard = onDiscard, onSave = onSave)
 }
 
 
@@ -175,17 +167,17 @@ internal fun RotatingPhraseDialogsHost(
                 title = { Text("세트 삭제", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary) },
                 text = { Text("${deleteTarget.name} 세트를 삭제하시겠습니까?", style = DDZTypography.Body, color = DDZColor.TextPrimary) },
                 confirmButton = {
-                    TextButton(onClick = {
+                    DDZDialogAction(style = DDZButtonStyle.Destructive, onClick = {
                         updateTemplate(templateState.copy(
                             phraseSets = templateState.phraseSets.filterNot { it.id == deleteId },
                             cells = templateState.cells.map { cell -> if (cell.phraseSetId == deleteId) cell.copy(phraseSetId = null, everyOverride = null) else cell }
                         ))
                         onRotatingUiChange(rotatingUi.copy(pendingDeleteSetId = null))
-                    }) { Text("삭제", style = DDZTypography.ButtonText, color = DDZColor.Primary) }
+                    }) { Text("삭제", style = DDZTypography.ButtonText) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { onRotatingUiChange(rotatingUi.copy(pendingDeleteSetId = null)) }) {
-                        Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary)
+                    DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = { onRotatingUiChange(rotatingUi.copy(pendingDeleteSetId = null)) }) {
+                        Text("취소", style = DDZTypography.ButtonText)
                     }
                 }
             )
@@ -208,7 +200,7 @@ internal fun RotatingPhraseDialogsHost(
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
+                DDZDialogAction(style = DDZButtonStyle.Primary, onClick = {
                     val name = rotatingUi.createSetName.trim()
                     if (name.isNotEmpty() && rotatingUi.templateDialogCellId != null) {
                         val created = RotatingPhraseSet(UUID.randomUUID().toString(), name, emptyList(), 1)
@@ -221,11 +213,11 @@ internal fun RotatingPhraseDialogsHost(
                         updateTemplate(updated)
                         onRotatingUiChange(rotatingUi.copy(isCreateSetDialogOpen = false, createSetName = ""))
                     }
-                }) { Text("추가", style = DDZTypography.ButtonText, color = DDZColor.Primary) }
+                }) { Text("추가", style = DDZTypography.ButtonText) }
             },
             dismissButton = {
-                TextButton(onClick = { onRotatingUiChange(rotatingUi.copy(isCreateSetDialogOpen = false, createSetName = "")) }) {
-                    Text("취소", style = DDZTypography.ButtonText, color = DDZColor.Primary)
+                DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = { onRotatingUiChange(rotatingUi.copy(isCreateSetDialogOpen = false, createSetName = "")) }) {
+                    Text("취소", style = DDZTypography.ButtonText)
                 }
             }
         )

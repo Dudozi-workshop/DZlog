@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AlertDialog as MaterialAlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -14,9 +14,52 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.window.DialogProperties
 import com.dudoziworkshop.dzlog.ui.theme.LocalDDZColor
 import com.dudoziworkshop.dzlog.ui.theme.LocalDDZTypography
 import com.dudoziworkshop.dzlog.ui.theme.LocalDDZSpacing
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
+
+/** Shared surface and Material slots; callbacks and permission flows stay with callers. */
+@Composable
+fun DDZAlertDialog(
+    onDismissRequest: () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    dismissButton: (@Composable () -> Unit)? = null,
+    icon: (@Composable () -> Unit)? = null,
+    title: (@Composable () -> Unit)? = null,
+    text: (@Composable () -> Unit)? = null,
+    shape: Shape = MaterialTheme.shapes.large,
+    containerColor: Color = LocalDDZColor.current.Surface,
+    iconContentColor: Color = LocalDDZColor.current.TextSecondary,
+    titleContentColor: Color = LocalDDZColor.current.TextPrimary,
+    textContentColor: Color = LocalDDZColor.current.TextSecondary,
+    tonalElevation: Dp = 0.dp,
+    properties: DialogProperties = DialogProperties(),
+) {
+    MaterialAlertDialog(onDismissRequest = onDismissRequest, confirmButton = confirmButton,
+        modifier = modifier, dismissButton = dismissButton, icon = icon, title = title, text = text,
+        shape = shape, containerColor = containerColor, iconContentColor = iconContentColor,
+        titleContentColor = titleContentColor, textContentColor = textContentColor,
+        tonalElevation = tonalElevation, properties = properties)
+}
+
+@Composable
+fun DDZDialogAction(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    style: DDZButtonStyle = DDZButtonStyle.Primary,
+    content: @Composable RowScope.() -> Unit,
+) {
+    val spacing = LocalDDZSpacing.current
+    DDZButtonContent(onClick = onClick, modifier = modifier, enabled = enabled, style = style,
+        minHeight = DDZLayout.QuickInput.Touch, horizontalPadding = spacing.controlGap, content = content)
+}
 
 @Composable
 fun DDZConfirmDialog(
@@ -31,7 +74,7 @@ fun DDZConfirmDialog(
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
 
-    AlertDialog(
+    DDZAlertDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.Surface,
         shape = MaterialTheme.shapes.large,

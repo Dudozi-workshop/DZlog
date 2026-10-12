@@ -1,8 +1,10 @@
 package com.dudoziworkshop.dzlog.ui.table.format
 
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.AlertDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -95,7 +97,7 @@ fun TableFormatDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onClose) {
+            DDZDialogAction(style = DDZButtonStyle.Primary, onClick = onClose) {
                 Text("닫기", style = DDZTypography.ButtonText)
             }
         }

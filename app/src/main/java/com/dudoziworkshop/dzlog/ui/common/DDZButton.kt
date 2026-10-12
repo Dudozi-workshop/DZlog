@@ -3,9 +3,9 @@ package com.dudoziworkshop.dzlog.ui.common
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -44,8 +44,29 @@ fun DDZButton(
     containerColorOverride: Color? = null,
     textStyleOverride: TextStyle? = null,
 ) {
-    val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
+    DDZButtonContent(onClick, modifier, style, enabled, minHeight, shape, horizontalPadding, containerColorOverride) {
+        if (leadingIcon != null) {
+            Icon(imageVector = leadingIcon, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(text = text, style = textStyleOverride ?: typography.ButtonText)
+    }
+}
+
+@Composable
+internal fun DDZButtonContent(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    style: DDZButtonStyle = DDZButtonStyle.Primary,
+    enabled: Boolean = true,
+    minHeight: Dp = 48.dp,
+    shape: Shape? = null,
+    horizontalPadding: Dp = 16.dp,
+    containerColorOverride: Color? = null,
+    content: @Composable RowScope.() -> Unit,
+) {
+    val colors = LocalDDZColor.current
 
     val containerColor = when (style) {
         DDZButtonStyle.Primary -> colors.Primary
@@ -82,14 +103,6 @@ fun DDZButton(
             disabledContentColor = colors.TextDisabled,
         ),
         contentPadding = PaddingValues(horizontal = horizontalPadding),
-    ) {
-        if (leadingIcon != null) {
-            Icon(imageVector = leadingIcon, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-        }
-        Text(
-            text = text,
-            style = textStyleOverride ?: typography.ButtonText,
-        )
-    }
+        content = content,
+    )
 }
