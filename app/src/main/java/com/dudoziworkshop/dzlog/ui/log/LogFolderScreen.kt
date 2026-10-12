@@ -52,6 +52,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
@@ -268,6 +269,17 @@ fun LogFolderScreen(
         } else finishPhotoMove(prepared)
     }
 
+    DisposableEffect(context) {
+        val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                GallerySnapshotMemory.cache.invalidate()
+                reloadKey++
+            }
+        }
+        context.contentResolver.registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, observer)
+        onDispose { context.contentResolver.unregisterContentObserver(observer) }
+    }
+
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         connected = folderStorage.isConnected()
         reloadKey++
@@ -429,9 +441,7 @@ fun LogFolderScreen(
         }
     }
     val root = relativePath == GalleryFolderIndexPolicy.ROOT
-    val recentPhotos = remember(allPhotos) {
-        allPhotos.filterNot { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }
-    }
+    val recentPhotos = remember(allPhotos) { GalleryPhotoSort.NEWEST.sorted(allPhotos) }
     val selectablePhotos = when {
         !root -> visiblePhotos
         showRecentPhotos -> recentPhotos

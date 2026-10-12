@@ -15,6 +15,16 @@ class GalleryPhotoSortTest {
             "Pictures/DZlog/Folder/", added)
 
     @Test
+    fun recentPhotosIncludeOriginalOnlyCapturesAndBothSavedFiles() {
+        val older = photo(1, "Older.jpg", 100)
+        val original = photo(2, "Original.jpg", 300).copy(relativePath = "Pictures/DZlog/Folder/original/")
+        val result = photo(3, "Result.jpg", 200)
+        val originalPair = photo(4, "OriginalPair.jpg", 200).copy(relativePath = "Pictures/DZlog/Folder/original/")
+        assertEquals(listOf(2L, 4L, 3L, 1L), GalleryPhotoSort.NEWEST.sorted(listOf(older, result, originalPair, original)).map { it.id })
+        assertEquals(listOf(original), GalleryPhotoSort.NEWEST.sorted(listOf(original)))
+    }
+
+    @Test
     fun dateSortsUseStableIdsWhenDatesAreEqual() {
         val photos = listOf(photo(2, "B.jpg", 200), photo(1, "A.jpg", 100), photo(3, "C.jpg", 200))
         assertEquals(listOf(3L, 2L, 1L), GalleryPhotoSort.NEWEST.sorted(photos).map { it.id })

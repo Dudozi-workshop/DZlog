@@ -15,7 +15,12 @@ import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 class DzlogMediaStoreReader(
     private val contentResolver: ContentResolver
 ) {
-    private val sortOrderDateAddedDesc = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+    private val visiblePhotoClause: String
+        get() = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q)
+            " AND (${MediaStore.Images.Media.IS_PENDING} = 0 OR ${MediaStore.Images.Media.IS_PENDING} IS NULL)"
+        else ""
+
+    private val sortOrderDateAddedDesc = "${MediaStore.Images.Media.DATE_ADDED} DESC, ${MediaStore.Images.Media._ID} DESC"
 
     data class G1Node(
         val name: String,
@@ -350,7 +355,7 @@ class DzlogMediaStoreReader(
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val out = mutableListOf<MediaImageItem>()
 
-        val cursor = contentResolver.query(uri, projection, where.selection, where.selectionArgs, sortOrderDateAddedDesc)
+        val cursor = contentResolver.query(uri, projection, where.selection + visiblePhotoClause, where.selectionArgs, sortOrderDateAddedDesc)
         check(!requireReadable || cursor != null) { "사진 목록을 조회하지 못했습니다. 다시 시도해 주세요." }
         cursor?.use { c ->
             val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
@@ -392,7 +397,7 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.DATE_ADDED
         )
         val where = MediaStoreQueryPolicy.whereRelativePathLike(dzlogBaseLike)
-        contentResolver.query(uri, projection, where.selection, where.selectionArgs, sortOrderDateAddedDesc)?.use { c ->
+        contentResolver.query(uri, projection, where.selection + visiblePhotoClause, where.selectionArgs, sortOrderDateAddedDesc)?.use { c ->
             if (!c.moveToFirst()) return null
             val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val nameIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
@@ -437,7 +442,7 @@ class DzlogMediaStoreReader(
             MediaStore.Images.Media.RELATIVE_PATH,
             MediaStore.Images.Media.DATE_ADDED
         )
-        contentResolver.query(uri, projection, where.selection, where.selectionArgs, sortOrderDateAddedDesc)?.use { c ->
+        contentResolver.query(uri, projection, where.selection + visiblePhotoClause, where.selectionArgs, sortOrderDateAddedDesc)?.use { c ->
             if (!c.moveToFirst()) return null
             val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val nameIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)

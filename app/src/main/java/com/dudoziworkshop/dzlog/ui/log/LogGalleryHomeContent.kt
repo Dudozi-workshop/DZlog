@@ -32,6 +32,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
@@ -109,7 +110,12 @@ internal fun LogGalleryHomeContent(
     }
 
     val root = folderIndex.relativePath
-    val recent = allImages.filterNot { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }.take(9)
+    val recent = remember(allImages) { GalleryPhotoSort.NEWEST.sorted(allImages).take(9) }
+    var folderFilter by rememberSaveable { mutableStateOf(GalleryFolderFilter.ALL) }
+    var folderSort by rememberSaveable { mutableStateOf(GalleryFolderSort.NAME) }
+    val shownFolders = remember(folderIndex.children, summariesByPath, folderFilter, folderSort) {
+        filterGalleryFolders(folderIndex.children, summariesByPath, folderFilter, folderSort)
+    }
     val favorites = allImages.filter { it.id in favoriteIds }
     val directPhotos = allImages.filter { it.relativePath.trimEnd('/') == root.trimEnd('/') }
     // Summary IDs are MediaStore IDs, so resolve them against this same snapshot.
@@ -156,15 +162,16 @@ internal fun LogGalleryHomeContent(
                 }
                 item { GallerySectionTitle(
                     title = "저장 폴더",
-                    count = "${folderIndex.children.size}개",
+                    count = "${shownFolders.size}개",
                     actionLabel = "새 폴더",
                     onAction = onCreateFolder,
                     showAddIcon = true,
                 ) }
-                if (folderIndex.children.isEmpty()) {
-                    item { GalleryEmptyText("저장 폴더가 없습니다.") }
+                item { GalleryFolderFilterControls(folderFilter, folderSort, canManageFolders, { folderFilter = it }, { folderSort = it }) }
+                if (shownFolders.isEmpty()) {
+                    item { GalleryEmptyText(if (folderIndex.children.isEmpty()) "저장 폴더가 없습니다." else "조건에 맞는 폴더가 없습니다.") }
                 } else {
-                    items(folderIndex.children, key = { "folder-${it.relativePath}" }) { folder ->
+                    items(shownFolders, key = { "folder-${it.relativePath}" }) { folder ->
                         val summary = summariesByPath[folder.relativePath]
                         GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
                             canManage = canManageFolders,
@@ -178,15 +185,16 @@ internal fun LogGalleryHomeContent(
             GalleryTab.FOLDERS -> {
                 item { GallerySectionTitle(
                     title = "저장 폴더",
-                    count = "${folderIndex.children.size}개",
+                    count = "${shownFolders.size}개",
                     actionLabel = "새 폴더",
                     onAction = onCreateFolder,
                     showAddIcon = true,
                 ) }
-                if (folderIndex.children.isEmpty()) {
-                    item { GalleryEmptyText("저장 폴더가 없습니다.") }
+                item { GalleryFolderFilterControls(folderFilter, folderSort, canManageFolders, { folderFilter = it }, { folderSort = it }) }
+                if (shownFolders.isEmpty()) {
+                    item { GalleryEmptyText(if (folderIndex.children.isEmpty()) "저장 폴더가 없습니다." else "조건에 맞는 폴더가 없습니다.") }
                 } else {
-                    items(folderIndex.children, key = { "folder-${it.relativePath}" }) { folder ->
+                    items(shownFolders, key = { "folder-${it.relativePath}" }) { folder ->
                         val summary = summariesByPath[folder.relativePath]
                         GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
                             canManage = canManageFolders,
