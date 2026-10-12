@@ -48,6 +48,28 @@ class OnboardingCatalogStartupPolicyTest {
     }
 
     @Test
+    fun `fresh install can start without gallery permission but known existing media vetoes`() {
+        assertEquals(CatalogStartupRoute.OFFER_ONBOARDING,
+            decideCatalogStartupRoute(
+                catalogJson = null, legacyJson = null,
+                hasOtherSavedState = false, verifiedNoExistingMedia = false,
+                verifiedFreshInstall = true, knownExistingMedia = false,
+            ))
+        assertEquals(CatalogStartupRoute.CONTINUE_EXISTING,
+            decideCatalogStartupRoute(
+                catalogJson = null, legacyJson = null,
+                hasOtherSavedState = false, verifiedNoExistingMedia = true,
+                verifiedFreshInstall = true, knownExistingMedia = true,
+            ))
+        assertEquals(CatalogStartupRoute.CONTINUE_EXISTING,
+            decideCatalogStartupRoute(
+                catalogJson = null, legacyJson = null,
+                hasOtherSavedState = true, verifiedNoExistingMedia = false,
+                verifiedFreshInstall = true, knownExistingMedia = false,
+            ))
+    }
+
+    @Test
     fun `partially decoded and duplicate catalogs require recovery instead of overwrite`() {
         val partlyCorrupt = validCatalog.dropLast(1) + ",{}]"
         assertEquals(CatalogStartupRoute.RECOVERY_REQUIRED,
