@@ -26,6 +26,8 @@ data class TableTemplateCatalogSnapshot(
 suspend fun inspectTableTemplateCatalogStartup(
     context: Context,
     verifiedNoExistingMedia: Boolean,
+    verifiedFreshInstall: Boolean = false,
+    knownExistingMedia: Boolean = false,
 ): CatalogStartupRoute {
     val prefs = context.dataStore.data.first()
     val catalog = prefs[KEY_TABLE_TEMPLATES_JSON]
@@ -37,6 +39,8 @@ suspend fun inspectTableTemplateCatalogStartup(
             it != KEY_TABLE_TEMPLATES_JSON && it != KEY_TABLE_TEMPLATE_JSON
         },
         verifiedNoExistingMedia = verifiedNoExistingMedia,
+        verifiedFreshInstall = verifiedFreshInstall,
+        knownExistingMedia = knownExistingMedia,
     )
 }
 
