@@ -98,7 +98,11 @@ suspend fun persistTableTemplateCatalog(
 
     context.dataStore.edit { prefs ->
         // Capture completion may race an editor/counter update. Preserve newer usage metadata atomically.
-        val previousUse = prefs[KEY_TABLE_TEMPLATES_JSON]?.let(::savedTableTemplatesFromJson)
+        val previousUse = prefs[KEY_TABLE_TEMPLATES_JSON]
+            ?.let { existing ->
+                decodeCatalogWithoutDataLoss(existing)
+                    ?: error("Stored table catalog is unreadable. Refusing to replace it.")
+            }
             .orEmpty().associate { it.id to it.lastUsedAt }
         prefs[KEY_TABLE_TEMPLATES_JSON] = savedTableTemplatesToJson(normalized.map {
             it.copy(lastUsedAt = maxOf(it.lastUsedAt, previousUse[it.id] ?: 0L))
