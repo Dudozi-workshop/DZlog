@@ -1,10 +1,23 @@
 package com.dudoziworkshop.dzlog.ui.log
 
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
-import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZContentDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZButton
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.Modifier
+import com.dudoziworkshop.dzlog.ui.theme.LocalDDZColor
+import com.dudoziworkshop.dzlog.ui.theme.LocalDDZTypography
+import com.dudoziworkshop.dzlog.ui.theme.LocalDDZSpacing
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,7 +32,6 @@ import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderCatalog
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderStorage
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeletePlan
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
-import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -48,32 +60,49 @@ internal fun GalleryFolderDeleteDialog(
             .onFailure { error = it.message ?: "삭제 범위를 읽지 못했습니다." }
         busy = false
     }
-    AlertDialog(
-        onDismissRequest = { if (!busy) onCancel() },
-        title = { Text("폴더 삭제 확인") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(path.trimEnd('/').substringAfterLast('/'))
-                Text(path.removePrefix(GalleryFolderIndexPolicy.ROOT), color = DDZColor.TextSecondary)
-                if (busy) Text(if (plan == null) "삭제 범위 확인 중…" else "폴더 및 파일 삭제 중…")
+    val colors = LocalDDZColor.current
+    val typography = LocalDDZTypography.current
+    val spacing = LocalDDZSpacing.current
+    DDZContentDialog(
+        onDismiss = { if (!busy) onCancel() },
+        title = "이 폴더를 삭제할까요?",
+        content = {
+            Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(spacing.controlGap)) {
+                Text("삭제할 대상과 포함된 항목을 확인해 주세요.", style = typography.Body, color = colors.TextSecondary)
+                GalleryFolderInfoCard(
+                    name = path.trimEnd('/').substringAfterLast('/'),
+                    detail = plan?.let { "사진 ${it.resultCount + it.originalCount}장 · 하위 폴더 ${it.folderCount}개" }
+                        ?: path.removePrefix(GalleryFolderIndexPolicy.ROOT).trimEnd('/'),
+                )
+                if (busy) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.itemGap)) {
+                        CircularProgressIndicator()
+                        Text(if (plan == null) "삭제 범위 확인 중…" else "삭제 중…", style = typography.Body)
+                    }
+                }
                 plan?.let {
-                    Text("결과사진 ${it.resultCount}장 · 원본사진 ${it.originalCount}장")
-                    Text("일반 하위 폴더 ${it.folderCount}개 · 총 파일 ${it.fileCount}개")
-                    if (it.otherCount > 0) Text("사진 외 파일 ${it.otherCount}개 포함")
-                    Text("모든 깊이의 하위 폴더와 원본이 함께 삭제됩니다.")
-                    Text("삭제한 폴더와 파일은 되돌릴 수 없습니다.", color = DDZColor.Destructive)
+                    if (it.otherCount > 0) Text("사진 외 파일 ${it.otherCount}개도 포함돼요.", style = typography.Caption, color = colors.TextSecondary)
+                    Surface(color = colors.DestructiveSoft, shape = MaterialTheme.shapes.medium) {
+                        Text("폴더 안의 사진과 하위 폴더도 기기에서 삭제되며 복구할 수 없어요.",
+                            modifier = Modifier.padding(spacing.controlGap), style = typography.Secondary, color = colors.TextPrimary)
+                    }
                 }
                 remaining?.let {
-                    Text("남은 파일 ${it.fileCount}개 · 폴더 ${it.entries.count { entry -> entry.directory }}개")
+                    Text("남은 파일 ${it.fileCount}개 · 폴더 ${it.entries.count { entry -> entry.directory }}개", style = typography.Caption)
                 }
-                error?.let { Text(it, color = DDZColor.Destructive) }
+                error?.let { Text(it, style = typography.Secondary, color = colors.Destructive) }
             }
         },
-        confirmButton = {
+        actions = {
+            DDZButton("취소", onClick = { if (!busy) onCancel() }, modifier = Modifier.weight(1f), style = DDZButtonStyle.Secondary, enabled = !busy)
             val confirmed = plan
-            DDZDialogAction(style = if (confirmed == null) DDZButtonStyle.Secondary else DDZButtonStyle.Destructive,
+            DDZButton(
+                text = if (busy && confirmed != null) "삭제 중…" else if (confirmed == null) "다시 확인" else "삭제",
+                modifier = Modifier.weight(1f),
+                style = if (confirmed == null) DDZButtonStyle.Secondary else DDZButtonStyle.Primary,
+                containerColorOverride = if (confirmed == null) null else colors.Destructive,
                 enabled = !busy, onClick = {
-                if (busy) return@DDZDialogAction
+                if (busy) return@DDZButton
                 if (confirmed == null) {
                     busy = true
                     error = null
@@ -104,12 +133,7 @@ internal fun GalleryFolderDeleteDialog(
                         }
                     }
                 }
-            }) {
-                Text(if (confirmed == null) "삭제 범위 다시 확인" else "폴더 및 사진 삭제")
-            }
-        },
-        dismissButton = {
-            DDZDialogAction(style = DDZButtonStyle.Secondary, enabled = !busy, onClick = { if (!busy) onCancel() }) { Text("취소") }
+            })
         },
     )
 }

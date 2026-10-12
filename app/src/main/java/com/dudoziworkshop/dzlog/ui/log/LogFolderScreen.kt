@@ -145,8 +145,11 @@ fun LogFolderScreen(
     var managementConfirmed by remember { mutableStateOf(false) }
     var folderOperationError by remember { mutableStateOf<String?>(null) }
     var connected by remember { mutableStateOf(folderStorage.isConnected()) }
-    var showFolderAccessHelp by remember { mutableStateOf(false) }
-    var folderAccessBusy by remember { mutableStateOf(false) }
+    var showFolderAccessHelp by rememberSaveable { mutableStateOf(false) }
+    var folderAccessBusy by rememberSaveable { mutableStateOf(false) }
+    var pendingFolderPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingFolderAction by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedAccessPath by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedPhotoIds by remember(relativePath) { mutableStateOf<Set<Long>>(emptySet()) }
     var selectionActive by remember(relativePath) { mutableStateOf(false) }
     var showPhotoMove by remember { mutableStateOf(false) }
@@ -183,11 +186,13 @@ fun LogFolderScreen(
     )
     val deleteBusy = deleteAction.busy || photoDeleteLoading
     val operationLocked = deleteBusy || photoMoveBusy || pendingPhotoPlan != null || folderManagementBusy
-    val navigationLocked = operationLocked || manageAction != null || showPhotoDelete || showPhotoMove
+    val navigationLocked = operationLocked || manageAction != null || showPhotoDelete || showPhotoMove || folderAccessBusy || showFolderAccessHelp
     val folderAccess = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
         if (treeUri == null) {
             folderAccessBusy = false
-            folderOperationError = "폴더 접근 연결을 취소했습니다."
+            pendingFolderAction = null
+            pendingFolderPath = null
+            selectedAccessPath = null
         } else {
             scope.launch {
                 val result = withContext(Dispatchers.IO) { runCatching { folderStorage.connect(treeUri) } }
@@ -198,7 +203,11 @@ fun LogFolderScreen(
                     GallerySnapshotMemory.cache.invalidate()
                     reloadKey++
                 }.onFailure {
-                    folderOperationError = it.message ?: "폴더 접근 권한을 연결하지 못했습니다."
+                    selectedAccessPath = runCatching {
+                        android.provider.DocumentsContract.getTreeDocumentId(treeUri).substringAfter(':')
+                    }.getOrDefault("선택한 경로를 확인할 수 없어요")
+                    showFolderAccessHelp = true
+                    folderOperationError = null
                 }
             }
         }
@@ -236,7 +245,7 @@ fun LogFolderScreen(
         ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
         val pending = pendingPhotoPlan
-        if (result.resultCode == Activity.RESULT_OK && pending != null) {
+        if (result.resultCode == Activity.RESULT_OK && pending != null && pendingPath != null) {
             finishPhotoMove(pending)
         } else {
             pendingPhotoPlan = null
@@ -383,7 +392,11 @@ fun LogFolderScreen(
     }
     fun startFolderManagement(path: String, action: String) {
         if (folderManagementBusy || folderAccessBusy || selectionActive || manageAction != null || deleteBusy || photoMoveBusy) return
+        connected = folderStorage.isConnected()
         if (!connected) {
+            pendingFolderPath = path
+            pendingFolderAction = action
+            selectedAccessPath = null
             showFolderAccessHelp = true
             return
         }
@@ -404,6 +417,15 @@ fun LogFolderScreen(
                         .onFailure { folderOperationError = it.message ?: "이동할 폴더를 읽지 못했습니다." }
                 }
             }
+        }
+    }
+    LaunchedEffect(connected, folderAccessBusy, showFolderAccessHelp, pendingFolderPath, pendingFolderAction) {
+        val pending = pendingFolderAction
+        val pendingPath = pendingFolderPath
+        if (connected && !folderAccessBusy && !showFolderAccessHelp && pending != null && pendingPath != null) {
+            pendingFolderAction = null
+            pendingFolderPath = null
+            startFolderManagement(pendingPath, pending)
         }
     }
     val root = relativePath == GalleryFolderIndexPolicy.ROOT
@@ -756,27 +778,30 @@ fun LogFolderScreen(
             )
         }
         if (showFolderAccessHelp) {
-            AlertDialog(
-                onDismissRequest = { showFolderAccessHelp = false },
-                title = { Text("DZlog 폴더 접근 연결") },
-                text = { Text("빈 폴더를 확인하고 폴더 이름을 변경하거나 이동하려면 접근 권한이 필요합니다. 다음 화면에서 내장 저장공간의 Pictures/DZlog 폴더를 선택해 주세요.") },
-                confirmButton = {
-                    DDZDialogAction(style = DDZButtonStyle.Primary, onClick = {
-                        showFolderAccessHelp = false
-                        folderAccessBusy = true
-                        folderOperationError = null
-                        runCatching {
-                            val initialUri = android.provider.DocumentsContract.buildTreeDocumentUri(
-                                "com.android.externalstorage.documents", "primary:Pictures/DZlog",
-                            )
-                            folderAccess.launch(initialUri)
-                        }.onFailure {
-                            folderAccessBusy = false
-                            folderOperationError = "폴더 선택 화면을 열지 못했습니다."
-                        }
-                    }) { Text("폴더 선택") }
+            GalleryFolderAccessGuide(
+                selectedPath = selectedAccessPath,
+                onCancel = {
+                    showFolderAccessHelp = false
+                    pendingFolderAction = null
+                    pendingFolderPath = null
+                    selectedAccessPath = null
                 },
-                dismissButton = { DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = { showFolderAccessHelp = false }) { Text("취소") } },
+                onSelect = {
+                    showFolderAccessHelp = false
+                    folderAccessBusy = true
+                    folderOperationError = null
+                    runCatching {
+                        val initialUri = android.provider.DocumentsContract.buildTreeDocumentUri(
+                            "com.android.externalstorage.documents", "primary:Pictures/DZlog",
+                        )
+                        folderAccess.launch(initialUri)
+                    }.onFailure {
+                        folderAccessBusy = false
+                        pendingFolderAction = null
+                    pendingFolderPath = null
+                        folderOperationError = "폴더 선택 화면을 열지 못했습니다."
+                    }
+                },
             )
         }
         if (manageAction == "delete") {
@@ -792,7 +817,8 @@ fun LogFolderScreen(
                 onDeleted = {
                     val deletedPath = managedFolderPath
                     manageAction = null
-                    folderOperationError = "폴더 및 파일 삭제 완료"
+                    folderOperationError = null
+                    android.widget.Toast.makeText(context, "폴더가 삭제되었어요", android.widget.Toast.LENGTH_SHORT).show()
                     if (deletedPath == relativePath) {
                         onOpenFolder(deletedPath.trimEnd('/').substringBeforeLast('/') + "/")
                     }
