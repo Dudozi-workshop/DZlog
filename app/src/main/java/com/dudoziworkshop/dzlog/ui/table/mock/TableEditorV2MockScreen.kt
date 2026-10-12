@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.heightIn
@@ -83,6 +84,8 @@ import com.dudoziworkshop.dzlog.ui.common.DDZContentDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZQuickChoiceDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private enum class MockMode { EDIT, LAYOUT }
@@ -175,6 +178,18 @@ fun TableEditorV2Screen(
     val context = LocalContext.current
     val keyboard = LocalSoftwareKeyboardController.current
     val imeVisible = WindowInsets.isImeVisible
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+    var keyboardPreviewLocked by remember { mutableStateOf(false) }
+    var inputExpanded by remember(selectedCellId) { mutableStateOf(false) }
+    // Keep the scale through the closing animation too; release after the IME settles.
+    LaunchedEffect(imeVisible, imeBottom) {
+        if (imeVisible || imeBottom > 0) {
+            keyboardPreviewLocked = true
+        } else {
+            delay(300)
+            keyboardPreviewLocked = false
+        }
+    }
 
     val counterController = rememberTableEditorCounterOrchestrator(context, session, showSaveRules)
     val preview = tableEditorPreview(context, session)
@@ -188,6 +203,9 @@ fun TableEditorV2Screen(
         showStyle -> MockBottomTab.STYLE
         showSaveRules -> MockBottomTab.SAVE
         else -> MockBottomTab.CONTENT
+    }
+    LaunchedEffect(activeTab) {
+        if (activeTab != MockBottomTab.CONTENT) inputExpanded = false
     }
 
     fun requestBack() {
@@ -331,6 +349,7 @@ fun TableEditorV2Screen(
                             textColorMode = draftStyleState.textColorMode,
                             manualTextColor = draftStyleState.manualTextColor,
                             layoutMode = mode == MockMode.LAYOUT,
+                            preserveInputScale = keyboardPreviewLocked || inputExpanded,
                             rowWeights = draftTemplateState.rowWeights,
                             colWeights = draftTemplateState.colWeights,
                             onBoundaryDragStart = {
@@ -385,7 +404,7 @@ fun TableEditorV2Screen(
                     }
                 }
 
-                Text(
+                if (!imeVisible) Text(
                     text = when {
                         showStyle -> "스타일을 조절한 뒤 상단 저장을 눌러주세요."
                         showSaveRules -> "저장설정을 선택해 편집하세요."
@@ -439,6 +458,7 @@ fun TableEditorV2Screen(
                                     }
                                 },
                                 onTypeChange = { nextType ->
+                                    inputExpanded = false
                                     selected.domainCellId?.let { cellId ->
                                         session.commitTemplateChange(
                                             applyTableEditorCellType(
@@ -522,6 +542,11 @@ fun TableEditorV2Screen(
                                     selectionState.clearEditSelection()
                                 },
                                 compactInput = imeVisible,
+                                inputExpanded = inputExpanded,
+                                expandedInputHeight = minOf(DDZLayout.QuickInput.ExpandedHeight,
+                                    (maxHeight * 0.4f).coerceAtLeast(56.dp)),
+                                onToggleInputExpanded = { inputExpanded = !inputExpanded },
+                                onInputFocus = { keyboardPreviewLocked = true },
                                 modifier = editorPanelModifier,
                             )
                         }

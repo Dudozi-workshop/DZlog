@@ -7,6 +7,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,6 +16,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloseFullscreen
+import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,8 +31,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -37,6 +43,7 @@ import com.dudoziworkshop.dzlog.ui.common.input.decimalInputOrPrevious
 import com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +61,10 @@ internal fun TableEditorCellUiModelEditor(
     onDeletePhraseSet: (String) -> Unit,
     onClose: () -> Unit,
     compactInput: Boolean = false,
+    inputExpanded: Boolean,
+    expandedInputHeight: Dp,
+    onToggleInputExpanded: () -> Unit,
+    onInputFocus: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showTypePicker by remember(cell.id) { mutableStateOf(false) }
@@ -77,22 +88,41 @@ internal fun TableEditorCellUiModelEditor(
                     when (cell.type) {
                         TableEditorCellType.TEXT,
                         TableEditorCellType.NUMBER -> {
-                            DDZTextField(
-                                modifier = Modifier.fillMaxWidth(),
-                                value = cell.value,
-                                onValueChange = { input ->
-                                    onValueChange(if (cell.type == TableEditorCellType.NUMBER) decimalInputOrPrevious(input, cell.value) else input)
-                                },
-                                label = "값",
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = if (cell.type == TableEditorCellType.NUMBER) KeyboardType.Decimal else KeyboardType.Text,
-                                ),
-                                trailingIcon = if (cell.type == TableEditorCellType.NUMBER) {
-                                    { androidx.compose.material3.TextButton(onClick = {
-                                        onValueChange(if (cell.value.startsWith("-")) cell.value.drop(1) else "-${cell.value}")
-                                    }) { Text("±") } }
-                                } else null,
-                            )
+                            val isText = cell.type == TableEditorCellType.TEXT
+                            Box(Modifier.fillMaxWidth()) {
+                                DDZTextField(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .then(if (isText) Modifier.height(
+                                            if (inputExpanded) expandedInputHeight else DDZLayout.QuickInput.RowHeight
+                                        ) else Modifier)
+                                        .onFocusChanged { if (it.isFocused) onInputFocus() },
+                                    value = cell.value,
+                                    onValueChange = { input ->
+                                        onValueChange(if (cell.type == TableEditorCellType.NUMBER) decimalInputOrPrevious(input, cell.value) else input)
+                                    },
+                                    label = "값",
+                                    singleLine = !isText,
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = if (cell.type == TableEditorCellType.NUMBER) KeyboardType.Decimal else KeyboardType.Text,
+                                    ),
+                                    trailingIcon = if (cell.type == TableEditorCellType.NUMBER) {
+                                        { androidx.compose.material3.TextButton(onClick = {
+                                            onValueChange(if (cell.value.startsWith("-")) cell.value.drop(1) else "-${cell.value}")
+                                        }) { Text("±") } }
+                                    } else {
+                                        // Reserve the same text inset in both modes for the overlay button.
+                                        { androidx.compose.foundation.layout.Spacer(Modifier.size(DDZLayout.QuickInput.Touch)) }
+                                    },
+                                )
+                                if (isText) IconButton(
+                                    onClick = onToggleInputExpanded,
+                                    modifier = Modifier.align(Alignment.BottomEnd).size(DDZLayout.QuickInput.Touch),
+                                ) {
+                                    Icon(if (inputExpanded) Icons.Filled.CloseFullscreen else Icons.Filled.OpenInFull,
+                                        if (inputExpanded) "입력창 축소" else "입력창 확대",
+                                        tint = DDZColor.TextMuted, modifier = Modifier.size(DDZLayout.QuickInput.Icon))
+                                }
+                            }
                         }
 
                         TableEditorCellType.COUNTER -> {
@@ -109,7 +139,8 @@ internal fun TableEditorCellUiModelEditor(
                                     onClick = { onValueChange((currentCounter - 1).coerceAtLeast(0).toString()) },
                                 )
                                 DDZTextField(
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.weight(1f)
+                                        .onFocusChanged { if (it.isFocused) onInputFocus() },
                                     value = currentCounter.toString(),
                                     onValueChange = { input ->
                                         val digits = input.filter { it.isDigit() }

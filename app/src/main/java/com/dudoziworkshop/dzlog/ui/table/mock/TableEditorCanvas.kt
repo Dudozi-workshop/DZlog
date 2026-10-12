@@ -20,16 +20,25 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -62,6 +71,7 @@ internal fun ColumnScope.MockTableCanvas(
     textColorMode: Int,
     manualTextColor: Int,
     layoutMode: Boolean,
+    preserveInputScale: Boolean,
     rowWeights: List<Float>?,
     colWeights: List<Float>?,
     onBoundaryDragStart: () -> Unit,
@@ -81,6 +91,7 @@ internal fun ColumnScope.MockTableCanvas(
     var gestureScale by remember(rows, cols) { mutableStateOf<Float?>(null) }
     var activeColumn by remember { mutableStateOf<Int?>(null) }
     var activeRow by remember { mutableStateOf<Int?>(null) }
+    val previewScroll = rememberScrollState()
     val background = Color.Transparent
     val resolvedAlpha = (bgAlpha.coerceIn(0, 255) / 255f)
     val cellBackground = when {
@@ -119,8 +130,10 @@ internal fun ColumnScope.MockTableCanvas(
         val editorScale = (expandedWorkingWidth / previousWorkingWidth).coerceAtLeast(0.01f)
         val naturalTableWidth = expandedWorkingWidth * (resolvedColWeights.sum() / cols.coerceAtLeast(1))
         val naturalTableHeight = baseTableHeight * editorScale * (resolvedRowWeights.sum() / rows.coerceAtLeast(1))
-        val fitScale = editorPreviewFitScale(naturalTableWidth.value, naturalTableHeight.value,
+        val viewportFitScale = editorPreviewFitScale(naturalTableWidth.value, naturalTableHeight.value,
             expandedWorkingWidth.value, (maxHeight - gutter * 2).coerceAtLeast(1.dp).value)
+        var unobscuredScale by remember(maxWidth, rows, cols) { mutableStateOf<Float?>(null) }
+        val fitScale = editorPreviewInputScale(viewportFitScale, unobscuredScale, preserveInputScale)
         val animatedScale by animateFloatAsState(
             targetValue = editorPreviewDragScale(fitScale, gestureScale),
             animationSpec = if (gestureScale != null) snap() else tween(durationMillis = 180),
@@ -130,199 +143,249 @@ internal fun ColumnScope.MockTableCanvas(
         val latestDisplayScale by rememberUpdatedState(displayScale)
         val stableTableHeight = naturalTableHeight * displayScale
         val stableTableWidth = naturalTableWidth * displayScale
-
-        BoxWithConstraints(
-            modifier = Modifier
-                .width(stableTableWidth + gutter * 2)
-                .height(stableTableHeight + gutter * 2)
-        ) {
-            val density = LocalDensity.current
-            val totalWidth = stableTableWidth
-            val totalHeight = stableTableHeight
-            val colWeightSum = resolvedColWeights.sum().coerceAtLeast(0.0001f)
-            val rowWeightSum = resolvedRowWeights.sum().coerceAtLeast(0.0001f)
-            val colSizes = resolvedColWeights.map { totalWidth * (it / colWeightSum) }
-            val rowSizes = resolvedRowWeights.map { totalHeight * (it / rowWeightSum) }
-            val totalWidthPx = with(density) { totalWidth.toPx().coerceAtLeast(1f) }
-            val totalHeightPx = with(density) { totalHeight.toPx().coerceAtLeast(1f) }
-            val latestWidthPx by rememberUpdatedState(totalWidthPx)
-            val latestHeightPx by rememberUpdatedState(totalHeightPx)
-            val rootHitRects = cells.filterNot { it.isCovered }.map { cell ->
-                val startRow = cell.rowIndex.coerceIn(0, (rows - 1).coerceAtLeast(0))
-                val startCol = cell.colIndex.coerceIn(0, (cols - 1).coerceAtLeast(0))
-                val endRowExclusive = (startRow + cell.rowSpan.coerceAtLeast(1)).coerceAtMost(rows)
-                val endColExclusive = (startCol + cell.colSpan.coerceAtLeast(1)).coerceAtMost(cols)
-                val x = colSizes.take(startCol).fold(0.dp) { acc, value -> acc + value }
-                val y = rowSizes.take(startRow).fold(0.dp) { acc, value -> acc + value }
-                val width = colSizes.subList(startCol, endColExclusive).fold(0.dp) { acc, value -> acc + value }
-                val height = rowSizes.subList(startRow, endRowExclusive).fold(0.dp) { acc, value -> acc + value }
-                cell to Rect(
-                    left = with(density) { x.toPx() },
-                    top = with(density) { y.toPx() },
-                    right = with(density) { (x + width).toPx() },
-                    bottom = with(density) { (y + height).toPx() },
-                )
+        SideEffect {
+            if (!preserveInputScale) unobscuredScale = displayScale
+        }
+        val density = LocalDensity.current
+        val viewportHeight = maxHeight
+        val frameHeight = stableTableHeight + gutter * 2
+        val contentHeight = maxOf(viewportHeight, frameHeight)
+        val selected = cells.firstOrNull { it.domainCellId == selectedCellId && !it.isCovered }
+        // Only viewport/selection changes move the view. Typing never recentres it.
+        LaunchedEffect(preserveInputScale, selectedCellId, viewportHeight, rows, cols) {
+            if (!preserveInputScale || selected == null) {
+                previewScroll.scrollTo(0)
+            } else {
+                val sum = resolvedRowWeights.sum().coerceAtLeast(0.0001f)
+                val start = selected.rowIndex.coerceIn(0, rows)
+                val end = (start + selected.rowSpan).coerceIn(start, rows)
+                val top = (contentHeight - frameHeight) / 2 + gutter +
+                    stableTableHeight * (resolvedRowWeights.take(start).sum() / sum)
+                val bottom = top + stableTableHeight * (resolvedRowWeights.subList(start, end).sum() / sum)
+                val target = editorPreviewSelectionScroll(top.value, bottom.value,
+                    viewportHeight.value, contentHeight.value)
+                withFrameNanos { }
+                previewScroll.scrollTo(with(density) { target.dp.roundToPx() })
             }
+        }
 
-            Box(
-                Modifier.offset(gutter, gutter).size(totalWidth, totalHeight)
-                    .border(2.dp, DDZColor.Primary, RoundedCornerShape(4.dp))
-            ) {
-                cells.filterNot { it.isCovered }.forEach { cell ->
-                    val startRow = cell.rowIndex.coerceIn(0, (rows - 1).coerceAtLeast(0))
-                    val startCol = cell.colIndex.coerceIn(0, (cols - 1).coerceAtLeast(0))
-                    val endRowExclusive = (startRow + cell.rowSpan.coerceAtLeast(1)).coerceAtMost(rows)
-                    val endColExclusive = (startCol + cell.colSpan.coerceAtLeast(1)).coerceAtMost(cols)
-                    val x = colSizes.take(startCol).fold(0.dp) { acc, value -> acc + value }
-                    val y = rowSizes.take(startRow).fold(0.dp) { acc, value -> acc + value }
-                    val width = colSizes.subList(startCol, endColExclusive).fold(0.dp) { acc, value -> acc + value }
-                    val height = rowSizes.subList(startRow, endRowExclusive).fold(0.dp) { acc, value -> acc + value }
-                    val isSelected = if (layoutMode) {
-                        cell.id in selectedIds
-                    } else {
-                        selectedCellId != null && cell.domainCellId == selectedCellId
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .offset(x = x, y = y)
-                            .size(width = width, height = height)
-                            .background(
-                                if (isSelected) DDZColor.Primary.copy(alpha = 0.16f) else cellBackground
-                            )
-                            .then(
-                                if (gridEnabled) Modifier.border(
-                                    0.5.dp,
-                                    if (darkTable) Color.White.copy(alpha = 0.28f) else Color(0xFFB8B8BE)
-                                ) else Modifier
-                            )
-                            .clickable(enabled = !layoutMode && cell.domainCellId != null) {
-                                cell.domainCellId?.let(onCellClick)
-                            },
-                        contentAlignment = cellAlignment,
-                    ) {
-                        Text(
-                            cell.previewValue ?: cell.value,
-                            color = if (isSelected) DDZColor.PrimaryDark else textColor,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = (14f * fontScale.coerceIn(0.6f, 1.6f)).sp,
-                            modifier = Modifier.padding(8.dp),
-                        )
+        Box(
+            Modifier.fillMaxSize().clipToBounds().drawWithContent {
+                drawContent()
+                if (preserveInputScale && previewScroll.maxValue > 0) {
+                    val trackHeight = size.height - 8.dp.toPx()
+                    if (trackHeight > 0f) {
+                        val thumbHeight = (trackHeight * size.height /
+                            (size.height + previewScroll.maxValue)).coerceIn(minOf(20.dp.toPx(), trackHeight), trackHeight)
+                        val start = 4.dp.toPx() + (trackHeight - thumbHeight) *
+                            previewScroll.value / previewScroll.maxValue
+                        val x = size.width - 2.dp.toPx()
+                        drawLine(DDZColor.BorderStrong, Offset(x, 4.dp.toPx()),
+                            Offset(x, size.height - 4.dp.toPx()), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+                        drawLine(DDZColor.PrimaryDark, Offset(x, start), Offset(x, start + thumbHeight),
+                            strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
                     }
                 }
-
-                if (layoutMode) {
-                    fun hitDomainCellId(position: Offset): String? =
-                        rootHitRects.firstOrNull { (_, rect) -> rect.contains(position) }
-                            ?.first
-                            ?.domainCellId
+            }
+                .verticalScroll(previewScroll, enabled = preserveInputScale && !layoutMode),
+        ) {
+            Box(
+                Modifier.fillMaxWidth().heightIn(min = viewportHeight),
+                contentAlignment = Alignment.Center,
+            ) {
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .requiredSize(stableTableWidth + gutter * 2, frameHeight)
+                ) {
+                    val density = LocalDensity.current
+                    val totalWidth = stableTableWidth
+                    val totalHeight = stableTableHeight
+                    val colWeightSum = resolvedColWeights.sum().coerceAtLeast(0.0001f)
+                    val rowWeightSum = resolvedRowWeights.sum().coerceAtLeast(0.0001f)
+                    val colSizes = resolvedColWeights.map { totalWidth * (it / colWeightSum) }
+                    val rowSizes = resolvedRowWeights.map { totalHeight * (it / rowWeightSum) }
+                    val totalWidthPx = with(density) { totalWidth.toPx().coerceAtLeast(1f) }
+                    val totalHeightPx = with(density) { totalHeight.toPx().coerceAtLeast(1f) }
+                    val latestWidthPx by rememberUpdatedState(totalWidthPx)
+                    val latestHeightPx by rememberUpdatedState(totalHeightPx)
+                    val rootHitRects = cells.filterNot { it.isCovered }.map { cell ->
+                        val startRow = cell.rowIndex.coerceIn(0, (rows - 1).coerceAtLeast(0))
+                        val startCol = cell.colIndex.coerceIn(0, (cols - 1).coerceAtLeast(0))
+                        val endRowExclusive = (startRow + cell.rowSpan.coerceAtLeast(1)).coerceAtMost(rows)
+                        val endColExclusive = (startCol + cell.colSpan.coerceAtLeast(1)).coerceAtMost(cols)
+                        val x = colSizes.take(startCol).fold(0.dp) { acc, value -> acc + value }
+                        val y = rowSizes.take(startRow).fold(0.dp) { acc, value -> acc + value }
+                        val width = colSizes.subList(startCol, endColExclusive).fold(0.dp) { acc, value -> acc + value }
+                        val height = rowSizes.subList(startRow, endRowExclusive).fold(0.dp) { acc, value -> acc + value }
+                        cell to Rect(
+                            left = with(density) { x.toPx() },
+                            top = with(density) { y.toPx() },
+                            right = with(density) { (x + width).toPx() },
+                            bottom = with(density) { (y + height).toPx() },
+                        )
+                    }
 
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .pointerInput(rootHitRects) {
-                                detectTapGestures { position ->
-                                    val domainId = hitDomainCellId(position)
-                                    if (domainId == null) {
-                                        onClearLayoutSelection()
-                                    } else {
-                                        onCellClick(domainId)
-                                    }
-                                }
+                        Modifier.offset(gutter, gutter).size(totalWidth, totalHeight)
+                            .border(2.dp, DDZColor.Primary, RoundedCornerShape(4.dp))
+                    ) {
+                        cells.filterNot { it.isCovered }.forEach { cell ->
+                            val startRow = cell.rowIndex.coerceIn(0, (rows - 1).coerceAtLeast(0))
+                            val startCol = cell.colIndex.coerceIn(0, (cols - 1).coerceAtLeast(0))
+                            val endRowExclusive = (startRow + cell.rowSpan.coerceAtLeast(1)).coerceAtMost(rows)
+                            val endColExclusive = (startCol + cell.colSpan.coerceAtLeast(1)).coerceAtMost(cols)
+                            val x = colSizes.take(startCol).fold(0.dp) { acc, value -> acc + value }
+                            val y = rowSizes.take(startRow).fold(0.dp) { acc, value -> acc + value }
+                            val width = colSizes.subList(startCol, endColExclusive).fold(0.dp) { acc, value -> acc + value }
+                            val height = rowSizes.subList(startRow, endRowExclusive).fold(0.dp) { acc, value -> acc + value }
+                            val isSelected = if (layoutMode) {
+                                cell.id in selectedIds
+                            } else {
+                                selectedCellId != null && cell.domainCellId == selectedCellId
                             }
-                            .pointerInput(rootHitRects) {
-                                var startDomainId: String? = null
-                                detectDragGestures(
-                                    onDragStart = { position ->
-                                        startDomainId = hitDomainCellId(position)
+
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = x, y = y)
+                                    .size(width = width, height = height)
+                                    .background(
+                                        if (isSelected) DDZColor.Primary.copy(alpha = 0.16f) else cellBackground
+                                    )
+                                    .then(
+                                        if (gridEnabled) Modifier.border(
+                                            0.5.dp,
+                                            if (darkTable) Color.White.copy(alpha = 0.28f) else Color(0xFFB8B8BE)
+                                        ) else Modifier
+                                    )
+                                    .clickable(enabled = !layoutMode && cell.domainCellId != null) {
+                                        cell.domainCellId?.let(onCellClick)
                                     },
-                                    onDrag = { change, _ ->
-                                        change.consume()
-                                        val startId = startDomainId ?: return@detectDragGestures
-                                        val endId = hitDomainCellId(change.position) ?: return@detectDragGestures
-                                        onCellRangeDrag(startId, endId)
-                                    },
-                                    onDragEnd = { startDomainId = null },
-                                    onDragCancel = { startDomainId = null },
+                                contentAlignment = cellAlignment,
+                            ) {
+                                Text(
+                                    cell.previewValue ?: cell.value,
+                                    color = if (isSelected) DDZColor.PrimaryDark else textColor,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = (14f * fontScale.coerceIn(0.6f, 1.6f)).sp,
+                                    modifier = Modifier.padding(8.dp),
                                 )
                             }
-                    )
+                        }
 
-                }
-                activeColumn?.let { boundaryIndex ->
-                    val x = colSizes.take(boundaryIndex + 1).fold(0.dp) { acc, value -> acc + value }
-                    Box(Modifier.offset(x = x - 1.dp).width(2.dp).fillMaxHeight().background(DDZColor.PrimaryDark))
-                }
-                activeRow?.let { boundaryIndex ->
-                    val y = rowSizes.take(boundaryIndex + 1).fold(0.dp) { acc, value -> acc + value }
-                    Box(Modifier.offset(y = y - 1.dp).height(2.dp).fillMaxWidth().background(DDZColor.PrimaryDark))
-                }
-            }
+                        if (layoutMode) {
+                            fun hitDomainCellId(position: Offset): String? =
+                                rootHitRects.firstOrNull { (_, rect) -> rect.contains(position) }
+                                    ?.first
+                                    ?.domainCellId
 
-            if (layoutMode) {
-                for (boundaryIndex in 0 until cols.coerceAtLeast(0)) {
-                    val x = colSizes.take(boundaryIndex + 1).fold(0.dp) { acc, value -> acc + value }
-                    Box(
-                        modifier = Modifier
-                            .offset(x = if (boundaryIndex == cols - 1) gutter + totalWidth + 2.dp else gutter + x - 16.dp,
-                                y = if (boundaryIndex == cols - 1) gutter + totalHeight / 2 - 16.dp else 2.dp)
-                            .size(32.dp)
-                            .background(
-                                if (activeColumn == boundaryIndex) DDZColor.SelectedSoft else DDZColor.Surface,
-                                CircleShape,
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(rootHitRects) {
+                                        detectTapGestures { position ->
+                                            val domainId = hitDomainCellId(position)
+                                            if (domainId == null) {
+                                                onClearLayoutSelection()
+                                            } else {
+                                                onCellClick(domainId)
+                                            }
+                                        }
+                                    }
+                                    .pointerInput(rootHitRects) {
+                                        var startDomainId: String? = null
+                                        detectDragGestures(
+                                            onDragStart = { position ->
+                                                startDomainId = hitDomainCellId(position)
+                                            },
+                                            onDrag = { change, _ ->
+                                                change.consume()
+                                                val startId = startDomainId ?: return@detectDragGestures
+                                                val endId = hitDomainCellId(change.position) ?: return@detectDragGestures
+                                                onCellRangeDrag(startId, endId)
+                                            },
+                                            onDragEnd = { startDomainId = null },
+                                            onDragCancel = { startDomainId = null },
+                                        )
+                                    }
                             )
-                            .border(1.dp, DDZColor.BorderStrong, CircleShape)
-                            .pointerInput(boundaryIndex) {
-                                detectDragGestures(
-                                    onDragStart = { gestureScale = latestDisplayScale; activeColumn = boundaryIndex; latestDragStart() },
-                                    onDragEnd = { activeColumn = null; gestureScale = null; latestDragEnd() },
-                                    onDragCancel = { activeColumn = null; gestureScale = null; latestDragEnd() },
-                                ) { change, dragAmount ->
-                                    change.consume()
-                                    latestColDrag(boundaryIndex, dragAmount.x / latestWidthPx)
-                                }
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        BoundaryDirectionArrow(
-                            horizontal = true,
-                            contentDescription = if (boundaryIndex == cols - 1) "마지막 열 너비 조절" else "${boundaryIndex + 1}열과 ${boundaryIndex + 2}열 너비 조절",
-                            modifier = Modifier.size(18.dp),
-                            tint = if (activeColumn == boundaryIndex) DDZColor.PrimaryDark else DDZColor.Primary,
-                        )
+
+                        }
+                        activeColumn?.let { boundaryIndex ->
+                            val x = colSizes.take(boundaryIndex + 1).fold(0.dp) { acc, value -> acc + value }
+                            Box(Modifier.offset(x = x - 1.dp).width(2.dp).fillMaxHeight().background(DDZColor.PrimaryDark))
+                        }
+                        activeRow?.let { boundaryIndex ->
+                            val y = rowSizes.take(boundaryIndex + 1).fold(0.dp) { acc, value -> acc + value }
+                            Box(Modifier.offset(y = y - 1.dp).height(2.dp).fillMaxWidth().background(DDZColor.PrimaryDark))
+                        }
                     }
-                }
 
-                for (boundaryIndex in 0 until rows.coerceAtLeast(0)) {
-                    val y = rowSizes.take(boundaryIndex + 1).fold(0.dp) { acc, value -> acc + value }
-                    Box(
-                        modifier = Modifier
-                            .offset(x = if (boundaryIndex == rows - 1) gutter + totalWidth / 2 - 16.dp else 2.dp,
-                                y = if (boundaryIndex == rows - 1) gutter + totalHeight + 2.dp else gutter + y - 16.dp)
-                            .size(32.dp)
-                            .background(
-                                if (activeRow == boundaryIndex) DDZColor.SelectedSoft else DDZColor.Surface,
-                                CircleShape,
-                            )
-                            .border(1.dp, DDZColor.BorderStrong, CircleShape)
-                            .pointerInput(boundaryIndex) {
-                                detectDragGestures(
-                                    onDragStart = { gestureScale = latestDisplayScale; activeRow = boundaryIndex; latestDragStart() },
-                                    onDragEnd = { activeRow = null; gestureScale = null; latestDragEnd() },
-                                    onDragCancel = { activeRow = null; gestureScale = null; latestDragEnd() },
-                                ) { change, dragAmount ->
-                                    change.consume()
-                                    latestRowDrag(boundaryIndex, dragAmount.y / latestHeightPx)
-                                }
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        BoundaryDirectionArrow(
-                            horizontal = false,
-                            contentDescription = if (boundaryIndex == rows - 1) "마지막 행 높이 조절" else "${boundaryIndex + 1}행과 ${boundaryIndex + 2}행 높이 조절",
-                            modifier = Modifier.size(18.dp),
-                            tint = if (activeRow == boundaryIndex) DDZColor.PrimaryDark else DDZColor.Primary,
-                        )
+                    if (layoutMode) {
+                        for (boundaryIndex in 0 until cols.coerceAtLeast(0)) {
+                            val x = colSizes.take(boundaryIndex + 1).fold(0.dp) { acc, value -> acc + value }
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = if (boundaryIndex == cols - 1) gutter + totalWidth + 2.dp else gutter + x - 16.dp,
+                                        y = if (boundaryIndex == cols - 1) gutter + totalHeight / 2 - 16.dp else 2.dp)
+                                    .size(32.dp)
+                                    .background(
+                                        if (activeColumn == boundaryIndex) DDZColor.SelectedSoft else DDZColor.Surface,
+                                        CircleShape,
+                                    )
+                                    .border(1.dp, DDZColor.BorderStrong, CircleShape)
+                                    .pointerInput(boundaryIndex) {
+                                        detectDragGestures(
+                                            onDragStart = { gestureScale = latestDisplayScale; activeColumn = boundaryIndex; latestDragStart() },
+                                            onDragEnd = { activeColumn = null; gestureScale = null; latestDragEnd() },
+                                            onDragCancel = { activeColumn = null; gestureScale = null; latestDragEnd() },
+                                        ) { change, dragAmount ->
+                                            change.consume()
+                                            latestColDrag(boundaryIndex, dragAmount.x / latestWidthPx)
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                BoundaryDirectionArrow(
+                                    horizontal = true,
+                                    contentDescription = if (boundaryIndex == cols - 1) "마지막 열 너비 조절" else "${boundaryIndex + 1}열과 ${boundaryIndex + 2}열 너비 조절",
+                                    modifier = Modifier.size(18.dp),
+                                    tint = if (activeColumn == boundaryIndex) DDZColor.PrimaryDark else DDZColor.Primary,
+                                )
+                            }
+                        }
+
+                        for (boundaryIndex in 0 until rows.coerceAtLeast(0)) {
+                            val y = rowSizes.take(boundaryIndex + 1).fold(0.dp) { acc, value -> acc + value }
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = if (boundaryIndex == rows - 1) gutter + totalWidth / 2 - 16.dp else 2.dp,
+                                        y = if (boundaryIndex == rows - 1) gutter + totalHeight + 2.dp else gutter + y - 16.dp)
+                                    .size(32.dp)
+                                    .background(
+                                        if (activeRow == boundaryIndex) DDZColor.SelectedSoft else DDZColor.Surface,
+                                        CircleShape,
+                                    )
+                                    .border(1.dp, DDZColor.BorderStrong, CircleShape)
+                                    .pointerInput(boundaryIndex) {
+                                        detectDragGestures(
+                                            onDragStart = { gestureScale = latestDisplayScale; activeRow = boundaryIndex; latestDragStart() },
+                                            onDragEnd = { activeRow = null; gestureScale = null; latestDragEnd() },
+                                            onDragCancel = { activeRow = null; gestureScale = null; latestDragEnd() },
+                                        ) { change, dragAmount ->
+                                            change.consume()
+                                            latestRowDrag(boundaryIndex, dragAmount.y / latestHeightPx)
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                BoundaryDirectionArrow(
+                                    horizontal = false,
+                                    contentDescription = if (boundaryIndex == rows - 1) "마지막 행 높이 조절" else "${boundaryIndex + 1}행과 ${boundaryIndex + 2}행 높이 조절",
+                                    modifier = Modifier.size(18.dp),
+                                    tint = if (activeRow == boundaryIndex) DDZColor.PrimaryDark else DDZColor.Primary,
+                                )
+                            }
+                        }
                     }
                 }
             }

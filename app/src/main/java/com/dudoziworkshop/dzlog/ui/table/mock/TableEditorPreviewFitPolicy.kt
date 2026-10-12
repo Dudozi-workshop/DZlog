@@ -9,3 +9,12 @@ internal fun editorPreviewFitScale(naturalWidth: Float, naturalHeight: Float,
 // No automatic zoom-in during a drag. Zoom-out is allowed only to keep growing geometry visible.
 internal fun editorPreviewDragScale(fitScale: Float, gestureScale: Float?): Float =
     gestureScale?.let { minOf(it, fitScale) } ?: fitScale
+
+// The IME changes the viewport, not the table's editing magnification.
+internal fun editorPreviewInputScale(fitScale: Float, unobscuredScale: Float?, locked: Boolean): Float =
+    if (locked) unobscuredScale ?: fitScale else fitScale
+
+internal fun editorPreviewSelectionScroll(top: Float, bottom: Float,
+    viewportHeight: Float, contentHeight: Float): Float =
+    ((top + bottom - viewportHeight) / 2f)
+        .coerceIn(0f, (contentHeight - viewportHeight).coerceAtLeast(0f))
