@@ -201,10 +201,12 @@ fun RotatingPhraseTemplateDialog(
                         .padding(top = 6.dp, bottom = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    TextButton(onClick = onRestore) {
+                    com.dudoziworkshop.dzlog.ui.common.DDZDialogAction(
+                        onClick = onRestore, style = com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle.Secondary,
+                    ) {
                         Text("복구", style = DDZTypography.ButtonText)
                     }
-                    TextButton(onClick = onDismiss) {
+                    com.dudoziworkshop.dzlog.ui.common.DDZDialogAction(onClick = onDismiss) {
                         Text("닫기", style = DDZTypography.ButtonText)
                     }
                 }

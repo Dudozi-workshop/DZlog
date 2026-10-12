@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.rotating
 
+import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +17,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
@@ -32,7 +33,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -322,7 +322,7 @@ fun RotatingPhraseSetEditDialog(
                 )
             },
             confirmButton = {
-                TextButton(enabled = renameDraft.isNotBlank(), onClick = {
+                DDZDialogAction(style = DDZButtonStyle.Primary, enabled = renameDraft.isNotBlank(), onClick = {
                     val trimmed = renameDraft.trim()
                     if (trimmed.isNotBlank()) {
                         onUpdateSet { it.copy(name = trimmed) }
@@ -333,7 +333,7 @@ fun RotatingPhraseSetEditDialog(
                 }
             },
             dismissButton = {
-                TextButton(onClick = ::closeRenameDialog) {
+                DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = ::closeRenameDialog) {
                     Text("취소", style = DDZTypography.ButtonText)
                 }
             }
@@ -358,7 +358,7 @@ fun RotatingPhraseSetEditDialog(
                 )
             },
             confirmButton = {
-                TextButton(enabled = itemDraft.isNotBlank(), onClick = {
+                DDZDialogAction(style = DDZButtonStyle.Primary, enabled = itemDraft.isNotBlank(), onClick = {
                     val trimmed = itemDraft.trim()
                     if (trimmed.isNotBlank()) {
                         if (editingItemIndex == null) {
@@ -385,7 +385,7 @@ fun RotatingPhraseSetEditDialog(
                 }
             },
             dismissButton = {
-                TextButton(onClick = ::closeItemInputDialog) {
+                DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = ::closeItemInputDialog) {
                     Text("취소", style = DDZTypography.ButtonText)
                 }
             }
@@ -401,14 +401,14 @@ fun RotatingPhraseSetEditDialog(
             title = { Text("세트 삭제") },
             text = { Text("${phraseSet.name} 세트를 삭제하시겠습니까?") },
             confirmButton = {
-                TextButton(onClick = {
+                DDZDialogAction(style = DDZButtonStyle.Destructive, onClick = {
                     onDeleteSet(phraseSet.id)
                 }) {
                     Text("삭제", style = DDZTypography.ButtonText)
                 }
             },
             dismissButton = {
-                TextButton(onClick = ::closeDeleteConfirmDialog) {
+                DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = ::closeDeleteConfirmDialog) {
                     Text("취소", style = DDZTypography.ButtonText)
                 }
             }

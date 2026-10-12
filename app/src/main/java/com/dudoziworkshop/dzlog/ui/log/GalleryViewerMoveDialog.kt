@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import android.app.Activity
 import android.os.Build
 import android.provider.MediaStore
@@ -7,9 +9,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.AlertDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -148,9 +149,9 @@ internal fun GalleryViewerMoveDialog(
                 else "${error.orEmpty()}\n총 재시도 파일 ${retryPlan?.items?.size ?: 0}개\n${retryPlan?.destinations?.values?.distinct()?.joinToString("\n").orEmpty()}")
             },
             confirmButton = {
-                if (!busy) retryPlan?.let { plan -> TextButton(onClick = { request(plan) }) { Text("재시도") } }
+                if (!busy) retryPlan?.let { plan -> DDZDialogAction(style = DDZButtonStyle.Primary, onClick = { request(plan) }) { Text("재시도") } }
             },
-            dismissButton = { if (!busy) TextButton(onClick = onClose) { Text("취소") } },
+            dismissButton = { if (!busy) DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = onClose) { Text("취소") } },
         )
         picking -> GalleryMoveDestinationPicker(
             allPhotos = snapshot,

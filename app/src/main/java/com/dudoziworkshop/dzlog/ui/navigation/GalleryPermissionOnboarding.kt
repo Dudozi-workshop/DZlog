@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.navigation
 
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -7,10 +9,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,12 +57,12 @@ internal fun GalleryPermissionOnboarding() {
                 }
             },
             confirmButton = {
-                Button(onClick = {
+                DDZDialogAction(style = DDZButtonStyle.Primary, onClick = {
                     requester.launch(GalleryMediaAccessPolicy.requiredPermissions())
                 }) { Text("사진 접근 허용") }
             },
             dismissButton = {
-                TextButton(onClick = {
+                DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = {
                     preferences.edit().putBoolean("onboarding_done", true).apply()
                     shown = true
                 }) { Text("나중에") }

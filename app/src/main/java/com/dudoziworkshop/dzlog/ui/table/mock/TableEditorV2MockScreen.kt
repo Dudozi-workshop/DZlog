@@ -44,6 +44,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -64,6 +65,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,12 +78,14 @@ import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
+import com.dudoziworkshop.dzlog.feature.table.policy.quickCellLinks
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZConfirmDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZContentDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZQuickChoiceDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZUnsavedDecisionDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
@@ -177,6 +181,7 @@ fun TableEditorV2Screen(
     val saveScope = rememberCoroutineScope()
     val context = LocalContext.current
     val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val imeVisible = WindowInsets.isImeVisible
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
     var keyboardPreviewLocked by remember { mutableStateOf(false) }
@@ -265,6 +270,7 @@ fun TableEditorV2Screen(
         },
         bottomBar = {
             if (!imeVisible) Column {
+                HorizontalDivider(color = DDZColor.BorderStrong)
                 MockBottomBar(
                     active = activeTab,
                     onContent = {
@@ -418,199 +424,216 @@ fun TableEditorV2Screen(
                     maxLines = 2,
                 )
 
-                Box(
+                TableEditorWorkPanel(
                     Modifier.fillMaxWidth()
-                        .then(if (imeVisible) Modifier else Modifier.height(panelHeight))
-                        .background(DDZColor.Surface),
-                    contentAlignment = Alignment.TopStart,
+                        .then(if (imeVisible) Modifier else Modifier.height(panelHeight)),
                 ) {
-                    if (showSaveRules) {
-                        TableEditorSaveSettingsPanel(
-                            draft = saveRulesDraft,
-                            fileNamePreview = namingPreview.first,
-                            pathPreview = namingPreview.second,
-                            counterPadding = session.draftCounterPadding,
-                            nextCounter = session.draftNextCounter ?: 1,
-                            onOpenDetail = { saveDetailTrail = saveDetailTrail + it },
-                            modifier = editorPanelModifier,
-                        )
-                    } else if (showStyle) {
-                        TableEditorStylePanel(
-                            draft = draftStyleState,
-                            onDraftChange = session::commitStyleChange,
-                            modifier = editorPanelModifier,
-                        )
-                    } else if (mode == MockMode.EDIT) {
-                        val selected = selectedCellId?.let { id ->
-                            cells.firstOrNull { it.domainCellId == id }
-                        }
-                        if (selected != null) {
-                            TableEditorCellUiModelEditor(
-                                cell = selected,
-                                phraseSets = draftTemplateState.phraseSets,
-                                onValueChange = { nextValue ->
-                                    selected.domainCellId?.let { cellId ->
-                                        session.commitTemplateChange(
-                                            applyTableEditorCellUiModelValue(
-                                                templateState = draftTemplateState,
-                                                domainCellId = cellId,
-                                                nextValue = nextValue,
-                                            )
-                                        )
-                                    }
-                                },
-                                onTypeChange = { nextType ->
-                                    inputExpanded = false
-                                    selected.domainCellId?.let { cellId ->
-                                        session.commitTemplateChange(
-                                            applyTableEditorCellType(
-                                                templateState = draftTemplateState,
-                                                domainCellId = cellId,
-                                                nextType = nextType,
-                                            )
-                                        )
-                                    }
-                                },
-                                onDatePatternChange = { pattern ->
-                                    selected.domainCellId?.let { cellId ->
-                                        session.commitTemplateChange(
-                                            applyMockDatePattern(
-                                                templateState = draftTemplateState,
-                                                domainCellId = cellId,
-                                                pattern = pattern,
-                                            )
-                                        )
-                                    }
-                                },
-                                onApplyTimePolicy = {
-                                    selected.domainCellId?.let { cellId ->
-                                        session.commitTemplateChange(
-                                            applyMockTimeFormatPolicy(
-                                                templateState = draftTemplateState,
-                                                domainCellId = cellId,
-                                            )
-                                        )
-                                    }
-                                },
-                                onPhraseSetChange = { phraseSetId ->
-                                    selected.domainCellId?.let { cellId ->
-                                        session.commitTemplateChange(
-                                            applyMockPhraseSet(
-                                                templateState = draftTemplateState,
-                                                domainCellId = cellId,
-                                                phraseSetId = phraseSetId,
-                                            )
-                                        )
-                                    }
-                                },
-                                onPhraseEveryChange = { every ->
-                                    selected.domainCellId?.let { cellId ->
-                                        session.commitTemplateChange(
-                                            applyMockPhraseEvery(
-                                                templateState = draftTemplateState,
-                                                domainCellId = cellId,
-                                                every = every,
-                                            )
-                                        )
-                                    }
-                                },
-                                onCreatePhraseSet = { name ->
-                                    session.commitTemplateChange(
-                                        createMockPhraseSet(
-                                            templateState = draftTemplateState,
-                                            name = name,
-                                        )
-                                    )
-                                },
-                                onUpdatePhraseSet = { phraseSetId, transform ->
-                                    session.commitTemplateChange(
-                                        updateMockPhraseSet(
-                                            templateState = draftTemplateState,
-                                            phraseSetId = phraseSetId,
-                                            transform = transform,
-                                        )
-                                    )
-                                },
-                                onDeletePhraseSet = { phraseSetId ->
-                                    session.commitTemplateChange(
-                                        deleteMockPhraseSet(
-                                            templateState = draftTemplateState,
-                                            phraseSetId = phraseSetId,
-                                        )
-                                    )
-                                },
-                                onClose = {
-                                    keyboard?.hide()
-                                    selectionState.clearEditSelection()
-                                },
-                                compactInput = imeVisible,
-                                inputExpanded = inputExpanded,
-                                expandedInputHeight = expandedInputHeight,
-                                onToggleInputExpanded = { inputExpanded = !inputExpanded },
-                                onInputFocus = { keyboardPreviewLocked = true },
-                                modifier = editorPanelModifier,
-                            )
-                        }
-                    } else {
-                        MockLayoutPanel(
-                            modifier = editorPanelModifier,
-                            selectedCount = layoutSelection.selectedCellIds.size,
-                            rows = rows,
-                            cols = cols,
-                            mergedSelection = isMockLayoutSelectionMerged(draftTemplateState, layoutSelection),
-                            onAddRow = {
-                                session.commitTemplateChange(
-                                    TableEditorV2StructureController.addRow(draftTemplateState, layoutSelection)
+                    Column(Modifier.fillMaxWidth()) {
+                        Box(Modifier.fillMaxWidth().weight(1f, fill = !imeVisible)) {
+                            if (showSaveRules) {
+                                TableEditorSaveSettingsPanel(
+                                    draft = saveRulesDraft,
+                                    fileNamePreview = namingPreview.first,
+                                    pathPreview = namingPreview.second,
+                                    counterPadding = session.draftCounterPadding,
+                                    nextCounter = session.draftNextCounter ?: 1,
+                                    onOpenDetail = { saveDetailTrail = saveDetailTrail + it },
+                                    modifier = editorPanelModifier,
                                 )
-                                selectionState.clearLayoutSelection()
-                            },
-                            onAddCol = {
-                                session.commitTemplateChange(
-                                    TableEditorV2StructureController.addColumn(draftTemplateState, layoutSelection)
+                            } else if (showStyle) {
+                                TableEditorStylePanel(
+                                    draft = draftStyleState,
+                                    onDraftChange = session::commitStyleChange,
+                                    modifier = editorPanelModifier,
                                 )
-                                selectionState.clearLayoutSelection()
-                            },
-                            onMergeSelection = {
-                                val decision = TableEditorV2StructureController.resolveMergeDecision(
-                                    templateState = draftTemplateState,
-                                    selection = layoutSelection,
-                                )
-                                when (decision.type) {
-                                    TableMergeDecisionType.CONFIRM_MERGE -> {
-                                        pendingMergeDecision = decision
-                                    }
-                                    TableMergeDecisionType.MERGE,
-                                    TableMergeDecisionType.UNMERGE -> {
-                                        val updated = TableEditorV2StructureController.applyMergeDecision(draftTemplateState, decision)
-                                        session.commitTemplateChange(updated)
-                                        selectionState.normalizeLayoutSelection(
-                                            templateState = updated,
-                                            range = decision.range,
-                                            collapseToTopLeft = decision.type == TableMergeDecisionType.UNMERGE,
-                                        )
-                                    }
-                                    TableMergeDecisionType.NONE -> Unit
+                            } else if (mode == MockMode.EDIT) {
+                                val selected = selectedCellId?.let { id ->
+                                    cells.firstOrNull { it.domainCellId == id }
                                 }
-                            },
-                            onDeleteRows = {
-                                session.commitTemplateChange(TableEditorV2StructureController.removeRows(session.draftTemplateState, layoutSelection))
-                                selectionState.clearLayoutSelection()
-                            },
-                            onDeleteColumns = {
-                                session.commitTemplateChange(TableEditorV2StructureController.removeColumns(session.draftTemplateState, layoutSelection))
-                                selectionState.clearLayoutSelection()
-                            },
-                            onEqualizeColumns = {
-                                session.commitTemplateChange(
-                                    TableEditorV2StructureController.equalizeColumns(session.draftTemplateState)
+                                if (selected != null) {
+                                    TableEditorCellUiModelEditor(
+                                        cell = selected,
+                                        phraseSets = draftTemplateState.phraseSets,
+                                        onValueChange = { nextValue ->
+                                            selected.domainCellId?.let { cellId ->
+                                                session.commitTemplateChange(
+                                                    applyTableEditorCellUiModelValue(
+                                                        templateState = draftTemplateState,
+                                                        domainCellId = cellId,
+                                                        nextValue = nextValue,
+                                                    )
+                                                )
+                                            }
+                                        },
+                                        onTypeChange = { nextType ->
+                                            inputExpanded = false
+                                            selected.domainCellId?.let { cellId ->
+                                                session.commitTemplateChange(
+                                                    applyTableEditorCellType(
+                                                        templateState = draftTemplateState,
+                                                        domainCellId = cellId,
+                                                        nextType = nextType,
+                                                    )
+                                                )
+                                            }
+                                        },
+                                        onDatePatternChange = { pattern ->
+                                            selected.domainCellId?.let { cellId ->
+                                                session.commitTemplateChange(
+                                                    applyMockDatePattern(
+                                                        templateState = draftTemplateState,
+                                                        domainCellId = cellId,
+                                                        pattern = pattern,
+                                                    )
+                                                )
+                                            }
+                                        },
+                                        onApplyTimePolicy = {
+                                            selected.domainCellId?.let { cellId ->
+                                                session.commitTemplateChange(
+                                                    applyMockTimeFormatPolicy(
+                                                        templateState = draftTemplateState,
+                                                        domainCellId = cellId,
+                                                    )
+                                                )
+                                            }
+                                        },
+                                        onPhraseSetChange = { phraseSetId ->
+                                            selected.domainCellId?.let { cellId ->
+                                                session.commitTemplateChange(
+                                                    applyMockPhraseSet(
+                                                        templateState = draftTemplateState,
+                                                        domainCellId = cellId,
+                                                        phraseSetId = phraseSetId,
+                                                    )
+                                                )
+                                            }
+                                        },
+                                        onPhraseEveryChange = { every ->
+                                            selected.domainCellId?.let { cellId ->
+                                                session.commitTemplateChange(
+                                                    applyMockPhraseEvery(
+                                                        templateState = draftTemplateState,
+                                                        domainCellId = cellId,
+                                                        every = every,
+                                                    )
+                                                )
+                                            }
+                                        },
+                                        onCreatePhraseSet = { name ->
+                                            session.commitTemplateChange(
+                                                createMockPhraseSet(
+                                                    templateState = draftTemplateState,
+                                                    name = name,
+                                                )
+                                            )
+                                        },
+                                        onUpdatePhraseSet = { phraseSetId, transform ->
+                                            session.commitTemplateChange(
+                                                updateMockPhraseSet(
+                                                    templateState = draftTemplateState,
+                                                    phraseSetId = phraseSetId,
+                                                    transform = transform,
+                                                )
+                                            )
+                                        },
+                                        onDeletePhraseSet = { phraseSetId ->
+                                            session.commitTemplateChange(
+                                                deleteMockPhraseSet(
+                                                    templateState = draftTemplateState,
+                                                    phraseSetId = phraseSetId,
+                                                )
+                                            )
+                                        },
+                                        onClose = {
+                                            keyboard?.hide()
+                                            selectionState.clearEditSelection()
+                                        },
+                                        compactInput = imeVisible,
+                                        inputExpanded = inputExpanded,
+                                        expandedInputHeight = expandedInputHeight,
+                                        onToggleInputExpanded = { inputExpanded = !inputExpanded },
+                                        onInputFocus = { keyboardPreviewLocked = true },
+                                        modifier = editorPanelModifier,
+                                    )
+                                }
+                            } else {
+                                MockLayoutPanel(
+                                    modifier = editorPanelModifier,
+                                    selectedCount = layoutSelection.selectedCellIds.size,
+                                    rows = rows,
+                                    cols = cols,
+                                    mergedSelection = isMockLayoutSelectionMerged(draftTemplateState, layoutSelection),
+                                    onAddRow = {
+                                        session.commitTemplateChange(
+                                            TableEditorV2StructureController.addRow(draftTemplateState, layoutSelection)
+                                        )
+                                        selectionState.clearLayoutSelection()
+                                    },
+                                    onAddCol = {
+                                        session.commitTemplateChange(
+                                            TableEditorV2StructureController.addColumn(draftTemplateState, layoutSelection)
+                                        )
+                                        selectionState.clearLayoutSelection()
+                                    },
+                                    onMergeSelection = {
+                                        val decision = TableEditorV2StructureController.resolveMergeDecision(
+                                            templateState = draftTemplateState,
+                                            selection = layoutSelection,
+                                        )
+                                        when (decision.type) {
+                                            TableMergeDecisionType.CONFIRM_MERGE -> {
+                                                pendingMergeDecision = decision
+                                            }
+                                            TableMergeDecisionType.MERGE,
+                                            TableMergeDecisionType.UNMERGE -> {
+                                                val updated = TableEditorV2StructureController.applyMergeDecision(draftTemplateState, decision)
+                                                session.commitTemplateChange(updated)
+                                                selectionState.normalizeLayoutSelection(
+                                                    templateState = updated,
+                                                    range = decision.range,
+                                                    collapseToTopLeft = decision.type == TableMergeDecisionType.UNMERGE,
+                                                )
+                                            }
+                                            TableMergeDecisionType.NONE -> Unit
+                                        }
+                                    },
+                                    onDeleteRows = {
+                                        session.commitTemplateChange(TableEditorV2StructureController.removeRows(session.draftTemplateState, layoutSelection))
+                                        selectionState.clearLayoutSelection()
+                                    },
+                                    onDeleteColumns = {
+                                        session.commitTemplateChange(TableEditorV2StructureController.removeColumns(session.draftTemplateState, layoutSelection))
+                                        selectionState.clearLayoutSelection()
+                                    },
+                                    onEqualizeColumns = {
+                                        session.commitTemplateChange(
+                                            TableEditorV2StructureController.equalizeColumns(session.draftTemplateState)
+                                        )
+                                    },
+                                    onEqualizeRows = {
+                                        session.commitTemplateChange(
+                                            TableEditorV2StructureController.equalizeRows(session.draftTemplateState)
+                                        )
+                                    },
                                 )
-                            },
-                            onEqualizeRows = {
-                                session.commitTemplateChange(
-                                    TableEditorV2StructureController.equalizeRows(session.draftTemplateState)
+                            }
+                        }
+                        if (!imeVisible && activeTab == MockBottomTab.CONTENT) {
+                            val selected = cells.firstOrNull { it.domainCellId == selectedCellId && !it.isCovered }
+                            selected?.domainCellId?.let { id ->
+                                TableEditorCellInfoRow(
+                                    cell = selected,
+                                    links = quickCellLinks(session.finalTemplateForSave(), id),
+                                    neighbours = editorCellNeighbours(cells, id),
+                                    enabled = !saveCoordinator.isSaving,
+                                    onMove = { nextId ->
+                                        focusManager.clearFocus()
+                                        selectionState.selectEditCell(nextId)
+                                    },
                                 )
-                            },
-                        )
+                            }
+                        }
                     }
                 }
             }
@@ -633,50 +656,33 @@ fun TableEditorV2Screen(
     }
 
     if (pendingSwitchId != null) {
-        DDZContentDialog(
+        DDZUnsavedDecisionDialog(
             title = "템플릿을 교체할까요?",
-            onDismiss = { if (!saveCoordinator.isSaving) pendingSwitchId = null },
-            content = {
-                Text("현재 변경사항을 저장한 뒤 교체할 수 있어요.", color = DDZColor.TextSecondary)
-            },
-            actions = {
-                // Stack the longer labels so all three choices remain readable on small screens.
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DDZButton(
-                        text = "저장하고 교체",
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !saveCoordinator.isSaving,
-                        onClick = {
-                            val targetId = pendingSwitchId ?: return@DDZButton
-                            saveScope.launch {
-                                if (saveCoordinator.save(session, onSave)) {
-                                    pendingSwitchId = null
-                                    onSwitchTemplate(targetId)
-                                }
-                            }
-                        },
-                    )
-                    DDZButton(
-                        text = "저장 안 하고 교체",
-                        style = DDZButtonStyle.Text,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !saveCoordinator.isSaving,
-                        onClick = {
-                            val targetId = pendingSwitchId ?: return@DDZButton
-                            if (isUnsavedNewTemplate) onDiscardUnsavedNewTemplate()
-                            pendingSwitchId = null
-                            onSwitchTemplate(targetId)
-                        },
-                    )
-                    DDZButton(
-                        text = "취소",
-                        style = DDZButtonStyle.Secondary,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !saveCoordinator.isSaving,
-                        onClick = { pendingSwitchId = null },
-                    )
+            message = "현재 변경사항을 저장한 뒤 교체할 수 있어요.",
+            onCancel = { if (!saveCoordinator.isSaving) pendingSwitchId = null },
+            onDiscard = {
+                val targetId = pendingSwitchId
+                if (targetId != null && !saveCoordinator.isSaving) {
+                    if (isUnsavedNewTemplate) onDiscardUnsavedNewTemplate()
+                    pendingSwitchId = null
+                    onSwitchTemplate(targetId)
                 }
             },
+            onSave = {
+                val targetId = pendingSwitchId
+                if (targetId != null && !saveCoordinator.isSaving) {
+                    saveScope.launch {
+                        if (saveCoordinator.save(session, onSave)) {
+                            pendingSwitchId = null
+                            onSwitchTemplate(targetId)
+                        }
+                    }
+                }
+            },
+            enabled = !saveCoordinator.isSaving,
+            saveText = "저장하고 교체",
+            discardText = "저장 안 하고 교체",
+            verticalActions = true,
         )
     }
 
@@ -773,50 +779,28 @@ fun TableEditorV2Screen(
     }
 
     if (showBackSaveDialog) {
-        DDZContentDialog(
+        DDZUnsavedDecisionDialog(
             title = "변경사항을 저장할까요?",
-            onDismiss = { if (!saveCoordinator.isSaving) showBackSaveDialog = false },
-            content = {
-                Text(
-                    text = "저장하지 않으면 이번 편집 내용은 모두 사라집니다.",
-                    color = DDZColor.TextSecondary,
-                )
+            message = "저장하지 않으면 이번 편집 내용은 모두 사라집니다.",
+            onCancel = { if (!saveCoordinator.isSaving) showBackSaveDialog = false },
+            onDiscard = {
+                if (!saveCoordinator.isSaving) {
+                    if (isUnsavedNewTemplate) onDiscardUnsavedNewTemplate()
+                    showBackSaveDialog = false
+                    onBack()
+                }
             },
-            actions = {
-                DDZButton(
-                    text = "저장 안 함",
-                    enabled = !saveCoordinator.isSaving,
-                    style = DDZButtonStyle.Text,
-                    modifier = Modifier.weight(1f),
-                    onClick = {
-                        if (isUnsavedNewTemplate) {
-                            onDiscardUnsavedNewTemplate()
+            onSave = {
+                if (!saveCoordinator.isSaving) {
+                    saveScope.launch {
+                        if (saveCoordinator.save(session, onSave)) {
+                            showBackSaveDialog = false
+                            onBack()
                         }
-                        showBackSaveDialog = false
-                        onBack()
-                    },
-                )
-                DDZButton(
-                    text = "취소",
-                    enabled = !saveCoordinator.isSaving,
-                    style = DDZButtonStyle.Secondary,
-                    modifier = Modifier.weight(1f),
-                    onClick = { showBackSaveDialog = false },
-                )
-                DDZButton(
-                    text = "저장",
-                    enabled = !saveCoordinator.isSaving,
-                    modifier = Modifier.weight(1f),
-                    onClick = {
-                        saveScope.launch {
-                            if (saveCoordinator.save(session, onSave)) {
-                                showBackSaveDialog = false
-                                onBack()
-                            }
-                        }
-                    },
-                )
+                    }
+                }
             },
+            enabled = !saveCoordinator.isSaving,
         )
     }
 }

@@ -1,10 +1,11 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.AlertDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,8 +71,9 @@ internal fun GalleryFolderDeleteDialog(
         },
         confirmButton = {
             val confirmed = plan
-            TextButton(enabled = !busy, onClick = {
-                if (busy) return@TextButton
+            DDZDialogAction(style = if (confirmed == null) DDZButtonStyle.Secondary else DDZButtonStyle.Destructive,
+                enabled = !busy, onClick = {
+                if (busy) return@DDZDialogAction
                 if (confirmed == null) {
                     busy = true
                     error = null
@@ -103,12 +105,11 @@ internal fun GalleryFolderDeleteDialog(
                     }
                 }
             }) {
-                Text(if (confirmed == null) "삭제 범위 다시 확인" else "폴더 및 사진 삭제",
-                    color = if (!busy && confirmed != null) DDZColor.Destructive else DDZColor.TextSecondary)
+                Text(if (confirmed == null) "삭제 범위 다시 확인" else "폴더 및 사진 삭제")
             }
         },
         dismissButton = {
-            TextButton(enabled = !busy, onClick = { if (!busy) onCancel() }) { Text("취소") }
+            DDZDialogAction(style = DDZButtonStyle.Secondary, enabled = !busy, onClick = { if (!busy) onCancel() }) { Text("취소") }
         },
     )
 }

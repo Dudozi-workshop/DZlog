@@ -1,10 +1,11 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.AlertDialog
+import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -91,16 +92,16 @@ internal fun GallerySelectedPhotoDeleteDialog(
             },
             confirmButton = {
                 if (pending != null) {
-                    TextButton(enabled = !busy, onClick = {
+                    DDZDialogAction(style = DDZButtonStyle.Destructive, enabled = !busy, onClick = {
                         if (!busy) {
                             error = null
                             action.request(pending)
                         }
-                    }) { Text("삭제 재시도", color = DDZColor.Destructive) }
+                    }) { Text("삭제 재시도") }
                 }
             },
             dismissButton = {
-                TextButton(enabled = !busy, onClick = { if (!busy) onClose() }) { Text("취소") }
+                DDZDialogAction(style = DDZButtonStyle.Secondary, enabled = !busy, onClick = { if (!busy) onClose() }) { Text("취소") }
             },
         )
     }
