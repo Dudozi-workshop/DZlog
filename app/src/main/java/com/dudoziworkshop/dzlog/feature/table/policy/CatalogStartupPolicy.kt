@@ -28,13 +28,17 @@ internal fun decodeCatalogWithoutDataLoss(json: String): List<SavedTableTemplate
 
 /**
  * [verifiedNoExistingMedia] may be true only when the caller has successfully checked the
- * DZlog media folders. false includes 'unknown', query failure, or previously saved photos.
+ * DZlog media folders. If media is inaccessible, a verifiable fresh package install
+ * can offer onboarding ONLY if there are no existing saved preferences. Existing photos
+ * are never deleted; when known to exist they veto the offer.
  */
 fun decideCatalogStartupRoute(
     catalogJson: String?,
     legacyJson: String?,
     hasOtherSavedState: Boolean,
     verifiedNoExistingMedia: Boolean,
+    verifiedFreshInstall: Boolean = false,
+    knownExistingMedia: Boolean = false,
 ): CatalogStartupRoute {
     if (catalogJson != null) {
         return if (decodeCatalogWithoutDataLoss(catalogJson) != null) {
@@ -50,7 +54,8 @@ fun decideCatalogStartupRoute(
             CatalogStartupRoute.RECOVERY_REQUIRED
         }
     }
-    return if (hasOtherSavedState || !verifiedNoExistingMedia) {
+    return if (hasOtherSavedState || knownExistingMedia ||
+        (!verifiedNoExistingMedia && !verifiedFreshInstall)) {
         CatalogStartupRoute.CONTINUE_EXISTING
     } else {
         CatalogStartupRoute.OFFER_ONBOARDING
