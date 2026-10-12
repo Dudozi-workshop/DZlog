@@ -305,6 +305,8 @@ fun TableEditorV2Screen(
             // Every normal tab owns the same band, including an unselected Content tab.
             // IME mode wraps the compact input instead of preserving an empty band.
             val panelHeight = structurePanelHeight(LocalDensity.current.fontScale).coerceAtMost(maxHeight * 0.55f)
+            val expandedInputHeight = minOf(DDZLayout.QuickInput.ExpandedHeight,
+                (maxHeight * 0.4f).coerceAtLeast(DDZLayout.QuickInput.RowHeight))
             val editorPanelModifier = Modifier.heightIn(
                 max = if (imeVisible) maxHeight * 0.55f else panelHeight
             )
@@ -543,8 +545,7 @@ fun TableEditorV2Screen(
                                 },
                                 compactInput = imeVisible,
                                 inputExpanded = inputExpanded,
-                                expandedInputHeight = minOf(DDZLayout.QuickInput.ExpandedHeight,
-                                    (maxHeight * 0.4f).coerceAtLeast(56.dp)),
+                                expandedInputHeight = expandedInputHeight,
                                 onToggleInputExpanded = { inputExpanded = !inputExpanded },
                                 onInputFocus = { keyboardPreviewLocked = true },
                                 modifier = editorPanelModifier,
