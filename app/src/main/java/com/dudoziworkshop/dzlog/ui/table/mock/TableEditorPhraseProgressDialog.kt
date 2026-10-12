@@ -43,7 +43,7 @@ internal fun TableEditorPhraseProgressDialog(
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("다음 촬영에 사용할 문구")
+                Text("다음 촬영 문구 · 선택하면 0장부터 시작")
                 set.items.forEachIndexed { itemIndex, item ->
                     DDZButton(text = item, modifier = Modifier.fillMaxWidth(),
                         style = if (index == itemIndex) DDZButtonStyle.Primary else DDZButtonStyle.Secondary,
@@ -59,7 +59,7 @@ internal fun TableEditorPhraseProgressDialog(
                 if (completed == null) Text("0~${every - 1} 사이의 장수를 입력하세요.")
                 DDZButton(text = "처음부터 시작 · ${set.items.first()}", style = DDZButtonStyle.Secondary,
                     onClick = { index = 0; completedText = "0" })
-                Text("적용 후 표 편집 화면에서 저장하면 반영됩니다. 파일명 자동번호는 바뀌지 않습니다.")
+                Text("표 편집 화면에서 저장하면 반영됩니다. 자동번호는 기존 저장 규칙을 따릅니다.")
             }
         },
         dismissButton = {
