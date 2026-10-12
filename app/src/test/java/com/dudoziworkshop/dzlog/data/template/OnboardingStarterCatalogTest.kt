@@ -62,8 +62,7 @@ class OnboardingStarterCatalogTest {
         assertEquals(input.cells.map { it.quickEditable }, decoded.cells.map { it.quickEditable })
         assertEquals(input.fileNameSlotDrafts.map { it?.cellId }, decoded.fileNameSlotDrafts.take(3).map { it?.cellId })
         val legacy = input.toJsonString()
-            .replace("\"quickEditable\":false,", "")
-            .replace("\"quickEditable\":true,", "")
+            .replace(Regex(",\\\"quickEditable\\\":(?:true|false)"), "")
         val back = requireNotNull(tableTemplateStateFromJson(legacy))
         assertTrue(back.cells.all { it.quickEditable })
     }
