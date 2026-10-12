@@ -6,7 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
 import com.dudoziworkshop.dzlog.ui.camera.VolumeKeyInputBus
-import com.dudoziworkshop.dzlog.ui.navigation.AppRoot
+import com.dudoziworkshop.dzlog.ui.onboarding.OnboardingStartupGate
 import com.dudoziworkshop.dzlog.ui.theme.DDZTheme
 
 class MainActivity : ComponentActivity() {
@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             DDZTheme {
-                AppRoot()
+                OnboardingStartupGate()
             }
         }
     }
