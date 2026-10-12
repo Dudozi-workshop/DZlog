@@ -76,6 +76,8 @@ internal fun CameraPreviewArea(
     val captureAspect = args.captureAspect
 
     var previewLogged by remember { mutableStateOf(false) }
+    var cameraBindingGeneration by remember { mutableIntStateOf(0) }
+    var streamingGeneration by remember { mutableIntStateOf(0) }
 
     Box(
         modifier = Modifier
@@ -169,6 +171,7 @@ internal fun CameraPreviewArea(
             }
             val streamObserver = Observer<PreviewView.StreamState> { state ->
                 if (state == PreviewView.StreamState.STREAMING) {
+                    streamingGeneration += 1
                     updateCaptureRect()
                 }
             }
@@ -200,6 +203,7 @@ internal fun CameraPreviewArea(
             ) { cap, camera ->
                 onBoundImageCaptureChange(cap)
                 onBoundCameraChange(camera)
+                cameraBindingGeneration += 1
             }
         }
 
@@ -221,15 +225,13 @@ internal fun CameraPreviewArea(
             }
         }
 
-        LaunchedEffect(boundCamera, args.zoomRatioTenths) {
+        // Binding/resuming can reset hardware zoom even when the saved request is unchanged.
+        LaunchedEffect(boundCamera, args.zoomRatioTenths, args.maxZoomTenths,
+            cameraBindingGeneration, streamingGeneration) {
             val activeCamera = boundCamera ?: return@LaunchedEffect
-            val requested = args.zoomRatioTenths.coerceIn(10, args.maxZoomTenths.coerceAtLeast(10)) / 10f
-            val zoomState = activeCamera.cameraInfo.zoomState.value
-            val (minZoom, maxZoom) = resolveZoomBounds(
-                minSupported = zoomState?.minZoomRatio ?: 1f,
-                maxSupported = zoomState?.maxZoomRatio ?: 1f
-            )
-            val target = requested.coerceIn(minZoom, maxZoom)
+            val zoomState = activeCamera.cameraInfo.zoomState.value ?: return@LaunchedEffect
+            val target = restoredZoomRatio(args.zoomRatioTenths,
+                zoomState.minZoomRatio, zoomState.maxZoomRatio)
             runCatching { activeCamera.cameraControl.setZoomRatio(target) }
         }
 
@@ -455,4 +457,10 @@ internal fun resolveZoomBounds(minSupported: Float, maxSupported: Float): Pair<F
     val clampedMax = maxSupported.coerceAtLeast(1f)
     val clampedMin = max(1f, minSupported).coerceAtMost(clampedMax)
     return clampedMin to clampedMax
+}
+
+/** Restore the request against hardware bounds, never a stale UI maximum. */
+internal fun restoredZoomRatio(requestedTenths: Int, minSupported: Float, maxSupported: Float): Float {
+    val (minZoom, maxZoom) = resolveZoomBounds(minSupported, maxSupported)
+    return (requestedTenths.coerceIn(10, 100) / 10f).coerceIn(minZoom, maxZoom)
 }

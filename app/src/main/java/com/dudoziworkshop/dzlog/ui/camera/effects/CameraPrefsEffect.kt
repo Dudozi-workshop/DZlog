@@ -112,7 +112,7 @@ internal fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.assistShutterEnabled = prefs[KEY_ASSIST_SHUTTER_ENABLED] ?: false
         ui.prefs.assistShutterXRatio = (prefs[KEY_ASSIST_SHUTTER_X_RATIO] ?: 0.82f)
         ui.prefs.assistShutterYRatio = (prefs[KEY_ASSIST_SHUTTER_Y_RATIO] ?: 0.62f)
-        ui.capture.actualZoomTenths = ui.prefs.zoomRatioTenths
+        // The zoom-state observer reports hardware zoom after restoration; do not show a requested value as actual.
         ui.capture.maxZoomTenths = maxOf(ui.capture.maxZoomTenths, 20)
     } catch (_: Exception) {
         ui.prefs.captureAspect = CaptureAspect.R3_4

@@ -9,7 +9,8 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
 import com.dudoziworkshop.dzlog.feature.table.policy.TableCounterConflictDialogEffect
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -80,7 +81,7 @@ class TableCounterHandlersTest {
             updateCell = ::updateCounterCell,
             scope = this,
         )
-        delay(20)
+        coroutineContext[Job]!!.children.toList().joinAll()
 
         val read = facade.read(request)
         assertEquals(7, read.next)
@@ -129,7 +130,7 @@ class TableCounterHandlersTest {
             updateCell = ::updateCounterCell,
             scope = this,
         )
-        delay(20)
+        coroutineContext[Job]!!.children.toList().joinAll()
 
         val read = facade.read(request)
         assertEquals(10, read.next)
