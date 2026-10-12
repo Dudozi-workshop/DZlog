@@ -245,7 +245,7 @@ fun LogFolderScreen(
         ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
         val pending = pendingPhotoPlan
-        if (result.resultCode == Activity.RESULT_OK && pending != null && pendingPath != null) {
+        if (result.resultCode == Activity.RESULT_OK && pending != null) {
             finishPhotoMove(pending)
         } else {
             pendingPhotoPlan = null
