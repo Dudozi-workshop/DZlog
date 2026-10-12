@@ -90,6 +90,34 @@ class OnboardingCatalogStartupPolicyTest {
     }
 
     @Test
+    fun `corrupted stored catalog is never overwritten by a normal persist`() = runBlocking {
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        ctx.dataStore.edit {
+            it[KEY_TABLE_TEMPLATES_JSON] = "{corrupted"
+            it.remove(KEY_TABLE_TEMPLATE_JSON)
+            it.remove(KEY_ACTIVE_TABLE_TEMPLATE_ID)
+            it.remove(KEY_ONBOARDING_SETUP_COMPLETED)
+        }
+        try {
+            var blocked = false
+            try {
+                persistTableTemplateCatalog(ctx, emptyList(), null)
+            } catch (_: IllegalStateException) {
+                blocked = true
+            }
+            assertTrue(blocked)
+            assertEquals("{corrupted", ctx.dataStore.data.first()[KEY_TABLE_TEMPLATES_JSON])
+        } finally {
+            ctx.dataStore.edit {
+                it.remove(KEY_TABLE_TEMPLATES_JSON)
+                it.remove(KEY_TABLE_TEMPLATE_JSON)
+                it.remove(KEY_ACTIVE_TABLE_TEMPLATE_ID)
+                it.remove(KEY_ONBOARDING_SETUP_COMPLETED)
+            }
+        }
+    }
+
+    @Test
     fun `existing legacy catalog cannot be replaced even if caller offers onboarding`() = runBlocking {
         val ctx = ApplicationProvider.getApplicationContext<Context>()
         ctx.dataStore.edit {
