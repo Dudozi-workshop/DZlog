@@ -50,27 +50,3 @@ internal fun quickMarkersFit(width: Float, valueTop: Float, locked: Boolean, lin
     val requiredWidth = markerSize * count + gap * (count - 1) + gap * 2
     return width >= requiredWidth && valueTop >= markerSize + gap * 2
 }
-
-/** Preserve configured proportions without letting any editing column become untappable.
- * Text length deliberately does not participate in column width. */
-internal fun quickEditingSizes(count: Int, weights: List<Float>?, available: Float, minimum: Float): List<Float> {
-    val safe = List(count.coerceAtLeast(1)) { index ->
-        weights?.getOrNull(index)?.takeIf { it.isFinite() && it > 0f } ?: 1f
-    }
-    val largest = safe.maxOrNull() ?: 1f
-    val normalized = safe.map { (it / largest).coerceAtLeast(0.01f) }
-    val unit = maxOf(available.coerceAtLeast(0f) / normalized.sum(), minimum / normalized.minOrNull()!!.coerceAtLeast(0.01f))
-    return normalized.map { (it * unit).coerceAtLeast(minimum) }
-}
-
-/** Start fresh for every measurement so deleting text shrinks rows again, including merges. */
-internal fun quickEditingRows(base: List<Float>, roots: List<com.dudoziworkshop.dzlog.domain.model.TableCellState>,
-    requiredHeights: List<Float>): List<Float> {
-    val result = base.toMutableList()
-    roots.forEachIndexed { index, cell ->
-        val rows = (cell.rowIndex until cell.rowIndex + cell.rowSpan).filter { it in result.indices }
-        val extra = (requiredHeights.getOrElse(index) { 0f } - rows.sumOf { result[it].toDouble() }.toFloat()).coerceAtLeast(0f)
-        if (rows.isNotEmpty()) rows.forEach { result[it] += extra / rows.size }
-    }
-    return result
-}

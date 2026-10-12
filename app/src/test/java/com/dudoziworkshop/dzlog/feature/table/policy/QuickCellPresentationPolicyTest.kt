@@ -59,17 +59,4 @@ class QuickCellPresentationPolicyTest {
         assertEquals("prefix…", quickNamingWindow(text, emptyList(), listOf(0, 7, 16), 1).text)
     }
 
-    @Test fun editingColumnsKeepProportionsAndMinimumTapWidthOnNarrowScreens() {
-        val sizes = quickEditingSizes(3, listOf(1f, 2f, 1f), 100f, 72f)
-        assertEquals(listOf(72f, 144f, 72f), sizes)
-        assertEquals(listOf(100f, 100f), quickEditingSizes(2, listOf(Float.NaN, -1f), 200f, 72f))
-    }
-
-    @Test fun mergedRowsGrowForWrappedTextAndShrinkFromFreshBaseAfterDeletion() {
-        val roots = listOf(TableCellState(0, 0, cellId = "merged", rowSpan = 2))
-        val base = listOf(56f, 56f)
-        assertEquals(listOf(100f, 100f), quickEditingRows(base, roots, listOf(200f)))
-        assertEquals(base, quickEditingRows(base, roots, listOf(30f)))
-        assertEquals(listOf(56f, 56f), base)
-    }
 }

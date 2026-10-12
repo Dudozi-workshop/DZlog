@@ -39,7 +39,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.naming.capturePhysicalSavePaths
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
@@ -60,9 +59,6 @@ private fun clampDp(value: Dp, min: Dp, max: Dp): Dp = when {
 fun HomeScreen(
     tableTemplateState: TableTemplateState,
     activeTemplateName: String = "",
-    templates: List<SavedTableTemplate> = emptyList(),
-    activeTemplateId: String? = null,
-    onSelectTemplate: (String) -> Unit = {},
     onManageTemplates: () -> Unit = {},
     onOpenSettings: () -> Unit,
     onStartCamera: () -> Unit,
@@ -71,7 +67,6 @@ fun HomeScreen(
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
 ) {
-    var showTemplatePicker by remember { mutableStateOf(false) }
     var showSaveInfo by remember { mutableStateOf(false) }
     val homeViewModel: HomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val uiState by homeViewModel.uiState.collectAsState()
@@ -147,7 +142,7 @@ fun HomeScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { showTemplatePicker = true }
+                            .clickable { onManageTemplates() }
                             .padding(horizontal = HomeUiSpec.CurrentCaptureInnerHorizontalPadding),
                         horizontalAlignment = Alignment.Start,
                     ) {
@@ -258,19 +253,5 @@ fun HomeScreen(
             onDismiss = { showSaveInfo = false },
         )
     }
-    if (showTemplatePicker) {
-        HomeTemplatePicker(
-            templates = templates,
-            activeTemplateId = activeTemplateId,
-            onSelect = { templateId ->
-                onSelectTemplate(templateId)
-                showTemplatePicker = false
-            },
-            onManage = {
-                showTemplatePicker = false
-                onManageTemplates()
-            },
-            onDismiss = { showTemplatePicker = false },
-        )
-    }
+
 }
