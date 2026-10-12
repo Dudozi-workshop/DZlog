@@ -349,7 +349,7 @@ fun TableEditorV2Screen(
                             textColorMode = draftStyleState.textColorMode,
                             manualTextColor = draftStyleState.manualTextColor,
                             layoutMode = mode == MockMode.LAYOUT,
-                            preserveInputScale = keyboardPreviewLocked || inputExpanded,
+                            preserveInputScale = keyboardPreviewLocked || imeVisible || imeBottom > 0 || inputExpanded,
                             rowWeights = draftTemplateState.rowWeights,
                             colWeights = draftTemplateState.colWeights,
                             onBoundaryDragStart = {
