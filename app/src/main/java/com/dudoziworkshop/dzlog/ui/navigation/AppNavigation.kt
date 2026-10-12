@@ -110,7 +110,7 @@ data class OriginalNavContext(
 )
 
 @Composable
-fun AppRoot() {
+fun AppRoot(startOnCamera: Boolean = false) {
     var screen by remember { mutableStateOf(AppScreen.HOME) }
     var previousScreen by remember { mutableStateOf(AppScreen.HOME) }
     var templateListEntryScreen by remember { mutableStateOf(AppScreen.HOME) }
@@ -198,6 +198,17 @@ fun AppRoot() {
             ).show()
         }
         hasRestoredTemplate = true
+    }
+
+    LaunchedEffect(hasRestoredTemplate, startOnCamera) {
+        if (startOnCamera && hasRestoredTemplate) {
+            screen = AppScreen.CAMERA
+            Toast.makeText(
+                context,
+                "빠른 수정으로 기록할 수 있어요. 원본과 기록사진을 함께 저장해요.",
+                Toast.LENGTH_LONG,
+            ).show()
+        }
     }
 
     fun persistCurrentCatalog() {
