@@ -10,7 +10,7 @@ internal fun quickRootCells(template: TableTemplateState): List<TableCellState> 
 }
 
 internal fun quickEditableCells(template: TableTemplateState): List<TableCellState> {
-    val manual = quickRootCells(template).filter { it.dataType == TableCellDataType.TEXT || it.dataType == TableCellDataType.NUMBER }
+    val manual = quickRootCells(template).filter { it.quickEditable && (it.dataType == TableCellDataType.TEXT || it.dataType == TableCellDataType.NUMBER) }
         .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
     return manual
 }
