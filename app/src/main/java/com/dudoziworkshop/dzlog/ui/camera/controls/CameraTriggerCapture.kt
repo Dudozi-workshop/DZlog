@@ -59,12 +59,6 @@ internal fun buildCameraTriggerCapture(
     // 촬영 직전 한 번 더 반영해 capture 시점 flash mode 불일치를 방지한다. (TORCH 상시점등 사용 금지)
     boundImageCapture.flashMode = ui.prefs.flashMode.toImageCaptureFlashMode()
 
-    // 정책 변경: 촬영 피드백은 저장 완료가 아니라 촬영 트리거(버튼/음량키) 시점에 즉시 제공한다.
-    captureFeedback.play(
-        successVibrationEnabled = appSettings.hapticEnabled && appSettings.captureHapticEnabled,
-        soundEnabled = appSettings.captureSoundEnabled
-    )
-
     // 구조 정리: capture 후처리 콜백을 하나의 묶음으로 전달해 호출부 가독성을 유지한다.
     val callbacks = CaptureClickCallbacks(
         // 정책 유지: 저장 성공 직후 프리뷰 숫자를 즉시 다음 값으로 반영한다.
@@ -85,6 +79,12 @@ internal fun buildCameraTriggerCapture(
         onProgressPersistenceFailed = {
             ui.counter.scopeNextCounter = null
             cameraViewModel.bumpResumeResyncTick()
+        },
+        onCaptureStarted = {
+            captureFeedback.play(
+                successVibrationEnabled = appSettings.hapticEnabled && appSettings.captureHapticEnabled,
+                soundEnabled = appSettings.captureSoundEnabled
+            )
         },
     )
 
