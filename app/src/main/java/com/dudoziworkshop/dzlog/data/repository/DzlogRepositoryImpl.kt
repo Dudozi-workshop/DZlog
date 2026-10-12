@@ -41,6 +41,7 @@ class DzlogRepositoryImpl(
         imageCapture: ImageCapture,
         request: CaptureRequest,
         onCaptureStarted: () -> Unit,
+        onImageCaptured: () -> Unit,
         onDone: (LogEntry) -> Unit,
         onFail: (String) -> Unit
     ) {
@@ -76,6 +77,8 @@ class DzlogRepositoryImpl(
 
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                     timing.onTempFileReady()
+                    runCatching { onImageCaptured() }
+                        .onFailure { Log.w("DZlogCapture", "Capture feedback failed", it) }
                     ioScope.launch {
                         val result = runCatching {
                             val decodedBmp = BitmapFactory.decodeFile(tmpFile.absolutePath)
