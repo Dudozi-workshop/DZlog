@@ -124,7 +124,7 @@ def main():
         raise AssertionError(
             "Capture test requires empty CI emulator storage; refuses to modify existing media"
         )
-    tap("촬영 시작", "사진 목록")
+    tap("촬영 시작", "●")
     time.sleep(9)  # CameraX binding and initial counter readback.
     evidence("capture-00-ready")
     alive()
@@ -135,7 +135,7 @@ def main():
             adb("shell", "am", "force-stop", PKG)
             adb("shell", "am", "start", "-W", "-n", f"{PKG}/.MainActivity")
             wait_for("촬영 시작")
-            tap("촬영 시작", "사진 목록")
+            tap("촬영 시작", "●")
             time.sleep(9)
             evidence("capture-03-process-restarted")
             check_both(query_media(), 3)
