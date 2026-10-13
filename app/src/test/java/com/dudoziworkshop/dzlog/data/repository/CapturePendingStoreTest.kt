@@ -117,6 +117,28 @@ class CapturePendingStoreTest {
         }
     }
 
+    @Test fun activeCameraPartIsNotReportedAsOrphanWhileReservationExists() {
+        val store = CapturePendingStore(context)
+        val pending = store.reserveNext(
+            CaptureReservationScope("Pictures/DZlog/Test/", "PART_"), 1, ::snapshot
+        )
+        val folder = File(context.filesDir, "capture-pending-v2")
+        val activePart = File(folder, "${pending.reservation.id}.camera.jpg.part")
+        activePart.writeBytes(byteArrayOf(1, 2, 3))
+        val untrackedPart = File(folder, "${java.util.UUID.randomUUID()}.camera.jpg.part")
+        untrackedPart.writeBytes(byteArrayOf(4))
+        try {
+            val report = store.inspectRecovery()
+            assertTrue(activePart.name !in report.orphanFiles)
+            assertTrue(untrackedPart.name in report.orphanFiles)
+        } finally {
+            activePart.delete()
+            untrackedPart.delete()
+            folder.listFiles().orEmpty().filter { it.name.startsWith(pending.reservation.id) }
+                .forEach(File::delete)
+        }
+    }
+
     @Test fun stagedJpegCorruptionBlocksProcessingButPreservesFile() {
         val store = CapturePendingStore(context)
         val pending = store.reserveNext(
