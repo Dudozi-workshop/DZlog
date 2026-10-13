@@ -33,5 +33,19 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew :app:testDebugUnitTest --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureQueueCoordinatorTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CapturePendingStoreTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureStagingStoreTest' --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReservationPolicyTest' --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjectionTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureReceiptRecoveryPolicyTest' --stacktrace
-      - name: Android debug compile
-        run: ./gradlew :app:assembleDebug --stacktrace
+      - name: Build isolated Capture QA APK
+        run: |
+          QA_VERSION_CODE="$((1000000 + GITHUB_RUN_NUMBER))"
+          ./gradlew :app:assembleDebug -PdzlogCaptureQa=true -PdzlogDebugVersionCode="$QA_VERSION_CODE" --stacktrace
+          mkdir -p qa-output
+          cp app/build/outputs/apk/debug/app-debug.apk "qa-output/DZlog-Capture-QA-${GITHUB_RUN_NUMBER}.apk"
+          cd qa-output
+          sha256sum *.apk > SHA256SUMS.txt
+      - name: Publish installable QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DZlog-Capture-QA-${{ github.run_number }}
+          path: qa-output/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
