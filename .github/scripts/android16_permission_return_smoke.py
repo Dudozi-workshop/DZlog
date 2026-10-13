@@ -39,8 +39,8 @@ def press_permission_deny():
         for node in nodes(root):
             rid = node.get("resource-id") or ""
             label = (node.get("text") or "").lower()
-            if "permission_deny_button" not in rid and label not in (
-                "허용 안 함", "허용하지 않음", "don't allow", "deny"
+            if "permission_deny" not in rid and label not in (
+                "허용 안 함", "허용하지 않음", "don't allow", "don’t allow", "deny"
             ):
                 continue
             raw = node.get("bounds") or ""
