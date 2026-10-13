@@ -87,10 +87,46 @@ class MediaStoreSaverPublishTest {
         }
     }
 
+    @Test fun cleanupZeroRowsKeepsPublishFailureAndReportsOrphanRisk() {
+        provider.publishRows = 0
+        provider.deleteRows = 0
+        val bitmap = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
+        try {
+            val failure = assertThrows(IllegalStateException::class.java) {
+                saver.saveJpeg(context, bitmap, "pending-1.jpg", "Pictures/DZlog/", 90)
+            }
+            assertEquals(1, provider.publishCalls)
+            assertEquals(listOf(71L), provider.deleted)
+            assertEquals(1, failure.suppressed.size)
+            assertTrue(failure.suppressed.single().message.orEmpty().contains("cleanup removed no pending item"))
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    @Test fun deleteExceptionIsSuppressedWithoutReplacingPublishFailure() {
+        provider.publishRows = 0
+        provider.failDelete = true
+        val bitmap = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
+        try {
+            val failure = assertThrows(IllegalStateException::class.java) {
+                saver.saveJpeg(context, bitmap, "pending-2.jpg", "Pictures/DZlog/", 90)
+            }
+            assertTrue(failure.message.orEmpty().contains("publish failed"))
+            assertEquals(1, provider.publishCalls)
+            assertEquals(1, failure.suppressed.size)
+            assertTrue(failure.suppressed.single() is SecurityException)
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
     private class TestMediaProvider : ContentProvider() {
         val outputFile: File = File.createTempFile("dzlog-publish-test-", ".jpg")
         var publishRows = 1
         var failPublish = false
+        var failDelete = false
+        var deleteRows = 1
         var publishCalls = 0
         val deleted = mutableListOf<Long>()
 
@@ -127,7 +163,8 @@ class MediaStoreSaverPublishTest {
             uri: Uri, selection: String?, selectionArgs: Array<out String>?
         ): Int {
             deleted += ContentUris.parseId(uri)
-            return 1
+            if (failDelete) throw SecurityException("delete denied")
+            return deleteRows
         }
     }
 }

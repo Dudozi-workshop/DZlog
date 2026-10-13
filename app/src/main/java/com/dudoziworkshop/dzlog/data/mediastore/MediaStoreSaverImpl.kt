@@ -67,8 +67,15 @@ class MediaStoreSaverImpl : MediaStoreSaver {
             )
 
         } catch (e: Exception) {
-            // 실패 시 흔적 제거
-            runCatching { resolver.delete(uri, null, null) }
+            // Preserve the original write/publish failure while reporting orphan risk.
+            try {
+                val deletedRows = resolver.delete(uri, null, null)
+                if (deletedRows <= 0) {
+                    e.addSuppressed(IllegalStateException("MediaStore cleanup removed no pending item: $uri"))
+                }
+            } catch (cleanupError: Exception) {
+                e.addSuppressed(cleanupError)
+            }
             throw e
         }
     }
