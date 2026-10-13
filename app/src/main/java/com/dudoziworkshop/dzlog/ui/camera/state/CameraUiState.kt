@@ -62,6 +62,8 @@ internal class CaptureUiState {
     var pendingSaveCount by mutableIntStateOf(0)
     var pendingProjectionVersion by mutableIntStateOf(0)
     var pendingSaveError by mutableStateOf(false)
+    // Blocks new shots until resumed READY jobs have been reconciled.
+    var isRecoveringPendingCaptures by mutableStateOf(false)
     val captureGate: AtomicBoolean = AtomicBoolean(false)
 
     var tapFocusUi by mutableStateOf<TapFocusUiState?>(null)
