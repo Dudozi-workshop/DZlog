@@ -54,8 +54,9 @@ fun decideCatalogStartupRoute(
             CatalogStartupRoute.RECOVERY_REQUIRED
         }
     }
-    return if (hasOtherSavedState || knownExistingMedia ||
-        (!verifiedNoExistingMedia && !verifiedFreshInstall)) {
+    // A successful empty gallery query alone does not imply a fresh install.
+    // An update/reinstall can also have no visible media, so require first install.
+    return if (hasOtherSavedState || knownExistingMedia || !verifiedFreshInstall) {
         CatalogStartupRoute.CONTINUE_EXISTING
     } else {
         CatalogStartupRoute.OFFER_ONBOARDING
