@@ -380,6 +380,13 @@ fun CameraPreview(
         counterScopeRelativePathKey = captureScopeState.counterScope.relativePathKey,
         saveMode = appSettings.saveMode
     )
+    LaunchedEffect(asyncCaptureService, latestImageController) {
+        asyncCaptureService.events.collect { event ->
+            if (event is CaptureQueueCoordinator.Event.Completed) {
+                latestImageController.reload()
+            }
+        }
+    }
     val latestImage = latestImageController.latestImage
 
     fun syncAfterUndoDelete() {
