@@ -248,15 +248,22 @@ fun CameraPreview(
         asyncCaptureService.stateVersion.collect {
             try {
                 val recovered = withContext(Dispatchers.IO) {
+                    // Only verified READY work may resume automatically. PROCESSING,
+                    // SAVED_UNCOMMITTED and damaged journals are never retried.
+                    asyncCaptureService.resumeVerifiedReadyCaptures()
                     asyncCaptureService.inspectRecovery()
                 }
                 val activeIds = asyncCaptureService.activeIds()
-                // READY/PROCESSING/RESERVED are normal while the application-owned
-                // worker or CameraX staging is still active. Orphaned jobs, corrupt
-                // journals, and explicit NEEDS_REVIEW always require intervention.
-                val unresolved = CaptureRecoveryStatusPolicy.needsManualReview(
+                val unclaimedReady = CaptureRecoveryStatusPolicy.resumableReadyIds(
                     recovered, activeIds
                 )
+                // Unclaimed READY records may wait for the bounded worker to
+                // release capacity; block new shots while recovery is draining.
+                val unableToResume = unclaimedReady.isNotEmpty() &&
+                    asyncCaptureService.outstandingCount() == 0
+                val unresolved = CaptureRecoveryStatusPolicy.needsManualReview(
+                    recovered, activeIds + unclaimedReady
+                ) || unableToResume
 
                 recovered.completedAwaitingApply.forEach { receipt ->
                     val id = receipt.reservation.id
@@ -298,7 +305,15 @@ fun CameraPreview(
                     latestCommittedCallback.value()
                 }
 
-                ui.capture.pendingSaveCount = pendingProjection.pendingCount()
+                val ownedProjectionIds = pendingProjection.snapshot()
+                    .map { it.id }.toSet()
+                ui.capture.isRecoveringPendingCaptures =
+                    (activeIds - ownedProjectionIds).isNotEmpty() ||
+                    unclaimedReady.isNotEmpty()
+                ui.capture.pendingSaveCount = maxOf(
+                    pendingProjection.pendingCount(),
+                    asyncCaptureService.outstandingCount() + unclaimedReady.size,
+                )
                 ui.capture.pendingProjectionVersion++
                 // A failed stage/reservation must not be dismissed merely because
                 // the save worker has no active jobs.
@@ -649,7 +664,9 @@ fun CameraPreview(
                         ui = ui,
                         settingsWriter = settingsWriter,
                         captureReady = canTriggerCapture && !undoDeleteController.isBusy &&
-                            !ui.capture.pendingSaveError && ui.capture.pendingSaveCount < 3,
+                            !ui.capture.pendingSaveError &&
+                            !ui.capture.isRecoveringPendingCaptures &&
+                            ui.capture.pendingSaveCount < 3,
                         latestImage = latestImage,
                         onOpenAlbum = {
                             if (ui.capture.pendingSaveCount == 0 || ui.capture.pendingSaveError) onOpenAlbum()
