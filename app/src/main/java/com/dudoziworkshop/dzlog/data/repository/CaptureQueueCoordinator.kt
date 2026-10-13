@@ -46,6 +46,10 @@ internal class CaptureQueueCoordinator(
                 store.markMediaSaved(id, outputUris)
                 commitProgress(job, outputUris)
                 store.markCommitted(id)
+                // Once the full capture is committed, staging is no longer needed.
+                // Cleanup failure must never turn a successful save into a retry.
+                runCatching { store.pruneCommitted(id) }
+                    .onFailure { Log.w(TAG, "Committed staging cleanup deferred", it) }
                 notify(Event.Completed(id, outputUris))
             } catch (cancelled: CancellationException) {
                 throw cancelled
