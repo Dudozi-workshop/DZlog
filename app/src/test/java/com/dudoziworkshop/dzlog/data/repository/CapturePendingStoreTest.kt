@@ -186,7 +186,7 @@ class CapturePendingStoreTest {
             ::snapshot,
         )
         val id = pending.reservation.id
-        val source = File(context.cacheDir, "$"+"{id}-receipt.jpg")
+        val source = File(context.cacheDir, "$id-receipt.jpg")
         source.writeBytes(byteArrayOf(1, 2, 3, 4))
         try {
             store.stageJpeg(id, source)
