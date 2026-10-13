@@ -72,8 +72,6 @@ internal fun CameraCounterSyncEffect(
         resumeTick,
         counterEventTick,
         appSettings.saveMode,
-        ui.capture.isCapturing,
-        ui.capture.pendingSaveCount,
     ) {
         if (!shouldReadCameraCounter(
                 isTemplateReady = isTemplateReady,
@@ -101,10 +99,12 @@ internal fun CameraCounterSyncEffect(
             previousRequestKey = syncMemory.previousRequestKey,
             currentRequestKey = requestKey,
         )
-        ui.counter.syncedRequest = null
+        // Keep the previous valid display until a new stream read succeeds.
+        // Preview validity is already guarded by syncedRequest == counterRequest.
         val readResult = readCameraCounterSafely { counterFacade.read(counterRequest) }
         currentCoroutineContext().ensureActive()
         val read = readResult.getOrElse { error ->
+            ui.counter.syncedRequest = null
             ui.counter.scopeNextCounter = null
             Log.e("CounterReadback", "Camera counter read failed", error)
             Toast.makeText(context, "저장 이력을 확인하지 못했습니다. 카메라 화면을 다시 열어주세요.", Toast.LENGTH_LONG).show()
