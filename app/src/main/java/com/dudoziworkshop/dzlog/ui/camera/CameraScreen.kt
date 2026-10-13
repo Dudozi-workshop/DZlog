@@ -56,6 +56,7 @@ import com.dudoziworkshop.dzlog.data.repository.CaptureReceiptRecoveryPolicy
 import com.dudoziworkshop.dzlog.data.repository.CaptureRecoveryStatusPolicy
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjection
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureTemplateCommitPolicy
 import com.dudoziworkshop.dzlog.domain.table.applyPatch
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
@@ -277,8 +278,9 @@ fun CameraPreview(
                     // Each receipt belongs to the template selected when its
                     // shutter was pressed. Identical tables can have different
                     // catalog IDs; never silently update a different entry.
-                    check(receipt.snapshot.templateId == null ||
-                        receipt.snapshot.templateId == quickTemplateId) {
+                    check(CaptureTemplateCommitPolicy.matchesReceipt(
+                        receipt.snapshot.templateId, quickTemplateId
+                    )) {
                         "Receipt belongs to a different quick template"
                     }
                     val id = receipt.reservation.id
