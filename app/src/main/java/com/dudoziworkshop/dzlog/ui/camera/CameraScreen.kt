@@ -103,6 +103,8 @@ fun CameraScreen(
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
+    verifiedTier: com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier =
+        com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier.FREE,
     onCaptureCommitted: () -> Unit = {},
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
@@ -139,6 +141,7 @@ fun CameraScreen(
                 onOpenAlbum = onOpenAlbum,
                 onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
                 sessionCaptureStack = sessionCaptureStack,
+                verifiedTier = verifiedTier,
                 onCaptureCommitted = onCaptureCommitted,
             )
         } else {
@@ -164,6 +167,8 @@ fun CameraPreview(
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
+    verifiedTier: com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier =
+        com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier.FREE,
     onCaptureCommitted: () -> Unit = {},
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
@@ -318,6 +323,7 @@ fun CameraPreview(
         context = context,
         ui = ui,
         appSettings = appSettings,
+        verifiedTier = verifiedTier,
         boundImageCapture = boundImageCapture,
         undoPending = undoDeleteController.isBusy,
         finalCapturePreview = finalCapturePreview,
