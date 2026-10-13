@@ -29,7 +29,7 @@ jobs:
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -1)"
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-34" "build-tools;34.0.0"
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
       - name: Run unit tests and build debug APK
         run: bash ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug
       - name: Upload debug APK
