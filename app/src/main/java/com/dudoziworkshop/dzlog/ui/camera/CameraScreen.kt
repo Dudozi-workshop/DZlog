@@ -294,10 +294,9 @@ fun CameraPreview(
                         }
                         ui.capture.pendingSaveCount = pendingProjection.pendingCount()
                         ui.capture.pendingProjectionVersion++
-                        ui.counter.scopeNextCounter =
-                            ui.counter.scopeNextCounter?.coerceAtLeast(
-                                pendingProjection.snapshot().maxOfOrNull { it.counter + 1 } ?: 1
-                            )
+                        // A completed receipt may belong to an older rotating-phrase
+                        // counter stream. Do not compare its number against the
+                        // currently visible stream; synchronization owns that seed.
                         // Only committed captures become undo targets.
                         UndoCapturePolicy.pushCapture(
                             sessionCaptureStack,
