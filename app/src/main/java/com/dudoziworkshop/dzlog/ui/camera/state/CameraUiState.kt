@@ -59,6 +59,9 @@ internal class CameraPrefsState {
 internal class CaptureUiState {
     var capturedUri by mutableStateOf<Uri?>(null)
     var isCapturing by mutableStateOf(false)
+    var pendingSaveCount by mutableIntStateOf(0)
+    var pendingProjectionVersion by mutableIntStateOf(0)
+    var pendingSaveError by mutableStateOf(false)
     val captureGate: AtomicBoolean = AtomicBoolean(false)
 
     var tapFocusUi by mutableStateOf<TapFocusUiState?>(null)
