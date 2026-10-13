@@ -24,6 +24,25 @@ internal class CapturePendingProjection {
 
     private val pending = linkedMapOf<String, Shot>()
 
+    // Catalog state may arrive one Compose frame after durable persistence.
+    // Keep committed progression until that catalog update is observed.
+    private var latestCommittedTemplate: TableTemplateState? = null
+
+    @Synchronized
+    fun committedBase(catalogTemplate: TableTemplateState): TableTemplateState {
+        val committed = latestCommittedTemplate ?: return catalogTemplate
+        if (committed == catalogTemplate) {
+            latestCommittedTemplate = null
+            return catalogTemplate
+        }
+        return committed
+    }
+
+    @Synchronized
+    fun recordCommittedTemplate(template: TableTemplateState) {
+        latestCommittedTemplate = template
+    }
+
     @Synchronized
     fun add(shot: Shot) {
         require(shot.counter > 0)
@@ -36,7 +55,7 @@ internal class CapturePendingProjection {
 
     @Synchronized
     fun previewTemplate(base: TableTemplateState): TableTemplateState =
-        pending.values.fold(base) { current, shot ->
+        pending.values.fold(committedBase(base)) { current, shot ->
             current.applyPatch(shot.templatePatch)
         }
 
