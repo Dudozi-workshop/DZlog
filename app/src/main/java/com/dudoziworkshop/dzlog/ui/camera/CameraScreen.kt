@@ -282,12 +282,18 @@ fun CameraPreview(
     LaunchedEffect(tableTemplateState, pendingAcknowledgement) {
         val awaiting = pendingAcknowledgement ?: return@LaunchedEffect
         if (tableTemplateState == awaiting.second) {
-            withContext(Dispatchers.IO) {
-                awaiting.first.forEach { id ->
-                    asyncCaptureService.acknowledgeTemplateApplied(id)
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    awaiting.first.forEach { id ->
+                        asyncCaptureService.acknowledgeTemplateApplied(id)
+                    }
                 }
             }
-            pendingAcknowledgement = null
+            if (result.isSuccess && pendingAcknowledgement == awaiting) {
+                pendingAcknowledgement = null
+            } else if (result.isFailure) {
+                ui.capture.pendingSaveError = true
+            }
         }
     }
 
@@ -493,9 +499,13 @@ fun CameraPreview(
                     showNextCaptureInfo = true
                 },
                 onOpenSettings = {
-                    ui.isTableSelected = false
-                    ui.dismissToolOverlays()
-                    ui.showWizard = true
+                    if (ui.capture.pendingSaveCount == 0) {
+                        ui.isTableSelected = false
+                        ui.dismissToolOverlays()
+                        ui.showWizard = true
+                    } else {
+                        Toast.makeText(context, "사진 저장 완료 후 설정을 변경할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                    }
                 },
             )
 
@@ -620,9 +630,13 @@ fun CameraPreview(
                             }
                         },
                         onOpenTableEditor = {
-                            ui.isTableSelected = false
-                            ui.dismissToolOverlays()
-                            onOpenTableEditor()
+                            if (ui.capture.pendingSaveCount == 0) {
+                                ui.isTableSelected = false
+                                ui.dismissToolOverlays()
+                                onOpenTableEditor()
+                            } else {
+                                Toast.makeText(context, "저장 완료 후 표를 편집할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                            }
                         },
                         hapticEnabled = appSettings.hapticEnabled,
                     )
@@ -712,8 +726,12 @@ fun CameraPreview(
                     appSettings.saveMode,
                 ),
                 onOpenSaveSettings = {
-                    showNextCaptureInfo = false
-                    onOpenSaveSettings()
+                    if (ui.capture.pendingSaveCount == 0) {
+                        showNextCaptureInfo = false
+                        onOpenSaveSettings()
+                    } else {
+                        Toast.makeText(context, "저장 완료 후 설정을 변경할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                    }
                 },
                 onDismiss = { showNextCaptureInfo = false },
             )
