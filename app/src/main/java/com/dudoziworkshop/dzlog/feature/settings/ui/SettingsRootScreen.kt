@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -80,6 +81,7 @@ private data class QualityUiItem(
 fun SettingsRootScreen(
     onBack: () -> Unit,
     onOpenCredits: () -> Unit = {},
+    onOpenGuide: () -> Unit = {},
     onOpenExport: () -> Unit = {},
     onOpenImport: () -> Unit = {},
 ) {
@@ -239,6 +241,14 @@ fun SettingsRootScreen(
 
                 SettingsSection(title = "정보 및 지원") {
                     SettingsGroup {
+                        SettingsActionRow(
+                            icon = Icons.Default.HelpOutline,
+                            title = "DZlog 사용 방법",
+                            subtitle = "첫 사용 안내 다시 보기",
+                            onClick = onOpenGuide,
+                            trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
+                        )
+                        SettingsDivider()
                         SettingsActionRow(
                             icon = Icons.Default.FavoriteBorder,
                             title = "도움 주신 분들",
