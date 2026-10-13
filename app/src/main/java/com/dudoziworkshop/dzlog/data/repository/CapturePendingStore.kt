@@ -46,6 +46,7 @@ internal class CapturePendingStore(context: Context) {
         snapshotForCounter: (Int) -> CaptureJobSnapshot,
     ): PendingCapture = synchronized(lock) {
         // A damaged journal blocks new reservations until reviewed: no accidental reuse.
+        ensureNoInterruptedJournals()
         val existing = journalFiles().map { file -> readDocument(file) }
         val pending = existing.map { doc -> reservationFrom(doc) }
         val counter = CaptureReservationPolicy.nextCounter(scope, seed, pending)
@@ -102,14 +103,27 @@ internal class CapturePendingStore(context: Context) {
         }
     }
 
-    fun markProcessing(id: String): PendingCapture =
-        transition(id, Status.READY, Status.PROCESSING)
+    fun markProcessing(id: String): PendingCapture = synchronized(lock) {
+        ensureNoInterruptedJournals()
+        val doc = readDocument(journalFile(id))
+        check(statusOf(doc) == Status.READY) { "Capture is not ready" }
+        val staged = parseDocument(doc)
+        check(validImage(staged)) { "Staged JPEG failed integrity verification" }
+        doc.put("status", Status.PROCESSING.name)
+        writeDocument(id, doc)
+        parseDocument(doc)
+    }
 
     /** Write output URIs before advancing the counter/phrase progress. */
     fun markMediaSaved(id: String, savedUris: List<Uri>): PendingCapture = synchronized(lock) {
         val doc = readDocument(journalFile(id))
         check(statusOf(doc) == Status.PROCESSING) { "Unexpected capture state" }
-        require(savedUris.isNotEmpty() && savedUris.none { it == Uri.EMPTY }) { "No saved output" }
+        val mode = CaptureJobSnapshotCodec.decode(doc.getJSONObject("snapshot")).request.saveMode
+        val expectedOutputs = if (mode == com.dudoziworkshop.dzlog.domain.model.SaveMode.BOTH) 2 else 1
+        require(savedUris.size == expectedOutputs &&
+            savedUris.none { it == Uri.EMPTY } &&
+            savedUris.map(Uri::toString).distinct().size == expectedOutputs
+        ) { "Incomplete or duplicated saved output set" }
         doc.put("outputs", JSONArray().apply { savedUris.forEach { put(it.toString()) } })
             .put("status", Status.SAVED_UNCOMMITTED.name)
         writeDocument(id, doc)
@@ -142,7 +156,7 @@ internal class CapturePendingStore(context: Context) {
     fun inspectRecovery(): RecoveryInventory = synchronized(lock) {
         val ready = mutableListOf<PendingCapture>()
         val review = mutableListOf<PendingCapture>()
-        val corrupt = mutableListOf<String>()
+        val corrupt = interruptedJournalFiles().mapTo(mutableListOf()) { it.name }
         val known = mutableSetOf<String>()
         journalFiles().forEach { file ->
             known += file.name.removeSuffix(".json")
@@ -219,6 +233,25 @@ internal class CapturePendingStore(context: Context) {
     private fun statusOf(doc: JSONObject): Status = Status.valueOf(doc.getString("status"))
     private fun journalFiles(): List<File> =
         root.listFiles().orEmpty().filter { it.isFile && it.name.endsWith(".json") }
+
+    /**
+     * AtomicFile may leave a .new (interrupted write) or .bak (legacy backup).
+     * Never allocate another number while the last durable state is ambiguous.
+     */
+    private fun interruptedJournalFiles(): List<File> =
+        root.listFiles().orEmpty().filter { file ->
+            file.isFile && (
+                file.name.endsWith(".json.new") ||
+                    file.name.endsWith(".json.bak") ||
+                    file.name.endsWith(".json.part")
+                )
+        }
+
+    private fun ensureNoInterruptedJournals() {
+        check(interruptedJournalFiles().isEmpty()) {
+            "Interrupted capture journal requires recovery review"
+        }
+    }
     private fun imageFile(id: String): File = File(root, "${validateId(id)}.jpg")
     private fun journalFile(id: String): File = File(root, "${validateId(id)}.json")
     private fun validateId(id: String): String = UUID.fromString(id).toString().also {
