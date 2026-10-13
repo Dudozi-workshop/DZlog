@@ -30,6 +30,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutPolicy
+import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutConfig
+import com.dudoziworkshop.dzlog.feature.table.policy.TemplateCollectionAction
 import com.dudoziworkshop.dzlog.feature.table.policy.BillingEntitlementRuntime
 import com.dudoziworkshop.dzlog.data.preferences.KEY_FIRST_CAPTURE_SUCCEEDED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ONBOARDING_SETUP_COMPLETED
@@ -341,7 +344,25 @@ fun AppRoot(startOnCamera: Boolean = false) {
         }
     }
 
+    fun canAddSavedTemplate(action: TemplateCollectionAction): Boolean {
+        val decision = MonetizationRolloutPolicy.evaluate(
+            template = tableTemplateState,
+            currentSavedTemplateCount = tableTemplateViewModel.templates.size,
+            action = action,
+            verifiedTier = verifiedProTier,
+            freeSavedTemplateLimit = MonetizationRolloutConfig.freeSavedTemplateLimit,
+            proSavedTemplateLimit = MonetizationRolloutConfig.proSavedTemplateLimit,
+        )
+        if (!decision.canAddSavedTemplates) {
+            Toast.makeText(context,
+                "보관 가능한 양식 개수를 초과했습니다. 다른 양식을 정리하거나 Pro를 확인해 주세요.",
+                Toast.LENGTH_LONG).show()
+        }
+        return decision.canAddSavedTemplates
+    }
+
     fun createNewTemplate() {
+        if (!canAddSavedTemplate(TemplateCollectionAction.CREATE)) return
         appScope.launch {
             val previousActiveId = tableTemplateViewModel.activeTemplateId
             val item = createSavedTableTemplate(
@@ -419,6 +440,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     }
 
     fun duplicateTemplate(templateId: String) {
+        if (!canAddSavedTemplate(TemplateCollectionAction.DUPLICATE)) return
         val source = tableTemplateViewModel.templates.firstOrNull { it.id == templateId } ?: return
         val copy = createSavedTableTemplate(
             name = duplicateTemplateName(source.name, tableTemplateViewModel.templates),
