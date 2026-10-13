@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
  *   SAVED_UNCOMMITTED must be reconciled first.
  * - The caller's scope must be application-owned, not a CameraScreen composition scope.
  *
- * This component is intentionally not connected to the live shutter yet.
+ * Active in the live shutter pipeline for OFF, SHORT and HOLD preview modes.
  */
 internal class CaptureQueueCoordinator(
     private val store: CapturePendingStore,

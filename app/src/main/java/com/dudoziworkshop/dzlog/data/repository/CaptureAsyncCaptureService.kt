@@ -16,8 +16,8 @@ import kotlinx.coroutines.flow.update
  * Data-layer bridge between CameraX staging and the serial save worker.
  *
  * The host must own [applicationScope] for the entire application lifetime.
- * This is not enabled by CameraScreen until reserved previews and progress
- * commits can be safely reconciled with active templates and Undo.
+ * CameraScreen uses this service in all preview modes. Durable receipts are
+ * reconciled with the bound template and Undo before journal acknowledgement.
  */
 internal class CaptureAsyncCaptureService(
     context: Context,
