@@ -105,7 +105,7 @@ internal object CaptureCounterPolicy {
         )
     }
 
-    private suspend fun commit(
+    internal suspend fun commit(
         context: Context,
         key: CaptureStreamKey,
         usedCounter: Int,
