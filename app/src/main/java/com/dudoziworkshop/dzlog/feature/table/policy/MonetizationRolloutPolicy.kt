@@ -19,6 +19,11 @@ object MonetizationRolloutConfig {
     const val PRO_PRODUCT_ID = "dzlog_pro_lifetime"
     const val PRO_PLANNED_KRW_PRICE = 5_900
 
+    // Product decision pending: specify both values before enabling PAID_RELEASE.
+    // ALL_UNLOCKED ignores these quota limits completely.
+    val freeSavedTemplateLimit: Int? = null
+    val proSavedTemplateLimit: Int? = null
+
     val purchasesEnabled: Boolean get() = mode == MonetizationRolloutMode.PAID_RELEASE
     val showPaywall: Boolean get() = purchasesEnabled
 }
