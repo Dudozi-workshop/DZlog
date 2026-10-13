@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.data.repository
 
 import android.content.Context
+import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.dudoziworkshop.dzlog.data.template.defaultTableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
@@ -174,6 +175,38 @@ class CapturePendingStoreTest {
             source.delete()
             File(context.filesDir, "capture-pending-v2").listFiles().orEmpty()
                 .filter { it.name.startsWith(id) }.forEach(File::delete)
+        }
+    }
+
+    @Test fun committedReceiptSurvivesCleanupUntilUiAcknowledgesIt() {
+        val store = CapturePendingStore(context)
+        val pending = store.reserveNext(
+            CaptureReservationScope("Pictures/DZlog/receipt/${System.nanoTime()}/", "T1_"),
+            7,
+            ::snapshot,
+        )
+        val id = pending.reservation.id
+        val source = File(context.cacheDir, "$"+"{id}-receipt.jpg")
+        source.writeBytes(byteArrayOf(1, 2, 3, 4))
+        try {
+            store.stageJpeg(id, source)
+            store.markProcessing(id)
+            store.markMediaSaved(
+                id, listOf(Uri.parse("content://dzlog/one"), Uri.parse("content://dzlog/two"))
+            )
+            store.markCommitted(id)
+            store.pruneCommitted(id)
+            assertTrue(store.inspectRecovery().completedAwaitingApply.any {
+                it.reservation.id == id
+            })
+            store.acknowledgeTemplateApplied(id)
+            assertTrue(store.inspectRecovery().completedAwaitingApply.none {
+                it.reservation.id == id
+            })
+        } finally {
+            source.delete()
+            val folder = File(context.filesDir, "capture-pending-v2")
+            folder.listFiles().orEmpty().filter { it.name.startsWith(id) }.forEach(File::delete)
         }
     }
 }
