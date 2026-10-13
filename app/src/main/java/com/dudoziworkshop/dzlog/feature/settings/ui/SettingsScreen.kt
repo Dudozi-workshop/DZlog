@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.dudoziworkshop.dzlog.data.backup.LocalTemplateMergeResult
+import com.dudoziworkshop.dzlog.ui.onboarding.OnboardingFlowScreen
 
 @Composable
 fun SettingsScreen(
@@ -14,10 +15,20 @@ fun SettingsScreen(
     onImported: (LocalTemplateMergeResult) -> Unit = {},
 ) {
     var backupMode by remember { mutableStateOf<BackupScreenMode?>(null) }
-    if (backupMode == null) {
+    var showGuide by remember { mutableStateOf(false) }
+    if (showGuide) {
+        OnboardingFlowScreen(
+            busy = false,
+            onChoose = {},
+            onSkip = {},
+            readOnly = true,
+            onClose = { showGuide = false },
+        )
+    } else if (backupMode == null) {
         SettingsRootScreen(
             onBack = onBack,
             onOpenCredits = onOpenCredits,
+            onOpenGuide = { showGuide = true },
             onOpenExport = { backupMode = BackupScreenMode.EXPORT },
             onOpenImport = { backupMode = BackupScreenMode.IMPORT },
         )
