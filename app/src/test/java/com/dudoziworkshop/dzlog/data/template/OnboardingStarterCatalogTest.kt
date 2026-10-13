@@ -8,7 +8,11 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.json.JSONObject
 
+@RunWith(RobolectricTestRunner::class)
 class OnboardingStarterCatalogTest {
     @Test
     fun `eleven unique starters are all Free 3 plus 3 compatible`() {
@@ -61,8 +65,12 @@ class OnboardingStarterCatalogTest {
         val decoded = requireNotNull(tableTemplateStateFromJson(input.toJsonString()))
         assertEquals(input.cells.map { it.quickEditable }, decoded.cells.map { it.quickEditable })
         assertEquals(input.fileNameSlotDrafts.map { it?.cellId }, decoded.fileNameSlotDrafts.take(3).map { it?.cellId })
-        val legacy = input.toJsonString()
-            .replace(Regex(""","quickEditable":(?:true|false)"""), "")
+        val legacyJson = JSONObject(input.toJsonString())
+        val cells = legacyJson.getJSONArray("cells")
+        for (index in 0 until cells.length()) {
+            cells.getJSONObject(index).remove("quickEditable")
+        }
+        val legacy = legacyJson.toString()
         val back = requireNotNull(tableTemplateStateFromJson(legacy))
         assertTrue(back.cells.all { it.quickEditable })
     }
