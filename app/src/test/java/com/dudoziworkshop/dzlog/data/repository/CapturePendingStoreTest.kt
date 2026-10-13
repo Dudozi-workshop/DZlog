@@ -1,0 +1,85 @@
+package com.dudoziworkshop.dzlog.data.repository
+
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import com.dudoziworkshop.dzlog.data.template.defaultTableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
+import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
+import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
+import com.dudoziworkshop.dzlog.domain.model.SaveMode
+import com.dudoziworkshop.dzlog.domain.model.WatermarkConfig
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
+import com.dudoziworkshop.dzlog.domain.table.TablePatch
+import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReservationScope
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import java.io.File
+
+@RunWith(RobolectricTestRunner::class)
+class CapturePendingStoreTest {
+    private val context: Context get() = ApplicationProvider.getApplicationContext()
+
+    private fun snapshot(counter: Int): CaptureJobSnapshot {
+        val template = defaultTableTemplateState()
+        return CaptureJobSnapshot(
+            request = CaptureRequest(
+                relativePath = "Pictures/DZlog/Test/",
+                group1 = "T1", group2 = "S1",
+                displayName = "T1_$counter.jpg",
+                resolvedCells = emptyList(),
+                watermarkCells = listOf(WatermarkBuilder.WatermarkCell("snapshot")),
+                saveMode = SaveMode.BOTH,
+                captureAspect = CaptureAspect.R3_4,
+                photoQualityMode = PhotoQualityMode.BALANCED,
+                tableTemplate = template,
+                watermark = WatermarkConfig(
+                    anchor = WatermarkTableAnchor.BOTTOM_RIGHT,
+                    offsetXRatio = 0, offsetYRatio = 0,
+                    tableHeightRatio = 20, tableWidthRatio = 40,
+                    tableBgAlpha = 80, valueScale = 100,
+                    textColorMode = 0, manualTextColor = 0, textAlign = 0
+                ),
+            ),
+            tablePatch = TablePatch(mapOf("cell" to (counter + 1).toString())),
+        )
+    }
+
+    @Test fun reservationAndStagedJpegSurviveReopening() {
+        val scope = CaptureReservationScope("Pictures/DZlog/Test/", "T1_")
+        val store = CapturePendingStore(context)
+        val first = store.reserveNext(scope, 4, ::snapshot)
+        val second = CapturePendingStore(context).reserveNext(scope, 4, ::snapshot)
+        assertEquals(4, first.reservation.counter)
+        assertEquals(5, second.reservation.counter)
+        val source = File(context.cacheDir, "${first.reservation.id}-input.jpg")
+        source.writeBytes(byteArrayOf(1, 2, 3, 4))
+        try {
+            val ready = store.stageJpeg(first.reservation.id, source)
+            assertEquals(CapturePendingStore.Status.READY, ready.status)
+            assertEquals(4, ready.snapshot.request.displayName.substringAfter("_").substringBefore(".").toInt())
+            val afterRestart = CapturePendingStore(context).inspectRecovery()
+            assertTrue(afterRestart.ready.any { it.reservation.id == first.reservation.id })
+            assertTrue(afterRestart.needsReview.any { it.reservation.id == second.reservation.id })
+        } finally {
+            source.delete()
+            val folder = File(context.filesDir, "capture-pending-v2")
+            listOf(first.reservation.id, second.reservation.id).forEach { id ->
+                folder.listFiles().orEmpty().filter { it.name.startsWith(id) }.forEach(File::delete)
+            }
+        }
+    }
+
+    @Test fun snapshotRoundTripPreservesSavePolicyAndProgress() {
+        val before = snapshot(9)
+        val after = CaptureJobSnapshotCodec.decode(CaptureJobSnapshotCodec.encode(before))
+        assertEquals(before.request.displayName, after.request.displayName)
+        assertEquals(before.request.saveMode, after.request.saveMode)
+        assertEquals(before.request.watermark, after.request.watermark)
+        assertEquals(before.request.tableTemplate, after.request.tableTemplate)
+        assertEquals(before.tablePatch, after.tablePatch)
+    }
+}
