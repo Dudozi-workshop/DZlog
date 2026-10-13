@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Android 16 real-shutter + MediaStore BOTH regression on a fresh CI emulator.
 
-Never run this against a user's phone: it creates exactly two test captures.
+Never run this against a user's phone: it creates five test captures.
 The workflow launches this only after its fresh-install, non-destructive QA.
 """
 import collections
@@ -128,10 +128,20 @@ def main():
     time.sleep(9)  # CameraX binding and initial counter readback.
     evidence("capture-00-ready")
     alive()
-    capture_one(1)
-    capture_one(2)
+    for shot in range(1, 6):
+        # Mid-session process restart checks whether persisted counter state and
+        # MediaStore readback agree before the next committed shutter event.
+        if shot == 4:
+            adb("shell", "am", "force-stop", PKG)
+            adb("shell", "am", "start", "-W", "-n", f"{PKG}/.MainActivity")
+            wait_for("촬영 시작")
+            tap("촬영 시작", "사진 목록")
+            time.sleep(9)
+            evidence("capture-03-process-restarted")
+            check_both(query_media(), 3)
+        capture_one(shot)
     assert alive()
-    print("PASS Android 16 REAL CAPTURE: 2 shots, BOTH 4 JPEGs, MediaStore, paths, counters", flush=True)
+    print("PASS Android 16 REAL CAPTURE: 5 shots, BOTH 10 JPEGs, MediaStore, restart, paths, counters", flush=True)
 
 
 if __name__ == "__main__":
