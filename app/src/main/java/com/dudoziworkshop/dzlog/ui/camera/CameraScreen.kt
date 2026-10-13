@@ -344,7 +344,13 @@ fun CameraPreview(
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
-    val effectiveTemplate = remember(tableTemplateState, ui.capture.pendingProjectionVersion) {
+    // A persisted catalog update may lag behind the committed receipt.
+    // Recompute from the committed base even before Compose delivers that update.
+    val effectiveTemplate = remember(
+        tableTemplateState,
+        ui.capture.pendingProjectionVersion,
+        pendingAcknowledgement,
+    ) {
         pendingProjection.previewTemplate(tableTemplateState)
     }
     val derivedState = remember(
