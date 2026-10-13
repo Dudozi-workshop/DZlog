@@ -28,6 +28,21 @@ internal class CapturePendingProjection {
     // Keep committed progression until that catalog update is observed.
     private var latestCommittedTemplate: TableTemplateState? = null
 
+    private var boundTemplateId: String? = null
+
+    /**
+     * A session projection must never carry an old template's committed cache
+     * into a different quick template. A switch during pending shots is unsafe.
+     */
+    @Synchronized
+    fun bindTemplate(id: String?): Boolean {
+        if (boundTemplateId == id) return true
+        if (pending.isNotEmpty()) return false
+        latestCommittedTemplate = null
+        boundTemplateId = id
+        return true
+    }
+
     @Synchronized
     fun committedBase(catalogTemplate: TableTemplateState): TableTemplateState {
         val committed = latestCommittedTemplate ?: return catalogTemplate
