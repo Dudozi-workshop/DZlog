@@ -82,4 +82,57 @@ class CapturePendingStoreTest {
         assertEquals(before.request.tableTemplate, after.request.tableTemplate)
         assertEquals(before.tablePatch, after.tablePatch)
     }
+
+    @Test fun interruptedJournalBlocksFurtherReservationsWithoutLosingBytes() {
+        val store = CapturePendingStore(context)
+        val folder = File(context.filesDir, "capture-pending-v2")
+        val interrupted = File(folder, "${java.util.UUID.randomUUID()}.json.new")
+        interrupted.writeText("incomplete")
+        try {
+            val report = store.inspectRecovery()
+            assertTrue(report.corruptJournals.contains(interrupted.name))
+            var failed = false
+            try {
+                store.reserveNext(
+                    CaptureReservationScope("Pictures/DZlog/Test/", "T1_"), 1, ::snapshot
+                )
+            } catch (_: IllegalStateException) {
+                failed = true
+            }
+            assertTrue(failed)
+            assertEquals("incomplete", interrupted.readText())
+        } finally {
+            interrupted.delete()
+        }
+    }
+
+    @Test fun stagedJpegCorruptionBlocksProcessingButPreservesFile() {
+        val store = CapturePendingStore(context)
+        val pending = store.reserveNext(
+            CaptureReservationScope("Pictures/DZlog/Test/", "HASH_"), 1, ::snapshot
+        )
+        val source = File(context.cacheDir, "${pending.reservation.id}-source.jpg")
+        source.writeBytes(byteArrayOf(1, 2, 3))
+        try {
+            val staged = store.stageJpeg(pending.reservation.id, source)
+            staged.imageFile.appendBytes(byteArrayOf(4))
+            var rejected = false
+            try {
+                store.markProcessing(pending.reservation.id)
+            } catch (_: IllegalStateException) {
+                rejected = true
+            }
+            assertTrue(rejected)
+            assertTrue(staged.imageFile.exists())
+            assertTrue(store.inspectRecovery().needsReview.any {
+                it.reservation.id == pending.reservation.id
+            })
+        } finally {
+            source.delete()
+            val folder = File(context.filesDir, "capture-pending-v2")
+            folder.listFiles().orEmpty()
+                .filter { it.name.startsWith(pending.reservation.id) }
+                .forEach(File::delete)
+        }
+    }
 }
