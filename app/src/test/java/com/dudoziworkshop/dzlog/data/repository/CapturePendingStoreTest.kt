@@ -41,7 +41,7 @@ class CapturePendingStoreTest {
                     anchor = WatermarkTableAnchor.BOTTOM_RIGHT,
                     offsetXRatio = 0, offsetYRatio = 0,
                     tableHeightRatio = 20, tableWidthRatio = 40,
-                    tableBgAlpha = 80, valueScale = 100,
+                    tableBgAlpha = 80, bgStyle = 0, valueScale = 100,
                     textColorMode = 0, manualTextColor = 0, textAlign = 0
                 ),
             ),
