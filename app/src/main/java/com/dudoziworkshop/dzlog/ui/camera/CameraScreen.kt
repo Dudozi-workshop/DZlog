@@ -221,6 +221,9 @@ fun CameraPreview(
         CaptureAsyncRuntime.get(context.applicationContext, repository)
     }
     val pendingProjection = remember(asyncCaptureService) { asyncCaptureService.pendingProjection }
+    val templateSessionSafe = remember(asyncCaptureService, quickTemplateId) {
+        pendingProjection.bindTemplate(quickTemplateId)
+    }
     val activeTemplate = rememberUpdatedState(tableTemplateState)
     val persistCapturedTemplate = rememberUpdatedState(onPersistCapturedTemplate)
     val latestCommittedCallback = rememberUpdatedState(onCaptureCommitted)
@@ -234,6 +237,9 @@ fun CameraPreview(
     var cornerResizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
+    LaunchedEffect(templateSessionSafe) {
+        if (!templateSessionSafe) ui.capture.pendingSaveError = true
+    }
 
     // StateFlow delivers the current version after a screen recreation, even if
     // the original SharedFlow completion event was missed while off-screen.
@@ -296,7 +302,7 @@ fun CameraPreview(
                 ui.capture.pendingProjectionVersion++
                 // A failed stage/reservation must not be dismissed merely because
                 // the save worker has no active jobs.
-                ui.capture.pendingSaveError = unresolved
+                ui.capture.pendingSaveError = unresolved || !templateSessionSafe
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
