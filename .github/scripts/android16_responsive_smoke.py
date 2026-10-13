@@ -8,7 +8,7 @@ import re
 import time
 
 from android16_journey_smoke import (
-    ACTIVITY, PKG, adb, alive, contains, evidence, hierarchy, tap, target, wait_for,
+    ACTIVITY, OUT, PKG, adb, alive, contains, evidence, hierarchy, tap, target, wait_for,
 )
 
 
@@ -51,6 +51,11 @@ def main():
 
             adb("shell", "input", "keyevent", "4")
             wait_for("촬영 시작")
+            # Wait for resize/rotation lifecycle transitions to settle before
+            # navigating again. Treat a process exit as a real regression.
+            time.sleep(2)
+            alive()
+            wait_for("설정", timeout=25)
             tap("설정")
             wait_for("사진 품질")
             evidence(f"36-{label}-settings")
@@ -84,8 +89,17 @@ if __name__ == "__main__":
     try:
         main()
     except Exception:
+        # Distinguish Android launcher return, activity crash and UI timing.
         try:
             evidence("FAILED-responsive")
+            (OUT / "FAILED-responsive-process.txt").write_text(
+                adb("shell", "dumpsys", "activity", "activities", timeout=50),
+                encoding="utf-8",
+            )
+            (OUT / "FAILED-responsive-logcat.txt").write_text(
+                adb("logcat", "-d", "-t", "2000", timeout=50),
+                encoding="utf-8",
+            )
         except Exception:
             pass
         raise
