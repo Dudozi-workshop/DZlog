@@ -33,8 +33,10 @@ internal fun shouldReadCameraCounter(
     isCapturing: Boolean,
     pendingSaveCount: Int,
     isCurrentRequestSynced: Boolean,
-): Boolean = isTemplateReady && !isCapturing &&
-    (pendingSaveCount == 0 || !isCurrentRequestSynced)
+): Boolean = isTemplateReady &&
+    // A new phrase/path stream can be read as soon as its reservation exists,
+    // even while CameraX is staging the preceding exposure.
+    (!isCurrentRequestSynced || (!isCapturing && pendingSaveCount == 0))
 
 internal fun detectCameraSyncReason(
     isInitial: Boolean,
