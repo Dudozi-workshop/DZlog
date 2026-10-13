@@ -108,6 +108,21 @@ suspend fun persistTableTemplateCatalog(
                     ?: error("Stored table catalog is unreadable. Refusing to replace it.")
             }
             .orEmpty().associate { it.id to it.lastUsedAt }
+        if (MonetizationRolloutConfig.purchasesEnabled) {
+            val effectiveTier = BillingEntitlementRuntime.tier.value
+            val maximum = if (effectiveTier == SaveRuleTier.VERIFIED_PRO)
+                MonetizationRolloutConfig.proSavedTemplateLimit
+            else MonetizationRolloutConfig.freeSavedTemplateLimit
+            val newCount = normalized.count { it.id !in previousUse }
+            check(SavedTemplateQuotaPolicy.evaluate(
+                currentCount = previousUse.size,
+                action = TemplateCollectionAction.IMPORT,
+                maxSavedCount = maximum,
+                requestedNewCount = newCount,
+            ).allowed) {
+                "Saved template quota exceeded. Original catalog was not changed."
+            }
+        }
         prefs[KEY_TABLE_TEMPLATES_JSON] = savedTableTemplatesToJson(normalized.map {
             it.copy(lastUsedAt = maxOf(it.lastUsedAt, previousUse[it.id] ?: 0L))
         })
