@@ -118,7 +118,7 @@ fun DDZQuickChoiceDialog(
 ) {
     val colors = LocalDDZColor.current
 
-    Dialog(onDismissRequest = onDismiss, properties = properties) {
+    Dialog(onDismissRequest = onDismiss) {
         Surface(
             color = colors.Surface,
             shape = MaterialTheme.shapes.medium,
@@ -161,7 +161,7 @@ fun DDZContentDialog(
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss, properties = properties) {
         Surface(
             color = colors.Surface,
             shape = MaterialTheme.shapes.large,
