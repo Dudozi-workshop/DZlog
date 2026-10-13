@@ -263,15 +263,19 @@ fun CameraPreview(
                         "Out-of-order capture receipt must be reviewed"
                     }
                     val appliesPending = pending.firstOrNull()?.id == id
+                    if (appliesPending) {
+                        check(pending.first().templatePatch == receipt.snapshot.tablePatch) {
+                            "Capture projection and durable receipt disagree"
+                        }
+                    }
                     val base = pendingProjection.committedBase(
                         pendingAcknowledgement?.second ?: activeTemplate.value
                     )
-                    val applied = if (appliesPending) {
-                        base.applyPatch(receipt.snapshot.tablePatch)
-                    } else {
-                        CaptureReceiptRecoveryPolicy.resolve(base, listOf(receipt))?.template
-                            ?: error("Capture receipt conflicts with active template")
-                    }
+                    // Validate the saved snapshot against the active template,
+                    // even for an in-memory pending shot. Never apply a receipt
+                    // to a different template merely because its ID is pending.
+                    val applied = CaptureReceiptRecoveryPolicy.resolve(base, listOf(receipt))
+                        ?.template ?: error("Capture receipt conflicts with active template")
                     // Never acknowledge a receipt until the catalog is durably saved.
                     check(persistCapturedTemplate.value(applied)) {
                         "Unable to persist captured template progression"
