@@ -79,6 +79,9 @@ internal class CaptureQueueCoordinator(
 
     fun outstandingCount(): Int = synchronized(lock) { inFlight.size }
 
+    /** Active IDs, including both queued and currently processing jobs. */
+    fun activeIds(): Set<String> = synchronized(lock) { inFlight.toSet() }
+
     private fun notify(event: Event) {
         runCatching { onEvent(event) }
             .onFailure { Log.w(TAG, "Queue observer failed", it) }
