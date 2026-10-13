@@ -37,7 +37,7 @@ object SavedTemplateQuotaPolicy {
             TemplateCollectionAction.EXPORT,
         )
         val allowed = maxSavedCount == null || nonCreatingAction ||
-            requestedNewCount <= maxSavedCount - currentCount
+            requestedNewCount == 0 || requestedNewCount <= maxSavedCount - currentCount
         return TemplateQuotaDecision(
             allowed = allowed,
             currentCount = currentCount,
