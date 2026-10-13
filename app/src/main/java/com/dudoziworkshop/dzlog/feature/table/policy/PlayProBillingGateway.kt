@@ -99,9 +99,10 @@ internal class PlayProBillingGateway(
     fun beginPurchase(activity: Activity): Boolean {
         val product = availableProduct ?: return false
         val offer = product.oneTimePurchaseOfferDetailsList?.firstOrNull() ?: return false
+        val offerToken = offer.offerToken ?: return false
         val params = BillingFlowParams.ProductDetailsParams.newBuilder()
             .setProductDetails(product)
-            .setOfferToken(offer.offerToken)
+            .setOfferToken(offerToken)
             .build()
         val result = client.launchBillingFlow(activity,
             BillingFlowParams.newBuilder().setProductDetailsParamsList(listOf(params)).build())
