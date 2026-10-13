@@ -228,6 +228,26 @@ fun AppRoot() {
         }
     }
 
+    /** Persist capture progress before the durable capture receipt is acknowledged. */
+    suspend fun persistCapturedTemplate(updated: TableTemplateState): Boolean {
+        if (!hasRestoredTemplate) return false
+        val savedActiveId = tableTemplateViewModel.activeTemplateId ?: return false
+        return try {
+            val next = tableCatalogCoordinator.updateActiveTemplate(
+                items = tableTemplateViewModel.templates,
+                activeTemplateId = savedActiveId,
+                templateState = updated,
+            )
+            // Publish only after the catalog write has succeeded.
+            tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated)
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     // Persist the old quick-edit draft before changing the active template. The dialog
     // is keyed by active ID, so its input/cursor/frozen table geometry start fresh.
     suspend fun switchQuickTemplate(templateId: String, current: TableTemplateState): Boolean {
@@ -662,6 +682,7 @@ fun AppRoot() {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
+                    onPersistCapturedTemplate = ::persistCapturedTemplate,
                     quickTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
@@ -707,6 +728,7 @@ fun AppRoot() {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
+                    onPersistCapturedTemplate = ::persistCapturedTemplate,
                     quickTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
