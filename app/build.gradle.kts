@@ -139,7 +139,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     implementation(libs.coil.compose)
-    implementation(libs.google.billing.ktx)
+    implementation(libs.google.billing)
     implementation(libs.google.play.services.ads)
 
     testImplementation(libs.junit)
