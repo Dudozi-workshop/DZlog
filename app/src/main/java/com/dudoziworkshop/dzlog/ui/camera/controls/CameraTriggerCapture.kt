@@ -86,18 +86,15 @@ internal fun buildCameraTriggerCapture(
             ui.counter.scopeNextCounter = null
             cameraViewModel.bumpResumeResyncTick()
         },
+        // CameraX signals the real capture start. Keep sound and haptic on
+        // the SAME callback; JPEG completion is not the exposure moment.
         onCaptureStarted = {
             captureFeedback.play(
-                successVibrationEnabled = false,
-                soundEnabled = appSettings.captureSoundEnabled
-            )
-        },
-        onImageCaptured = {
-            captureFeedback.play(
                 successVibrationEnabled = appSettings.hapticEnabled && appSettings.captureHapticEnabled,
-                soundEnabled = false
+                soundEnabled = appSettings.captureSoundEnabled,
             )
         },
+        onImageCaptured = { },
         onPendingStateChange = { count, nextCounter ->
             ui.capture.pendingSaveCount = count
             ui.capture.pendingProjectionVersion++

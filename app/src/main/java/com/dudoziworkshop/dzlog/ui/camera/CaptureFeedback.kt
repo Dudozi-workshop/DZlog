@@ -31,19 +31,16 @@ internal class CaptureFeedback(private val context: Context) {
     private fun vibrateSuccessPattern() {
         val vibrator = resolveVibrator() ?: return
         if (!vibrator.hasVibrator()) return
-        // UX: 짧고 강하게 2회(디-딩). 너무 짧으면 체감이 약해서 35~40ms로 유지한다.
-        val timings = longArrayOf(0, 38, 55, 38)
-
+        // A single short pulse avoids the delayed double-tap sensation.
+        // Triggered at CameraX onCaptureStarted, never at JPEG save completion.
+        val durationMs = 32L
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val effect = if (vibrator.hasAmplitudeControl()) {
-                VibrationEffect.createWaveform(timings, intArrayOf(0, 255, 0, 255), -1)
-            } else {
-                VibrationEffect.createWaveform(timings, -1)
-            }
-            vibrator.vibrate(effect)
+            val amplitude = if (vibrator.hasAmplitudeControl()) 190
+                else VibrationEffect.DEFAULT_AMPLITUDE
+            vibrator.vibrate(VibrationEffect.createOneShot(durationMs, amplitude))
         } else {
             @Suppress("DEPRECATION")
-            vibrator.vibrate(timings, -1)
+            vibrator.vibrate(durationMs)
         }
     }
 
