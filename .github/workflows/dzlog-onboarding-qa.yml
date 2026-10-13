@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: dzlog-onboarding-qa
+  cancel-in-progress: true
+
 jobs:
   android-debug:
     runs-on: ubuntu-latest
