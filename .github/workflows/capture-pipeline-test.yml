@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - feat/capture-async-pipeline-v1
+  pull_request:
+    branches:
+      - integration/dzlog-20261010
   workflow_dispatch:
 
 permissions:
@@ -26,6 +29,6 @@ jobs:
       - name: Camera capture unit tests
         run: |
           chmod +x ./gradlew
-          ./gradlew :app:testDebugUnitTest --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureQueueCoordinatorTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CapturePendingStoreTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureStagingStoreTest' --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReservationPolicyTest' --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjectionTest' --stacktrace
+          ./gradlew :app:testDebugUnitTest --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureQueueCoordinatorTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CapturePendingStoreTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureStagingStoreTest' --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReservationPolicyTest' --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjectionTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureReceiptRecoveryPolicyTest' --stacktrace
       - name: Android debug compile
         run: ./gradlew :app:assembleDebug --stacktrace
