@@ -110,6 +110,7 @@ fun LogFolderScreen(
     val favoriteIds by remember(context) { FavoritesProvider.repo(context) }.favoriteIdsFlow.collectAsState(initial = emptySet())
     var selectedTab by remember { mutableStateOf(GalleryTab.ALL) }
     var showRecentPhotos by rememberSaveable(relativePath) { mutableStateOf(false) }
+    var showDefaultPhotos by rememberSaveable(relativePath) { mutableStateOf(false) }
     val cached = remember(relativePath) { GallerySnapshotMemory.cache.get(relativePath) }
     var allPhotos by remember(relativePath) { mutableStateOf(cached?.allPhotos ?: emptyList()) }
     var index by remember(relativePath) { mutableStateOf<GalleryFolderIndex?>(cached?.index) }
@@ -410,8 +411,13 @@ fun LogFolderScreen(
     val recentPhotos = remember(allPhotos) {
         allPhotos.filterNot { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }
     }
+    val defaultPhotos = remember(allPhotos) {
+        allPhotos.filter { it.relativePath.trimEnd('/') == GalleryFolderIndexPolicy.ROOT.trimEnd('/') }
+    }
+    val sortedDefaultPhotos = remember(defaultPhotos, photoSort) { photoSort.sorted(defaultPhotos) }
     val selectablePhotos = when {
         !root -> visiblePhotos
+        showDefaultPhotos -> defaultPhotos
         showRecentPhotos -> recentPhotos
         selectedTab == GalleryTab.ALL -> recentPhotos.take(9)
         selectedTab == GalleryTab.FOLDERS -> photos
@@ -424,11 +430,13 @@ fun LogFolderScreen(
     }
     BackHandler(enabled = showPhotoDelete && photoDeleteLoading) { showPhotoDelete = false }
     BackHandler(enabled = showRecentPhotos && !selectionActive && !showPhotoMove) { showRecentPhotos = false }
+    BackHandler(enabled = showDefaultPhotos && !selectionActive && !showPhotoMove) { showDefaultPhotos = false }
     BackHandler(enabled = selectionActive && !showPhotoMove) {
         if (!photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null) cancelSelection()
     }
     BackHandler(enabled = operationLocked && !photoDeleteLoading) { /* Preserve the active operation and its callbacks. */ }
-    val title = if (showRecentPhotos) "최근 촬영" else if (displayFolderPath == GalleryFolderIndexPolicy.ROOT) "갤러리"
+    val title = if (showRecentPhotos) "최근 촬영" else if (showDefaultPhotos) "기본 저장"
+        else if (displayFolderPath == GalleryFolderIndexPolicy.ROOT) "갤러리"
         else displayFolderPath.trimEnd('/').substringAfterLast('/')
     val imagesById = remember(allPhotos) { allPhotos.associateBy { it.id.toString() } }
     Column(modifier = Modifier.dzScreen()
@@ -448,7 +456,11 @@ fun LogFolderScreen(
         } else {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 IconButton(enabled = !navigationLocked, onClick = { if (!navigationLocked) {
-                    if (showRecentPhotos) showRecentPhotos = false else onBack()
+                    when {
+                        showRecentPhotos -> showRecentPhotos = false
+                        showDefaultPhotos -> showDefaultPhotos = false
+                        else -> onBack()
+                    }
                 } }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
                 }
@@ -534,6 +546,40 @@ fun LogFolderScreen(
                         }
                     }
                 }
+            } else if (root && showDefaultPhotos) {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
+                    contentPadding = PaddingValues(bottom = DDZSpacing.sectionGap)) {
+                    item {
+                        Row(Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("기본 저장 사진 ${defaultPhotos.size}장", style = DDZTypography.CompactSectionTitle)
+                            Box {
+                                TextButton(onClick = { showPhotoSort = true }, enabled = !navigationLocked && !selectionActive) {
+                                    Text(photoSort.label)
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = "사진 정렬")
+                                }
+                                DropdownMenu(expanded = showPhotoSort, onDismissRequest = { showPhotoSort = false }) {
+                                    GalleryPhotoSort.entries.forEach { sort ->
+                                        DropdownMenuItem(
+                                            text = { Text(if (photoSort == sort) "✓ ${sort.label}" else sort.label) },
+                                            onClick = { photoSort = sort; showPhotoSort = false },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (defaultPhotos.isEmpty()) {
+                        item { GalleryEmptyText("기본 저장 사진이 없습니다.") }
+                    } else {
+                        items(sortedDefaultPhotos.chunked(3)) { row ->
+                            GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
+                                if (!navigationLocked) onOpenPhoto(sortedDefaultPhotos, sortedDefaultPhotos.indexOfFirst { it.id == photo.id })
+                            }
+                        }
+                    }
+                }
             } else if (root && index != null) {
                 LogGalleryHomeContent(
                     selectedTab = selectedTab,
@@ -545,7 +591,8 @@ fun LogFolderScreen(
                     onOpenFolder = { if (!selectionActive && !navigationLocked) onOpenFolder(it) },
                     onOpenPhoto = { photos, index -> if (!navigationLocked) onOpenPhoto(photos, index) },
                     onOpenOriginal = { if (!selectionActive && !navigationLocked) onOpenOriginal(it) },
-                    onOpenRecentPhotos = { if (!selectionActive && !navigationLocked) showRecentPhotos = true },
+                    onOpenRecentPhotos = { if (!selectionActive && !navigationLocked) { showDefaultPhotos = false; showRecentPhotos = true } },
+                    onOpenDefaultPhotos = { if (!selectionActive && !navigationLocked) { showRecentPhotos = false; showDefaultPhotos = true } },
                     onManageFolder = ::startFolderManagement,
                     canManageFolders = !navigationLocked && !selectionActive && !folderAccessBusy,
                     onCreateFolder = { if (!selectionActive && !navigationLocked) { folderOperationError = null; showCreateDialog = true } },
