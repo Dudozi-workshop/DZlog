@@ -18,7 +18,7 @@ concurrentFutures = "1.2.0"
 guavaAndroid = "33.2.1-android"
 
 coroutines = "1.8.1"
-billing = "7.1.1"
+billing = "9.1.0"
 playServicesAds = "24.4.0"
 
 [libraries]
