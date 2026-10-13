@@ -229,9 +229,15 @@ fun AppRoot() {
     }
 
     /** Persist capture progress before the durable capture receipt is acknowledged. */
-    suspend fun persistCapturedTemplate(updated: TableTemplateState): Boolean {
+    suspend fun persistCapturedTemplate(
+        expectedTemplateId: String?,
+        updated: TableTemplateState,
+    ): Boolean {
         if (!hasRestoredTemplate) return false
         val savedActiveId = tableTemplateViewModel.activeTemplateId ?: return false
+        // A capture receipt may arrive after a quick-template selection changes.
+        // Never advance the newly selected template using the previous shot.
+        if (expectedTemplateId == null || savedActiveId != expectedTemplateId) return false
         return try {
             val next = tableCatalogCoordinator.updateActiveTemplate(
                 items = tableTemplateViewModel.templates,
@@ -682,7 +688,9 @@ fun AppRoot() {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
-                    onPersistCapturedTemplate = ::persistCapturedTemplate,
+                    onPersistCapturedTemplate = { updated ->
+                        persistCapturedTemplate(captureTemplateId, updated)
+                    },
                     quickTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
@@ -728,7 +736,9 @@ fun AppRoot() {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
-                    onPersistCapturedTemplate = ::persistCapturedTemplate,
+                    onPersistCapturedTemplate = { updated ->
+                        persistCapturedTemplate(captureTemplateId, updated)
+                    },
                     quickTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
