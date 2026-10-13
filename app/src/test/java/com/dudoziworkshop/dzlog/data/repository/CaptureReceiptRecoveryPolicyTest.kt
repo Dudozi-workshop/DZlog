@@ -16,8 +16,11 @@ import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReservationScope
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.io.File
 
+@RunWith(RobolectricTestRunner::class)
 class CaptureReceiptRecoveryPolicyTest {
     private val base = TableTemplateState(
         rows = 1,
