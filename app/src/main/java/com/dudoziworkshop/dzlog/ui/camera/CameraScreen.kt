@@ -253,7 +253,7 @@ fun CameraPreview(
                 val recovered = withContext(Dispatchers.IO) {
                     // Only verified READY work may resume automatically. PROCESSING,
                     // SAVED_UNCOMMITTED and damaged journals are never retried.
-                    asyncCaptureService.resumeVerifiedReadyCaptures()
+                    asyncCaptureService.resumeVerifiedReadyCaptures(quickTemplateId)
                     asyncCaptureService.inspectRecovery()
                 }
                 val activeIds = asyncCaptureService.activeIds()
@@ -262,8 +262,13 @@ fun CameraPreview(
                 )
                 // Unclaimed READY records may wait for the bounded worker to
                 // release capacity; block new shots while recovery is draining.
-                val unableToResume = unclaimedReady.isNotEmpty() &&
-                    asyncCaptureService.outstandingCount() == 0
+                val unavailableForThisTemplate = recovered.ready.any {
+                    it.reservation.id !in activeIds &&
+                        it.snapshot.templateId != quickTemplateId
+                }
+                val unableToResume = unavailableForThisTemplate ||
+                    (unclaimedReady.isNotEmpty() &&
+                        asyncCaptureService.outstandingCount() == 0)
                 val unresolved = CaptureRecoveryStatusPolicy.needsManualReview(
                     recovered, activeIds + unclaimedReady
                 ) || unableToResume
