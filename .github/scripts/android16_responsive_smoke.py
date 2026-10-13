@@ -66,6 +66,13 @@ def main():
             wait_for("갤러리")
             evidence(f"37-{label}-gallery")
             assert alive()
+            if label == "compact":
+                # Recreate the Activity by changing density while on gallery.
+                adb("shell", "wm", "density", "340")
+                wait_for("갤러리", timeout=45)
+                evidence("38-gallery-after-density-change")
+                adb("shell", "wm", "density", dpi)
+                wait_for("갤러리", timeout=45)
 
         # Keep the CI run non-destructive: return original display/rotation even
         # when a layout assertion fails. Existing photo/media are untouched.
