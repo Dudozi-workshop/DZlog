@@ -79,7 +79,9 @@ internal class CaptureStagedCameraGateway(
                             val staged = runCatching {
                                 pendingStore.stageJpeg(reserved.reservation.id, source)
                             }
-                            if (staged.isSuccess && !source.delete()) {
+                            // The fast-path consumes CameraX's source via rename.
+                            // The copy fallback still leaves an incoming source.
+                            if (staged.isSuccess && source.exists() && !source.delete()) {
                                 Log.w(TAG, "Incoming JPEG cleanup deferred")
                             }
                             withContext(Dispatchers.Main) {

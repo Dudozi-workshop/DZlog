@@ -79,19 +79,39 @@ internal class CapturePendingStore(context: Context) {
         check(!partial.exists() && !image.exists()) { "Staged image already present" }
         try {
             val digest = MessageDigest.getInstance("SHA-256")
-            FileOutputStream(partial).use { out ->
+            // CameraX already wrote the JPEG to this private directory.
+            // Sync and atomically rename its own file instead of copying the
+            // full image again while the shutter is locked.
+            val cameraFile = File(root, "$id.camera.jpg.part")
+            if (sourceJpeg.absoluteFile == cameraFile.absoluteFile) {
                 sourceJpeg.inputStream().use { input ->
                     val buffer = ByteArray(16 * 1024)
                     while (true) {
                         val size = input.read(buffer)
                         if (size < 0) break
-                        out.write(buffer, 0, size)
                         digest.update(buffer, 0, size)
                     }
                 }
-                out.fd.sync()
+                java.io.RandomAccessFile(sourceJpeg, "rw").use { it.fd.sync() }
+                if (!sourceJpeg.renameTo(image)) {
+                    throw IOException("Unable to promote CameraX JPEG")
+                }
+            } else {
+                // Preserve the copy-and-sync fallback for non-CameraX sources.
+                FileOutputStream(partial).use { out ->
+                    sourceJpeg.inputStream().use { input ->
+                        val buffer = ByteArray(16 * 1024)
+                        while (true) {
+                            val size = input.read(buffer)
+                            if (size < 0) break
+                            out.write(buffer, 0, size)
+                            digest.update(buffer, 0, size)
+                        }
+                    }
+                    out.fd.sync()
+                }
+                if (!partial.renameTo(image)) throw IOException("Unable to promote staged JPEG")
             }
-            if (!partial.renameTo(image)) throw IOException("Unable to promote staged JPEG")
             doc.put("imageBytes", image.length())
                 .put("imageSha256", digest.digest().joinToString("") { "%02x".format(it) })
                 .put("status", Status.READY.name)

@@ -75,7 +75,33 @@ class CapturePendingStoreTest {
         }
     }
 
-    @Test fun activeReservationIsNotMistakenForCrashedCapture() {
+    @Test fun cameraJpegInPrivateDirectoryIsPromotedWithoutDuplicateCopy() {
+        val store = CapturePendingStore(context)
+        val pending = store.reserveNext(
+            CaptureReservationScope("Pictures/DZlog/Test/", "FAST_"),
+            1, ::snapshot,
+        )
+        val id = pending.reservation.id
+        val folder = File(context.filesDir, "capture-pending-v2")
+        val incoming = File(folder, "$id.camera.jpg.part")
+        val expectedBytes = byteArrayOf(9, 8, 7, 6, 5)
+        incoming.writeBytes(expectedBytes)
+        try {
+            val staged = store.stageJpeg(id, incoming)
+            assertEquals(CapturePendingStore.Status.READY, staged.status)
+            assertFalse("The CameraX source must be consumed by the rename", incoming.exists())
+            assertTrue(staged.imageFile.isFile)
+            assertTrue(staged.imageFile.readBytes().contentEquals(expectedBytes))
+            val restarted = CapturePendingStore(context)
+            assertTrue(restarted.inspectRecovery().ready.any { it.reservation.id == id })
+            assertEquals(CapturePendingStore.Status.PROCESSING, restarted.markProcessing(id).status)
+        } finally {
+            folder.listFiles().orEmpty()
+                .filter { it.name.startsWith(id) }.forEach(File::delete)
+        }
+    }
+
+        @Test fun activeReservationIsNotMistakenForCrashedCapture() {
         val store = CapturePendingStore(context)
         val pending = store.reserveNext(
             CaptureReservationScope("Pictures/DZlog/Test/", "LIVE_"),
