@@ -27,7 +27,9 @@ def settings_roundtrip(permission, action):
     adb("shell", "pm", action, PKG, permission)
     adb("shell", "input", "keyevent", "4")
     time.sleep(2)
-    if not alive():
+    try:
+        alive()
+    except AssertionError:
         adb("shell", "am", "start", "-W", "-n", ACTIVITY)
 
 
@@ -42,7 +44,7 @@ def press_permission_deny():
             ):
                 continue
             raw = node.get("bounds") or ""
-            match = re.fullmatch(r"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]", raw)
+            match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", raw)
             if match:
                 a, b, c, d = map(int, match.groups())
                 adb("shell", "input", "tap", str((a + c)//2), str((b + d)//2))
