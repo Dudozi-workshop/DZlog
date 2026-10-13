@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feat/onboarding-starter-catalog-20261013
+      - feat/android16-api36-readiness-20261013
   workflow_dispatch:
 
 permissions:
@@ -29,7 +30,12 @@ jobs:
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -1)"
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Enforce Android 16 release target on migration branch
+        if: github.ref_name == 'feat/android16-api36-readiness-20261013'
+        run: |
+          grep -q 'compileSdk = 36' app/build.gradle.kts
+          grep -q 'targetSdk = 36' app/build.gradle.kts
       - name: Test dormant purchase verification backend
         run: node --test billing-server/test/*.test.mjs
       - name: Run unit tests and build debug APK
