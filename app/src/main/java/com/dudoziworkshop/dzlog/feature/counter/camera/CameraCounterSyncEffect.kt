@@ -70,8 +70,9 @@ internal fun CameraCounterSyncEffect(
         counterEventTick,
         appSettings.saveMode,
         ui.capture.isCapturing,
+        ui.capture.pendingSaveCount,
     ) {
-        if (!isTemplateReady || ui.capture.isCapturing) return@LaunchedEffect
+        if (!isTemplateReady || ui.capture.isCapturing || ui.capture.pendingSaveCount > 0) return@LaunchedEffect
 
         val isResumeEvent = resumeTick > syncMemory.lastHandledResumeTick
         val hasCounterEvent = counterEventTick > syncMemory.lastHandledCounterEventTick
