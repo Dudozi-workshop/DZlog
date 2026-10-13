@@ -22,10 +22,13 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
       - name: Android SDK 34
-        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+        run: |
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" "platforms;android-34" "build-tools;34.0.0"
       - name: Camera capture unit tests
         run: |
           chmod +x ./gradlew
