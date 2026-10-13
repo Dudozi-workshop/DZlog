@@ -79,7 +79,17 @@ class CapturePendingStoreTest {
         assertEquals(before.request.displayName, after.request.displayName)
         assertEquals(before.request.saveMode, after.request.saveMode)
         assertEquals(before.request.watermark, after.request.watermark)
-        assertEquals(before.request.tableTemplate, after.request.tableTemplate)
+        // The template codec normalizes filename slots to FILE_NAME_SLOT_COUNT.
+        // The factory's default table currently has only four explicit slots.
+        assertEquals(before.request.tableTemplate.rows, after.request.tableTemplate.rows)
+        assertEquals(before.request.tableTemplate.cols, after.request.tableTemplate.cols)
+        assertEquals(before.request.tableTemplate.cells, after.request.tableTemplate.cells)
+        assertEquals(
+            before.request.tableTemplate.fileNameSlotDrafts,
+            after.request.tableTemplate.fileNameSlotDrafts.take(
+                before.request.tableTemplate.fileNameSlotDrafts.size
+            )
+        )
         assertEquals(before.tablePatch, after.tablePatch)
     }
 
