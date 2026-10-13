@@ -1,9 +1,11 @@
 package com.dudoziworkshop.dzlog.data.template
 
+import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.naming.buildFileName
 import com.dudoziworkshop.dzlog.domain.naming.buildSavePath
+import com.dudoziworkshop.dzlog.domain.naming.buildNamingSlotPreview
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import java.util.Date
 import java.text.SimpleDateFormat
@@ -101,6 +103,62 @@ class OnboardingStarterCatalogTest {
         assertEquals("Pictures/DZlog/연구/", buildSavePath(
             cells, template.pathSlotDrafts, fixed, "yyyyMMdd", "HHmm",
         ))
+    }
+
+
+    @Test
+    fun `preview and persisted capture names agree for all eleven filled starters`() {
+        val fixed = Date(1_792_370_400_000L)
+        val config = TableResolver.Config(3, "yyyyMMdd", "HHmm")
+        OnboardingStarterCatalog.definitions.forEach { def ->
+            val starter = requireNotNull(OnboardingStarterCatalog.buildState(def.id))
+            val populated = starter.copy(cells = starter.cells.map { cell ->
+                if (cell.rowIndex == 1 && cell.dataType == TableCellDataType.TEXT) {
+                    val sample = "샘플${cell.colIndex}"
+                    cell.copy(rawText = sample, typedValue = CellValue.Text(sample))
+                } else cell
+            })
+            val restored = requireNotNull(tableTemplateStateFromJson(populated.toJsonString()))
+            val planned = TableResolver().plan(
+                cells = populated.cells, captureNow = fixed, config = config,
+                counterSeedOverride = 7,
+            ).resolvedCells
+            val afterReadback = TableResolver().plan(
+                cells = restored.cells, captureNow = fixed, config = config,
+                counterSeedOverride = 7,
+            ).resolvedCells
+            fun fileName(cells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>) =
+                buildFileName(cells, restored.fileNameSlotDrafts, "_", 3, 7,
+                    fixed, "yyyyMMdd", "HHmm")
+            fun savePath(cells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>) =
+                buildSavePath(cells, restored.pathSlotDrafts,
+                    fixed, "yyyyMMdd", "HHmm")
+            val expectedName = buildFileName(planned, populated.fileNameSlotDrafts, "_", 3,
+                7, fixed, "yyyyMMdd", "HHmm")
+            val expectedPath = buildSavePath(planned, populated.pathSlotDrafts,
+                fixed, "yyyyMMdd", "HHmm")
+            val actualName = fileName(afterReadback)
+            val actualPath = savePath(afterReadback)
+            assertEquals("${def.id}: file name changed after template serialization",
+                expectedName, actualName)
+            assertEquals("${def.id}: save path changed after template serialization",
+                expectedPath, actualPath)
+            assertEquals("${def.id}: preview differs from the actual file name",
+                actualName, buildNamingSlotPreview(true, -1, afterReadback,
+                    restored.fileNameSlotDrafts, "_", 3, 7,
+                    fixed, "yyyyMMdd", "HHmm").text)
+            assertEquals("${def.id}: preview differs from the actual save path",
+                actualPath, buildNamingSlotPreview(false, -1, afterReadback,
+                    restored.pathSlotDrafts, "_", 3, 7,
+                    fixed, "yyyyMMdd", "HHmm").text)
+            assertTrue("${def.id}: sample text missing from filename",
+                actualName.contains("샘플0"))
+            if (def.pathCells.isNotEmpty()) {
+                assertTrue("${def.id}: sample text missing from folder",
+                    actualPath.contains("샘플0"))
+            }
+            assertTrue("${def.id}: counter suffix missing", actualName.endsWith("_007.jpg"))
+        }
     }
 
     @Test

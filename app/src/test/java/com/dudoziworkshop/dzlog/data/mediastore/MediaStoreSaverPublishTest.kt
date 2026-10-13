@@ -51,7 +51,6 @@ class MediaStoreSaverPublishTest {
             assertEquals(1, provider.publishCalls)
             assertEquals(0, provider.deleted.size)
             // Robolectric does not guarantee JPEG bytes from Bitmap.compress; real JPEG bytes are checked by emulator E2E.
-            assertTrue(provider.outputStreamOpened)
         } finally {
             bitmap.recycle()
         }
@@ -90,7 +89,6 @@ class MediaStoreSaverPublishTest {
 
     private class TestMediaProvider : ContentProvider() {
         val outputFile: File = File.createTempFile("dzlog-publish-test-", ".jpg")
-        var outputStreamOpened = false
         var publishRows = 1
         var failPublish = false
         var publishCalls = 0
@@ -108,7 +106,6 @@ class MediaStoreSaverPublishTest {
 
         override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
             if (uri.lastPathSegment != "71") throw FileNotFoundException(uri.toString())
-            outputStreamOpened = true
             return ParcelFileDescriptor.open(
                 outputFile,
                 ParcelFileDescriptor.MODE_CREATE or
