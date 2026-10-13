@@ -46,6 +46,7 @@ jobs:
             python3 .github/scripts/android16_capture_media_smoke.py
             python3 .github/scripts/android16_backup_saf_smoke.py
             python3 .github/scripts/android16_rapid_shutter_smoke.py
+            python3 .github/scripts/android16_permission_return_smoke.py
             adb shell dumpsys window > api36-window-dump.txt
       - name: Upload startup screenshot and log
         if: always()

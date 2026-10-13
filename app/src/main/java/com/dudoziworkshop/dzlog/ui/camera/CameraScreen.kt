@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
@@ -123,6 +124,12 @@ fun CameraScreen(
         hasPermission = granted
     }
 
+    // The user may change camera access in Android Settings while this screen
+    // remains composed. Refresh the cached permission on every foreground return.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        hasPermission = hasCameraPermission(context)
+    }
+
     LaunchedEffect(Unit) {
         if (!hasPermission) launcher.launch(Manifest.permission.CAMERA)
     }
@@ -148,7 +155,7 @@ fun CameraScreen(
             Text(
                 text = "카메라 권한이 필요합니다.\n설정에서 권한을 허용해주세요.",
                 modifier = Modifier.align(Alignment.Center),
-                color = DDZColor.Surface
+                color = DDZColor.TextPrimary
             )
         }
     }
