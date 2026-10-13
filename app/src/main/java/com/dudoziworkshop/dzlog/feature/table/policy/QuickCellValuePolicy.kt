@@ -19,7 +19,7 @@ internal fun updateQuickCellValues(template: TableTemplateState, values: Map<Str
     template.copy(cells = template.cells.map { cell ->
         val text = values[cell.cellId]
         when {
-            text == null || text == cell.rawText -> cell
+            !cell.quickEditable || text == null || text == cell.rawText -> cell
             cell.dataType == TableCellDataType.TEXT -> cell.copy(rawText = text, typedValue = CellValue.Text(text))
             cell.dataType == TableCellDataType.NUMBER -> cell.copy(rawText = text, typedValue = CellValue.Number(text))
             else -> cell
