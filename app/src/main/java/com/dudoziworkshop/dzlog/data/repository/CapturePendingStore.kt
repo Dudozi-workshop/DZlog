@@ -183,7 +183,11 @@ internal class CapturePendingStore(context: Context) {
         }
         val orphans = root.listFiles().orEmpty().filter {
             (it.name.endsWith(".jpg") || it.name.endsWith(".part")) &&
-                it.name.substringBefore(".jpg").substringBefore(".json") !in known
+                // CameraX writes <id>.camera.jpg.part before the staged copy exists.
+                // It belongs to that journal while active, not an orphan.
+                it.name.substringBefore(".camera.jpg.part")
+                    .substringBefore(".jpg")
+                    .substringBefore(".json") !in known
         }.map { it.name }
         RecoveryInventory(
             ready.sortedBy { it.reservation.createdAtMillis },
