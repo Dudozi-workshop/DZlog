@@ -906,7 +906,6 @@ fun AppRoot() {
             }
             }
         }
-        GalleryPermissionOnboarding()
     }
 }
 

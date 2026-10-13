@@ -83,6 +83,11 @@ fun SettingsRootScreen(
     onOpenExport: () -> Unit = {},
     onOpenImport: () -> Unit = {},
 ) {
+    var showPermissions by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    if (showPermissions) {
+        com.dudoziworkshop.dzlog.ui.navigation.PermissionManagementScreen { showPermissions = false }
+        return
+    }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val settings by AppSettingsStore.flow(context).collectAsState(initial = AppSettings.Default)
@@ -152,6 +157,14 @@ fun SettingsRootScreen(
 
                 SettingsSection(title = "앱 환경") {
                     SettingsGroup {
+                        SettingsActionRow(
+                            icon = Icons.Default.CheckCircle,
+                            title = "권한 관리",
+                            subtitle = "카메라·사진 접근 및 폴더 연결",
+                            onClick = { showPermissions = true },
+                            trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
+                        )
+                        SettingsDivider()
                         val qualityLabel = SETTINGS_QUALITY_ITEMS
                             .firstOrNull { it.mode == settings.photoQualityMode }?.title ?: "균형"
                         SettingsActionRow(
