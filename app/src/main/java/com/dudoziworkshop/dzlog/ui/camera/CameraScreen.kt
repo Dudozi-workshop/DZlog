@@ -727,16 +727,6 @@ fun CameraPreview(
                 )
             }
         }
-        if (ui.capture.pendingSaveCount > 0 || ui.capture.pendingSaveError) {
-            Text(
-                text = if (ui.capture.pendingSaveError) "저장 확인 필요"
-                    else "${ui.capture.pendingSaveCount}장 저장 중",
-                modifier = Modifier.align(Alignment.TopEnd).padding(top = 64.dp, end = 18.dp)
-                    .background(DDZColor.Surface.copy(alpha = 0.90f))
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                color = DDZColor.SageDarkStrong,
-            )
-        }
         if (showQuickValueSheet) {
             key(quickTemplateId) {
                 CameraQuickValueSheet(
