@@ -15,6 +15,14 @@ extensions.configure<ApplicationExtension> {
     compileSdk = 35
 
     defaultConfig {
+        // Filled only for a tested paid release. Empty defaults are fail-closed.
+        val billingUrl = providers.gradleProperty("dzlogBillingVerifierUrl").orNull.orEmpty()
+        val signingPubkeyB64 = providers.gradleProperty("dzlogBillingPublicKeyB64").orNull.orEmpty()
+        require(billingUrl.isEmpty() || billingUrl.startsWith("https://"))
+        require(billingUrl.matches(Regex("[A-Za-z0-9:/.?&=_-]*")))
+        require(signingPubkeyB64.matches(Regex("[A-Za-z0-9+/_=-]*")))
+        buildConfigField("String", "DZLOG_BILLING_URL", "\"$billingUrl\"")
+        buildConfigField("String", "DZLOG_BILLING_PUBLIC_KEY_B64", "\"$signingPubkeyB64\"")
         applicationId = "com.dudoziworkshop.dzlog"
         minSdk = 24
         targetSdk = 34
@@ -56,6 +64,7 @@ extensions.configure<ApplicationExtension> {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
