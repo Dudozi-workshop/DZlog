@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
+import com.dudoziworkshop.dzlog.domain.model.LogEntry
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkConfig
@@ -91,7 +92,17 @@ class CaptureQueueCoordinatorTest {
                         startedFirst.complete(Unit)
                         allowFirst.await()
                     }
-                    listOf(Uri.parse("content://test/${job.reservation.id}"))
+                    val uri = Uri.parse("content://test/${job.reservation.id}")
+                    LogEntry(
+                        mediaStoreId = 1L,
+                        contentUri = uri,
+                        savedContentUris = listOf(uri),
+                        displayName = job.snapshot.request.displayName,
+                        isNameAdjusted = false,
+                        createdAt = System.currentTimeMillis(),
+                        group1 = "",
+                        group2 = "",
+                    )
                 },
                 commitProgress = { _, _ -> },
                 scope = workerScope,
