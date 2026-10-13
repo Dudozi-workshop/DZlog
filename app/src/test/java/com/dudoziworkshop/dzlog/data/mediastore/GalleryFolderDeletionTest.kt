@@ -12,6 +12,7 @@ import android.provider.DocumentsContract
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -102,6 +103,22 @@ class GalleryFolderDeletionTest {
         provider.failQueryAfterDelete = rootId
         assertThrows(IllegalStateException::class.java) { storage.deleteFolder(storage.prepareDeletion(path)) }
         assertEquals(true, provider.deletes > 0)
+    }
+
+    @Test fun rejectsEveryFolderExceptTheExactDzlogRootAndKeepsTheExistingGrant() {
+        listOf(
+            "primary:Pictures",
+            "primary:Pictures/Dzlog",
+            "primary:Pictures/DZlog/A",
+            "primary:Download/DZlog",
+        ).forEach { wrongId ->
+            val wrong = DocumentsContract.buildTreeDocumentUri(
+                "com.android.externalstorage.documents",
+                wrongId,
+            )
+            assertThrows(IllegalArgumentException::class.java) { storage.connect(wrong) }
+        }
+        assertTrue(storage.isConnected())
     }
 
     private class TreeProvider : ContentProvider() {

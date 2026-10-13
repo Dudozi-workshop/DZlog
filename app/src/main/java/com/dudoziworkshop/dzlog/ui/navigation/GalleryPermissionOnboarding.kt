@@ -7,6 +7,7 @@ import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -76,20 +77,51 @@ internal fun openAppPermissionSettings(context: Context) {
     }
 }
 
+private fun dzlogFolderInitialUri(): Uri = DocumentsContract.buildTreeDocumentUri(
+    "com.android.externalstorage.documents",
+    "primary:Pictures/DZlog",
+)
+
 /** Actual grants, never a stored onboarding-completed flag, control access. */
 @Composable
 internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
     val context = LocalContext.current
     val permissionState = rememberPermissionState()
     val state by permissionState
+    val storage = remember(context) { GalleryFolderStorage(context) }
+    var folderConnected by remember { mutableStateOf(storage.isConnected()) }
+    var showFolderGuide by remember { mutableStateOf(false) }
+    var selectedFolderPath by remember { mutableStateOf<String?>(null) }
     val preferences = remember(context) { context.getSharedPreferences("dzlog_required_permissions", Context.MODE_PRIVATE) }
     var requesting by remember { mutableStateOf(false) }
+    var connectingFolder by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val requester = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         requesting = false
         GallerySnapshotMemory.cache.invalidate()
         permissionState.value = readPermissionState(context)
     }
-    if (state.ready) {
+    val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        connectingFolder = true
+        scope.launch {
+            val result = withContext(Dispatchers.IO) { runCatching { storage.connect(uri) } }
+            connectingFolder = false
+            folderConnected = storage.isConnected()
+            result.onSuccess {
+                GallerySnapshotMemory.cache.invalidate()
+            }.onFailure {
+                selectedFolderPath = runCatching {
+                    DocumentsContract.getTreeDocumentId(uri).substringAfter(':')
+                }.getOrDefault("선택한 폴더")
+                showFolderGuide = true
+            }
+        }
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        folderConnected = storage.isConnected()
+    }
+    if (state.ready && folderConnected) {
         content()
         return
     }
@@ -100,22 +132,33 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
             Text("DZlog", style = typography.ScreenTitle, color = colors.PrimaryDark)
         }
     }
-    DDZContentDialog(
-        title = "필요한 권한을 확인해 주세요",
+    if (!showFolderGuide) DDZContentDialog(
+        title = "필요한 설정을 완료해 주세요",
         onDismiss = { context.activity()?.finish() },
         properties = DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = true),
         content = {
             Column(Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("DZlog에서 촬영하고 저장된 사진을 모두 확인하려면 아래 권한이 필요해요.", style = typography.Body, color = colors.TextSecondary)
+                Text("사진 촬영과 갤러리·폴더 관리를 위해 아래 설정이 필요해요.", style = typography.Body, color = colors.TextSecondary)
                 PermissionStatusCards(state)
+                PermissionCard(
+                    "폴더 관리",
+                    if (folderConnected) "연결됨" else "연결 필요",
+                    if (folderConnected) "Pictures / DZlog 폴더가 연결되어 있어요."
+                    else "폴더 삭제·이동·이름 변경에 사용해요. 한 번만 연결하면 돼요.",
+                )
                 if (state.photos != GalleryMediaAccess.FULL) {
                     Text("사진 접근은 ‘모두 허용’으로 설정해 주세요. 일부 사진만 허용하면 갤러리 목록이 제한돼요.", style = typography.Caption, color = colors.TextSecondary)
                 }
             }
         },
         actions = {
-            DDZButton("권한 설정", onClick = {
-                if (!requesting) {
+            DDZButton(if (state.ready) "폴더 연결" else "권한 설정", onClick = {
+                if (!requesting && !connectingFolder) {
+                    if (state.ready) {
+                        selectedFolderPath = null
+                        showFolderGuide = true
+                        return@DDZButton
+                    }
                     val missing = buildList {
                         if (!state.camera) add(Manifest.permission.CAMERA)
                         if (state.photos != GalleryMediaAccess.FULL) addAll(GalleryMediaAccessPolicy.requiredPermissions())
@@ -127,9 +170,20 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
                         requester.launch(missing.toTypedArray())
                     } else openAppPermissionSettings(context)
                 }
-            }, modifier = Modifier.fillMaxWidth(), enabled = !requesting)
+            }, modifier = Modifier.fillMaxWidth(), enabled = !requesting && !connectingFolder)
         },
     )
+    else {
+        GalleryFolderAccessGuide(
+            selectedPath = selectedFolderPath,
+            showCancelAction = false,
+            onCancel = { showFolderGuide = false },
+            onSelect = {
+                showFolderGuide = false
+                folderPicker.launch(dzlogFolderInitialUri())
+            },
+        )
+    }
 }
 
 @Composable
@@ -205,6 +259,6 @@ internal fun PermissionManagementScreen(onBack: () -> Unit) {
     }
     if (showGuide) GalleryFolderAccessGuide(onCancel = { showGuide = false }, onSelect = {
         showGuide = false
-        picker.launch(null)
+        picker.launch(dzlogFolderInitialUri())
     }, selectedPath = selectedPath)
 }

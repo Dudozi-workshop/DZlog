@@ -36,7 +36,12 @@ internal fun GalleryFolderInfoCard(name: String, detail: String) {
 }
 
 @Composable
-internal fun GalleryFolderAccessGuide(onCancel: () -> Unit, onSelect: () -> Unit, selectedPath: String? = null) {
+internal fun GalleryFolderAccessGuide(
+    onCancel: () -> Unit,
+    onSelect: () -> Unit,
+    selectedPath: String? = null,
+    showCancelAction: Boolean = true,
+) {
     val colors = LocalDDZColor.current
     val spacing = LocalDDZSpacing.current
     val typography = LocalDDZTypography.current
@@ -62,13 +67,16 @@ internal fun GalleryFolderAccessGuide(onCancel: () -> Unit, onSelect: () -> Unit
                         }
                     }
                 }
+                Text("DZlog 폴더가 아직 없다면 Pictures 안에서 새 폴더를 만들고 이름을 DZlog로 입력해 주세요.", style = typography.Caption, color = colors.TextSecondary)
                 Text("연결만으로 사진이 변경되지는 않아요. 연결 권한이 유지되는 동안 이 안내는 생략돼요.", style = typography.Caption, color = colors.TextSecondary)
             }
         },
         actions = {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.itemGap)) {
                 DDZButton(if (selectedPath == null) "폴더 선택 화면으로" else "다시 선택", onSelect, Modifier.fillMaxWidth())
-                DDZButton("취소", onCancel, Modifier.fillMaxWidth(), style = DDZButtonStyle.Secondary)
+                if (showCancelAction) {
+                    DDZButton("취소", onCancel, Modifier.fillMaxWidth(), style = DDZButtonStyle.Secondary)
+                }
             }
         },
     )
