@@ -150,6 +150,9 @@ internal fun handleCaptureClick(
         asyncService != null && pendingProjection != null
     ) {
         try {
+            check(!templateId.isNullOrBlank()) {
+                "활성 템플릿이 준비되지 않았습니다. 템플릿을 다시 선택해주세요."
+            }
             // Capture the exact stream and resolved table snapshot on the shutter press.
             val streamKey = scopedCounterStream.captureStreamKey
             val reservationScope = CaptureReservationScope(
