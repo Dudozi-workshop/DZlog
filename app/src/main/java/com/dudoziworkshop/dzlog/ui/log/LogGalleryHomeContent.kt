@@ -48,6 +48,7 @@ import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryChildFolder
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
@@ -112,7 +113,7 @@ internal fun LogGalleryHomeContent(
     val root = folderIndex.relativePath
     val recent = allImages.filterNot { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }.take(9)
     val favorites = allImages.filter { it.id in favoriteIds }
-    val directPhotos = allImages.filter { it.relativePath.trimEnd('/') == root.trimEnd('/') }
+    val directPhotos = allImages.filter { GalleryDefaultStoragePolicy.isDirectRootPhoto(it.relativePath) }
     // Summary IDs are MediaStore IDs, so resolve them against this same snapshot.
     val imagesById = remember(allImages) { allImages.associateBy { it.id.toString() } }
 
