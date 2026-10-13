@@ -42,7 +42,7 @@ fun OnboardingStartupGate() {
     val scope = rememberCoroutineScope()
     var checkVersion by remember { mutableIntStateOf(0) }
     var route by remember { mutableStateOf<CatalogStartupRoute?>(null) }
-    var firstCamera by remember { mutableStateOf(false) }
+    var finishedDestination by remember { mutableStateOf<Boolean?>(null) }
     var busy by remember { mutableStateOf(false) }
 
     LaunchedEffect(checkVersion) {
@@ -65,9 +65,9 @@ fun OnboardingStartupGate() {
     }
 
     when {
-        firstCamera -> AppRoot(startOnCamera = true)
+        finishedDestination != null -> AppRoot(startOnCamera = finishedDestination == true)
         route == CatalogStartupRoute.OFFER_ONBOARDING -> {
-            fun apply(id: String) {
+            fun apply(id: String, openCamera: Boolean) {
                 if (busy) return
                 busy = true
                 scope.launch {
@@ -78,7 +78,7 @@ fun OnboardingStartupGate() {
                         when (result) {
                             is OnboardingStarterCommitResult.Created,
                             is OnboardingStarterCommitResult.AlreadyCompleted -> {
-                                firstCamera = true
+                                finishedDestination = openCamera
                             }
                             else -> {
                                 Toast.makeText(context, "양식을 적용하지 못했습니다. 데이터를 확인해 주세요.",
@@ -97,8 +97,8 @@ fun OnboardingStartupGate() {
                 }
             }
             OnboardingFlowScreen(
-                busy = busy, onChoose = ::apply,
-                onSkip = { apply(OnboardingStarterCatalog.DEFAULT_ID) },
+                busy = busy, onChoose = { apply(it, true) },
+                onSkip = { apply(OnboardingStarterCatalog.DEFAULT_ID, false) },
             )
         }
         route == CatalogStartupRoute.RECOVERY_REQUIRED -> Column(
