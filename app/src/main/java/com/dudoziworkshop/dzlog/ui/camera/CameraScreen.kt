@@ -52,6 +52,7 @@ import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.repository.CaptureAsyncRuntime
 import com.dudoziworkshop.dzlog.data.repository.CaptureQueueCoordinator
+import com.dudoziworkshop.dzlog.data.repository.CaptureReceiptRecoveryPolicy
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjection
 import com.dudoziworkshop.dzlog.domain.table.applyPatch
@@ -232,11 +233,28 @@ fun CameraPreview(
     LaunchedEffect(asyncCaptureService) {
         val recovered = withContext(Dispatchers.IO) { asyncCaptureService.inspectRecovery() }
         if (recovered.ready.isNotEmpty() || recovered.needsReview.isNotEmpty() ||
-            recovered.completedAwaitingApply.isNotEmpty() ||
             recovered.corruptJournals.isNotEmpty() || recovered.orphanFiles.isNotEmpty()
         ) {
-            // A stale job cannot safely be mixed with new reservations before reconciliation.
+            // Uncertain media saves require review before new numbering.
             ui.capture.pendingSaveError = true
+        } else if (recovered.completedAwaitingApply.isNotEmpty()) {
+            val decision = CaptureReceiptRecoveryPolicy.resolve(
+                activeTemplate.value,
+                recovered.completedAwaitingApply,
+            )
+            if (decision == null) {
+                ui.capture.pendingSaveError = true
+            } else if (decision.template == activeTemplate.value) {
+                val acknowledged = runCatching {
+                    withContext(Dispatchers.IO) {
+                        decision.acknowledgedIds.forEach(asyncCaptureService::acknowledgeTemplateApplied)
+                    }
+                }
+                if (acknowledged.isFailure) ui.capture.pendingSaveError = true
+            } else {
+                pendingAcknowledgement = decision.acknowledgedIds to decision.template
+                onTemplateChanged.value(decision.template)
+            }
         }
         asyncCaptureService.events.collect { event ->
             when (event) {
