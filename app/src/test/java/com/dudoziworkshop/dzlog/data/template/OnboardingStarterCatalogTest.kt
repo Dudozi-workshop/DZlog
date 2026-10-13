@@ -2,6 +2,12 @@ package com.dudoziworkshop.dzlog.data.template
 
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.naming.buildFileName
+import com.dudoziworkshop.dzlog.domain.naming.buildSavePath
+import com.dudoziworkshop.dzlog.domain.table.TableResolver
+import java.util.Date
+import java.text.SimpleDateFormat
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -52,6 +58,49 @@ class OnboardingStarterCatalogTest {
         assertEquals("DZlog", s.fileNameSlotDrafts[0]?.manualText)
         assertEquals("yyyyMMdd", s.fileNameSlotDrafts[2]?.formatPattern)
         assertTrue(s.pathSlotDrafts.isEmpty())
+    }
+
+    @Test
+    fun `all starters produce valid first filenames and save paths without example values`() {
+        val fixed = Date(1_792_370_400_000L)
+        val date = SimpleDateFormat("yyyyMMdd", Locale.US).format(fixed)
+        OnboardingStarterCatalog.definitions.forEach { def ->
+            val template = requireNotNull(OnboardingStarterCatalog.buildState(def.id))
+            val resolved = TableResolver().plan(
+                cells = template.cells, captureNow = fixed,
+                config = TableResolver.Config(3, "yyyyMMdd", "HHmm"),
+            ).resolvedCells
+            val name = buildFileName(
+                resolved, template.fileNameSlotDrafts, "_", 3, 1,
+                fixed, "yyyyMMdd", "HHmm",
+            )
+            val folder = buildSavePath(
+                resolved, template.pathSlotDrafts, fixed, "yyyyMMdd", "HHmm",
+            )
+            assertTrue("${def.id}: ${name}", name.endsWith("_001.jpg"))
+            assertFalse("${def.id}: ${name}", name.contains("null", ignoreCase = true))
+            assertFalse("${def.id}: ${folder}", folder.contains("null", ignoreCase = true))
+            assertTrue("${def.id}: ${folder}", folder.startsWith("Pictures/DZlog/"))
+            assertTrue("${def.id}: ${folder}", folder.endsWith("/"))
+            if (def.includeFileDate) assertTrue("${def.id}: ${name}", name.contains(date))
+            val allNames = template.cells.filter { it.rowIndex == 1 && it.dataType == TableCellDataType.TEXT }
+            assertTrue("${def.id}: sample value carried into real template", allNames.all { it.rawText.isBlank() })
+        }
+    }
+
+    @Test
+    fun `research starter preserves its folder while empty sample fields are omitted`() {
+        val template = requireNotNull(OnboardingStarterCatalog.buildState("research"))
+        val fixed = Date(1_792_370_400_000L)
+        val cells = TableResolver().plan(
+            template.cells, fixed, TableResolver.Config(3, "yyyyMMdd", "HHmm"),
+        ).resolvedCells
+        assertEquals("DZlog_001.jpg", buildFileName(
+            cells, template.fileNameSlotDrafts, "_", 3, 1, fixed, "yyyyMMdd", "HHmm",
+        ))
+        assertEquals("Pictures/DZlog/연구/", buildSavePath(
+            cells, template.pathSlotDrafts, fixed, "yyyyMMdd", "HHmm",
+        ))
     }
 
     @Test
