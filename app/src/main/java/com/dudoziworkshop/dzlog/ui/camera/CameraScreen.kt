@@ -81,7 +81,6 @@ import com.dudoziworkshop.dzlog.ui.camera.controls.CameraNextCaptureInfoPopup
 import com.dudoziworkshop.dzlog.ui.camera.controls.FloatingAssistShutterButton
 import com.dudoziworkshop.dzlog.ui.camera.controls.buildCameraTriggerCapture
 import com.dudoziworkshop.dzlog.ui.camera.controls.isCaptureReady
-import com.dudoziworkshop.dzlog.ui.camera.effects.CameraCaptureRecoveryEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraNowTickEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraPrefsEffect
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraVolumeKeyEffect
