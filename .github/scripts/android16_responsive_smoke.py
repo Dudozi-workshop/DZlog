@@ -10,7 +10,6 @@ import time
 from android16_journey_smoke import (
     ACTIVITY, PKG, adb, alive, contains, evidence, hierarchy, tap, target, wait_for,
 )
-from android16_editor_keyboard_smoke import keyboard_is_visible
 
 
 def main():
@@ -34,14 +33,18 @@ def main():
             adb("shell", "wm", "density", dpi)
             time.sleep(3)
             start_home()
-            w, h = (int(v) for v in size.split("x"))
             root = wait_for("촬영 시작", timeout=45)
             x, y = target(root, "촬영 시작")
-            assert 0 <= x < w and 0 <= y < h, (
-                f"{label}: home camera action outside screen ({x},{y})")
+            top = next(iter(root.iter("node")))
+            match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",
+                                 top.get("bounds") or "")
+            if match:
+                _, _, w, h = (int(v) for v in match.groups())
+                assert 0 <= x < w and 0 <= y < h, (
+                    f"{label}: home camera action outside screen ({x},{y})")
             evidence(f"34-{label}-home")
             tap("촬영 시작")
-            camera = wait_for("사진 목록", timeout=45)
+            camera = wait_for("촬영 도구", timeout=45)
             assert contains(camera, "촬영 도구") or contains(camera, "●"), (
                 f"{label}: camera controls missing")
             evidence(f"35-{label}-camera")
