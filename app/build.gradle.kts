@@ -12,7 +12,7 @@ plugins {
 
 extensions.configure<ApplicationExtension> {
     namespace = "com.dudoziworkshop.dzlog"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.dudoziworkshop.dzlog"
