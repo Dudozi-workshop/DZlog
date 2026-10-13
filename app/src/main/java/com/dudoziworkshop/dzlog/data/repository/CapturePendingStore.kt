@@ -137,7 +137,10 @@ internal class CapturePendingStore(context: Context) {
     /** Ambiguous processing failures are never automatically retried. */
     fun markNeedsReview(id: String): PendingCapture = synchronized(lock) {
         val doc = readDocument(journalFile(id))
-        check(statusOf(doc) == Status.PROCESSING || statusOf(doc) == Status.SAVED_UNCOMMITTED)
+        // A READY image can fail integrity verification before the worker
+        // begins saving. Quarantine it instead of endlessly resubmitting it.
+        check(statusOf(doc) == Status.READY || statusOf(doc) == Status.PROCESSING ||
+            statusOf(doc) == Status.SAVED_UNCOMMITTED)
         doc.put("status", Status.NEEDS_REVIEW.name)
         writeDocument(id, doc)
         parseDocument(doc)
