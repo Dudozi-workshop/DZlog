@@ -53,7 +53,7 @@ import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.repository.CaptureAsyncRuntime
 import com.dudoziworkshop.dzlog.data.repository.CaptureQueueCoordinator
 import com.dudoziworkshop.dzlog.data.repository.CaptureReceiptRecoveryPolicy
-import com.dudoziworkshop.dzlog.data.repository.CapturePendingStore
+import com.dudoziworkshop.dzlog.data.repository.CaptureRecoveryStatusPolicy
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjection
 import com.dudoziworkshop.dzlog.domain.table.applyPatch
@@ -248,13 +248,9 @@ fun CameraPreview(
                 // READY/PROCESSING/RESERVED are normal while the application-owned
                 // worker or CameraX staging is still active. Orphaned jobs, corrupt
                 // journals, and explicit NEEDS_REVIEW always require intervention.
-                val unresolved = recovered.ready.any {
-                    it.reservation.id !in activeIds
-                } || recovered.needsReview.any {
-                    it.status == CapturePendingStore.Status.NEEDS_REVIEW ||
-                        it.reservation.id !in activeIds
-                } || recovered.corruptJournals.isNotEmpty() ||
-                    recovered.orphanFiles.isNotEmpty()
+                val unresolved = CaptureRecoveryStatusPolicy.needsManualReview(
+                    recovered, activeIds
+                )
 
                 recovered.completedAwaitingApply.forEach { receipt ->
                     val id = receipt.reservation.id
