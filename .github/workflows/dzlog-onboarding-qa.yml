@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: dzlog-onboarding-qa
+  group: dzlog-gallery-bulk-delete-qa
   cancel-in-progress: true
 
 jobs:
