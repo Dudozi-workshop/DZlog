@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.data.repository
 
 import com.dudoziworkshop.dzlog.data.template.tableTemplateStateFromJson
 import com.dudoziworkshop.dzlog.data.template.toJsonString
+import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureStreamKey
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
@@ -20,6 +21,7 @@ import org.json.JSONObject
 internal data class CaptureJobSnapshot(
     val request: CaptureRequest,
     val tablePatch: TablePatch,
+    val counterStream: CaptureStreamKey? = null,
 )
 
 /** Private on-disk format; reject unknown schemas rather than silently losing a setting. */
@@ -77,6 +79,10 @@ internal object CaptureJobSnapshotCodec {
             .put("watermark", watermark)
             .put("counterPatch", updates)
             .put("phrasePatch", progress)
+            .put("counterStream", job.counterStream?.let { stream ->
+                JSONObject().put("relativePathKey", stream.relativePathKey)
+                    .put("prefix", stream.prefix).put("scanPrefix", stream.scanPrefix)
+            } ?: JSONObject.NULL)
     }
 
     fun decode(data: JSONObject): CaptureJobSnapshot {
@@ -150,6 +156,13 @@ internal object CaptureJobSnapshotCodec {
                 watermark = wm,
             ),
             tablePatch = TablePatch(updates, phrases),
+            counterStream = data.optJSONObject("counterStream")?.let { stream ->
+                CaptureStreamKey(
+                    relativePathKey = stream.getString("relativePathKey"),
+                    prefix = stream.getString("prefix"),
+                    scanPrefix = stream.getString("scanPrefix"),
+                )
+            },
         )
     }
 }
