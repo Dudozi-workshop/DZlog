@@ -145,4 +145,35 @@ class CapturePendingStoreTest {
                 .forEach(File::delete)
         }
     }
+
+    @Test fun committedReceiptRemainsUntilTemplateAcknowledged() {
+        val store = CapturePendingStore(context)
+        val pending = store.reserveNext(
+            CaptureReservationScope("Pictures/DZlog/receipt/", "ACK_"), 3, ::snapshot
+        )
+        val id = pending.reservation.id
+        val source = File(context.cacheDir, "$id-receipt.jpg")
+        source.writeBytes(byteArrayOf(1, 2, 3, 4))
+        try {
+            store.stageJpeg(id, source)
+            store.markProcessing(id)
+            store.markMediaSaved(id, listOf(
+                android.net.Uri.parse("content://test/receipt-a"),
+                android.net.Uri.parse("content://test/receipt-b"),
+            ))
+            store.markCommitted(id)
+            store.pruneCommitted(id)
+            assertTrue(store.inspectRecovery().completedAwaitingApply.any {
+                it.reservation.id == id
+            })
+            store.acknowledgeTemplateApplied(id)
+            assertTrue(store.inspectRecovery().completedAwaitingApply.none {
+                it.reservation.id == id
+            })
+        } finally {
+            source.delete()
+            File(context.filesDir, "capture-pending-v2").listFiles().orEmpty()
+                .filter { it.name.startsWith(id) }.forEach(File::delete)
+        }
+    }
 }
