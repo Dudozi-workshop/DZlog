@@ -130,6 +130,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
     var originalNavContext by remember { mutableStateOf<OriginalNavContext?>(null) }
     var albumGridEntryScreen by remember { mutableStateOf(AppScreen.ALBUM_FOLDER) }
     var albumFolderPath by remember { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
+    // The virtual root photo list must survive viewer navigation.
+    var showRootDefaultPhotos by remember { mutableStateOf(false) }
     var gridItems by remember { mutableStateOf<List<com.dudoziworkshop.dzlog.domain.model.MediaImageItem>>(emptyList()) }
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -573,6 +575,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
         albumLocation = null
         clearOriginalContext()
         albumFolderPath = GalleryFolderIndexPolicy.ROOT
+        showRootDefaultPhotos = false
         albumGridEntryScreen = AppScreen.ALBUM_FOLDER
         resetGridUiState()
         albumEntryScreen = screen
@@ -856,13 +859,18 @@ fun AppRoot(startOnCamera: Boolean = false) {
             AppScreen.ALBUM_FOLDER -> {
                 LogFolderScreen(
                     relativePath = albumFolderPath,
+                    showDefaultPhotos = showRootDefaultPhotos,
+                    onShowDefaultPhotosChange = { showRootDefaultPhotos = it },
                     capturePathDrafts = (tableTemplateViewModel.templates.map { it.templateState.pathSlotDrafts } + listOf(tableTemplateState.pathSlotDrafts)).distinct(),
                     onBack = {
                         val parent = GalleryFolderIndexPolicy.parentOf(albumFolderPath)
                         if (parent != null) albumFolderPath = parent
                         else screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
                     },
-                    onOpenFolder = { folder -> albumFolderPath = folder },
+                    onOpenFolder = { folder ->
+                        showRootDefaultPhotos = false
+                        albumFolderPath = folder
+                    },
                     onOpenPhoto = { photos, index ->
                         val relativePath = photos.getOrNull(index)?.relativePath ?: albumFolderPath
                         albumLocation = AlbumLocation(
@@ -881,6 +889,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onOpenOriginal = { originalPath ->
                         clearOriginalContext()
                         resetGridUiState()
+                        showRootDefaultPhotos = false
                         albumFolderPath = originalPath
                     },
                 )
