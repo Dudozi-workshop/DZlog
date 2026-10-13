@@ -43,8 +43,13 @@ internal class CaptureStagedCameraGateway(
     ) {
         require(reserved.status == CapturePendingStore.Status.RESERVED)
         val source = File(incomingDir, "${reserved.reservation.id}.camera.jpg.part")
-        if (!source.createNewFile()) {
-            callbacks.onFailure(IOException("Already exists: pending camera image"))
+        val createFailure = runCatching {
+            if (!source.createNewFile()) {
+                throw IOException("Already exists: pending camera image")
+            }
+        }.exceptionOrNull()
+        if (createFailure != null) {
+            callbacks.onFailure(createFailure)
             return
         }
 
