@@ -86,9 +86,12 @@ internal class PlayProBillingGateway(
             availableProduct = queryResult.productDetailsList.firstOrNull {
                 it.productId == MonetizationRolloutConfig.PRO_PRODUCT_ID
             }
+            val price = availableProduct?.oneTimePurchaseOfferDetailsList
+                ?.firstOrNull()?.formattedPrice
             onEvent(
-                if (availableProduct == null) PlayPurchaseEvent.ProductUnavailable
-                else PlayPurchaseEvent.ProductReady
+                if (availableProduct == null || price.isNullOrBlank())
+                    PlayPurchaseEvent.ProductUnavailable
+                else PlayPurchaseEvent.ProductReady(price)
             )
         }
     }
@@ -116,7 +119,11 @@ internal class PlayProBillingGateway(
             .build()
         client.queryPurchasesAsync(params) { result, purchases ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                purchases.forEach(::handlePurchase)
+                val owned = purchases.filter {
+                    MonetizationRolloutConfig.PRO_PRODUCT_ID in it.products
+                }
+                if (owned.isEmpty()) onEvent(PlayPurchaseEvent.NotOwned)
+                else owned.forEach(::handlePurchase)
             } else onEvent(PlayPurchaseEvent.Error(result.responseCode))
         }
     }
@@ -152,8 +159,9 @@ internal class PlayProBillingGateway(
 }
 
 internal sealed interface PlayPurchaseEvent {
-    data object ProductReady : PlayPurchaseEvent
+    data class ProductReady(val displayedPrice: String) : PlayPurchaseEvent
     data object ProductUnavailable : PlayPurchaseEvent
+    data object NotOwned : PlayPurchaseEvent
     data object Pending : PlayPurchaseEvent
     data object Cancelled : PlayPurchaseEvent
     data object ConnectionLost : PlayPurchaseEvent
