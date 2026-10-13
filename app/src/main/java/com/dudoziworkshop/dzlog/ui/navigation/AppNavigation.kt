@@ -41,6 +41,7 @@ import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
 import com.dudoziworkshop.dzlog.data.template.nextNewTemplateName
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureTemplateCommitPolicy
 import com.dudoziworkshop.dzlog.feature.settings.ui.CreditsScreen
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
@@ -237,7 +238,7 @@ fun AppRoot() {
         val savedActiveId = tableTemplateViewModel.activeTemplateId ?: return false
         // A capture receipt may arrive after a quick-template selection changes.
         // Never advance the newly selected template using the previous shot.
-        if (expectedTemplateId == null || savedActiveId != expectedTemplateId) return false
+        if (!CaptureTemplateCommitPolicy.canPersist(expectedTemplateId, savedActiveId)) return false
         return try {
             val next = tableCatalogCoordinator.updateActiveTemplate(
                 items = tableTemplateViewModel.templates,
