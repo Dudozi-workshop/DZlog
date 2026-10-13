@@ -8,8 +8,7 @@ import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderNamePolicy
 
 /**
- * Optional SAF integration supports physical directory management when a tree grant exists.
- * New empty folders are handled by GalleryFolderCatalog without SAF permission.
+ * Required SAF integration for physical DZlog directory management.
  * MediaStore continues to own photo indexing; never create dummy media files.
  */
 class GalleryFolderStorage(context: Context) {
@@ -26,6 +25,9 @@ class GalleryFolderStorage(context: Context) {
             treeUri.authority == "com.android.externalstorage.documents" &&
                 documentId?.trimEnd('/') == "primary:Pictures/DZlog"
         ) { "내장 저장공간의 Pictures/DZlog 폴더를 정확히 선택해 주세요." }
+        require(isExpectedRootAccessible(treeUri)) {
+            "선택한 Pictures/DZlog 폴더를 확인할 수 없습니다. 폴더가 존재하는지 확인해 주세요."
+        }
         resolver.takePersistableUriPermission(
             treeUri,
             Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
@@ -205,8 +207,40 @@ class GalleryFolderStorage(context: Context) {
         return tree.takeIf { uri ->
             resolver.persistedUriPermissions.any { permission ->
                 permission.uri == uri && permission.isReadPermission && permission.isWritePermission
-            }
+            } && isExpectedRootAccessible(uri)
         }
+    }
+
+    private fun isExpectedRootAccessible(tree: Uri): Boolean {
+        val treeId = runCatching { DocumentsContract.getTreeDocumentId(tree) }.getOrNull()
+            ?: return false
+        if (tree.authority != "com.android.externalstorage.documents" ||
+            treeId.trimEnd('/') != "primary:Pictures/DZlog"
+        ) return false
+        val document = runCatching {
+            DocumentsContract.buildDocumentUriUsingTree(tree, treeId)
+        }.getOrNull() ?: return false
+        return runCatching {
+            resolver.query(
+                document,
+                arrayOf(
+                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    DocumentsContract.Document.COLUMN_MIME_TYPE,
+                ),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (!cursor.moveToFirst()) return@use false
+                val id = cursor.getString(0)?.trimEnd('/')
+                val name = cursor.getString(1)
+                val mimeType = cursor.getString(2)
+                id == "primary:Pictures/DZlog" &&
+                    name == "DZlog" &&
+                    mimeType == DocumentsContract.Document.MIME_TYPE_DIR
+            } == true
+        }.getOrDefault(false)
     }
 
     private fun resolveDirectory(tree: Uri, path: String): Uri? {

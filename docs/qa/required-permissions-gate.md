@@ -33,8 +33,10 @@ Device checks:
   reload; no stale folder counts.
 - Outside tap has no effect; Back exits; relaunch rechecks grants.
 - Settings > Permission management: status cards and app-settings link work.
-- Folder connect: cancellation returns to the gate; a wrong folder shows its path
-  and retries; only internal-storage Pictures/DZlog works.
+- Folder connect: cancellation immediately reopens the required guide; a wrong
+  folder shows its path and retries; only internal-storage Pictures/DZlog works.
+- Delete or rename the connected Pictures/DZlog root: the saved grant is treated
+  as disconnected and the required third step returns.
 - Existing capture/save/table editing and folder delete flows remain functional.
 
 Validation in this workspace:

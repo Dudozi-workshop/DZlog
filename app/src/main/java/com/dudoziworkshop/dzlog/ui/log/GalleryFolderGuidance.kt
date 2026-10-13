@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZContentDialog
@@ -41,16 +42,37 @@ internal fun GalleryFolderAccessGuide(
     onSelect: () -> Unit,
     selectedPath: String? = null,
     showCancelAction: Boolean = true,
+    required: Boolean = false,
+    notice: String? = null,
 ) {
     val colors = LocalDDZColor.current
     val spacing = LocalDDZSpacing.current
     val typography = LocalDDZTypography.current
     DDZContentDialog(
-        title = if (selectedPath == null) "DZlog 폴더를 한 번만 연결해 주세요" else "DZlog 폴더를 다시 선택해 주세요",
+        title = if (selectedPath == null) "DZlog 폴더를 연결해 주세요" else "DZlog 폴더를 다시 선택해 주세요",
         onDismiss = onCancel,
+        properties = DialogProperties(
+            dismissOnClickOutside = !required,
+            dismissOnBackPress = true,
+        ),
         content = {
             Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(spacing.controlGap)) {
-                Text("폴더 이름을 변경하거나 이동·삭제하려면 Android의 폴더 접근 허용이 필요해요.", style = typography.Body, color = colors.TextSecondary)
+                Text(
+                    if (required) "사진과 폴더를 안전하게 관리하려면 Pictures/DZlog 폴더 연결이 필요해요. 연결을 완료해야 DZlog를 사용할 수 있어요."
+                    else "폴더 이름을 변경하거나 이동·삭제하려면 Android의 폴더 접근 허용이 필요해요.",
+                    style = typography.Body,
+                    color = colors.TextSecondary,
+                )
+                notice?.let {
+                    Surface(color = colors.DestructiveSoft, shape = MaterialTheme.shapes.medium) {
+                        Text(
+                            it,
+                            modifier = Modifier.fillMaxWidth().padding(spacing.controlGap),
+                            style = typography.Caption,
+                            color = colors.Destructive,
+                        )
+                    }
+                }
                 selectedPath?.let { GalleryFolderInfoCard("선택한 폴더", it) }
                 listOf(
                     "Pictures 폴더로 이동" to "Android 폴더 선택 화면에서 Pictures를 찾아 주세요.",
@@ -73,7 +95,7 @@ internal fun GalleryFolderAccessGuide(
         },
         actions = {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.itemGap)) {
-                DDZButton(if (selectedPath == null) "폴더 선택 화면으로" else "다시 선택", onSelect, Modifier.fillMaxWidth())
+                DDZButton(if (selectedPath == null && notice == null) "폴더 선택 화면으로" else "다시 연결하기", onSelect, Modifier.fillMaxWidth())
                 if (showCancelAction) {
                     DDZButton("취소", onCancel, Modifier.fillMaxWidth(), style = DDZButtonStyle.Secondary)
                 }

@@ -105,6 +105,7 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
     var folderConnected by remember { mutableStateOf(storage.isConnected()) }
     var showFolderGuide by remember { mutableStateOf(false) }
     var selectedFolderPath by remember { mutableStateOf<String?>(null) }
+    var folderGuideNotice by remember { mutableStateOf<String?>(null) }
     var cameraRequestAttempted by remember { mutableStateOf(false) }
     var photoRequestAttempted by remember { mutableStateOf(false) }
     var requesting by remember { mutableStateOf(false) }
@@ -116,18 +117,25 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
         permissionState.value = readPermissionState(context)
     }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
+        if (uri == null) {
+            selectedFolderPath = null
+            folderGuideNotice = "폴더 연결을 완료해야 DZlog를 사용할 수 있어요."
+            showFolderGuide = true
+            return@rememberLauncherForActivityResult
+        }
         connectingFolder = true
         scope.launch {
             val result = withContext(Dispatchers.IO) { runCatching { storage.connect(uri) } }
             connectingFolder = false
             folderConnected = storage.isConnected()
             result.onSuccess {
+                folderGuideNotice = null
                 GallerySnapshotMemory.cache.invalidate()
             }.onFailure {
                 selectedFolderPath = runCatching {
                     DocumentsContract.getTreeDocumentId(uri).substringAfter(':')
                 }.getOrDefault("선택한 폴더")
+                folderGuideNotice = "선택한 위치가 달라요. Pictures/DZlog 폴더 자체를 선택해 주세요."
                 showFolderGuide = true
             }
         }
@@ -173,10 +181,11 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
             }
         },
         actions = {
-            val buttonLabel = when (currentStep) {
-                RequiredSetupStep.CAMERA -> "카메라 권한 설정"
-                RequiredSetupStep.PHOTOS -> "사진 접근 권한 설정"
-                RequiredSetupStep.FOLDER -> "DZlog 폴더 연결"
+            val buttonLabel = when {
+                connectingFolder -> "폴더 확인 중…"
+                currentStep == RequiredSetupStep.CAMERA -> "카메라 권한 설정"
+                currentStep == RequiredSetupStep.PHOTOS -> "사진 접근 권한 설정"
+                else -> "DZlog 폴더 연결"
             }
             DDZButton(buttonLabel, onClick = {
                 if (!requesting && !connectingFolder) {
@@ -199,6 +208,7 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
                         }
                         RequiredSetupStep.FOLDER -> {
                             selectedFolderPath = null
+                            folderGuideNotice = null
                             showFolderGuide = true
                         }
                     }
@@ -210,10 +220,16 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
         GalleryFolderAccessGuide(
             selectedPath = selectedFolderPath,
             showCancelAction = false,
-            onCancel = { showFolderGuide = false },
+            required = true,
+            notice = folderGuideNotice,
+            onCancel = { context.activity()?.finish() },
             onSelect = {
                 showFolderGuide = false
-                folderPicker.launch(dzlogFolderInitialUri())
+                runCatching { folderPicker.launch(dzlogFolderInitialUri()) }
+                    .onFailure {
+                        folderGuideNotice = "폴더 선택 화면을 열지 못했어요. 잠시 후 다시 시도해 주세요."
+                        showFolderGuide = true
+                    }
             },
         )
     }
