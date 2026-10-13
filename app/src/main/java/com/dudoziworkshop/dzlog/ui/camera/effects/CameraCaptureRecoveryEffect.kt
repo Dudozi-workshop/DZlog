@@ -23,7 +23,7 @@ internal fun CameraCaptureRecoveryEffect() {
         }
         inspection.onSuccess { report ->
             val requiresReview = report.needsReview.size + report.orphanFiles.size +
-                report.corruptJournals.size + report.completedAwaitingApply.size +\n                    report.completedAwaitingApply.size
+                report.corruptJournals.size + report.completedAwaitingApply.size
             Log.i(
                 "DZlogCaptureRecovery",
                 "ready=${report.ready.size} requiresReview=$requiresReview"
