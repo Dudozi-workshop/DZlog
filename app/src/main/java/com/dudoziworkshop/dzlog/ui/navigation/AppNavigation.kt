@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -118,22 +119,22 @@ data class OriginalNavContext(
 
 @Composable
 fun AppRoot(startOnCamera: Boolean = false) {
-    var screen by remember { mutableStateOf(AppScreen.HOME) }
-    var previousScreen by remember { mutableStateOf(AppScreen.HOME) }
-    var templateListEntryScreen by remember { mutableStateOf(AppScreen.HOME) }
-    var albumEntryScreen by remember { mutableStateOf(AppScreen.HOME) }
-    var gridEntrySource by remember { mutableStateOf(GridEntrySource.NORMAL) }
-    var viewerEntrySource by remember { mutableStateOf(ViewerEntrySource.GRID) }
+    var screen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    var previousScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    var templateListEntryScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    var albumEntryScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    var gridEntrySource by rememberSaveable { mutableStateOf(GridEntrySource.NORMAL) }
+    var viewerEntrySource by rememberSaveable { mutableStateOf(ViewerEntrySource.GRID) }
 
 // 앨범(G1/G2/그리드/뷰어) 상태
     var albumLocation by remember { mutableStateOf<AlbumLocation?>(null) }
     var originalNavContext by remember { mutableStateOf<OriginalNavContext?>(null) }
-    var albumGridEntryScreen by remember { mutableStateOf(AppScreen.ALBUM_FOLDER) }
-    var albumFolderPath by remember { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
+    var albumGridEntryScreen by rememberSaveable { mutableStateOf(AppScreen.ALBUM_FOLDER) }
+    var albumFolderPath by rememberSaveable { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
     var gridItems by remember { mutableStateOf<List<com.dudoziworkshop.dzlog.domain.model.MediaImageItem>>(emptyList()) }
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
-    var viewerStartIndex by remember { mutableIntStateOf(0) }
+    var viewerStartIndex by rememberSaveable { mutableIntStateOf(0) }
     val cameraSessionCaptureStack = remember { mutableStateListOf<List<Uri>>() }
 
     // 기존 상태
