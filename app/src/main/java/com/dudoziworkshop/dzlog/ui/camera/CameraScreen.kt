@@ -297,9 +297,12 @@ fun CameraPreview(
         }
     }
 
-    BackHandler(enabled = ui.capture.capturedUri != null || ui.showWizard || ui.isTableResizePanelOpen || ui.showToolMenu ||
+    BackHandler(enabled = (ui.capture.pendingSaveCount > 0 && !ui.capture.pendingSaveError) ||
+        ui.capture.capturedUri != null || ui.showWizard || ui.isTableResizePanelOpen || ui.showToolMenu ||
         ui.isToolPanelExpanded || ui.isZoomChipExpanded || ui.selectedTool != null || ui.isTableSelected) {
         when {
+            ui.capture.pendingSaveCount > 0 && !ui.capture.pendingSaveError ->
+                Toast.makeText(context, "사진 저장 완료 후 이동할 수 있습니다.", Toast.LENGTH_SHORT).show()
             ui.capture.capturedUri != null -> ui.capture.capturedUri = null
             ui.showWizard -> ui.showWizard = false
             ui.isTableResizePanelOpen -> ui.isTableResizePanelOpen = false
@@ -607,8 +610,17 @@ fun CameraPreview(
                         captureReady = canTriggerCapture && !undoDeleteController.isBusy &&
                             !ui.capture.pendingSaveError && ui.capture.pendingSaveCount < 3,
                         latestImage = latestImage,
-                        onOpenAlbum = onOpenAlbum,
-                        onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
+                        onOpenAlbum = {
+                            if (ui.capture.pendingSaveCount == 0 || ui.capture.pendingSaveError) onOpenAlbum()
+                            else Toast.makeText(context, "저장 완료 후 앨범으로 이동할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                        },
+                        onOpenRecentCaptureGrid = { g1, g2, path, start ->
+                            if (ui.capture.pendingSaveCount == 0 || ui.capture.pendingSaveError) {
+                                onOpenRecentCaptureGrid(g1, g2, path, start)
+                            } else {
+                                Toast.makeText(context, "저장 완료 후 이동할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
                         sessionCaptureStack = sessionCaptureStack,
                         undoPending = undoDeleteController.isBusy || ui.capture.pendingSaveCount > 0,
                         onUndoDelete = {
