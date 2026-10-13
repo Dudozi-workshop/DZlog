@@ -131,6 +131,59 @@ class CaptureQueueCoordinatorTest {
         }
     }
 
+    @Test fun settledSignalFollowsQueueRemovalAndReadyCannotRunTwice() = runBlocking {
+        val store = CapturePendingStore(context)
+        val input = File(context.cacheDir, "dzlog-recover-${System.nanoTime()}.jpg")
+        input.writeBytes(byteArrayOf(1, 2, 3))
+        val scope = CaptureReservationScope("Pictures/DZlog/resume/${System.nanoTime()}/", "resume_")
+        val pending = reserveAndStage(store, scope, input)
+        val id = pending.reservation.id
+        val settled = CompletableDeferred<Unit>()
+        val workerScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        var saves = 0
+        try {
+            lateinit var queue: CaptureQueueCoordinator
+            queue = CaptureQueueCoordinator(
+                store = store,
+                process = { job ->
+                    saves++
+                    val uri = Uri.parse("content://test/${job.reservation.id}")
+                    LogEntry(
+                        mediaStoreId = 1L, contentUri = uri,
+                        savedContentUris = listOf(uri),
+                        displayName = job.snapshot.request.displayName,
+                        isNameAdjusted = false, createdAt = System.currentTimeMillis(),
+                        group1 = "", group2 = "",
+                    )
+                },
+                commitProgress = { _, _ -> },
+                scope = workerScope,
+                onEvent = { event ->
+                    if (event is CaptureQueueCoordinator.Event.Settled && event.id == id) {
+                        assertEquals(0, queue.outstandingCount())
+                        settled.complete(Unit)
+                    }
+                },
+            )
+            // A verified READY journal from a previous UI session is safe to
+            // resume. An already in-flight ID must never be enqueued twice.
+            assertTrue(queue.submit(id))
+            assertFalse(queue.submit(id))
+            withTimeout(5000) { settled.await() }
+            assertEquals(1, saves)
+            assertEquals(
+                CapturePendingStore.Status.COMMITTED,
+                store.inspectRecovery().completedAwaitingApply.single {
+                    it.reservation.id == id
+                }.status,
+            )
+        } finally {
+            workerScope.cancel()
+            input.delete()
+            cleanup(listOf(id))
+        }
+    }
+
     @Test fun failedProcessingIsQuarantinedWithoutAutomaticRetry() = runBlocking {
         val store = CapturePendingStore(context)
         val input = File(context.cacheDir, "dzlog-queue-fail-${System.nanoTime()}.jpg")
