@@ -448,7 +448,7 @@ fun CameraPreview(
         undoPending = undoDeleteController.isBusy,
         finalCapturePreview = finalCapturePreview,
         scopedCounterStream = scopedCounterStream,
-        tableTemplateState = tableTemplateState,
+        tableTemplateState = effectiveTemplate,
         fnDelim = fnDelim,
         repository = repository,
         asyncService = asyncCaptureService,
