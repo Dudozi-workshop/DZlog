@@ -41,6 +41,7 @@ jobs:
           script: |
             bash .github/scripts/android16_first_launch_smoke.sh
             python3 .github/scripts/android16_journey_smoke.py
+            python3 .github/scripts/android16_editor_keyboard_smoke.py
             adb shell dumpsys window > api36-window-dump.txt
       - name: Upload startup screenshot and log
         if: always()
