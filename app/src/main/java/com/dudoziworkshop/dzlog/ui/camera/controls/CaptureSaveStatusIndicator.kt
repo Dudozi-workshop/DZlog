@@ -94,17 +94,19 @@ internal fun CaptureSaveStatusIndicator(
         )
     }
 
-    Box(modifier = modifier.size(48.dp), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = modifier
+            .size(48.dp)
+            .semantics { contentDescription = "$statusLabel, 자세히 보기" }
+            .clickable(role = Role.Button) {
+                if (detailsAllowed) detailsOpen = !detailsOpen
+            },
+        contentAlignment = Alignment.Center,
+    ) {
         Box(
             modifier = Modifier
                 .size(width = 46.dp, height = 24.dp)
-                .background(background, RoundedCornerShape(50))
-                .semantics {
-                    contentDescription = "$statusLabel, 자세히 보기"
-                }
-                .clickable(role = Role.Button) {
-                    if (detailsAllowed) detailsOpen = !detailsOpen
-                },
+                .background(background, RoundedCornerShape(50)),
             contentAlignment = Alignment.Center,
         ) {
             Row(
