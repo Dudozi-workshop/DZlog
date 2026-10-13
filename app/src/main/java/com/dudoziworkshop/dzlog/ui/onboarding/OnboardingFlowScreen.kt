@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.onboarding
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -54,8 +55,13 @@ internal fun OnboardingFlowScreen(
     busy: Boolean,
     onChoose: (String) -> Unit,
     onSkip: () -> Unit,
+    readOnly: Boolean = false,
+    onClose: () -> Unit = {},
 ) {
     var step by remember { mutableIntStateOf(1) }
+    BackHandler(enabled = readOnly) {
+        if (step > 1) step-- else onClose()
+    }
     var category by remember { mutableStateOf("basic") }
     var chosen by remember { mutableStateOf(OnboardingStarterCatalog.DEFAULT_ID) }
     val selected = OnboardingStarterCatalog.find(chosen)
@@ -159,18 +165,28 @@ internal fun OnboardingFlowScreen(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             DDZButton(
-                text = if (step == 3) "이 양식으로 시작" else if (step == 1) "시작하기" else "다음",
-                onClick = { if (step == 3) onChoose(chosen) else step++ },
+                text = if (step == 3) {
+                    if (readOnly) "도움말 닫기" else "이 양식으로 시작"
+                } else if (step == 1) "시작하기" else "다음",
+                onClick = {
+                    if (step == 3) {
+                        if (readOnly) onClose() else onChoose(chosen)
+                    } else step++
+                },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !busy, minHeight = DDZLayout.Control.Button,
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 DDZButton(
-                    text = if (step == 1) "건너뛰기" else "이전",
-                    onClick = { if (step == 1) onSkip() else step-- },
+                    text = if (step == 1) {
+                        if (readOnly) "닫기" else "건너뛰기"
+                    } else "이전",
+                    onClick = { if (step == 1) {
+                        if (readOnly) onClose() else onSkip()
+                    } else step-- },
                     enabled = !busy, style = DDZButtonStyle.Text,
                 )
-                if (step != 1) {
+                if (step != 1 && !readOnly) {
                     DDZButton(text = "건너뛰기", onClick = onSkip,
                         enabled = !busy, style = DDZButtonStyle.Text)
                 } else Spacer(Modifier.height(1.dp))
