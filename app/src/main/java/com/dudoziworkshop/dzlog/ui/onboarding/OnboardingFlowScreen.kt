@@ -64,6 +64,7 @@ internal fun OnboardingFlowScreen(
     }
     var category by remember { mutableStateOf("basic") }
     var chosen by remember { mutableStateOf(OnboardingStarterCatalog.DEFAULT_ID) }
+    var showAlternatives by remember { mutableStateOf(false) }
     val selected = OnboardingStarterCatalog.find(chosen)
         ?: OnboardingStarterCatalog.definitions.first()
 
@@ -122,6 +123,7 @@ internal fun OnboardingFlowScreen(
                                     .clickable {
                                         category = item.id
                                         chosen = OnboardingStarterCatalog.definitions.first { it.category == item.id }.id
+                                        showAlternatives = false
                                     }
                                     .padding(vertical = 14.dp, horizontal = 3.dp),
                                 contentAlignment = Alignment.Center,
@@ -134,24 +136,37 @@ internal fun OnboardingFlowScreen(
                         }
                     }
                     if (category != "basic") {
-                        Text("다른 양식 살펴보기", color = DDZColor.TextSecondary,
-                            style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            OnboardingStarterCatalog.definitions.filter { it.category == category }
-                                .forEach { def ->
-                                    val active = chosen == def.id
-                                    Box(
-                                        Modifier.fillMaxWidth()
-                                            .background(
-                                                if (active) DDZColor.SelectedSoft else DDZColor.Surface,
-                                                RoundedCornerShape(DDZLayout.Radius.Small))
-                                            .clickable { chosen = def.id }
-                                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                                    ) {
-                                        Text(def.title, color = DDZColor.TextPrimary,
-                                            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal)
+                        Text(
+                            text = if (showAlternatives) "다른 양식 접기" else "다른 양식 보기",
+                            color = DDZColor.PrimaryDark,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.clickable {
+                                showAlternatives = !showAlternatives
+                            }.padding(vertical = 8.dp),
+                        )
+                        if (showAlternatives) {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OnboardingStarterCatalog.definitions
+                                    .filter { it.category == category && it.id !=
+                                        OnboardingStarterCatalog.definitions.first { recommended ->
+                                            recommended.category == category
+                                        }.id
                                     }
-                                }
+                                    .forEach { def ->
+                                        val active = chosen == def.id
+                                        Box(
+                                            Modifier.fillMaxWidth()
+                                                .background(
+                                                    if (active) DDZColor.SelectedSoft else DDZColor.Surface,
+                                                    RoundedCornerShape(DDZLayout.Radius.Small))
+                                                .clickable { chosen = def.id }
+                                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        ) {
+                                            Text(def.title, color = DDZColor.TextPrimary,
+                                                fontWeight = if (active) FontWeight.Bold else FontWeight.Normal)
+                                        }
+                                    }
+                            }
                         }
                     }
                     StarterPreview(selected)
