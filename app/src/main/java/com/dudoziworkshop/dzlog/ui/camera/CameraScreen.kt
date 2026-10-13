@@ -244,7 +244,10 @@ fun CameraPreview(
     // StateFlow delivers the current version after a screen recreation, even if
     // the original SharedFlow completion event was missed while off-screen.
     // The journal, not the event, is authoritative about committed media.
-    LaunchedEffect(asyncCaptureService) {
+    LaunchedEffect(asyncCaptureService, quickTemplateId) {
+        // Wait until navigation has restored the active catalog. Writing a
+        // receipt against an uninitialized template would corrupt progress.
+        if (quickTemplateId == null) return@LaunchedEffect
         asyncCaptureService.stateVersion.collect {
             try {
                 val recovered = withContext(Dispatchers.IO) {
