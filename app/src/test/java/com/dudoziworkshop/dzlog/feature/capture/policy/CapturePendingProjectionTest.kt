@@ -60,6 +60,22 @@ class CapturePendingProjectionTest {
         assertEquals(1, projection.nextCounter(secondPhrase, 1))
     }
 
+    @Test fun templateSwitchClearsOnlySafeCommittedPreviewCache() {
+        val projection = CapturePendingProjection()
+        assertTrue(projection.bindTemplate("template-a"))
+        val advanced = template.applyPatch(shot("first", 1, 1).templatePatch)
+        projection.recordCommittedTemplate(advanced)
+        assertEquals(advanced, projection.previewTemplate(template))
+
+        // Switching to a different template after the queue drains must not
+        // overlay the old template's phrase/counter on the new selection.
+        assertTrue(projection.bindTemplate("template-b"))
+        assertEquals(template, projection.previewTemplate(template))
+        projection.add(shot("second", 2, 2))
+        assertTrue(!projection.bindTemplate("template-c"))
+        assertEquals(1, projection.pendingCount())
+    }
+
     @Test fun rejectedDuplicateCounterDoesNotAlterPendingList() {
         val projection = CapturePendingProjection()
         projection.add(shot("first", 1, 1))
