@@ -38,22 +38,14 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-boot-timeout: 1200
-          script: |
-            adb install -r app/build/outputs/apk/debug/app-debug.apk
-            adb shell am start -W -n com.dudoziworkshop.dzlog/.MainActivity
-            sleep 12
-            adb shell pidof com.dudoziworkshop.dzlog
-            if adb logcat -d -t 2500 | grep -E 'FATAL EXCEPTION|Process: com.dudoziworkshop.dzlog.*has died'; then
-              echo 'App crash during fresh startup' >&2
-              exit 1
-            fi
-            adb shell wm size
-            adb shell wm density
-            adb exec-out screencap -p > api36-fresh-start.png
+          script: bash .github/scripts/android16_first_launch_smoke.sh
       - name: Upload startup screenshot and log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dzlog-api36-smoke-evidence
-          path: api36-fresh-start.png
+          path: |
+            api36-fresh-start.png
+            api36-launch-log.txt
+            api36-ui.xml
           if-no-files-found: ignore
