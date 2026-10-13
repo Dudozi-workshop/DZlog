@@ -1,6 +1,8 @@
 package com.dudoziworkshop.dzlog.ui.camera.controller
 
 import android.content.Context
+import android.view.Surface
+import androidx.lifecycle.Lifecycle
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
@@ -29,9 +31,14 @@ internal fun bindCamera(
 ) {
     val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
     cameraProviderFuture.addListener({
-        val cameraProvider = cameraProviderFuture.get()
+        // A camera provider future can complete after navigation or resize has
+        // detached this preview. Never bind that stale view or read its display.
+        if (!previewView.isAttachedToWindow ||
+            lifecycleOwner.lifecycle.currentState == Lifecycle.State.DESTROYED
+        ) return@addListener
 
-        val rotation = previewView.display.rotation
+        val cameraProvider = cameraProviderFuture.get()
+        val rotation = previewView.display?.rotation ?: Surface.ROTATION_0
 
         val previewBuilder = Preview.Builder()
             .setTargetRotation(rotation)
