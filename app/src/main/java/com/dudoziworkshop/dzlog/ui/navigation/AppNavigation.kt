@@ -30,6 +30,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.dudoziworkshop.dzlog.feature.table.policy.BillingEntitlementRuntime
 import com.dudoziworkshop.dzlog.data.preferences.KEY_FIRST_CAPTURE_SUCCEEDED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ONBOARDING_SETUP_COMPLETED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ORIENTATION_MODE
@@ -148,6 +149,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     val appSettings by AppSettingsStore.flow(context).collectAsState(
         initial = AppSettings.Default,
     )
+    val verifiedProTier by BillingEntitlementRuntime.tier.collectAsState()
 
     var lastBackPressedMs by remember { mutableLongStateOf(0L) }
     var hasRestoredTemplate by remember { mutableStateOf(false) }
@@ -709,6 +711,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
                     sessionCaptureStack = cameraSessionCaptureStack,
+                    verifiedTier = verifiedProTier,
                     onCaptureCommitted = {
                         captureTemplateId?.let { id ->
                             val timestamp = System.currentTimeMillis()
@@ -755,6 +758,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
                     sessionCaptureStack = cameraSessionCaptureStack,
+                    verifiedTier = verifiedProTier,
                     onCaptureCommitted = {
                         captureTemplateId?.let { id ->
                             val timestamp = System.currentTimeMillis()
