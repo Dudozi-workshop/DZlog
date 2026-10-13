@@ -29,10 +29,10 @@ jobs:
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
           test -n "$SDKMANAGER"
           "$SDKMANAGER" "platforms;android-34" "build-tools;34.0.0"
-      - name: Camera capture unit tests
+      - name: Full Android unit tests
         run: |
           chmod +x ./gradlew
-          ./gradlew :app:testDebugUnitTest --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureQueueCoordinatorTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CapturePendingStoreTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureStagingStoreTest' --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReservationPolicyTest' --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjectionTest' --tests 'com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterSyncTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureReceiptRecoveryPolicyTest' --stacktrace
+          ./gradlew :app:testDebugUnitTest --stacktrace
       - name: Build isolated Capture QA APK
         run: |
           QA_VERSION_CODE="$((1000000 + GITHUB_RUN_NUMBER))"
