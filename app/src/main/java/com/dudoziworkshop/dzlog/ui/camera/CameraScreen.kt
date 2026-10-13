@@ -269,6 +269,13 @@ fun CameraPreview(
                 ) || unableToResume
 
                 recovered.completedAwaitingApply.forEach { receipt ->
+                    // Each receipt belongs to the template selected when its
+                    // shutter was pressed. Identical tables can have different
+                    // catalog IDs; never silently update a different entry.
+                    check(receipt.snapshot.templateId == null ||
+                        receipt.snapshot.templateId == quickTemplateId) {
+                        "Receipt belongs to a different quick template"
+                    }
                     val id = receipt.reservation.id
                     val pending = pendingProjection.snapshot()
                     check(pending.none { it.id == id } || pending.firstOrNull()?.id == id) {
@@ -480,6 +487,7 @@ fun CameraPreview(
         finalCapturePreview = finalCapturePreview,
         scopedCounterStream = scopedCounterStream,
         tableTemplateState = effectiveTemplate,
+        templateId = quickTemplateId,
         fnDelim = fnDelim,
         repository = repository,
         asyncService = asyncCaptureService,
