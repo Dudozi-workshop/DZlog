@@ -31,6 +31,8 @@ internal class CaptureQueueCoordinator(
         data class Started(val id: String) : Event
         data class Completed(val id: String, val entry: LogEntry) : Event
         data class ReviewRequired(val id: String, val cause: Throwable) : Event
+        /** A final queue count signal, emitted after removing the in-flight ID. */
+        data class Settled(val id: String) : Event
     }
 
     private val ids = Channel<String>(capacity = MAX_OUTSTANDING)
@@ -61,6 +63,7 @@ internal class CaptureQueueCoordinator(
                 notify(Event.ReviewRequired(id, error))
             } finally {
                 synchronized(lock) { inFlight.remove(id) }
+                notify(Event.Settled(id))
             }
         }
     }
