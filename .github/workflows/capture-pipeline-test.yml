@@ -26,6 +26,6 @@ jobs:
       - name: Camera capture unit tests
         run: |
           chmod +x ./gradlew
-          ./gradlew :app:testDebugUnitTest --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureQueueCoordinatorTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CapturePendingStoreTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureStagingStoreTest' --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReservationPolicyTest' --stacktrace
+          ./gradlew :app:testDebugUnitTest --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureQueueCoordinatorTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CapturePendingStoreTest' --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureStagingStoreTest' --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReservationPolicyTest' --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjectionTest' --stacktrace
       - name: Android debug compile
         run: ./gradlew :app:assembleDebug --stacktrace
