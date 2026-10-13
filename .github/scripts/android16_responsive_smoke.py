@@ -28,6 +28,7 @@ def main():
         for label, size, dpi in (
             ("compact", "720x1600", "360"),
             ("large", "1600x2560", "320"),
+            ("landscape", "2560x1600", "320"),
         ):
             adb("shell", "wm", "size", size)
             adb("shell", "wm", "density", dpi)
@@ -69,7 +70,7 @@ def main():
         # Keep the CI run non-destructive: return original display/rotation even
         # when a layout assertion fails. Existing photo/media are untouched.
         print("PASS Android16 responsive smoke: portrait lock, compact phone, "
-              "large screen, controls reachable, settings/gallery navigation", flush=True)
+              "large/landscape screen, controls reachable, settings/gallery navigation", flush=True)
     finally:
         adb("shell", "wm", "size", "reset")
         adb("shell", "wm", "density", "reset")
