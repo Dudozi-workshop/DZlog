@@ -24,6 +24,7 @@ internal fun buildCameraTriggerCapture(
     context: Context,
     ui: CameraUiState,
     appSettings: AppSettings,
+    verifiedTier: com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier,
     boundImageCapture: ImageCapture?,
     undoPending: Boolean,
     finalCapturePreview: FinalCapturePreview?,
@@ -63,6 +64,7 @@ internal fun buildCameraTriggerCapture(
         template = tableTemplateState,
         currentSavedTemplateCount = 0,
         action = TemplateCollectionAction.VIEW,
+        verifiedTier = verifiedTier,
     )
     if (!access.canCaptureWithTemplate) {
         Toast.makeText(context,
