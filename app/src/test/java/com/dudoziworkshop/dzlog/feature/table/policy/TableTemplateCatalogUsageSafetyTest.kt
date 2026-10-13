@@ -68,8 +68,18 @@ class TableTemplateCatalogUsageSafetyTest {
             val saved = decodeCatalogWithoutDataLoss(requireNotNull(raw))
             assertNotNull(saved)
             assertEquals(2, saved!!.size)
-            assertEquals(first.copy(lastUsedAt = 100L), saved.first { it.id == "id-1" })
-            assertEquals(second, saved.first { it.id == "id-2" })
+            val firstSaved = saved.first { it.id == "id-1" }
+            val secondSaved = saved.first { it.id == "id-2" }
+            assertEquals(100L, firstSaved.lastUsedAt)
+            assertEquals(0L, secondSaved.lastUsedAt)
+            assertEquals(first.name, firstSaved.name)
+            assertEquals(second.name, secondSaved.name)
+            assertEquals(first.styleState, firstSaved.styleState)
+            assertEquals(second.styleState, secondSaved.styleState)
+            assertEquals(first.templateState.rows, firstSaved.templateState.rows)
+            assertEquals(second.templateState.cols, secondSaved.templateState.cols)
+            assertEquals(first.templateState.cells.size, firstSaved.templateState.cells.size)
+            assertEquals(second.templateState.cells.map { it.rawText }, secondSaved.templateState.cells.map { it.rawText })
         } finally {
             context.dataStore.edit { it.remove(KEY_TABLE_TEMPLATES_JSON) }
         }

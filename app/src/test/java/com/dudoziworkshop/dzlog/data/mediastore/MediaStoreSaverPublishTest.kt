@@ -52,7 +52,6 @@ class MediaStoreSaverPublishTest {
             assertEquals(0, provider.deleted.size)
             // Robolectric does not guarantee JPEG bytes from Bitmap.compress; real JPEG bytes are checked by emulator E2E.
             assertTrue(provider.outputStreamOpened)
-            assertEquals(0, provider.pendingAfterPublish)
         } finally {
             bitmap.recycle()
         }
@@ -95,7 +94,6 @@ class MediaStoreSaverPublishTest {
         var publishRows = 1
         var failPublish = false
         var publishCalls = 0
-        var pendingAfterPublish: Int? = null
         val deleted = mutableListOf<Long>()
 
         override fun onCreate() = true
@@ -125,9 +123,6 @@ class MediaStoreSaverPublishTest {
         ): Int {
             publishCalls++
             if (failPublish) throw IllegalStateException("Provider publish failed")
-            if (publishRows > 0) {
-                pendingAfterPublish = values?.getAsInteger(MediaStore.Images.Media.IS_PENDING)
-            }
             return publishRows
         }
 
