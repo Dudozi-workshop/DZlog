@@ -25,10 +25,12 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.dudoziworkshop.dzlog.data.preferences.KEY_FIRST_CAPTURE_SUCCEEDED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ORIENTATION_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
 import com.dudoziworkshop.dzlog.data.preferences.OrientationMode
@@ -686,7 +688,14 @@ fun AppRoot(startOnCamera: Boolean = false) {
                         captureTemplateId?.let { id ->
                             val timestamp = System.currentTimeMillis()
                             tableTemplateViewModel.markUsed(id, timestamp)
-                            appScope.launch { tableCatalogCoordinator.markUsed(id, timestamp) }
+                            appScope.launch {
+                                tableCatalogCoordinator.markUsed(id, timestamp)
+                                context.dataStore.edit { preferences ->
+                                    if (preferences[KEY_FIRST_CAPTURE_SUCCEEDED] != true) {
+                                        preferences[KEY_FIRST_CAPTURE_SUCCEEDED] = true
+                                    }
+                                }
+                            }
                         }
                     },
                 )
@@ -731,7 +740,14 @@ fun AppRoot(startOnCamera: Boolean = false) {
                         captureTemplateId?.let { id ->
                             val timestamp = System.currentTimeMillis()
                             tableTemplateViewModel.markUsed(id, timestamp)
-                            appScope.launch { tableCatalogCoordinator.markUsed(id, timestamp) }
+                            appScope.launch {
+                                tableCatalogCoordinator.markUsed(id, timestamp)
+                                context.dataStore.edit { preferences ->
+                                    if (preferences[KEY_FIRST_CAPTURE_SUCCEEDED] != true) {
+                                        preferences[KEY_FIRST_CAPTURE_SUCCEEDED] = true
+                                    }
+                                }
+                            }
                         }
                     },
                 )
