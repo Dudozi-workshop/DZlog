@@ -39,7 +39,7 @@ class GalleryPhotoDeletion(private val resolver: ContentResolver) {
         }
 
         private fun validate(plan: GalleryPhotoDeletePlan) {
-            require(plan.items.isNotEmpty() && plan.items.size <= 100) { "한 번에 1~100개의 파일을 삭제할 수 있습니다." }
+            require(plan.items.isNotEmpty()) { "삭제할 파일이 없습니다." }
             require(plan.items.map { it.id }.distinct().size == plan.items.size) { "삭제 대상 파일이 중복됐습니다." }
             require(plan.items.all { item ->
                 item.relativePath.startsWith(GalleryFolderIndexPolicy.ROOT) &&
