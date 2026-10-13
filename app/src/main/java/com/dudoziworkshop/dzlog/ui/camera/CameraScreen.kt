@@ -53,6 +53,7 @@ import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.repository.CaptureAsyncRuntime
 import com.dudoziworkshop.dzlog.data.repository.CaptureQueueCoordinator
 import com.dudoziworkshop.dzlog.data.repository.CaptureReceiptRecoveryPolicy
+import com.dudoziworkshop.dzlog.data.repository.CapturePendingStore
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjection
 import com.dudoziworkshop.dzlog.domain.table.applyPatch
@@ -98,6 +99,7 @@ import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.common.rememberThreeButtonNavEquivalentBottomPadding
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
@@ -186,7 +188,7 @@ fun CameraPreview(
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
     val context = LocalContext.current
-    CameraCaptureRecoveryEffect()
+    // Recovery and live completion are reconciled by a single durable state observer.
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
     val scope = rememberCoroutineScope()
     val cameraViewModel: CameraViewModel = viewModel()
@@ -218,7 +220,7 @@ fun CameraPreview(
     val asyncCaptureService = remember(context.applicationContext) {
         CaptureAsyncRuntime.get(context.applicationContext, repository)
     }
-    val pendingProjection = remember { CapturePendingProjection() }
+    val pendingProjection = remember(asyncCaptureService) { asyncCaptureService.pendingProjection }
     val activeTemplate = rememberUpdatedState(tableTemplateState)
     val persistCapturedTemplate = rememberUpdatedState(onPersistCapturedTemplate)
     val latestCommittedCallback = rememberUpdatedState(onCaptureCommitted)
@@ -233,95 +235,79 @@ fun CameraPreview(
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
 
+    // StateFlow delivers the current version after a screen recreation, even if
+    // the original SharedFlow completion event was missed while off-screen.
+    // The journal, not the event, is authoritative about committed media.
     LaunchedEffect(asyncCaptureService) {
-        val recovered = withContext(Dispatchers.IO) { asyncCaptureService.inspectRecovery() }
-        if (recovered.ready.isNotEmpty() || recovered.needsReview.isNotEmpty() ||
-            recovered.corruptJournals.isNotEmpty() || recovered.orphanFiles.isNotEmpty()
-        ) {
-            // Uncertain media saves require review before new numbering.
-            ui.capture.pendingSaveError = true
-        } else if (recovered.completedAwaitingApply.isNotEmpty()) {
-            val decision = CaptureReceiptRecoveryPolicy.resolve(
-                activeTemplate.value,
-                recovered.completedAwaitingApply,
-            )
-            if (decision == null) {
+        asyncCaptureService.stateVersion.collect {
+            try {
+                val recovered = withContext(Dispatchers.IO) {
+                    asyncCaptureService.inspectRecovery()
+                }
+                val activeIds = asyncCaptureService.activeIds()
+                // READY/PROCESSING/RESERVED are normal while the application-owned
+                // worker or CameraX staging is still active. Orphaned jobs, corrupt
+                // journals, and explicit NEEDS_REVIEW always require intervention.
+                val unresolved = recovered.ready.any {
+                    it.reservation.id !in activeIds
+                } || recovered.needsReview.any {
+                    it.status == CapturePendingStore.Status.NEEDS_REVIEW ||
+                        it.reservation.id !in activeIds
+                } || recovered.corruptJournals.isNotEmpty() ||
+                    recovered.orphanFiles.isNotEmpty()
+
+                recovered.completedAwaitingApply.forEach { receipt ->
+                    val id = receipt.reservation.id
+                    val pending = pendingProjection.snapshot()
+                    check(pending.none { it.id == id } || pending.firstOrNull()?.id == id) {
+                        "Out-of-order capture receipt must be reviewed"
+                    }
+                    val appliesPending = pending.firstOrNull()?.id == id
+                    val base = pendingProjection.committedBase(
+                        pendingAcknowledgement?.second ?: activeTemplate.value
+                    )
+                    val applied = if (appliesPending) {
+                        base.applyPatch(receipt.snapshot.tablePatch)
+                    } else {
+                        CaptureReceiptRecoveryPolicy.resolve(base, listOf(receipt))?.template
+                            ?: error("Capture receipt conflicts with active template")
+                    }
+                    // Never acknowledge a receipt until the catalog is durably saved.
+                    check(persistCapturedTemplate.value(applied)) {
+                        "Unable to persist captured template progression"
+                    }
+                    if (appliesPending) pendingProjection.completeFirst(id)
+                    pendingProjection.recordCommittedTemplate(applied)
+                    pendingAcknowledgement = listOf(id) to applied
+                    withContext(Dispatchers.IO) {
+                        asyncCaptureService.acknowledgeTemplateApplied(id)
+                    }
+                    pendingAcknowledgement = null
+                    val uris = receipt.outputUris.map(Uri::parse)
+                        .filter { it != Uri.EMPTY }.distinct()
+                    if (uris.isNotEmpty()) {
+                        UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
+                    }
+                    cameraViewModel.onCaptureCommitted()
+                    latestCommittedCallback.value()
+                }
+
+                ui.capture.pendingSaveCount = pendingProjection.pendingCount()
+                ui.capture.pendingProjectionVersion++
+                // A failed stage/reservation must not be dismissed merely because
+                // the save worker has no active jobs.
+                ui.capture.pendingSaveError = unresolved
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
                 ui.capture.pendingSaveError = true
-            } else {
-                // Re-persist even an apparently applied patch before deleting the receipt.
-                val applied = runCatching {
-                    persistCapturedTemplate.value(decision.template)
-                }.getOrDefault(false)
-                if (!applied) {
-                    ui.capture.pendingSaveError = true
-                } else {
-                    val acknowledged = runCatching {
-                        withContext(Dispatchers.IO) {
-                            decision.acknowledgedIds.forEach(
-                                asyncCaptureService::acknowledgeTemplateApplied
-                            )
-                        }
-                    }
-                    if (acknowledged.isFailure) ui.capture.pendingSaveError = true
-                }
-            }
-        }
-        asyncCaptureService.events.collect { event ->
-            when (event) {
-                is CaptureQueueCoordinator.Event.Completed -> {
-                    try {
-                        // Apply the completed receipt to the committed base before
-                        // removing its speculative projection. A completion must not
-                        // temporarily rewind the next-shot rotating phrase.
-                        val base = pendingProjection.committedBase(
-                            pendingAcknowledgement?.second ?: activeTemplate.value
-                        )
-                        val patch = pendingProjection.completeFirst(event.id)
-                        val applied = base.applyPatch(patch)
-                        pendingProjection.recordCommittedTemplate(applied)
-                        val awaiting = pendingAcknowledgement?.first.orEmpty() + event.id
-                        pendingAcknowledgement = awaiting to applied
-                        // Never discard a completed journal before the template catalog
-                        // write has actually succeeded (UI state alone is not durable).
-                        check(persistCapturedTemplate.value(applied)) {
-                            "Unable to durably persist captured template progression"
-                        }
-                        withContext(Dispatchers.IO) {
-                            awaiting.forEach(asyncCaptureService::acknowledgeTemplateApplied)
-                        }
-                        if (pendingAcknowledgement?.second == applied) {
-                            pendingAcknowledgement = null
-                        }
-                        ui.capture.pendingSaveCount = pendingProjection.pendingCount()
-                        ui.capture.pendingProjectionVersion++
-                        // A completed receipt may belong to an older rotating-phrase
-                        // counter stream. Do not compare its number against the
-                        // currently visible stream; synchronization owns that seed.
-                        // Only committed captures become undo targets.
-                        UndoCapturePolicy.pushCapture(
-                            sessionCaptureStack,
-                            event.entry.savedContentUris.filter { it != Uri.EMPTY }.distinct(),
-                        )
-                        cameraViewModel.onCaptureCommitted()
-                        latestCommittedCallback.value()
-                    } catch (error: Exception) {
-                        ui.capture.pendingSaveError = true
-                        Toast.makeText(
-                            context, "저장된 사진의 번호·문구 반영을 확인해주세요.", Toast.LENGTH_LONG
-                        ).show()
-                    }
-                }
-                is CaptureQueueCoordinator.Event.ReviewRequired -> {
-                    ui.capture.pendingSaveError = true
-                    Toast.makeText(
-                        context, "일부 촬영의 저장 상태 확인이 필요합니다.", Toast.LENGTH_LONG
-                    ).show()
-                }
-                is CaptureQueueCoordinator.Event.Started -> Unit
+                android.util.Log.e("DZlogCaptureRecovery", "Capture reconciliation failed", error)
+                Toast.makeText(
+                    context, "저장된 사진의 번호·문구 상태를 확인해주세요.", Toast.LENGTH_LONG
+                ).show()
             }
         }
     }
-
 
     BackHandler(enabled = (ui.capture.pendingSaveCount > 0 && !ui.capture.pendingSaveError) ||
         ui.capture.capturedUri != null || ui.showWizard || ui.isTableResizePanelOpen || ui.showToolMenu ||
