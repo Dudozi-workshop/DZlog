@@ -680,6 +680,9 @@ fun LogFolderScreen(
             }
         }
         if (photoDeleteLoading) Text("삭제 대상 확인 중…", color = DDZColor.TextSecondary)
+        deleteAction.progressText?.let { progress ->
+            Text(progress, color = DDZColor.TextSecondary, style = DDZTypography.Caption)
+        }
         if (showPhotoDelete && !photoDeleteLoading && deleteSelected.isNotEmpty()) {
             GalleryPhotoDeleteConfirmation(
                 selected = deleteSelected,
