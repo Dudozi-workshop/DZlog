@@ -110,6 +110,7 @@ import kotlinx.coroutines.launch
 fun CameraScreen(
     tableTemplateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
+    onPersistCapturedTemplate: suspend (TableTemplateState) -> Boolean = { false },
     onOpenTableEditor: () -> Unit,
     onOpenSaveSettings: () -> Unit,
     onOpenAlbum: () -> Unit,
@@ -142,6 +143,7 @@ fun CameraScreen(
             CameraPreview(
                 tableTemplateState = tableTemplateState,
                 onTemplateChange = onTemplateChange,
+                onPersistCapturedTemplate = onPersistCapturedTemplate,
                 quickTemplateName = quickTemplateName,
                 quickTemplates = quickTemplates,
                 quickTemplateId = quickTemplateId,
@@ -171,6 +173,7 @@ fun CameraScreen(
 fun CameraPreview(
     tableTemplateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
+    onPersistCapturedTemplate: suspend (TableTemplateState) -> Boolean = { false },
     onOpenTableEditor: () -> Unit,
     onOpenSaveSettings: () -> Unit,
     onOpenAlbum: () -> Unit,
@@ -217,7 +220,7 @@ fun CameraPreview(
     }
     val pendingProjection = remember { CapturePendingProjection() }
     val activeTemplate = rememberUpdatedState(tableTemplateState)
-    val onTemplateChanged = rememberUpdatedState(onTemplateChange)
+    val persistCapturedTemplate = rememberUpdatedState(onPersistCapturedTemplate)
     val latestCommittedCallback = rememberUpdatedState(onCaptureCommitted)
     // UI acknowledges durable commit receipts only after seeing the applied template.
     var pendingAcknowledgement by remember {
@@ -244,16 +247,23 @@ fun CameraPreview(
             )
             if (decision == null) {
                 ui.capture.pendingSaveError = true
-            } else if (decision.template == activeTemplate.value) {
-                val acknowledged = runCatching {
-                    withContext(Dispatchers.IO) {
-                        decision.acknowledgedIds.forEach(asyncCaptureService::acknowledgeTemplateApplied)
-                    }
-                }
-                if (acknowledged.isFailure) ui.capture.pendingSaveError = true
             } else {
-                pendingAcknowledgement = decision.acknowledgedIds to decision.template
-                onTemplateChanged.value(decision.template)
+                // Re-persist even an apparently applied patch before deleting the receipt.
+                val applied = runCatching {
+                    persistCapturedTemplate.value(decision.template)
+                }.getOrDefault(false)
+                if (!applied) {
+                    ui.capture.pendingSaveError = true
+                } else {
+                    val acknowledged = runCatching {
+                        withContext(Dispatchers.IO) {
+                            decision.acknowledgedIds.forEach(
+                                asyncCaptureService::acknowledgeTemplateApplied
+                            )
+                        }
+                    }
+                    if (acknowledged.isFailure) ui.capture.pendingSaveError = true
+                }
             }
         }
         asyncCaptureService.events.collect { event ->
@@ -265,7 +275,17 @@ fun CameraPreview(
                         val applied = base.applyPatch(patch)
                         val awaiting = pendingAcknowledgement?.first.orEmpty() + event.id
                         pendingAcknowledgement = awaiting to applied
-                        onTemplateChanged.value(applied)
+                        // Never discard a completed journal before the template catalog
+                        // write has actually succeeded (UI state alone is not durable).
+                        check(persistCapturedTemplate.value(applied)) {
+                            "Unable to durably persist captured template progression"
+                        }
+                        withContext(Dispatchers.IO) {
+                            awaiting.forEach(asyncCaptureService::acknowledgeTemplateApplied)
+                        }
+                        if (pendingAcknowledgement?.second == applied) {
+                            pendingAcknowledgement = null
+                        }
                         ui.capture.pendingSaveCount = pendingProjection.pendingCount()
                         ui.capture.pendingProjectionVersion++
                         ui.counter.scopeNextCounter =
@@ -297,23 +317,6 @@ fun CameraPreview(
         }
     }
 
-    LaunchedEffect(tableTemplateState, pendingAcknowledgement) {
-        val awaiting = pendingAcknowledgement ?: return@LaunchedEffect
-        if (tableTemplateState == awaiting.second) {
-            val result = runCatching {
-                withContext(Dispatchers.IO) {
-                    awaiting.first.forEach { id ->
-                        asyncCaptureService.acknowledgeTemplateApplied(id)
-                    }
-                }
-            }
-            if (result.isSuccess && pendingAcknowledgement == awaiting) {
-                pendingAcknowledgement = null
-            } else if (result.isFailure) {
-                ui.capture.pendingSaveError = true
-            }
-        }
-    }
 
     BackHandler(enabled = (ui.capture.pendingSaveCount > 0 && !ui.capture.pendingSaveError) ||
         ui.capture.capturedUri != null || ui.showWizard || ui.isTableResizePanelOpen || ui.showToolMenu ||
