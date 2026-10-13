@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -655,9 +656,9 @@ fun CameraPreview(
             Text(
                 text = if (ui.capture.pendingSaveError) "저장 확인 필요"
                     else "${ui.capture.pendingSaveCount}장 저장 중",
-                modifier = Modifier.align(Alignment.TopEnd).padding(top = androidx.compose.ui.unit.dp(64), end = androidx.compose.ui.unit.dp(18))
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 64.dp, end = 18.dp)
                     .background(DDZColor.Surface.copy(alpha = 0.90f))
-                    .padding(horizontal = androidx.compose.ui.unit.dp(10), vertical = androidx.compose.ui.unit.dp(6)),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 color = DDZColor.SageDarkStrong,
             )
         }
