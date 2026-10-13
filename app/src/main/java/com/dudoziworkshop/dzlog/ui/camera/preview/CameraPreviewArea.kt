@@ -376,7 +376,7 @@ internal fun CameraPreviewArea(
             )
         )
 
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             val density = LocalDensity.current
             val widthPx = with(density) { this@BoxWithConstraints.maxWidth.toPx() }
             val parentHeightPx = with(density) { this@BoxWithConstraints.maxHeight.toPx() }
@@ -388,7 +388,7 @@ internal fun CameraPreviewArea(
 
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth(previewBoxLayout.widthFraction)
                     .aspectRatio(previewBoxLayout.safeAspect)
                     .offset { IntOffset(0, previewBoxLayout.topOffsetPx.roundToInt()) }
                     .onSizeChanged { size ->
