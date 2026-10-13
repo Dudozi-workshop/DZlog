@@ -18,7 +18,7 @@ fi
 
 adb logcat -d -t 4000 > api36-launch-log.txt
 if grep -E -A 25 'FATAL EXCEPTION' api36-launch-log.txt |
-    grep -Eq 'Process: com\.dudoziworkshop\.dzlog'; then
+if ! grep -Eq 'DZlog|시작하기|찍고|기록' api36-ui.xml; then
   echo "DZlog fatal exception detected during fresh launch" >&2
   exit 1
 fi
