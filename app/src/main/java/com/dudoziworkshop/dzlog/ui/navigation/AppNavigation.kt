@@ -31,6 +31,7 @@ import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.preferences.KEY_FIRST_CAPTURE_SUCCEEDED
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ONBOARDING_SETUP_COMPLETED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ORIENTATION_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
 import com.dudoziworkshop.dzlog.data.preferences.OrientationMode
@@ -156,6 +157,30 @@ fun AppRoot(startOnCamera: Boolean = false) {
     // An editor-only choice; camera activation is committed by saveV2EditSession.
     var editorReplacementId by remember { mutableStateOf<String?>(null) }
     val appScope = rememberCoroutineScope()
+    var firstCaptureWriteScheduled by remember { mutableStateOf(false) }
+
+    // This only writes on the first committed photo, not on every consecutive capture.
+    // A failed background flag write can be retried after the next successful photo.
+    fun recordFirstOnboardingCapture() {
+        if (firstCaptureWriteScheduled) return
+        firstCaptureWriteScheduled = true
+        appScope.launch {
+            try {
+                context.dataStore.edit { preferences ->
+                    if (preferences[KEY_ONBOARDING_SETUP_COMPLETED] == true &&
+                        preferences[KEY_FIRST_CAPTURE_SUCCEEDED] != true
+                    ) {
+                        preferences[KEY_FIRST_CAPTURE_SUCCEEDED] = true
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                firstCaptureWriteScheduled = false
+                throw cancelled
+            } catch (_: Exception) {
+                firstCaptureWriteScheduled = false
+            }
+        }
+    }
 
     DisposableEffect(screen, view) {
         val window = activity?.window ?: return@DisposableEffect onDispose { }
@@ -688,14 +713,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
                         captureTemplateId?.let { id ->
                             val timestamp = System.currentTimeMillis()
                             tableTemplateViewModel.markUsed(id, timestamp)
-                            appScope.launch {
-                                tableCatalogCoordinator.markUsed(id, timestamp)
-                                context.dataStore.edit { preferences ->
-                                    if (preferences[KEY_FIRST_CAPTURE_SUCCEEDED] != true) {
-                                        preferences[KEY_FIRST_CAPTURE_SUCCEEDED] = true
-                                    }
-                                }
-                            }
+                            appScope.launch { tableCatalogCoordinator.markUsed(id, timestamp) }
+                            recordFirstOnboardingCapture()
                         }
                     },
                 )
@@ -740,14 +759,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
                         captureTemplateId?.let { id ->
                             val timestamp = System.currentTimeMillis()
                             tableTemplateViewModel.markUsed(id, timestamp)
-                            appScope.launch {
-                                tableCatalogCoordinator.markUsed(id, timestamp)
-                                context.dataStore.edit { preferences ->
-                                    if (preferences[KEY_FIRST_CAPTURE_SUCCEEDED] != true) {
-                                        preferences[KEY_FIRST_CAPTURE_SUCCEEDED] = true
-                                    }
-                                }
-                            }
+                            appScope.launch { tableCatalogCoordinator.markUsed(id, timestamp) }
+                            recordFirstOnboardingCapture()
                         }
                     },
                 )
