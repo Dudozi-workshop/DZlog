@@ -73,6 +73,7 @@ import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderCatalog
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderStorage
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryPhotoMover
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
@@ -413,7 +414,7 @@ fun LogFolderScreen(
         allPhotos.filterNot { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }
     }
     val defaultPhotos = remember(allPhotos) {
-        allPhotos.filter { it.relativePath.trimEnd('/') == GalleryFolderIndexPolicy.ROOT.trimEnd('/') }
+        allPhotos.filter { GalleryDefaultStoragePolicy.isDirectRootPhoto(it.relativePath) }
     }
     val sortedDefaultPhotos = remember(defaultPhotos, photoSort) { photoSort.sorted(defaultPhotos) }
     val selectablePhotos = when {
