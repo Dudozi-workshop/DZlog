@@ -56,6 +56,7 @@ import com.dudoziworkshop.dzlog.data.repository.CaptureReceiptRecoveryPolicy
 import com.dudoziworkshop.dzlog.data.repository.CaptureRecoveryStatusPolicy
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjection
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReviewPolicy
 import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureTemplateCommitPolicy
 import com.dudoziworkshop.dzlog.domain.table.applyPatch
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
@@ -317,6 +318,16 @@ fun CameraPreview(
                         .filter { it != Uri.EMPTY }.distinct()
                     if (uris.isNotEmpty()) {
                         UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
+                    }
+                    // Preserve legacy SHORT/HOLD behavior: review the final
+                    // saved output, not the unprocessed camera JPEG.
+                    if (CaptureReviewPolicy.shouldOpenSavedPreview(
+                            ui.capture.pendingPreviewCaptureId, id
+                        )
+                    ) {
+                        check(uris.isNotEmpty()) { "Committed preview has no saved media" }
+                        ui.capture.capturedUri = uris.first()
+                        ui.capture.pendingPreviewCaptureId = null
                     }
                     cameraViewModel.onCaptureCommitted()
                     latestCommittedCallback.value()
@@ -682,6 +693,7 @@ fun CameraPreview(
                         ui = ui,
                         settingsWriter = settingsWriter,
                         captureReady = canTriggerCapture && !undoDeleteController.isBusy &&
+                            ui.capture.pendingPreviewCaptureId == null &&
                             !ui.capture.pendingSaveError &&
                             !ui.capture.isRecoveringPendingCaptures &&
                             ui.capture.pendingSaveCount < 3,

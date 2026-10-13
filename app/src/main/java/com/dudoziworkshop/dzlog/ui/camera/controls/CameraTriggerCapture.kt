@@ -9,6 +9,7 @@ import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.repository.CaptureAsyncCaptureService
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjection
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReviewPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkConfig
@@ -59,7 +60,7 @@ internal fun buildCameraTriggerCapture(
     ) -> WatermarkConfig,
 ): () -> Unit = trigger@{
     // 오작동 방지: 캡처 불가 상태에서는 입력 피드백/촬영 로직을 모두 실행하지 않는다.
-    if (undoPending || boundImageCapture == null || ui.capture.capturedUri != null || ui.capture.isCapturing || ui.capture.captureGate.get() || ui.capture.pendingSaveError || ui.capture.isRecoveringPendingCaptures || ui.capture.pendingSaveCount >= 3) return@trigger
+    if (undoPending || boundImageCapture == null || ui.capture.capturedUri != null || ui.capture.isCapturing || ui.capture.captureGate.get() || ui.capture.pendingSaveError || ui.capture.isRecoveringPendingCaptures || ui.capture.pendingSaveCount >= 3 || ui.capture.pendingPreviewCaptureId != null) return@trigger
     // counter 미동기화(null) 상태에서는 최종 preview가 없으므로 캡처를 시작하지 않는다.
     val capturePreview = finalCapturePreview ?: return@trigger
     // 촬영 직전 한 번 더 반영해 capture 시점 flash mode 불일치를 방지한다. (TORCH 상시점등 사용 금지)
@@ -95,6 +96,11 @@ internal fun buildCameraTriggerCapture(
             )
         },
         onImageCaptured = { },
+        onAsyncReservationCreated = { id, mode ->
+            if (CaptureReviewPolicy.expectsSavedPreview(mode)) {
+                ui.capture.pendingPreviewCaptureId = id
+            }
+        },
         onPendingStateChange = { count, nextCounter ->
             ui.capture.pendingSaveCount = count
             ui.capture.pendingProjectionVersion++

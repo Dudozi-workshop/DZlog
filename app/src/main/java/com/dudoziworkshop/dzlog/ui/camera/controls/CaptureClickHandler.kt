@@ -39,6 +39,7 @@ data class CaptureClickCallbacks(
     val onProgressPersistenceFailed: () -> Unit = {},
     val onCaptureStarted: () -> Unit = {},
     val onImageCaptured: () -> Unit = {},
+    val onAsyncReservationCreated: (String, ContinuousPreviewMode) -> Unit = { _, _ -> },
     val onPendingStateChange: (Int, Int) -> Unit = { _, _ -> },
     val onAsyncFailure: (String) -> Unit = {},
 )
@@ -146,9 +147,9 @@ internal fun handleCaptureClick(
         )
     )
 
-    if (continuousPreviewMode == ContinuousPreviewMode.OFF &&
-        asyncService != null && pendingProjection != null
-    ) {
+    // All preview modes share durable staging and the same serial save queue.
+    // SHORT/HOLD only change the post-save review UI; not the save engine.
+    if (asyncService != null && pendingProjection != null) {
         try {
             check(!templateId.isNullOrBlank()) {
                 "활성 템플릿이 준비되지 않았습니다. 템플릿을 다시 선택해주세요."
@@ -181,6 +182,9 @@ internal fun handleCaptureClick(
                     counter = reserved.reservation.counter,
                     templatePatch = finalCapturePreview.tablePatch,
                 )
+            )
+            callbacks.onAsyncReservationCreated(
+                reserved.reservation.id, continuousPreviewMode,
             )
             callbacks.onPendingStateChange(
                 pendingProjection.pendingCount(),

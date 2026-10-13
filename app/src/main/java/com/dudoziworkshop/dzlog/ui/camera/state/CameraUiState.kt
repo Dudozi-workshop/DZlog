@@ -58,6 +58,9 @@ internal class CameraPrefsState {
 @Stable
 internal class CaptureUiState {
     var capturedUri by mutableStateOf<Uri?>(null)
+    // SHORT/HOLD await the *committed* primary MediaStore URI before review.
+    // A pending review blocks a second shutter even after CameraX staging ends.
+    var pendingPreviewCaptureId by mutableStateOf<String?>(null)
     var isCapturing by mutableStateOf(false)
     var pendingSaveCount by mutableIntStateOf(0)
     var pendingProjectionVersion by mutableIntStateOf(0)
