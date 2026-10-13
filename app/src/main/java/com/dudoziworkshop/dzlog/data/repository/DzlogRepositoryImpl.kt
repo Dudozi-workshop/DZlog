@@ -174,8 +174,7 @@ class DzlogRepositoryImpl(
                 Log.e("DZlogCapture", "사진 저장 후 로그 기록 실패", error)
             }
         }
-        entry
-
+        return entry
     }
 
     private suspend fun insertLogEntry(
