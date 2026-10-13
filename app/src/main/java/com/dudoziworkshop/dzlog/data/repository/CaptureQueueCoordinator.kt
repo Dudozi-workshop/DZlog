@@ -1,6 +1,6 @@
 package com.dudoziworkshop.dzlog.data.repository
 
-import android.net.Uri
+import com.dudoziworkshop.dzlog.domain.model.LogEntry
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -22,14 +22,14 @@ import kotlinx.coroutines.launch
  */
 internal class CaptureQueueCoordinator(
     private val store: CapturePendingStore,
-    private val process: suspend (CapturePendingStore.PendingCapture) -> List<Uri>,
-    private val commitProgress: suspend (CapturePendingStore.PendingCapture, List<Uri>) -> Unit,
+    private val process: suspend (CapturePendingStore.PendingCapture) -> LogEntry,
+    private val commitProgress: suspend (CapturePendingStore.PendingCapture, LogEntry) -> Unit,
     scope: CoroutineScope,
     private val onEvent: (Event) -> Unit = {},
 ) {
     internal sealed interface Event {
         data class Started(val id: String) : Event
-        data class Completed(val id: String, val uris: List<Uri>) : Event
+        data class Completed(val id: String, val entry: LogEntry) : Event
         data class ReviewRequired(val id: String, val cause: Throwable) : Event
     }
 
@@ -42,15 +42,15 @@ internal class CaptureQueueCoordinator(
             try {
                 val job = store.markProcessing(id)
                 notify(Event.Started(id))
-                val outputUris = process(job)
-                store.markMediaSaved(id, outputUris)
-                commitProgress(job, outputUris)
+                val result = process(job)
+                store.markMediaSaved(id, result.savedContentUris)
+                commitProgress(job, result)
                 store.markCommitted(id)
                 // Once the full capture is committed, staging is no longer needed.
                 // Cleanup failure must never turn a successful save into a retry.
                 runCatching { store.pruneCommitted(id) }
                     .onFailure { Log.w(TAG, "Committed staging cleanup deferred", it) }
-                notify(Event.Completed(id, outputUris))
+                notify(Event.Completed(id, result))
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
