@@ -194,7 +194,7 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
                         } else {
                             photoRequestAttempted = true
                             requesting = true
-                            runCatching { requester.launch(GalleryMediaAccessPolicy.requiredPermissions().toTypedArray()) }
+                            runCatching { requester.launch(GalleryMediaAccessPolicy.requiredPermissions()) }
                                 .onFailure { requesting = false; openAppPermissionSettings(context) }
                         }
                         RequiredSetupStep.FOLDER -> {
