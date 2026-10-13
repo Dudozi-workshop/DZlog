@@ -1,0 +1,59 @@
+name: DZlog Android 16 Emulator Smoke
+on:
+  push:
+    branches:
+      - feat/android16-api36-readiness-20261013
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzlog-api36-emulator
+  cancel-in-progress: true
+
+jobs:
+  install-and-launch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Build API 36 debug APK
+        run: bash ./gradlew --no-daemon :app:assembleDebug
+      - name: Android 16 fresh-install smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-boot-timeout: 1200
+          script: |
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb shell am start -W -n com.dudoziworkshop.dzlog/.MainActivity
+            sleep 12
+            adb shell pidof com.dudoziworkshop.dzlog
+            if adb logcat -d -t 2500 | grep -E 'FATAL EXCEPTION|Process: com.dudoziworkshop.dzlog.*has died'; then
+              echo 'App crash during fresh startup' >&2
+              exit 1
+            fi
+            adb shell wm size
+            adb shell wm density
+            adb exec-out screencap -p > api36-fresh-start.png
+      - name: Upload startup screenshot and log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-api36-smoke-evidence
+          path: api36-fresh-start.png
+          if-no-files-found: ignore
