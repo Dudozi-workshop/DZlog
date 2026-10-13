@@ -5,7 +5,10 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgress
+import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
+import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TablePatch
 import com.dudoziworkshop.dzlog.domain.table.applyPatch
 import org.junit.Assert.assertEquals
@@ -114,4 +117,71 @@ class CapturePendingProjectionTest {
         val committed = projection.committedBase(template)
         assertEquals(committed, projection.committedBase(committed))
     }
+    @Test fun nineRapidRotatingCapturesStayOnCorrectPhraseAndScopedCounter() {
+        val rotation = RotatingPhraseSet(
+            id = "rotation",
+            name = "3 shots each",
+            items = listOf("ONE", "TWO", "THREE"),
+            defaultEvery = 3,
+        )
+        val initial = template.copy(
+            cells = listOf(counter, phrase.copy(phraseSetId = rotation.id)),
+            phraseSets = listOf(rotation),
+        )
+        val projection = CapturePendingProjection()
+        val outstanding = mutableListOf<CapturePendingProjection.Shot>()
+        val persistedNext = mutableMapOf<CaptureReservationScope, Int>()
+
+        // MediaStore sees only committed shots, while the projection also sees
+        // reservations. Simulate a slow worker with up to 3 outstanding captures.
+        fun commitOldest() {
+            val shot = outstanding.removeAt(0)
+            val committed = projection.committedBase(initial)
+                .applyPatch(projection.completeFirst(shot.id))
+            projection.recordCommittedTemplate(committed)
+            persistedNext[shot.scope] = shot.counter + 1
+        }
+
+        val observed = mutableListOf<Pair<String, Int>>()
+        repeat(10) { shotIndex ->
+            if (outstanding.size == 3) commitOldest()
+            val before = projection.previewTemplate(initial)
+            val text = PhraseResolver.resolveSelectedTextByCellId(
+                cells = before.cells,
+                phraseSets = before.phraseSets,
+                progressCursor = 1,
+            ).getValue("phrase")
+            val scoped = CaptureReservationScope("Pictures/DZlog/", text)
+            val next = projection.nextCounter(scoped, persistedNext[scoped] ?: 1)
+            observed += text to next
+
+            val shot = CapturePendingProjection.Shot(
+                id = "shot-${shotIndex + 1}",
+                scope = scoped,
+                counter = next,
+                templatePatch = TablePatch(
+                    updatesByCellId = mapOf("counter" to (next + 1).toString()),
+                    phraseProgressByCellId = CellPhraseProgressPolicy.captureUpdates(
+                        before.cells, before.phraseSets,
+                    ),
+                ),
+            )
+            projection.add(shot)
+            outstanding += shot
+        }
+        assertEquals(
+            listOf(
+                "ONE" to 1, "ONE" to 2, "ONE" to 3,
+                "TWO" to 1, "TWO" to 2, "TWO" to 3,
+                "THREE" to 1, "THREE" to 2, "THREE" to 3,
+                "ONE" to 4,
+            ),
+            observed,
+        )
+        while (outstanding.isNotEmpty()) commitOldest()
+        val after = projection.previewTemplate(initial)
+        assertEquals(0, after.cells[1].phraseIndex)
+        assertEquals(1, after.cells[1].phraseCompletedShots)
+    }
+
 }
