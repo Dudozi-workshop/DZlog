@@ -111,7 +111,7 @@ internal class CaptureAsyncCaptureService(
      * duplicating an already committed capture. Uncertain statuses are not
      * automatically resumed or deleted.
      */
-    internal fun resumeVerifiedReadyCaptures(): Int {
+    internal fun resumeVerifiedReadyCaptures(activeTemplateId: String): Int {
         val report = store.inspectRecovery()
         val active = activeIds()
         if (report.corruptJournals.isNotEmpty() || report.orphanFiles.isNotEmpty() ||
@@ -122,8 +122,13 @@ internal class CaptureAsyncCaptureService(
         ) return 0
 
         var accepted = 0
-        CaptureRecoveryStatusPolicy.resumableReadyIds(report, active).forEach { id ->
-            if (!queue.submit(id)) return@forEach
+        // Recovery must never silently continue another saved template's
+        // sequence. Legacy records without template identity stay quarantined
+        // until an explicit review flow is available.
+        report.ready.filter {
+            it.reservation.id !in active && it.snapshot.templateId == activeTemplateId
+        }.forEach { record ->
+            if (!queue.submit(record.reservation.id)) return@forEach
             accepted++
         }
         if (accepted > 0) signalChange()
