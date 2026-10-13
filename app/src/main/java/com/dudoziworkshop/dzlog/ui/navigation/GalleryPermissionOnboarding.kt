@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -43,6 +44,18 @@ import kotlinx.coroutines.withContext
 
 internal data class RequiredPermissionState(val camera: Boolean, val photos: GalleryMediaAccess) {
     val ready: Boolean get() = camera && photos == GalleryMediaAccess.FULL
+}
+
+internal enum class RequiredSetupStep { CAMERA, PHOTOS, FOLDER }
+
+internal fun nextRequiredSetupStep(
+    state: RequiredPermissionState,
+    folderConnected: Boolean,
+): RequiredSetupStep? = when {
+    !state.camera -> RequiredSetupStep.CAMERA
+    state.photos != GalleryMediaAccess.FULL -> RequiredSetupStep.PHOTOS
+    !folderConnected -> RequiredSetupStep.FOLDER
+    else -> null
 }
 
 private fun readPermissionState(context: Context) = RequiredPermissionState(
@@ -92,7 +105,8 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
     var folderConnected by remember { mutableStateOf(storage.isConnected()) }
     var showFolderGuide by remember { mutableStateOf(false) }
     var selectedFolderPath by remember { mutableStateOf<String?>(null) }
-    val preferences = remember(context) { context.getSharedPreferences("dzlog_required_permissions", Context.MODE_PRIVATE) }
+    var cameraRequestAttempted by remember { mutableStateOf(false) }
+    var photoRequestAttempted by remember { mutableStateOf(false) }
     var requesting by remember { mutableStateOf(false) }
     var connectingFolder by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -121,7 +135,14 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         folderConnected = storage.isConnected()
     }
-    if (state.ready && folderConnected) {
+    LaunchedEffect(state.camera) {
+        if (state.camera) cameraRequestAttempted = false
+    }
+    LaunchedEffect(state.photos) {
+        if (state.photos == GalleryMediaAccess.FULL) photoRequestAttempted = false
+    }
+    val currentStep = nextRequiredSetupStep(state, folderConnected)
+    if (currentStep == null) {
         content()
         return
     }
@@ -137,38 +158,50 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
         onDismiss = { context.activity()?.finish() },
         properties = DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = true),
         content = {
-            Column(Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("사진 촬영과 갤러리·폴더 관리를 위해 아래 설정이 필요해요.", style = typography.Body, color = colors.TextSecondary)
-                PermissionStatusCards(state)
+            Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("처음 한 번만 아래 순서대로 설정하면 DZlog의 모든 기능을 사용할 수 있어요.", style = typography.Body, color = colors.TextSecondary)
+                PermissionStatusCards(state, currentStep)
                 PermissionCard(
                     "폴더 관리",
                     if (folderConnected) "연결됨" else "연결 필요",
                     if (folderConnected) "Pictures / DZlog 폴더가 연결되어 있어요."
                     else "폴더 삭제·이동·이름 변경에 사용해요. 한 번만 연결하면 돼요.",
+                    active = currentStep == RequiredSetupStep.FOLDER,
+                    stepNumber = 3,
                 )
-                if (state.photos != GalleryMediaAccess.FULL) {
-                    Text("사진 접근은 ‘모두 허용’으로 설정해 주세요. 일부 사진만 허용하면 갤러리 목록이 제한돼요.", style = typography.Caption, color = colors.TextSecondary)
-                }
+                CurrentSetupGuide(currentStep, state.photos, cameraRequestAttempted, photoRequestAttempted)
             }
         },
         actions = {
-            DDZButton(if (state.ready) "폴더 연결" else "권한 설정", onClick = {
+            val buttonLabel = when (currentStep) {
+                RequiredSetupStep.CAMERA -> "카메라 권한 설정"
+                RequiredSetupStep.PHOTOS -> "사진 접근 권한 설정"
+                RequiredSetupStep.FOLDER -> "DZlog 폴더 연결"
+            }
+            DDZButton(buttonLabel, onClick = {
                 if (!requesting && !connectingFolder) {
-                    if (state.ready) {
-                        selectedFolderPath = null
-                        showFolderGuide = true
-                        return@DDZButton
+                    when (currentStep) {
+                        RequiredSetupStep.CAMERA -> if (cameraRequestAttempted) {
+                            openAppPermissionSettings(context)
+                        } else {
+                            cameraRequestAttempted = true
+                            requesting = true
+                            runCatching { requester.launch(arrayOf(Manifest.permission.CAMERA)) }
+                                .onFailure { requesting = false; openAppPermissionSettings(context) }
+                        }
+                        RequiredSetupStep.PHOTOS -> if (photoRequestAttempted) {
+                            openAppPermissionSettings(context)
+                        } else {
+                            photoRequestAttempted = true
+                            requesting = true
+                            runCatching { requester.launch(GalleryMediaAccessPolicy.requiredPermissions().toTypedArray()) }
+                                .onFailure { requesting = false; openAppPermissionSettings(context) }
+                        }
+                        RequiredSetupStep.FOLDER -> {
+                            selectedFolderPath = null
+                            showFolderGuide = true
+                        }
                     }
-                    val missing = buildList {
-                        if (!state.camera) add(Manifest.permission.CAMERA)
-                        if (state.photos != GalleryMediaAccess.FULL) addAll(GalleryMediaAccessPolicy.requiredPermissions())
-                    }
-                    val neverRequested = missing.any { !preferences.getBoolean(it, false) }
-                    if (neverRequested) {
-                        preferences.edit().apply { missing.forEach { putBoolean(it, true) } }.apply()
-                        requesting = true
-                        requester.launch(missing.toTypedArray())
-                    } else openAppPermissionSettings(context)
                 }
             }, modifier = Modifier.fillMaxWidth(), enabled = !requesting && !connectingFolder)
         },
@@ -187,7 +220,10 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun PermissionStatusCards(state: RequiredPermissionState) {
+private fun PermissionStatusCards(
+    state: RequiredPermissionState,
+    activeStep: RequiredSetupStep? = null,
+) {
     val rows = listOf(
         Triple("카메라", if (state.camera) "허용됨" else "허용 필요", "사진 촬영에 사용해요."),
         Triple("사진 접근", when (state.photos) {
@@ -195,24 +231,78 @@ private fun PermissionStatusCards(state: RequiredPermissionState) {
             GalleryMediaAccess.SELECTED_ONLY -> "일부 허용"
             GalleryMediaAccess.NOT_GRANTED -> "허용 안 됨"
         }, "저장된 사진을 갤러리에서 모두 확인하려면 필요해요."),
-    ).sortedBy { if (it.first == "카메라") state.camera else state.photos == GalleryMediaAccess.FULL }
-    rows.forEach { (title, status, detail) -> PermissionCard(title, status, detail) }
+    )
+    rows.forEachIndexed { index, (title, status, detail) ->
+        PermissionCard(
+            title,
+            status,
+            detail,
+            active = (title == "카메라" && activeStep == RequiredSetupStep.CAMERA) ||
+                (title == "사진 접근" && activeStep == RequiredSetupStep.PHOTOS),
+            stepNumber = if (activeStep != null) index + 1 else null,
+        )
+    }
 }
 
 @Composable
-private fun PermissionCard(title: String, status: String, detail: String, content: @Composable () -> Unit = {}) {
+private fun PermissionCard(
+    title: String,
+    status: String,
+    detail: String,
+    active: Boolean = false,
+    stepNumber: Int? = null,
+    content: @Composable () -> Unit = {},
+) {
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
     val spacing = LocalDDZSpacing.current
-    Surface(Modifier.fillMaxWidth(), color = colors.SurfaceSoft, shape = MaterialTheme.shapes.medium) {
+    Surface(
+        Modifier.fillMaxWidth(),
+        color = if (active) colors.SelectedSoft else colors.SurfaceSoft,
+        shape = MaterialTheme.shapes.medium,
+        border = if (active) BorderStroke(1.dp, colors.SelectedDark) else null,
+    ) {
         Column(Modifier.padding(spacing.controlGap), verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                stepNumber?.let { Text("$it", style = typography.SettingLabel, color = colors.SelectedDark) }
                 Icon(when (title) { "카메라" -> Icons.Default.CameraAlt; "사진 접근" -> Icons.Default.Image; else -> Icons.Default.Folder }, null, tint = colors.PrimaryDark)
                 Text(title, Modifier.weight(1f), style = typography.SettingLabel, color = colors.TextPrimary)
                 Text(status, style = typography.Caption, color = if (status == "허용됨" || status == "전체 허용" || status == "연결됨") colors.SelectedDark else colors.PrimaryDark)
             }
             Text(detail, style = typography.Caption, color = colors.TextSecondary)
             content()
+        }
+    }
+}
+
+@Composable
+private fun CurrentSetupGuide(
+    step: RequiredSetupStep,
+    photoAccess: GalleryMediaAccess,
+    cameraRequestAttempted: Boolean,
+    photoRequestAttempted: Boolean,
+) {
+    val colors = LocalDDZColor.current
+    val typography = LocalDDZTypography.current
+    val spacing = LocalDDZSpacing.current
+    val (title, detail) = when (step) {
+        RequiredSetupStep.CAMERA -> if (cameraRequestAttempted) {
+            "1단계 · 카메라 권한 확인" to "권한 창에서 허용하지 않았어요. 아래 버튼을 누르면 휴대폰 설정이 열려요. 카메라를 허용한 뒤 DZlog로 돌아와 주세요."
+        } else {
+            "1단계 · 카메라 권한" to "아래 버튼을 누르면 Android 권한 창이 열려요. 사진을 촬영하려면 ‘허용’을 선택해 주세요."
+        }
+        RequiredSetupStep.PHOTOS -> if (photoRequestAttempted || photoAccess == GalleryMediaAccess.SELECTED_ONLY) {
+            "2단계 · 사진 접근 확인" to "사진 접근은 ‘모두 허용’이 필요해요. 아래 버튼으로 휴대폰 설정을 열고 사진 및 동영상을 모두 허용해 주세요."
+        } else {
+            "2단계 · 사진 접근" to "아래 버튼을 누른 뒤 ‘모든 사진 허용’을 선택해 주세요. 최근 촬영과 DZlog 갤러리를 빠짐없이 보여주는 데 사용해요."
+        }
+        RequiredSetupStep.FOLDER -> "3단계 · DZlog 폴더 연결" to
+            "마지막으로 Pictures 안의 DZlog 폴더를 연결해 주세요. 폴더를 이동·이름 변경·삭제할 때 사용하며, 연결만으로 사진이 변경되지는 않아요."
+    }
+    Surface(color = colors.SelectedSoft, shape = MaterialTheme.shapes.medium) {
+        Column(Modifier.fillMaxWidth().padding(spacing.controlGap), verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+            Text(title, style = typography.SettingLabel, color = colors.SelectedDark)
+            Text(detail, style = typography.Caption, color = colors.TextSecondary)
         }
     }
 }
