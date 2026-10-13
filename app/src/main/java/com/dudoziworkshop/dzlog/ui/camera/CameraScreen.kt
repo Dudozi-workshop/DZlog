@@ -421,6 +421,7 @@ fun CameraPreview(
         isTemplateReady = isTemplateReady,
         appSettings = appSettings,
         ui = ui,
+        pendingProjection = pendingProjection,
     )
 
     val topDisplayName = derivedState.topDisplayName
