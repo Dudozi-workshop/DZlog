@@ -14,6 +14,7 @@ import com.dudoziworkshop.dzlog.domain.table.TablePatch
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReservationScope
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -71,6 +72,50 @@ class CapturePendingStoreTest {
             listOf(first.reservation.id, second.reservation.id).forEach { id ->
                 folder.listFiles().orEmpty().filter { it.name.startsWith(id) }.forEach(File::delete)
             }
+        }
+    }
+
+    @Test fun activeReservationIsNotMistakenForCrashedCapture() {
+        val store = CapturePendingStore(context)
+        val pending = store.reserveNext(
+            CaptureReservationScope("Pictures/DZlog/Test/", "LIVE_"),
+            1, ::snapshot,
+        )
+        val id = pending.reservation.id
+        try {
+            val inventory = store.inspectRecovery()
+            assertFalse(CaptureRecoveryStatusPolicy.needsManualReview(inventory, setOf(id)))
+            assertTrue(CaptureRecoveryStatusPolicy.needsManualReview(inventory, emptySet()))
+            assertTrue(CaptureRecoveryStatusPolicy.resumableReadyIds(inventory, emptySet()).isEmpty())
+        } finally {
+            File(context.filesDir, "capture-pending-v2").listFiles().orEmpty()
+                .filter { it.name.startsWith(id) }.forEach(File::delete)
+        }
+    }
+
+    @Test fun onlyUnclaimedVerifiedReadyImagesCanBeConsideredForResume() {
+        val store = CapturePendingStore(context)
+        val pending = store.reserveNext(
+            CaptureReservationScope("Pictures/DZlog/Test/", "RECOVER_"),
+            1, ::snapshot,
+        )
+        val id = pending.reservation.id
+        val source = File(context.cacheDir, "$id-staged.jpg")
+        source.writeBytes(byteArrayOf(1, 2, 3, 4))
+        try {
+            store.stageJpeg(id, source)
+            val inventory = store.inspectRecovery()
+            assertFalse(CaptureRecoveryStatusPolicy.needsManualReview(inventory, setOf(id)))
+            assertTrue(CaptureRecoveryStatusPolicy.needsManualReview(inventory, emptySet()))
+            assertTrue(CaptureRecoveryStatusPolicy.resumableReadyIds(inventory, setOf(id)).isEmpty())
+            assertEquals(
+                listOf(id),
+                CaptureRecoveryStatusPolicy.resumableReadyIds(inventory, emptySet()),
+            )
+        } finally {
+            source.delete()
+            File(context.filesDir, "capture-pending-v2").listFiles().orEmpty()
+                .filter { it.name.startsWith(id) }.forEach(File::delete)
         }
     }
 
