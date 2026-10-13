@@ -273,9 +273,12 @@ fun CameraPreview(
                         // Apply the completed receipt to the committed base before
                         // removing its speculative projection. A completion must not
                         // temporarily rewind the next-shot rotating phrase.
-                        val base = pendingAcknowledgement?.second ?: activeTemplate.value
+                        val base = pendingProjection.committedBase(
+                            pendingAcknowledgement?.second ?: activeTemplate.value
+                        )
                         val patch = pendingProjection.completeFirst(event.id)
                         val applied = base.applyPatch(patch)
+                        pendingProjection.recordCommittedTemplate(applied)
                         val awaiting = pendingAcknowledgement?.first.orEmpty() + event.id
                         pendingAcknowledgement = awaiting to applied
                         // Never discard a completed journal before the template catalog
