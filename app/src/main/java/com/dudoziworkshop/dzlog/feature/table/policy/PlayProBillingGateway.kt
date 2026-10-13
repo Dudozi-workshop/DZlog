@@ -78,12 +78,12 @@ internal class PlayProBillingGateway(
             .build()
         val params = QueryProductDetailsParams.newBuilder()
             .setProductList(listOf(product)).build()
-        client.queryProductDetailsAsync(params) { result, details ->
+        client.queryProductDetailsAsync(params) { result, queryResult ->
             if (result.responseCode != BillingClient.BillingResponseCode.OK) {
                 onEvent(PlayPurchaseEvent.Error(result.responseCode))
                 return@queryProductDetailsAsync
             }
-            availableProduct = details.productDetailsList.firstOrNull {
+            availableProduct = queryResult.productDetailsList.firstOrNull {
                 it.productId == MonetizationRolloutConfig.PRO_PRODUCT_ID
             }
             onEvent(
