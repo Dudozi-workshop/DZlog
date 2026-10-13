@@ -45,6 +45,18 @@ class CapturePendingProjectionTest {
         assertEquals(3, projection.nextCounter(scope, 1))
     }
 
+    @Test fun pendingNumbersFromPreviousPhraseCannotAdvanceNewPhraseCounter() {
+        val projection = CapturePendingProjection()
+        val firstPhrase = scope.copy(streamPrefix = "phrase-one")
+        val secondPhrase = scope.copy(streamPrefix = "phrase-two")
+        projection.add(shot("one", 1, 0).copy(scope = firstPhrase))
+        projection.add(shot("two", 2, 0).copy(scope = firstPhrase))
+        projection.add(shot("three", 3, 1).copy(scope = firstPhrase))
+
+        assertEquals(4, projection.nextCounter(firstPhrase, 1))
+        assertEquals(1, projection.nextCounter(secondPhrase, 1))
+    }
+
     @Test fun rejectedDuplicateCounterDoesNotAlterPendingList() {
         val projection = CapturePendingProjection()
         projection.add(shot("first", 1, 1))
