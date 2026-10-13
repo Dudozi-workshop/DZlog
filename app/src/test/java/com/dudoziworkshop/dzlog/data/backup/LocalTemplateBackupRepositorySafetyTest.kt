@@ -12,6 +12,7 @@ import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.template.OnboardingStarterCatalog
 import com.dudoziworkshop.dzlog.data.template.createSavedTableTemplate
 import com.dudoziworkshop.dzlog.data.template.savedTableTemplatesToJson
+import com.dudoziworkshop.dzlog.data.template.tableTemplateStateFromJson
 import com.dudoziworkshop.dzlog.data.template.toJsonString
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -75,7 +76,10 @@ class LocalTemplateBackupRepositorySafetyTest {
 
             val persisted = context.dataStore.data.first()
             assertEquals(original.id, persisted[KEY_ACTIVE_TABLE_TEMPLATE_ID])
-            assertEquals(legacyJson, persisted[KEY_TABLE_TEMPLATE_JSON])
+            assertEquals(
+                requireNotNull(tableTemplateStateFromJson(legacyJson)),
+                requireNotNull(tableTemplateStateFromJson(requireNotNull(persisted[KEY_TABLE_TEMPLATE_JSON])))
+            )
             assertEquals(5, persisted[KEY_COUNTER_DIGITS])
             assertEquals(2, persisted[KEY_SAVE_MODE])
             val restored = requireNotNull(decodeCatalogWithoutDataLoss(
@@ -124,7 +128,8 @@ class LocalTemplateBackupRepositorySafetyTest {
     }
 
     @Test fun portableBackupResetsCounterSeedWithoutMutatingCurrentTemplate() {
-        val original = state.copy(cells = state.cells.map { cell ->
+        val starter = state
+        val original = starter.copy(cells = starter.cells.map { cell ->
             if (cell.dataType == TableCellDataType.COUNTER) {
                 cell.copy(typedValue = CellValue.CounterSeed(47))
             } else cell
