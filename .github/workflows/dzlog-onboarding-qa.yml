@@ -4,14 +4,13 @@ on:
     branches:
       - feat/onboarding-starter-catalog-20261013
       - feat/android16-api36-readiness-20261013
-      - feat/gallery-bulk-delete-root-entry-20261013
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: dzlog-gallery-bulk-delete-qa
+  group: dzlog-onboarding-qa
   cancel-in-progress: true
 
 jobs:
@@ -41,6 +40,15 @@ jobs:
         run: node --test billing-server/test/*.test.mjs
       - name: Run unit tests and build debug APK
         run: bash ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-unit-test-reports
+          path: |
+            app/build/test-results/testDebugUnitTest/
+            app/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: ignore
       - name: Upload debug APK
         if: success()
         uses: actions/upload-artifact@v4
