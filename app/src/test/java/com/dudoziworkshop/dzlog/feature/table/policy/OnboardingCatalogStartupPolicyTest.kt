@@ -31,8 +31,10 @@ class OnboardingCatalogStartupPolicyTest {
 
     @Test
     fun `route only offers onboarding after verified fresh data and media`() {
-        assertEquals(CatalogStartupRoute.OFFER_ONBOARDING,
+        assertEquals(CatalogStartupRoute.CONTINUE_EXISTING,
             decideCatalogStartupRoute(null, null, false, true))
+        assertEquals(CatalogStartupRoute.OFFER_ONBOARDING,
+            decideCatalogStartupRoute(null, null, false, true, verifiedFreshInstall = true))
         assertEquals(CatalogStartupRoute.CONTINUE_EXISTING,
             decideCatalogStartupRoute(null, null, true, true))
         assertEquals(CatalogStartupRoute.CONTINUE_EXISTING,
