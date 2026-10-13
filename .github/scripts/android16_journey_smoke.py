@@ -107,6 +107,21 @@ def alive():
     return pid
 
 
+def wait_for_home_after_onboarding():
+    """The first launch may show DZlog's optional photo-access prompt."""
+    deadline = time.monotonic() + 45
+    while time.monotonic() < deadline:
+        root = hierarchy()
+        if contains(root, "나중에") and contains(root, "사진 접근 허용"):
+            # Preserve the permission-denied journey; camera access is tested later.
+            tap("나중에")
+            continue
+        if contains(root, "촬영 시작"):
+            return root
+        time.sleep(1.5)
+    raise AssertionError("Home not ready after dismissing optional photo-access prompt")
+
+
 def grant_camera_dialog_if_visible():
     root = hierarchy()
     permission_nodes = [
@@ -145,7 +160,8 @@ def main():
     tap("다음", "이 양식으로 시작")
     tap("업무·현장", "다른 양식 보기")
     evidence("03-onboarding-category")
-    tap("건너뛰기", "촬영 시작")
+    tap("건너뛰기")
+    wait_for_home_after_onboarding()
     evidence("04-home")
 
     tap("설정", "사진 품질")
