@@ -30,6 +30,8 @@ jobs:
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Test dormant purchase verification backend
+        run: node --test billing-server/test/*.test.mjs
       - name: Run unit tests and build debug APK
         run: bash ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug
       - name: Upload debug APK
