@@ -79,14 +79,13 @@ internal class CaptureAsyncCaptureService(
                 onCaptureStarted = callbacks.onCaptureStarted,
                 onImageCaptured = callbacks.onImageCaptured,
                 onStagedReady = { staged ->
+                    // Preserve staging ownership until the queue accepts or rejects
+                    // this ID; a reconnecting observer must never see an unowned
+                    // READY job in the hand-off window.
+                    val queued = queue.submit(staged.reservation.id)
                     synchronized(stagingLock) { stagingIds -= staged.reservation.id }
-                    if (queue.submit(staged.reservation.id)) {
-                        callbacks.onQueued(staged)
-                    } else {
-                        // Preserve the READY job for explicit recovery. It must never
-                        // be silently dropped when the worker reaches its bound.
-                        callbacks.onQueuedLater(staged)
-                    }
+                    if (queued) callbacks.onQueued(staged)
+                    else callbacks.onQueuedLater(staged)
                     signalChange()
                 },
                 onFailure = { error ->
@@ -105,6 +104,31 @@ internal class CaptureAsyncCaptureService(
     /** Active CameraX staging and queue IDs; persisted but orphaned work is excluded. */
     internal fun activeIds(): Set<String> =
         synchronized(stagingLock) { stagingIds.toSet() } + queue.activeIds()
+
+    /**
+     * Restart only SHA-verified READY jobs. MediaStore writes begin after a
+     * durable READY -> PROCESSING transition, so READY can be resumed without
+     * duplicating an already committed capture. Uncertain statuses are not
+     * automatically resumed or deleted.
+     */
+    internal fun resumeVerifiedReadyCaptures(): Int {
+        val report = store.inspectRecovery()
+        val active = activeIds()
+        if (report.corruptJournals.isNotEmpty() || report.orphanFiles.isNotEmpty() ||
+            report.needsReview.any {
+                it.status == CapturePendingStore.Status.NEEDS_REVIEW ||
+                    it.reservation.id !in active
+            }
+        ) return 0
+
+        var accepted = 0
+        CaptureRecoveryStatusPolicy.resumableReadyIds(report, active).forEach { id ->
+            if (!queue.submit(id)) return@forEach
+            accepted++
+        }
+        if (accepted > 0) signalChange()
+        return accepted
+    }
 
     fun inspectRecovery(): CapturePendingStore.RecoveryInventory = store.inspectRecovery()
 }
