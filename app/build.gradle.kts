@@ -12,7 +12,7 @@ plugins {
 
 extensions.configure<ApplicationExtension> {
     namespace = "com.dudoziworkshop.dzlog"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         // Filled only for a tested paid release. Empty defaults are fail-closed.
@@ -25,7 +25,7 @@ extensions.configure<ApplicationExtension> {
         buildConfigField("String", "DZLOG_BILLING_PUBLIC_KEY_B64", "\"$signingPubkeyB64\"")
         applicationId = "com.dudoziworkshop.dzlog"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 2
         versionName = "0.0.0"
         manifestPlaceholders["dzlogAppLabel"] = "@string/app_name"
