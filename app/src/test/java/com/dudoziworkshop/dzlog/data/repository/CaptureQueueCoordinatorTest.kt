@@ -184,6 +184,49 @@ class CaptureQueueCoordinatorTest {
         }
     }
 
+    @Test fun corruptedReadyJpegIsQuarantinedWithoutAnyMediaStoreAttempt() = runBlocking {
+        val store = CapturePendingStore(context)
+        val input = File(context.cacheDir, "dzlog-corrupt-${System.nanoTime()}.jpg")
+        input.writeBytes(byteArrayOf(7, 8, 9))
+        val scope = CaptureReservationScope("Pictures/DZlog/corrupt/${System.nanoTime()}/", "bad_")
+        val ready = reserveAndStage(store, scope, input)
+        ready.imageFile.appendBytes(byteArrayOf(10))
+        val failed = CompletableDeferred<Unit>()
+        val workerScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        var mediaWrites = 0
+        try {
+            val queue = CaptureQueueCoordinator(
+                store = store,
+                process = {
+                    mediaWrites++
+                    throw IOException("Must not reach the saver")
+                },
+                commitProgress = { _, _ -> },
+                scope = workerScope,
+                onEvent = { event ->
+                    if (event is CaptureQueueCoordinator.Event.ReviewRequired) {
+                        failed.complete(Unit)
+                    }
+                },
+            )
+            assertTrue(queue.submit(ready.reservation.id))
+            withTimeout(5000) { failed.await() }
+            assertEquals(0, mediaWrites)
+            val report = store.inspectRecovery()
+            assertTrue(report.needsReview.any {
+                it.reservation.id == ready.reservation.id &&
+                    it.status == CapturePendingStore.Status.NEEDS_REVIEW
+            })
+            assertTrue(
+                CaptureRecoveryStatusPolicy.resumableReadyIds(report, emptySet()).isEmpty()
+            )
+        } finally {
+            workerScope.cancel()
+            input.delete()
+            cleanup(listOf(ready.reservation.id))
+        }
+    }
+
     @Test fun failedProcessingIsQuarantinedWithoutAutomaticRetry() = runBlocking {
         val store = CapturePendingStore(context)
         val input = File(context.cacheDir, "dzlog-queue-fail-${System.nanoTime()}.jpg")
