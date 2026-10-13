@@ -56,8 +56,10 @@ def main():
 
     # Fast physical tapping must not bypass the capture-in-flight guard.
     # Depending on the emulator's camera latency, one or more shots may succeed.
-    script = f"i=0; while [ $i -lt 8 ]; do input tap {x} {y}; i=$((i+1)); done"
-    adb("shell", "sh", "-c", script, timeout=75)
+    # Pass one complete command to adb shell. Splitting "sh -c" into argv
+    # can cause the loop to run without its initialized counter (zero taps).
+    script = f"for i in 1 2 3 4 5 6 7 8; do input tap {x} {y}; done"
+    adb("shell", script, timeout=75)
     time.sleep(6)
     after_burst = wait_for_stable_media(5)
     burst_count = len(after_burst) // 2 - 5
