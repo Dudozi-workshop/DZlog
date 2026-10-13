@@ -68,6 +68,18 @@ class SavedTemplateQuotaPolicyTest {
     }
 
     @Test
+    fun `fully deduplicated import remains allowed over a future quota`() {
+        val result = SavedTemplateQuotaPolicy.evaluate(
+            currentCount = 9,
+            action = TemplateCollectionAction.IMPORT,
+            maxSavedCount = 3,
+            requestedNewCount = 0,
+        )
+        assertTrue(result.allowed)
+        assertEquals(6, result.excessExistingCount)
+    }
+
+    @Test
     fun `retained starter catalog does not count as saved templates`() {
         // Bundled eleven definitions never count toward the user's persisted collection.
         val decision = SavedTemplateQuotaPolicy.evaluate(
