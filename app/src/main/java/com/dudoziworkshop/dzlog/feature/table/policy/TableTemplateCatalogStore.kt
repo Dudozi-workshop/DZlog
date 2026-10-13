@@ -9,7 +9,6 @@ import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.data.template.createSavedTableTemplate
 import com.dudoziworkshop.dzlog.data.template.defaultTableTemplateState
-import com.dudoziworkshop.dzlog.data.template.savedTableTemplatesFromJson
 import com.dudoziworkshop.dzlog.data.template.savedTableTemplatesToJson
 import com.dudoziworkshop.dzlog.data.template.tableTemplateStateFromJson
 import com.dudoziworkshop.dzlog.data.template.toJsonString
@@ -154,7 +153,11 @@ suspend fun activateSavedTableTemplate(
 
 suspend fun markSavedTableTemplateUsed(context: Context, id: String, timestamp: Long) {
     context.dataStore.edit { prefs ->
-        val items = prefs[KEY_TABLE_TEMPLATES_JSON]?.let(::savedTableTemplatesFromJson) ?: return@edit
+        val stored = prefs[KEY_TABLE_TEMPLATES_JSON] ?: return@edit
+        // Unlike a lenient decoder, this never drops malformed entries while
+        // writing updated usage metadata for an otherwise valid template.
+        val items = decodeCatalogWithoutDataLoss(stored)
+            ?: error("Stored table catalog is unreadable. Refusing to update usage metadata.")
         if (items.none { it.id == id }) return@edit
         prefs[KEY_TABLE_TEMPLATES_JSON] = savedTableTemplatesToJson(items.map {
             if (it.id == id) it.copy(lastUsedAt = maxOf(it.lastUsedAt, timestamp)) else it
