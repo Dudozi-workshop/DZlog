@@ -100,6 +100,8 @@ fun LogFolderScreen(
     onOpenFolder: (String) -> Unit,
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
     onOpenOriginal: (String) -> Unit,
+    showDefaultPhotos: Boolean = false,
+    onShowDefaultPhotosChange: (Boolean) -> Unit = {},
     capturePathDrafts: List<List<TableEditorSlotDraft?>> = emptyList(),
 ) {
     val context = LocalContext.current
@@ -110,7 +112,6 @@ fun LogFolderScreen(
     val favoriteIds by remember(context) { FavoritesProvider.repo(context) }.favoriteIdsFlow.collectAsState(initial = emptySet())
     var selectedTab by remember { mutableStateOf(GalleryTab.ALL) }
     var showRecentPhotos by rememberSaveable(relativePath) { mutableStateOf(false) }
-    var showDefaultPhotos by rememberSaveable(relativePath) { mutableStateOf(false) }
     val cached = remember(relativePath) { GallerySnapshotMemory.cache.get(relativePath) }
     var allPhotos by remember(relativePath) { mutableStateOf(cached?.allPhotos ?: emptyList()) }
     var index by remember(relativePath) { mutableStateOf<GalleryFolderIndex?>(cached?.index) }
@@ -430,7 +431,7 @@ fun LogFolderScreen(
     }
     BackHandler(enabled = showPhotoDelete && photoDeleteLoading) { showPhotoDelete = false }
     BackHandler(enabled = showRecentPhotos && !selectionActive && !showPhotoMove) { showRecentPhotos = false }
-    BackHandler(enabled = showDefaultPhotos && !selectionActive && !showPhotoMove) { showDefaultPhotos = false }
+    BackHandler(enabled = showDefaultPhotos && !selectionActive && !showPhotoMove) { onShowDefaultPhotosChange(false) }
     BackHandler(enabled = selectionActive && !showPhotoMove) {
         if (!photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null) cancelSelection()
     }
@@ -458,7 +459,7 @@ fun LogFolderScreen(
                 IconButton(enabled = !navigationLocked, onClick = { if (!navigationLocked) {
                     when {
                         showRecentPhotos -> showRecentPhotos = false
-                        showDefaultPhotos -> showDefaultPhotos = false
+                        showDefaultPhotos -> onShowDefaultPhotosChange(false)
                         else -> onBack()
                     }
                 } }) {
@@ -591,8 +592,8 @@ fun LogFolderScreen(
                     onOpenFolder = { if (!selectionActive && !navigationLocked) onOpenFolder(it) },
                     onOpenPhoto = { photos, index -> if (!navigationLocked) onOpenPhoto(photos, index) },
                     onOpenOriginal = { if (!selectionActive && !navigationLocked) onOpenOriginal(it) },
-                    onOpenRecentPhotos = { if (!selectionActive && !navigationLocked) { showDefaultPhotos = false; showRecentPhotos = true } },
-                    onOpenDefaultPhotos = { if (!selectionActive && !navigationLocked) { showRecentPhotos = false; showDefaultPhotos = true } },
+                    onOpenRecentPhotos = { if (!selectionActive && !navigationLocked) { onShowDefaultPhotosChange(false); showRecentPhotos = true } },
+                    onOpenDefaultPhotos = { if (!selectionActive && !navigationLocked) { showRecentPhotos = false; onShowDefaultPhotosChange(true) } },
                     onManageFolder = ::startFolderManagement,
                     canManageFolders = !navigationLocked && !selectionActive && !folderAccessBusy,
                     onCreateFolder = { if (!selectionActive && !navigationLocked) { folderOperationError = null; showCreateDialog = true } },
