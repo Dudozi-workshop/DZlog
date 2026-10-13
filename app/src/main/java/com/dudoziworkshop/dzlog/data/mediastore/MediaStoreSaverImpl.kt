@@ -50,7 +50,11 @@ class MediaStoreSaverImpl : MediaStoreSaver {
                 ContentValues().apply {
                     put(MediaStore.Images.Media.IS_PENDING, 0)
                 }.also { done ->
-                    resolver.update(uri, done, null, null)
+                    // A zero-row publish leaves the JPEG pending and invisible to the gallery.
+                    // Never acknowledge a capture until MediaStore confirms the update.
+                    check(resolver.update(uri, done, null, null) > 0) {
+                        "MediaStore publish failed: pending JPEG was not finalized"
+                    }
                 }
             }
 
