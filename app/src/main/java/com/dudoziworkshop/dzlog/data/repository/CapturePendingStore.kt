@@ -38,6 +38,7 @@ internal class CapturePendingStore(context: Context) {
         val needsReview: List<PendingCapture>,
         val orphanFiles: List<String>,
         val corruptJournals: List<String>,
+        val completedAwaitingApply: List<PendingCapture>,
     )
 
     fun reserveNext(
@@ -142,30 +143,41 @@ internal class CapturePendingStore(context: Context) {
         parseDocument(doc)
     }
 
-    /** Only explicitly committed captures can be pruned. */
+    /**
+     * Saved originals can be reclaimed after MediaStore and counter commit.
+     * Retain the journal until the UI acknowledges the template/phrase patch.
+     */
     fun pruneCommitted(id: String) = synchronized(lock) {
         val doc = readDocument(journalFile(id))
         check(statusOf(doc) == Status.COMMITTED) { "Cannot prune unfinished capture" }
         val image = imageFile(id)
         if (image.exists() && !image.delete()) throw IOException("Could not remove staged copy")
-        val journal = journalFile(id)
-        if (!journal.delete()) throw IOException("Could not remove committed journal")
+    }
+
+    /** Acknowledges the template patch after successful application by the host. */
+    fun acknowledgeTemplateApplied(id: String) = synchronized(lock) {
+        val doc = readDocument(journalFile(id))
+        check(statusOf(doc) == Status.COMMITTED) { "Cannot acknowledge unfinished capture" }
+        val image = imageFile(id)
+        if (image.exists() && !image.delete()) throw IOException("Could not remove staged copy")
+        if (!journalFile(id).delete()) throw IOException("Unable to remove applied capture journal")
     }
 
     /** On restart: do not auto-retry PROCESSING; final output may already exist. */
     fun inspectRecovery(): RecoveryInventory = synchronized(lock) {
         val ready = mutableListOf<PendingCapture>()
         val review = mutableListOf<PendingCapture>()
+        val unapplied = mutableListOf<PendingCapture>()
         val corrupt = interruptedJournalFiles().mapTo(mutableListOf()) { it.name }
         val known = mutableSetOf<String>()
         journalFiles().forEach { file ->
             known += file.name.removeSuffix(".json")
             runCatching {
                 val record = parseDocument(readDocument(file))
-                if (record.status == Status.READY && validImage(record)) {
-                    ready += record
-                } else if (record.status != Status.COMMITTED) {
-                    review += record
+                when {
+                    record.status == Status.COMMITTED -> unapplied += record
+                    record.status == Status.READY && validImage(record) -> ready += record
+                    else -> review += record
                 }
             }.onFailure { corrupt += file.name }
         }
@@ -177,6 +189,7 @@ internal class CapturePendingStore(context: Context) {
             ready.sortedBy { it.reservation.createdAtMillis },
             review.sortedBy { it.reservation.createdAtMillis },
             orphans.sorted(), corrupt.sorted(),
+            unapplied.sortedBy { it.reservation.createdAtMillis },
         )
     }
 
