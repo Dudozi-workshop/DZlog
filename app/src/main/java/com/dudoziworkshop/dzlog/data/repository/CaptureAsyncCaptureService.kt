@@ -76,6 +76,8 @@ internal class CaptureAsyncCaptureService(
         )
     }
 
+    fun acknowledgeTemplateApplied(id: String) = store.acknowledgeTemplateApplied(id)
+
     fun outstandingCount(): Int = queue.outstandingCount()
 
     fun inspectRecovery(): CapturePendingStore.RecoveryInventory = store.inspectRecovery()
