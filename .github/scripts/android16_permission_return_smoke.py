@@ -64,6 +64,27 @@ def return_to_camera():
         raise AssertionError("App exited on return from permission Settings")
 
 
+def wait_for_gallery_after_settings():
+    for attempt in range(2):
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            alive()
+            root = hierarchy()
+            if contains(root, "갤러리"):
+                return
+            if contains(root, "촬영 시작"):
+                time.sleep(2)
+                tap("앨범 보기 >")
+                break
+            time.sleep(1)
+        try:
+            wait_for("갤러리", timeout=18)
+            return
+        except AssertionError:
+            if attempt == 1:
+                raise AssertionError("Gallery unreachable after returning from app settings")
+
+
 def main():
     api = adb("shell", "getprop", "ro.build.version.sdk").strip()
     assert api == "36", f"Requires disposable Android 16 emulator, got {api}"
@@ -93,16 +114,10 @@ def main():
     # Photo-read permission is optional; both grant and revoke must preserve
     # navigation and app-created media. No photo is deleted or moved.
     settings_roundtrip("android.permission.READ_MEDIA_IMAGES", "grant")
-    root = hierarchy()
-    if contains(root, "촬영 시작"):
-        tap("앨범 보기 >")
-    wait_for("갤러리", timeout=45)
+    wait_for_gallery_after_settings()
     evidence("31-gallery-photo-read-granted")
     settings_roundtrip("android.permission.READ_MEDIA_IMAGES", "revoke")
-    root = hierarchy()
-    if contains(root, "촬영 시작"):
-        tap("앨범 보기 >")
-    wait_for("갤러리", timeout=45)
+    wait_for_gallery_after_settings()
     evidence("32-gallery-photo-read-revoked")
 
     after = query_media()
