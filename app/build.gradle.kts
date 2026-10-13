@@ -35,7 +35,11 @@ extensions.configure<ApplicationExtension> {
 
     buildTypes {
         getByName("debug") {
-            if (providers.gradleProperty("dzlogGalleryStandalone").orNull == "true") {
+            if (providers.gradleProperty("dzlogCaptureQa").orNull == "true") {
+                // Dedicated install: do not overwrite the user's production DZlog data.
+                applicationIdSuffix = ".captureqa"
+                manifestPlaceholders["dzlogAppLabel"] = "DZlog Capture QA"
+            } else if (providers.gradleProperty("dzlogGalleryStandalone").orNull == "true") {
                 applicationIdSuffix = ".gallerydev"
                 manifestPlaceholders["dzlogAppLabel"] = "DZlog Gallery"
             }
