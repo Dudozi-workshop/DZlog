@@ -251,8 +251,33 @@ internal fun CameraBottomControls(
                         resizeBaseline = null
                         ui.isTableResizePanelOpen = false
                         val next = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
+                        val fitted = fitCameraTableForPhotoChange(
+                            CameraTableResizeBaseline(
+                                widthRatio = ui.prefs.wmTableWidthRatio,
+                                heightRatio = ui.prefs.wmTableHeightRatio,
+                                rotationCwDeg = ui.prefs.wmRotationCwDeg,
+                                anchor = ui.prefs.wmTableAnchor,
+                                x10000 = ui.prefs.wmBoundsOffsetX10000,
+                                y10000 = ui.prefs.wmBoundsOffsetY10000,
+                                photoAspect = ui.prefs.captureAspect.ratioF,
+                            ),
+                            newRotationCwDeg = next,
+                        )
                         ui.prefs.wmRotationCwDeg = next
-                        scope.launch { settingsWriter.setWmRotationCwDeg(next) }
+                        ui.prefs.wmTableWidthRatio = fitted.widthRatio
+                        ui.prefs.wmTableHeightRatio = fitted.heightRatio
+                        ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
+                        ui.prefs.wmBoundsOffsetX10000 = fitted.x10000
+                        ui.prefs.wmBoundsOffsetY10000 = fitted.y10000
+                        ui.prefs.wmOffsetXRatio = fitted.x10000 / 100
+                        ui.prefs.wmOffsetYRatio = fitted.y10000 / 100
+                        scope.launch {
+                            settingsWriter.setWmTableSizeAndPosition(
+                                fitted.widthRatio, fitted.heightRatio,
+                                fitted.x10000, fitted.y10000,
+                            )
+                            settingsWriter.setWmRotationCwDeg(next)
+                        }
                         }
                     },
                     isLocked = ui.prefs.wmTableLocked,
