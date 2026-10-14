@@ -123,7 +123,7 @@ internal fun RequiredPermissionsGate(
         if (uri == null) {
             selectedFolderPath = null
             folderGuideNotice = "폴더 연결을 완료해야 DZlog를 사용할 수 있어요."
-            showFolderGuide = true
+            showFolderGuide = !onboarding
             return@rememberLauncherForActivityResult
         }
         connectingFolder = true
@@ -139,7 +139,7 @@ internal fun RequiredPermissionsGate(
                     DocumentsContract.getTreeDocumentId(uri).substringAfter(':')
                 }.getOrDefault("선택한 폴더")
                 folderGuideNotice = "선택한 위치가 달라요. Pictures/DZlog 폴더 자체를 선택해 주세요."
-                showFolderGuide = true
+                showFolderGuide = !onboarding
             }
         }
     }
@@ -190,7 +190,17 @@ internal fun RequiredPermissionsGate(
                         RequiredSetupStep.FOLDER -> {
                             selectedFolderPath = null
                             folderGuideNotice = null
-                            showFolderGuide = true
+                            if (onboarding) {
+                                // Android's document picker opens directly from the
+                                // in-onboarding permission page (no extra DZlog dialog).
+                                runCatching { folderPicker.launch(dzlogFolderInitialUri()) }
+                                    .onFailure {
+                                        folderGuideNotice =
+                                            "폴더 선택 화면을 열지 못했어요. 다시 시도해 주세요."
+                                    }
+                            } else {
+                                showFolderGuide = true
+                            }
                         }
                     }
                 }
