@@ -42,6 +42,7 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkManualTextColor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraUiState
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
 import kotlin.math.roundToInt
@@ -73,8 +74,8 @@ internal fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
             else -> WatermarkTableAnchor.CUSTOM
         }
 
-        ui.prefs.wmTableWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(10, 100)
-        ui.prefs.wmTableHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, 100)
+        ui.prefs.wmTableWidthRatio = (prefs[KEY_WM_TABLE_WIDTH] ?: 40).coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO)
+        ui.prefs.wmTableHeightRatio = (prefs[KEY_WM_TABLE_HEIGHT] ?: 20).coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO)
         ui.prefs.wmBoundsOffsetX10000 = (prefs[KEY_WM_BOUNDS_OFFSET_X_10000] ?: 0).coerceIn(0, 10000)
         ui.prefs.wmBoundsOffsetY10000 = (prefs[KEY_WM_BOUNDS_OFFSET_Y_10000] ?: 0).coerceIn(0, 10000)
         ui.prefs.wmOffsetXRatio = (ui.prefs.wmBoundsOffsetX10000 / 100f).roundToInt().coerceIn(0, 100)
