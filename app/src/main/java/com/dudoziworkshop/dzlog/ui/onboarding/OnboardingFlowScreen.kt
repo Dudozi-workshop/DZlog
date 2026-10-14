@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,13 +59,13 @@ internal fun OnboardingFlowScreen(
     readOnly: Boolean = false,
     onClose: () -> Unit = {},
 ) {
-    var step by remember { mutableIntStateOf(1) }
+    var step by rememberSaveable { mutableIntStateOf(1) }
     BackHandler(enabled = readOnly) {
         if (step > 1) step-- else onClose()
     }
-    var category by remember { mutableStateOf("basic") }
-    var chosen by remember { mutableStateOf(OnboardingStarterCatalog.DEFAULT_ID) }
-    var showAlternatives by remember { mutableStateOf(false) }
+    var category by rememberSaveable { mutableStateOf("basic") }
+    var chosen by rememberSaveable { mutableStateOf(OnboardingStarterCatalog.DEFAULT_ID) }
+    var showAlternatives by rememberSaveable { mutableStateOf(false) }
     val selected = OnboardingStarterCatalog.find(chosen)
         ?: OnboardingStarterCatalog.definitions.first()
 

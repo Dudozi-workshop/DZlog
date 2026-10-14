@@ -180,8 +180,15 @@ fun AppRoot(startOnCamera: Boolean = false) {
         mutableStateOf(if (startOnCamera) FirstCaptureGuidePhase.QUICK_EDIT
             else FirstCaptureGuidePhase.DISMISSED)
     }
-    var firstGuideResult by remember { mutableStateOf<FirstCaptureSavedResult?>(null) }
-    var showHelpFromGuide by remember { mutableStateOf(false) }
+    var firstGuideDisplayName by rememberSaveable { mutableStateOf<String?>(null) }
+    var firstGuideRelativePath by rememberSaveable { mutableStateOf<String?>(null) }
+    val firstGuideResult = if (firstGuideDisplayName != null && firstGuideRelativePath != null) {
+        FirstCaptureSavedResult(
+            displayName = requireNotNull(firstGuideDisplayName),
+            relativePath = requireNotNull(firstGuideRelativePath),
+        )
+    } else null
+    var showHelpFromGuide by rememberSaveable { mutableStateOf(false) }
 
     // This only writes on the first committed photo, not on every consecutive capture.
     // A failed background flag write can be retried after the next successful photo.
@@ -846,7 +853,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
                         if (startOnCamera && firstGuidePhase != FirstCaptureGuidePhase.DISMISSED &&
                             firstGuideResult == null
                         ) {
-                            firstGuideResult = FirstCaptureSavedResult(displayName, path)
+                            firstGuideDisplayName = displayName
+                            firstGuideRelativePath = path
                             firstGuidePhase = FirstCaptureGuidePhase.SAVED
                         }
                     },

@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,7 +43,9 @@ fun OnboardingStartupGate() {
     val scope = rememberCoroutineScope()
     var checkVersion by remember { mutableIntStateOf(0) }
     var route by remember { mutableStateOf<CatalogStartupRoute?>(null) }
-    var finishedDestination by remember { mutableStateOf<Boolean?>(null) }
+    // Keep the user's "open camera" choice through Activity recreation so the
+    // first-camera guide is not lost immediately after onboarding.
+    var finishedDestination by rememberSaveable { mutableStateOf<Boolean?>(null) }
     var busy by remember { mutableStateOf(false) }
 
     LaunchedEffect(checkVersion) {
