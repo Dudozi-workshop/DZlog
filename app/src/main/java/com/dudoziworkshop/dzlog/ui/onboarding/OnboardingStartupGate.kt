@@ -58,6 +58,7 @@ fun OnboardingStartupGate(startWithStarterSelection: Boolean = false) {
                     verifiedNoExistingMedia = existingImages == false,
                     knownExistingMedia = existingImages == true,
                     verifiedFreshInstall = OnboardingInstallProbe.isUnupdatedFirstInstall(context),
+                    requireVerifiedMediaForOnboarding = true,
                 )
             }
         } catch (e: CancellationException) {
