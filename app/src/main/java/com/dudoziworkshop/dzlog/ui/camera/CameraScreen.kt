@@ -123,6 +123,8 @@ fun CameraScreen(
     verifiedTier: com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier =
         com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier.FREE,
     onCaptureCommitted: () -> Unit = {},
+    onFirstCaptureReceipt: (String, String) -> Unit = { _, _ -> },
+    onFirstQuickEditOpened: () -> Unit = {},
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
@@ -167,6 +169,8 @@ fun CameraScreen(
                 sessionCaptureStack = sessionCaptureStack,
                 verifiedTier = verifiedTier,
                 onCaptureCommitted = onCaptureCommitted,
+                onFirstCaptureReceipt = onFirstCaptureReceipt,
+                onFirstQuickEditOpened = onFirstQuickEditOpened,
             )
         } else {
             Text(
@@ -195,6 +199,8 @@ fun CameraPreview(
     verifiedTier: com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier =
         com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier.FREE,
     onCaptureCommitted: () -> Unit = {},
+    onFirstCaptureReceipt: (String, String) -> Unit = { _, _ -> },
+    onFirstQuickEditOpened: () -> Unit = {},
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
@@ -240,6 +246,7 @@ fun CameraPreview(
     val activeTemplate = rememberUpdatedState(tableTemplateState)
     val persistCapturedTemplate = rememberUpdatedState(onPersistCapturedTemplate)
     val latestCommittedCallback = rememberUpdatedState(onCaptureCommitted)
+    val latestFirstReceiptCallback = rememberUpdatedState(onFirstCaptureReceipt)
     // UI acknowledges durable commit receipts only after seeing the applied template.
     var pendingAcknowledgement by remember {
         mutableStateOf<Pair<List<String>, TableTemplateState>?>(null)
@@ -342,6 +349,12 @@ fun CameraPreview(
                     }
                     cameraViewModel.onCaptureCommitted()
                     latestCommittedCallback.value()
+                    // An onboarding receipt is shown only after the saved media
+                    // and its matching template progress have both been committed.
+                    latestFirstReceiptCallback.value(
+                        receipt.snapshot.request.displayName,
+                        receipt.snapshot.request.relativePath,
+                    )
                 }
 
                 val ownedProjectionIds = pendingProjection.snapshot()
@@ -737,6 +750,7 @@ fun CameraPreview(
                             if (ui.capture.pendingSaveCount == 0) {
                                 ui.dismissCameraInteractions()
                                 showQuickValueSheet = true
+                                onFirstQuickEditOpened()
                             } else {
                                 Toast.makeText(context, "저장 완료 후 값을 변경할 수 있습니다.", Toast.LENGTH_SHORT).show()
                             }
