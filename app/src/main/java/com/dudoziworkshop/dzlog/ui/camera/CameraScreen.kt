@@ -75,6 +75,7 @@ import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraBottomControls
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTableResizeBaseline
 import com.dudoziworkshop.dzlog.ui.camera.controls.resizeCameraTableKeepingCenter
+import com.dudoziworkshop.dzlog.ui.camera.controls.fitCameraTableForPhotoChange
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraQuickValueSheet
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTopBar
@@ -857,8 +858,36 @@ fun CameraPreview(
             CameraSettingsOverlayPanel(
                 captureAspect = ui.prefs.captureAspect,
                 onCaptureAspectChange = { aspect ->
-                    ui.prefs.captureAspect = aspect
-                    scope.launch { settingsWriter.setCaptureAspect(aspect) }
+                    val current = ui.prefs.captureAspect
+                    if (aspect != current) {
+                        val fitted = fitCameraTableForPhotoChange(
+                            CameraTableResizeBaseline(
+                                widthRatio = ui.prefs.wmTableWidthRatio,
+                                heightRatio = ui.prefs.wmTableHeightRatio,
+                                rotationCwDeg = ui.prefs.wmRotationCwDeg,
+                                anchor = ui.prefs.wmTableAnchor,
+                                x10000 = ui.prefs.wmBoundsOffsetX10000,
+                                y10000 = ui.prefs.wmBoundsOffsetY10000,
+                                photoAspect = current.ratioF,
+                            ),
+                            newPhotoAspect = aspect.ratioF,
+                        )
+                        ui.prefs.captureAspect = aspect
+                        ui.prefs.wmTableWidthRatio = fitted.widthRatio
+                        ui.prefs.wmTableHeightRatio = fitted.heightRatio
+                        ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
+                        ui.prefs.wmBoundsOffsetX10000 = fitted.x10000
+                        ui.prefs.wmBoundsOffsetY10000 = fitted.y10000
+                        ui.prefs.wmOffsetXRatio = fitted.x10000 / 100
+                        ui.prefs.wmOffsetYRatio = fitted.y10000 / 100
+                        scope.launch {
+                            settingsWriter.setWmTableSizeAndPosition(
+                                fitted.widthRatio, fitted.heightRatio,
+                                fitted.x10000, fitted.y10000,
+                            )
+                            settingsWriter.setCaptureAspect(aspect)
+                        }
+                    }
                 },
                 saveMode = ui.prefs.saveMode,
                 onSaveModeChange = { mode ->
