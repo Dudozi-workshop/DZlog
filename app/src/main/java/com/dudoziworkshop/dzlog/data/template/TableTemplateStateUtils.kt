@@ -139,6 +139,7 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         formatPattern = o.optString("formatPattern", ""),
                         counterScopeMode = o.optString("counterScopeMode").takeIf { it.isNotBlank() }
                             ?.let { runCatching { CounterScopeMode.valueOf(it) }.getOrNull() },
+                        quickEditable = o.optBoolean("quickEditable", true),
                     )
                 add(cell)
             }
@@ -345,6 +346,7 @@ fun TableTemplateState.toJsonString(): String {
         o.put("colSpan", c.colSpan)
         o.put("dataType", c.dataType.name)
         o.put("formatPattern", c.formatPattern)
+        o.put("quickEditable", c.quickEditable)
         c.counterScopeMode?.let { o.put("counterScopeMode", it.name) }
 
         // COUNTER seed 저장

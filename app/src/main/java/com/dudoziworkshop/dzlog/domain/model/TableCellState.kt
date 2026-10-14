@@ -41,6 +41,9 @@ data class TableCellState(
     /** DATE/TIME 셀의 카운터 스코프 포함 방식. 다른 타입에서는 null 유지. */
     val counterScopeMode: CounterScopeMode? = null,
 
+    /** Static starter-template headings are visible but never offered as quick-edit fields. */
+    val quickEditable: Boolean = true,
+
 ) {
     /**
      * UI(TextField)에 넣을 "편집용 문자열".

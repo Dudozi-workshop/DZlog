@@ -74,6 +74,7 @@ import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderCatalog
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderStorage
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryPhotoMover
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
@@ -101,6 +102,8 @@ fun LogFolderScreen(
     onOpenFolder: (String) -> Unit,
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
     onOpenOriginal: (String) -> Unit,
+    showDefaultPhotos: Boolean = false,
+    onShowDefaultPhotosChange: (Boolean) -> Unit = {},
     capturePathDrafts: List<List<TableEditorSlotDraft?>> = emptyList(),
 ) {
     val context = LocalContext.current
@@ -442,8 +445,13 @@ fun LogFolderScreen(
     }
     val root = relativePath == GalleryFolderIndexPolicy.ROOT
     val recentPhotos = remember(allPhotos) { GalleryPhotoSort.NEWEST.sorted(allPhotos) }
+    val defaultPhotos = remember(allPhotos) {
+        allPhotos.filter { GalleryDefaultStoragePolicy.isDirectRootPhoto(it.relativePath) }
+    }
+    val sortedDefaultPhotos = remember(defaultPhotos, photoSort) { photoSort.sorted(defaultPhotos) }
     val selectablePhotos = when {
         !root -> visiblePhotos
+        showDefaultPhotos -> defaultPhotos
         showRecentPhotos -> recentPhotos
         selectedTab == GalleryTab.ALL -> recentPhotos.take(9)
         selectedTab == GalleryTab.FOLDERS -> photos
@@ -456,11 +464,13 @@ fun LogFolderScreen(
     }
     BackHandler(enabled = showPhotoDelete && photoDeleteLoading) { showPhotoDelete = false }
     BackHandler(enabled = showRecentPhotos && !selectionActive && !showPhotoMove) { showRecentPhotos = false }
+    BackHandler(enabled = showDefaultPhotos && !selectionActive && !showPhotoMove) { onShowDefaultPhotosChange(false) }
     BackHandler(enabled = selectionActive && !showPhotoMove) {
         if (!photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null) cancelSelection()
     }
     BackHandler(enabled = operationLocked && !photoDeleteLoading) { /* Preserve the active operation and its callbacks. */ }
-    val title = if (showRecentPhotos) "최근 촬영" else if (displayFolderPath == GalleryFolderIndexPolicy.ROOT) "갤러리"
+    val title = if (showRecentPhotos) "최근 촬영" else if (showDefaultPhotos) "기본 저장"
+        else if (displayFolderPath == GalleryFolderIndexPolicy.ROOT) "갤러리"
         else displayFolderPath.trimEnd('/').substringAfterLast('/')
     val imagesById = remember(allPhotos) { allPhotos.associateBy { it.id.toString() } }
     Column(modifier = Modifier.dzScreen()
@@ -480,7 +490,11 @@ fun LogFolderScreen(
         } else {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 IconButton(enabled = !navigationLocked, onClick = { if (!navigationLocked) {
-                    if (showRecentPhotos) showRecentPhotos = false else onBack()
+                    when {
+                        showRecentPhotos -> showRecentPhotos = false
+                        showDefaultPhotos -> onShowDefaultPhotosChange(false)
+                        else -> onBack()
+                    }
                 } }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
                 }
@@ -566,6 +580,40 @@ fun LogFolderScreen(
                         }
                     }
                 }
+            } else if (root && showDefaultPhotos) {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
+                    contentPadding = PaddingValues(bottom = DDZSpacing.sectionGap)) {
+                    item {
+                        Row(Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("기본 저장 사진 ${defaultPhotos.size}장", style = DDZTypography.CompactSectionTitle)
+                            Box {
+                                TextButton(onClick = { showPhotoSort = true }, enabled = !navigationLocked && !selectionActive) {
+                                    Text(photoSort.label)
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = "사진 정렬")
+                                }
+                                DropdownMenu(expanded = showPhotoSort, onDismissRequest = { showPhotoSort = false }) {
+                                    GalleryPhotoSort.entries.forEach { sort ->
+                                        DropdownMenuItem(
+                                            text = { Text(if (photoSort == sort) "✓ ${sort.label}" else sort.label) },
+                                            onClick = { photoSort = sort; showPhotoSort = false },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (defaultPhotos.isEmpty()) {
+                        item { GalleryEmptyText("기본 저장 사진이 없습니다.") }
+                    } else {
+                        items(sortedDefaultPhotos.chunked(3)) { row ->
+                            GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
+                                if (!navigationLocked) onOpenPhoto(sortedDefaultPhotos, sortedDefaultPhotos.indexOfFirst { it.id == photo.id })
+                            }
+                        }
+                    }
+                }
             } else if (root && index != null) {
                 LogGalleryHomeContent(
                     selectedTab = selectedTab,
@@ -577,7 +625,8 @@ fun LogFolderScreen(
                     onOpenFolder = { if (!selectionActive && !navigationLocked) onOpenFolder(it) },
                     onOpenPhoto = { photos, index -> if (!navigationLocked) onOpenPhoto(photos, index) },
                     onOpenOriginal = { if (!selectionActive && !navigationLocked) onOpenOriginal(it) },
-                    onOpenRecentPhotos = { if (!selectionActive && !navigationLocked) showRecentPhotos = true },
+                    onOpenRecentPhotos = { if (!selectionActive && !navigationLocked) { onShowDefaultPhotosChange(false); showRecentPhotos = true } },
+                    onOpenDefaultPhotos = { if (!selectionActive && !navigationLocked) { showRecentPhotos = false; onShowDefaultPhotosChange(true) } },
                     onManageFolder = ::startFolderManagement,
                     canManageFolders = !navigationLocked && !selectionActive && !folderAccessBusy,
                     onCreateFolder = { if (!selectionActive && !navigationLocked) { folderOperationError = null; showCreateDialog = true } },
@@ -665,6 +714,9 @@ fun LogFolderScreen(
             }
         }
         if (photoDeleteLoading) Text("삭제 대상 확인 중…", color = DDZColor.TextSecondary)
+        deleteAction.progressText?.let { progress ->
+            Text(progress, color = DDZColor.TextSecondary, style = DDZTypography.Caption)
+        }
         if (showPhotoDelete && !photoDeleteLoading && deleteSelected.isNotEmpty()) {
             GalleryPhotoDeleteConfirmation(
                 selected = deleteSelected,

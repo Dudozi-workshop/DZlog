@@ -6,6 +6,7 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
@@ -18,17 +19,28 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutPolicy
+import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutConfig
+import com.dudoziworkshop.dzlog.feature.table.policy.TemplateCollectionAction
+import com.dudoziworkshop.dzlog.feature.table.policy.BillingEntitlementRuntime
+import com.dudoziworkshop.dzlog.data.preferences.KEY_FIRST_CAPTURE_SUCCEEDED
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ONBOARDING_SETUP_COMPLETED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ORIENTATION_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
 import com.dudoziworkshop.dzlog.data.preferences.OrientationMode
@@ -41,6 +53,7 @@ import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
 import com.dudoziworkshop.dzlog.data.template.nextNewTemplateName
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureTemplateCommitPolicy
 import com.dudoziworkshop.dzlog.feature.settings.ui.CreditsScreen
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
@@ -48,6 +61,10 @@ import com.dudoziworkshop.dzlog.feature.table.state.TableTemplateCatalogViewMode
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.SaveSessionCoordinator
 import com.dudoziworkshop.dzlog.feature.table.policy.TableTemplateCatalogCoordinator
 import com.dudoziworkshop.dzlog.feature.table.policy.activeSavedTableStyle
+import com.dudoziworkshop.dzlog.feature.table.policy.quickEditableCells
+import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuide
+import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase
+import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureSavedResult
 import com.dudoziworkshop.dzlog.feature.table.policy.replaceActiveSavedTableTemplate
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
@@ -110,23 +127,25 @@ data class OriginalNavContext(
 )
 
 @Composable
-fun AppRoot() {
-    var screen by remember { mutableStateOf(AppScreen.HOME) }
-    var previousScreen by remember { mutableStateOf(AppScreen.HOME) }
-    var templateListEntryScreen by remember { mutableStateOf(AppScreen.HOME) }
-    var albumEntryScreen by remember { mutableStateOf(AppScreen.HOME) }
-    var gridEntrySource by remember { mutableStateOf(GridEntrySource.NORMAL) }
-    var viewerEntrySource by remember { mutableStateOf(ViewerEntrySource.GRID) }
+fun AppRoot(startOnCamera: Boolean = false) {
+    var screen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    var previousScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    var templateListEntryScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    var albumEntryScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    var gridEntrySource by rememberSaveable { mutableStateOf(GridEntrySource.NORMAL) }
+    var viewerEntrySource by rememberSaveable { mutableStateOf(ViewerEntrySource.GRID) }
 
 // 앨범(G1/G2/그리드/뷰어) 상태
     var albumLocation by remember { mutableStateOf<AlbumLocation?>(null) }
     var originalNavContext by remember { mutableStateOf<OriginalNavContext?>(null) }
-    var albumGridEntryScreen by remember { mutableStateOf(AppScreen.ALBUM_FOLDER) }
-    var albumFolderPath by remember { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
+    var albumGridEntryScreen by rememberSaveable { mutableStateOf(AppScreen.ALBUM_FOLDER) }
+    var albumFolderPath by rememberSaveable { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
+    // This virtual gallery entry is a view state; preserve it across Activity recreation.
+    var showRootDefaultPhotos by rememberSaveable { mutableStateOf(false) }
     var gridItems by remember { mutableStateOf<List<com.dudoziworkshop.dzlog.domain.model.MediaImageItem>>(emptyList()) }
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
-    var viewerStartIndex by remember { mutableIntStateOf(0) }
+    var viewerStartIndex by rememberSaveable { mutableIntStateOf(0) }
     val cameraSessionCaptureStack = remember { mutableStateListOf<List<Uri>>() }
 
     // 기존 상태
@@ -145,6 +164,7 @@ fun AppRoot() {
     val appSettings by AppSettingsStore.flow(context).collectAsState(
         initial = AppSettings.Default,
     )
+    val verifiedProTier by BillingEntitlementRuntime.tier.collectAsState()
 
     var lastBackPressedMs by remember { mutableLongStateOf(0L) }
     var hasRestoredTemplate by remember { mutableStateOf(false) }
@@ -154,6 +174,44 @@ fun AppRoot() {
     // An editor-only choice; camera activation is committed by saveV2EditSession.
     var editorReplacementId by remember { mutableStateOf<String?>(null) }
     val appScope = rememberCoroutineScope()
+    var firstCaptureWriteScheduled by remember { mutableStateOf(false) }
+    // ON-04 appears only when the new user explicitly chooses to open the camera.
+    var firstGuidePhase by rememberSaveable(startOnCamera) {
+        mutableStateOf(if (startOnCamera) FirstCaptureGuidePhase.QUICK_EDIT
+            else FirstCaptureGuidePhase.DISMISSED)
+    }
+    var firstGuideDisplayName by rememberSaveable { mutableStateOf<String?>(null) }
+    var firstGuideRelativePath by rememberSaveable { mutableStateOf<String?>(null) }
+    val firstGuideResult = if (firstGuideDisplayName != null && firstGuideRelativePath != null) {
+        FirstCaptureSavedResult(
+            displayName = requireNotNull(firstGuideDisplayName),
+            relativePath = requireNotNull(firstGuideRelativePath),
+        )
+    } else null
+    var showHelpFromGuide by rememberSaveable { mutableStateOf(false) }
+
+    // This only writes on the first committed photo, not on every consecutive capture.
+    // A failed background flag write can be retried after the next successful photo.
+    fun recordFirstOnboardingCapture() {
+        if (firstCaptureWriteScheduled) return
+        firstCaptureWriteScheduled = true
+        appScope.launch {
+            try {
+                context.dataStore.edit { preferences ->
+                    if (preferences[KEY_ONBOARDING_SETUP_COMPLETED] == true &&
+                        preferences[KEY_FIRST_CAPTURE_SUCCEEDED] != true
+                    ) {
+                        preferences[KEY_FIRST_CAPTURE_SUCCEEDED] = true
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                firstCaptureWriteScheduled = false
+                throw cancelled
+            } catch (_: Exception) {
+                firstCaptureWriteScheduled = false
+            }
+        }
+    }
 
     DisposableEffect(screen, view) {
         val window = activity?.window ?: return@DisposableEffect onDispose { }
@@ -200,6 +258,13 @@ fun AppRoot() {
         hasRestoredTemplate = true
     }
 
+    LaunchedEffect(hasRestoredTemplate, startOnCamera) {
+        if (startOnCamera && hasRestoredTemplate) {
+            screen = AppScreen.CAMERA
+            // ON-04 now renders a nonblocking camera guide instead of a one-off Toast.
+        }
+    }
+
     fun persistCurrentCatalog() {
         if (!hasRestoredTemplate) return
         appScope.launch {
@@ -225,6 +290,32 @@ fun AppRoot() {
                 templateState = updated,
             )
             tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated)
+        }
+    }
+
+    /** Persist capture progress before the durable capture receipt is acknowledged. */
+    suspend fun persistCapturedTemplate(
+        expectedTemplateId: String?,
+        updated: TableTemplateState,
+    ): Boolean {
+        if (!hasRestoredTemplate) return false
+        val savedActiveId = tableTemplateViewModel.activeTemplateId ?: return false
+        // A capture receipt may arrive after a quick-template selection changes.
+        // Never advance the newly selected template using the previous shot.
+        if (!CaptureTemplateCommitPolicy.canPersist(expectedTemplateId, savedActiveId)) return false
+        return try {
+            val next = tableCatalogCoordinator.updateActiveTemplate(
+                items = tableTemplateViewModel.templates,
+                activeTemplateId = savedActiveId,
+                templateState = updated,
+            )
+            // Publish only after the catalog write has succeeded.
+            tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated)
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
         }
     }
 
@@ -301,7 +392,25 @@ fun AppRoot() {
         }
     }
 
+    fun canAddSavedTemplate(action: TemplateCollectionAction): Boolean {
+        val decision = MonetizationRolloutPolicy.evaluate(
+            template = tableTemplateState,
+            currentSavedTemplateCount = tableTemplateViewModel.templates.size,
+            action = action,
+            verifiedTier = verifiedProTier,
+            freeSavedTemplateLimit = MonetizationRolloutConfig.freeSavedTemplateLimit,
+            proSavedTemplateLimit = MonetizationRolloutConfig.proSavedTemplateLimit,
+        )
+        if (!decision.canAddSavedTemplates) {
+            Toast.makeText(context,
+                "보관 가능한 양식 개수를 초과했습니다. 다른 양식을 정리하거나 Pro를 확인해 주세요.",
+                Toast.LENGTH_LONG).show()
+        }
+        return decision.canAddSavedTemplates
+    }
+
     fun createNewTemplate() {
+        if (!canAddSavedTemplate(TemplateCollectionAction.CREATE)) return
         appScope.launch {
             val previousActiveId = tableTemplateViewModel.activeTemplateId
             val item = createSavedTableTemplate(
@@ -379,6 +488,7 @@ fun AppRoot() {
     }
 
     fun duplicateTemplate(templateId: String) {
+        if (!canAddSavedTemplate(TemplateCollectionAction.DUPLICATE)) return
         val source = tableTemplateViewModel.templates.firstOrNull { it.id == templateId } ?: return
         val copy = createSavedTableTemplate(
             name = duplicateTemplateName(source.name, tableTemplateViewModel.templates),
@@ -511,6 +621,7 @@ fun AppRoot() {
         albumLocation = null
         clearOriginalContext()
         albumFolderPath = GalleryFolderIndexPolicy.ROOT
+        showRootDefaultPhotos = false
         albumGridEntryScreen = AppScreen.ALBUM_FOLDER
         resetGridUiState()
         albumEntryScreen = screen
@@ -662,6 +773,9 @@ fun AppRoot() {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
+                    onPersistCapturedTemplate = { updated ->
+                        persistCapturedTemplate(captureTemplateId, updated)
+                    },
                     quickTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
@@ -671,11 +785,13 @@ fun AppRoot() {
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
                     sessionCaptureStack = cameraSessionCaptureStack,
+                    verifiedTier = verifiedProTier,
                     onCaptureCommitted = {
                         captureTemplateId?.let { id ->
                             val timestamp = System.currentTimeMillis()
                             tableTemplateViewModel.markUsed(id, timestamp)
                             appScope.launch { tableCatalogCoordinator.markUsed(id, timestamp) }
+                            recordFirstOnboardingCapture()
                         }
                     },
                 )
@@ -707,6 +823,9 @@ fun AppRoot() {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
+                    onPersistCapturedTemplate = { updated ->
+                        persistCapturedTemplate(captureTemplateId, updated)
+                    },
                     quickTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
@@ -716,11 +835,27 @@ fun AppRoot() {
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
                     sessionCaptureStack = cameraSessionCaptureStack,
+                    verifiedTier = verifiedProTier,
                     onCaptureCommitted = {
                         captureTemplateId?.let { id ->
                             val timestamp = System.currentTimeMillis()
                             tableTemplateViewModel.markUsed(id, timestamp)
                             appScope.launch { tableCatalogCoordinator.markUsed(id, timestamp) }
+                            recordFirstOnboardingCapture()
+                        }
+                    },
+                    onFirstQuickEditOpened = {
+                        if (startOnCamera && firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT) {
+                            firstGuidePhase = FirstCaptureGuidePhase.SHUTTER
+                        }
+                    },
+                    onFirstCaptureReceipt = { displayName, path ->
+                        if (startOnCamera && firstGuidePhase != FirstCaptureGuidePhase.DISMISSED &&
+                            firstGuideResult == null
+                        ) {
+                            firstGuideDisplayName = displayName
+                            firstGuideRelativePath = path
+                            firstGuidePhase = FirstCaptureGuidePhase.SAVED
                         }
                     },
                 )
@@ -777,7 +912,11 @@ fun AppRoot() {
             }
 
             AppScreen.SETTINGS -> SettingsScreen(
-                onBack = { screen = AppScreen.HOME },
+                startWithHelp = showHelpFromGuide,
+                onBack = {
+                    showHelpFromGuide = false
+                    screen = AppScreen.HOME
+                },
                 onOpenCredits = { navigateTo(AppScreen.CREDITS) },
                 onImported = { result ->
                     // DataStore is committed before this callback; keep the live VM in sync.
@@ -790,13 +929,18 @@ fun AppRoot() {
             AppScreen.ALBUM_FOLDER -> {
                 LogFolderScreen(
                     relativePath = albumFolderPath,
+                    showDefaultPhotos = showRootDefaultPhotos,
+                    onShowDefaultPhotosChange = { showRootDefaultPhotos = it },
                     capturePathDrafts = (tableTemplateViewModel.templates.map { it.templateState.pathSlotDrafts } + listOf(tableTemplateState.pathSlotDrafts)).distinct(),
                     onBack = {
                         val parent = GalleryFolderIndexPolicy.parentOf(albumFolderPath)
                         if (parent != null) albumFolderPath = parent
                         else screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
                     },
-                    onOpenFolder = { folder -> albumFolderPath = folder },
+                    onOpenFolder = { folder ->
+                        showRootDefaultPhotos = false
+                        albumFolderPath = folder
+                    },
                     onOpenPhoto = { photos, index ->
                         val relativePath = photos.getOrNull(index)?.relativePath ?: albumFolderPath
                         albumLocation = AlbumLocation(
@@ -813,6 +957,7 @@ fun AppRoot() {
                         screen = AppScreen.ALBUM_VIEWER
                     },
                     onOpenOriginal = { originalPath ->
+                        showRootDefaultPhotos = false
                         clearOriginalContext()
                         resetGridUiState()
                         albumFolderPath = originalPath
@@ -905,6 +1050,31 @@ fun AppRoot() {
                 )
             }
             }
+        }
+        if (startOnCamera && screen == AppScreen.CAMERA &&
+            firstGuidePhase != FirstCaptureGuidePhase.DISMISSED
+        ) {
+            FirstCaptureGuide(
+                phase = if (firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT &&
+                    quickEditableCells(tableTemplateState).isEmpty()
+                ) FirstCaptureGuidePhase.SHUTTER else firstGuidePhase,
+                result = firstGuideResult,
+                onSkip = { firstGuidePhase = FirstCaptureGuidePhase.DISMISSED },
+                onContinue = {
+                    firstGuidePhase = if (firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT)
+                        FirstCaptureGuidePhase.SHUTTER else FirstCaptureGuidePhase.DISMISSED
+                },
+                onOpenGallery = {
+                    firstGuidePhase = FirstCaptureGuidePhase.DISMISSED
+                    openAlbumRoot()
+                },
+                onOpenHelp = {
+                    firstGuidePhase = FirstCaptureGuidePhase.DISMISSED
+                    showHelpFromGuide = true
+                    navigateTo(AppScreen.SETTINGS)
+                },
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 80.dp).zIndex(90f),
+            )
         }
     }
 }

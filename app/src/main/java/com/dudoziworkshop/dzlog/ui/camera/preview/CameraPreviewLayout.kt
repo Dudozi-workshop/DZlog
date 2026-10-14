@@ -36,6 +36,7 @@ internal fun calculatePreviewCaptureLayout(
 
 internal data class PreviewBoxLayout(
     val safeAspect: Float,
+    val widthFraction: Float,
     val topOffsetPx: Float,
 )
 
@@ -45,7 +46,14 @@ internal fun calculatePreviewBoxLayout(
     captureAspect: CaptureAspect,
 ): PreviewBoxLayout {
     val safeAspect = captureAspect.ratioF.coerceAtLeast(0.01f)
-    val previewWidthPx = parentWidthPx.coerceAtLeast(0f)
+    val availableWidthPx = parentWidthPx.coerceAtLeast(0f)
+    val availableHeightPx = parentHeightPx.coerceAtLeast(0f)
+    // Landscape and multi-window previews must fit inside BOTH dimensions.
+    // Portrait keeps the original full-width geometry.
+    val previewWidthPx = minOf(availableWidthPx, availableHeightPx * safeAspect)
+    val widthFraction = if (availableWidthPx > 0f) {
+        (previewWidthPx / availableWidthPx).coerceIn(0f, 1f)
+    } else 1f
     val centerY = previewWidthPx * 8f / 9f
     val rawTopCurrentPx = when (captureAspect) {
         CaptureAspect.R9_16 -> 0f
@@ -56,6 +64,7 @@ internal fun calculatePreviewBoxLayout(
     val maxTopPx = (parentHeightPx - heightCurrentPx).coerceAtLeast(0f)
     return PreviewBoxLayout(
         safeAspect = safeAspect,
+        widthFraction = widthFraction,
         topOffsetPx = rawTopCurrentPx.coerceIn(0f, maxTopPx),
     )
 }

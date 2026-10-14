@@ -2,16 +2,22 @@ package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import android.content.Context
 import android.net.Uri
+import android.widget.Toast
 import androidx.camera.core.ImageCapture
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
+import com.dudoziworkshop.dzlog.data.repository.CaptureAsyncCaptureService
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
+import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjection
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReviewPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkConfig
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
+import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutPolicy
+import com.dudoziworkshop.dzlog.feature.table.policy.TemplateCollectionAction
 import com.dudoziworkshop.dzlog.ui.camera.CaptureFeedback
 import com.dudoziworkshop.dzlog.ui.camera.effects.LatestImageController
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraUiState
@@ -21,13 +27,17 @@ internal fun buildCameraTriggerCapture(
     context: Context,
     ui: CameraUiState,
     appSettings: AppSettings,
+    verifiedTier: com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier,
     boundImageCapture: ImageCapture?,
     undoPending: Boolean,
     finalCapturePreview: FinalCapturePreview?,
     scopedCounterStream: CaptureScopedCounterStream,
     tableTemplateState: TableTemplateState,
+    templateId: String? = null,
     fnDelim: String,
     repository: DzlogRepositoryImpl,
+    asyncService: CaptureAsyncCaptureService? = null,
+    pendingProjection: CapturePendingProjection? = null,
     cameraViewModel: CameraViewModel,
     captureFeedback: CaptureFeedback,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
@@ -53,17 +63,26 @@ internal fun buildCameraTriggerCapture(
     ) -> WatermarkConfig,
 ): () -> Unit = trigger@{
     // 오작동 방지: 캡처 불가 상태에서는 입력 피드백/촬영 로직을 모두 실행하지 않는다.
-    if (undoPending || boundImageCapture == null || ui.capture.capturedUri != null || ui.capture.isCapturing || ui.capture.captureGate.get()) return@trigger
+    if (undoPending || boundImageCapture == null || ui.capture.capturedUri != null || ui.capture.isCapturing || ui.capture.captureGate.get() || ui.capture.pendingSaveError || ui.capture.isRecoveringPendingCaptures || ui.capture.pendingSaveCount >= 3 || ui.capture.pendingPreviewCaptureId != null) return@trigger
+    // All-unlocked rollout always permits 5+5 slots. During a later paid release
+    // a verified entitlement (not a local toggle) must be supplied by the billing owner.
+    val access = MonetizationRolloutPolicy.evaluate(
+        template = tableTemplateState,
+        currentSavedTemplateCount = 0,
+        action = TemplateCollectionAction.VIEW,
+        verifiedTier = verifiedTier,
+    )
+    if (!access.canCaptureWithTemplate) {
+        Toast.makeText(context,
+            "저장 규칙이 현재 이용 한도를 초과합니다. 저장 설정을 확인해 주세요.",
+            Toast.LENGTH_LONG).show()
+        return@trigger
+    }
     // counter 미동기화(null) 상태에서는 최종 preview가 없으므로 캡처를 시작하지 않는다.
     val capturePreview = finalCapturePreview ?: return@trigger
     // 촬영 직전 한 번 더 반영해 capture 시점 flash mode 불일치를 방지한다. (TORCH 상시점등 사용 금지)
     boundImageCapture.flashMode = ui.prefs.flashMode.toImageCaptureFlashMode()
 
-    // 정책 변경: 촬영 피드백은 저장 완료가 아니라 촬영 트리거(버튼/음량키) 시점에 즉시 제공한다.
-    captureFeedback.play(
-        successVibrationEnabled = appSettings.hapticEnabled && appSettings.captureHapticEnabled,
-        soundEnabled = appSettings.captureSoundEnabled
-    )
 
     // 구조 정리: capture 후처리 콜백을 하나의 묶음으로 전달해 호출부 가독성을 유지한다.
     val callbacks = CaptureClickCallbacks(
@@ -86,6 +105,29 @@ internal fun buildCameraTriggerCapture(
             ui.counter.scopeNextCounter = null
             cameraViewModel.bumpResumeResyncTick()
         },
+        // CameraX signals the real capture start. Keep sound and haptic on
+        // the SAME callback; JPEG completion is not the exposure moment.
+        onCaptureStarted = {
+            captureFeedback.play(
+                successVibrationEnabled = appSettings.hapticEnabled && appSettings.captureHapticEnabled,
+                soundEnabled = appSettings.captureSoundEnabled,
+            )
+        },
+        onImageCaptured = { },
+        onAsyncReservationCreated = { id, mode ->
+            if (CaptureReviewPolicy.expectsSavedPreview(mode)) {
+                ui.capture.pendingPreviewCaptureId = id
+            }
+        },
+        onPendingStateChange = { count, nextCounter ->
+            ui.capture.pendingSaveCount = count
+            ui.capture.pendingProjectionVersion++
+            ui.counter.scopeNextCounter = nextCounter
+        },
+        onAsyncFailure = { message ->
+            ui.capture.pendingSaveError = true
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        },
     )
 
     handleCaptureClick(
@@ -97,6 +139,7 @@ internal fun buildCameraTriggerCapture(
         finalCapturePreview = capturePreview,
         scopedCounterStream = scopedCounterStream,
         tableTemplateState = tableTemplateState,
+        templateId = templateId,
         counterDigits = ui.prefs.counterDigits,
         fnDelim = fnDelim,
         captureAspect = ui.prefs.captureAspect,
@@ -120,6 +163,8 @@ internal fun buildCameraTriggerCapture(
         usableTopRatio = ui.capture.usableTopRatio,
         usableBottomRatio = ui.capture.usableBottomRatio,
         repository = repository,
+        asyncService = asyncService,
+        pendingProjection = pendingProjection,
         buildWatermarkConfig = buildWatermarkConfig,
         onApplyTemplatePatch = { onTemplateChange(it) },
         // 정책 변경: 촬영 성공 직후에는 optimistic UI를 우선하고 즉시 강한 readback resync는 생략한다.

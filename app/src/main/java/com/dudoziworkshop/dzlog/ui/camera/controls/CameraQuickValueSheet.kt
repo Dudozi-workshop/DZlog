@@ -1,8 +1,12 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import android.os.Build
+import android.graphics.Rect
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -27,6 +31,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
@@ -106,6 +111,7 @@ internal fun CameraQuickValueSheet(
     val lifecycleOwner = LocalLifecycleOwner.current
     val resolver = remember { TableResolver() }
     val context = LocalContext.current
+    val cameraHostView = LocalView.current
     val facade = remember(context, counterDigits) { CounterFacade(context, counterDigits) }
     var localCounterSeed by remember { mutableStateOf(counterSeed) }
     var localCounterRequest by remember { mutableStateOf(counterRequest) }
@@ -159,9 +165,57 @@ internal fun CameraQuickValueSheet(
         val keyboard = LocalSoftwareKeyboardController.current
         val context = LocalContext.current
         val view = LocalView.current
+        val density = LocalDensity.current
+        var hostHeight by remember(cameraHostView) {
+            mutableIntStateOf(cameraHostView.rootView.height.coerceAtLeast(1))
+        }
+        var safeTop by remember { mutableIntStateOf(0) }
+        var safeBottom by remember { mutableIntStateOf(0) }
+        // Bound the content to the real host window. Dialog measurement and
+        // Dialog-local Compose insets are not the viewport authority on API 36.
+        DisposableEffect(view, cameraHostView) {
+            fun updateViewport() {
+                val root = cameraHostView.rootView
+                val height = root.height.coerceAtLeast(1)
+                val location = IntArray(2)
+                root.getLocationOnScreen(location)
+                val dialogLocation = IntArray(2)
+                view.getLocationOnScreen(dialogLocation)
+                val frame = Rect()
+                view.getWindowVisibleDisplayFrame(frame)
+                val hostInsets = ViewCompat.getRootWindowInsets(root)
+                val dialogInsets = ViewCompat.getRootWindowInsets(view)
+                val bars = hostInsets?.getInsets(WindowInsetsCompat.Type.systemBars())
+                val ime = maxOf(
+                    hostInsets?.getInsets(WindowInsetsCompat.Type.ime())?.bottom ?: 0,
+                    dialogInsets?.getInsets(WindowInsetsCompat.Type.ime())?.bottom ?: 0,
+                )
+                val obscuredBottom = if (frame.height() > 0)
+                    (location[1] + height - frame.bottom).coerceIn(0, height) else 0
+                // The floating Dialog may begin below the host's top edge. Its
+                // local origin must be subtracted before bounding its content.
+                val dialogOffset = (dialogLocation[1] - location[1]).coerceAtLeast(0)
+                hostHeight = (height - dialogOffset).coerceAtLeast(1)
+                safeTop = (location[1] + (bars?.top ?: frame.top - location[1])
+                    - dialogLocation[1]).coerceAtLeast(0)
+                safeBottom = maxOf(bars?.bottom ?: 0, ime, obscuredBottom)
+            }
+            val listener = android.view.ViewTreeObserver.OnGlobalLayoutListener { updateViewport() }
+            val dialogObserver = view.viewTreeObserver
+            val hostObserver = cameraHostView.viewTreeObserver
+            dialogObserver.addOnGlobalLayoutListener(listener)
+            hostObserver.addOnGlobalLayoutListener(listener)
+            updateViewport()
+            onDispose {
+                if (dialogObserver.isAlive) dialogObserver.removeOnGlobalLayoutListener(listener)
+                if (hostObserver.isAlive) hostObserver.removeOnGlobalLayoutListener(listener)
+            }
+        }
         DisposableEffect(view) {
             val window = (view.parent as? DialogWindowProvider)?.window
             if (window != null) {
+                // A Compose Dialog has its own window; the Activity resize mode does not apply.
+                window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
                 window.navigationBarColor = android.graphics.Color.TRANSPARENT
                 window.statusBarColor = android.graphics.Color.TRANSPARENT
                 WindowInsetsControllerCompat(window, view).apply {
@@ -177,19 +231,26 @@ internal fun CameraQuickValueSheet(
         }
         fun inputDone() { focus.clearFocus(); keyboard?.hide() }
         fun dismiss() { inputDone(); commit(); onDismiss() }
-        BoxWithConstraints(Modifier.fillMaxSize().background(DDZColor.PrimaryDark.copy(alpha = 0.72f))
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)).imePadding()) {
+        BoxWithConstraints(Modifier.heightIn(max = with(density) { hostHeight.toDp() })
+            .fillMaxSize().background(DDZColor.PrimaryDark.copy(alpha = 0.72f))
+            .padding(top = with(density) { safeTop.toDp() },
+                bottom = with(density) { safeBottom.toDp() })
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
             // Reserve a table viewport even with the keyboard and manual input expansion.
             val fixedChrome = DDZLayout.QuickInput.Touch * 2 + DDZLayout.Control.Compact * 2 +
                 DDZSpacing.screenPadding * 2 + DDZSpacing.itemGap * 5 + DDZLayout.QuickInput.CellMarker * 2
             val inputBudget = (maxHeight - fixedChrome - DDZLayout.QuickInput.MinPreviewHeight)
                 .coerceAtLeast(DDZLayout.QuickInput.Touch)
             val expandedHeight = minOf(DDZLayout.QuickInput.ExpandedHeight, inputBudget)
-            Column(Modifier.fillMaxSize()) {
+            // Keep the naming preview, table preview and editor in one IME-safe viewport.
+            // The table owns the flexible space, so the keyboard shrinks only the table
+            // instead of scrolling the previews off-screen or covering the editor.
+            Column(Modifier.fillMaxWidth().height(maxHeight)) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = DDZSpacing.screenPadding), verticalAlignment = Alignment.CenterVertically) {
                     Text("빠른 수정", style = DDZTypography.SettingLabel, color = DDZColor.Surface, modifier = Modifier.weight(1f))
                     TextButton(enabled = !switching, onClick = ::dismiss) { Text("완료", color = DDZColor.Surface) }
                 }
+                // Naming and table previews remain available in every keyboard state.
                 CameraQuickNamingPreview(previewTemplate, resolvedCells, selectedId, counterDigits, previewCounter, now, saveMode,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = DDZSpacing.screenPadding))
                 CameraQuickTablePreview(previewTemplate, templateName, resolvedCells, style, captureAspect, tableWidthRatio, tableHeightRatio,
@@ -214,10 +275,12 @@ internal fun CameraQuickValueSheet(
                             } finally { switching = false }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(DDZSpacing.screenPadding))
+                    modifier = Modifier.fillMaxWidth().weight(1f)
+                        .padding(DDZSpacing.screenPadding))
                 Surface(Modifier.fillMaxWidth(), color = DDZColor.Surface,
                     shape = RoundedCornerShape(topStart = DDZLayout.Radius.Medium, topEnd = DDZLayout.Radius.Medium)) {
-                    Column(Modifier.navigationBarsPadding().padding(horizontal = DDZSpacing.controlGap, vertical = DDZSpacing.itemGap)) {
+                    Column(Modifier
+                        .padding(horizontal = DDZSpacing.controlGap, vertical = DDZSpacing.itemGap)) {
                         val selected = cells.firstOrNull { it.cellId == selectedId }
                         if (selected == null) {
                             Text("변경할 텍스트·숫자 셀이 없습니다.", style = DDZTypography.Body, color = DDZColor.TextMuted)

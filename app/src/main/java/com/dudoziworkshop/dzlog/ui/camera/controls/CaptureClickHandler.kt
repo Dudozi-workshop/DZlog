@@ -5,7 +5,11 @@ import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.camera.core.ImageCapture
+import com.dudoziworkshop.dzlog.data.repository.CaptureAsyncCaptureService
+import com.dudoziworkshop.dzlog.data.repository.CaptureJobSnapshot
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
+import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjection
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReservationScope
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureCounterPolicy
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
@@ -33,6 +37,11 @@ data class CaptureClickCallbacks(
     val onSetCapturedUri: (Uri?) -> Unit,
     val onSetCapturing: (Boolean) -> Unit,
     val onProgressPersistenceFailed: () -> Unit = {},
+    val onCaptureStarted: () -> Unit = {},
+    val onImageCaptured: () -> Unit = {},
+    val onAsyncReservationCreated: (String, ContinuousPreviewMode) -> Unit = { _, _ -> },
+    val onPendingStateChange: (Int, Int) -> Unit = { _, _ -> },
+    val onAsyncFailure: (String) -> Unit = {},
 )
 
 /**
@@ -49,6 +58,7 @@ internal fun handleCaptureClick(
     finalCapturePreview: FinalCapturePreview,
     scopedCounterStream: CaptureScopedCounterStream,
     tableTemplateState: TableTemplateState,
+    templateId: String? = null,
     counterDigits: Int,
     fnDelim: String,
     captureAspect: CaptureAspect,
@@ -72,6 +82,8 @@ internal fun handleCaptureClick(
     usableTopRatio: Float,
     usableBottomRatio: Float,
     repository: DzlogRepositoryImpl,
+    asyncService: CaptureAsyncCaptureService? = null,
+    pendingProjection: CapturePendingProjection? = null,
     buildWatermarkConfig: (
         anchor: WatermarkTableAnchor,
         offsetXRatio: Int,
@@ -135,10 +147,87 @@ internal fun handleCaptureClick(
         )
     )
 
+    // All preview modes share durable staging and the same serial save queue.
+    // SHORT/HOLD only change the post-save review UI; not the save engine.
+    if (asyncService != null && pendingProjection != null) {
+        try {
+            check(!templateId.isNullOrBlank()) {
+                "활성 템플릿이 준비되지 않았습니다. 템플릿을 다시 선택해주세요."
+            }
+            // Capture the exact stream and resolved table snapshot on the shutter press.
+            val streamKey = scopedCounterStream.captureStreamKey
+            val reservationScope = CaptureReservationScope(
+                relativePathKey = streamKey.relativePathKey,
+                streamPrefix = streamKey.prefix,
+            )
+            val reserved = asyncService.reserve(
+                scope = reservationScope,
+                expectedNextCounter = finalCapturePreview.usedCounter,
+                snapshotForCounter = { allocated ->
+                    check(allocated == finalCapturePreview.usedCounter) {
+                        "촬영 번호 동기화가 필요합니다. 카메라를 다시 열어주세요."
+                    }
+                    CaptureJobSnapshot(
+                        request = req,
+                        tablePatch = finalCapturePreview.tablePatch,
+                        counterStream = streamKey,
+                        templateId = templateId,
+                    )
+                },
+            )
+            pendingProjection.add(
+                CapturePendingProjection.Shot(
+                    id = reserved.reservation.id,
+                    scope = reservationScope,
+                    counter = reserved.reservation.counter,
+                    templatePatch = finalCapturePreview.tablePatch,
+                )
+            )
+            callbacks.onAsyncReservationCreated(
+                reserved.reservation.id, continuousPreviewMode,
+            )
+            callbacks.onPendingStateChange(
+                pendingProjection.pendingCount(),
+                reserved.reservation.counter + 1,
+            )
+            asyncService.captureReserved(
+                imageCapture = imageCaptureNonNull,
+                reservation = reserved,
+                callbacks = CaptureAsyncCaptureService.CaptureCallbacks(
+                    onCaptureStarted = callbacks.onCaptureStarted,
+                    onImageCaptured = callbacks.onImageCaptured,
+                    onQueued = {
+                        gate.set(false)
+                        callbacks.onSetCapturing(false)
+                    },
+                    onQueuedLater = {
+                        callbacks.onAsyncFailure("저장 대기열이 가득 찼습니다. 원본 사진은 보관되어 있습니다.")
+                        gate.set(false)
+                        callbacks.onSetCapturing(false)
+                    },
+                    onFailure = { error ->
+                        Log.e("DZlogCapture", "Capture staging failed", error)
+                        callbacks.onAsyncFailure("촬영 원본을 안전하게 저장하지 못했습니다. 촬영 상태를 확인해주세요.")
+                        gate.set(false)
+                        callbacks.onSetCapturing(false)
+                    },
+                ),
+            )
+        } catch (error: Exception) {
+            Log.e("DZlogCapture", "Capture reservation failed", error)
+            callbacks.onAsyncFailure(error.message ?: "촬영 예약 실패")
+            gate.set(false)
+            callbacks.onSetCapturing(false)
+        }
+        return
+    }
+
     repository.captureAndSave(
         context = context,
         imageCapture = imageCaptureNonNull,
         request = req,
+        onCaptureStarted = callbacks.onCaptureStarted,
+        onImageCaptured = callbacks.onImageCaptured,
         onDone = { entry ->
             val committedCounter = CaptureNamingPolicy.parseUsedCounterFromDisplayName(
                 displayName = entry.displayName,

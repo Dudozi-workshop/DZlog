@@ -1,0 +1,58 @@
+name: DZlog Onboarding QA
+on:
+  push:
+    branches:
+      - feat/onboarding-starter-catalog-20261013
+      - feat/android16-api36-readiness-20261013
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzlog-onboarding-qa
+  cancel-in-progress: true
+
+jobs:
+  android-debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Android SDK platform
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Enforce Android 16 release target on migration branch
+        if: github.ref_name == 'feat/android16-api36-readiness-20261013'
+        run: |
+          grep -q 'compileSdk = 36' app/build.gradle.kts
+          grep -q 'targetSdk = 36' app/build.gradle.kts
+      - name: Test dormant purchase verification backend
+        run: node --test billing-server/test/*.test.mjs
+      - name: Run unit tests and build debug APK
+        run: bash ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-unit-test-reports
+          path: |
+            app/build/test-results/testDebugUnitTest/
+            app/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: ignore
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-onboarding-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

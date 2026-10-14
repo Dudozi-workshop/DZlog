@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -314,20 +315,30 @@ internal fun CameraPreviewArea(
             plan.resolvedCells.any { it.type == TableCellDataType.COUNTER }
         }
 
-        // 미동기화(null) 상태에서는 COUNTER 값을 임의 숫자로 확정하지 않고 표시를 보류한다.
-        val resolvedCellsForPreview = remember(plan, args.scopeNextCounter) {
-            if (args.scopeNextCounter != null) {
-                plan.resolvedCells
+        // Phrase switching can temporarily invalidate the counter stream.
+        // Display the last COMPLETE preview instead of showing the next phrase
+        // with its counter missing. The shutter is independently gated until
+        // the new stream has a real synchronized counter.
+        var lastCompletePreview by remember(
+            args.tableTemplateState.rows,
+            args.tableTemplateState.cols,
+            args.tableTemplateState.cells.map { it.cellId },
+        ) {
+            mutableStateOf<Pair<Int, List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>>?>(null)
+        }
+        val completePreview = args.scopeNextCounter?.let { it to plan.resolvedCells }
+        SideEffect {
+            if (completePreview != null) lastCompletePreview = completePreview
+        }
+        val displayedPreview = completePreview ?: lastCompletePreview
+        val resolvedCellsForPreview = displayedPreview?.second ?: plan.resolvedCells.map { cell ->
+            if (cell.type == TableCellDataType.COUNTER) {
+                cell.copy(resolvedText = "", isEmpty = true)
             } else {
-                plan.resolvedCells.map { cell ->
-                    if (cell.type == TableCellDataType.COUNTER) {
-                        cell.copy(resolvedText = "", isEmpty = true)
-                    } else {
-                        cell
-                    }
-                }
+                cell
             }
         }
+        val displayedCounter = displayedPreview?.first
 
         val previewRequest = CaptureRequest(
             relativePath = buildSavePath(
@@ -344,7 +355,7 @@ internal fun CameraPreviewArea(
                 fileNameSlotDrafts = args.tableTemplateState.fileNameSlotDrafts,
                 fnDelim = args.fnDelim,
                 counterDigits = args.counterDigits,
-                usedCounter = args.scopeNextCounter,
+                usedCounter = displayedCounter,
                 now = args.now,
                 dateFormat = args.dateFormat,
                 timeFormat = args.timeFormat,
@@ -376,7 +387,7 @@ internal fun CameraPreviewArea(
             )
         )
 
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             val density = LocalDensity.current
             val widthPx = with(density) { this@BoxWithConstraints.maxWidth.toPx() }
             val parentHeightPx = with(density) { this@BoxWithConstraints.maxHeight.toPx() }
@@ -388,7 +399,7 @@ internal fun CameraPreviewArea(
 
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth(previewBoxLayout.widthFraction)
                     .aspectRatio(previewBoxLayout.safeAspect)
                     .offset { IntOffset(0, previewBoxLayout.topOffsetPx.roundToInt()) }
                     .onSizeChanged { size ->

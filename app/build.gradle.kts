@@ -12,12 +12,20 @@ plugins {
 
 extensions.configure<ApplicationExtension> {
     namespace = "com.dudoziworkshop.dzlog"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
+        // Filled only for a tested paid release. Empty defaults are fail-closed.
+        val billingUrl = providers.gradleProperty("dzlogBillingVerifierUrl").orNull.orEmpty()
+        val signingPubkeyB64 = providers.gradleProperty("dzlogBillingPublicKeyB64").orNull.orEmpty()
+        require(billingUrl.isEmpty() || billingUrl.startsWith("https://"))
+        require(billingUrl.matches(Regex("[A-Za-z0-9:/.?&=_-]*")))
+        require(signingPubkeyB64.matches(Regex("[A-Za-z0-9+/_=-]*")))
+        buildConfigField("String", "DZLOG_BILLING_URL", "\"$billingUrl\"")
+        buildConfigField("String", "DZLOG_BILLING_PUBLIC_KEY_B64", "\"$signingPubkeyB64\"")
         applicationId = "com.dudoziworkshop.dzlog"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 2
         versionName = "0.0.0"
         manifestPlaceholders["dzlogAppLabel"] = "@string/app_name"
@@ -35,7 +43,16 @@ extensions.configure<ApplicationExtension> {
 
     buildTypes {
         getByName("debug") {
-            if (providers.gradleProperty("dzlogGalleryStandalone").orNull == "true") {
+            val galleryStandalone = providers.gradleProperty("dzlogGalleryStandalone").orNull == "true"
+            val isolatedQa = providers.gradleProperty("dzlogStandaloneQa").orNull == "true"
+            require(!(galleryStandalone && isolatedQa)) {
+                "Standalone QA and gallery-only package flags cannot both be enabled."
+            }
+            if (isolatedQa) {
+                // Installs beside the Play release; never overwrite user-installed DZlog.
+                applicationIdSuffix = ".qa"
+                manifestPlaceholders["dzlogAppLabel"] = "DZlog QA"
+            } else if (galleryStandalone) {
                 applicationIdSuffix = ".gallerydev"
                 manifestPlaceholders["dzlogAppLabel"] = "DZlog Gallery"
             }
@@ -56,6 +73,7 @@ extensions.configure<ApplicationExtension> {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -130,7 +148,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     implementation(libs.coil.compose)
-    implementation(libs.google.billing.ktx)
+    implementation(libs.google.billing)
     implementation(libs.google.play.services.ads)
 
     testImplementation(libs.junit)

@@ -78,7 +78,7 @@ internal fun GallerySelectedPhotoDeleteDialog(
             title = { Text(if (busy) "사진 삭제" else "미완료 파일 삭제 확인") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (busy) Text(if (loading) "삭제 대상 확인 중…" else "Android 확인 및 삭제 결과 확인 중…")
+                    if (busy) Text(if (loading) "삭제 대상 확인 중…" else action.progressText ?: "Android 확인 및 삭제 결과 확인 중…")
                     pending?.let {
                         Text("결과사진 ${it.resultCount}장 · 원본사진 ${it.originalCount}장")
                         Text("총 재시도 파일 ${it.items.size}개")

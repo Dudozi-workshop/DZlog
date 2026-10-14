@@ -10,6 +10,8 @@ interface DzlogRepository {
         context: Context,
         imageCapture: ImageCapture,
         request: CaptureRequest,
+        onCaptureStarted: () -> Unit = {},
+        onImageCaptured: () -> Unit = {},
         onDone: (LogEntry) -> Unit,
         onFail: (String) -> Unit
     )

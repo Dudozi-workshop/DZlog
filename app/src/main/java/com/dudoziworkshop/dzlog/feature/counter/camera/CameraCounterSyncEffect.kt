@@ -17,6 +17,8 @@ import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterRequestResolver
+import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjection
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReservationScope
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraUiState
 
 @Composable
@@ -30,6 +32,7 @@ internal fun CameraCounterSyncEffect(
     appSettings: AppSettings,
     ui: CameraUiState,
     counterFacade: CounterFacade,
+    pendingProjection: CapturePendingProjection,
 ) {
     val context = LocalContext.current
     // 이전 사이클 메모리는 단일 객체로 유지하여 read/write 의도를 명확히 한다.
@@ -69,9 +72,14 @@ internal fun CameraCounterSyncEffect(
         resumeTick,
         counterEventTick,
         appSettings.saveMode,
-        ui.capture.isCapturing,
     ) {
-        if (!isTemplateReady || ui.capture.isCapturing) return@LaunchedEffect
+        if (!shouldReadCameraCounter(
+                isTemplateReady = isTemplateReady,
+                isCapturing = ui.capture.isCapturing,
+                pendingSaveCount = ui.capture.pendingSaveCount,
+                isCurrentRequestSynced = ui.counter.syncedRequest == counterRequest,
+            )
+        ) return@LaunchedEffect
 
         val isResumeEvent = resumeTick > syncMemory.lastHandledResumeTick
         val hasCounterEvent = counterEventTick > syncMemory.lastHandledCounterEventTick
@@ -91,20 +99,29 @@ internal fun CameraCounterSyncEffect(
             previousRequestKey = syncMemory.previousRequestKey,
             currentRequestKey = requestKey,
         )
-        ui.counter.syncedRequest = null
+        // Keep the previous valid display until a new stream read succeeds.
+        // Preview validity is already guarded by syncedRequest == counterRequest.
         val readResult = readCameraCounterSafely { counterFacade.read(counterRequest) }
         currentCoroutineContext().ensureActive()
         val read = readResult.getOrElse { error ->
+            ui.counter.syncedRequest = null
             ui.counter.scopeNextCounter = null
             Log.e("CounterReadback", "Camera counter read failed", error)
             Toast.makeText(context, "저장 이력을 확인하지 못했습니다. 카메라 화면을 다시 열어주세요.", Toast.LENGTH_LONG).show()
             return@LaunchedEffect
         }
+        // Pending shots may belong to the same stream when phrases cycle back.
+        // MediaStore alone cannot see those still in the async save queue.
+        val key = read.scopedStream.captureStreamKey
+        val pendingSafeNext = pendingProjection.nextCounter(
+            CaptureReservationScope(key.relativePathKey, key.prefix),
+            read.next,
+        )
         val currentDisplayedNext = (ui.counter.scopeNextCounter ?: 1).coerceAtLeast(1)
         ui.counter.scopeNextCounter = applyCameraSyncedNext(
             reason = reason,
             currentDisplayedNext = currentDisplayedNext,
-            read = read,
+            read = read.copy(next = pendingSafeNext),
             previousRequestKey = syncMemory.previousRequestKey,
             currentRequestKey = requestKey,
         )

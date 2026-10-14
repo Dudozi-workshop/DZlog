@@ -1,5 +1,10 @@
 package com.dudoziworkshop.dzlog.feature.settings.ui
 
+import android.app.Activity
+import com.dudoziworkshop.dzlog.feature.table.policy.BillingEntitlementRuntime
+import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutConfig
+import com.dudoziworkshop.dzlog.feature.table.policy.PlayPurchaseEvent
+import com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -27,6 +32,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -80,6 +86,7 @@ private data class QualityUiItem(
 fun SettingsRootScreen(
     onBack: () -> Unit,
     onOpenCredits: () -> Unit = {},
+    onOpenGuide: () -> Unit = {},
     onOpenExport: () -> Unit = {},
     onOpenImport: () -> Unit = {},
 ) {
@@ -94,6 +101,9 @@ fun SettingsRootScreen(
     var isQualityExpanded by remember { mutableStateOf(false) }
     var isQualitySaving by remember { mutableStateOf(false) }
     val version = remember(context) { buildAppVersionLabel(context) }
+    val proTier by BillingEntitlementRuntime.tier.collectAsState()
+    val purchaseEvent by BillingEntitlementRuntime.event.collectAsState()
+
 
     fun selectQuality(item: QualityUiItem) {
         if (isQualitySaving) return
@@ -250,8 +260,53 @@ fun SettingsRootScreen(
                     }
                 }
 
+                if (MonetizationRolloutConfig.purchasesEnabled) {
+                    SettingsSection(title = "DZlog Pro") {
+                        SettingsGroup {
+                            SettingsActionRow(
+                                icon = Icons.Default.CheckCircle,
+                                title = if (proTier == SaveRuleTier.VERIFIED_PRO)
+                                    "Pro 이용 중" else "Pro 구매",
+                                subtitle = if (proTier == SaveRuleTier.VERIFIED_PRO)
+                                    "파일명·저장경로 최대 5개 사용 가능"
+                                else (purchaseEvent as? PlayPurchaseEvent.ProductReady)
+                                    ?.displayedPrice?.let { "$it · 한 번 구매" }
+                                    ?: "Google Play에서 구매가격 확인",
+                                onClick = {
+                                    if (proTier != SaveRuleTier.VERIFIED_PRO &&
+                                        !BillingEntitlementRuntime.startPurchase(context as Activity)) {
+                                        Toast.makeText(context,
+                                            "Pro 상품 연결을 확인해 주세요.", Toast.LENGTH_LONG).show()
+                                    }
+                                },
+                                trailing = {
+                                    Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted)
+                                },
+                            )
+                            SettingsDivider()
+                            SettingsActionRow(
+                                icon = Icons.Default.FileDownload,
+                                title = "구매 복원",
+                                subtitle = "기존 Google Play 구매 내역 다시 확인",
+                                onClick = { BillingEntitlementRuntime.restorePurchases() },
+                                trailing = {
+                                    Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted)
+                                },
+                            )
+                        }
+                    }
+                }
+
                 SettingsSection(title = "정보 및 지원") {
                     SettingsGroup {
+                        SettingsActionRow(
+                            icon = Icons.Default.HelpOutline,
+                            title = "사용법 및 도움말",
+                            subtitle = "처음 사용법 · 기능별 튜토리얼",
+                            onClick = onOpenGuide,
+                            trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
+                        )
+                        SettingsDivider()
                         SettingsActionRow(
                             icon = Icons.Default.FavoriteBorder,
                             title = "도움 주신 분들",

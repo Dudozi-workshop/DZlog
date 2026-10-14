@@ -5,12 +5,26 @@ import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
+import com.dudoziworkshop.dzlog.feature.table.policy.BillingEntitlementRuntime
+import androidx.lifecycle.lifecycleScope
 import com.dudoziworkshop.dzlog.ui.camera.VolumeKeyInputBus
+import com.dudoziworkshop.dzlog.ui.onboarding.OnboardingStartupGate
 import com.dudoziworkshop.dzlog.ui.navigation.RequiredPermissionsGate
-import com.dudoziworkshop.dzlog.ui.navigation.AppRoot
 import com.dudoziworkshop.dzlog.ui.theme.DDZTheme
 
 class MainActivity : ComponentActivity() {
+
+    override fun onResume() {
+        super.onResume()
+        // A cached signed proof is used immediately; Play re-verification happens
+        // when the prepared paid runtime is active.
+        lifecycleScope.launchWhenResumed { BillingEntitlementRuntime.refresh() }
+    }
+
+    override fun onDestroy() {
+        BillingEntitlementRuntime.stop()
+        super.onDestroy()
+    }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (VolumeKeyInputBus.handleKeyEvent(event)) return true
@@ -19,10 +33,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        BillingEntitlementRuntime.start(applicationContext, lifecycleScope)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             DDZTheme {
-                RequiredPermissionsGate { AppRoot() }
+                RequiredPermissionsGate {
+                    OnboardingStartupGate()
+                }
             }
         }
     }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -105,7 +106,7 @@ internal fun CameraBottomControls(
     val compactTool = if (ui.isPinchZoomActive) null else selectedTool
     val showDismissLayer = showToolMenu || isToolPanelExpanded || ui.isZoomChipExpanded
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         if (showDismissLayer) {
             Box(
                 modifier = Modifier
@@ -313,6 +314,27 @@ internal fun CameraBottomControls(
                 },
             )
         }
+        }
+
+        // C-2c: anchor above the first (18%-width) thumbnail slot.
+        // Calculate against the real screen width and measured bottom row height;
+        // do not alter the row's buttons or the center zoom/tool overlays.
+        if (ui.capture.pendingSaveCount > 0 || ui.capture.pendingSaveError) {
+            val thumbnailCenter = BottomControlsHorizontalPadding +
+                (maxWidth - BottomControlsHorizontalPadding * 2f) * 0.09f
+            CaptureSaveStatusIndicator(
+                pendingCount = ui.capture.pendingSaveCount,
+                hasError = ui.capture.pendingSaveError,
+                detailsAllowed = !showDismissLayer && !ui.isTableSelected,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(
+                        start = (thumbnailCenter - 24.dp).coerceAtLeast(0.dp),
+                        bottom = DDZSpacing.screenPadding + with(density) {
+                            bottomBarHeightPx.toDp()
+                        } - 4.dp,
+                    ),
+            )
         }
     }
 }
