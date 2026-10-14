@@ -14,6 +14,8 @@ private const val DESIGN_PREVIEW_MAX_FILL_RATIO = 98
 object TableLayoutCalculator {
     const val DEFAULT_WIDTH_RATIO = 100
     const val DEFAULT_HEIGHT_RATIO = 50
+    // Ratios use photo-width units, even after rotating the table.
+    const val CAMERA_MAX_RATIO = 200
 
     fun resolveWeights(weights: List<Float>?, count: Int): List<Float> {
         if (count <= 0) return emptyList()
