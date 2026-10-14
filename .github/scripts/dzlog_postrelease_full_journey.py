@@ -176,6 +176,8 @@ def main():
     install_once_ready()
     link_exact_folder()
     navigate_onboarding()
+    from dzlog_quick_value_ime_smoke import main as quick_value_ime_main
+    quick_value_ime_main()
     capture_media_main()
     mark("06b-both-five-saved")
     navigate_gallery()
