@@ -12,7 +12,7 @@ on:
       - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/navigation/AppNavigation.kt'
       - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/CameraScreen.kt'
       - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/CameraQuickValueSheet.kt'
-      - '.github/workflows/dzlog-postrelease-full-journey.yml'
+      - '.github/workflows/dzlog-onboarding-first-camera.yml'
 
 permissions:
   contents: read
