@@ -186,6 +186,7 @@ fun CameraScreen(
 fun CameraPreview(
     tableTemplateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
+    onPersistCapturedTemplate: suspend (TableTemplateState) -> Boolean = { false },
     onOpenTableEditor: () -> Unit,
     onOpenSaveSettings: () -> Unit,
     onOpenAlbum: () -> Unit,
