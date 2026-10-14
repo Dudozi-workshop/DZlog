@@ -179,6 +179,8 @@ internal fun CameraQuickValueSheet(
                 val height = root.height.coerceAtLeast(1)
                 val location = IntArray(2)
                 root.getLocationOnScreen(location)
+                val dialogLocation = IntArray(2)
+                view.getLocationOnScreen(dialogLocation)
                 val frame = Rect()
                 view.getWindowVisibleDisplayFrame(frame)
                 val hostInsets = ViewCompat.getRootWindowInsets(root)
@@ -190,8 +192,12 @@ internal fun CameraQuickValueSheet(
                 )
                 val obscuredBottom = if (frame.height() > 0)
                     (location[1] + height - frame.bottom).coerceIn(0, height) else 0
-                hostHeight = height
-                safeTop = bars?.top ?: (frame.top - location[1]).coerceAtLeast(0)
+                // The floating Dialog may begin below the host's top edge. Its
+                // local origin must be subtracted before bounding its content.
+                val dialogOffset = (dialogLocation[1] - location[1]).coerceAtLeast(0)
+                hostHeight = (height - dialogOffset).coerceAtLeast(1)
+                safeTop = (location[1] + (bars?.top ?: frame.top - location[1])
+                    - dialogLocation[1]).coerceAtLeast(0)
                 safeBottom = maxOf(bars?.bottom ?: 0, ime, obscuredBottom)
             }
             val listener = android.view.ViewTreeObserver.OnGlobalLayoutListener { updateViewport() }
