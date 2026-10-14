@@ -190,15 +190,22 @@ internal fun CameraQuickValueSheet(
             val inputBudget = (maxHeight - fixedChrome - DDZLayout.QuickInput.MinPreviewHeight)
                 .coerceAtLeast(DDZLayout.QuickInput.Touch)
             val expandedHeight = minOf(DDZLayout.QuickInput.ExpandedHeight, inputBudget)
-            Column(Modifier.fillMaxSize()) {
+            // Preserve both previews while the keyboard is open. Compact the table
+            // viewport and scroll the entire dialog only when the IME needs space.
+            val dialogScroll = rememberScrollState()
+            val compactTableHeight = (maxHeight * 0.35f)
+                .coerceAtLeast(DDZLayout.QuickInput.MinPreviewHeight)
+            LaunchedEffect(imeVisible, focused, expanded, dialogScroll.maxValue) {
+                if (imeVisible && focused) dialogScroll.animateScrollTo(dialogScroll.maxValue)
+            }
+            Column(Modifier.fillMaxSize().then(
+                if (imeVisible) Modifier.verticalScroll(dialogScroll) else Modifier
+            )) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = DDZSpacing.screenPadding), verticalAlignment = Alignment.CenterVertically) {
                     Text("빠른 수정", style = DDZTypography.SettingLabel, color = DDZColor.Surface, modifier = Modifier.weight(1f))
                     TextButton(enabled = !switching, onClick = ::dismiss) { Text("완료", color = DDZColor.Surface) }
                 }
-                // While the IME is open, prioritise the editor: a large table preview can
-                // otherwise push the input below the visible dialog viewport on short screens.
-                // The unchanged preview returns as soon as the keyboard is dismissed.
-                if (!imeVisible) {
+                // Naming and table previews remain available in every keyboard state.
                 CameraQuickNamingPreview(previewTemplate, resolvedCells, selectedId, counterDigits, previewCounter, now, saveMode,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = DDZSpacing.screenPadding))
                 CameraQuickTablePreview(previewTemplate, templateName, resolvedCells, style, captureAspect, tableWidthRatio, tableHeightRatio,
@@ -223,8 +230,10 @@ internal fun CameraQuickValueSheet(
                             } finally { switching = false }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(DDZSpacing.screenPadding))
-                }
+                    modifier = Modifier.fillMaxWidth().then(
+                        if (imeVisible) Modifier.height(compactTableHeight)
+                        else Modifier.weight(1f)
+                    ).padding(DDZSpacing.screenPadding))
                 Surface(Modifier.fillMaxWidth(), color = DDZColor.Surface,
                     shape = RoundedCornerShape(topStart = DDZLayout.Radius.Medium, topEnd = DDZLayout.Radius.Medium)) {
                     Column(Modifier.then(if (imeVisible) Modifier else Modifier.navigationBarsPadding())
