@@ -29,7 +29,12 @@ def adb(*args, timeout=45):
 def hierarchy():
     for attempt in range(4):
         try:
-            adb("shell", "uiautomator", "dump", DEVICE_XML, timeout=55)
+            # uiautomator can report an idle timeout with shell exit code 0.
+            # Never pull a prior dump and mistake it for the current screen.
+            adb("shell", "rm", "-f", DEVICE_XML)
+            result = adb("shell", "uiautomator", "dump", DEVICE_XML, timeout=55)
+            if "dumped to:" not in result:
+                raise RuntimeError(f"No fresh UI hierarchy produced: {result[-600:]}")
             adb("pull", DEVICE_XML, str(LOCAL_XML))
             return ET.parse(LOCAL_XML).getroot()
         except (OSError, ET.ParseError, RuntimeError, subprocess.TimeoutExpired):
