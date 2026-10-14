@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import android.os.Build
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.foundation.BorderStroke
@@ -27,6 +28,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
@@ -159,9 +161,12 @@ internal fun CameraQuickValueSheet(
         val keyboard = LocalSoftwareKeyboardController.current
         val context = LocalContext.current
         val view = LocalView.current
+        val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
         DisposableEffect(view) {
             val window = (view.parent as? DialogWindowProvider)?.window
             if (window != null) {
+                // A Compose Dialog has its own window; the Activity resize mode does not apply.
+                window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
                 window.navigationBarColor = android.graphics.Color.TRANSPARENT
                 window.statusBarColor = android.graphics.Color.TRANSPARENT
                 WindowInsetsControllerCompat(window, view).apply {
@@ -190,6 +195,10 @@ internal fun CameraQuickValueSheet(
                     Text("빠른 수정", style = DDZTypography.SettingLabel, color = DDZColor.Surface, modifier = Modifier.weight(1f))
                     TextButton(enabled = !switching, onClick = ::dismiss) { Text("완료", color = DDZColor.Surface) }
                 }
+                // While the IME is open, prioritise the editor: a large table preview can
+                // otherwise push the input below the visible dialog viewport on short screens.
+                // The unchanged preview returns as soon as the keyboard is dismissed.
+                if (!imeVisible) {
                 CameraQuickNamingPreview(previewTemplate, resolvedCells, selectedId, counterDigits, previewCounter, now, saveMode,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = DDZSpacing.screenPadding))
                 CameraQuickTablePreview(previewTemplate, templateName, resolvedCells, style, captureAspect, tableWidthRatio, tableHeightRatio,
@@ -215,9 +224,11 @@ internal fun CameraQuickValueSheet(
                         }
                     },
                     modifier = Modifier.fillMaxWidth().weight(1f).padding(DDZSpacing.screenPadding))
+                }
                 Surface(Modifier.fillMaxWidth(), color = DDZColor.Surface,
                     shape = RoundedCornerShape(topStart = DDZLayout.Radius.Medium, topEnd = DDZLayout.Radius.Medium)) {
-                    Column(Modifier.navigationBarsPadding().padding(horizontal = DDZSpacing.controlGap, vertical = DDZSpacing.itemGap)) {
+                    Column(Modifier.then(if (imeVisible) Modifier else Modifier.navigationBarsPadding())
+                        .padding(horizontal = DDZSpacing.controlGap, vertical = DDZSpacing.itemGap)) {
                         val selected = cells.firstOrNull { it.cellId == selectedId }
                         if (selected == null) {
                             Text("변경할 텍스트·숫자 셀이 없습니다.", style = DDZTypography.Body, color = DDZColor.TextMuted)
