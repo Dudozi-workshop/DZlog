@@ -1,9 +1,10 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import kotlin.math.roundToInt
 
-/** Ratios are percentages of the photo width, including the table height. */
+/** Stored ratios remain photo-width percentages for backward compatibility. */
 internal data class CameraTableResizeBaseline(
     val widthRatio: Int,
     val heightRatio: Int,
@@ -22,10 +23,25 @@ internal data class CameraTableResizeResult(
 )
 
 internal fun cameraTableScaleRange(base: CameraTableResizeBaseline): ClosedFloatingPointRange<Float> {
-    val w = base.widthRatio.coerceIn(10, 100).toFloat()
-    val h = base.heightRatio.coerceIn(10, 100).toFloat()
-    return maxOf(10f / w, 10f / h)..minOf(100f / w, 100f / h)
+    val w = base.widthRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO).toFloat()
+    val h = base.heightRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO).toFloat()
+    val rotated = base.rotationCwDeg % 180 != 0
+    val photoHeightPercent = 100f / base.photoAspect.coerceAtLeast(0.01f)
+    // Fit the rotated table inside both sides of the actual photo.
+    val maxScale = minOf(
+        TableLayoutCalculator.CAMERA_MAX_RATIO / w,
+        TableLayoutCalculator.CAMERA_MAX_RATIO / h,
+        100f / (if (rotated) h else w),
+        photoHeightPercent / (if (rotated) w else h),
+    )
+    val minScale = maxOf(10f / w, 10f / h).coerceAtMost(maxScale)
+    return minScale..maxScale
 }
+
+/** 100% means the largest proportional table fitting inside the photo. */
+internal fun cameraTableFitPercent(base: CameraTableResizeBaseline, widthRatio: Int): Int =
+    ((widthRatio.toFloat() / base.widthRatio.coerceAtLeast(1)) /
+        cameraTableScaleRange(base).endInclusive * 100f).roundToInt().coerceIn(0, 100)
 
 internal fun resizeCameraTableKeepingCenter(
     base: CameraTableResizeBaseline,
@@ -33,12 +49,16 @@ internal fun resizeCameraTableKeepingCenter(
 ): CameraTableResizeResult {
     val range = cameraTableScaleRange(base)
     val appliedScale = scale.coerceIn(range.start, range.endInclusive)
-    val oldW = base.widthRatio.coerceIn(10, 100) / 100f
-    val oldH = base.heightRatio.coerceIn(10, 100) / 100f
-    val newW = (base.widthRatio * appliedScale).roundToInt().coerceIn(10, 100)
-    val newH = (base.heightRatio * appliedScale).roundToInt().coerceIn(10, 100)
+    val oldW = base.widthRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f
+    val oldH = base.heightRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f
     val photoHeightInWidths = 1f / base.photoAspect.coerceAtLeast(0.01f)
     val rotated = (base.rotationCwDeg % 180) != 0
+    val maxW = minOf(TableLayoutCalculator.CAMERA_MAX_RATIO,
+        if (rotated) (photoHeightInWidths * 100f).toInt() else 100)
+    val maxH = minOf(TableLayoutCalculator.CAMERA_MAX_RATIO,
+        if (rotated) 100 else (photoHeightInWidths * 100f).toInt())
+    val newW = (base.widthRatio * appliedScale).roundToInt().coerceIn(10, maxW)
+    val newH = (base.heightRatio * appliedScale).roundToInt().coerceIn(10, maxH)
 
     val oldBoundsW = if (rotated) oldH else oldW
     val oldBoundsH = if (rotated) oldW else oldH
@@ -69,4 +89,46 @@ internal fun resizeCameraTableKeepingCenter(
         x10000 = (nextX * 10000f).roundToInt(),
         y10000 = (nextY * 10000f).roundToInt(),
     )
+}
+
+/**
+ * Normalize size when rotating or changing photo aspect without moving the
+ * table's relative center. Rotation is purely a placement operation.
+ */
+internal fun fitCameraTableForPhotoChange(
+    base: CameraTableResizeBaseline,
+    newRotationCwDeg: Int = base.rotationCwDeg,
+    newPhotoAspect: Float = base.photoAspect,
+): CameraTableResizeResult {
+    val oldPhotoHeight = 1f / base.photoAspect.coerceAtLeast(0.01f)
+    val newPhotoHeight = 1f / newPhotoAspect.coerceAtLeast(0.01f)
+    val oldRotated = base.rotationCwDeg % 180 != 0
+    val oldWidth = (if (oldRotated) base.heightRatio else base.widthRatio) / 100f
+    val oldHeight = (if (oldRotated) base.widthRatio else base.heightRatio) / 100f
+    val normalizedX = when (base.anchor) {
+        WatermarkTableAnchor.TOP_LEFT, WatermarkTableAnchor.BOTTOM_LEFT -> 0f
+        WatermarkTableAnchor.TOP_RIGHT, WatermarkTableAnchor.BOTTOM_RIGHT -> 1f
+        WatermarkTableAnchor.CUSTOM -> base.x10000.coerceIn(0, 10000) / 10000f
+    }
+    val normalizedY = when (base.anchor) {
+        WatermarkTableAnchor.TOP_LEFT, WatermarkTableAnchor.TOP_RIGHT -> 0f
+        WatermarkTableAnchor.BOTTOM_LEFT, WatermarkTableAnchor.BOTTOM_RIGHT -> 1f
+        WatermarkTableAnchor.CUSTOM -> base.y10000.coerceIn(0, 10000) / 10000f
+    }
+    val centerX = oldWidth / 2f + (1f - oldWidth).coerceAtLeast(0f) * normalizedX
+    val centerYFraction = (oldHeight / 2f +
+        (oldPhotoHeight - oldHeight).coerceAtLeast(0f) * normalizedY) / oldPhotoHeight
+
+    val nextBase = base.copy(rotationCwDeg = newRotationCwDeg, photoAspect = newPhotoAspect)
+    val resized = resizeCameraTableKeepingCenter(nextBase, 1f)
+    val rotated = newRotationCwDeg % 180 != 0
+    val nextWidth = (if (rotated) resized.heightRatio else resized.widthRatio) / 100f
+    val nextHeight = (if (rotated) resized.widthRatio else resized.heightRatio) / 100f
+    val slackX = (1f - nextWidth).coerceAtLeast(0f)
+    val slackY = (newPhotoHeight - nextHeight).coerceAtLeast(0f)
+    val x = if (slackX <= 0f) 0f else ((centerX - nextWidth / 2f) / slackX).coerceIn(0f, 1f)
+    val y = if (slackY <= 0f) 0f else ((centerYFraction * newPhotoHeight - nextHeight / 2f) / slackY)
+        .coerceIn(0f, 1f)
+    return resized.copy(x10000 = (x * 10000f).roundToInt(),
+        y10000 = (y * 10000f).roundToInt())
 }

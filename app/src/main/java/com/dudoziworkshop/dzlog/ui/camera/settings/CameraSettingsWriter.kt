@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.camera.settings
 
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
+
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_GRID_ON
@@ -82,8 +84,8 @@ internal class CameraSettingsWriter(
         y10000: Int,
     ) {
         context.dataStore.edit {
-            it[KEY_WM_TABLE_WIDTH] = widthRatio.coerceIn(10, 100)
-            it[KEY_WM_TABLE_HEIGHT] = heightRatio.coerceIn(10, 100)
+            it[KEY_WM_TABLE_WIDTH] = widthRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO)
+            it[KEY_WM_TABLE_HEIGHT] = heightRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO)
             it[KEY_WM_TABLE_ANCHOR] = 4
             it[KEY_WM_BOUNDS_OFFSET_X_10000] = x10000.coerceIn(0, 10000)
             it[KEY_WM_BOUNDS_OFFSET_Y_10000] = y10000.coerceIn(0, 10000)

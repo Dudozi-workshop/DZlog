@@ -6,6 +6,7 @@ import android.graphics.RectF
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPlacement
 import com.dudoziworkshop.dzlog.feature.table.render.buildCameraTableSceneFromPlacement
 
@@ -40,8 +41,8 @@ class WatermarkRendererImpl : WatermarkRenderer {
 
         val placement = if (anchor == WatermarkTableAnchor.CUSTOM) {
             val baseW = imageBounds.width()
-            val rawW = baseW * (tableWidthRatio.coerceIn(10, 100) / 100f)
-            val rawH = baseW * (tableHeightRatio.coerceIn(10, 100) / 100f)
+            val rawW = baseW * (tableWidthRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f)
+            val rawH = baseW * (tableHeightRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f)
             val (boundsW, boundsH) = computeBoundsSize(rawW, rawH, rotationCwDeg)
             val boundsMaxX = (imageBounds.width() - boundsW).coerceAtLeast(0f)
             val boundsMaxY = (imageBounds.height() - boundsH).coerceAtLeast(0f)

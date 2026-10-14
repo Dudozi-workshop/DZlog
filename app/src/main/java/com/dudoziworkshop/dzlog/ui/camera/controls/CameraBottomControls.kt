@@ -211,11 +211,11 @@ internal fun CameraBottomControls(
                             .background(DDZColor.Surface.copy(alpha = 0.88f), RoundedCornerShape(12.dp))
                             .padding(horizontal = 16.dp, vertical = 6.dp),
                     ) {
-                        Text("표 크기 · 비율 유지 · ${(ui.prefs.wmTableWidthRatio * 100f / baseline.widthRatio).toInt()}%", color = DDZColor.SageDarkStrong)
+                        Text("표 크기 · 사진 맞춤 · ${cameraTableFitPercent(baseline, ui.prefs.wmTableWidthRatio)}%", color = DDZColor.SageDarkStrong)
                         Slider(
-                            value = (ui.prefs.wmTableWidthRatio.toFloat() / baseline.widthRatio).coerceIn(sliderRange.start, sliderRange.endInclusive),
+                            value = (ui.prefs.wmTableWidthRatio.toFloat() / baseline.widthRatio / sliderRange.endInclusive).coerceIn(sliderRange.start / sliderRange.endInclusive, 1f),
                             onValueChange = { next ->
-                                val resized = resizeCameraTableKeepingCenter(baseline, next)
+                                val resized = resizeCameraTableKeepingCenter(baseline, next * sliderRange.endInclusive)
                                 ui.prefs.wmTableWidthRatio = resized.widthRatio
                                 ui.prefs.wmTableHeightRatio = resized.heightRatio
                                 ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
@@ -234,7 +234,7 @@ internal fun CameraBottomControls(
                                     )
                                 }
                             },
-                            valueRange = sliderRange,
+                            valueRange = (sliderRange.start / sliderRange.endInclusive)..1f,
                         )
                     }
                 }
@@ -251,8 +251,33 @@ internal fun CameraBottomControls(
                         resizeBaseline = null
                         ui.isTableResizePanelOpen = false
                         val next = if (ui.prefs.wmRotationCwDeg == 90) 0 else 90
+                        val fitted = fitCameraTableForPhotoChange(
+                            CameraTableResizeBaseline(
+                                widthRatio = ui.prefs.wmTableWidthRatio,
+                                heightRatio = ui.prefs.wmTableHeightRatio,
+                                rotationCwDeg = ui.prefs.wmRotationCwDeg,
+                                anchor = ui.prefs.wmTableAnchor,
+                                x10000 = ui.prefs.wmBoundsOffsetX10000,
+                                y10000 = ui.prefs.wmBoundsOffsetY10000,
+                                photoAspect = ui.prefs.captureAspect.ratioF,
+                            ),
+                            newRotationCwDeg = next,
+                        )
                         ui.prefs.wmRotationCwDeg = next
-                        scope.launch { settingsWriter.setWmRotationCwDeg(next) }
+                        ui.prefs.wmTableWidthRatio = fitted.widthRatio
+                        ui.prefs.wmTableHeightRatio = fitted.heightRatio
+                        ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
+                        ui.prefs.wmBoundsOffsetX10000 = fitted.x10000
+                        ui.prefs.wmBoundsOffsetY10000 = fitted.y10000
+                        ui.prefs.wmOffsetXRatio = fitted.x10000 / 100
+                        ui.prefs.wmOffsetYRatio = fitted.y10000 / 100
+                        scope.launch {
+                            settingsWriter.setWmTableSizeAndPosition(
+                                fitted.widthRatio, fitted.heightRatio,
+                                fitted.x10000, fitted.y10000,
+                            )
+                            settingsWriter.setWmRotationCwDeg(next)
+                        }
                         }
                     },
                     isLocked = ui.prefs.wmTableLocked,
