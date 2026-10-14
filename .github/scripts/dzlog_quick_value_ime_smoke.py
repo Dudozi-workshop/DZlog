@@ -61,10 +61,14 @@ def main():
             raise AssertionError(f"{label} preview missing while keyboard is open")
         if ime_rows and min(rect[1] for rect in visible) >= keyboard_top:
             raise AssertionError(f"{label} preview moved behind the keyboard")
-    adb("shell", "input", "keyevent", "4")
+    # The explicit input action clears focus and hides only the IME. A system
+    # Back may dismiss the Dialog as well; verify that navigation separately.
+    tap("입력")
     time.sleep(2)
     wait_for("빠른 수정")
     after = evidence("quick-edit-03-keyboard-closed")
+    if keyboard_is_visible(after):
+        raise AssertionError("Input action did not close the keyboard")
     if not contains(after, "파일명") or not contains(after, "저장경로"):
         raise AssertionError("Filename/save-path previews missing after keyboard closes")
     if not contains(after, "템플릿"):
