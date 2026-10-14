@@ -301,8 +301,8 @@ fun SettingsRootScreen(
                     SettingsGroup {
                         SettingsActionRow(
                             icon = Icons.Default.HelpOutline,
-                            title = "DZlog 사용 방법",
-                            subtitle = "첫 사용 안내 다시 보기",
+                            title = "사용법 및 도움말",
+                            subtitle = "처음 사용법 · 기능별 튜토리얼",
                             onClick = onOpenGuide,
                             trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
                         )
