@@ -52,6 +52,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
@@ -73,6 +74,7 @@ import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderCatalog
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderStorage
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryPhotoMover
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
@@ -100,6 +102,8 @@ fun LogFolderScreen(
     onOpenFolder: (String) -> Unit,
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
     onOpenOriginal: (String) -> Unit,
+    showDefaultPhotos: Boolean = false,
+    onShowDefaultPhotosChange: (Boolean) -> Unit = {},
     capturePathDrafts: List<List<TableEditorSlotDraft?>> = emptyList(),
 ) {
     val context = LocalContext.current
@@ -145,8 +149,11 @@ fun LogFolderScreen(
     var managementConfirmed by remember { mutableStateOf(false) }
     var folderOperationError by remember { mutableStateOf<String?>(null) }
     var connected by remember { mutableStateOf(folderStorage.isConnected()) }
-    var showFolderAccessHelp by remember { mutableStateOf(false) }
-    var folderAccessBusy by remember { mutableStateOf(false) }
+    var showFolderAccessHelp by rememberSaveable { mutableStateOf(false) }
+    var folderAccessBusy by rememberSaveable { mutableStateOf(false) }
+    var pendingFolderPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingFolderAction by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedAccessPath by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedPhotoIds by remember(relativePath) { mutableStateOf<Set<Long>>(emptySet()) }
     var selectionActive by remember(relativePath) { mutableStateOf(false) }
     var showPhotoMove by remember { mutableStateOf(false) }
@@ -183,11 +190,13 @@ fun LogFolderScreen(
     )
     val deleteBusy = deleteAction.busy || photoDeleteLoading
     val operationLocked = deleteBusy || photoMoveBusy || pendingPhotoPlan != null || folderManagementBusy
-    val navigationLocked = operationLocked || manageAction != null || showPhotoDelete || showPhotoMove
+    val navigationLocked = operationLocked || manageAction != null || showPhotoDelete || showPhotoMove || folderAccessBusy || showFolderAccessHelp
     val folderAccess = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
         if (treeUri == null) {
             folderAccessBusy = false
-            folderOperationError = "폴더 접근 연결을 취소했습니다."
+            pendingFolderAction = null
+            pendingFolderPath = null
+            selectedAccessPath = null
         } else {
             scope.launch {
                 val result = withContext(Dispatchers.IO) { runCatching { folderStorage.connect(treeUri) } }
@@ -198,7 +207,11 @@ fun LogFolderScreen(
                     GallerySnapshotMemory.cache.invalidate()
                     reloadKey++
                 }.onFailure {
-                    folderOperationError = it.message ?: "폴더 접근 권한을 연결하지 못했습니다."
+                    selectedAccessPath = runCatching {
+                        android.provider.DocumentsContract.getTreeDocumentId(treeUri).substringAfter(':')
+                    }.getOrDefault("선택한 경로를 확인할 수 없어요")
+                    showFolderAccessHelp = true
+                    folderOperationError = null
                 }
             }
         }
@@ -257,6 +270,17 @@ fun LogFolderScreen(
                 folderOperationError = "사진 수정 권한 요청을 열지 못했습니다."
             }
         } else finishPhotoMove(prepared)
+    }
+
+    DisposableEffect(context) {
+        val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                GallerySnapshotMemory.cache.invalidate()
+                reloadKey++
+            }
+        }
+        context.contentResolver.registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, observer)
+        onDispose { context.contentResolver.unregisterContentObserver(observer) }
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -383,7 +407,11 @@ fun LogFolderScreen(
     }
     fun startFolderManagement(path: String, action: String) {
         if (folderManagementBusy || folderAccessBusy || selectionActive || manageAction != null || deleteBusy || photoMoveBusy) return
+        connected = folderStorage.isConnected()
         if (!connected) {
+            pendingFolderPath = path
+            pendingFolderAction = action
+            selectedAccessPath = null
             showFolderAccessHelp = true
             return
         }
@@ -406,12 +434,24 @@ fun LogFolderScreen(
             }
         }
     }
-    val root = relativePath == GalleryFolderIndexPolicy.ROOT
-    val recentPhotos = remember(allPhotos) {
-        allPhotos.filterNot { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }
+    LaunchedEffect(connected, folderAccessBusy, showFolderAccessHelp, pendingFolderPath, pendingFolderAction) {
+        val pending = pendingFolderAction
+        val pendingPath = pendingFolderPath
+        if (connected && !folderAccessBusy && !showFolderAccessHelp && pending != null && pendingPath != null) {
+            pendingFolderAction = null
+            pendingFolderPath = null
+            startFolderManagement(pendingPath, pending)
+        }
     }
+    val root = relativePath == GalleryFolderIndexPolicy.ROOT
+    val recentPhotos = remember(allPhotos) { GalleryPhotoSort.NEWEST.sorted(allPhotos) }
+    val defaultPhotos = remember(allPhotos) {
+        allPhotos.filter { GalleryDefaultStoragePolicy.isDirectRootPhoto(it.relativePath) }
+    }
+    val sortedDefaultPhotos = remember(defaultPhotos, photoSort) { photoSort.sorted(defaultPhotos) }
     val selectablePhotos = when {
         !root -> visiblePhotos
+        showDefaultPhotos -> defaultPhotos
         showRecentPhotos -> recentPhotos
         selectedTab == GalleryTab.ALL -> recentPhotos.take(9)
         selectedTab == GalleryTab.FOLDERS -> photos
@@ -424,11 +464,13 @@ fun LogFolderScreen(
     }
     BackHandler(enabled = showPhotoDelete && photoDeleteLoading) { showPhotoDelete = false }
     BackHandler(enabled = showRecentPhotos && !selectionActive && !showPhotoMove) { showRecentPhotos = false }
+    BackHandler(enabled = showDefaultPhotos && !selectionActive && !showPhotoMove) { onShowDefaultPhotosChange(false) }
     BackHandler(enabled = selectionActive && !showPhotoMove) {
         if (!photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null) cancelSelection()
     }
     BackHandler(enabled = operationLocked && !photoDeleteLoading) { /* Preserve the active operation and its callbacks. */ }
-    val title = if (showRecentPhotos) "최근 촬영" else if (displayFolderPath == GalleryFolderIndexPolicy.ROOT) "갤러리"
+    val title = if (showRecentPhotos) "최근 촬영" else if (showDefaultPhotos) "기본 저장"
+        else if (displayFolderPath == GalleryFolderIndexPolicy.ROOT) "갤러리"
         else displayFolderPath.trimEnd('/').substringAfterLast('/')
     val imagesById = remember(allPhotos) { allPhotos.associateBy { it.id.toString() } }
     Column(modifier = Modifier.dzScreen()
@@ -448,7 +490,11 @@ fun LogFolderScreen(
         } else {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 IconButton(enabled = !navigationLocked, onClick = { if (!navigationLocked) {
-                    if (showRecentPhotos) showRecentPhotos = false else onBack()
+                    when {
+                        showRecentPhotos -> showRecentPhotos = false
+                        showDefaultPhotos -> onShowDefaultPhotosChange(false)
+                        else -> onBack()
+                    }
                 } }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
                 }
@@ -534,6 +580,40 @@ fun LogFolderScreen(
                         }
                     }
                 }
+            } else if (root && showDefaultPhotos) {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
+                    contentPadding = PaddingValues(bottom = DDZSpacing.sectionGap)) {
+                    item {
+                        Row(Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("기본 저장 사진 ${defaultPhotos.size}장", style = DDZTypography.CompactSectionTitle)
+                            Box {
+                                TextButton(onClick = { showPhotoSort = true }, enabled = !navigationLocked && !selectionActive) {
+                                    Text(photoSort.label)
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = "사진 정렬")
+                                }
+                                DropdownMenu(expanded = showPhotoSort, onDismissRequest = { showPhotoSort = false }) {
+                                    GalleryPhotoSort.entries.forEach { sort ->
+                                        DropdownMenuItem(
+                                            text = { Text(if (photoSort == sort) "✓ ${sort.label}" else sort.label) },
+                                            onClick = { photoSort = sort; showPhotoSort = false },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (defaultPhotos.isEmpty()) {
+                        item { GalleryEmptyText("기본 저장 사진이 없습니다.") }
+                    } else {
+                        items(sortedDefaultPhotos.chunked(3)) { row ->
+                            GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
+                                if (!navigationLocked) onOpenPhoto(sortedDefaultPhotos, sortedDefaultPhotos.indexOfFirst { it.id == photo.id })
+                            }
+                        }
+                    }
+                }
             } else if (root && index != null) {
                 LogGalleryHomeContent(
                     selectedTab = selectedTab,
@@ -545,7 +625,8 @@ fun LogFolderScreen(
                     onOpenFolder = { if (!selectionActive && !navigationLocked) onOpenFolder(it) },
                     onOpenPhoto = { photos, index -> if (!navigationLocked) onOpenPhoto(photos, index) },
                     onOpenOriginal = { if (!selectionActive && !navigationLocked) onOpenOriginal(it) },
-                    onOpenRecentPhotos = { if (!selectionActive && !navigationLocked) showRecentPhotos = true },
+                    onOpenRecentPhotos = { if (!selectionActive && !navigationLocked) { onShowDefaultPhotosChange(false); showRecentPhotos = true } },
+                    onOpenDefaultPhotos = { if (!selectionActive && !navigationLocked) { showRecentPhotos = false; onShowDefaultPhotosChange(true) } },
                     onManageFolder = ::startFolderManagement,
                     canManageFolders = !navigationLocked && !selectionActive && !folderAccessBusy,
                     onCreateFolder = { if (!selectionActive && !navigationLocked) { folderOperationError = null; showCreateDialog = true } },
@@ -633,6 +714,9 @@ fun LogFolderScreen(
             }
         }
         if (photoDeleteLoading) Text("삭제 대상 확인 중…", color = DDZColor.TextSecondary)
+        deleteAction.progressText?.let { progress ->
+            Text(progress, color = DDZColor.TextSecondary, style = DDZTypography.Caption)
+        }
         if (showPhotoDelete && !photoDeleteLoading && deleteSelected.isNotEmpty()) {
             GalleryPhotoDeleteConfirmation(
                 selected = deleteSelected,
@@ -756,27 +840,30 @@ fun LogFolderScreen(
             )
         }
         if (showFolderAccessHelp) {
-            AlertDialog(
-                onDismissRequest = { showFolderAccessHelp = false },
-                title = { Text("DZlog 폴더 접근 연결") },
-                text = { Text("빈 폴더를 확인하고 폴더 이름을 변경하거나 이동하려면 접근 권한이 필요합니다. 다음 화면에서 내장 저장공간의 Pictures/DZlog 폴더를 선택해 주세요.") },
-                confirmButton = {
-                    DDZDialogAction(style = DDZButtonStyle.Primary, onClick = {
-                        showFolderAccessHelp = false
-                        folderAccessBusy = true
-                        folderOperationError = null
-                        runCatching {
-                            val initialUri = android.provider.DocumentsContract.buildTreeDocumentUri(
-                                "com.android.externalstorage.documents", "primary:Pictures/DZlog",
-                            )
-                            folderAccess.launch(initialUri)
-                        }.onFailure {
-                            folderAccessBusy = false
-                            folderOperationError = "폴더 선택 화면을 열지 못했습니다."
-                        }
-                    }) { Text("폴더 선택") }
+            GalleryFolderAccessGuide(
+                selectedPath = selectedAccessPath,
+                onCancel = {
+                    showFolderAccessHelp = false
+                    pendingFolderAction = null
+                    pendingFolderPath = null
+                    selectedAccessPath = null
                 },
-                dismissButton = { DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = { showFolderAccessHelp = false }) { Text("취소") } },
+                onSelect = {
+                    showFolderAccessHelp = false
+                    folderAccessBusy = true
+                    folderOperationError = null
+                    runCatching {
+                        val initialUri = android.provider.DocumentsContract.buildTreeDocumentUri(
+                            "com.android.externalstorage.documents", "primary:Pictures/DZlog",
+                        )
+                        folderAccess.launch(initialUri)
+                    }.onFailure {
+                        folderAccessBusy = false
+                        pendingFolderAction = null
+                    pendingFolderPath = null
+                        folderOperationError = "폴더 선택 화면을 열지 못했습니다."
+                    }
+                },
             )
         }
         if (manageAction == "delete") {
@@ -792,7 +879,8 @@ fun LogFolderScreen(
                 onDeleted = {
                     val deletedPath = managedFolderPath
                     manageAction = null
-                    folderOperationError = "폴더 및 파일 삭제 완료"
+                    folderOperationError = null
+                    android.widget.Toast.makeText(context, "폴더가 삭제되었어요", android.widget.Toast.LENGTH_SHORT).show()
                     if (deletedPath == relativePath) {
                         onOpenFolder(deletedPath.trimEnd('/').substringBeforeLast('/') + "/")
                     }

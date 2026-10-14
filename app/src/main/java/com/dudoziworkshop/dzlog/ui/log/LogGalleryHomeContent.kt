@@ -32,6 +32,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
@@ -48,6 +49,7 @@ import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryChildFolder
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
@@ -73,6 +75,7 @@ internal fun LogGalleryHomeContent(
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
     onOpenOriginal: (String) -> Unit,
     onOpenRecentPhotos: () -> Unit,
+    onOpenDefaultPhotos: () -> Unit,
     onManageFolder: (String, String) -> Unit,
     canManageFolders: Boolean,
     onCreateFolder: () -> Unit = {},
@@ -109,9 +112,14 @@ internal fun LogGalleryHomeContent(
     }
 
     val root = folderIndex.relativePath
-    val recent = allImages.filterNot { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }.take(9)
+    val recent = remember(allImages) { GalleryPhotoSort.NEWEST.sorted(allImages).take(9) }
+    var folderFilter by rememberSaveable { mutableStateOf(GalleryFolderFilter.ALL) }
+    var folderSort by rememberSaveable { mutableStateOf(GalleryFolderSort.NAME) }
+    val shownFolders = remember(folderIndex.children, summariesByPath, folderFilter, folderSort) {
+        filterGalleryFolders(folderIndex.children, summariesByPath, folderFilter, folderSort)
+    }
     val favorites = allImages.filter { it.id in favoriteIds }
-    val directPhotos = allImages.filter { it.relativePath.trimEnd('/') == root.trimEnd('/') }
+    val directPhotos = allImages.filter { GalleryDefaultStoragePolicy.isDirectRootPhoto(it.relativePath) }
     // Summary IDs are MediaStore IDs, so resolve them against this same snapshot.
     val imagesById = remember(allImages) { allImages.associateBy { it.id.toString() } }
 
@@ -156,15 +164,25 @@ internal fun LogGalleryHomeContent(
                 }
                 item { GallerySectionTitle(
                     title = "저장 폴더",
-                    count = "${folderIndex.children.size}개",
+                    count = "${shownFolders.size + if (directPhotos.isNotEmpty()) 1 else 0}개",
                     actionLabel = "새 폴더",
                     onAction = onCreateFolder,
                     showAddIcon = true,
                 ) }
-                if (folderIndex.children.isEmpty()) {
-                    item { GalleryEmptyText("저장 폴더가 없습니다.") }
+                item { GalleryFolderFilterControls(folderFilter, folderSort, canManageFolders, { folderFilter = it }, { folderSort = it }) }
+                if (directPhotos.isNotEmpty()) {
+                    item(key = "default-storage") {
+                        GalleryDefaultStorageRow(
+                            count = directPhotos.size,
+                            coverImage = directPhotos.firstOrNull(),
+                            onClick = onOpenDefaultPhotos,
+                        )
+                    }
+                }
+                if (shownFolders.isEmpty() && directPhotos.isEmpty()) {
+                    item { GalleryEmptyText(if (folderIndex.children.isEmpty()) "저장 폴더가 없습니다." else "조건에 맞는 폴더가 없습니다.") }
                 } else {
-                    items(folderIndex.children, key = { "folder-${it.relativePath}" }) { folder ->
+                    items(shownFolders, key = { "folder-${it.relativePath}" }) { folder ->
                         val summary = summariesByPath[folder.relativePath]
                         GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
                             canManage = canManageFolders,
@@ -178,15 +196,16 @@ internal fun LogGalleryHomeContent(
             GalleryTab.FOLDERS -> {
                 item { GallerySectionTitle(
                     title = "저장 폴더",
-                    count = "${folderIndex.children.size}개",
+                    count = "${shownFolders.size}개",
                     actionLabel = "새 폴더",
                     onAction = onCreateFolder,
                     showAddIcon = true,
                 ) }
-                if (folderIndex.children.isEmpty()) {
-                    item { GalleryEmptyText("저장 폴더가 없습니다.") }
+                item { GalleryFolderFilterControls(folderFilter, folderSort, canManageFolders, { folderFilter = it }, { folderSort = it }) }
+                if (shownFolders.isEmpty()) {
+                    item { GalleryEmptyText(if (folderIndex.children.isEmpty()) "저장 폴더가 없습니다." else "조건에 맞는 폴더가 없습니다.") }
                 } else {
-                    items(folderIndex.children, key = { "folder-${it.relativePath}" }) { folder ->
+                    items(shownFolders, key = { "folder-${it.relativePath}" }) { folder ->
                         val summary = summariesByPath[folder.relativePath]
                         GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
                             canManage = canManageFolders,
@@ -399,3 +418,40 @@ private fun GalleryPhotoTile(
         }
     }
 }
+
+/** A virtual entry for photos saved directly under Pictures/DZlog/. */
+@Composable
+private fun GalleryDefaultStorageRow(
+    count: Int,
+    coverImage: MediaImageItem?,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(DDZColor.Surface, MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick)
+            .defaultMinSize(minHeight = DDZLayout.ListItem.CompactMinHeight)
+            .padding(horizontal = DDZSpacing.controlGap, vertical = DDZSpacing.itemGap),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DDZSpacing.compactCardContentGap),
+    ) {
+        Box(
+            modifier = Modifier.size(DDZLayout.ListItem.CompactThumbnailSize)
+                .clip(MaterialTheme.shapes.small)
+                .background(DDZColor.SurfaceSoft),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (coverImage == null) {
+                Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
+            } else {
+                DzThumbnail(coverImage.uri.toString())
+            }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text("기본 저장", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("사진 ${count}장", color = DDZColor.TextSecondary, style = DDZTypography.Secondary)
+        }
+        Icon(Icons.Default.ChevronRight, contentDescription = "기본 저장 사진 열기", tint = DDZColor.IconMuted)
+    }
+}
+
