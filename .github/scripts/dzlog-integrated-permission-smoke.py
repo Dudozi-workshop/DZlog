@@ -57,9 +57,16 @@ def install_apk():
 
 
 def hierarchy():
-    adb("shell", "uiautomator", "dump", REMOTE_XML)
-    adb("pull", REMOTE_XML, str(LOCAL_XML))
-    return ET.parse(LOCAL_XML).getroot()
+    # UIAutomator can transiently fail just after a fresh Android boot.
+    for attempt in range(4):
+        try:
+            adb("shell", "uiautomator", "dump", REMOTE_XML, timeout=75)
+            adb("pull", REMOTE_XML, str(LOCAL_XML), timeout=55)
+            return ET.parse(LOCAL_XML).getroot()
+        except (subprocess.TimeoutExpired, RuntimeError, ET.ParseError, OSError):
+            if attempt == 3:
+                raise
+            time.sleep(3)
 
 
 def has(root, text):
