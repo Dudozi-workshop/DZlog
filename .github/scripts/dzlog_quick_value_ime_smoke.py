@@ -83,6 +83,12 @@ def main():
         raise AssertionError("Filename/save-path previews missing after keyboard closes")
     if not contains(after, "템플릿"):
         raise AssertionError("Table preview missing after keyboard closes")
+    tap("입력창 확대", "입력창 축소")
+    evidence("quick-edit-04-input-expanded")
+    tap("입력창 축소", "입력창 확대")
+    tap("표 확대", "표 전체 보기")
+    evidence("quick-edit-05-table-expanded")
+    tap("표 전체 보기", "표 확대")
     tap("완료")
     wait_for("빠른 값 변경", timeout=35)
     adb("shell", "input", "keyevent", "4")
@@ -93,6 +99,14 @@ def main():
 
 if __name__ == "__main__":
     try:
+        import sys
+        if "--standalone" in sys.argv:
+            from dzlog_postrelease_full_journey import (
+                install_once_ready, link_exact_folder, navigate_onboarding,
+            )
+            install_once_ready()
+            link_exact_folder()
+            navigate_onboarding()
         main()
     except Exception:
         evidence("FAILED-quick-edit")
