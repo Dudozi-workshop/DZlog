@@ -43,7 +43,16 @@ extensions.configure<ApplicationExtension> {
 
     buildTypes {
         getByName("debug") {
-            if (providers.gradleProperty("dzlogGalleryStandalone").orNull == "true") {
+            val galleryStandalone = providers.gradleProperty("dzlogGalleryStandalone").orNull == "true"
+            val isolatedQa = providers.gradleProperty("dzlogStandaloneQa").orNull == "true"
+            require(!(galleryStandalone && isolatedQa)) {
+                "Standalone QA and gallery-only package flags cannot both be enabled."
+            }
+            if (isolatedQa) {
+                // Installs beside the Play release; never overwrite user-installed DZlog.
+                applicationIdSuffix = ".qa"
+                manifestPlaceholders["dzlogAppLabel"] = "DZlog QA"
+            } else if (galleryStandalone) {
                 applicationIdSuffix = ".gallerydev"
                 manifestPlaceholders["dzlogAppLabel"] = "DZlog Gallery"
             }
