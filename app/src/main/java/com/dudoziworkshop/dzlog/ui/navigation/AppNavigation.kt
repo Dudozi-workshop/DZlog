@@ -49,6 +49,7 @@ import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
 import com.dudoziworkshop.dzlog.data.template.nextNewTemplateName
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureTemplateCommitPolicy
 import com.dudoziworkshop.dzlog.feature.settings.ui.CreditsScreen
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
@@ -271,6 +272,32 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 templateState = updated,
             )
             tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated)
+        }
+    }
+
+    /** Persist capture progress before the durable capture receipt is acknowledged. */
+    suspend fun persistCapturedTemplate(
+        expectedTemplateId: String?,
+        updated: TableTemplateState,
+    ): Boolean {
+        if (!hasRestoredTemplate) return false
+        val savedActiveId = tableTemplateViewModel.activeTemplateId ?: return false
+        // A capture receipt may arrive after a quick-template selection changes.
+        // Never advance the newly selected template using the previous shot.
+        if (!CaptureTemplateCommitPolicy.canPersist(expectedTemplateId, savedActiveId)) return false
+        return try {
+            val next = tableCatalogCoordinator.updateActiveTemplate(
+                items = tableTemplateViewModel.templates,
+                activeTemplateId = savedActiveId,
+                templateState = updated,
+            )
+            // Publish only after the catalog write has succeeded.
+            tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated)
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
         }
     }
 
@@ -728,6 +755,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
+                    onPersistCapturedTemplate = { updated ->
+                        persistCapturedTemplate(captureTemplateId, updated)
+                    },
                     quickTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
@@ -775,6 +805,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
+                    onPersistCapturedTemplate = { updated ->
+                        persistCapturedTemplate(captureTemplateId, updated)
+                    },
                     quickTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
