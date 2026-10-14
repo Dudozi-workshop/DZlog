@@ -40,15 +40,19 @@ class DzlogRepositoryImpl(
         context: Context,
         imageCapture: ImageCapture,
         request: CaptureRequest,
+        onCaptureStarted: () -> Unit,
+        onImageCaptured: () -> Unit,
         onDone: (LogEntry) -> Unit,
         onFail: (String) -> Unit
     ) {
+        val timing = CaptureTimingTracker()
         val executor = ContextCompat.getMainExecutor(context)
 
         // ✅ 임시 파일로 촬영 → Bitmap 디코딩 → MediaStoreSaver.saveJpeg로 최종 저장
         val tmpFile = kotlin.runCatching {
             File.createTempFile("dzlog_", ".jpg", context.cacheDir)
         }.getOrElse {
+            timing.finish("temp_file_error")
             onFail("임시파일 생성 실패: ${it.message}")
             return
         }
@@ -66,62 +70,22 @@ class DzlogRepositoryImpl(
             executor,
             object : ImageCapture.OnImageSavedCallback {
 
+                override fun onCaptureStarted() {
+                    timing.onCaptureStarted()
+                    onCaptureStarted()
+                }
+
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                    timing.onTempFileReady()
+                    runCatching { onImageCaptured() }
+                        .onFailure { Log.w("DZlogCapture", "Capture feedback failed", it) }
                     ioScope.launch {
                         val result = runCatching {
-                            val decodedBmp = BitmapFactory.decodeFile(tmpFile.absolutePath)
-                                ?: throw IllegalStateException("촬영 이미지 디코딩 실패")
-                            val exif = ExifInterface(tmpFile)
-                            val orientedBmp = applyExifOrientation(decodedBmp, exif)
-                            val originalBmp = cropToAspect(orientedBmp, request)
-
-                            val baseRel = normalizeCaptureBaseRelativePath(request.relativePath)
-                            val origRel = appendOriginalCaptureDirectory(baseRel)
-
-                            val displayName = request.displayName
-                            val qualityMode = request.photoQualityMode
-                            val jpegQuality = qualityMode.jpegQuality
-                            Log.d(
-                                "CounterReadback",
-                                "captureAndSave request saveMode=${request.saveMode}, baseRel=$baseRel, origRel=$origRel, displayName=$displayName"
-                            )
-                            val saved = CaptureMediaSaveCoordinator.save(
-                                mode = request.saveMode,
-                                saveWatermark = {
-                                    val wmBmp = renderWatermarkForRequest(watermarkRenderer, originalBmp, request)
-                                    saver.saveJpeg(context, applyPhotoQualityPolicy(wmBmp, qualityMode),
-                                        displayName, baseRel, jpegQuality)
-                                },
-                                saveOriginal = {
-                                    saver.saveJpeg(context, applyPhotoQualityPolicy(originalBmp, qualityMode),
-                                        displayName, origRel, jpegQuality)
-                                },
-                                deleteSaved = { uri -> saver.deleteByUri(context, uri) },
-                            )
-                            val entry = LogEntry(
-                                mediaStoreId = saved.primary.mediaStoreId,
-                                contentUri = saved.primary.uri,
-                                savedContentUris = saved.files.map { it.uri },
-                                displayName = saved.primary.displayName,
-                                isNameAdjusted = saved.primary.isNameAdjusted,
-                                createdAt = System.currentTimeMillis(),
-                                group1 = request.group1,
-                                group2 = request.group2,
-                            )
-                            if (request.saveMode != SaveMode.ORIGINAL_ONLY) {
-                                // The media is already committed; optional log failure must not
-                                // turn a successful capture into a failed counter/phrase advance.
-                                try {
-                                    insertLogEntry(context, entry, saved.primary.uri,
-                                        saved.primary.displayName, baseRel)
-                                } catch (error: Exception) {
-                                    Log.e("DZlogCapture", "사진 저장 후 로그 기록 실패", error)
-                                }
-                            }
-                            entry
+                            saveCapturedJpeg(context, tmpFile, request, timing::onBitmapReady, timing::onMediaSaved)
                         }
 
                         tmpFile.delete()
+                        timing.finish(if (result.isSuccess) "saved" else "save_error")
 
                         withContext(Dispatchers.Main) {
                             result.onSuccess { entry ->
@@ -137,6 +101,7 @@ class DzlogRepositoryImpl(
                 }
 
                 override fun onError(exception: ImageCaptureException) {
+                    timing.finish("camera_error")
                     tmpFile.delete()
                     onFail(exception.message ?: "촬영 실패")
                 }
@@ -144,6 +109,73 @@ class DzlogRepositoryImpl(
         )
     }
 
+
+    /** Shared by the legacy synchronous flow and the future staged queue. */
+    internal suspend fun saveStagedCapture(
+        context: Context,
+        staged: CapturePendingStore.PendingCapture,
+    ): LogEntry = saveCapturedJpeg(context, staged.imageFile, staged.snapshot.request)
+
+    private suspend fun saveCapturedJpeg(
+        context: Context,
+        jpegFile: File,
+        request: CaptureRequest,
+        onBitmapReady: () -> Unit = {},
+        onMediaSaved: () -> Unit = {},
+    ): LogEntry {
+        val decodedBmp = BitmapFactory.decodeFile(jpegFile.absolutePath)
+            ?: throw IllegalStateException("촬영 이미지 디코딩 실패")
+        val exif = ExifInterface(jpegFile)
+        val orientedBmp = applyExifOrientation(decodedBmp, exif)
+        val originalBmp = cropToAspect(orientedBmp, request)
+        onBitmapReady()
+
+        val baseRel = normalizeCaptureBaseRelativePath(request.relativePath)
+        val origRel = appendOriginalCaptureDirectory(baseRel)
+
+        val displayName = request.displayName
+        val qualityMode = request.photoQualityMode
+        val jpegQuality = qualityMode.jpegQuality
+        Log.d(
+            "CounterReadback",
+            "captureAndSave request saveMode=${request.saveMode}, baseRel=$baseRel, origRel=$origRel, displayName=$displayName"
+        )
+        val saved = CaptureMediaSaveCoordinator.save(
+            mode = request.saveMode,
+            saveWatermark = {
+                val wmBmp = renderWatermarkForRequest(watermarkRenderer, originalBmp, request)
+                saver.saveJpeg(context, applyPhotoQualityPolicy(wmBmp, qualityMode),
+                    displayName, baseRel, jpegQuality)
+            },
+            saveOriginal = {
+                saver.saveJpeg(context, applyPhotoQualityPolicy(originalBmp, qualityMode),
+                    displayName, origRel, jpegQuality)
+            },
+            deleteSaved = { uri -> saver.deleteByUri(context, uri) },
+        )
+        onMediaSaved()
+        val entry = LogEntry(
+            mediaStoreId = saved.primary.mediaStoreId,
+            contentUri = saved.primary.uri,
+            savedContentUris = saved.files.map { it.uri },
+            displayName = saved.primary.displayName,
+            isNameAdjusted = saved.primary.isNameAdjusted,
+            createdAt = System.currentTimeMillis(),
+            group1 = request.group1,
+            group2 = request.group2,
+        )
+        if (request.saveMode != SaveMode.ORIGINAL_ONLY) {
+            // The media is already committed; optional log failure must not
+            // turn a successful capture into a failed counter/phrase advance.
+            try {
+                insertLogEntry(context, entry, saved.primary.uri,
+                    saved.primary.displayName, baseRel)
+            } catch (error: Exception) {
+                Log.e("DZlogCapture", "사진 저장 후 로그 기록 실패", error)
+            }
+        }
+        return entry
+    }
 
     private suspend fun insertLogEntry(
         context: Context,
