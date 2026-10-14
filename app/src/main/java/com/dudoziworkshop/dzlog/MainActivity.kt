@@ -9,6 +9,7 @@ import com.dudoziworkshop.dzlog.feature.table.policy.BillingEntitlementRuntime
 import androidx.lifecycle.lifecycleScope
 import com.dudoziworkshop.dzlog.ui.camera.VolumeKeyInputBus
 import com.dudoziworkshop.dzlog.ui.onboarding.OnboardingStartupGate
+import com.dudoziworkshop.dzlog.ui.navigation.RequiredPermissionsGate
 import com.dudoziworkshop.dzlog.ui.theme.DDZTheme
 
 class MainActivity : ComponentActivity() {
@@ -36,7 +37,9 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             DDZTheme {
-                OnboardingStartupGate()
+                RequiredPermissionsGate {
+                    OnboardingStartupGate()
+                }
             }
         }
     }

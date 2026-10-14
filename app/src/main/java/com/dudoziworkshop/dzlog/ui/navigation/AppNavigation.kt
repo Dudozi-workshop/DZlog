@@ -973,7 +973,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
             }
             }
         }
-        GalleryPermissionOnboarding()
     }
 }
 
