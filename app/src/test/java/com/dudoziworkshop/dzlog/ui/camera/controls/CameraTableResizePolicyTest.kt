@@ -40,6 +40,29 @@ class CameraTableResizePolicyTest {
         assertTrue(result.y10000 in 0..10000)
     }
 
+
+    @Test fun horizontalFullFitEqualsPhotoWidth() {
+        val base = baseline()
+        val result = resizeCameraTableKeepingCenter(base, cameraTableScaleRange(base).endInclusive)
+        assertEquals(100, result.widthRatio)
+        assertEquals(100, cameraTableFitPercent(base, result.widthRatio))
+    }
+
+    @Test fun portraitRotationCanFillPhotoHeightPastLegacyLimit() {
+        val base = baseline(rotation = 90).copy(photoAspect = 9f / 16f)
+        val result = resizeCameraTableKeepingCenter(base, cameraTableScaleRange(base).endInclusive)
+        assertEquals(177, result.widthRatio)
+        assertEquals(100, cameraTableFitPercent(base, result.widthRatio))
+        assertTrue(result.heightRatio <= 100)
+    }
+
+    @Test fun rotatedLandscapeBoundsStayInsidePhoto() {
+        val base = baseline(rotation = 90)
+        val result = resizeCameraTableKeepingCenter(base, cameraTableScaleRange(base).endInclusive)
+        assertTrue(result.heightRatio <= 100)
+        assertTrue(result.widthRatio <= 133)
+    }
+
     @Test fun topAlignedTableCannotMoveOutsidePhoto() {
         val initial = baseline().copy(anchor = WatermarkTableAnchor.TOP_LEFT)
         val result = resizeCameraTableKeepingCenter(initial, 2f)
