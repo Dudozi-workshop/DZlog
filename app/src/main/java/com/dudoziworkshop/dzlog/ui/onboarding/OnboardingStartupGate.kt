@@ -38,7 +38,7 @@ import kotlinx.coroutines.withContext
 
 /** Prevent the legacy default-template creation from running before startup eligibility is known. */
 @Composable
-fun OnboardingStartupGate() {
+fun OnboardingStartupGate(startWithStarterSelection: Boolean = false) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var checkVersion by remember { mutableIntStateOf(0) }
@@ -102,6 +102,7 @@ fun OnboardingStartupGate() {
             OnboardingFlowScreen(
                 busy = busy, onChoose = { apply(it, true) },
                 onSkip = { apply(OnboardingStarterCatalog.DEFAULT_ID, false) },
+                startStep = if (startWithStarterSelection) 3 else 1,
             )
         }
         route == CatalogStartupRoute.RECOVERY_REQUIRED -> Column(
