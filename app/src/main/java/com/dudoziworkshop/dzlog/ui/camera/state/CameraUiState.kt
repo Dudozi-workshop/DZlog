@@ -58,7 +58,15 @@ internal class CameraPrefsState {
 @Stable
 internal class CaptureUiState {
     var capturedUri by mutableStateOf<Uri?>(null)
+    // SHORT/HOLD await the *committed* primary MediaStore URI before review.
+    // A pending review blocks a second shutter even after CameraX staging ends.
+    var pendingPreviewCaptureId by mutableStateOf<String?>(null)
     var isCapturing by mutableStateOf(false)
+    var pendingSaveCount by mutableIntStateOf(0)
+    var pendingProjectionVersion by mutableIntStateOf(0)
+    var pendingSaveError by mutableStateOf(false)
+    // Blocks new shots until resumed READY jobs have been reconciled.
+    var isRecoveringPendingCaptures by mutableStateOf(false)
     val captureGate: AtomicBoolean = AtomicBoolean(false)
 
     var tapFocusUi by mutableStateOf<TapFocusUiState?>(null)
