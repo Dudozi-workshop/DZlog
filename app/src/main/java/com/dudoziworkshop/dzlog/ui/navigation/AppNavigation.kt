@@ -254,11 +254,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     LaunchedEffect(hasRestoredTemplate, startOnCamera) {
         if (startOnCamera && hasRestoredTemplate) {
             screen = AppScreen.CAMERA
-            Toast.makeText(
-                context,
-                "빠른 수정으로 기록할 수 있어요. 원본과 기록사진을 함께 저장해요.",
-                Toast.LENGTH_LONG,
-            ).show()
+            // ON-04 now renders a nonblocking camera guide instead of a one-off Toast.
         }
     }
 
