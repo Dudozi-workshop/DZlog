@@ -173,7 +173,7 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
                     "폴더 관리",
                     if (folderConnected) "연결됨" else "연결 필요",
                     if (folderConnected) "Pictures / DZlog 폴더가 연결되어 있어요."
-                    else "폴더 삭제·이동·이름 변경에 사용해요. 한 번만 연결하면 돼요.",
+                    else "DZlog 사용에 필요한 필수 폴더예요. 연결은 한 번만 하면 돼요.",
                     active = currentStep == RequiredSetupStep.FOLDER,
                     stepNumber = 3,
                 )
@@ -355,8 +355,8 @@ internal fun PermissionManagementScreen(onBack: () -> Unit) {
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(LocalDDZSpacing.current.screenPadding), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("현재 권한과 폴더 연결 상태를 확인해요.", style = typography.Body, color = colors.TextSecondary)
             PermissionStatusCards(state)
-            PermissionCard("폴더 관리", if (connected) "연결됨" else "필요할 때 연결",
-                if (connected) "Pictures / DZlog 폴더가 연결되어 있어요." else "폴더 삭제·이동·이름 변경 시 연결해요.") {
+            PermissionCard("폴더 관리", if (connected) "연결됨" else "연결 필요",
+                if (connected) "Pictures / DZlog 폴더가 연결되어 있어요." else "DZlog를 사용하려면 Pictures/DZlog 폴더 연결이 필요해요.") {
                 DDZButton(if (connected) "연결 변경" else "폴더 연결", { selectedPath = null; showGuide = true }, Modifier.fillMaxWidth(), style = DDZButtonStyle.Secondary, enabled = !busy)
             }
             Text("권한은 휴대폰 설정에서 변경할 수 있어요.", style = typography.Caption, color = colors.TextSecondary)
