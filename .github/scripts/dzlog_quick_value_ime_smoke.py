@@ -45,13 +45,17 @@ def main():
         and bounds(node)
     ]
     ime_rows = [bounds(node)[1] for node in ime_nodes if bounds(node)[1] > 0]
-    if ime_rows:
-        # Ignore very small IME decorative elements at the top of its own window.
-        keyboard_top = min(ime_rows)
-        if y2 > keyboard_top + 8:
-            raise AssertionError(
-                f"Quick-value editor overlaps keyboard: editor bottom {y2}, keyboard top {keyboard_top}"
-            )
+    window = adb("shell", "dumpsys", "window", timeout=45)
+    native_tops = [int(top) for top in re.findall(
+        r"type=ime frame=\[\d+,(\d+)\]\[\d+,\d+\][^\n]*visible=true", window)]
+    keyboard_tops = ime_rows + native_tops
+    if not keyboard_tops:
+        raise AssertionError("Cannot verify keyboard bounds; do not pass visibility heuristically")
+    keyboard_top = min(keyboard_tops)
+    if y2 > keyboard_top + 8:
+        raise AssertionError(
+            f"Quick-value editor overlaps keyboard: editor bottom {y2}, keyboard top {keyboard_top}"
+        )
     if not contains(root, "빠른 수정") or not contains(root, "입력"):
         raise AssertionError("Quick-value editor controls not accessible above keyboard")
     for label in ("파일명", "저장경로", "템플릿"):
@@ -59,8 +63,14 @@ def main():
                    if (node.get("text") or "").strip().startswith(label) and bounds(node)]
         if not visible:
             raise AssertionError(f"{label} preview missing while keyboard is open")
-        if ime_rows and min(rect[1] for rect in visible) >= keyboard_top:
+        if not any(rect[2] > rect[0] and rect[3] > rect[1]
+                   and rect[3] <= keyboard_top + 8 for rect in visible):
             raise AssertionError(f"{label} preview moved behind the keyboard")
+    buttons = [bounds(node) for node in nodes(root)
+               if node.get("text") == "입력" and bounds(node)]
+    if not any(rect[2] > rect[0] and rect[3] > rect[1]
+               and rect[3] <= keyboard_top + 8 for rect in buttons):
+        raise AssertionError("Input button is clipped or behind the keyboard")
     # The explicit input action clears focus and hides only the IME. A system
     # Back may dismiss the Dialog as well; verify that navigation separately.
     tap("입력")

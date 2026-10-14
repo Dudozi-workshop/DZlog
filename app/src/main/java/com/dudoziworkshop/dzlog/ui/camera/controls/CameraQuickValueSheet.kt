@@ -4,6 +4,8 @@ import android.os.Build
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -161,7 +163,23 @@ internal fun CameraQuickValueSheet(
         val keyboard = LocalSoftwareKeyboardController.current
         val context = LocalContext.current
         val view = LocalView.current
-        val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+        val density = LocalDensity.current
+        val composeImeBottom = WindowInsets.ime.getBottom(density)
+        var nativeImeBottom by remember(view) { mutableIntStateOf(0) }
+        val imeVisible = maxOf(composeImeBottom, nativeImeBottom) > 0
+        // Dialog Compose insets can remain zero although the native window has
+        // an IME. Read the native value without replacing Compose's inset listener.
+        DisposableEffect(view) {
+            val observer = view.viewTreeObserver
+            val listener = android.view.ViewTreeObserver.OnGlobalLayoutListener {
+                nativeImeBottom = ViewCompat.getRootWindowInsets(view)
+                    ?.getInsets(WindowInsetsCompat.Type.ime())?.bottom ?: 0
+            }
+            observer.addOnGlobalLayoutListener(listener)
+            onDispose {
+                if (observer.isAlive) observer.removeOnGlobalLayoutListener(listener)
+            }
+        }
         DisposableEffect(view) {
             val window = (view.parent as? DialogWindowProvider)?.window
             if (window != null) {
@@ -183,7 +201,11 @@ internal fun CameraQuickValueSheet(
         fun inputDone() { focus.clearFocus(); keyboard?.hide() }
         fun dismiss() { inputDone(); commit(); onDismiss() }
         BoxWithConstraints(Modifier.fillMaxSize().background(DDZColor.PrimaryDark.copy(alpha = 0.72f))
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)).imePadding()) {
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            .imePadding()
+            .padding(bottom = with(density) {
+                (nativeImeBottom - composeImeBottom).coerceAtLeast(0).toDp()
+            })) {
             // Reserve a table viewport even with the keyboard and manual input expansion.
             val fixedChrome = DDZLayout.QuickInput.Touch * 2 + DDZLayout.Control.Compact * 2 +
                 DDZSpacing.screenPadding * 2 + DDZSpacing.itemGap * 5 + DDZLayout.QuickInput.CellMarker * 2
