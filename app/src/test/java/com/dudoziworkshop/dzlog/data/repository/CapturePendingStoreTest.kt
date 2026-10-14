@@ -306,4 +306,84 @@ class CapturePendingStoreTest {
             folder.listFiles().orEmpty().filter { it.name.startsWith(id) }.forEach(File::delete)
         }
     }
+
+    @Test fun restartDuringProcessingDoesNotRetryAnUncertainMediaSave() {
+        val scope = CaptureReservationScope(
+            "Pictures/DZlog/restart-processing/${System.nanoTime()}/", "CRASH_"
+        )
+        val store = CapturePendingStore(context)
+        val reserved = store.reserveNext(scope, 1, ::snapshot)
+        val id = reserved.reservation.id
+        val source = File(context.cacheDir, "$id-restart.jpg")
+        source.writeBytes(byteArrayOf(10, 20, 30, 40))
+        val directory = File(context.filesDir, "capture-pending-v2")
+        var nextId: String? = null
+        try {
+            store.stageJpeg(id, source)
+            store.markProcessing(id)
+            // Simulate process death after the disk journal entered PROCESSING.
+            val restarted = CapturePendingStore(context)
+            val inventory = restarted.inspectRecovery()
+            assertTrue(inventory.ready.none { it.reservation.id == id })
+            assertTrue(inventory.needsReview.any {
+                it.reservation.id == id &&
+                    it.status == CapturePendingStore.Status.PROCESSING
+            })
+            assertTrue(
+                CaptureRecoveryStatusPolicy.resumableReadyIds(inventory, emptySet()).isEmpty()
+            )
+            assertTrue(CaptureRecoveryStatusPolicy.needsManualReview(inventory, emptySet()))
+            assertTrue(File(directory, "$id.jpg").exists())
+
+            // A new capture must not reuse the unfinished capture's number.
+            val next = restarted.reserveNext(scope, 1, ::snapshot)
+            nextId = next.reservation.id
+            assertEquals(reserved.reservation.counter + 1, next.reservation.counter)
+        } finally {
+            source.delete()
+            listOfNotNull(id, nextId).forEach { candidate ->
+                directory.listFiles().orEmpty()
+                    .filter { it.name.startsWith(candidate) }.forEach(File::delete)
+            }
+        }
+    }
+
+    @Test fun restartAfterBothMediaOutputsBeforeCommitPreservesEvidence() {
+        val store = CapturePendingStore(context)
+        val reserved = store.reserveNext(
+            CaptureReservationScope(
+                "Pictures/DZlog/restart-saved/${System.nanoTime()}/", "SAVED_"
+            ), 8, ::snapshot
+        )
+        val id = reserved.reservation.id
+        val source = File(context.cacheDir, "$id-saved.jpg")
+        source.writeBytes(byteArrayOf(7, 8, 9, 10))
+        val expectedUris = listOf(
+            Uri.parse("content://media/external/images/media/101"),
+            Uri.parse("content://media/external/images/media/102"),
+        )
+        try {
+            store.stageJpeg(id, source)
+            store.markProcessing(id)
+            store.markMediaSaved(id, expectedUris)
+
+            // Crash before committing the counter/rotating phrase: no blind replay.
+            val recovered = CapturePendingStore(context).inspectRecovery()
+            assertTrue(recovered.ready.none { it.reservation.id == id })
+            val ambiguous = recovered.needsReview.single { it.reservation.id == id }
+            assertEquals(CapturePendingStore.Status.SAVED_UNCOMMITTED, ambiguous.status)
+            assertEquals(expectedUris.map(Uri::toString), ambiguous.outputUris)
+            assertTrue(
+                CaptureRecoveryStatusPolicy.resumableReadyIds(recovered, emptySet()).isEmpty()
+            )
+
+            val quarantined = CapturePendingStore(context).markNeedsReview(id)
+            assertEquals(CapturePendingStore.Status.NEEDS_REVIEW, quarantined.status)
+            assertEquals(expectedUris.map(Uri::toString), quarantined.outputUris)
+        } finally {
+            source.delete()
+            File(context.filesDir, "capture-pending-v2").listFiles().orEmpty()
+                .filter { it.name.startsWith(id) }.forEach(File::delete)
+        }
+    }
 }
