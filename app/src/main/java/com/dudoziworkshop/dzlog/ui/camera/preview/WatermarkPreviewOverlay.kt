@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
@@ -60,6 +61,7 @@ internal fun WatermarkPreviewOverlay(
         tableHeightRatio = request.watermark.tableHeightRatio,
         maxWidthRatio = request.watermark.tableWidthRatio,
         maxHeightRatio = request.watermark.tableHeightRatio,
+        hardMaxRatio = TableLayoutCalculator.CAMERA_MAX_RATIO,
     )
 
     val layout = computeWatermarkTableLayout(
