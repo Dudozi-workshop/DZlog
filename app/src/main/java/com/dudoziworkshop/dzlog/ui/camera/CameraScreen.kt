@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
@@ -39,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -49,7 +51,15 @@ import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
+import com.dudoziworkshop.dzlog.data.repository.CaptureAsyncRuntime
+import com.dudoziworkshop.dzlog.data.repository.CaptureQueueCoordinator
+import com.dudoziworkshop.dzlog.data.repository.CaptureReceiptRecoveryPolicy
+import com.dudoziworkshop.dzlog.data.repository.CaptureRecoveryStatusPolicy
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
+import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjection
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReviewPolicy
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureTemplateCommitPolicy
+import com.dudoziworkshop.dzlog.domain.table.applyPatch
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
@@ -91,14 +101,20 @@ import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.common.rememberThreeButtonNavEquivalentBottomPadding
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import android.widget.Toast
 import kotlinx.coroutines.launch
 
 @Composable
 fun CameraScreen(
     tableTemplateState: TableTemplateState,
     onTemplateChange: (TableTemplateState) -> Unit,
+    onPersistCapturedTemplate: suspend (TableTemplateState) -> Boolean = { false },
     onOpenTableEditor: () -> Unit,
     onOpenSaveSettings: () -> Unit,
     onOpenAlbum: () -> Unit,
@@ -139,6 +155,7 @@ fun CameraScreen(
             CameraPreview(
                 tableTemplateState = tableTemplateState,
                 onTemplateChange = onTemplateChange,
+                onPersistCapturedTemplate = onPersistCapturedTemplate,
                 quickTemplateName = quickTemplateName,
                 quickTemplates = quickTemplates,
                 quickTemplateId = quickTemplateId,
@@ -183,6 +200,7 @@ fun CameraPreview(
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
     val context = LocalContext.current
+    // Recovery and live completion are reconciled by a single durable state observer.
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
     val scope = rememberCoroutineScope()
     val cameraViewModel: CameraViewModel = viewModel()
@@ -211,15 +229,151 @@ fun CameraPreview(
         )
     )
     val captureFeedback = remember(context) { CaptureFeedback(context) }
+    val asyncCaptureService = remember(context.applicationContext) {
+        CaptureAsyncRuntime.get(context.applicationContext, repository)
+    }
+    val pendingProjection = remember(asyncCaptureService) { asyncCaptureService.pendingProjection }
+    val templateSessionSafe = remember(asyncCaptureService, quickTemplateId) {
+        pendingProjection.bindTemplate(quickTemplateId)
+    }
+    val activeTemplate = rememberUpdatedState(tableTemplateState)
+    val persistCapturedTemplate = rememberUpdatedState(onPersistCapturedTemplate)
+    val latestCommittedCallback = rememberUpdatedState(onCaptureCommitted)
+    // UI acknowledges durable commit receipts only after seeing the applied template.
+    var pendingAcknowledgement by remember {
+        mutableStateOf<Pair<List<String>, TableTemplateState>?>(null)
+    }
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var showQuickValueSheet by remember { mutableStateOf(false) }
     var cornerResizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
-    BackHandler(enabled = ui.capture.capturedUri != null || ui.showWizard || ui.isTableResizePanelOpen || ui.showToolMenu ||
+    LaunchedEffect(templateSessionSafe) {
+        if (!templateSessionSafe) ui.capture.pendingSaveError = true
+    }
+
+    // StateFlow delivers the current version after a screen recreation, even if
+    // the original SharedFlow completion event was missed while off-screen.
+    // The journal, not the event, is authoritative about committed media.
+    LaunchedEffect(asyncCaptureService, quickTemplateId) {
+        // Wait until navigation has restored the active catalog. Writing a
+        // receipt against an uninitialized template would corrupt progress.
+        if (quickTemplateId == null) return@LaunchedEffect
+        asyncCaptureService.stateVersion.collect {
+            try {
+                val recovered = withContext(Dispatchers.IO) {
+                    // Only verified READY work may resume automatically. PROCESSING,
+                    // SAVED_UNCOMMITTED and damaged journals are never retried.
+                    asyncCaptureService.resumeVerifiedReadyCaptures(quickTemplateId)
+                    asyncCaptureService.inspectRecovery()
+                }
+                val activeIds = asyncCaptureService.activeIds()
+                val unclaimedReady = CaptureRecoveryStatusPolicy.resumableReadyIds(
+                    recovered, activeIds
+                )
+                // Unclaimed READY records may wait for the bounded worker to
+                // release capacity; block new shots while recovery is draining.
+                val unavailableForThisTemplate = recovered.ready.any {
+                    it.reservation.id !in activeIds &&
+                        it.snapshot.templateId != quickTemplateId
+                }
+                val unableToResume = unavailableForThisTemplate ||
+                    (unclaimedReady.isNotEmpty() &&
+                        asyncCaptureService.outstandingCount() == 0)
+                val unresolved = CaptureRecoveryStatusPolicy.needsManualReview(
+                    recovered, activeIds + unclaimedReady
+                ) || unableToResume
+
+                recovered.completedAwaitingApply.forEach { receipt ->
+                    // Each receipt belongs to the template selected when its
+                    // shutter was pressed. Identical tables can have different
+                    // catalog IDs; never silently update a different entry.
+                    check(CaptureTemplateCommitPolicy.matchesReceipt(
+                        receipt.snapshot.templateId, quickTemplateId
+                    )) {
+                        "Receipt belongs to a different quick template"
+                    }
+                    val id = receipt.reservation.id
+                    val pending = pendingProjection.snapshot()
+                    check(pending.none { it.id == id } || pending.firstOrNull()?.id == id) {
+                        "Out-of-order capture receipt must be reviewed"
+                    }
+                    val appliesPending = pending.firstOrNull()?.id == id
+                    if (appliesPending) {
+                        check(pending.first().templatePatch == receipt.snapshot.tablePatch) {
+                            "Capture projection and durable receipt disagree"
+                        }
+                    }
+                    val base = pendingProjection.committedBase(
+                        pendingAcknowledgement?.second ?: activeTemplate.value
+                    )
+                    // Validate the saved snapshot against the active template,
+                    // even for an in-memory pending shot. Never apply a receipt
+                    // to a different template merely because its ID is pending.
+                    val applied = CaptureReceiptRecoveryPolicy.resolve(base, listOf(receipt))
+                        ?.template ?: error("Capture receipt conflicts with active template")
+                    // Never acknowledge a receipt until the catalog is durably saved.
+                    check(persistCapturedTemplate.value(applied)) {
+                        "Unable to persist captured template progression"
+                    }
+                    if (appliesPending) pendingProjection.completeFirst(id)
+                    pendingProjection.recordCommittedTemplate(applied)
+                    pendingAcknowledgement = listOf(id) to applied
+                    withContext(Dispatchers.IO) {
+                        asyncCaptureService.acknowledgeTemplateApplied(id)
+                    }
+                    pendingAcknowledgement = null
+                    val uris = receipt.outputUris.map(Uri::parse)
+                        .filter { it != Uri.EMPTY }.distinct()
+                    if (uris.isNotEmpty()) {
+                        UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
+                    }
+                    // Preserve legacy SHORT/HOLD behavior: review the final
+                    // saved output, not the unprocessed camera JPEG.
+                    if (CaptureReviewPolicy.shouldOpenSavedPreview(
+                            ui.capture.pendingPreviewCaptureId, id
+                        )
+                    ) {
+                        check(uris.isNotEmpty()) { "Committed preview has no saved media" }
+                        ui.capture.capturedUri = uris.first()
+                        ui.capture.pendingPreviewCaptureId = null
+                    }
+                    cameraViewModel.onCaptureCommitted()
+                    latestCommittedCallback.value()
+                }
+
+                val ownedProjectionIds = pendingProjection.snapshot()
+                    .map { it.id }.toSet()
+                ui.capture.isRecoveringPendingCaptures =
+                    (activeIds - ownedProjectionIds).isNotEmpty() ||
+                    unclaimedReady.isNotEmpty()
+                ui.capture.pendingSaveCount = maxOf(
+                    pendingProjection.pendingCount(),
+                    asyncCaptureService.outstandingCount() + unclaimedReady.size,
+                )
+                ui.capture.pendingProjectionVersion++
+                // A failed stage/reservation must not be dismissed merely because
+                // the save worker has no active jobs.
+                ui.capture.pendingSaveError = unresolved || !templateSessionSafe
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                ui.capture.pendingSaveError = true
+                android.util.Log.e("DZlogCaptureRecovery", "Capture reconciliation failed", error)
+                Toast.makeText(
+                    context, "저장된 사진의 번호·문구 상태를 확인해주세요.", Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    BackHandler(enabled = (ui.capture.pendingSaveCount > 0 && !ui.capture.pendingSaveError) ||
+        ui.capture.capturedUri != null || ui.showWizard || ui.isTableResizePanelOpen || ui.showToolMenu ||
         ui.isToolPanelExpanded || ui.isZoomChipExpanded || ui.selectedTool != null || ui.isTableSelected) {
         when {
+            ui.capture.pendingSaveCount > 0 && !ui.capture.pendingSaveError ->
+                Toast.makeText(context, "사진 저장 완료 후 이동할 수 있습니다.", Toast.LENGTH_SHORT).show()
             ui.capture.capturedUri != null -> ui.capture.capturedUri = null
             ui.showWizard -> ui.showWizard = false
             ui.isTableResizePanelOpen -> ui.isTableResizePanelOpen = false
@@ -235,8 +389,17 @@ fun CameraPreview(
     val fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER
     val dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
-    val derivedState = remember(
+    // A persisted catalog update may lag behind the committed receipt.
+    // Recompute from the committed base even before Compose delivers that update.
+    val effectiveTemplate = remember(
         tableTemplateState,
+        ui.capture.pendingProjectionVersion,
+        pendingAcknowledgement,
+    ) {
+        pendingProjection.previewTemplate(tableTemplateState)
+    }
+    val derivedState = remember(
+        effectiveTemplate,
         ui.capture.now,
         ui.prefs.counterDigits,
         appSettings.phraseProgressCursor,
@@ -247,7 +410,7 @@ fun CameraPreview(
         ui.counter.syncedRequest,
     ) {
         computeCameraDerivedState(
-            tableTemplateState = tableTemplateState,
+            tableTemplateState = effectiveTemplate,
             now = ui.capture.now,
             counterDigits = ui.prefs.counterDigits,
             phraseProgressCounter = appSettings.phraseProgressCursor,
@@ -273,6 +436,13 @@ fun CameraPreview(
         counterScopeRelativePathKey = captureScopeState.counterScope.relativePathKey,
         saveMode = appSettings.saveMode
     )
+    LaunchedEffect(asyncCaptureService, latestImageController) {
+        asyncCaptureService.events.collect { event ->
+            if (event is CaptureQueueCoordinator.Event.Completed) {
+                latestImageController.reload()
+            }
+        }
+    }
     val latestImage = latestImageController.latestImage
 
     fun syncAfterUndoDelete() {
@@ -307,9 +477,19 @@ fun CameraPreview(
         isTemplateReady = isTemplateReady,
         appSettings = appSettings,
         ui = ui,
+        pendingProjection = pendingProjection,
     )
 
-    val topDisplayName = derivedState.topDisplayName
+    // Show only a complete, counter-synchronized filename in the top bar.
+    // While a rotating phrase changes streams, keep the previous valid label;
+    // the shutter still remains gated until finalCapturePreview is ready.
+    var lastReadyDisplayName by remember(quickTemplateId) { mutableStateOf<String?>(null) }
+    LaunchedEffect(finalCapturePreview?.displayName) {
+        finalCapturePreview?.displayName?.let { lastReadyDisplayName = it }
+    }
+    val topDisplayName = finalCapturePreview?.displayName
+        ?: lastReadyDisplayName
+        ?: derivedState.topDisplayName
     var showNextCaptureInfo by remember { mutableStateOf(false) }
 
     fun resetZoomToDefault() {
@@ -335,9 +515,12 @@ fun CameraPreview(
         undoPending = undoDeleteController.isBusy,
         finalCapturePreview = finalCapturePreview,
         scopedCounterStream = scopedCounterStream,
-        tableTemplateState = tableTemplateState,
+        tableTemplateState = effectiveTemplate,
+        templateId = quickTemplateId,
         fnDelim = fnDelim,
         repository = repository,
+        asyncService = asyncCaptureService,
+        pendingProjection = pendingProjection,
         cameraViewModel = cameraViewModel,
         captureFeedback = captureFeedback,
         sessionCaptureStack = sessionCaptureStack,
@@ -415,9 +598,13 @@ fun CameraPreview(
                     showNextCaptureInfo = true
                 },
                 onOpenSettings = {
-                    ui.isTableSelected = false
-                    ui.dismissToolOverlays()
-                    ui.showWizard = true
+                    if (ui.capture.pendingSaveCount == 0) {
+                        ui.isTableSelected = false
+                        ui.dismissToolOverlays()
+                        ui.showWizard = true
+                    } else {
+                        Toast.makeText(context, "사진 저장 완료 후 설정을 변경할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                    }
                 },
             )
 
@@ -432,7 +619,7 @@ fun CameraPreview(
                     ui = ui,
                     appSettings = appSettings,
                     settingsWriter = settingsWriter,
-                    tableTemplateState = tableTemplateState,
+                    tableTemplateState = effectiveTemplate,
                     tableResolver = tableResolver,
                     scopeNextCounter = displayCounter,
                     phraseProgressCursor = appSettings.phraseProgressCursor,
@@ -444,8 +631,12 @@ fun CameraPreview(
                     safeBottomY = layout.safeBottomY,
                     usableVerticalMarginPx = layout.usableVerticalMarginPx,
                     onOpenTableEditor = {
-                        ui.dismissToolOverlays()
-                        onOpenTableEditor()
+                        if (ui.capture.pendingSaveCount == 0) {
+                            ui.dismissToolOverlays()
+                            onOpenTableEditor()
+                        } else {
+                            Toast.makeText(context, "저장 완료 후 표를 편집할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                        }
                     },
                 )
 
@@ -512,23 +703,51 @@ fun CameraPreview(
                         scope = scope,
                         ui = ui,
                         settingsWriter = settingsWriter,
-                        captureReady = canTriggerCapture && !undoDeleteController.isBusy,
+                        captureReady = canTriggerCapture && !undoDeleteController.isBusy &&
+                            ui.capture.pendingPreviewCaptureId == null &&
+                            !ui.capture.pendingSaveError &&
+                            !ui.capture.isRecoveringPendingCaptures &&
+                            ui.capture.pendingSaveCount < 3,
                         latestImage = latestImage,
-                        onOpenAlbum = onOpenAlbum,
-                        onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
+                        onOpenAlbum = {
+                            if (ui.capture.pendingSaveCount == 0 || ui.capture.pendingSaveError) onOpenAlbum()
+                            else Toast.makeText(context, "저장 완료 후 앨범으로 이동할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                        },
+                        onOpenRecentCaptureGrid = { g1, g2, path, start ->
+                            if (ui.capture.pendingSaveCount == 0 || ui.capture.pendingSaveError) {
+                                onOpenRecentCaptureGrid(g1, g2, path, start)
+                            } else {
+                                Toast.makeText(context, "저장 완료 후 이동할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
                         sessionCaptureStack = sessionCaptureStack,
-                        undoPending = undoDeleteController.isBusy,
-                        onUndoDelete = { undoDeleteController.deleteLatest(sessionCaptureStack) },
+                        undoPending = undoDeleteController.isBusy || ui.capture.pendingSaveCount > 0,
+                        onUndoDelete = {
+                            if (ui.capture.pendingSaveCount == 0) {
+                                undoDeleteController.deleteLatest(sessionCaptureStack)
+                            }
+                        },
                         onTriggerCapture = {
                             ui.dismissCameraInteractions()
                             triggerCapture()
                         },
                         onShutterButtonTopYChange = { layout.onShutterButtonTopYChange(it) },
-                        onOpenQuickValues = { ui.dismissCameraInteractions(); showQuickValueSheet = true },
+                        onOpenQuickValues = {
+                            if (ui.capture.pendingSaveCount == 0) {
+                                ui.dismissCameraInteractions()
+                                showQuickValueSheet = true
+                            } else {
+                                Toast.makeText(context, "저장 완료 후 값을 변경할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
                         onOpenTableEditor = {
-                            ui.isTableSelected = false
-                            ui.dismissToolOverlays()
-                            onOpenTableEditor()
+                            if (ui.capture.pendingSaveCount == 0) {
+                                ui.isTableSelected = false
+                                ui.dismissToolOverlays()
+                                onOpenTableEditor()
+                            } else {
+                                Toast.makeText(context, "저장 완료 후 표를 편집할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                            }
                         },
                         hapticEnabled = appSettings.hapticEnabled,
                     )
@@ -608,8 +827,12 @@ fun CameraPreview(
                     appSettings.saveMode,
                 ),
                 onOpenSaveSettings = {
-                    showNextCaptureInfo = false
-                    onOpenSaveSettings()
+                    if (ui.capture.pendingSaveCount == 0) {
+                        showNextCaptureInfo = false
+                        onOpenSaveSettings()
+                    } else {
+                        Toast.makeText(context, "저장 완료 후 설정을 변경할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                    }
                 },
                 onDismiss = { showNextCaptureInfo = false },
             )
