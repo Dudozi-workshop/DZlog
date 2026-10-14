@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - integration/dzlog-postrelease-staging-20261014
+      - fix/camera-table-frame-fit-20261015
     paths:
       - 'app/build.gradle.kts'
       - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/CameraQuickValueSheet.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/CameraBottomControls.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/CameraTableResizePolicy.kt'
       - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/help/**'
       - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/onboarding/**'
       - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/navigation/AppNavigation.kt'
