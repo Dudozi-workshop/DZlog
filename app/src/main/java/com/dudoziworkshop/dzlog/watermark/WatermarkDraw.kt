@@ -12,6 +12,7 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.render.computeRenderGridGeometry
 
 private const val BG_STYLE_BLACK = 0
@@ -36,8 +37,8 @@ fun computeWatermarkTableLayout(
 ): WatermarkTableLayout {
     val boundsWidth = bounds.width()
     val boundsHeight = bounds.height()
-    val tableW = boundsWidth * (tableWidthRatio.coerceIn(10, 100) / 100f)
-    val tableH = boundsWidth * (tableHeightRatio.coerceIn(10, 100) / 100f)
+    val tableW = boundsWidth * (tableWidthRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f)
+    val tableH = boundsWidth * (tableHeightRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f)
 
     val maxX = (boundsWidth - tableW).coerceAtLeast(0f)
     val maxY = (boundsHeight - tableH).coerceAtLeast(0f)
@@ -89,8 +90,8 @@ fun computeWatermarkTableLayoutPx(
 ): WatermarkTableLayout {
     val boundsWidth = bounds.width()
     val boundsHeight = bounds.height()
-    val tableW = boundsWidth * (tableWidthRatio.coerceIn(10, 100) / 100f)
-    val tableH = boundsWidth * (tableHeightRatio.coerceIn(10, 100) / 100f)
+    val tableW = boundsWidth * (tableWidthRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f)
+    val tableH = boundsWidth * (tableHeightRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f)
 
     val maxX = (boundsWidth - tableW).coerceAtLeast(0f)
     val maxY = (boundsHeight - tableH).coerceAtLeast(0f)
@@ -136,8 +137,8 @@ fun computeWatermarkTableLayoutPxClampedForRotation(
     }
 
     val baseW = bounds.width()
-    val rawW = baseW * (tableWidthRatio.coerceIn(10, 100) / 100f)
-    val rawH = baseW * (tableHeightRatio.coerceIn(10, 100) / 100f)
+    val rawW = baseW * (tableWidthRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f)
+    val rawH = baseW * (tableHeightRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f)
 
     val cx = bounds.left + offsetLeftPx + rawW / 2f
     val cy = bounds.top + offsetTopPx + rawH / 2f
@@ -416,8 +417,8 @@ fun drawWatermarkTableFromResolvedCells(
     )
     val rawRect = if (anchor == WatermarkTableAnchor.CUSTOM) {
         val baseW = imageBounds.width()
-        val rawW = baseW * (tableWidthRatio.coerceIn(10, 100) / 100f)
-        val rawH = baseW * (tableHeightRatio.coerceIn(10, 100) / 100f)
+        val rawW = baseW * (tableWidthRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f)
+        val rawH = baseW * (tableHeightRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f)
         val (boundsW, boundsH) = computeBoundsSize(rawW, rawH, rotationCwDeg)
         val boundsMaxX = (imageBounds.width() - boundsW).coerceAtLeast(0f)
         val boundsMaxY = (imageBounds.height() - boundsH).coerceAtLeast(0f)
