@@ -4,6 +4,7 @@ import android.graphics.RectF
 import androidx.camera.view.PreviewView
 import androidx.compose.ui.geometry.Offset
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.render.computeRatioOnlyTableShape
 import com.dudoziworkshop.dzlog.watermark.computeBoundsSize
 
@@ -86,10 +87,11 @@ internal fun calculatePreviewWatermarkBaseBoundsOffsetPx(
         tableHeightRatio = tableHeightRatio,
         maxWidthRatio = tableWidthRatio,
         maxHeightRatio = tableHeightRatio,
+        hardMaxRatio = TableLayoutCalculator.CAMERA_MAX_RATIO,
     )
     val baseW = captureRect.width()
-    val rawW = baseW * (cameraPreviewShape.tableWidthRatio.coerceIn(10, 100) / 100f)
-    val rawH = baseW * (cameraPreviewShape.tableHeightRatio.coerceIn(10, 100) / 100f)
+    val rawW = baseW * (cameraPreviewShape.tableWidthRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f)
+    val rawH = baseW * (cameraPreviewShape.tableHeightRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f)
     val (boundsW, boundsH) = computeBoundsSize(rawW, rawH, rotationCwDeg)
     val boundsMaxX = (captureRect.width() - boundsW).coerceAtLeast(0f)
     val boundsMaxY = (captureRect.height() - boundsH).coerceAtLeast(0f)
