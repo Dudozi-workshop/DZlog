@@ -7,6 +7,7 @@ import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
+import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjection
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraUiState
 
 @Composable
@@ -19,6 +20,7 @@ internal fun CameraCounterController(
     isTemplateReady: Boolean,
     appSettings: AppSettings,
     ui: CameraUiState,
+    pendingProjection: CapturePendingProjection,
 ) {
     val context = LocalContext.current
 
@@ -41,5 +43,6 @@ internal fun CameraCounterController(
         appSettings = appSettings,
         ui = ui,
         counterFacade = counterFacade,
+        pendingProjection = pendingProjection,
     )
 }

@@ -24,6 +24,20 @@ internal fun buildCameraRequestKey(
     ).joinToString("|")
 }
 
+/**
+ * A pending save must not block a different filename/phrase counter stream.
+ * The active stream may reuse its projected seed without a MediaStore read.
+ */
+internal fun shouldReadCameraCounter(
+    isTemplateReady: Boolean,
+    isCapturing: Boolean,
+    pendingSaveCount: Int,
+    isCurrentRequestSynced: Boolean,
+): Boolean = isTemplateReady &&
+    // A new phrase/path stream can be read as soon as its reservation exists,
+    // even while CameraX is staging the preceding exposure.
+    (!isCurrentRequestSynced || (!isCapturing && pendingSaveCount == 0))
+
 internal fun detectCameraSyncReason(
     isInitial: Boolean,
     isResumeEvent: Boolean,
