@@ -6,6 +6,7 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
@@ -22,6 +23,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -57,6 +61,10 @@ import com.dudoziworkshop.dzlog.feature.table.state.TableTemplateCatalogViewMode
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.SaveSessionCoordinator
 import com.dudoziworkshop.dzlog.feature.table.policy.TableTemplateCatalogCoordinator
 import com.dudoziworkshop.dzlog.feature.table.policy.activeSavedTableStyle
+import com.dudoziworkshop.dzlog.feature.table.policy.quickEditableCells
+import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuide
+import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase
+import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureSavedResult
 import com.dudoziworkshop.dzlog.feature.table.policy.replaceActiveSavedTableTemplate
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
@@ -167,6 +175,13 @@ fun AppRoot(startOnCamera: Boolean = false) {
     var editorReplacementId by remember { mutableStateOf<String?>(null) }
     val appScope = rememberCoroutineScope()
     var firstCaptureWriteScheduled by remember { mutableStateOf(false) }
+    // ON-04 appears only when the new user explicitly chooses to open the camera.
+    var firstGuidePhase by rememberSaveable(startOnCamera) {
+        mutableStateOf(if (startOnCamera) FirstCaptureGuidePhase.QUICK_EDIT
+            else FirstCaptureGuidePhase.DISMISSED)
+    }
+    var firstGuideResult by remember { mutableStateOf<FirstCaptureSavedResult?>(null) }
+    var showHelpFromGuide by remember { mutableStateOf(false) }
 
     // This only writes on the first committed photo, not on every consecutive capture.
     // A failed background flag write can be retried after the next successful photo.
@@ -826,6 +841,19 @@ fun AppRoot(startOnCamera: Boolean = false) {
                             recordFirstOnboardingCapture()
                         }
                     },
+                    onFirstQuickEditOpened = {
+                        if (startOnCamera && firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT) {
+                            firstGuidePhase = FirstCaptureGuidePhase.SHUTTER
+                        }
+                    },
+                    onFirstCaptureReceipt = { displayName, path ->
+                        if (startOnCamera && firstGuidePhase != FirstCaptureGuidePhase.DISMISSED &&
+                            firstGuideResult == null
+                        ) {
+                            firstGuideResult = FirstCaptureSavedResult(displayName, path)
+                            firstGuidePhase = FirstCaptureGuidePhase.SAVED
+                        }
+                    },
                 )
             }
 
@@ -880,7 +908,11 @@ fun AppRoot(startOnCamera: Boolean = false) {
             }
 
             AppScreen.SETTINGS -> SettingsScreen(
-                onBack = { screen = AppScreen.HOME },
+                startWithHelp = showHelpFromGuide,
+                onBack = {
+                    showHelpFromGuide = false
+                    screen = AppScreen.HOME
+                },
                 onOpenCredits = { navigateTo(AppScreen.CREDITS) },
                 onImported = { result ->
                     // DataStore is committed before this callback; keep the live VM in sync.
@@ -1014,6 +1046,31 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 )
             }
             }
+        }
+        if (startOnCamera && screen == AppScreen.CAMERA &&
+            firstGuidePhase != FirstCaptureGuidePhase.DISMISSED
+        ) {
+            FirstCaptureGuide(
+                phase = if (firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT &&
+                    quickEditableCells(tableTemplateState).isEmpty()
+                ) FirstCaptureGuidePhase.SHUTTER else firstGuidePhase,
+                result = firstGuideResult,
+                onSkip = { firstGuidePhase = FirstCaptureGuidePhase.DISMISSED },
+                onContinue = {
+                    firstGuidePhase = if (firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT)
+                        FirstCaptureGuidePhase.SHUTTER else FirstCaptureGuidePhase.DISMISSED
+                },
+                onOpenGallery = {
+                    firstGuidePhase = FirstCaptureGuidePhase.DISMISSED
+                    openAlbumRoot()
+                },
+                onOpenHelp = {
+                    firstGuidePhase = FirstCaptureGuidePhase.DISMISSED
+                    showHelpFromGuide = true
+                    navigateTo(AppScreen.SETTINGS)
+                },
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 80.dp).zIndex(90f),
+            )
         }
     }
 }

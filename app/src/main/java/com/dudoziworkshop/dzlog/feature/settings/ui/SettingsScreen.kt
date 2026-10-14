@@ -13,12 +13,13 @@ import com.dudoziworkshop.dzlog.feature.help.ui.DzlogHelpScreen
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    startWithHelp: Boolean = false,
     onOpenCredits: () -> Unit = {},
     onImported: (LocalTemplateMergeResult) -> Unit = {},
 ) {
     var backupMode by remember { mutableStateOf<BackupScreenMode?>(null) }
     // index -> one of five module IDs -> index; intro reuses the read-only onboarding.
-    var helpRoute by rememberSaveable { mutableStateOf<String?>(null) }
+    var helpRoute by rememberSaveable { mutableStateOf<String?>(if (startWithHelp) "index" else null) }
     if (helpRoute == "intro") {
         OnboardingFlowScreen(
             busy = false,
