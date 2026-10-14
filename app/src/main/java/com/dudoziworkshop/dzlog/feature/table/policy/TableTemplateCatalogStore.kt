@@ -27,6 +27,7 @@ suspend fun inspectTableTemplateCatalogStartup(
     verifiedNoExistingMedia: Boolean,
     verifiedFreshInstall: Boolean = false,
     knownExistingMedia: Boolean = false,
+    requireVerifiedMediaForOnboarding: Boolean = false,
 ): CatalogStartupRoute {
     val prefs = context.dataStore.data.first()
     val catalog = prefs[KEY_TABLE_TEMPLATES_JSON]
@@ -40,6 +41,7 @@ suspend fun inspectTableTemplateCatalogStartup(
         verifiedNoExistingMedia = verifiedNoExistingMedia,
         verifiedFreshInstall = verifiedFreshInstall,
         knownExistingMedia = knownExistingMedia,
+        requireVerifiedMediaForOnboarding = requireVerifiedMediaForOnboarding,
     )
 }
 
