@@ -156,11 +156,12 @@ fun DDZContentDialog(
     onDismiss: () -> Unit,
     content: @Composable () -> Unit,
     actions: @Composable RowScope.() -> Unit,
+    properties: DialogProperties = DialogProperties(),
 ) {
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss, properties = properties) {
         Surface(
             color = colors.Surface,
             shape = MaterialTheme.shapes.large,

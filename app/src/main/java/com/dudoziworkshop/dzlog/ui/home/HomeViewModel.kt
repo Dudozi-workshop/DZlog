@@ -49,8 +49,12 @@ internal class HomeViewModel(
     private var activeTemplateState: TableTemplateState? = null
     private var previewJob: Job? = null
     private var isActive = false
+    private val mediaObserver = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) { refreshLatestImage() }
+    }
 
     init {
+        appContext.contentResolver.registerContentObserver(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, mediaObserver)
         viewModelScope.launch {
             AppSettingsStore.flow(appContext).collectLatest { settings ->
                 _uiState.value = _uiState.value.copy(settings = settings)
@@ -87,6 +91,11 @@ internal class HomeViewModel(
         viewModelScope.launch {
             recomputeCounter(templateState, _uiState.value.settings)
         }
+    }
+
+    override fun onCleared() {
+        appContext.contentResolver.unregisterContentObserver(mediaObserver)
+        super.onCleared()
     }
 
     fun deactivate() {
