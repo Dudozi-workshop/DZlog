@@ -90,6 +90,10 @@ def main():
             )
         evidence("43-threebutton-camera")
 
+        # Table editing is a HOME action; the camera's four-button toolbar
+        # intentionally has no direct "표 편집" action.
+        adb("shell", "input", "keyevent", "4")
+        wait_for("촬영 시작", timeout=45)
         tap("표 편집")
         wait_for("셀을 선택해 내용을 편집하세요.")
         tap("기록명")
