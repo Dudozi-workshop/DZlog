@@ -50,7 +50,6 @@ def tap_any(labels, timeout=30):
 
 def install_once_ready():
     assert adb("shell", "getprop", "ro.build.version.sdk").strip() == "36"
-    adb("shell", "mkdir", "-p", "/sdcard/Pictures/DZlog", timeout=45)
     deadline = time.monotonic() + 180
     while time.monotonic() < deadline:
         try:
@@ -62,6 +61,23 @@ def install_once_ready():
         time.sleep(3)
     else:
         raise RuntimeError("Android package manager unavailable")
+
+    # sys.boot_completed may precede the emulated-storage mount. On fresh
+    # Android 16 images even /sdcard/Pictures can be temporarily unavailable.
+    # Only the disposable emulator is modified; abort rather than touch user data.
+    storage_deadline = time.monotonic() + 150
+    last_error = ""
+    while time.monotonic() < storage_deadline:
+        try:
+            adb("shell", "mkdir", "-p", "/sdcard/Pictures/DZlog", timeout=25)
+            adb("shell", "test", "-d", "/sdcard/Pictures/DZlog", timeout=15)
+            break
+        except (RuntimeError, subprocess.TimeoutExpired) as error:
+            last_error = str(error)
+            time.sleep(3)
+    else:
+        raise RuntimeError("Android emulated storage not mounted: " + last_error)
+
     apk = "app/build/outputs/apk/debug/app-debug.apk"
     result = subprocess.run(["adb", "install", "-r", apk], capture_output=True, text=True, timeout=180)
     if result.returncode or "Success" not in result.stdout:
