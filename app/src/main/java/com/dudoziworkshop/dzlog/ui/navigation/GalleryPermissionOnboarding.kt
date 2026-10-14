@@ -217,7 +217,7 @@ internal fun RequiredPermissionsGate(
 }
 
 @Composable
-private fun PermissionStatusCards(
+internal fun PermissionStatusCards(
     state: RequiredPermissionState,
     activeStep: RequiredSetupStep? = null,
 ) {
@@ -242,7 +242,7 @@ private fun PermissionStatusCards(
 }
 
 @Composable
-private fun PermissionCard(
+internal fun PermissionCard(
     title: String,
     status: String,
     detail: String,
@@ -273,7 +273,7 @@ private fun PermissionCard(
 }
 
 @Composable
-private fun CurrentSetupGuide(
+internal fun CurrentSetupGuide(
     step: RequiredSetupStep,
     photoAccess: GalleryMediaAccess,
     cameraRequestAttempted: Boolean,
