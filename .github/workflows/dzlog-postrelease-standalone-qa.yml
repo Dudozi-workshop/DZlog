@@ -7,6 +7,9 @@ on:
     paths:
       - 'app/build.gradle.kts'
       - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/CameraQuickValueSheet.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/help/**'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/settings/ui/SettingsScreen.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/settings/ui/SettingsRootScreen.kt'
       - '.github/scripts/dzlog_quick_value_ime_smoke.py'
       - '.github/workflows/dzlog-postrelease-standalone-qa.yml'
   workflow_dispatch:
