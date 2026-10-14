@@ -211,11 +211,11 @@ internal fun CameraBottomControls(
                             .background(DDZColor.Surface.copy(alpha = 0.88f), RoundedCornerShape(12.dp))
                             .padding(horizontal = 16.dp, vertical = 6.dp),
                     ) {
-                        Text("표 크기 · 비율 유지 · ${(ui.prefs.wmTableWidthRatio * 100f / baseline.widthRatio).toInt()}%", color = DDZColor.SageDarkStrong)
+                        Text("표 크기 · 사진 맞춤 · ${cameraTableFitPercent(baseline, ui.prefs.wmTableWidthRatio)}%", color = DDZColor.SageDarkStrong)
                         Slider(
-                            value = (ui.prefs.wmTableWidthRatio.toFloat() / baseline.widthRatio).coerceIn(sliderRange.start, sliderRange.endInclusive),
+                            value = (ui.prefs.wmTableWidthRatio.toFloat() / baseline.widthRatio / sliderRange.endInclusive).coerceIn(sliderRange.start / sliderRange.endInclusive, 1f),
                             onValueChange = { next ->
-                                val resized = resizeCameraTableKeepingCenter(baseline, next)
+                                val resized = resizeCameraTableKeepingCenter(baseline, next * sliderRange.endInclusive)
                                 ui.prefs.wmTableWidthRatio = resized.widthRatio
                                 ui.prefs.wmTableHeightRatio = resized.heightRatio
                                 ui.prefs.wmTableAnchor = WatermarkTableAnchor.CUSTOM
@@ -234,7 +234,7 @@ internal fun CameraBottomControls(
                                     )
                                 }
                             },
-                            valueRange = sliderRange,
+                            valueRange = (sliderRange.start / sliderRange.endInclusive)..1f,
                         )
                     }
                 }
