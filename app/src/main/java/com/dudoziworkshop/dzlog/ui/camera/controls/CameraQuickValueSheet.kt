@@ -5,8 +5,6 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -192,17 +190,10 @@ internal fun CameraQuickValueSheet(
             val inputBudget = (maxHeight - fixedChrome - DDZLayout.QuickInput.MinPreviewHeight)
                 .coerceAtLeast(DDZLayout.QuickInput.Touch)
             val expandedHeight = minOf(DDZLayout.QuickInput.ExpandedHeight, inputBudget)
-            // Preserve both previews while the keyboard is open. Compact the table
-            // viewport and scroll the entire dialog only when the IME needs space.
-            val dialogScroll = rememberScrollState()
-            val compactTableHeight = (maxHeight * 0.35f)
-                .coerceAtLeast(DDZLayout.QuickInput.MinPreviewHeight)
-            LaunchedEffect(imeVisible, focused, expanded, dialogScroll.maxValue) {
-                if (imeVisible && focused) dialogScroll.animateScrollTo(dialogScroll.maxValue)
-            }
-            Column(Modifier.fillMaxSize().then(
-                if (imeVisible) Modifier.verticalScroll(dialogScroll) else Modifier
-            )) {
+            // Keep the naming preview, table preview and editor in one IME-safe viewport.
+            // The table owns the flexible space, so the keyboard shrinks only the table
+            // instead of scrolling the previews off-screen or covering the editor.
+            Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = DDZSpacing.screenPadding), verticalAlignment = Alignment.CenterVertically) {
                     Text("빠른 수정", style = DDZTypography.SettingLabel, color = DDZColor.Surface, modifier = Modifier.weight(1f))
                     TextButton(enabled = !switching, onClick = ::dismiss) { Text("완료", color = DDZColor.Surface) }
@@ -232,10 +223,8 @@ internal fun CameraQuickValueSheet(
                             } finally { switching = false }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().then(
-                        if (imeVisible) Modifier.height(compactTableHeight)
-                        else Modifier.weight(1f)
-                    ).padding(DDZSpacing.screenPadding))
+                    modifier = Modifier.fillMaxWidth().weight(1f)
+                        .padding(DDZSpacing.screenPadding))
                 Surface(Modifier.fillMaxWidth(), color = DDZColor.Surface,
                     shape = RoundedCornerShape(topStart = DDZLayout.Radius.Medium, topEnd = DDZLayout.Radius.Medium)) {
                     Column(Modifier.then(if (imeVisible) Modifier else Modifier.navigationBarsPadding())

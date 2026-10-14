@@ -54,6 +54,13 @@ def main():
             )
     if not contains(root, "빠른 수정") or not contains(root, "입력"):
         raise AssertionError("Quick-value editor controls not accessible above keyboard")
+    for label in ("파일명", "저장경로", "템플릿"):
+        visible = [bounds(node) for node in nodes(root)
+                   if (node.get("text") or "").strip().startswith(label) and bounds(node)]
+        if not visible:
+            raise AssertionError(f"{label} preview missing while keyboard is open")
+        if ime_rows and min(rect[1] for rect in visible) >= keyboard_top:
+            raise AssertionError(f"{label} preview moved behind the keyboard")
     adb("shell", "input", "keyevent", "4")
     time.sleep(2)
     wait_for("빠른 수정")
