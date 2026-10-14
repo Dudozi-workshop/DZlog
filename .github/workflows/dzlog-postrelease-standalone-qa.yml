@@ -6,6 +6,8 @@ on:
       - integration/dzlog-postrelease-staging-20261014
     paths:
       - 'app/build.gradle.kts'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/CameraQuickValueSheet.kt'
+      - '.github/scripts/dzlog_quick_value_ime_smoke.py'
       - '.github/workflows/dzlog-postrelease-standalone-qa.yml'
   workflow_dispatch:
 
