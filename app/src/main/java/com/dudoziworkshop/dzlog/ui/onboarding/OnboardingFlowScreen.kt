@@ -77,7 +77,7 @@ internal fun OnboardingFlowScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("DZlog", color = DDZColor.PrimaryDark, fontWeight = FontWeight.Bold)
-            Text("$step / 3", color = DDZColor.TextSecondary)
+            Text(if (step == 3) "시작 양식" else "소개 $step / 2", color = DDZColor.TextSecondary)
         }
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState())
@@ -85,33 +85,13 @@ internal fun OnboardingFlowScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             when (step) {
-                1 -> {
-                    Spacer(Modifier.height(18.dp))
-                    Text("찍고, 기록하고,\n자동으로 정리하다.",
-                        color = DDZColor.TextPrimary, fontWeight = FontWeight.Bold,
-                        style = androidx.compose.material3.MaterialTheme.typography.headlineMedium)
-                    Text("사진 위에 기록표를 더하고, 파일명과 폴더까지 자동으로 정리해요.",
-                        color = DDZColor.TextSecondary)
-                    IntroTile("01", "사진을 찍어요", "평소처럼 촬영하면 돼요.")
-                    IntroTile("02", "표로 기록해요", "내용은 촬영 화면에서 빠르게 수정할 수 있어요.")
-                    IntroTile("03", "자동으로 저장해요", "원본과 기록사진을 함께 보관해요.")
-                }
-                2 -> {
-                    Text("사진 한 장으로\n정리까지 끝내요.",
-                        color = DDZColor.TextPrimary, fontWeight = FontWeight.Bold,
-                        style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
-                    IntroTile("1", "사진 촬영", "촬영 화면 위에 기록표가 표시돼요.")
-                    IntroTile("2", "필요한 정보만 수정", "기록명·대상·구분 등을 직접 입력해요.")
-                    IntroTile("3", "파일명과 저장 위치 자동 구성",
-                        "예: DZlog_20261013_001.jpg\nPictures/DZlog/")
-                    Text("이 단계는 나중에 사용법에서 다시 볼 수 있어요.",
-                        color = DDZColor.TextSecondary)
-                }
+                1 -> OnboardingBrandIntro()
+                2 -> OnboardingFeatureIntro()
                 else -> {
                     Text("어떤 기록을 시작할까요?",
                         color = DDZColor.TextPrimary, fontWeight = FontWeight.Bold,
                         style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
-                    Text("나중에도 양식을 바꿀 수 있어요.", color = DDZColor.TextSecondary)
+                    Text("나에게 맞는 양식을 골라보세요. 나중에도 바꿀 수 있어요.", color = DDZColor.TextSecondary)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         categories.forEach { item ->
                             val active = item.id == category
@@ -208,19 +188,6 @@ internal fun OnboardingFlowScreen(
                 } else Spacer(Modifier.height(1.dp))
             }
             if (busy) CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
-        }
-    }
-}
-
-@Composable
-private fun IntroTile(number: String, title: String, subtitle: String) {
-    Row(Modifier.fillMaxWidth()
-        .background(DDZColor.Surface, RoundedCornerShape(DDZLayout.Radius.Medium))
-        .padding(16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text(number, color = DDZColor.Selected, fontWeight = FontWeight.Bold)
-        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(title, color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, color = DDZColor.TextSecondary)
         }
     }
 }
