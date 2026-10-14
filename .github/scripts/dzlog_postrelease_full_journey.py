@@ -81,16 +81,31 @@ def link_exact_folder():
     tap_any(["폴더 선택 화면으로", "다시 연결하기"])
     root = picker(timeout=90)
     mark("03-saf-tree-picker")
-    # OpenDocumentTree should honor its primary:Pictures/DZlog initial URI.
-    if not contains(root, "DZlog"):
-        # Some DocumentsUI versions open at Pictures instead; enter its DZlog child.
+    # Some Android 16 DocumentsUI versions ignore the initial DZlog URI and
+    # instead open at the emulated device root, where folder use is disabled.
+    # Navigate via the real Pictures folder before selecting DZlog itself.
+    if contains(root, "Can't use this folder") or contains(root, "Can’t use this folder"):
+        tap_any(["Pictures"])
+        root = picker(timeout=45)
+        mark("03b-saf-pictures")
+        if not contains(root, "DZlog"):
+            raise AssertionError("Pictures/DZlog folder not visible in SAF picker")
+        tap_any(["DZlog"])
+        root = picker(timeout=45)
+        mark("03c-saf-exact-dzlog")
+    elif not contains(root, "DZlog"):
         if contains(root, "Pictures"):
+            tap_any(["Pictures"])
+            root = picker(timeout=45)
+            if not contains(root, "DZlog"):
+                raise AssertionError("Pictures/DZlog folder missing")
             tap_any(["DZlog"])
             root = picker(timeout=45)
         else:
-            raise AssertionError("SAF picker did not expose DZlog or Pictures; refuse wrong folder")
-    if not contains(root, "DZlog"):
-        raise AssertionError("SAF picker does not show selected DZlog directory")
+            raise AssertionError("SAF picker did not expose DZlog or Pictures")
+    # App-side GalleryFolderStorage.connect also rejects every non-exact tree.
+    if not contains(root, "DZlog") or not contains(root, "USE THIS FOLDER"):
+        raise AssertionError("SAF picker is not at a selectable Pictures/DZlog folder")
     tap_any(["USE THIS FOLDER", "Use this folder", "이 폴더 사용", "Select", "선택"])
     mark("04-saf-confirm")
     if not contains(hierarchy(), "시작하기"):

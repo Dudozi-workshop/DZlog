@@ -75,7 +75,7 @@ def has(root, text):
 
 
 def evidence(name, root=None):
-    root = root or hierarchy()
+    root = hierarchy() if root is None else root
     ET.ElementTree(root).write(OUT / f"{name}.xml", encoding="utf-8")
     (OUT / f"{name}.png").write_bytes(
         subprocess.run(["adb", "exec-out", "screencap", "-p"],
@@ -98,7 +98,12 @@ def launch():
 
 
 def assert_no_home(root):
-    if has(root, "촬영 시작") or has(root, "최근 촬영"):
+    # Do not mistake instructional prose (e.g. '최근 촬영과 DZlog ...')
+    # for a real HomeScreen action. Only exact accessible labels count.
+    home_labels = {"촬영 시작", "최근 촬영"}
+    if any((node.get("text") or "").strip() in home_labels or
+           (node.get("content-desc") or "").strip() in home_labels
+           for node in root.iter("node")):
         raise AssertionError("Required setup gate was bypassed")
 
 
