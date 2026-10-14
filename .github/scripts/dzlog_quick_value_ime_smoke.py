@@ -6,7 +6,20 @@ import time
 from android16_journey_smoke import (
     adb, alive, contains, evidence, hierarchy, nodes, tap, wait_for,
 )
-from android16_editor_keyboard_smoke import keyboard_is_visible, ime_evidence
+from android16_editor_keyboard_smoke import ime_evidence
+
+
+def visible_ime(window):
+    # InputMethodService may retain mIsInputViewShown=true after its window
+    # closes. WindowManager's current IME source is the visibility authority.
+    states = re.findall(r"type=ime frame=[^\n]*?visible=(true|false)", window)
+    if not states:
+        raise AssertionError("Cannot verify current IME window visibility")
+    return "true" in states
+
+
+def keyboard_is_visible():
+    return visible_ime(adb("shell", "dumpsys", "window", timeout=45))
 
 
 def bounds(node):
@@ -27,7 +40,7 @@ def main():
     time.sleep(3)
     root = evidence("quick-edit-02-ime-open")
     ime_evidence("quick-edit-02-ime-open")
-    if not keyboard_is_visible(root):
+    if not keyboard_is_visible():
         raise AssertionError("Quick-value input did not open a visible IME")
     editors = [node for node in nodes(root)
                if "EditText" in (node.get("class") or "") and
@@ -77,7 +90,8 @@ def main():
     time.sleep(2)
     wait_for("빠른 수정")
     after = evidence("quick-edit-03-keyboard-closed")
-    if keyboard_is_visible(after):
+    ime_evidence("quick-edit-03-keyboard-closed")
+    if keyboard_is_visible():
         raise AssertionError("Input action did not close the keyboard")
     if not contains(after, "파일명") or not contains(after, "저장경로"):
         raise AssertionError("Filename/save-path previews missing after keyboard closes")
