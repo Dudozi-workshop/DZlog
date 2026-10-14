@@ -20,6 +20,42 @@ def adb(*args, timeout=55):
     return p.stdout
 
 
+def install_apk():
+    """Wait for a responsive package manager before installing the test APK.
+
+    Emulators occasionally report boot-complete while package service is still busy.
+    Do not mistake an adb install timeout for a DZlog permission-gate failure.
+    """
+    deadline = time.monotonic() + 180
+    while time.monotonic() < deadline:
+        try:
+            boot = adb("shell", "getprop", "sys.boot_completed", timeout=20).strip()
+            package_manager = adb("shell", "service", "check", "package", timeout=20)
+            if boot == "1" and "found" in package_manager.lower():
+                break
+        except (subprocess.TimeoutExpired, RuntimeError):
+            pass
+        time.sleep(3)
+    else:
+        raise RuntimeError("Android emulator package manager never became ready")
+
+    apk = "app/build/outputs/apk/debug/app-debug.apk"
+    for attempt in range(2):
+        try:
+            result = adb("install", "-r", apk, timeout=180)
+            if "Success" not in result:
+                raise RuntimeError(f"Unexpected adb install output: {result[-600:]}")
+            return
+        except (subprocess.TimeoutExpired, RuntimeError) as error:
+            if attempt:
+                raise RuntimeError("APK installation failed on emulator after retry") from error
+            print(f"Emulator install not ready; retry once: {error}", flush=True)
+            subprocess.run(["adb", "kill-server"], timeout=30, check=False)
+            subprocess.run(["adb", "start-server"], timeout=30, check=True)
+            adb("wait-for-device", timeout=120)
+            time.sleep(8)
+
+
 def hierarchy():
     adb("shell", "uiautomator", "dump", REMOTE_XML)
     adb("pull", REMOTE_XML, str(LOCAL_XML))
@@ -79,7 +115,7 @@ def click(label):
 
 def main():
     assert adb("shell", "getprop", "ro.build.version.sdk").strip() == "36"
-    adb("install", "-r", "app/build/outputs/apk/debug/app-debug.apk")
+    install_apk()
     launch()
     root = require("카메라 권한 설정")
     assert_no_home(root)
