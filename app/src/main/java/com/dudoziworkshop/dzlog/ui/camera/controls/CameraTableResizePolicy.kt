@@ -90,3 +90,45 @@ internal fun resizeCameraTableKeepingCenter(
         y10000 = (nextY * 10000f).roundToInt(),
     )
 }
+
+/**
+ * Normalize size when rotating or changing photo aspect without moving the
+ * table's relative center. Rotation is purely a placement operation.
+ */
+internal fun fitCameraTableForPhotoChange(
+    base: CameraTableResizeBaseline,
+    newRotationCwDeg: Int = base.rotationCwDeg,
+    newPhotoAspect: Float = base.photoAspect,
+): CameraTableResizeResult {
+    val oldPhotoHeight = 1f / base.photoAspect.coerceAtLeast(0.01f)
+    val newPhotoHeight = 1f / newPhotoAspect.coerceAtLeast(0.01f)
+    val oldRotated = base.rotationCwDeg % 180 != 0
+    val oldWidth = (if (oldRotated) base.heightRatio else base.widthRatio) / 100f
+    val oldHeight = (if (oldRotated) base.widthRatio else base.heightRatio) / 100f
+    val normalizedX = when (base.anchor) {
+        WatermarkTableAnchor.TOP_LEFT, WatermarkTableAnchor.BOTTOM_LEFT -> 0f
+        WatermarkTableAnchor.TOP_RIGHT, WatermarkTableAnchor.BOTTOM_RIGHT -> 1f
+        WatermarkTableAnchor.CUSTOM -> base.x10000.coerceIn(0, 10000) / 10000f
+    }
+    val normalizedY = when (base.anchor) {
+        WatermarkTableAnchor.TOP_LEFT, WatermarkTableAnchor.TOP_RIGHT -> 0f
+        WatermarkTableAnchor.BOTTOM_LEFT, WatermarkTableAnchor.BOTTOM_RIGHT -> 1f
+        WatermarkTableAnchor.CUSTOM -> base.y10000.coerceIn(0, 10000) / 10000f
+    }
+    val centerX = oldWidth / 2f + (1f - oldWidth).coerceAtLeast(0f) * normalizedX
+    val centerYFraction = (oldHeight / 2f +
+        (oldPhotoHeight - oldHeight).coerceAtLeast(0f) * normalizedY) / oldPhotoHeight
+
+    val nextBase = base.copy(rotationCwDeg = newRotationCwDeg, photoAspect = newPhotoAspect)
+    val resized = resizeCameraTableKeepingCenter(nextBase, 1f)
+    val rotated = newRotationCwDeg % 180 != 0
+    val nextWidth = (if (rotated) resized.heightRatio else resized.widthRatio) / 100f
+    val nextHeight = (if (rotated) resized.widthRatio else resized.heightRatio) / 100f
+    val slackX = (1f - nextWidth).coerceAtLeast(0f)
+    val slackY = (newPhotoHeight - nextHeight).coerceAtLeast(0f)
+    val x = if (slackX <= 0f) 0f else ((centerX - nextWidth / 2f) / slackX).coerceIn(0f, 1f)
+    val y = if (slackY <= 0f) 0f else ((centerYFraction * newPhotoHeight - nextHeight / 2f) / slackY)
+        .coerceIn(0f, 1f)
+    return resized.copy(x10000 = (x * 10000f).roundToInt(),
+        y10000 = (y * 10000f).roundToInt())
+}
