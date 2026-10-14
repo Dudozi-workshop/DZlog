@@ -11,7 +11,9 @@ import android.os.Bundle
 import android.provider.DocumentsContract
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -104,6 +106,27 @@ class GalleryFolderDeletionTest {
         assertEquals(true, provider.deletes > 0)
     }
 
+    @Test fun rejectsEveryFolderExceptTheExactDzlogRootAndKeepsTheExistingGrant() {
+        listOf(
+            "primary:Pictures",
+            "primary:Pictures/Dzlog",
+            "primary:Pictures/DZlog/A",
+            "primary:Download/DZlog",
+        ).forEach { wrongId ->
+            val wrong = DocumentsContract.buildTreeDocumentUri(
+                "com.android.externalstorage.documents",
+                wrongId,
+            )
+            assertThrows(IllegalArgumentException::class.java) { storage.connect(wrong) }
+        }
+        assertTrue(storage.isConnected())
+    }
+
+    @Test fun deletedOrRenamedDzlogRootIsNoLongerConnected() {
+        provider.rows.remove(rootId)
+        assertFalse(storage.isConnected())
+    }
+
     private class TreeProvider : ContentProvider() {
         val rows = linkedMapOf<String, String>()
         val denied = mutableSetOf<String>()
@@ -117,7 +140,12 @@ class GalleryFolderDeletionTest {
             if (parent == nullParent) return null
             val columns = requireNotNull(projection)
             return MatrixCursor(columns).apply {
-                rows.filterKeys { it.substringBeforeLast('/') == parent }.forEach { (id, mime) ->
+                val matches = if (uri.pathSegments.lastOrNull() == "children") {
+                    rows.filterKeys { it.substringBeforeLast('/') == parent }
+                } else {
+                    rows.filterKeys { it == parent }
+                }
+                matches.forEach { (id, mime) ->
                     addRow(columns.map { column -> when (column) {
                         DocumentsContract.Document.COLUMN_DOCUMENT_ID -> id
                         DocumentsContract.Document.COLUMN_DISPLAY_NAME -> id.substringAfterLast('/')

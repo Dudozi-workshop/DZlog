@@ -10,6 +10,7 @@ on:
       - feat/settings-r31-ux
       - feat/home-c1-layout
       - integration/dzlog-20261010
+      - feat/gallery-folder-guidance-popup
   workflow_dispatch:
     inputs:
       build_apk:
