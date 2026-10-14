@@ -75,7 +75,7 @@ fun OnboardingEntryGate() {
                 introOnly = true,
                 onIntroComplete = { introCompleted = true },
             )
-        else -> RequiredPermissionsGate {
+        else -> RequiredPermissionsGate(onboarding = introCompleted) {
             // Permission grants may reveal pre-existing media from a prior install.
             // The startup route is independently re-evaluated before any template is created.
             OnboardingStartupGate(startWithStarterSelection = introCompleted)
