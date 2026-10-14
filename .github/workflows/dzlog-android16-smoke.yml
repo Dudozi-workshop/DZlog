@@ -29,6 +29,8 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Build API 36 debug APK
         run: bash ./gradlew --no-daemon :app:assembleDebug
+      - name: Test filename counter rollover
+        run: python3 -m unittest discover -s .github/scripts -p 'test_android16_counter_scopes.py' -v
       - name: Android 16 fresh-install smoke
         uses: reactivecircus/android-emulator-runner@v2
         with:

@@ -87,6 +87,21 @@ def check_file(media):
     return full_path
 
 
+def verify_scoped_counter_sequence(file_names):
+    """Require contiguous counters inside each filename/date scope."""
+    by_prefix = collections.defaultdict(list)
+    for name in file_names:
+        number_match = re.search(r"_(\d+)(?:\.jpg)$", name, flags=re.IGNORECASE)
+        if not number_match:
+            raise AssertionError(f"Default starter counter absent from filename: {name}")
+        prefix = name[:number_match.start(1)]
+        by_prefix[prefix].append(int(number_match.group(1)))
+    for prefix, values in by_prefix.items():
+        if sorted(values) != list(range(1, len(values) + 1)):
+            raise AssertionError(f"Scope {prefix!r} counters not sequential: {values}")
+    return sorted(n for values in by_prefix.values() for n in values)
+
+
 def check_both(rows, expected_shots):
     assert len(rows) == expected_shots * 2
     by_name = collections.defaultdict(list)
@@ -95,18 +110,11 @@ def check_both(rows, expected_shots):
         by_name[item["_display_name"]].append(item)
     if len(by_name) != expected_shots:
         raise AssertionError(f"Expected {expected_shots} distinct filename(s), got {list(by_name)}")
-    numbers = []
     for name, pair in by_name.items():
         paths = sorted(m["relative_path"] for m in pair)
         if len(pair) != 2 or sum(p.rstrip("/").endswith("/original") for p in paths) != 1:
             raise AssertionError(f"BOTH pairing missing result/original for {name}: {paths}")
-        number_match = re.search(r"_(\d+)(?:\.jpg)$", name, flags=re.IGNORECASE)
-        if not number_match:
-            raise AssertionError(f"Default starter counter absent from filename: {name}")
-        numbers.append(int(number_match.group(1)))
-    if sorted(numbers) != list(range(1, expected_shots + 1)):
-        raise AssertionError(f"Fresh-install counter not strictly sequential: {numbers}")
-    return sorted(numbers)
+    return verify_scoped_counter_sequence(by_name.keys())
 
 
 def capture_one(expected_shots):
