@@ -19,7 +19,9 @@ def main():
     tap("촬영 시작", "●")
     wait_for("빠른 값 변경", timeout=60)
     tap("빠른 값 변경", "빠른 수정")
-    evidence("quick-edit-01-before-keyboard")
+    before = evidence("quick-edit-01-before-keyboard")
+    if not contains(before, "파일명") or not contains(before, "저장경로"):
+        raise AssertionError("Filename and save-path previews absent before keyboard")
     wait_for("값 입력", timeout=35)
     tap("값 입력")
     time.sleep(3)
@@ -55,7 +57,11 @@ def main():
     adb("shell", "input", "keyevent", "4")
     time.sleep(2)
     wait_for("빠른 수정")
-    evidence("quick-edit-03-keyboard-closed")
+    after = evidence("quick-edit-03-keyboard-closed")
+    if not contains(after, "파일명") or not contains(after, "저장경로"):
+        raise AssertionError("Filename/save-path previews missing after keyboard closes")
+    if not contains(after, "템플릿"):
+        raise AssertionError("Table preview missing after keyboard closes")
     tap("완료")
     wait_for("빠른 값 변경", timeout=35)
     adb("shell", "input", "keyevent", "4")

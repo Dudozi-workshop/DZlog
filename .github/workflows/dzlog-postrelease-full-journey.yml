@@ -7,6 +7,8 @@ on:
       - integration/dzlog-postrelease-staging-20261014
     paths:
       - '.github/scripts/dzlog_postrelease_full_journey.py'
+      - '.github/scripts/dzlog_quick_value_ime_smoke.py'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/CameraQuickValueSheet.kt'
       - '.github/workflows/dzlog-postrelease-full-journey.yml'
 
 permissions:

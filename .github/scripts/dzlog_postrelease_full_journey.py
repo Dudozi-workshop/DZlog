@@ -95,8 +95,10 @@ def link_exact_folder():
     tap("DZlog 폴더 연결", "DZlog 폴더를 연결해 주세요")
     mark("02-folder-guide")
     tap_any(["폴더 선택 화면으로", "다시 연결하기"])
-    root = picker(timeout=90)
-    mark("03-saf-tree-picker")
+    picker(timeout=90)
+    # DocumentsUI often renders the folder entries a frame after its first
+    # picker response. Re-read the actual evidence hierarchy before branching.
+    root = mark("03-saf-tree-picker")
     # Some Android 16 DocumentsUI versions ignore the initial DZlog URI and
     # instead open at the emulated device root, where folder use is disabled.
     # Navigate via the real Pictures folder before selecting DZlog itself.
