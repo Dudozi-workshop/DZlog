@@ -32,7 +32,9 @@ class CapturePhraseUndoHistoryTest {
         val journal = CapturePhraseUndoHistory()
         journal.record("template-1", listOf("watermark", "original"), template(shots = 10), template(shots = 11))
         assertNull(journal.deleted(listOf("watermark")))
+        assertTrue(journal.hasIncompleteDeletion())
         val entry = requireNotNull(journal.deleted(listOf("original")))
+        assertFalse(journal.hasIncompleteDeletion())
         assertEquals(10, journal.restore(template(shots = 11), entry)?.cells?.single()?.phraseCompletedShots)
     }
 
