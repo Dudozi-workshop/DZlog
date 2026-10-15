@@ -256,41 +256,18 @@ private fun StarterPreview(def: OnboardingStarterDefinition) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(def.title, color = DDZColor.TextPrimary, fontWeight = FontWeight.Bold)
-        Box(
-            Modifier.fillMaxWidth().height(155.dp)
-                .background(DDZColor.AmbientWarm, RoundedCornerShape(DDZLayout.Radius.Medium))
-                .padding(12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(Modifier.fillMaxWidth()
-                .background(DDZColor.Surface, RoundedCornerShape(DDZLayout.Radius.Small))
-                .border(1.dp, DDZColor.Border, RoundedCornerShape(DDZLayout.Radius.Small)),
-            ) {
-                Row(Modifier.fillMaxWidth()) {
-                    def.labels.forEach { title ->
-                        Box(Modifier.weight(1f).padding(5.dp), contentAlignment = Alignment.Center) {
-                            Text(title, color = DDZColor.TextPrimary,
-                                style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-                                maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
+        OnboardingPhotoShowcase(
+            labels = def.labels,
+            values = state.cells.filter { it.rowIndex == 1 }.map { cell ->
+                when (cell.dataType) {
+                    TableCellDataType.DATE -> "자동 날짜"
+                    TableCellDataType.COUNTER -> "001"
+                    else -> "입력"
                 }
-                Row(Modifier.fillMaxWidth().background(DDZColor.Background)) {
-                    state.cells.filter { it.rowIndex == 1 }.forEach { cell ->
-                        Box(Modifier.weight(1f).padding(7.dp), contentAlignment = Alignment.Center) {
-                            Text(
-                                if (cell.dataType == TableCellDataType.DATE) "자동 날짜"
-                                else if (cell.dataType == TableCellDataType.COUNTER) "001"
-                                else "입력",
-                                color = DDZColor.TextSecondary,
-                                style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-            }
-        }
+            },
+            height = 184.dp,
+            compact = true,
+        )
         Text("선택한 기록표는 촬영 화면에서 숨길 수도 있어요.",
             color = DDZColor.TextSecondary,
             style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
