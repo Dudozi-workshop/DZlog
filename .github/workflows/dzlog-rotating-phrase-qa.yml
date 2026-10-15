@@ -1,0 +1,57 @@
+name: DZlog Rotating Phrase Focused QA
+
+on:
+  push:
+    branches:
+      - fix/rotating-phrase-undo-20261015
+    paths:
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/domain/phrase/**'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/capture/policy/CapturePhraseUndoHistory.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/capture/policy/CapturePendingProjection.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/**'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/navigation/AppNavigation.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/table/TableEditorDialogs.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/table/policy/RotatingPhraseSetCreationPolicy.kt'
+      - 'app/src/test/java/com/dudoziworkshop/dzlog/feature/capture/policy/CapturePhraseUndoHistoryTest.kt'
+      - 'app/src/test/java/com/dudoziworkshop/dzlog/feature/capture/policy/CapturePendingProjectionTest.kt'
+      - 'app/src/test/java/com/dudoziworkshop/dzlog/domain/phrase/**'
+      - 'app/src/test/java/com/dudoziworkshop/dzlog/feature/table/policy/RotatingPhraseSetCreationPolicyTest.kt'
+      - '.github/workflows/dzlog-rotating-phrase-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  phrase-focused-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android build dependencies
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -1)"
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Compile and run focused phrase tests
+        run: |
+          bash ./gradlew --no-daemon :app:testDebugUnitTest \
+            --tests '*CapturePhraseUndoHistoryTest' \
+            --tests '*RotatingPhraseSetCreationPolicyTest' \
+            --tests '*CapturePendingProjectionTest' \
+            --tests '*CellPhraseProgressTest' \
+            --tests '*PhraseResolverTest'
+      - name: Compile Android application
+        run: bash ./gradlew --no-daemon :app:assembleDebug
+      - name: Upload focused test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rotating-phrase-focused-test-results
+          path: app/build/test-results/testDebugUnitTest/
+          if-no-files-found: ignore
