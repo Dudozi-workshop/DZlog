@@ -62,7 +62,7 @@ internal fun RequiredPermissionSetupScreen(
         ) {
             Text("DZlog", style = typography.ScreenTitle, color = colors.PrimaryDark)
             Text(
-                if (onboarding) "03 / 06" else "권한 복구",
+                if (onboarding) "03 / 04 · 사용 준비" else "권한 복구",
                 style = typography.Caption,
                 color = colors.TextSecondary,
             )
