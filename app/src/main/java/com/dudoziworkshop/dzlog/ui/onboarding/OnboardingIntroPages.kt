@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.onboarding
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
@@ -17,8 +19,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -68,6 +77,7 @@ private fun IntroConcept(label: String, icon: ImageVector, modifier: Modifier = 
 
 @Composable
 internal fun OnboardingFeatureIntro() {
+    var showRecordTable by rememberSaveable { mutableStateOf(true) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             "사진에 기록을 더하고,\n정리까지 한 번에.",
@@ -85,14 +95,20 @@ internal fun OnboardingFeatureIntro() {
             detail = "원하는 기록표를 사진에 담거나, 기록표 없이 자유롭게 촬영해요.",
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FeatureModeLabel("기록표 촬영")
-                FeatureModeLabel("표 없이 촬영")
+                FeatureModeLabel("기록표 촬영", showRecordTable) { showRecordTable = true }
+                FeatureModeLabel("표 없이 촬영", !showRecordTable) { showRecordTable = false }
             }
             OnboardingPhotoShowcase(
                 labels = listOf("기록명", "날짜", "번호"),
                 values = listOf("관찰 기록", "26.10.15", "001"),
-                height = 150.dp,
+                height = 166.dp,
                 compact = true,
+                showTable = showRecordTable,
+            )
+            Text(
+                "촬영 방식은 실제 카메라에서 언제든 바꿀 수 있어요.",
+                style = DDZTypography.Caption,
+                color = DDZColor.TextSecondary,
             )
         }
         OnboardingFeatureCard(
@@ -109,13 +125,24 @@ internal fun OnboardingFeatureIntro() {
 }
 
 @Composable
-private fun FeatureModeLabel(label: String) {
-    Surface(color = DDZColor.SelectedSoft, shape = RoundedCornerShape(8.dp)) {
+private fun FeatureModeLabel(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        color = if (selected) DDZColor.SelectedSoft else DDZColor.SurfaceSoft,
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(1.dp, if (selected) DDZColor.Selected else DDZColor.Border),
+        modifier = Modifier.clickable(role = Role.RadioButton, onClick = onClick)
+            .semantics { this.selected = selected },
+    ) {
         Text(
             label,
             style = DDZTypography.Caption,
-            color = DDZColor.SelectedDark,
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+            color = if (selected) DDZColor.SelectedDark else DDZColor.TextSecondary,
+            modifier = Modifier.heightIn(min = 40.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
         )
     }
 }
