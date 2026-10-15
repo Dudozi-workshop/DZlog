@@ -17,20 +17,23 @@ internal enum class OnboardingInstallStage { INTRO, SETUP, COMPLETE }
 internal object OnboardingInstallState {
     private const val FILE_NAME = "onboarding_install_stage_v1"
 
+    // Used only when an install-local stage has not yet been created.
+    // Existing installations adopting this version keep their prior app setup.
+    internal fun initialStageForMissingMarker(isFreshInstall: Boolean): OnboardingInstallStage =
+        if (isFreshInstall) OnboardingInstallStage.INTRO else OnboardingInstallStage.COMPLETE
+
     fun loadOrInitialize(context: Context): OnboardingInstallStage {
         val file = File(context.noBackupFilesDir, FILE_NAME)
-        if (file.exists()) {
+        // AtomicFile may retain a .bak during interrupted writes. Read it rather
+        // than wrongly treating an interrupted update as a new installation.
+        if (file.exists() || File(file.path + ".bak").exists()) {
             return OnboardingInstallStage.valueOf(AtomicFile(file).openRead().bufferedReader().use {
                 it.readText().trim()
             })
         }
-        // One-time compatibility rule for people upgrading from older builds:
-        // they did not have an install-local marker, and must not see onboarding again.
-        val phase = if (OnboardingInstallProbe.isUnupdatedFirstInstall(context)) {
-            OnboardingInstallStage.INTRO
-        } else {
-            OnboardingInstallStage.COMPLETE
-        }
+        val phase = initialStageForMissingMarker(
+            OnboardingInstallProbe.isUnupdatedFirstInstall(context)
+        )
         save(context, phase)
         return phase
     }
