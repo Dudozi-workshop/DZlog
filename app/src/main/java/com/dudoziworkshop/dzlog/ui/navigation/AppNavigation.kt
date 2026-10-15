@@ -143,6 +143,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     // This virtual gallery entry is a view state; preserve it across Activity recreation.
     var showRootDefaultPhotos by rememberSaveable { mutableStateOf(false) }
     var returnToDefaultAfterRootOriginal by rememberSaveable { mutableStateOf(false) }
+    var originalParentHasResults by rememberSaveable { mutableStateOf(false) }
     var gridItems by remember { mutableStateOf<List<com.dudoziworkshop.dzlog.domain.model.MediaImageItem>>(emptyList()) }
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -755,9 +756,21 @@ fun AppRoot(startOnCamera: Boolean = false) {
             }
             AppScreen.ALBUM_VIEWER -> screen = resolveViewerBackTarget()
             AppScreen.ALBUM_FOLDER -> {
-                val parent = GalleryFolderIndexPolicy.parentOf(albumFolderPath)
-                if (parent != null) albumFolderPath = parent
-                else screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
+                if (com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy.isOriginalPath(albumFolderPath)) {
+                    val originalPath = albumFolderPath
+                    albumFolderPath = com.dudoziworkshop.dzlog.feature.log.policy.GalleryOriginalNavigationPolicy.returnFolderPath(
+                        originalPath, originalParentHasResults
+                    )
+                    showRootDefaultPhotos = com.dudoziworkshop.dzlog.feature.log.policy.GalleryOriginalNavigationPolicy.returnToDefaultStorage(
+                        originalPath, originalParentHasResults
+                    )
+                    returnToDefaultAfterRootOriginal = false
+                    originalParentHasResults = false
+                } else {
+                    val parent = GalleryFolderIndexPolicy.parentOf(albumFolderPath)
+                    if (parent != null) albumFolderPath = parent
+                    else screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
+                }
             }
             AppScreen.ALBUM_G1 -> screen = AppScreen.ALBUM_FOLDER
             AppScreen.ALBUM_G2 -> screen = AppScreen.ALBUM_FOLDER
@@ -934,17 +947,25 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onShowDefaultPhotosChange = { showRootDefaultPhotos = it },
                     capturePathDrafts = (tableTemplateViewModel.templates.map { it.templateState.pathSlotDrafts } + listOf(tableTemplateState.pathSlotDrafts)).distinct(),
                     onBack = {
-                        val parent = GalleryFolderIndexPolicy.parentOf(albumFolderPath)
-                        if (parent != null) {
-                            albumFolderPath = parent
-                            if (parent == GalleryFolderIndexPolicy.ROOT && returnToDefaultAfterRootOriginal) {
-                                showRootDefaultPhotos = true
-                                returnToDefaultAfterRootOriginal = false
-                            }
-                        } else screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
+                        if (com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy.isOriginalPath(albumFolderPath)) {
+                            val originalPath = albumFolderPath
+                            albumFolderPath = com.dudoziworkshop.dzlog.feature.log.policy.GalleryOriginalNavigationPolicy.returnFolderPath(
+                                originalPath, originalParentHasResults
+                            )
+                            showRootDefaultPhotos = com.dudoziworkshop.dzlog.feature.log.policy.GalleryOriginalNavigationPolicy.returnToDefaultStorage(
+                                originalPath, originalParentHasResults
+                            )
+                            returnToDefaultAfterRootOriginal = false
+                            originalParentHasResults = false
+                        } else {
+                            val parent = GalleryFolderIndexPolicy.parentOf(albumFolderPath)
+                            if (parent != null) albumFolderPath = parent
+                            else screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
+                        }
                     },
                     onOpenFolder = { folder ->
                         returnToDefaultAfterRootOriginal = false
+                        originalParentHasResults = false
                         showRootDefaultPhotos = false
                         albumFolderPath = folder
                     },
@@ -963,7 +984,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
                         albumGridEntryScreen = AppScreen.ALBUM_FOLDER
                         screen = AppScreen.ALBUM_VIEWER
                     },
-                    onOpenOriginal = { originalPath ->
+                    onOpenOriginal = { originalPath, hasResults ->
+                        originalParentHasResults = hasResults
                         returnToDefaultAfterRootOriginal = showRootDefaultPhotos && albumFolderPath == GalleryFolderIndexPolicy.ROOT
                         showRootDefaultPhotos = false
                         clearOriginalContext()
