@@ -9,7 +9,7 @@ import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgress
  * phrase progress must roll back exactly once after ALL outputs are deleted.
  * The journal never changes photographs or counter state.
  */
-internal class CapturePhraseUndoHistory {
+class CapturePhraseUndoHistory {
     data class Entry(
         val templateId: String,
         val initialUris: Set<String>,
