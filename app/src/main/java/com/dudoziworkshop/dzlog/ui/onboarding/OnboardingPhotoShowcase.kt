@@ -20,6 +20,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,8 +46,10 @@ internal fun OnboardingPhotoShowcase(
     compact: Boolean = false,
 ) {
     val shape = RoundedCornerShape(if (compact) 12.dp else 18.dp)
+    val description = if (showTable) "사진에 기록표가 겹쳐 보이는 구성 예시" else "기록표 없이 촬영한 사진 구성 예시"
     Box(
         modifier.fillMaxWidth().height(height).clip(shape)
+            .semantics { contentDescription = description }
             .background(DDZColor.SelectedSoft),
     ) {
         PhotoShowcaseBackdrop()
@@ -104,7 +108,7 @@ private fun PhotoShowcaseTag(label: String, compact: Boolean) {
     Text(
         text = label,
         color = DDZColor.TextPrimary,
-        fontSize = if (compact) 9.sp else 10.sp,
+        fontSize = if (compact) 11.sp else 12.sp,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier.clip(RoundedCornerShape(8.dp))
             .background(DDZColor.Surface.copy(alpha = 0.91f))
@@ -153,11 +157,11 @@ private fun PhotoShowcaseTableRow(
             Text(
                 text = value,
                 modifier = Modifier.weight(1f)
-                    .padding(horizontal = if (compact) 2.dp else 4.dp, vertical = if (compact) 7.dp else 10.dp),
+                    .padding(horizontal = if (compact) 2.dp else 4.dp, vertical = if (compact) 9.dp else 11.dp),
                 color = if (strong) DDZColor.PrimaryDark else DDZColor.TextPrimary,
-                fontSize = if (compact) 8.sp else 10.sp,
+                fontSize = if (compact) 11.sp else 12.sp,
                 fontWeight = if (strong) FontWeight.SemiBold else FontWeight.Normal,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
