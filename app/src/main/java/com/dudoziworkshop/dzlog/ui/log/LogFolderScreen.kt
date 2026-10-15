@@ -603,12 +603,19 @@ fun LogFolderScreen(
                             }
                         }
                     }
-                    if (defaultPhotos.isEmpty()) {
+                    if (defaultPhotos.isEmpty() && (index?.directOriginalCount ?: 0) == 0) {
                         item { GalleryEmptyText("기본 저장 사진이 없습니다.") }
                     } else {
-                        items(sortedDefaultPhotos.chunked(3)) { row ->
+                        if (defaultPhotos.isNotEmpty()) items(sortedDefaultPhotos.chunked(3)) { row ->
                             GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
                                 if (!navigationLocked) onOpenPhoto(sortedDefaultPhotos, sortedDefaultPhotos.indexOfFirst { it.id == photo.id })
+                            }
+                        }
+                    }
+                    if ((index?.directOriginalCount ?: 0) > 0) {
+                        item(key = "default-originals") {
+                            GalleryOriginalRow(requireNotNull(index).directOriginalCount) {
+                                if (!selectionActive && !navigationLocked) onOpenOriginal(GalleryFolderIndexPolicy.ROOT + "original/")
                             }
                         }
                     }
