@@ -28,6 +28,8 @@ suspend fun inspectTableTemplateCatalogStartup(
     verifiedFreshInstall: Boolean = false,
     knownExistingMedia: Boolean = false,
     requireVerifiedMediaForOnboarding: Boolean = false,
+    // Internal settings such as billing flags are not proof of a completed onboarding.
+    ignoreOtherSavedState: Boolean = false,
 ): CatalogStartupRoute {
     val prefs = context.dataStore.data.first()
     val catalog = prefs[KEY_TABLE_TEMPLATES_JSON]
@@ -35,7 +37,7 @@ suspend fun inspectTableTemplateCatalogStartup(
     return decideCatalogStartupRoute(
         catalogJson = catalog,
         legacyJson = legacy,
-        hasOtherSavedState = prefs.asMap().keys.any {
+        hasOtherSavedState = !ignoreOtherSavedState && prefs.asMap().keys.any {
             it != KEY_TABLE_TEMPLATES_JSON && it != KEY_TABLE_TEMPLATE_JSON
         },
         verifiedNoExistingMedia = verifiedNoExistingMedia,
