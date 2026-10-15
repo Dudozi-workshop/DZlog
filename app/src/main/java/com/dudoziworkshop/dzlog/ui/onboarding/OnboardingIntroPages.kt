@@ -61,7 +61,7 @@ internal fun OnboardingBrandIntro() {
 internal fun OnboardingFeatureIntro() {
     var showRecordTable by rememberSaveable { mutableStateOf(true) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("사진에 기록을 더하고,\\n정리까지 한 번에.",
+        Text("사진에 기록을 더하고,\n정리까지 한 번에.",
             style = DDZTypography.HomeMainTitle, color = DDZColor.TextPrimary)
         Text("촬영부터 보관까지, 필요한 기능만 담았어요.",
             style = DDZTypography.Body, color = DDZColor.TextSecondary)
@@ -144,7 +144,7 @@ private fun CompactFeature(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            Text("$"+"number  "+ "$"+"title", style = DDZTypography.SettingLabel,
+            Text("$number  $title", style = DDZTypography.SettingLabel,
                 color = DDZColor.TextPrimary)
             Text(detail, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
         }
