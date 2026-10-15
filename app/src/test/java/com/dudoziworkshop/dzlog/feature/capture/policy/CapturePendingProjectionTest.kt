@@ -200,4 +200,52 @@ class CapturePendingProjectionTest {
         assertEquals(1, after.cells[1].phraseCompletedShots)
     }
 
+
+    @Test fun configurableRepeatCountsRespectRapidCaptureBoundaries() {
+        for (repeatEvery in listOf(1, 2, 5, 12, 30)) {
+            val set = RotatingPhraseSet(
+                id = "set", name = "User configuration",
+                items = listOf("A", "B", "C"), defaultEvery = repeatEvery,
+            )
+            val start = template.copy(
+                cells = listOf(counter, phrase.copy(phraseSetId = set.id)),
+                phraseSets = listOf(set),
+            )
+            val projection = CapturePendingProjection()
+            val outstanding = mutableListOf<CapturePendingProjection.Shot>()
+            val observed = mutableListOf<String>()
+            var nextCounter = 1
+
+            fun commitOldest() {
+                val done = outstanding.removeAt(0)
+                val committed = projection.committedBase(start)
+                    .applyPatch(projection.completeFirst(done.id))
+                projection.recordCommittedTemplate(committed)
+            }
+            repeat(repeatEvery * 3 + 1) { index ->
+                if (outstanding.size == 3) commitOldest()
+                val before = projection.previewTemplate(start)
+                observed += PhraseResolver.resolveSelectedTextByCellId(
+                    before.cells, before.phraseSets, 1
+                ).getValue("phrase")
+                val shot = CapturePendingProjection.Shot(
+                    id = "shot-$index", scope = scope,
+                    counter = nextCounter++,
+                    templatePatch = TablePatch(
+                        updatesByCellId = emptyMap(),
+                        phraseProgressByCellId = CellPhraseProgressPolicy.captureUpdates(
+                            before.cells, before.phraseSets
+                        )
+                    )
+                )
+                projection.add(shot)
+                outstanding.add(shot)
+            }
+            val expected = List(repeatEvery) { "A" } +
+                List(repeatEvery) { "B" } +
+                List(repeatEvery) { "C" } + "A"
+            assertEquals("repeat interval $repeatEvery", expected, observed)
+            while (outstanding.isNotEmpty()) commitOldest()
+        }
+    }
 }
