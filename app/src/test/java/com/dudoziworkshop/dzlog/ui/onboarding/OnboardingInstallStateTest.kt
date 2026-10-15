@@ -4,6 +4,7 @@ import androidx.test.core.app.ApplicationProvider
 import android.content.Context
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -34,4 +35,31 @@ class OnboardingInstallStateTest {
         OnboardingInstallState.save(context, OnboardingInstallStage.INTRO)
         assertEquals(OnboardingInstallStage.INTRO, OnboardingInstallState.loadOrInitialize(context))
     }
+    @Test fun newInstallStartsWithIntroWithoutAskingAndroidPermissions() {
+        assertEquals(
+            OnboardingInstallStage.INTRO,
+            OnboardingInstallState.initialStageForMissingMarker(true),
+        )
+    }
+
+    @Test fun updatingExistingInstallDoesNotRestartOnboarding() {
+        assertEquals(
+            OnboardingInstallStage.COMPLETE,
+            OnboardingInstallState.initialStageForMissingMarker(false),
+        )
+    }
+
+    @Test fun interruptedAtomicWriteUsesPreviousCompletedState() {
+        OnboardingInstallState.save(context, OnboardingInstallStage.COMPLETE)
+        val backup = File(marker.path + ".bak")
+        assertTrue(marker.renameTo(backup))
+        assertEquals(OnboardingInstallStage.COMPLETE, OnboardingInstallState.loadOrInitialize(context))
+    }
+
+    @Test fun unreadableStageDoesNotGetSilentlyReplacedWithIntro() {
+        marker.parentFile?.mkdirs()
+        marker.writeText("UNKNOWN_STATE")
+        assertTrue(runCatching { OnboardingInstallState.loadOrInitialize(context) }.isFailure)
+    }
+
 }
