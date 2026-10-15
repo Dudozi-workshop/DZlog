@@ -674,6 +674,21 @@ fun AppRoot(startOnCamera: Boolean = false) {
     }
 
 
+    fun browseAllRecordsFromCameraGrid() {
+        if (gridEntrySource != GridEntrySource.CAMERA_RECENT ||
+            albumEntryScreen != AppScreen.CAMERA) return
+        resetGridUiState()
+        clearOriginalContext()
+        albumLocation = null
+        albumFolderPath = GalleryFolderIndexPolicy.ROOT
+        showRootDefaultPhotos = false
+        gridEntrySource = GridEntrySource.NORMAL
+        viewerEntrySource = ViewerEntrySource.GRID
+        albumGridEntryScreen = AppScreen.ALBUM_FOLDER
+        // Keep albumEntryScreen=CAMERA so the camera session stays alive.
+        screen = AppScreen.ALBUM_FOLDER
+    }
+
     fun buildGridHeaderTitle(location: AlbumLocation): String {
         val g1 = location.g1.trim()
         val rawG2 = location.g2Label.trim()
@@ -1025,7 +1040,10 @@ fun AppRoot(startOnCamera: Boolean = false) {
                         selectedIds = visibleIds
                         isSelectionMode = visibleIds.isNotEmpty()
                     },
-                    onBack = { handleAlbumGridBack() }
+                    onBack = { handleAlbumGridBack() },
+                    onBrowseAllRecords = if (gridEntrySource == GridEntrySource.CAMERA_RECENT) {
+                        ::browseAllRecordsFromCameraGrid
+                    } else null,
                 )
             }
         }
