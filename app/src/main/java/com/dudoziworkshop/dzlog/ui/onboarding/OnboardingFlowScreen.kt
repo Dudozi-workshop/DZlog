@@ -78,8 +78,8 @@ internal fun OnboardingFlowScreen(
         Modifier.fillMaxSize().background(DDZColor.Background).statusBarsPadding().navigationBarsPadding(),
     ) {
         OnboardingProgressHeader(
-            stage = if (step == 3) 3 else 1,
-            label = if (step == 3) "시작 양식" else "소개 · $step/2",
+            stage = when (step) { 1 -> 1; 2 -> 2; else -> 4 },
+            label = when (step) { 1 -> "앱 소개"; 2 -> "주요 기능"; else -> "시작 양식" },
         )
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState())
@@ -151,8 +151,8 @@ internal fun OnboardingFlowScreen(
                 text = when {
                     introOnly && step == 2 -> "사용 준비하기"
                     introOnly -> "다음"
-                    step == 3 -> if (readOnly) "도움말 닫기" else "이 양식으로 시작"
-                    step == 1 -> "시작하기"
+                    step == 3 -> if (readOnly) "도움말 닫기" else "DZlog 시작하기"
+                    step == 1 -> "다음"
                     else -> "다음"
                 },
                 onClick = {
