@@ -84,7 +84,7 @@ internal fun OnboardingFlowScreen(
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             when (step) {
                 1 -> OnboardingBrandIntro()
@@ -140,7 +140,7 @@ internal fun OnboardingFlowScreen(
                     StarterPreview(selected)
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(if (step == 3) 2.dp else 8.dp))
         }
         Column(
             Modifier.fillMaxWidth().background(DDZColor.Surface).padding(
@@ -205,11 +205,12 @@ private fun StarterPreview(def: OnboardingStarterDefinition) {
     val savePath = remember(state, resolved) {
         buildSavePath(resolved, state.pathSlotDrafts, now, "yyyyMMdd", "HHmm")
     }
+    var showSaveDetails by rememberSaveable(def.id) { mutableStateOf(false) }
     Column(
         Modifier.fillMaxWidth()
             .background(DDZColor.Surface, RoundedCornerShape(DDZLayout.Radius.Large))
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(def.title, color = DDZColor.TextPrimary, fontWeight = FontWeight.Bold)
         OnboardingPhotoShowcase(
@@ -221,20 +222,53 @@ private fun StarterPreview(def: OnboardingStarterDefinition) {
                     else -> "입력"
                 }
             },
-            height = 184.dp,
+            height = 154.dp,
             compact = true,
         )
-        Text("선택한 기록표는 촬영 화면에서 숨길 수도 있어요.",
+        Text("촬영 중 기록표 숨기기 가능 · 첫 입력값은 빈칸으로 시작",
             color = DDZColor.TextSecondary,
-            style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
-        Text("첫 촬영 기준 · 입력값은 빈칸으로 시작해요.",
-            color = DDZColor.TextSecondary,
-            style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
-        Text("파일명", color = DDZColor.TextSecondary,
-            style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
-        Text(fileName, color = DDZColor.TextPrimary, fontWeight = FontWeight.Medium)
-        Text("저장 위치", color = DDZColor.TextSecondary,
-            style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
-        Text(savePath, color = DDZColor.TextPrimary)
+            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+        )
+        Row(
+            Modifier.fillMaxWidth()
+                .clickable { showSaveDetails = !showSaveDetails }
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                if (showSaveDetails) "저장 규칙 접기" else "저장 규칙 미리보기",
+                color = DDZColor.PrimaryDark,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                if (showSaveDetails) "⌃" else "⌄",
+                color = DDZColor.TextSecondary,
+            )
+        }
+        if (showSaveDetails) {
+            Text(
+                "파일명", color = DDZColor.TextSecondary,
+                style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+            )
+            Text(
+                fileName,
+                color = DDZColor.TextPrimary,
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                "저장 위치", color = DDZColor.TextSecondary,
+                style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+            )
+            Text(
+                savePath,
+                color = DDZColor.TextPrimary,
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
