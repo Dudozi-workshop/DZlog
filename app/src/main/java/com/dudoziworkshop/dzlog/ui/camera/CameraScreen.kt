@@ -56,6 +56,7 @@ import com.dudoziworkshop.dzlog.data.repository.CaptureQueueCoordinator
 import com.dudoziworkshop.dzlog.data.repository.CaptureReceiptRecoveryPolicy
 import com.dudoziworkshop.dzlog.data.repository.CaptureRecoveryStatusPolicy
 import com.dudoziworkshop.dzlog.data.repository.DzlogRepositoryImpl
+import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePhraseUndoHistory
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjection
 import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReviewPolicy
 import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureTemplateCommitPolicy
@@ -121,6 +122,7 @@ fun CameraScreen(
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
+    phraseUndoHistory: CapturePhraseUndoHistory,
     verifiedTier: com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier =
         com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier.FREE,
     onCaptureCommitted: () -> Unit = {},
@@ -168,6 +170,7 @@ fun CameraScreen(
                 onOpenAlbum = onOpenAlbum,
                 onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
                 sessionCaptureStack = sessionCaptureStack,
+                phraseUndoHistory = phraseUndoHistory,
                 verifiedTier = verifiedTier,
                 onCaptureCommitted = onCaptureCommitted,
                 onFirstCaptureReceipt = onFirstCaptureReceipt,
@@ -197,6 +200,7 @@ fun CameraPreview(
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
+    phraseUndoHistory: CapturePhraseUndoHistory,
     verifiedTier: com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier =
         com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier.FREE,
     onCaptureCommitted: () -> Unit = {},
@@ -336,6 +340,12 @@ fun CameraPreview(
                     val uris = receipt.outputUris.map(Uri::parse)
                         .filter { it != Uri.EMPTY }.distinct()
                     if (uris.isNotEmpty()) {
+                        phraseUndoHistory.record(
+                            templateId = quickTemplateId,
+                            uris = uris.map(Uri::toString),
+                            before = base,
+                            after = applied,
+                        )
                         UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
                     }
                     // Preserve legacy SHORT/HOLD behavior: review the final
@@ -460,11 +470,36 @@ fun CameraPreview(
     }
     val latestImage = latestImageController.latestImage
 
-    fun syncAfterUndoDelete() {
+    var undoPhraseSaving by remember { mutableStateOf(false) }
+    fun syncAfterUndoDelete(deletedUris: List<Uri>) {
+        val entry = phraseUndoHistory.deleted(deletedUris.map(Uri::toString))
         latestImageController.reload()
-        // 실제 undo 삭제 완료(미디어 삭제 성공) 시점 이벤트다.
-        // 버튼 클릭 시점이 아니라 완료 시점에만 발행해 카운터 재동기화 타이밍을 맞춘다.
         cameraViewModel.onUndoCommitted()
+        if (entry == null) return
+        if (entry.templateId != quickTemplateId) {
+            ui.capture.pendingSaveError = true
+            return
+        }
+        undoPhraseSaving = true
+        scope.launch {
+            try {
+                val beforeRestore = pendingProjection.committedBase(activeTemplate.value)
+                val restored = phraseUndoHistory.restore(beforeRestore, entry)
+                if (restored != null && persistCapturedTemplate.value(restored)) {
+                    pendingProjection.recordCommittedTemplate(restored)
+                    phraseUndoHistory.acknowledgeRestored(entry)
+                    ui.capture.pendingProjectionVersion++
+                } else {
+                    ui.capture.pendingSaveError = true
+                    Toast.makeText(
+                        context, "문구 복원 상태를 확인하지 못했습니다. 추가 촬영 전에 확인해주세요.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } finally {
+                undoPhraseSaving = false
+            }
+        }
     }
 
     LaunchedEffect(lifecycleOwner) {
@@ -476,7 +511,7 @@ fun CameraPreview(
 
     val undoDeleteController = rememberUndoDeleteController(
         context = context,
-        onCommitted = { syncAfterUndoDelete() },
+        onCommitted = { deletedUris -> syncAfterUndoDelete(deletedUris) },
         onRestore = { targetUris -> UndoCapturePolicy.restoreCapture(sessionCaptureStack, targetUris) },
     )
 
@@ -527,7 +562,7 @@ fun CameraPreview(
         appSettings = appSettings,
         verifiedTier = verifiedTier,
         boundImageCapture = boundImageCapture,
-        undoPending = undoDeleteController.isBusy,
+        undoPending = undoDeleteController.isBusy || undoPhraseSaving,
         finalCapturePreview = finalCapturePreview,
         scopedCounterStream = scopedCounterStream,
         tableTemplateState = effectiveTemplate,
@@ -718,7 +753,7 @@ fun CameraPreview(
                         scope = scope,
                         ui = ui,
                         settingsWriter = settingsWriter,
-                        captureReady = canTriggerCapture && !undoDeleteController.isBusy &&
+                        captureReady = canTriggerCapture && !undoDeleteController.isBusy && !undoPhraseSaving &&
                             ui.capture.pendingPreviewCaptureId == null &&
                             !ui.capture.pendingSaveError &&
                             !ui.capture.isRecoveringPendingCaptures &&
@@ -736,10 +771,15 @@ fun CameraPreview(
                             }
                         },
                         sessionCaptureStack = sessionCaptureStack,
-                        undoPending = undoDeleteController.isBusy || ui.capture.pendingSaveCount > 0,
+                        undoPending = undoDeleteController.isBusy || undoPhraseSaving || ui.capture.pendingSaveCount > 0,
                         onUndoDelete = {
-                            if (ui.capture.pendingSaveCount == 0) {
-                                undoDeleteController.deleteLatest(sessionCaptureStack)
+                            if (ui.capture.pendingSaveCount == 0 && !undoPhraseSaving) {
+                                val lastUris = sessionCaptureStack.lastOrNull().orEmpty()
+                                if (phraseUndoHistory.canUndo(lastUris.map(Uri::toString), quickTemplateId)) {
+                                    undoDeleteController.deleteLatest(sessionCaptureStack)
+                                } else {
+                                    Toast.makeText(context, "다른 양식의 촬영 기록입니다.", Toast.LENGTH_SHORT).show()
+                                }
                             }
                         },
                         onTriggerCapture = {
