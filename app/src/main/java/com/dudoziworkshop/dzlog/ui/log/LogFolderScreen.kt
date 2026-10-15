@@ -630,7 +630,13 @@ fun LogFolderScreen(
                     favoriteIds = favoriteIds,
                     onOpenFolder = { if (!selectionActive && !navigationLocked) onOpenFolder(it) },
                     onOpenPhoto = { photos, index -> if (!navigationLocked) onOpenPhoto(photos, index) },
-                    onOpenOriginal = { if (!selectionActive && !navigationLocked) onOpenOriginal(it) },
+                    onOpenOriginal = { originalPath ->
+                        if (!selectionActive && !navigationLocked) {
+                            // Keep the virtual default-storage context when entering its original folder.
+                            onShowDefaultPhotosChange(true)
+                            onOpenOriginal(originalPath)
+                        }
+                    },
                     onOpenRecentPhotos = { if (!selectionActive && !navigationLocked) { onShowDefaultPhotosChange(false); showRecentPhotos = true } },
                     onOpenDefaultPhotos = { if (!selectionActive && !navigationLocked) { showRecentPhotos = false; onShowDefaultPhotosChange(true) } },
                     onSelectDefaultPhotos = { if (!navigationLocked && !selectionActive) { showRecentPhotos = false; onShowDefaultPhotosChange(true); selectionActive = true } },
