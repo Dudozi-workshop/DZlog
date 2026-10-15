@@ -11,6 +11,7 @@ on:
       - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/**'
       - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/navigation/AppNavigation.kt'
       - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/table/TableEditorDialogs.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/table/mock/**'
       - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/table/policy/RotatingPhraseSetCreationPolicy.kt'
       - 'app/src/test/java/com/dudoziworkshop/dzlog/feature/capture/policy/CapturePhraseUndoHistoryTest.kt'
       - 'app/src/test/java/com/dudoziworkshop/dzlog/feature/capture/policy/CapturePendingProjectionTest.kt'
