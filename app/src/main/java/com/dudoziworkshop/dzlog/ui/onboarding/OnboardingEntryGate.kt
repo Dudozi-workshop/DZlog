@@ -21,6 +21,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.datastore.preferences.core.edit
+import com.dudoziworkshop.dzlog.data.preferences.dataStore
+import com.dudoziworkshop.dzlog.data.preferences.KEY_TUTORIAL_OFFER_PENDING
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.navigation.AppRoot
 import com.dudoziworkshop.dzlog.ui.navigation.RequiredPermissionsGate
@@ -108,9 +111,12 @@ fun OnboardingEntryGate() {
                 offerOnboarding = true,
                 onInitialSetupComplete = { openCamera ->
                     withContext(Dispatchers.IO) {
+                        // Mark only newly completed onboarding; updates and returning
+                        // installations must never receive this invitation.
+                        context.dataStore.edit { it[KEY_TUTORIAL_OFFER_PENDING] = true }
                         OnboardingInstallState.save(context, OnboardingInstallStage.COMPLETE)
                     }
-                    completedCameraDestination = openCamera
+                    completedCameraDestination = false
                     stage = OnboardingInstallStage.COMPLETE
                 },
             )
