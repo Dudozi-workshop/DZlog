@@ -67,6 +67,7 @@ import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase
 import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureSavedResult
 import com.dudoziworkshop.dzlog.feature.table.policy.replaceActiveSavedTableTemplate
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
+import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePhraseUndoHistory
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
 import com.dudoziworkshop.dzlog.ui.log.LogFolderScreen
@@ -147,6 +148,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var viewerStartIndex by rememberSaveable { mutableIntStateOf(0) }
     val cameraSessionCaptureStack = remember { mutableStateListOf<List<Uri>>() }
+    val cameraPhraseUndoHistory = remember { CapturePhraseUndoHistory() }
 
     // 기존 상태
 
@@ -785,6 +787,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
                     sessionCaptureStack = cameraSessionCaptureStack,
+                    phraseUndoHistory = cameraPhraseUndoHistory,
                     verifiedTier = verifiedProTier,
                     onCaptureCommitted = {
                         captureTemplateId?.let { id ->
@@ -835,6 +838,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
                     sessionCaptureStack = cameraSessionCaptureStack,
+                    phraseUndoHistory = cameraPhraseUndoHistory,
                     verifiedTier = verifiedProTier,
                     onCaptureCommitted = {
                         captureTemplateId?.let { id ->
