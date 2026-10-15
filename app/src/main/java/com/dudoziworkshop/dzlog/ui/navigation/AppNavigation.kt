@@ -142,6 +142,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     var albumFolderPath by rememberSaveable { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
     // This virtual gallery entry is a view state; preserve it across Activity recreation.
     var showRootDefaultPhotos by rememberSaveable { mutableStateOf(false) }
+    var returnToDefaultAfterRootOriginal by rememberSaveable { mutableStateOf(false) }
     var gridItems by remember { mutableStateOf<List<com.dudoziworkshop.dzlog.domain.model.MediaImageItem>>(emptyList()) }
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -934,10 +935,16 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     capturePathDrafts = (tableTemplateViewModel.templates.map { it.templateState.pathSlotDrafts } + listOf(tableTemplateState.pathSlotDrafts)).distinct(),
                     onBack = {
                         val parent = GalleryFolderIndexPolicy.parentOf(albumFolderPath)
-                        if (parent != null) albumFolderPath = parent
-                        else screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
+                        if (parent != null) {
+                            albumFolderPath = parent
+                            if (parent == GalleryFolderIndexPolicy.ROOT && returnToDefaultAfterRootOriginal) {
+                                showRootDefaultPhotos = true
+                                returnToDefaultAfterRootOriginal = false
+                            }
+                        } else screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
                     },
                     onOpenFolder = { folder ->
+                        returnToDefaultAfterRootOriginal = false
                         showRootDefaultPhotos = false
                         albumFolderPath = folder
                     },
@@ -957,6 +964,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                         screen = AppScreen.ALBUM_VIEWER
                     },
                     onOpenOriginal = { originalPath ->
+                        returnToDefaultAfterRootOriginal = showRootDefaultPhotos && albumFolderPath == GalleryFolderIndexPolicy.ROOT
                         showRootDefaultPhotos = false
                         clearOriginalContext()
                         resetGridUiState()
