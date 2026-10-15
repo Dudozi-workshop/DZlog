@@ -69,6 +69,36 @@ def choose(label):
     tap_visible(label)
 
 
+def wait_for_folder_grant_or_starter(timeout=90):
+    """Only click exact affirmative system buttons, or accept a direct return.
+
+    A substring search for "Allow" may match the dialog's sentence
+    ("Allow access ...") even when no button labelled "Allow" exists.
+    """
+    deadline = time.monotonic() + timeout
+    affirmative = {"allow", "허용", "액세스 허용", "접근 허용"}
+    while time.monotonic() < deadline:
+        root = hierarchy()
+        if contains(root, "어떤 기록을 시작할까요?"):
+            return root
+        if contains(root, "선택한 위치가 달라요"):
+            raise AssertionError("App rejected the selected SAF folder")
+        for node in nodes(root):
+            text = (node.get("text") or node.get("content-desc") or "").strip()
+            if text.casefold() not in affirmative:
+                continue
+            try:
+                x, y = target(root, text)
+            except AssertionError:
+                continue
+            adb("shell", "input", "tap", str(x), str(y))
+            time.sleep(1.5)
+            break
+        else:
+            time.sleep(1.5)
+    raise AssertionError("Neither SAF confirmation nor starter screen became available")
+
+
 def folder_setup():
     # No permission dialogs are bypassed: Android permissions were granted
     # expressly within this disposable emulator before the app was launched.
@@ -100,13 +130,7 @@ def folder_setup():
             break
     else:
         raise AssertionError("Exact folder is not selectable")
-    time.sleep(2)
-    root = hierarchy()
-    for label in ("Allow", "ALLOW", "허용"):
-        if contains(root, label):
-            tap_visible(label)
-            break
-    wait_for("어떤 기록을 시작할까요?", timeout=90)
+    wait_for_folder_grant_or_starter(timeout=90)
 
 
 def main():
