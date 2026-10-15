@@ -454,7 +454,6 @@ fun LogFolderScreen(
         showDefaultPhotos -> defaultPhotos
         showRecentPhotos -> recentPhotos
         selectedTab == GalleryTab.ALL -> recentPhotos.take(9)
-        selectedTab == GalleryTab.FOLDERS -> photos
         else -> allPhotos.filter { it.id in favoriteIds }
     }
     val selectableIds = selectablePhotos.mapTo(mutableSetOf()) { it.id }
@@ -627,6 +626,7 @@ fun LogFolderScreen(
                     onOpenOriginal = { if (!selectionActive && !navigationLocked) onOpenOriginal(it) },
                     onOpenRecentPhotos = { if (!selectionActive && !navigationLocked) { onShowDefaultPhotosChange(false); showRecentPhotos = true } },
                     onOpenDefaultPhotos = { if (!selectionActive && !navigationLocked) { showRecentPhotos = false; onShowDefaultPhotosChange(true) } },
+                    onSelectDefaultPhotos = { if (!navigationLocked && !selectionActive) { showRecentPhotos = false; onShowDefaultPhotosChange(true); selectionActive = true } },
                     onManageFolder = ::startFolderManagement,
                     canManageFolders = !navigationLocked && !selectionActive && !folderAccessBusy,
                     onCreateFolder = { if (!selectionActive && !navigationLocked) { folderOperationError = null; showCreateDialog = true } },
