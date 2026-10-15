@@ -62,6 +62,7 @@ fun OnboardingStartupGate(
                     verifiedNoExistingMedia = false,
                     verifiedFreshInstall = offerOnboarding,
                     requireVerifiedMediaForOnboarding = false,
+                    ignoreOtherSavedState = offerOnboarding,
                 )
             }
         } catch (e: CancellationException) {
