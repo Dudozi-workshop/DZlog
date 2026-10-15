@@ -1,6 +1,11 @@
 package com.dudoziworkshop.dzlog.ui.onboarding
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,6 +16,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.dudoziworkshop.dzlog.R
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Description
@@ -36,7 +45,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 /** Editorial introduction. All examples are non-persistent. */
 @Composable
 internal fun OnboardingBrandIntro() {
-    Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Spacer(Modifier.height(8.dp))
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("사진을,", style = DDZTypography.HomeMainTitle, color = DDZColor.TextPrimary)
@@ -50,7 +59,7 @@ internal fun OnboardingBrandIntro() {
         OnboardingPhotoShowcase(
             labels = listOf("기록명", "날짜", "번호"),
             values = listOf("관찰 기록", "26.10.15", "001"),
-            height = 270.dp,
+            height = 314.dp,
         )
         Text("한 장의 사진이, 더 오래 기억되는 기록이 됩니다.",
             style = DDZTypography.Caption, color = DDZColor.TextSecondary)
@@ -133,20 +142,45 @@ private fun CompactFeature(
     title: String,
     detail: String,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth()
-            .padding(horizontal = 6.dp, vertical = 5.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = DDZColor.Surface,
     ) {
-        Icon(icon, contentDescription = null, tint = DDZColor.PrimaryDark)
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(9.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("$number  $title", style = DDZTypography.SettingLabel,
-                color = DDZColor.TextPrimary)
-            Text(detail, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Text(number, style = DDZTypography.Caption, color = DDZColor.SelectedDark)
+                Text(title, style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
+                Text(detail, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+            }
+            Box(
+                Modifier.size(82.dp, 78.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(DDZColor.SelectedSoft),
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.home_leaf_shadow_c),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxWidth().height(78.dp),
+                    contentScale = ContentScale.Crop,
+                    alpha = 0.78f,
+                )
+                Surface(
+                    color = DDZColor.Surface.copy(alpha = 0.94f),
+                    shape = RoundedCornerShape(7.dp),
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(5.dp),
+                ) {
+                    Icon(icon, null, tint = DDZColor.PrimaryDark,
+                        modifier = Modifier.padding(6.dp).size(18.dp))
+                }
+            }
         }
     }
 }
