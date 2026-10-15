@@ -77,13 +77,10 @@ internal fun OnboardingFlowScreen(
     Column(
         Modifier.fillMaxSize().background(DDZColor.Background).statusBarsPadding().navigationBarsPadding(),
     ) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("DZlog", color = DDZColor.PrimaryDark, fontWeight = FontWeight.Bold)
-            Text(if (step == 3) "시작 양식" else "소개 $step / 2", color = DDZColor.TextSecondary)
-        }
+        OnboardingProgressHeader(
+            stage = if (step == 3) 3 else 1,
+            label = if (step == 3) "시작 양식" else "소개 · $step/2",
+        )
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp),
@@ -97,56 +94,15 @@ internal fun OnboardingFlowScreen(
                         color = DDZColor.TextPrimary, fontWeight = FontWeight.Bold,
                         style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
                     Text("나에게 맞는 양식을 골라보세요. 나중에도 바꿀 수 있어요.", color = DDZColor.TextSecondary)
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        categories.forEach { item ->
-                            val active = item.id == category
-                            Row(
-                                Modifier.fillMaxWidth()
-                                    .border(
-                                        1.dp,
-                                        if (active) DDZColor.Selected else DDZColor.Border,
-                                        RoundedCornerShape(DDZLayout.Radius.Medium),
-                                    )
-                                    .background(
-                                        if (active) DDZColor.SelectedSoft else DDZColor.Surface,
-                                        RoundedCornerShape(DDZLayout.Radius.Medium),
-                                    )
-                                    .clickable {
-                                        category = item.id
-                                        chosen = OnboardingStarterCatalog.definitions
-                                            .first { it.category == item.id }.id
-                                        showAlternatives = false
-                                    }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(
-                                    Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(3.dp),
-                                ) {
-                                    Text(
-                                        item.title,
-                                        color = DDZColor.TextPrimary,
-                                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                                    )
-                                    Text(
-                                        item.detail,
-                                        color = DDZColor.TextSecondary,
-                                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-                                    )
-                                }
-                                if (active) {
-                                    Text(
-                                        "선택됨",
-                                        color = DDZColor.SelectedDark,
-                                        fontWeight = FontWeight.Bold,
-                                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    OnboardingStarterCategories(
+                        selectedId = category,
+                        onSelect = { id ->
+                            category = id
+                            chosen = OnboardingStarterCatalog.definitions
+                                .first { it.category == id }.id
+                            showAlternatives = false
+                        },
+                    )
                     if (category != "basic") {
                         Text(
                             text = if (showAlternatives) "다른 양식 접기" else "다른 양식 보기",
