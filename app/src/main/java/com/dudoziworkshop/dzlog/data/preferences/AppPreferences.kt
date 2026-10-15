@@ -37,6 +37,7 @@ val KEY_TABLE_TEMPLATE_JSON = stringPreferencesKey("table_template_json")
 val KEY_TABLE_TEMPLATES_JSON = stringPreferencesKey("table_templates_json_v1")
 val KEY_ACTIVE_TABLE_TEMPLATE_ID = stringPreferencesKey("active_table_template_id_v1")
 val KEY_ONBOARDING_SETUP_COMPLETED = booleanPreferencesKey("onboarding_setup_completed_v1")
+val KEY_TUTORIAL_OFFER_DISMISSED = booleanPreferencesKey("tutorial_offer_dismissed_v1")
 val KEY_FIRST_CAPTURE_SUCCEEDED = booleanPreferencesKey("onboarding_first_capture_succeeded_v1")
 
 val KEY_COUNTER_MANUAL_NEXT_OVERRIDES_V1 = stringPreferencesKey("counter_manual_next_overrides_v1")
