@@ -44,11 +44,11 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import java.util.Date
 
-private data class StarterCategory(val id: String, val title: String)
+private data class StarterCategory(val id: String, val title: String, val detail: String)
 private val categories = listOf(
-    StarterCategory("basic", "기본 촬영"),
-    StarterCategory("daily", "일상·취미"),
-    StarterCategory("work", "업무·현장"),
+    StarterCategory("basic", "기본 촬영", "가볍게 사진과 기록을 남겨요"),
+    StarterCategory("daily", "일상·취미", "여행 · 반려동물 · 취미 기록"),
+    StarterCategory("work", "업무·현장", "현장 · 점검 · 연구 기록"),
 )
 
 @Composable
@@ -97,27 +97,53 @@ internal fun OnboardingFlowScreen(
                         color = DDZColor.TextPrimary, fontWeight = FontWeight.Bold,
                         style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
                     Text("나에게 맞는 양식을 골라보세요. 나중에도 바꿀 수 있어요.", color = DDZColor.TextSecondary)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         categories.forEach { item ->
                             val active = item.id == category
-                            Box(
-                                Modifier.weight(1f)
-                                    .border(1.dp, if (active) DDZColor.Selected else DDZColor.Border,
-                                        RoundedCornerShape(DDZLayout.Radius.Medium))
-                                    .background(if (active) DDZColor.SelectedSoft else DDZColor.Surface,
-                                        RoundedCornerShape(DDZLayout.Radius.Medium))
+                            Row(
+                                Modifier.fillMaxWidth()
+                                    .border(
+                                        1.dp,
+                                        if (active) DDZColor.Selected else DDZColor.Border,
+                                        RoundedCornerShape(DDZLayout.Radius.Medium),
+                                    )
+                                    .background(
+                                        if (active) DDZColor.SelectedSoft else DDZColor.Surface,
+                                        RoundedCornerShape(DDZLayout.Radius.Medium),
+                                    )
                                     .clickable {
                                         category = item.id
-                                        chosen = OnboardingStarterCatalog.definitions.first { it.category == item.id }.id
+                                        chosen = OnboardingStarterCatalog.definitions
+                                            .first { it.category == item.id }.id
                                         showAlternatives = false
                                     }
-                                    .padding(vertical = 14.dp, horizontal = 3.dp),
-                                contentAlignment = Alignment.Center,
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text(item.title, color = DDZColor.TextPrimary,
-                                    fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
-                                    style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
-                                    maxLines = 1)
+                                Column(
+                                    Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                                ) {
+                                    Text(
+                                        item.title,
+                                        color = DDZColor.TextPrimary,
+                                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                    )
+                                    Text(
+                                        item.detail,
+                                        color = DDZColor.TextSecondary,
+                                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                                    )
+                                }
+                                if (active) {
+                                    Text(
+                                        "선택됨",
+                                        color = DDZColor.SelectedDark,
+                                        fontWeight = FontWeight.Bold,
+                                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                                    )
+                                }
                             }
                         }
                     }
@@ -167,7 +193,7 @@ internal fun OnboardingFlowScreen(
         ) {
             DDZButton(
                 text = when {
-                    introOnly && step == 2 -> "권한 설정하기"
+                    introOnly && step == 2 -> "사용 준비하기"
                     introOnly -> "다음"
                     step == 3 -> if (readOnly) "도움말 닫기" else "이 양식으로 시작"
                     step == 1 -> "시작하기"
@@ -265,6 +291,9 @@ private fun StarterPreview(def: OnboardingStarterDefinition) {
                 }
             }
         }
+        Text("선택한 기록표는 촬영 화면에서 숨길 수도 있어요.",
+            color = DDZColor.TextSecondary,
+            style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
         Text("첫 촬영 기준 · 입력값은 빈칸으로 시작해요.",
             color = DDZColor.TextSecondary,
             style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
