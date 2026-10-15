@@ -40,6 +40,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -101,6 +102,7 @@ fun LogGridScreen(
     onSelectAll: (Set<Long>) -> Unit,
     onDeleted: (Set<Long>) -> Unit,
     onBack: () -> Unit,
+    onBrowseAllRecords: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val resolver = context.contentResolver
@@ -291,6 +293,31 @@ fun LogGridScreen(
                             tint = DDZColor.Primary,
                             modifier = Modifier.size(20.dp)
                         )
+                    }
+                }
+
+                if (onBrowseAllRecords != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(
+                            enabled = !actionLocked,
+                            onClick = onBrowseAllRecords,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FolderOpen,
+                                contentDescription = null,
+                                tint = DDZColor.Primary,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.size(6.dp))
+                            Text(
+                                text = "다른 기록 보기",
+                                style = DDZTypography.Body,
+                                color = DDZColor.Primary,
+                            )
+                        }
                     }
                 }
 
