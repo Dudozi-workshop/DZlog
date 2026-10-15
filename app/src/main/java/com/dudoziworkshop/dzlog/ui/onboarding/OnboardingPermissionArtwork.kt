@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Image as ImageIcon
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -78,7 +78,7 @@ internal fun OnboardingPermissionArtwork() {
                 shadowElevation = 3.dp,
             ) {
                 Box(Modifier.padding(5.dp), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Image, null, tint = DDZColor.SelectedDark,
+                    Icon(Icons.Default.ImageIcon, null, tint = DDZColor.SelectedDark,
                         modifier = Modifier.size(24.dp))
                 }
             }
