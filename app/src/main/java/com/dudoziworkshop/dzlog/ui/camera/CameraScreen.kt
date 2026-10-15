@@ -496,6 +496,11 @@ fun CameraPreview(
                         Toast.LENGTH_LONG
                     ).show()
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                ui.capture.pendingSaveError = true
+                Toast.makeText(context, "문구 복원 저장에 실패했습니다. 추가 촬영 전에 확인해주세요.", Toast.LENGTH_LONG).show()
             } finally {
                 undoPhraseSaving = false
             }
