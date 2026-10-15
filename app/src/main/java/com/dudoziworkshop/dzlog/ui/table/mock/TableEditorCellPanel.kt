@@ -57,7 +57,7 @@ internal fun TableEditorCellUiModelEditor(
     onPhraseSetChange: (String?) -> Unit,
     onPhraseEveryChange: (Int) -> Unit,
     onPhraseProgressChange: (Int, Int) -> Unit,
-    onCreatePhraseSet: (String) -> Unit,
+    onCreatePhraseSet: (String) -> String?,
     onUpdatePhraseSet: (String, (com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> Unit,
     onDeletePhraseSet: (String) -> Unit,
     onClose: () -> Unit,
@@ -293,7 +293,12 @@ internal fun TableEditorCellUiModelEditor(
                 editingPhraseSetId = id
                 showPhrasePicker = false
             },
-            onCreate = onCreatePhraseSet,
+            onCreate = { name ->
+                onCreatePhraseSet(name)?.let { createdSetId ->
+                    showPhrasePicker = false
+                    editingPhraseSetId = createdSetId
+                }
+            },
             onDismiss = { showPhrasePicker = false },
         )
     }
