@@ -58,7 +58,6 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 enum class GalleryTab(val label: String) {
     ALL("전체"),
-    FOLDERS("폴더"),
     FAVORITES("즐겨찾기"),
 }
 
@@ -76,6 +75,7 @@ internal fun LogGalleryHomeContent(
     onOpenOriginal: (String) -> Unit,
     onOpenRecentPhotos: () -> Unit,
     onOpenDefaultPhotos: () -> Unit,
+    onSelectDefaultPhotos: () -> Unit,
     onManageFolder: (String, String) -> Unit,
     canManageFolders: Boolean,
     onCreateFolder: () -> Unit = {},
@@ -164,22 +164,26 @@ internal fun LogGalleryHomeContent(
                 }
                 item { GallerySectionTitle(
                     title = "저장 폴더",
-                    count = "${shownFolders.size + if (directPhotos.isNotEmpty()) 1 else 0}개",
+                    count = "${shownFolders.size + if (directPhotos.isNotEmpty() || folderIndex.directOriginalCount > 0) 1 else 0}개",
                     actionLabel = "새 폴더",
                     onAction = onCreateFolder,
                     showAddIcon = true,
                 ) }
                 item { GalleryFolderFilterControls(folderFilter, folderSort, canManageFolders, { folderFilter = it }, { folderSort = it }) }
-                if (directPhotos.isNotEmpty()) {
+                if (directPhotos.isNotEmpty() || folderIndex.directOriginalCount > 0) {
                     item(key = "default-storage") {
                         GalleryDefaultStorageRow(
                             count = directPhotos.size,
+                            originalCount = folderIndex.directOriginalCount,
                             coverImage = directPhotos.firstOrNull(),
+                            canManage = canManageFolders,
                             onClick = onOpenDefaultPhotos,
+                            onSelect = onSelectDefaultPhotos,
+                            onOpenOriginal = { onOpenOriginal(root + "original/") },
                         )
                     }
                 }
-                if (shownFolders.isEmpty() && directPhotos.isEmpty()) {
+                if (shownFolders.isEmpty() && directPhotos.isEmpty() && folderIndex.directOriginalCount == 0) {
                     item { GalleryEmptyText(if (folderIndex.children.isEmpty()) "저장 폴더가 없습니다." else "조건에 맞는 폴더가 없습니다.") }
                 } else {
                     items(shownFolders, key = { "folder-${it.relativePath}" }) { folder ->
@@ -189,46 +193,6 @@ internal fun LogGalleryHomeContent(
                             onManage = { action -> onManageFolder(folder.relativePath, action) },
                         ) {
                             onOpenFolder(folder.relativePath)
-                        }
-                    }
-                }
-            }
-            GalleryTab.FOLDERS -> {
-                item { GallerySectionTitle(
-                    title = "저장 폴더",
-                    count = "${shownFolders.size}개",
-                    actionLabel = "새 폴더",
-                    onAction = onCreateFolder,
-                    showAddIcon = true,
-                ) }
-                item { GalleryFolderFilterControls(folderFilter, folderSort, canManageFolders, { folderFilter = it }, { folderSort = it }) }
-                if (shownFolders.isEmpty()) {
-                    item { GalleryEmptyText(if (folderIndex.children.isEmpty()) "저장 폴더가 없습니다." else "조건에 맞는 폴더가 없습니다.") }
-                } else {
-                    items(shownFolders, key = { "folder-${it.relativePath}" }) { folder ->
-                        val summary = summariesByPath[folder.relativePath]
-                        GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
-                            canManage = canManageFolders,
-                            onManage = { action -> onManageFolder(folder.relativePath, action) },
-                        ) {
-                            onOpenFolder(folder.relativePath)
-                        }
-                    }
-                }
-                item { GallerySectionTitle("사진", "${directPhotos.size}장") }
-                if (directPhotos.isEmpty()) {
-                    item { GalleryEmptyText("DZlog 기본 위치에 저장된 사진이 없습니다.") }
-                } else {
-                    items(directPhotos.chunked(3)) { row ->
-                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto, selectionActive = selectionActive) { photo ->
-                            onOpenPhoto(directPhotos, directPhotos.indexOfFirst { it.id == photo.id })
-                        }
-                    }
-                }
-                if (folderIndex.directOriginalCount > 0) {
-                    item {
-                        GalleryOriginalRow(folderIndex.directOriginalCount) {
-                            onOpenOriginal(root + "original/")
                         }
                     }
                 }
@@ -423,9 +387,14 @@ private fun GalleryPhotoTile(
 @Composable
 private fun GalleryDefaultStorageRow(
     count: Int,
+    originalCount: Int,
     coverImage: MediaImageItem?,
+    canManage: Boolean,
     onClick: () -> Unit,
+    onSelect: () -> Unit,
+    onOpenOriginal: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier.fillMaxWidth()
             .background(DDZColor.Surface, MaterialTheme.shapes.medium)
@@ -449,9 +418,27 @@ private fun GalleryDefaultStorageRow(
         }
         Column(modifier = Modifier.weight(1f)) {
             Text("기본 저장", maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("사진 ${count}장", color = DDZColor.TextSecondary, style = DDZTypography.Secondary)
+            Text("사진 ${count}장 · 원본 ${originalCount}장", color = DDZColor.TextSecondary, style = DDZTypography.Secondary)
         }
-        Icon(Icons.Default.ChevronRight, contentDescription = "기본 저장 사진 열기", tint = DDZColor.IconMuted)
+        Box {
+            IconButton(enabled = canManage, onClick = { menuExpanded = true }) {
+                Icon(Icons.Default.MoreVert, contentDescription = "기본 저장 관리", tint = DDZColor.IconMuted)
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                DropdownMenuItem(text = { Text("사진 보기") }, onClick = {
+                    menuExpanded = false
+                    onClick()
+                })
+                DropdownMenuItem(text = { Text("사진 선택") }, enabled = count > 0, onClick = {
+                    menuExpanded = false
+                    onSelect()
+                })
+                DropdownMenuItem(text = { Text("원본사진 보기") }, enabled = originalCount > 0, onClick = {
+                    menuExpanded = false
+                    onOpenOriginal()
+                })
+            }
+        }
     }
 }
 
