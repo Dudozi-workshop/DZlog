@@ -1,9 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.log
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -95,7 +93,8 @@ internal fun GalleryPhotoDeleteConfirmation(
             DDZButton(
                 text = "삭제", onClick = { plan?.let(onConfirm) },
                 modifier = Modifier.weight(1f),
-                style = DDZButtonStyle.Destructive,
+                style = DDZButtonStyle.Primary,
+                containerColorOverride = colors.Destructive,
                 enabled = !busy && plan != null,
             )
         },
