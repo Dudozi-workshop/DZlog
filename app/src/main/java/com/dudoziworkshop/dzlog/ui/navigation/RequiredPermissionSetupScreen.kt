@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryMediaAccess
+import com.dudoziworkshop.dzlog.ui.onboarding.OnboardingProgressHeader
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.theme.LocalDDZColor
 import com.dudoziworkshop.dzlog.ui.theme.LocalDDZTypography
@@ -55,17 +56,13 @@ internal fun RequiredPermissionSetupScreen(
         Modifier.fillMaxSize().background(colors.Background)
             .statusBarsPadding().navigationBarsPadding(),
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("DZlog", style = typography.ScreenTitle, color = colors.PrimaryDark)
-            Text(
-                if (onboarding) "03 / 04 · 사용 준비" else "권한 복구",
-                style = typography.Caption,
-                color = colors.TextSecondary,
-            )
+        if (onboarding) {
+            OnboardingProgressHeader(stage = 2, label = "권한 설정")
+        } else {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp)) {
+                Text("DZlog", style = typography.ScreenTitle, color = colors.PrimaryDark)
+                Text("권한 복구", style = typography.Caption, color = colors.TextSecondary)
+            }
         }
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState())
