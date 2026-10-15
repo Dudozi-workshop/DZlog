@@ -471,8 +471,10 @@ fun CameraPreview(
     val latestImage = latestImageController.latestImage
 
     var undoPhraseSaving by remember { mutableStateOf(false) }
+    var undoDeletionIncomplete by remember { mutableStateOf(phraseUndoHistory.hasIncompleteDeletion()) }
     fun syncAfterUndoDelete(deletedUris: List<Uri>) {
         val entry = phraseUndoHistory.deleted(deletedUris.map(Uri::toString))
+        undoDeletionIncomplete = phraseUndoHistory.hasIncompleteDeletion()
         latestImageController.reload()
         cameraViewModel.onUndoCommitted()
         if (entry == null) return
@@ -567,7 +569,7 @@ fun CameraPreview(
         appSettings = appSettings,
         verifiedTier = verifiedTier,
         boundImageCapture = boundImageCapture,
-        undoPending = undoDeleteController.isBusy || undoPhraseSaving,
+        undoPending = undoDeleteController.isBusy || undoPhraseSaving || undoDeletionIncomplete,
         finalCapturePreview = finalCapturePreview,
         scopedCounterStream = scopedCounterStream,
         tableTemplateState = effectiveTemplate,
@@ -758,7 +760,7 @@ fun CameraPreview(
                         scope = scope,
                         ui = ui,
                         settingsWriter = settingsWriter,
-                        captureReady = canTriggerCapture && !undoDeleteController.isBusy && !undoPhraseSaving &&
+                        captureReady = canTriggerCapture && !undoDeleteController.isBusy && !undoPhraseSaving && !undoDeletionIncomplete &&
                             ui.capture.pendingPreviewCaptureId == null &&
                             !ui.capture.pendingSaveError &&
                             !ui.capture.isRecoveringPendingCaptures &&
