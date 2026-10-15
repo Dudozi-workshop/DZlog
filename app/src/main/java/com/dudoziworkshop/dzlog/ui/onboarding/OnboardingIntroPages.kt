@@ -39,29 +39,16 @@ internal fun OnboardingBrandIntro() {
             "사진에 필요한 정보를 함께 담고,\n나만의 방식으로 정리해 보세요.",
             style = DDZTypography.Body, color = DDZColor.TextSecondary,
         )
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = DDZColor.AmbientWarm,
-            shape = RoundedCornerShape(18.dp),
-            border = BorderStroke(1.dp, DDZColor.Border),
-        ) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    IntroConcept("사진", Icons.Default.CameraAlt, Modifier.weight(1f))
-                    Text("+", style = DDZTypography.SectionTitle, color = DDZColor.PrimaryDark)
-                    IntroConcept("기록", Icons.Default.Description, Modifier.weight(1f))
-                }
-                Text(
-                    "DZlog — 사진에 기록을 더하다.",
-                    style = DDZTypography.Secondary,
-                    color = DDZColor.PrimaryDark,
-                )
-            }
-        }
+        OnboardingPhotoShowcase(
+            labels = listOf("기록명", "날짜", "번호"),
+            values = listOf("관찰 기록", "26.10.15", "001"),
+            height = 230.dp,
+        )
+        Text(
+            "사진과 기록표를 함께 보여주는 구성 예시예요.",
+            style = DDZTypography.Caption,
+            color = DDZColor.TextSecondary,
+        )
     }
 }
 
@@ -101,6 +88,12 @@ internal fun OnboardingFeatureIntro() {
                 FeatureModeLabel("기록표 촬영")
                 FeatureModeLabel("표 없이 촬영")
             }
+            OnboardingPhotoShowcase(
+                labels = listOf("기록명", "날짜", "번호"),
+                values = listOf("관찰 기록", "26.10.15", "001"),
+                height = 150.dp,
+                compact = true,
+            )
         }
         OnboardingFeatureCard(
             icon = Icons.Default.Folder,
