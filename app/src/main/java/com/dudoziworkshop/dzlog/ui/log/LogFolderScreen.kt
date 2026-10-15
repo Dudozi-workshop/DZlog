@@ -101,7 +101,7 @@ fun LogFolderScreen(
     onBack: () -> Unit,
     onOpenFolder: (String) -> Unit,
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
-    onOpenOriginal: (String) -> Unit,
+    onOpenOriginal: (String, Boolean) -> Unit,
     showDefaultPhotos: Boolean = false,
     onShowDefaultPhotosChange: (Boolean) -> Unit = {},
     capturePathDrafts: List<List<TableEditorSlotDraft?>> = emptyList(),
@@ -454,7 +454,6 @@ fun LogFolderScreen(
         showDefaultPhotos -> defaultPhotos
         showRecentPhotos -> recentPhotos
         selectedTab == GalleryTab.ALL -> recentPhotos.take(9)
-        selectedTab == GalleryTab.FOLDERS -> photos
         else -> allPhotos.filter { it.id in favoriteIds }
     }
     val selectableIds = selectablePhotos.mapTo(mutableSetOf()) { it.id }
@@ -604,15 +603,23 @@ fun LogFolderScreen(
                             }
                         }
                     }
-                    if (defaultPhotos.isEmpty()) {
+                    if ((index?.directOriginalCount ?: 0) > 0) {
+                        item(key = "default-originals") {
+                            GalleryOriginalRow(requireNotNull(index).directOriginalCount) {
+                                if (!selectionActive && !navigationLocked) onOpenOriginal(GalleryFolderIndexPolicy.ROOT + "original/", defaultPhotos.isNotEmpty())
+                            }
+                        }
+                    }
+                    if (defaultPhotos.isEmpty() && (index?.directOriginalCount ?: 0) == 0) {
                         item { GalleryEmptyText("기본 저장 사진이 없습니다.") }
                     } else {
-                        items(sortedDefaultPhotos.chunked(3)) { row ->
+                        if (defaultPhotos.isNotEmpty()) items(sortedDefaultPhotos.chunked(3)) { row ->
                             GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
                                 if (!navigationLocked) onOpenPhoto(sortedDefaultPhotos, sortedDefaultPhotos.indexOfFirst { it.id == photo.id })
                             }
                         }
                     }
+
                 }
             } else if (root && index != null) {
                 LogGalleryHomeContent(
@@ -624,9 +631,16 @@ fun LogFolderScreen(
                     favoriteIds = favoriteIds,
                     onOpenFolder = { if (!selectionActive && !navigationLocked) onOpenFolder(it) },
                     onOpenPhoto = { photos, index -> if (!navigationLocked) onOpenPhoto(photos, index) },
-                    onOpenOriginal = { if (!selectionActive && !navigationLocked) onOpenOriginal(it) },
+                    onOpenOriginal = { originalPath ->
+                        if (!selectionActive && !navigationLocked) {
+                            // Keep the virtual default-storage context when entering its original folder.
+                            onShowDefaultPhotosChange(true)
+                            onOpenOriginal(originalPath, defaultPhotos.isNotEmpty())
+                        }
+                    },
                     onOpenRecentPhotos = { if (!selectionActive && !navigationLocked) { onShowDefaultPhotosChange(false); showRecentPhotos = true } },
                     onOpenDefaultPhotos = { if (!selectionActive && !navigationLocked) { showRecentPhotos = false; onShowDefaultPhotosChange(true) } },
+                    onSelectDefaultPhotos = { if (!navigationLocked && !selectionActive) { showRecentPhotos = false; onShowDefaultPhotosChange(true); selectionActive = true } },
                     onManageFolder = ::startFolderManagement,
                     canManageFolders = !navigationLocked && !selectionActive && !folderAccessBusy,
                     onCreateFolder = { if (!selectionActive && !navigationLocked) { folderOperationError = null; showCreateDialog = true } },
@@ -639,6 +653,13 @@ fun LogFolderScreen(
                 val current = index
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
                     contentPadding = PaddingValues(bottom = DDZSpacing.sectionGap)) {
+                    if (!originalGrid && current != null && current.directOriginalCount > 0) {
+                        item(key = "folder-originals") {
+                            GalleryOriginalRow(current.directOriginalCount) {
+                                if (!selectionActive && !navigationLocked) onOpenOriginal(relativePath + "original/", directPhotos.isNotEmpty())
+                            }
+                        }
+                    }
                     if (!originalGrid) item {
                         GallerySectionTitle(
                             title = "하위 폴더",
@@ -695,21 +716,7 @@ fun LogFolderScreen(
                     if (current != null && current.children.isEmpty() && photos.isEmpty() && current.directOriginalCount == 0) {
                         item { GalleryEmptyText("빈 폴더입니다.") }
                     }
-                    if (!originalGrid && current != null && current.directOriginalCount > 0) {
-                        item {
-                            Row(
-                                modifier = Modifier.fillMaxWidth()
-                                    .clickable(enabled = !selectionActive && !navigationLocked) { onOpenOriginal(relativePath + "original/") }
-                                    .padding(vertical = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
-                                Text("원본사진 ${current.directOriginalCount}장", modifier = Modifier.weight(1f))
-                                Icon(Icons.Default.ChevronRight, contentDescription = "원본사진 열기")
-                            }
-                        }
-                    }
+
                 }
             }
         }
