@@ -109,21 +109,35 @@ def folder_setup():
         raise AssertionError("Setup primary button clipped at compact size")
     mark("03-permissions")
     tap_visible("DZlog 폴더 연결")
-    root = picker(timeout=90)
+    picker(timeout=90)
+    # DocumentsUI may initially report its package before the folder list
+    # has rendered. Always navigate using a fresh, settled hierarchy.
     mark("04-android-folder-picker")
-    if contains(root, "Can't use this folder") or contains(root, "Can’t use this folder"):
+    deadline = time.monotonic() + 45
+    while True:
+        root = hierarchy()
+        if any(contains(root, name) for name in
+               ("Pictures", "DZlog", "USE THIS FOLDER", "Use this folder")):
+            break
+        if time.monotonic() >= deadline:
+            raise AssertionError("Android picker did not render a usable folder list")
+        time.sleep(1.5)
+    # Android 16 often ignores the picker initial URI and opens at device root.
+    # Navigate only via visible, exact Pictures/DZlog folder entries.
+    if contains(root, "Pictures"):
         choose("Pictures")
         picker(timeout=45)
         choose("DZlog")
-    elif not contains(root, "USE THIS FOLDER") and not contains(root, "Use this folder"):
-        if contains(root, "Pictures"):
-            choose("Pictures")
-            picker(timeout=45)
-            choose("DZlog")
-        else:
-            raise AssertionError("Android picker did not expose Pictures/DZlog")
-    picker(timeout=45)
-    root = hierarchy()
+    elif not contains(root, "DZlog"):
+        raise AssertionError("Android picker did not expose Pictures/DZlog")
+    root = picker(timeout=45)
+    deadline = time.monotonic() + 40
+    while not (contains(root, "USE THIS FOLDER") or
+               contains(root, "Use this folder") or contains(root, "이 폴더 사용")):
+        if time.monotonic() >= deadline:
+            raise AssertionError("Pictures/DZlog folder has no selection action")
+        time.sleep(1.5)
+        root = hierarchy()
     for label in ("USE THIS FOLDER", "Use this folder", "이 폴더 사용"):
         if contains(root, label):
             tap_visible(label)
