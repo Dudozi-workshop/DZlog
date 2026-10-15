@@ -109,7 +109,7 @@ fun OnboardingStartupGate(
                 }
             }
             OnboardingFlowScreen(
-                busy = busy, onChoose = { apply(it, true) },
+                busy = busy, onChoose = { apply(it, false) },
                 onSkip = { apply(OnboardingStarterCatalog.DEFAULT_ID, false) },
                 startStep = if (startWithStarterSelection) 3 else 1,
             )
