@@ -78,6 +78,11 @@ class CapturePhraseUndoHistory {
         return tracked.entry.takeIf { tracked.remainingUris.isEmpty() }
     }
 
+    /** A partially deleted capture cannot safely advance to another shutter. */
+    @Synchronized
+    fun hasIncompleteDeletion(): Boolean =
+        entries.any { it.remainingUris.size < it.entry.initialUris.size && it.remainingUris.isNotEmpty() }
+
     /** Restore only phrase cells; do not overwrite the latest filename/counter/template settings. */
     fun restore(current: TableTemplateState, entry: Entry): TableTemplateState? {
         val cellMap = current.cells.associateBy { it.cellId }
