@@ -39,6 +39,8 @@ import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutPolicy
 import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutConfig
 import com.dudoziworkshop.dzlog.feature.table.policy.TemplateCollectionAction
 import com.dudoziworkshop.dzlog.feature.table.policy.BillingEntitlementRuntime
+import com.dudoziworkshop.dzlog.data.preferences.KEY_TUTORIAL_OFFER_PENDING
+import kotlinx.coroutines.flow.map
 import com.dudoziworkshop.dzlog.data.preferences.KEY_FIRST_CAPTURE_SUCCEEDED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ONBOARDING_SETUP_COMPLETED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ORIENTATION_MODE
@@ -155,6 +157,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
     val tableTemplateState = tableTemplateViewModel.tableTemplateState
 
     val context = LocalContext.current
+    val pendingTutorialInvite by remember(context) {
+        context.dataStore.data.map { it[KEY_TUTORIAL_OFFER_PENDING] == true }
+    }.collectAsState(initial = false)
     val view = LocalView.current
     val activity = context as? android.app.Activity
     val tableCatalogCoordinator = remember(context) {
@@ -189,6 +194,22 @@ fun AppRoot(startOnCamera: Boolean = false) {
         )
     } else null
     var showHelpFromGuide by rememberSaveable { mutableStateOf(false) }
+    fun respondToTutorialInvite(openHelp: Boolean) {
+        appScope.launch {
+            try {
+                context.dataStore.edit { it[KEY_TUTORIAL_OFFER_PENDING] = false }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Preserve the pending invitation if persistence fails.
+                return@launch
+            }
+            if (openHelp) {
+                showHelpFromGuide = true
+                screen = AppScreen.SETTINGS
+            }
+        }
+    }
 
     // This only writes on the first committed photo, not on every consecutive capture.
     // A failed background flag write can be retried after the next successful photo.
@@ -810,6 +831,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     navigateTo(AppScreen.TABLE_TEMPLATES)
                 },
                 onOpenSettings = { navigateTo(AppScreen.SETTINGS) },
+                showTutorialInvitation = pendingTutorialInvite,
+                onTutorialStart = { respondToTutorialInvite(true) },
+                onTutorialLater = { respondToTutorialInvite(false) },
                 onStartCamera = { navigateTo(AppScreen.CAMERA) },
                 onOpenTableEditor = ::openActiveHomeTableEditor,
                 onOpenSaveSettings = ::openActiveSaveSettings,
