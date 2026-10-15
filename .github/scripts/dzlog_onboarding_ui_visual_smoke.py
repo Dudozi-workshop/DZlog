@@ -188,13 +188,18 @@ def main():
         choose("다른 양식 보기")
         choose("연구·실험")
         root = wait_for("연구·실험", timeout=40)
-        if not contains(root, "이 양식으로 시작"):
+        if not contains(root, "DZlog 시작하기"):
             raise AssertionError("Starter confirmation CTA missing")
         mark("05-starter-selection-compact")
-        tap_visible("이 양식으로 시작")
-        # The first camera is optional; no shutter press or photo is made.
-        root = wait_for("첫 촬영", timeout=80)
-        mark("06-optional-first-camera")
+        tap_visible("DZlog 시작하기")
+        # Initial setup must enter home, never force the camera.
+        root = wait_for("사용법 시작", timeout=80)
+        if not contains(root, "나중에"):
+            raise AssertionError("First-home tutorial offer missing")
+        mark("06-home-tutorial-invitation")
+        tap_visible("나중에")
+        if contains(wait_for("촬영 시작", timeout=60), "사용법 시작"):
+            raise AssertionError("Tutorial invitation was not dismissed")
         adb("shell", "am", "force-stop", PKG)
         adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
         wait_for("촬영 시작", timeout=75)
