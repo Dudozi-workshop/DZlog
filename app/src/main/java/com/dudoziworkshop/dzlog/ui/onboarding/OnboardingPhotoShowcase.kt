@@ -11,18 +11,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -31,11 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.R
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
-/**
- * Offline-safe example of a photo with a record table on top.
- * Uses the existing DZlog brand artwork; it is NOT a real camera screenshot.
- * Labels are preview-only and must never be persisted to a starter template.
- */
+/** Read-only marketing composition; cells are real Compose text, never baked into an image. */
 @Composable
 internal fun OnboardingPhotoShowcase(
     labels: List<String>,
@@ -45,74 +44,115 @@ internal fun OnboardingPhotoShowcase(
     showTable: Boolean = true,
     compact: Boolean = false,
 ) {
-    val shape = RoundedCornerShape(if (compact) 12.dp else 18.dp)
-    val description = if (showTable) "사진에 기록표가 겹쳐 보이는 구성 예시" else "기록표 없이 촬영한 사진 구성 예시"
+    val shape = RoundedCornerShape(if (compact) 14.dp else 22.dp)
+    val description = if (showTable) "사진에 기록표가 겹쳐 보이는 구성 예시"
+        else "기록표 없이 촬영한 사진 구성 예시"
     Box(
         modifier.fillMaxWidth().height(height).clip(shape)
             .semantics { contentDescription = description }
             .background(DDZColor.SelectedSoft),
     ) {
         PhotoShowcaseBackdrop()
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(if (compact) 9.dp else 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            PhotoShowcaseTag(if (compact) "사진 예시" else "DZlog · 구성 예시", compact)
-            if (!compact) PhotoShowcaseTag("PHOTO + RECORD", compact)
+        if (!compact) {
+            MarketingPhone(
+                modifier = Modifier.align(Alignment.BottomStart)
+                    .padding(start = 18.dp, bottom = 13.dp),
+            )
+        } else {
+            PhotoShowcaseTag(
+                label = "사진 미리보기",
+                modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
+            )
         }
         if (showTable) {
             PhotoShowcaseRecordTable(
                 labels = labels,
                 values = values,
                 compact = compact,
-                modifier = Modifier.align(Alignment.BottomCenter)
-                    .padding(horizontal = if (compact) 8.dp else 14.dp, vertical = if (compact) 9.dp else 16.dp),
+                modifier = Modifier.align(Alignment.BottomEnd)
+                    .fillMaxWidth(if (compact) 0.95f else 0.80f)
+                    .padding(end = if (compact) 9.dp else 12.dp, bottom = if (compact) 13.dp else 28.dp)
+                    .shadow(5.dp, RoundedCornerShape(11.dp)),
             )
         } else {
-            Box(
-                Modifier.align(Alignment.BottomStart)
-                    .padding(if (compact) 9.dp else 14.dp),
-            ) {
-                PhotoShowcaseTag("표 없이 촬영", compact)
-            }
+            PhotoShowcaseTag(
+                label = "기록표 없이 자유롭게 촬영",
+                modifier = Modifier.align(Alignment.BottomEnd)
+                    .padding(end = 14.dp, bottom = 16.dp),
+            )
         }
     }
 }
 
 @Composable
 private fun PhotoShowcaseBackdrop() {
-    Box(Modifier.fillMaxSize().background(
-        Brush.linearGradient(
-            listOf(Color(0xFFD7DECC), Color(0xFF9FB5A4), Color(0xFFC5B5A3)),
+    Box(
+        Modifier.fillMaxSize().background(
+            Brush.linearGradient(
+                listOf(Color(0xFFF2E8D9), Color(0xFFC4D2BD), Color(0xFFD0C2AC)),
+            ),
         ),
-    )) {
+    ) {
         Image(
             painter = painterResource(R.drawable.home_leaf_shadow_c),
             contentDescription = null,
-            contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
-            alpha = 0.72f,
+            contentScale = ContentScale.Crop,
+            alpha = 0.76f,
         )
         Box(
             Modifier.fillMaxSize().background(
                 Brush.verticalGradient(
-                    listOf(Color.White.copy(alpha = 0.17f), Color.Transparent, Color(0xFF35433A).copy(alpha = 0.38f)),
+                    listOf(Color.White.copy(alpha = 0.24f), Color.Transparent, Color(0xFF756F59).copy(alpha = 0.20f)),
                 ),
             ),
         )
     }
 }
 
+/** Decorative device frame, deliberately not an interactive camera screenshot. */
 @Composable
-private fun PhotoShowcaseTag(label: String, compact: Boolean) {
+private fun MarketingPhone(modifier: Modifier = Modifier) {
+    Box(
+        modifier.width(147.dp).height(204.dp)
+            .shadow(8.dp, RoundedCornerShape(24.dp))
+            .background(Color(0xFF403D37), RoundedCornerShape(24.dp))
+            .padding(7.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color(0xFFCED7C6)),
+    ) {
+        Image(
+            painter = painterResource(R.drawable.home_leaf_shadow_c),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            Modifier.align(Alignment.TopCenter)
+                .padding(top = 5.dp)
+                .width(37.dp).height(6.dp)
+                .background(Color(0xFF403D37), RoundedCornerShape(6.dp)),
+        )
+        Box(
+            Modifier.align(Alignment.BottomCenter)
+                .padding(bottom = 8.dp)
+                .size(22.dp)
+                .border(2.dp, Color.White, RoundedCornerShape(50))
+                .background(Color(0xFFF9F6F0), RoundedCornerShape(50)),
+        )
+    }
+}
+
+@Composable
+private fun PhotoShowcaseTag(label: String, modifier: Modifier = Modifier) {
     Text(
         text = label,
         color = DDZColor.TextPrimary,
-        fontSize = if (compact) 11.sp else 12.sp,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.clip(RoundedCornerShape(8.dp))
-            .background(DDZColor.Surface.copy(alpha = 0.91f))
-            .padding(horizontal = if (compact) 7.dp else 10.dp, vertical = 5.dp),
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = modifier.clip(RoundedCornerShape(9.dp))
+            .background(DDZColor.Surface.copy(alpha = 0.95f))
+            .padding(horizontal = 9.dp, vertical = 6.dp),
     )
 }
 
@@ -126,22 +166,12 @@ private fun PhotoShowcaseRecordTable(
     val columns = labels.mapIndexed { index, title -> title to values.getOrElse(index) { "" } }
     if (columns.isEmpty()) return
     Column(
-        modifier.clip(RoundedCornerShape(if (compact) 7.dp else 10.dp))
-            .background(DDZColor.Surface.copy(alpha = 0.96f))
-            .border(1.dp, DDZColor.Border, RoundedCornerShape(if (compact) 7.dp else 10.dp)),
+        modifier.clip(RoundedCornerShape(10.dp))
+            .background(DDZColor.Surface)
+            .border(1.dp, DDZColor.Border, RoundedCornerShape(10.dp)),
     ) {
-        PhotoShowcaseTableRow(
-            cells = columns.map { it.first },
-            background = DDZColor.SurfaceSoft,
-            compact = compact,
-            strong = true,
-        )
-        PhotoShowcaseTableRow(
-            cells = columns.map { it.second },
-            background = DDZColor.Surface,
-            compact = compact,
-            strong = false,
-        )
+        PhotoShowcaseTableRow(columns.map { it.first }, DDZColor.SurfaceSoft, compact, true)
+        PhotoShowcaseTableRow(columns.map { it.second }, DDZColor.Surface, compact, false)
     }
 }
 
@@ -159,7 +189,7 @@ private fun PhotoShowcaseTableRow(
                 modifier = Modifier.weight(1f)
                     .padding(horizontal = if (compact) 2.dp else 4.dp, vertical = if (compact) 9.dp else 11.dp),
                 color = if (strong) DDZColor.PrimaryDark else DDZColor.TextPrimary,
-                fontSize = if (compact) 11.sp else 12.sp,
+                fontSize = if (compact) 10.sp else 11.sp,
                 fontWeight = if (strong) FontWeight.SemiBold else FontWeight.Normal,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
