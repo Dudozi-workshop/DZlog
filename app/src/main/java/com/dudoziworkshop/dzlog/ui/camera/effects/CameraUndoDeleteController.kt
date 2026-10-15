@@ -30,7 +30,7 @@ internal data class UndoDeleteController(
 @Composable
 internal fun rememberUndoDeleteController(
     context: Context,
-    onCommitted: () -> Unit,
+    onCommitted: (deletedUris: List<Uri>) -> Unit,
     onRestore: (targetUris: List<Uri>) -> Unit,
 ): UndoDeleteController {
     val scope = rememberCoroutineScope()
@@ -58,7 +58,7 @@ internal fun rememberUndoDeleteController(
         } else if (!needsRetry) {
             // Android 11+ MediaStore.createDeleteRequest performs deletion itself.
             try {
-                latestOnCommitted.value()
+                latestOnCommitted.value(pendingUris)
             } finally {
                 isDeleting = false
             }
@@ -73,7 +73,7 @@ internal fun rememberUndoDeleteController(
                         }
                     }
                     val outcome = classifyUndoDeletion(retryAttempts)
-                    if (outcome.deleted.isNotEmpty()) latestOnCommitted.value()
+                    if (outcome.deleted.isNotEmpty()) latestOnCommitted.value(outcome.deleted)
                     if (outcome.remaining.isNotEmpty()) latestOnRestore.value(outcome.remaining)
                 } finally {
                     isDeleting = false
@@ -110,7 +110,7 @@ internal fun rememberUndoDeleteController(
         val failed = attempts.filter { (_, result) -> result.getOrNull() != true }
 
         try {
-            if (outcome.deleted.isNotEmpty()) latestOnCommitted.value()
+            if (outcome.deleted.isNotEmpty()) latestOnCommitted.value(outcome.deleted)
 
             val recoverable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 failed.firstOrNull { (_, result) ->
