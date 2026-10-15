@@ -55,7 +55,7 @@ internal fun OnboardingProgressHeader(
         }
         Row(
             modifier = Modifier.fillMaxWidth()
-                .semantics { contentDescription = "전체 4단계 중 $safeStage단계: $label" },
+                .semantics { contentDescription = "전체 4단계 중 ${safeStage}단계: $label" },
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             repeat(4) { index ->
