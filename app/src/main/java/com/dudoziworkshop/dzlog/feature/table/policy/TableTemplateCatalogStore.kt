@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.feature.table.policy
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ACTIVE_TABLE_TEMPLATE_ID
+import com.dudoziworkshop.dzlog.data.preferences.KEY_ONBOARDING_SETUP_COMPLETED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_TEMPLATE_JSON
 import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_TEMPLATES_JSON
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
@@ -37,9 +38,10 @@ suspend fun inspectTableTemplateCatalogStartup(
     return decideCatalogStartupRoute(
         catalogJson = catalog,
         legacyJson = legacy,
-        hasOtherSavedState = !ignoreOtherSavedState && prefs.asMap().keys.any {
-            it != KEY_TABLE_TEMPLATES_JSON && it != KEY_TABLE_TEMPLATE_JSON
-        },
+        hasOtherSavedState = prefs[KEY_ONBOARDING_SETUP_COMPLETED] == true ||
+            (!ignoreOtherSavedState && prefs.asMap().keys.any {
+                it != KEY_TABLE_TEMPLATES_JSON && it != KEY_TABLE_TEMPLATE_JSON
+            }),
         verifiedNoExistingMedia = verifiedNoExistingMedia,
         verifiedFreshInstall = verifiedFreshInstall,
         knownExistingMedia = knownExistingMedia,
