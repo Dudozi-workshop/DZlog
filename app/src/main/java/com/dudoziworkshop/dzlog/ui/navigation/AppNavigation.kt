@@ -943,6 +943,10 @@ fun AppRoot(startOnCamera: Boolean = false) {
             AppScreen.ALBUM_FOLDER -> {
                 LogFolderScreen(
                     relativePath = albumFolderPath,
+                    gridColumns = appSettings.galleryGridColumns,
+                    onGridColumnsChange = { columns ->
+                        appScope.launch { AppSettingsStore.setGalleryGridColumns(context, columns) }
+                    },
                     showDefaultPhotos = showRootDefaultPhotos,
                     onShowDefaultPhotosChange = { showRootDefaultPhotos = it },
                     capturePathDrafts = (tableTemplateViewModel.templates.map { it.templateState.pathSlotDrafts } + listOf(tableTemplateState.pathSlotDrafts)).distinct(),
