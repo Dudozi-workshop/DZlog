@@ -47,9 +47,9 @@ internal fun rememberLatestImageController(
                 if (savedGroups.isNotEmpty()) {
                     reader.loadLatestImageInSession(savedGroups)
                 } else {
-                    // Outside a continuous session, retain a useful global
-                    // recent-photo thumbnail instead of a blank new-folder tile.
-                    reader.loadLatestImage()
+                    // A new camera batch must not display a previous batch's
+                    // thumbnail. The empty tile still opens the regular album.
+                    null
                 }
             }.getOrNull()
         }
