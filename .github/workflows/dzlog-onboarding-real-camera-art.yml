@@ -4,6 +4,7 @@ on:
     branches: [feat/onboarding-ui-20261015]
     paths:
       - .github/workflows/dzlog-onboarding-real-camera-art.yml
+      - .github/scripts/build_onboarding_hero_from_app.py
 permissions:
   contents: write
   actions: read

@@ -7,6 +7,7 @@ on:
       - '.github/scripts/dzlog_onboarding_ui_visual_smoke.py'
       - '.github/workflows/dzlog-onboarding-ui-device-qa.yml'
       - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/onboarding/**'
+      - 'app/src/main/res/drawable-nodpi/onboarding_actual_camera_hero.webp'
       - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/navigation/RequiredPermissionSetupScreen.kt'
   workflow_dispatch:
 permissions:

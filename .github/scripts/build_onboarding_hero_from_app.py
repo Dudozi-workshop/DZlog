@@ -45,7 +45,9 @@ def main():
     bg = cover(Image.open(args.desk), SIZE, centering=(.5, .6))
     bg = Image.alpha_composite(bg, Image.new("RGBA", SIZE, (250, 241, 225, 22)))
     phone = make_phone(args.camera, args.plant)
-    px, py = 106, 60
+    # The final Android hero uses a narrow portrait crop of this landscape art.
+    # Position the actual DZlog phone inside the crop, not beyond its left edge.
+    px, py = 288, 60
     shadow = Image.new("RGBA", phone.size, (17, 20, 14, 0))
     shadow.putalpha(phone.getchannel("A").point(lambda a: round(a * .32)))
     layer = Image.new("RGBA", SIZE)
