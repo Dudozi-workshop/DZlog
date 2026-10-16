@@ -224,6 +224,7 @@ private fun StarterPreview(def: OnboardingStarterDefinition) {
             },
             height = 154.dp,
             compact = true,
+            showGalleryStrip = true,
         )
         Text("촬영 중 기록표 숨기기 가능 · 첫 입력값은 빈칸으로 시작",
             color = DDZColor.TextSecondary,
