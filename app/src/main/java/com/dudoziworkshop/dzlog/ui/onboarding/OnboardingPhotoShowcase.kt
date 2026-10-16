@@ -55,18 +55,16 @@ internal fun OnboardingPhotoShowcase(
             .background(DDZColor.SelectedSoft),
     ) {
         PhotoShowcaseBackdrop(compact)
-        if (!compact) {
-            MarketingPhone(
-                modifier = Modifier.align(Alignment.BottomStart)
-                    .padding(start = 18.dp, bottom = 13.dp),
-            )
-        } else {
+        // The phone is now part of the static editorial artwork.
+        // Record values and actions remain real Compose controls, not a
+        // screenshot, so no duplicate fake camera frame is drawn here.
+        if (compact) {
             PhotoShowcaseTag(
                 label = "사진 미리보기",
                 modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
             )
         }
-        if (showGalleryStrip) {
+        if (showGalleryStrip && !compact) {
             Row(
                 modifier = Modifier.align(Alignment.TopEnd).padding(10.dp),
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -121,8 +119,8 @@ private fun PhotoShowcaseBackdrop(compact: Boolean) {
     ) {
         Image(
             painter = painterResource(
-                if (compact) R.drawable.onboarding_starter_photo
-                else R.drawable.onboarding_hero_photo
+                if (compact) R.drawable.onboarding_reference_starter
+                else R.drawable.onboarding_reference_hero
             ),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
