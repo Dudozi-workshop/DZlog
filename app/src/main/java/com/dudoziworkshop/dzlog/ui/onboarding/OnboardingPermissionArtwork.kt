@@ -58,7 +58,7 @@ internal fun OnboardingPermissionArtwork() {
                 shadowElevation = 3.dp,
             ) {
                 Image(
-                    painter = painterResource(R.drawable.home_leaf_shadow_c),
+                    painter = painterResource(R.drawable.onboarding_hero_photo),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize().padding(4.dp)
