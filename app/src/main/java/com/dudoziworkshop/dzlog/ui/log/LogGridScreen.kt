@@ -126,11 +126,15 @@ fun LogGridScreen(
     val actionLocked = deleteSelection != null
     val displayedColumns = GalleryGridColumnsPolicy.normalize(gridColumns)
     val gridState = rememberLazyGridState()
-    var pendingPhotoAnchor by remember { mutableStateOf<GalleryPhotoRowAnchorPolicy.Position?>(null) }
+    var pendingPhotoAnchor by remember {
+        mutableStateOf<Pair<Int, GalleryPhotoRowAnchorPolicy.Position>?>(null)
+    }
     LaunchedEffect(displayedColumns, pendingPhotoAnchor) {
-        pendingPhotoAnchor?.let { anchor ->
-            gridState.scrollToItem(anchor.itemIndex, anchor.scrollOffset)
-            pendingPhotoAnchor = null
+        pendingPhotoAnchor?.let { pending ->
+            if (displayedColumns == pending.first) {
+                gridState.scrollToItem(pending.second.itemIndex, pending.second.scrollOffset)
+                pendingPhotoAnchor = null
+            }
         }
     }
     var lastColumnHint by remember { mutableIntStateOf(0) }
@@ -378,7 +382,7 @@ fun LogGridScreen(
                         columns = displayedColumns,
                         enabled = !actionLocked && !isSelectionMode,
                     ) { newColumns ->
-                        pendingPhotoAnchor = GalleryPhotoRowAnchorPolicy.remap(
+                        pendingPhotoAnchor = newColumns to GalleryPhotoRowAnchorPolicy.remap(
                             visibleItemIndex = gridState.firstVisibleItemIndex / displayedColumns,
                             visibleScrollOffset = gridState.firstVisibleItemScrollOffset,
                             firstPhotoRowIndex = 0,
