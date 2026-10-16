@@ -26,6 +26,15 @@ internal fun GalleryCounterBadge(
         enabled = enabled,
     ) ?: return
 
+    GalleryCounterBadgeLabel(label = label, modifier = modifier)
+}
+
+/** Shared badge used by the regular gallery and camera-session quick results. */
+@Composable
+internal fun GalleryCounterBadgeLabel(
+    label: String,
+    modifier: Modifier = Modifier,
+) {
     Box(
         modifier = modifier
             .background(Color(0xB8332A25), RoundedCornerShape(5.dp))
