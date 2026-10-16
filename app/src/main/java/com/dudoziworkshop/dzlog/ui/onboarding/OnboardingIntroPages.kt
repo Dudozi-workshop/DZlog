@@ -96,7 +96,7 @@ internal fun OnboardingFeatureIntro(previewHeight: Dp = 146.dp, compact: Boolean
                 ) {
                     Text("01", style = DDZTypography.Caption, color = DDZColor.SelectedDark)
                     Text(
-                        "사진과 기록,\n내 방식대로.",
+                        "사진과 기록, 내 방식대로.",
                         style = DDZTypography.SectionTitle,
                         color = DDZColor.TextPrimary,
                     )
