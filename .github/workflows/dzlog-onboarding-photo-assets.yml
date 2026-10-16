@@ -1,0 +1,38 @@
+name: DZlog Onboarding Photo Assets
+on:
+  push:
+    branches: [feat/onboarding-ui-20261015]
+    paths:
+      - '.github/workflows/dzlog-onboarding-photo-assets.yml'
+permissions:
+  contents: write
+jobs:
+  update-bundled-photo-assets:
+    if: github.repository == 'Dudozi-workshop/DZlog'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install image converter
+        run: python -m pip install Pillow==11.3.0
+      - name: Fetch and optimize approved public photos
+        run: python .github/scripts/prepare_onboarding_photo_assets.py
+      - name: Commit offline photo assets
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/res/drawable-nodpi/onboarding_hero_photo.jpg
+          git add app/src/main/res/drawable-nodpi/onboarding_starter_photo.jpg
+          git add app/src/main/res/drawable-nodpi/onboarding_gallery_photo.jpg
+          if ! git diff --cached --quiet; then
+            git commit -m "assets(onboarding): replace low-res placeholder with curated photos"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          else
+            echo "Images already match verified inputs"
+          fi
