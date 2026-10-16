@@ -97,9 +97,10 @@ internal fun OnboardingPhotoShowcase(
                 values = values,
                 compact = compact,
                 modifier = Modifier.align(Alignment.BottomEnd)
-                    .fillMaxWidth(if (compact) 0.95f else if (edgeToEdge) 0.68f else 0.80f)
-                    .padding(end = if (compact) 9.dp else 12.dp, bottom = if (compact) 13.dp else if (edgeToEdge) 19.dp else 28.dp)
-                    .shadow(5.dp, RoundedCornerShape(11.dp)),
+                    .fillMaxWidth(if (compact) 0.95f else if (edgeToEdge) 0.62f else 0.80f)
+                    .padding(end = if (compact) 9.dp else if (edgeToEdge) 18.dp else 12.dp,
+                        bottom = if (compact) 13.dp else if (edgeToEdge) 24.dp else 28.dp)
+                    .shadow(if (edgeToEdge) 8.dp else 5.dp, RoundedCornerShape(11.dp)),
             )
         } else {
             PhotoShowcaseTag(
