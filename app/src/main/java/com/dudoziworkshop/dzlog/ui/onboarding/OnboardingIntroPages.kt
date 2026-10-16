@@ -69,33 +69,51 @@ internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = fa
 
 @Composable
 internal fun OnboardingFeatureIntro(previewHeight: Dp = 146.dp, compact: Boolean = false) {
-    var showRecordTable by rememberSaveable { mutableStateOf(true) }
-    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 10.dp)) {
-        Text("사진에 기록을 더하고,\n정리까지 한 번에.",
-            style = DDZTypography.HomeMainTitle, color = DDZColor.TextPrimary)
-        Text("촬영부터 보관까지, 필요한 기능만 담았어요.",
-            style = DDZTypography.Body, color = DDZColor.TextSecondary)
+    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 11.dp)) {
+        Text(
+            "사진에 기록을 더하고,\n정리까지 한 번에.",
+            style = DDZTypography.HomeMainTitle, color = DDZColor.TextPrimary,
+        )
+        Text(
+            "촬영부터 보관까지, 필요한 기능만 담았어요.",
+            style = DDZTypography.Body, color = DDZColor.TextSecondary,
+        )
+        // The approved reference shows one editorial feature card with the
+        // device on the right, not a second full-width fake camera screen.
         Surface(
-            color = DDZColor.SelectedSoft.copy(alpha = 0.55f),
+            color = DDZColor.SelectedSoft.copy(alpha = 0.54f),
             shape = RoundedCornerShape(18.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Column(
-                Modifier.padding(if (compact) 9.dp else 12.dp),
-                verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp),
+            Row(
+                modifier = Modifier.padding(if (compact) 9.dp else 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("01  사진과 기록, 내 방식대로.",
-                    style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FeatureModeLabel("기록표 촬영", showRecordTable) { showRecordTable = true }
-                    FeatureModeLabel("표 없이 촬영", !showRecordTable) { showRecordTable = false }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
+                    Text("01", style = DDZTypography.Caption, color = DDZColor.SelectedDark)
+                    Text(
+                        "사진과 기록,\n내 방식대로.",
+                        style = DDZTypography.SectionTitle,
+                        color = DDZColor.TextPrimary,
+                    )
+                    Text(
+                        "기록표를 함께 담거나\n표 없이 촬영할 수 있어요.",
+                        style = DDZTypography.Caption,
+                        color = DDZColor.TextSecondary,
+                    )
                 }
-                OnboardingPhotoShowcase(
-                    labels = listOf("기록명", "날짜", "번호"),
-                    values = listOf("관찰 기록", "26.10.15", "001"),
-                    height = previewHeight,
-                    compact = true,
-                    showTable = showRecordTable,
+                Image(
+                    painter = painterResource(R.drawable.onboarding_reference_hero),
+                    contentDescription = "사진에 기록표를 겹친 촬영 예시",
+                    modifier = Modifier
+                        .width(if (compact) 120.dp else 136.dp)
+                        .height(if (compact) 136.dp else 160.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop,
                 )
             }
         }
