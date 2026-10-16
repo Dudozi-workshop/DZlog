@@ -175,8 +175,10 @@ def main():
             raise AssertionError("First introduction must not offer Skip")
         if not is_fully_on_screen(root, "시작하기"):
             raise AssertionError("Start button must remain fully visible")
-        if not is_fully_on_screen(root, "한 장의 사진이, 더 오래 기억되는 기록이 됩니다."):
-            raise AssertionError("Intro composition needs scrolling at normal font size")
+        if not is_fully_on_screen(root, "정리를 더 쉽게."):
+            raise AssertionError("Intro title is not fully visible")
+        if not is_fully_on_screen(root, "사진과 메모를 함께 남겨보세요."):
+            raise AssertionError("Intro subtitle is not fully visible")
         mark("00-intro-normal-font")
         tap_visible("시작하기")
         root = wait_for("사진과 기록, 내 방식대로.", timeout=55)

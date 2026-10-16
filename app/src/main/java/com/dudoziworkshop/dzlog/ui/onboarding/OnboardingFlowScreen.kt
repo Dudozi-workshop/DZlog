@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.data.template.OnboardingStarterCatalog
 import com.dudoziworkshop.dzlog.data.template.OnboardingStarterDefinition
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -87,8 +88,8 @@ internal fun OnboardingFlowScreen(
             // Keep the approved poster-like hero dominant without sacrificing
             // the bottom caption on ordinary-size screens. Accessibility
             // text scaling may scroll rather than clip any controls.
-            val introHeroHeight = (maxHeight - if (compact) 175.dp else 207.dp)
-                .coerceIn(if (compact) 192.dp else 260.dp, if (compact) 340.dp else 430.dp)
+            val introHeroHeight = (maxHeight - if (compact) 164.dp else 183.dp)
+                .coerceIn(if (compact) 182.dp else 260.dp, if (compact) 355.dp else 450.dp)
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                     .padding(horizontal = if (step == 1) 0.dp else 20.dp),
@@ -148,6 +149,10 @@ internal fun OnboardingFlowScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !busy, minHeight = DDZLayout.Control.Button,
+                shape = if (step == 1) RoundedCornerShape(15.dp) else null,
+                textStyleOverride = if (step == 1) androidx.compose.ui.text.TextStyle(
+                    fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                ) else null,
             )
             // Initial page intentionally has only one CTA. Retain a close
             // control when onboarding is replayed from Settings.

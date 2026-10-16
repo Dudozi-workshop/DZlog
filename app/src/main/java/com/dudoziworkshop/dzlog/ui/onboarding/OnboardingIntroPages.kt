@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.clickable
@@ -40,35 +41,67 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 /** Editorial introduction. All examples are non-persistent. */
 @Composable
 internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = false) {
-    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 12.dp)) {
-        if (!compact) Spacer(Modifier.height(8.dp))
-        Column(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text("사진에 기록을 더해,", style = DDZTypography.HomeMainTitle, color = DDZColor.TextPrimary)
-            Text("정리를 더 쉽게.", style = DDZTypography.HomeMainTitle,
-                color = DDZColor.PrimaryDark)
+    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 11.dp)) {
+        // Editorial hierarchy is local to onboarding: avoid changing the app-wide
+        // HomeMainTitle style used on other screens.
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+            val titleSize = when {
+                maxWidth < 310.dp -> 26.sp
+                maxWidth < 365.dp -> 29.sp
+                else -> 31.sp
+            }
+            val titleStyle = DDZTypography.HomeMainTitle.copy(
+                fontSize = titleSize,
+                fontWeight = FontWeight.Bold,
+                lineHeight = titleSize * 1.18f,
+                letterSpacing = (-0.6).sp,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    "사진에 기록을 더해,",
+                    style = titleStyle, color = DDZColor.TextPrimary,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    "정리를 더 쉽게.",
+                    style = titleStyle, color = DDZColor.PrimaryDark,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
-        Text("일상부터 업무 현장까지,", style = DDZTypography.SectionTitle,
-            color = DDZColor.SelectedDark, modifier = Modifier.padding(horizontal = 20.dp))
-        Text("사진과 메모를 함께 남겨보세요.", style = DDZTypography.Body,
-            color = DDZColor.TextSecondary, modifier = Modifier.padding(horizontal = 20.dp))
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            val subtitleStyle = DDZTypography.Body.copy(
+                fontSize = 14.sp, lineHeight = 20.sp,
+            )
+            Text(
+                "일상부터 업무 현장까지,",
+                style = subtitleStyle, color = DDZColor.TextSecondary,
+            )
+            Text(
+                "사진과 메모를 함께 남겨보세요.",
+                style = subtitleStyle, color = DDZColor.TextSecondary,
+            )
+        }
         OnboardingPhotoShowcase(
             labels = listOf("기록명", "날짜", "번호"),
             values = listOf("관찰 기록", "26.10.15", "001"),
             height = heroHeight,
             edgeToEdge = true,
         )
-        Text("한 장의 사진이, 더 오래 기억되는 기록이 됩니다.",
-            style = DDZTypography.Caption, color = DDZColor.TextSecondary,
-            modifier = Modifier.padding(horizontal = 20.dp))
+        // The slogan is already covered by the headline; leave the remaining
+        // space to the approved photographic composition.
     }
 }
 
