@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -39,7 +42,6 @@ import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultCapture
 import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultsSessionPolicy
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 
 /**
  * Read-only camera-session results surface.
@@ -77,7 +79,7 @@ internal fun QuickResultsScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(DDZColor.Background)) {
+    Column(Modifier.fillMaxSize().background(DDZColor.Background).windowInsetsPadding(WindowInsets.safeDrawing)) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("빠른결과", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
