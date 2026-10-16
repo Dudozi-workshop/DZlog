@@ -166,11 +166,11 @@ private fun CompactFeature(
                     .background(DDZColor.SelectedSoft),
             ) {
                 Image(
-                    painter = painterResource(R.drawable.home_leaf_shadow_c),
+                    painter = painterResource(R.drawable.onboarding_hero_photo),
                     contentDescription = null,
                     modifier = Modifier.fillMaxWidth().height(78.dp),
                     contentScale = ContentScale.Crop,
-                    alpha = 0.78f,
+                    alpha = 0.98f,
                 )
                 Surface(
                     color = DDZColor.Surface.copy(alpha = 0.94f),
