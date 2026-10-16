@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.data.datastore
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import com.dudoziworkshop.dzlog.data.preferences.KEY_BLANK_WARNING_ENABLED
@@ -22,6 +23,7 @@ import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
+import com.dudoziworkshop.dzlog.domain.gallery.GalleryGridColumnsPolicy
 import com.dudoziworkshop.dzlog.domain.model.VolumeKeyAction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -43,6 +45,9 @@ data class AppSettings(
     val assistShutterXRatio: Float = 0.82f,
     val assistShutterYRatio: Float = 0.62f,
     val phraseProgressCursor: Int = 1,
+    val galleryGridColumns: Int = GalleryGridColumnsPolicy.DEFAULT_COLUMNS,
+    val quickResultsGridColumns: Int = GalleryGridColumnsPolicy.DEFAULT_COLUMNS,
+    val showGalleryCounterBadges: Boolean = true,
 ) {
     companion object {
         val Default = AppSettings(
@@ -67,11 +72,17 @@ data class AppSettings(
 
 object AppSettingsStore {
     private val phraseProgressKey = intPreferencesKey("phrase_progress_cursor_v1")
+    private val galleryGridColumnsKey = intPreferencesKey("gallery_grid_columns_v1")
+    private val quickResultsGridColumnsKey = intPreferencesKey("quick_results_grid_columns_v1")
+    private val showGalleryCounterBadgesKey = booleanPreferencesKey("show_gallery_counter_badges_v1")
 
     fun flow(context: Context): Flow<AppSettings> =
         context.dataStore.data.map { prefs ->
             AppSettings(
                 phraseProgressCursor = (prefs[phraseProgressKey] ?: 1).coerceAtLeast(1),
+                galleryGridColumns = GalleryGridColumnsPolicy.normalize(prefs[galleryGridColumnsKey] ?: GalleryGridColumnsPolicy.DEFAULT_COLUMNS),
+                quickResultsGridColumns = GalleryGridColumnsPolicy.normalize(prefs[quickResultsGridColumnsKey] ?: GalleryGridColumnsPolicy.DEFAULT_COLUMNS),
+                showGalleryCounterBadges = prefs[showGalleryCounterBadgesKey] ?: true,
                 saveMode = SaveMode.from(prefs[KEY_SAVE_MODE] ?: SaveMode.BOTH.v),
                 continuousPreviewMode = ContinuousPreviewMode.from(prefs[KEY_CONTINUOUS_PREVIEW_MODE] ?: ContinuousPreviewMode.OFF.v),
                 photoQualityMode = PhotoQualityMode.from(prefs[KEY_PHOTO_QUALITY_MODE] ?: PhotoQualityMode.BALANCED.v),
@@ -89,6 +100,18 @@ object AppSettingsStore {
                 assistShutterYRatio = prefs[KEY_ASSIST_SHUTTER_Y_RATIO] ?: 0.62f,
             )
         }
+
+    suspend fun setGalleryGridColumns(context: Context, columns: Int) {
+        context.dataStore.edit { it[galleryGridColumnsKey] = GalleryGridColumnsPolicy.normalize(columns) }
+    }
+
+    suspend fun setQuickResultsGridColumns(context: Context, columns: Int) {
+        context.dataStore.edit { it[quickResultsGridColumnsKey] = GalleryGridColumnsPolicy.normalize(columns) }
+    }
+
+    suspend fun setShowGalleryCounterBadges(context: Context, enabled: Boolean) {
+        context.dataStore.edit { it[showGalleryCounterBadgesKey] = enabled }
+    }
 
     suspend fun setPhraseProgressCursor(context: Context, cursor: Int) {
         context.dataStore.edit { it[phraseProgressKey] = cursor.coerceAtLeast(1) }
