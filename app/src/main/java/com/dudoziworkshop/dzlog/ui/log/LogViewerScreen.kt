@@ -306,7 +306,10 @@ fun LogViewerScreen(
                 total = items.size,
                 showingOriginal = originalPreview != null || currentItem?.let { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) } == true,
                 originalActionLabel = if (originalPreview != null) "결과사진으로 돌아가기" else "원본 보기",
-                onOriginal = if (originalPreview != null || resultItem?.let { !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) } == true) ::showOriginal else null,
+                onOriginal = if (originalPreview != null || resultItem?.let {
+                    !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) &&
+                        (!isQuickResultsViewer || quickResultOriginalByResultUri.containsKey(it.uri.toString()))
+                } == true) ::showOriginal else null,
                 onMove = {
                     if (!operationLocked && currentItem != null) {
                         emptyAfterOperation = false
