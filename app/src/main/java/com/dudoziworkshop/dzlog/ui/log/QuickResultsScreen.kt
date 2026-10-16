@@ -12,7 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.rememberSaveable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -51,9 +52,10 @@ internal fun QuickResultsScreen(
 ) {
     val columns = GalleryGridColumnsPolicy.normalize(gridColumns)
     val folders = remember(captures) { QuickResultsSessionPolicy.folderChoices(captures) }
-    var selectedFolder by remember { mutableStateOf<String?>(null) }
+    var selectedFolder by rememberSaveable { mutableStateOf<String?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
     val collapsed = remember { mutableStateMapOf<String, Boolean>() }
+    val listState = rememberLazyListState()
     val sections = remember(captures, selectedFolder) {
         QuickResultsSessionPolicy.sections(captures, selectedFolder)
     }
@@ -94,6 +96,7 @@ internal fun QuickResultsScreen(
             }
         } else {
             LazyColumn(
+                state = listState,
                 modifier = Modifier.weight(1f).fillMaxWidth().galleryGridPinch(
                     columns = columns,
                     enabled = true,
@@ -102,12 +105,13 @@ internal fun QuickResultsScreen(
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(sections, key = { it.key }) { section ->
-                    Column(Modifier.fillMaxWidth().background(DDZColor.Surface, RoundedCornerShape(12.dp)).padding(10.dp)) {
+                sections.forEach { section ->
+                    item(key = "header:" + section.key) {
                         Row(
-                            Modifier.fillMaxWidth().clickable {
-                                collapsed[section.key] = collapsed[section.key] != true
-                            }.padding(vertical = 6.dp),
+                            Modifier.fillMaxWidth()
+                                .background(DDZColor.Surface, RoundedCornerShape(12.dp))
+                                .clickable { collapsed[section.key] = collapsed[section.key] != true }
+                                .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
@@ -117,29 +121,49 @@ internal fun QuickResultsScreen(
                             )
                             Text("${section.captures.size}건 " + if (collapsed[section.key] == true) "▾" else "▴")
                         }
-                        if (collapsed[section.key] != true) {
-                            section.captures.chunked(columns).forEach { row ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    }
+                    if (collapsed[section.key] != true) {
+                        section.captures.chunked(columns).forEach { row ->
+                            item(key = "row:${section.key}:${row.first().captureIndex}") {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                ) {
                                     row.forEach { capture ->
                                         Box(
                                             modifier = Modifier.weight(1f)
                                                 .aspectRatio(1f)
                                                 .background(DDZColor.SurfaceSoft, RoundedCornerShape(8.dp))
-                                                .clickable { onOpenCapture(visibleCaptures, visibleCaptures.indexOfFirst { it.captureIndex == capture.captureIndex }) },
+                                                .clickable {
+                                                    onOpenCapture(
+                                                        visibleCaptures,
+                                                        visibleCaptures.indexOfFirst { it.captureIndex == capture.captureIndex },
+                                                    )
+                                                },
                                         ) {
-                                            Box(Modifier.fillMaxSize()) {
-                                                DzThumbnail(capture.displayedPhoto.uri)
-                                                val label = GalleryCounterBadgePolicy.labelFromDzlogFilename(
-                                                    capture.displayedPhoto.displayName,
-                                                    capture.displayedPhoto.relativePath,
-                                                    showCounterBadges,
-                                                )
-                                                if (label != null) {
-                                                    Text(label, modifier = Modifier.align(Alignment.BottomStart)
+                                            DzThumbnail(capture.displayedPhoto.uri)
+                                            val label = GalleryCounterBadgePolicy.labelFromDzlogFilename(
+                                                capture.displayedPhoto.displayName,
+                                                capture.displayedPhoto.relativePath,
+                                                showCounterBadges,
+                                            )
+                                            if (label != null) {
+                                                Text(
+                                                    label,
+                                                    modifier = Modifier.align(Alignment.BottomStart)
                                                         .background(DDZColor.PrimaryDark, RoundedCornerShape(4.dp))
                                                         .padding(horizontal = 5.dp, vertical = 2.dp),
-                                                        color = androidx.compose.ui.graphics.Color.White)
-                                                }
+                                                    color = androidx.compose.ui.graphics.Color.White,
+                                                )
+                                            }
+                                            if (capture.isOriginalOnly) {
+                                                Text(
+                                                    "원본",
+                                                    modifier = Modifier.align(Alignment.TopStart)
+                                                        .background(DDZColor.PrimaryDark, RoundedCornerShape(4.dp))
+                                                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                                                    color = androidx.compose.ui.graphics.Color.White,
+                                                )
                                             }
                                         }
                                     }
