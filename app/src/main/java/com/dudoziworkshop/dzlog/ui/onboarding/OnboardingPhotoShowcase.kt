@@ -89,21 +89,21 @@ private fun PhotoShowcaseBackdrop() {
     Box(
         Modifier.fillMaxSize().background(
             Brush.linearGradient(
-                listOf(Color(0xFFF2E8D9), Color(0xFFC4D2BD), Color(0xFFD0C2AC)),
+                listOf(Color(0xFFF7EEE4), Color(0xFFD6DFCD), Color(0xFFD0C2AC)),
             ),
         ),
     ) {
         Image(
-            painter = painterResource(R.drawable.home_leaf_shadow_c),
+            painter = painterResource(R.drawable.onboarding_hero_photo),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
-            alpha = 0.76f,
+            alpha = 0.96f,
         )
         Box(
             Modifier.fillMaxSize().background(
                 Brush.verticalGradient(
-                    listOf(Color.White.copy(alpha = 0.24f), Color.Transparent, Color(0xFF756F59).copy(alpha = 0.20f)),
+                    listOf(Color.White.copy(alpha = 0.10f), Color.Transparent, Color(0xFF756F59).copy(alpha = 0.12f)),
                 ),
             ),
         )
@@ -122,7 +122,7 @@ private fun MarketingPhone(modifier: Modifier = Modifier) {
             .background(Color(0xFFCED7C6)),
     ) {
         Image(
-            painter = painterResource(R.drawable.home_leaf_shadow_c),
+            painter = painterResource(R.drawable.onboarding_hero_photo),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
