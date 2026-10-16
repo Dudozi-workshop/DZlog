@@ -111,6 +111,7 @@ fun LogViewerScreen(
     onItemsReloaded: (List<MediaImageItem>) -> Unit,
     onRequestCloseViewer: () -> Unit,
     quickResultOriginalByResultUri: Map<String, MediaImageItem> = emptyMap(),
+    isQuickResultsViewer: Boolean = false,
     onSessionMediaChanged: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -175,7 +176,7 @@ fun LogViewerScreen(
                         requireNotNull(snapshot.singleOrNull { it.id == explicitPair.id && it == explicitPair }) {
                             "촬영 세션의 원본사진이 이동되거나 삭제되었습니다."
                         }
-                    } else if (quickResultOriginalByResultUri.isNotEmpty()) {
+                    } else if (isQuickResultsViewer) {
                         error("이 촬영 건에는 연결된 원본사진이 없습니다.")
                     } else {
                         requireNotNull(GalleryPhotoMovePolicy.pairedOriginals(listOf(requested), snapshot).singleOrNull()) {
