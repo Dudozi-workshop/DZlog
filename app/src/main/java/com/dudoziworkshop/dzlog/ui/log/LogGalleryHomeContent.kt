@@ -71,6 +71,7 @@ internal fun LogGalleryHomeContent(
     allImages: List<MediaImageItem>,
     favoriteIds: Set<Long>,
     gridColumns: Int = 3,
+    showCounterBadges: Boolean = true,
     onGridColumnsChange: (Int) -> Unit = {},
     onOpenFolder: (String) -> Unit,
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
@@ -209,7 +210,7 @@ internal fun LogGalleryHomeContent(
                     item { GalleryEmptyText("즐겨찾기한 사진이 없습니다.") }
                 } else {
                     items(favorites.chunked(gridColumns)) { row ->
-                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto, selectionActive = selectionActive, columns = gridColumns) { photo -> onOpenPhoto(favorites, favorites.indexOfFirst { it.id == photo.id }) }
+                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto, selectionActive = selectionActive, columns = gridColumns, showCounterBadges = showCounterBadges) { photo -> onOpenPhoto(favorites, favorites.indexOfFirst { it.id == photo.id }) }
                     }
                 }
             }
@@ -346,6 +347,7 @@ internal fun GalleryPhotoRow(
     onSelectPhoto: (MediaImageItem) -> Unit = {},
     selectionActive: Boolean = selectedIds.isNotEmpty(),
     columns: Int = 3,
+    showCounterBadges: Boolean = true,
     onPhotoClick: (MediaImageItem) -> Unit,
 ) {
     Row(
@@ -355,7 +357,7 @@ internal fun GalleryPhotoRow(
         photos.forEach { photo ->
             GalleryPhotoTile(photo, selectedIds, onLongPressPhoto, onSelectPhoto,
                 selectionActive = selectionActive,
-                modifier = Modifier.weight(1f).aspectRatio(1f)) { onPhotoClick(photo) }
+                modifier = Modifier.weight(1f).aspectRatio(1f), showCounterBadges = showCounterBadges) { onPhotoClick(photo) }
         }
         repeat((columns - photos.size).coerceAtLeast(0)) {
             Box(modifier = Modifier.weight(1f))
@@ -373,6 +375,7 @@ private fun GalleryPhotoTile(
     onSelectPhoto: (MediaImageItem) -> Unit,
     selectionActive: Boolean,
     modifier: Modifier,
+    showCounterBadges: Boolean = true,
     onPhotoClick: () -> Unit,
 ) {
     Box(modifier = modifier.combinedClickable(
@@ -380,6 +383,7 @@ private fun GalleryPhotoTile(
         onLongClick = { onLongPressPhoto(photo) },
     )) {
         DzThumbnail(photo.uri.toString())
+        GalleryCounterBadge(photo, showCounterBadges, modifier = Modifier.align(Alignment.BottomStart).padding(5.dp))
         if (selectionActive) {
             Checkbox(
                 checked = photo.id in selectedIds,
