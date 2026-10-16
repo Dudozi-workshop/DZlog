@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -43,6 +44,7 @@ internal fun OnboardingPhotoShowcase(
     height: Dp = 210.dp,
     showTable: Boolean = true,
     compact: Boolean = false,
+    showGalleryStrip: Boolean = false,
 ) {
     val shape = RoundedCornerShape(if (compact) 14.dp else 22.dp)
     val description = if (showTable) "사진에 기록표가 겹쳐 보이는 구성 예시"
@@ -63,6 +65,24 @@ internal fun OnboardingPhotoShowcase(
                 label = "사진 미리보기",
                 modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
             )
+        }
+        if (showGalleryStrip) {
+            Row(
+                modifier = Modifier.align(Alignment.TopEnd).padding(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                repeat(3) { index ->
+                    Image(
+                        painter = painterResource(R.drawable.onboarding_hero_photo),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(38.dp).clip(RoundedCornerShape(7.dp))
+                            .background(
+                                if (index % 2 == 0) DDZColor.SelectedSoft else DDZColor.SurfaceSoft,
+                            ),
+                    )
+                }
+            }
         }
         if (showTable) {
             PhotoShowcaseRecordTable(
@@ -114,7 +134,7 @@ private fun PhotoShowcaseBackdrop() {
 @Composable
 private fun MarketingPhone(modifier: Modifier = Modifier) {
     Box(
-        modifier.width(147.dp).height(204.dp)
+        modifier.width(147.dp).height(204.dp).graphicsLayer(rotationZ = -7f)
             .shadow(8.dp, RoundedCornerShape(24.dp))
             .background(Color(0xFF403D37), RoundedCornerShape(24.dp))
             .padding(7.dp)
@@ -133,6 +153,25 @@ private fun MarketingPhone(modifier: Modifier = Modifier) {
                 .width(37.dp).height(6.dp)
                 .background(Color(0xFF403D37), RoundedCornerShape(6.dp)),
         )
+        Column(
+            modifier = Modifier.align(Alignment.Center)
+                .padding(horizontal = 9.dp)
+                .background(Color(0xFFF9F6F0).copy(alpha = 0.91f), RoundedCornerShape(7.dp))
+                .padding(horizontal = 8.dp, vertical = 7.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                "관찰 기록",
+                fontSize = 10.sp,
+                color = DDZColor.TextPrimary,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "날짜 · 2026.10.15",
+                fontSize = 8.sp,
+                color = DDZColor.TextSecondary,
+            )
+        }
         Box(
             Modifier.align(Alignment.BottomCenter)
                 .padding(bottom = 8.dp)
