@@ -50,8 +50,10 @@ private val starterCategories = listOf(
 internal fun OnboardingStarterCategories(
     selectedId: String,
     onSelect: (String) -> Unit,
+    onBrowse: () -> Unit,
+    compact: Boolean = false,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -60,7 +62,7 @@ internal fun OnboardingStarterCategories(
                 val selected = item.id == selectedId
                 Surface(
                     modifier = Modifier.weight(1f)
-                        .heightIn(min = 84.dp)
+                        .heightIn(min = if (compact) 72.dp else 84.dp)
                         .clickable(role = Role.RadioButton) { onSelect(item.id) }
                         .semantics { this.selected = selected },
                     color = if (selected) DDZColor.SelectedSoft else DDZColor.Surface,
@@ -70,9 +72,9 @@ internal fun OnboardingStarterCategories(
                     ),
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 10.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = if (compact) 6.dp else 10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 6.dp),
                     ) {
                         Icon(
                             item.icon,
@@ -91,10 +93,28 @@ internal fun OnboardingStarterCategories(
                 }
             }
         }
-        Text(
-            starterCategories.firstOrNull { it.id == selectedId }?.detail.orEmpty(),
-            style = DDZTypography.Caption,
-            color = DDZColor.TextSecondary,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                starterCategories.firstOrNull { it.id == selectedId }?.detail.orEmpty(),
+                modifier = Modifier.weight(1f),
+                style = DDZTypography.Caption,
+                color = DDZColor.TextSecondary,
+                maxLines = 2,
+            )
+            if (selectedId != "basic") {
+                Text(
+                    "다른 양식 보기",
+                    modifier = Modifier.clickable(onClick = onBrowse)
+                        .padding(horizontal = 2.dp, vertical = 8.dp),
+                    style = DDZTypography.Caption,
+                    color = DDZColor.PrimaryDark,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
     }
 }

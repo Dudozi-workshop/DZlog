@@ -111,17 +111,10 @@ internal fun OnboardingFlowScreen(
                                 .first { it.category == id }.id
                             showAlternatives = false
                         },
+                        onBrowse = { showAlternatives = true },
+                        compact = compact,
                     )
-                    if (category != "basic") {
-                        Text(
-                            text = "다른 양식 보기",
-                            color = DDZColor.PrimaryDark,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.clickable { showAlternatives = true }
-                                .padding(vertical = 8.dp),
-                        )
-                    }
-                    StarterPreview(selected, if (compact) 126.dp else 184.dp)
+                    StarterPreview(selected, if (compact) 120.dp else 184.dp, compact)
                 }
             }
             Spacer(Modifier.height(if (compact) 0.dp else 5.dp))
@@ -185,7 +178,11 @@ internal fun OnboardingFlowScreen(
 }
 
 @Composable
-private fun StarterPreview(def: OnboardingStarterDefinition, previewHeight: androidx.compose.ui.unit.Dp) {
+private fun StarterPreview(
+    def: OnboardingStarterDefinition,
+    previewHeight: androidx.compose.ui.unit.Dp,
+    compact: Boolean,
+) {
     val state = remember(def.id) { requireNotNull(OnboardingStarterCatalog.buildState(def.id)) }
     val now = remember(def.id) { Date() }
     val resolved = remember(state, now) {
@@ -205,8 +202,8 @@ private fun StarterPreview(def: OnboardingStarterDefinition, previewHeight: andr
     Column(
         Modifier.fillMaxWidth()
             .background(DDZColor.Surface, RoundedCornerShape(DDZLayout.Radius.Large))
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(if (compact) 9.dp else 12.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp),
     ) {
         Text(def.title, color = DDZColor.TextPrimary, fontWeight = FontWeight.Bold)
         OnboardingPhotoShowcase(
@@ -222,14 +219,15 @@ private fun StarterPreview(def: OnboardingStarterDefinition, previewHeight: andr
             compact = true,
             showGalleryStrip = true,
         )
-        Text("촬영 중 기록표 숨기기 가능 · 첫 입력값은 빈칸으로 시작",
+        Text(if (compact) "기록표 숨기기 가능 · 입력값은 빈칸에서 시작"
+             else "촬영 중 기록표 숨기기 가능 · 첫 입력값은 빈칸으로 시작",
             color = DDZColor.TextSecondary,
             style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
         )
         Row(
             Modifier.fillMaxWidth()
                 .clickable { showSaveDetails = !showSaveDetails }
-                .padding(vertical = 8.dp),
+                .padding(vertical = if (compact) 5.dp else 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
