@@ -84,6 +84,11 @@ internal fun OnboardingFlowScreen(
         )
         BoxWithConstraints(Modifier.weight(1f)) {
             val compact = maxHeight < 600.dp
+            // Keep the approved poster-like hero dominant without sacrificing
+            // the bottom caption on ordinary-size screens. Accessibility
+            // text scaling may scroll rather than clip any controls.
+            val introHeroHeight = (maxHeight - if (compact) 202.dp else 230.dp)
+                .coerceIn(if (compact) 192.dp else 260.dp, if (compact) 340.dp else 430.dp)
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp),
@@ -91,7 +96,7 @@ internal fun OnboardingFlowScreen(
             ) {
             when (step) {
                 1 -> OnboardingBrandIntro(
-                    heroHeight = if (compact) 218.dp else 300.dp,
+                    heroHeight = introHeroHeight,
                     compact = compact,
                 )
                 2 -> OnboardingFeatureIntro(
