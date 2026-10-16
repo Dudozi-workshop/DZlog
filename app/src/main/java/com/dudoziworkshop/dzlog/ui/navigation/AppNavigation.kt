@@ -1132,6 +1132,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onBack = {
                         screen = resolveViewerBackTarget()
                     },
+                    isQuickResultsViewer = viewerEntrySource == ViewerEntrySource.QUICK_RESULTS,
                     quickResultOriginalByResultUri =
                         if (viewerEntrySource == ViewerEntrySource.QUICK_RESULTS) {
                             val photosByUri = quickResultsPhotos.associateBy { it.uri.toString() }
