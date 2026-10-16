@@ -114,37 +114,12 @@ internal fun OnboardingFlowScreen(
                     )
                     if (category != "basic") {
                         Text(
-                            text = if (showAlternatives) "다른 양식 접기" else "다른 양식 보기",
+                            text = "다른 양식 보기",
                             color = DDZColor.PrimaryDark,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.clickable {
-                                showAlternatives = !showAlternatives
-                            }.padding(vertical = 8.dp),
+                            modifier = Modifier.clickable { showAlternatives = true }
+                                .padding(vertical = 8.dp),
                         )
-                        if (showAlternatives) {
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                OnboardingStarterCatalog.definitions
-                                    .filter { it.category == category && it.id !=
-                                        OnboardingStarterCatalog.definitions.first { recommended ->
-                                            recommended.category == category
-                                        }.id
-                                    }
-                                    .forEach { def ->
-                                        val active = chosen == def.id
-                                        Box(
-                                            Modifier.fillMaxWidth()
-                                                .background(
-                                                    if (active) DDZColor.SelectedSoft else DDZColor.Surface,
-                                                    RoundedCornerShape(DDZLayout.Radius.Small))
-                                                .clickable { chosen = def.id }
-                                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                                        ) {
-                                            Text(def.title, color = DDZColor.TextPrimary,
-                                                fontWeight = if (active) FontWeight.Bold else FontWeight.Normal)
-                                        }
-                                    }
-                            }
-                        }
                     }
                     StarterPreview(selected, if (compact) 126.dp else 184.dp)
                 }
@@ -195,6 +170,17 @@ internal fun OnboardingFlowScreen(
             }
             if (busy) CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
         }
+    }
+    if (showAlternatives && category != "basic") {
+        OnboardingStarterAlternativeDialog(
+            category = category,
+            selectedId = chosen,
+            onSelect = { id ->
+                chosen = id
+                showAlternatives = false
+            },
+            onDismiss = { showAlternatives = false },
+        )
     }
 }
 
