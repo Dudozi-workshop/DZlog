@@ -48,7 +48,7 @@ internal fun OnboardingProgressHeader(
                 color = DDZColor.PrimaryDark,
             )
             Text(
-                label,
+                "$label · $safeStage / 4",
                 style = DDZTypography.Caption,
                 color = DDZColor.TextSecondary,
             )
