@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
@@ -30,11 +31,14 @@ internal fun OnboardingProgressHeader(
     stage: Int,
     label: String,
     modifier: Modifier = Modifier,
+    introStyle: Boolean = false,
 ) {
     val safeStage = stage.coerceIn(1, 4)
     Column(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier.fillMaxWidth().padding(
+            horizontal = 20.dp, vertical = if (introStyle) 10.dp else 12.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(if (introStyle) 8.dp else 12.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -43,8 +47,10 @@ internal fun OnboardingProgressHeader(
         ) {
             Text(
                 "DZlog",
-                style = DDZTypography.SettingLabel,
-                fontWeight = FontWeight.Bold,
+                style = if (introStyle) DDZTypography.SettingLabel.copy(
+                    fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                ) else DDZTypography.SettingLabel,
+                fontWeight = if (introStyle) FontWeight.SemiBold else FontWeight.Bold,
                 color = DDZColor.PrimaryDark,
             )
             Text(
@@ -60,7 +66,7 @@ internal fun OnboardingProgressHeader(
         ) {
             repeat(4) { index ->
                 Box(
-                    Modifier.weight(1f).height(4.dp)
+                    Modifier.weight(1f).height(if (introStyle) 3.dp else 4.dp)
                         .background(
                             if (index < safeStage) DDZColor.Selected else DDZColor.SurfaceSoft,
                             RoundedCornerShape(50),

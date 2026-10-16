@@ -82,6 +82,7 @@ internal fun OnboardingFlowScreen(
         OnboardingProgressHeader(
             stage = when (step) { 1 -> 1; 2 -> 2; else -> 4 },
             label = when (step) { 1 -> "앱 소개"; 2 -> "주요 기능"; else -> "시작 양식" },
+            introStyle = step == 1,
         )
         BoxWithConstraints(Modifier.weight(1f)) {
             val compact = maxHeight < 600.dp
