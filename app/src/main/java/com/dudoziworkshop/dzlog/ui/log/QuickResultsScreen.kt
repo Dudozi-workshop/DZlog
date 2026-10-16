@@ -138,28 +138,37 @@ internal fun QuickResultsScreen(
             ) {
                 sections.forEach { section ->
                     item(key = "header:" + section.key) {
-                        Row(
-                            Modifier.fillMaxWidth()
+                        Column(
+                            modifier = Modifier.fillMaxWidth()
                                 .background(DDZColor.Surface, RoundedCornerShape(14.dp))
-                                .clickable { collapsedKeys = if (section.key in collapsedKeys) collapsedKeys - section.key else collapsedKeys + section.key }
+                                .clickable {
+                                    collapsedKeys = if (section.key in collapsedKeys) {
+                                        collapsedKeys - section.key
+                                    } else {
+                                        collapsedKeys + section.key
+                                    }
+                                }
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            // A leaf folder/date alone is ambiguous. Keep every path
+                            // segment readable, even on a narrow device.
                             Text(
-                                QuickResultsSessionPolicy.folderLabel(section.folderPath),
-                                modifier = Modifier.weight(1f),
+                                text = QuickResultsSessionPolicy.folderLabel(section.folderPath),
                                 color = DDZColor.TextPrimary,
                                 style = DDZTypography.SettingLabel,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
                             )
-                            Text(
-                                QuickResultsSessionPolicy.sectionLabel(section) +
-                                    if (section.key in collapsedKeys) " ▾" else " ▴",
-                                color = DDZColor.TextSecondary,
-                                style = DDZTypography.Caption,
-                                modifier = Modifier.padding(start = 8.dp),
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    QuickResultsSessionPolicy.sectionLabel(section) +
+                                        if (section.key in collapsedKeys) " ▾" else " ▴",
+                                    color = DDZColor.TextSecondary,
+                                    style = DDZTypography.Caption,
+                                )
+                            }
                         }
                     }
                     if (section.key !in collapsedKeys) {
