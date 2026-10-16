@@ -130,7 +130,7 @@ internal fun LogGalleryHomeContent(
     var pendingFavoritesAnchor by remember {
         mutableStateOf<Pair<Int, GalleryPhotoRowAnchorPolicy.Position>?>(null)
     }
-    LaunchedEffect(gridColumns, pendingFavoritesAnchor) {
+    LaunchedEffect(gridColumns, pendingFavoritesAnchor, selectedTab) {
         val pending = pendingFavoritesAnchor
         if (pending != null && gridColumns == pending.first && selectedTab == GalleryTab.FAVORITES) {
             favoritesListState.scrollToItem(pending.second.itemIndex, pending.second.scrollOffset)
