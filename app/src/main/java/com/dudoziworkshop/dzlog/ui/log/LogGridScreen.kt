@@ -96,6 +96,7 @@ fun LogGridScreen(
     isSelectionMode: Boolean,
     selectedIds: Set<Long>,
     gridColumns: Int,
+    showCounterBadges: Boolean = true,
     onGridColumnsChange: (Int) -> Unit,
     onItemsLoaded: (List<MediaImageItem>) -> Unit,
     onOpenViewer: (List<MediaImageItem>, Int) -> Unit,
@@ -394,6 +395,7 @@ fun LogGridScreen(
                     ) {
                         Box(modifier = Modifier.fillMaxSize()) {
                             DzThumbnail(uriString = item.uri.toString())
+                            GalleryCounterBadge(item, showCounterBadges, modifier = Modifier.align(Alignment.BottomStart).padding(5.dp))
 
                             if (isFavorite) {
                                 Box(
