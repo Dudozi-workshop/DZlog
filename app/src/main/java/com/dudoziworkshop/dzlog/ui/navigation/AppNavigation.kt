@@ -77,6 +77,12 @@ import com.dudoziworkshop.dzlog.ui.log.ORIGINAL_PHOTOS_TITLE
 import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
 import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2Screen
 import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateListScreen
+import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultPhoto
+import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultCapture
+import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultsSessionPolicy
+import com.dudoziworkshop.dzlog.ui.log.QuickResultsScreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -94,7 +100,8 @@ enum class AppScreen {
     ALBUM_G1,
     ALBUM_G2,
     ALBUM_GRID,
-    ALBUM_VIEWER
+    ALBUM_VIEWER,
+    QUICK_RESULTS
 }
 
 enum class GridEntrySource {
@@ -107,6 +114,7 @@ enum class ViewerEntrySource {
     GRID,
     CAMERA_RECENT,
     FOLDER,
+    QUICK_RESULTS,
 }
 
 enum class OriginalParent {
@@ -149,6 +157,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var viewerStartIndex by rememberSaveable { mutableIntStateOf(0) }
     val cameraSessionCaptureStack = remember { mutableStateListOf<List<Uri>>() }
+    var quickResultsPhotos by remember { mutableStateOf<List<com.dudoziworkshop.dzlog.domain.model.MediaImageItem>>(emptyList()) }
+    var quickResultsCaptures by remember { mutableStateOf<List<QuickResultCapture>>(emptyList()) }
 
     // 기존 상태
 
@@ -530,7 +540,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
         target == AppScreen.ALBUM_G1 ||
             target == AppScreen.ALBUM_G2 ||
             target == AppScreen.ALBUM_GRID ||
-            target == AppScreen.ALBUM_VIEWER
+            target == AppScreen.ALBUM_VIEWER ||
+            target == AppScreen.QUICK_RESULTS
 
     fun navigateTo(target: AppScreen) {
         if (screen == AppScreen.CAMERA && target != AppScreen.CAMERA && !isAlbumScreen(target)) {
@@ -569,6 +580,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
             ViewerEntrySource.CAMERA_RECENT -> AppScreen.CAMERA
             ViewerEntrySource.FOLDER -> AppScreen.ALBUM_FOLDER
             ViewerEntrySource.GRID -> AppScreen.ALBUM_GRID
+            ViewerEntrySource.QUICK_RESULTS -> AppScreen.QUICK_RESULTS
         }
     }
 
@@ -632,6 +644,28 @@ fun AppRoot(startOnCamera: Boolean = false) {
         navigateTo(AppScreen.ALBUM_FOLDER)
     }
 
+    fun openQuickResults() {
+        albumEntryScreen = AppScreen.CAMERA
+        navigateTo(AppScreen.QUICK_RESULTS)
+    }
+
+    LaunchedEffect(screen, cameraSessionCaptureStack.size) {
+        if (screen != AppScreen.QUICK_RESULTS) return@LaunchedEffect
+        val savedGroups = cameraSessionCaptureStack.map { group -> group.map { it.toString() } }
+        if (savedGroups.isEmpty()) {
+            quickResultsPhotos = emptyList()
+            quickResultsCaptures = emptyList()
+            return@LaunchedEffect
+        }
+        val photos = withContext(Dispatchers.IO) {
+            DzlogMediaStoreReader(context.contentResolver).loadImagesUnderPrefix("Pictures/DZlog/")
+        }
+        quickResultsPhotos = photos
+        quickResultsCaptures = QuickResultsSessionPolicy.captures(savedGroups, photos.map {
+            QuickResultPhoto(it.uri.toString(), it.displayName, it.relativePath)
+        })
+    }
+
     fun openRecentCaptureGrid(g1: String, g2: String, relativePath: String, startIndex: Int) {
         val location = AlbumLocation(
             g1 = g1,
@@ -641,6 +675,12 @@ fun AppRoot(startOnCamera: Boolean = false) {
         )
 
         if (screen == AppScreen.CAMERA) {
+            openQuickResults()
+            return
+        }
+
+        // Legacy gallery entry for Home remains unchanged.
+        if (false) {
             // Recent thumbnail opens the containing album grid, not the single-photo viewer.
             openWaterGrid(location)
             if (isOriginalRelativePath(location.relativePath)) {
