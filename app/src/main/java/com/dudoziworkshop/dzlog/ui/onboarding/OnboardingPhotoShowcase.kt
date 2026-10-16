@@ -54,7 +54,7 @@ internal fun OnboardingPhotoShowcase(
             .semantics { contentDescription = description }
             .background(DDZColor.SelectedSoft),
     ) {
-        PhotoShowcaseBackdrop()
+        PhotoShowcaseBackdrop(compact)
         if (!compact) {
             MarketingPhone(
                 modifier = Modifier.align(Alignment.BottomStart)
@@ -73,7 +73,13 @@ internal fun OnboardingPhotoShowcase(
             ) {
                 repeat(3) { index ->
                     Image(
-                        painter = painterResource(R.drawable.onboarding_hero_photo),
+                        painter = painterResource(
+                            when (index) {
+                                0 -> R.drawable.onboarding_hero_photo
+                                1 -> R.drawable.onboarding_gallery_photo
+                                else -> R.drawable.onboarding_starter_photo
+                            }
+                        ),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.size(38.dp).clip(RoundedCornerShape(7.dp))
@@ -105,7 +111,7 @@ internal fun OnboardingPhotoShowcase(
 }
 
 @Composable
-private fun PhotoShowcaseBackdrop() {
+private fun PhotoShowcaseBackdrop(compact: Boolean) {
     Box(
         Modifier.fillMaxSize().background(
             Brush.linearGradient(
@@ -114,7 +120,10 @@ private fun PhotoShowcaseBackdrop() {
         ),
     ) {
         Image(
-            painter = painterResource(R.drawable.onboarding_hero_photo),
+            painter = painterResource(
+                if (compact) R.drawable.onboarding_starter_photo
+                else R.drawable.onboarding_hero_photo
+            ),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,

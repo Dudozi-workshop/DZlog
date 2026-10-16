@@ -170,7 +170,10 @@ private fun CompactFeature(
                     .background(DDZColor.SelectedSoft),
             ) {
                 Image(
-                    painter = painterResource(R.drawable.onboarding_hero_photo),
+                    painter = painterResource(
+                        if (number == "02") R.drawable.onboarding_starter_photo
+                        else R.drawable.onboarding_gallery_photo
+                    ),
                     contentDescription = null,
                     modifier = Modifier.fillMaxWidth().height(if (compact) 60.dp else 78.dp),
                     contentScale = ContentScale.Crop,
@@ -208,7 +211,13 @@ private fun CompactFeature(
                     ) {
                         repeat(3) { index ->
                             Image(
-                                painter = painterResource(R.drawable.onboarding_hero_photo),
+                                painter = painterResource(
+                                    when (index) {
+                                        0 -> R.drawable.onboarding_hero_photo
+                                        1 -> R.drawable.onboarding_gallery_photo
+                                        else -> R.drawable.onboarding_starter_photo
+                                    }
+                                ),
                                 contentDescription = null,
                                 modifier = Modifier.size(width = 20.dp, height = 34.dp)
                                     .clip(RoundedCornerShape(4.dp)),
