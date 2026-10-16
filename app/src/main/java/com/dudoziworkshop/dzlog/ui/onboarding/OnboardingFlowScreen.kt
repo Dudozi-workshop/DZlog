@@ -222,7 +222,7 @@ private fun StarterPreview(def: OnboardingStarterDefinition) {
                     else -> "입력"
                 }
             },
-            height = 154.dp,
+            height = 184.dp,
             compact = true,
             showGalleryStrip = true,
         )
