@@ -679,24 +679,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
             return
         }
 
-        // Legacy gallery entry for Home remains unchanged.
-        if (false) {
-            // Recent thumbnail opens the containing album grid, not the single-photo viewer.
-            openWaterGrid(location)
-            if (isOriginalRelativePath(location.relativePath)) {
-                openOriginalGridFrom(
-                    parent = OriginalParent.LIST,
-                    originalPath = location.relativePath,
-                    returnLocationIfWater = null,
-                )
-            }
-            albumGridEntryScreen = AppScreen.ALBUM_FOLDER
-            albumEntryScreen = AppScreen.CAMERA
-            gridEntrySource = GridEntrySource.CAMERA_RECENT
-            viewerEntrySource = ViewerEntrySource.GRID
-            navigateTo(AppScreen.ALBUM_GRID)
-            return
-        }
 
         openWaterGrid(location)
         if (isOriginalRelativePath(location.relativePath)) {
@@ -790,6 +772,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
             AppScreen.TABLE_TEMPLATES -> screen = templateListEntryScreen
             AppScreen.TABLE_EDITOR -> screen = previousScreen
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
+            AppScreen.QUICK_RESULTS -> screen = AppScreen.CAMERA
 
             AppScreen.ALBUM_GRID -> {
                 handleAlbumGridBack()
@@ -1043,6 +1026,30 @@ fun AppRoot(startOnCamera: Boolean = false) {
             AppScreen.ALBUM_G1, AppScreen.ALBUM_G2 -> {
                 // Legacy routes are redirected; new entrypoints only use ALBUM_FOLDER.
                 screen = AppScreen.ALBUM_FOLDER
+            }
+            AppScreen.QUICK_RESULTS -> {
+                QuickResultsScreen(
+                    captures = quickResultsCaptures,
+                    gridColumns = appSettings.quickResultsGridColumns,
+                    showCounterBadges = appSettings.showGalleryCounterBadges,
+                    onGridColumnsChange = { count ->
+                        appScope.launch { AppSettingsStore.setQuickResultsGridColumns(context, count) }
+                    },
+                    onOpenCapture = { filtered, requestedIndex ->
+                        val photosByUri = quickResultsPhotos.associateBy { it.uri.toString() }
+                        val visiblePhotos = filtered.mapNotNull { photosByUri[it.displayedPhoto.uri] }
+                        val targetUri = filtered.getOrNull(requestedIndex)?.displayedPhoto?.uri
+                        val index = visiblePhotos.indexOfFirst { it.uri.toString() == targetUri }
+                        if (index >= 0) {
+                            gridItems = visiblePhotos
+                            viewerStartIndex = index
+                            albumLocation = AlbumLocation("", "", visiblePhotos[index].relativePath, null)
+                            viewerEntrySource = ViewerEntrySource.QUICK_RESULTS
+                            screen = AppScreen.ALBUM_VIEWER
+                        }
+                    },
+                    onReturnToCamera = { screen = AppScreen.CAMERA },
+                )
             }
         // 📸 앨범 내 사진 목록 화면
             AppScreen.ALBUM_GRID -> {
