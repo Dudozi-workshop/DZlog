@@ -21,6 +21,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.gallery.GalleryCounterBadgePolicy
 import com.dudoziworkshop.dzlog.domain.gallery.GalleryGridColumnsPolicy
+import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultsGridAnchorPolicy
 import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultCapture
 import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultsSessionPolicy
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -55,11 +57,21 @@ internal fun QuickResultsScreen(
     var menuExpanded by remember { mutableStateOf(false) }
     var collapsedKeys by rememberSaveable { mutableStateOf(emptySet<String>()) }
     val listState = rememberLazyListState()
+    var pendingPinchAnchor by remember {
+        mutableStateOf<Pair<Int, QuickResultsGridAnchorPolicy.Position>?>(null)
+    }
     val sections = remember(captures, selectedFolder) {
         QuickResultsSessionPolicy.sections(captures, selectedFolder)
     }
 
     val visibleCaptures = sections.flatMap { it.captures }
+    LaunchedEffect(columns, pendingPinchAnchor) {
+        val pending = pendingPinchAnchor
+        if (pending != null && pending.first == columns) {
+            listState.scrollToItem(pending.second.itemIndex, pending.second.scrollOffset)
+            pendingPinchAnchor = null
+        }
+    }
 
     Column(Modifier.fillMaxSize().background(DDZColor.Background)) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -103,7 +115,17 @@ internal fun QuickResultsScreen(
                 modifier = Modifier.weight(1f).fillMaxWidth().galleryGridPinch(
                     columns = columns,
                     enabled = true,
-                    onColumnsChanged = onGridColumnsChange,
+                    onColumnsChanged = { nextColumns ->
+                        pendingPinchAnchor = nextColumns to QuickResultsGridAnchorPolicy.remap(
+                            sections = sections,
+                            collapsedKeys = collapsedKeys,
+                            firstVisibleItemIndex = listState.firstVisibleItemIndex,
+                            firstVisibleScrollOffset = listState.firstVisibleItemScrollOffset,
+                            oldColumns = columns,
+                            newColumns = nextColumns,
+                        )
+                        onGridColumnsChange(nextColumns)
+                    },
                 ),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
