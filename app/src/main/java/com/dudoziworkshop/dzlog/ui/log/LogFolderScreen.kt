@@ -108,6 +108,7 @@ fun LogFolderScreen(
     onShowDefaultPhotosChange: (Boolean) -> Unit = {},
     capturePathDrafts: List<List<TableEditorSlotDraft?>> = emptyList(),
     gridColumns: Int = 3,
+    showCounterBadges: Boolean = true,
     onGridColumnsChange: (Int) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -596,7 +597,7 @@ fun LogFolderScreen(
                         item { GalleryEmptyText("저장된 사진이 없습니다.") }
                     } else {
                         items(recentPhotos.chunked(displayedGridColumns)) { row ->
-                            GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive, columns = displayedGridColumns) { photo ->
+                            GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive, columns = displayedGridColumns, showCounterBadges = showCounterBadges) { photo ->
                                 if (!navigationLocked) onOpenPhoto(recentPhotos, recentPhotos.indexOfFirst { it.id == photo.id })
                             }
                         }
@@ -638,7 +639,7 @@ fun LogFolderScreen(
                         item { GalleryEmptyText("기본 저장 사진이 없습니다.") }
                     } else {
                         if (defaultPhotos.isNotEmpty()) items(sortedDefaultPhotos.chunked(displayedGridColumns)) { row ->
-                            GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive, columns = displayedGridColumns) { photo ->
+                            GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive, columns = displayedGridColumns, showCounterBadges = showCounterBadges) { photo ->
                                 if (!navigationLocked) onOpenPhoto(sortedDefaultPhotos, sortedDefaultPhotos.indexOfFirst { it.id == photo.id })
                             }
                         }
@@ -648,6 +649,7 @@ fun LogFolderScreen(
             } else if (root && index != null) {
                 LogGalleryHomeContent(
                     gridColumns = displayedGridColumns,
+                    showCounterBadges = showCounterBadges,
                     onGridColumnsChange = { nextColumns ->
                         lastColumnHint = nextColumns
                         onGridColumnsChange(nextColumns)
@@ -738,7 +740,7 @@ fun LogFolderScreen(
                         item { GalleryEmptyText("즐겨찾기한 사진이 없습니다.") }
                     } else if (visiblePhotos.isNotEmpty()) {
                         items(sortedPhotos.chunked(displayedGridColumns)) { rowPhotos ->
-                            GalleryPhotoRow(rowPhotos, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive, columns = displayedGridColumns) { photo ->
+                            GalleryPhotoRow(rowPhotos, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive, columns = displayedGridColumns, showCounterBadges = showCounterBadges) { photo ->
                                 if (!navigationLocked) onOpenPhoto(sortedPhotos, sortedPhotos.indexOfFirst { it.id == photo.id })
                             }
                         }
