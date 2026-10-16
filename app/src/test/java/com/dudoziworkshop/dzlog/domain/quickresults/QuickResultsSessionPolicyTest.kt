@@ -47,4 +47,45 @@ class QuickResultsSessionPolicyTest {
         assertEquals(1, filtered.size)
         assertEquals(listOf("a2", "a1"), filtered.single().captures.map { it.displayedPhoto.uri })
     }
+    @Test fun deletingResultKeepsOriginalForSameCapture() {
+        val groups = listOf(listOf("r1", "o1"))
+        val before = QuickResultsSessionPolicy.captures(
+            groups,
+            listOf(
+                photo("r1", "Pictures/DZlog/A/"),
+                photo("o1", "Pictures/DZlog/A/original/"),
+            ),
+        )
+        val after = QuickResultsSessionPolicy.captures(
+            groups,
+            listOf(photo("o1", "Pictures/DZlog/A/original/")),
+        )
+        assertEquals(1, before.size)
+        assertEquals(1, after.size)
+        assertTrue(after.single().isOriginalOnly)
+        assertEquals("o1", after.single().displayedPhoto.uri)
+    }
+
+    @Test fun fullyDeletedCaptureDisappearsWithoutRenumberingRemainingCaptures() {
+        val groups = listOf(listOf("a1"), listOf("b1"), listOf("a2"))
+        val remaining = QuickResultsSessionPolicy.captures(
+            groups,
+            listOf(
+                photo("a1", "Pictures/DZlog/A/"),
+                photo("a2", "Pictures/DZlog/A/"),
+            ),
+        )
+        assertEquals(2, remaining.size)
+        assertEquals(listOf(2, 0), remaining.map { it.captureIndex })
+        assertEquals(1, QuickResultsSessionPolicy.sections(remaining).size)
+    }
+
+    @Test fun duplicateUrisInsideCaptureDoNotDoubleCount() {
+        val captures = QuickResultsSessionPolicy.captures(
+            savedUriGroups = listOf(listOf("r1", "r1")),
+            availablePhotos = listOf(photo("r1", "Pictures/DZlog/A/")),
+        )
+        assertEquals(1, captures.size)
+    }
+
 }
