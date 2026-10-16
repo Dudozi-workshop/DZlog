@@ -355,15 +355,27 @@ internal fun GalleryFolderRow(
 @Composable
 internal fun GalleryOriginalRow(count: Int, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth()
+            .background(DDZColor.Surface, MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick)
+            .defaultMinSize(minHeight = DDZLayout.ListItem.CompactMinHeight)
+            .padding(horizontal = DDZSpacing.controlGap, vertical = DDZSpacing.itemGap),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(DDZSpacing.compactCardContentGap),
     ) {
-        Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
-        Text("원본사진", modifier = Modifier.weight(1f))
-        Text("${count}장", color = DDZColor.TextSecondary)
-        Icon(Icons.Default.ChevronRight, contentDescription = "원본사진 열기")
+        Box(
+            modifier = Modifier.size(DDZLayout.ListItem.CompactThumbnailSize)
+                .clip(MaterialTheme.shapes.small)
+                .background(DDZColor.SurfaceSoft),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text("원본사진", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("${count}장", color = DDZColor.TextSecondary, style = DDZTypography.Secondary)
+        }
+        Icon(Icons.Default.ChevronRight, contentDescription = "원본사진 열기", tint = DDZColor.IconMuted)
     }
 }
 
