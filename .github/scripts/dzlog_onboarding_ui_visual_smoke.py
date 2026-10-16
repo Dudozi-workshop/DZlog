@@ -102,7 +102,7 @@ def wait_for_folder_grant_or_starter(timeout=90):
 def folder_setup():
     # No permission dialogs are bypassed: Android permissions were granted
     # expressly within this disposable emulator before the app was launched.
-    root = wait_for("첫 기록을 위한 준비", timeout=60)
+    root = wait_for("앱을 사용하기 위해", timeout=60)
     if not contains(root, "저장 폴더 연결"):
         raise AssertionError("All required setup items should be present")
     if not is_fully_on_screen(root, "DZlog 폴더 연결"):
