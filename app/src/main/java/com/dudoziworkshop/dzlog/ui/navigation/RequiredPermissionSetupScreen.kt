@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryMediaAccess
 import com.dudoziworkshop.dzlog.ui.onboarding.OnboardingProgressHeader
+import com.dudoziworkshop.dzlog.ui.onboarding.OnboardingPermissionArtwork
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.theme.LocalDDZColor
 import com.dudoziworkshop.dzlog.ui.theme.LocalDDZTypography
@@ -70,13 +71,13 @@ internal fun RequiredPermissionSetupScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(
-                if (onboarding) "첫 기록을 위한 준비" else "필요한 권한을 확인해 주세요",
+                if (onboarding) "앱을 사용하기 위해\n권한을 설정해주세요." else "필요한 권한을 확인해 주세요",
                 style = typography.ScreenTitle,
                 color = colors.TextPrimary,
             )
             Text(
                 if (onboarding)
-                    "촬영과 사진 관리를 위해 필요한 권한을 설정해 주세요."
+                    "촬영한 사진과 기록을 안전하게 보관하려면 다음 설정이 필요해요."
                 else
                     "사용 중 해제된 권한이 있다면 다시 설정해 주세요. 기록은 그대로 보존돼요.",
                 style = typography.Body,
@@ -97,6 +98,7 @@ internal fun RequiredPermissionSetupScreen(
                 cameraRequestAttempted,
                 photoRequestAttempted,
             )
+            if (onboarding) OnboardingPermissionArtwork()
             if (!notice.isNullOrBlank()) {
                 Text(notice, style = typography.Body, color = colors.Destructive)
             }
