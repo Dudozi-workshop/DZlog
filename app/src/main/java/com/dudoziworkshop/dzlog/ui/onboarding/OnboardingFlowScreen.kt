@@ -132,10 +132,10 @@ internal fun OnboardingFlowScreen(
         ) {
             DDZButton(
                 text = when {
+                    step == 1 -> if (readOnly) "다음" else "시작하기"
                     introOnly && step == 2 -> "사용 준비하기"
                     introOnly -> "다음"
                     step == 3 -> if (readOnly) "도움말 닫기" else "DZlog 시작하기"
-                    step == 1 -> if (readOnly) "다음" else "시작하기"
                     else -> "다음"
                 },
                 onClick = {
