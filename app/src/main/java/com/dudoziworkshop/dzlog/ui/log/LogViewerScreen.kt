@@ -110,6 +110,8 @@ fun LogViewerScreen(
     onBack: () -> Unit,
     onItemsReloaded: (List<MediaImageItem>) -> Unit,
     onRequestCloseViewer: () -> Unit,
+    quickResultOriginalByResultUri: Map<String, MediaImageItem> = emptyMap(),
+    onSessionMediaChanged: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val resolver = context.contentResolver
@@ -168,8 +170,17 @@ fun LogViewerScreen(
                     require(snapshot.singleOrNull { it.id == requested.id } == requested) {
                         "사진 정보가 변경됐습니다. 갤러리에서 다시 확인해 주세요."
                     }
-                    requireNotNull(GalleryPhotoMovePolicy.pairedOriginals(listOf(requested), snapshot).singleOrNull()) {
-                        "정확히 연결된 원본사진을 찾지 못했습니다."
+                    val explicitPair = quickResultOriginalByResultUri[requested.uri.toString()]
+                    if (explicitPair != null) {
+                        requireNotNull(snapshot.singleOrNull { it.id == explicitPair.id && it == explicitPair }) {
+                            "촬영 세션의 원본사진이 이동되거나 삭제되었습니다."
+                        }
+                    } else if (quickResultOriginalByResultUri.isNotEmpty()) {
+                        error("이 촬영 건에는 연결된 원본사진이 없습니다.")
+                    } else {
+                        requireNotNull(GalleryPhotoMovePolicy.pairedOriginals(listOf(requested), snapshot).singleOrNull()) {
+                            "정확히 연결된 원본사진을 찾지 못했습니다."
+                        }
                     }
                 }
             }
@@ -402,6 +413,7 @@ fun LogViewerScreen(
             onVerified = { deletedIds ->
                 if (originalPreview?.id in deletedIds) originalPreview = null
                 GallerySnapshotMemory.cache.invalidate()
+                onSessionMediaChanged()
                 if (items.any { it.id in deletedIds }) {
                     val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, deletedIds)
                     pendingViewerIndex = update.currentIndex
@@ -421,6 +433,7 @@ fun LogViewerScreen(
             item = requested,
             reader = reader,
             onVerified = { movedIds ->
+                onSessionMediaChanged()
                 if (originalPreview?.id in movedIds || resultItem?.id in movedIds) originalPreview = null
                 if (items.any { it.id in movedIds }) {
                     val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, movedIds)
