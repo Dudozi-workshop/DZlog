@@ -534,12 +534,18 @@ fun TableEditorV2Screen(
                                             }
                                         },
                                         onCreatePhraseSet = { name ->
-                                            session.commitTemplateChange(
-                                                createMockPhraseSet(
-                                                    templateState = draftTemplateState,
+                                            val newId = java.util.UUID.randomUUID().toString()
+                                            val updated = com.dudoziworkshop.dzlog.feature.table.policy.RotatingPhraseSetCreationPolicy
+                                                .createAndSelect(
+                                                    template = draftTemplateState,
+                                                    targetCellId = selected.domainCellId.orEmpty(),
                                                     name = name,
+                                                    newSetId = newId,
                                                 )
-                                            )
+                                            if (updated != null) {
+                                                session.commitTemplateChange(updated.template)
+                                                updated.selectedSetId
+                                            } else null
                                         },
                                         onUpdatePhraseSet = { phraseSetId, transform ->
                                             session.commitTemplateChange(
