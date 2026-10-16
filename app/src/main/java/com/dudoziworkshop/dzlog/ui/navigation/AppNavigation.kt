@@ -1010,6 +1010,10 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     items = gridItems,
                     isSelectionMode = isSelectionMode,
                     selectedIds = selectedIds,
+                    gridColumns = appSettings.galleryGridColumns,
+                    onGridColumnsChange = { columns ->
+                        appScope.launch { AppSettingsStore.setGalleryGridColumns(context, columns) }
+                    },
                     onItemsLoaded = { loaded ->
                         gridItems = loaded
                         selectedIds = selectedIds.intersect(loaded.mapTo(mutableSetOf()) { it.id })
