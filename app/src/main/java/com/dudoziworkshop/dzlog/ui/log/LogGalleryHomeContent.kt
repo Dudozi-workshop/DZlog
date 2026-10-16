@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,6 +33,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dudoziworkshop.dzlog.domain.gallery.GalleryPhotoRowAnchorPolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryChildFolder
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
@@ -122,15 +125,40 @@ internal fun LogGalleryHomeContent(
         filterGalleryFolders(folderIndex.children, summariesByPath, folderFilter, folderSort)
     }
     val favorites = allImages.filter { it.id in favoriteIds }
+    val favoritesListState = rememberLazyListState()
+    // Wait until the persisted column count is observed before scrolling.
+    var pendingFavoritesAnchor by remember {
+        mutableStateOf<Pair<Int, GalleryPhotoRowAnchorPolicy.Position>?>(null)
+    }
+    LaunchedEffect(gridColumns, pendingFavoritesAnchor) {
+        val pending = pendingFavoritesAnchor
+        if (pending != null && gridColumns == pending.first && selectedTab == GalleryTab.FAVORITES) {
+            favoritesListState.scrollToItem(pending.second.itemIndex, pending.second.scrollOffset)
+            pendingFavoritesAnchor = null
+        }
+    }
     val directPhotos = allImages.filter { GalleryDefaultStoragePolicy.isDirectRootPhoto(it.relativePath) }
     // Summary IDs are MediaStore IDs, so resolve them against this same snapshot.
     val imagesById = remember(allImages) { allImages.associateBy { it.id.toString() } }
 
     LazyColumn(
+        state = favoritesListState,
         modifier = Modifier.fillMaxWidth().galleryGridPinch(
             columns = gridColumns,
             enabled = selectedTab == GalleryTab.FAVORITES && !selectionActive,
-            onColumnsChanged = onGridColumnsChange,
+            onColumnsChanged = { nextColumns ->
+                if (favorites.isNotEmpty()) {
+                    pendingFavoritesAnchor = nextColumns to GalleryPhotoRowAnchorPolicy.remap(
+                        visibleItemIndex = favoritesListState.firstVisibleItemIndex,
+                        visibleScrollOffset = favoritesListState.firstVisibleItemScrollOffset,
+                        firstPhotoRowIndex = 1, // The favorites section title
+                        photoCount = favorites.size,
+                        oldColumns = gridColumns,
+                        newColumns = nextColumns,
+                    )
+                }
+                onGridColumnsChange(nextColumns)
+            },
         ),
         verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
         contentPadding = PaddingValues(bottom = DDZSpacing.sectionGap),
