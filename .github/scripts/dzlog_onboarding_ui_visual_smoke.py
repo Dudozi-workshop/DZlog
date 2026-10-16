@@ -202,6 +202,14 @@ def main():
 
         # Selection only: changing category must not create or save templates.
         choose("업무·현장")
+        adb("shell", "settings", "put", "system", "font_scale", "1.0")
+        time.sleep(2)
+        root = hierarchy()
+        if not is_fully_on_screen(root, "저장 규칙 미리보기"):
+            raise AssertionError("Starter photo/save preview needs scrolling at normal font size")
+        mark("05-starter-normal-font")
+        adb("shell", "settings", "put", "system", "font_scale", "1.4")
+        time.sleep(2)
         choose("다른 양식 보기")
         choose("연구·실험")
         root = wait_for("연구·실험", timeout=40)
