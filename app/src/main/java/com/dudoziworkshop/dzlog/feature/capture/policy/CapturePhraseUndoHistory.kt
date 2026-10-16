@@ -23,6 +23,17 @@ class CapturePhraseUndoHistory {
     }
 
     private val entries = mutableListOf<Tracked>()
+    private val galleryChangedUris = mutableSetOf<String>()
+
+    /**
+     * Gallery delete/move is not a camera Undo: it must not roll back phrase
+     * progress. Fence all captures committed before that edit; a fresh shutter
+     * records new URIs and remains individually undoable.
+     */
+    @Synchronized
+    fun invalidateUndoForExistingCaptures(uris: Collection<String>) {
+        galleryChangedUris.addAll(uris.filter(String::isNotBlank))
+    }
 
     @Synchronized
     fun record(
@@ -61,6 +72,7 @@ class CapturePhraseUndoHistory {
     @Synchronized
     fun canUndo(uris: Collection<String>, activeTemplateId: String?): Boolean {
         val keys = uris.toSet()
+        if (keys.any(galleryChangedUris::contains)) return false
         val tracked = entries.lastOrNull { item -> item.remainingUris.any(keys::contains) }
         return tracked == null || tracked.entry.templateId == activeTemplateId
     }
@@ -109,5 +121,8 @@ class CapturePhraseUndoHistory {
     }
 
     @Synchronized
-    fun clear() = entries.clear()
+    fun clear() {
+        entries.clear()
+        galleryChangedUris.clear()
+    }
 }
