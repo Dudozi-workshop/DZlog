@@ -59,7 +59,7 @@ internal fun OnboardingBrandIntro() {
         OnboardingPhotoShowcase(
             labels = listOf("기록명", "날짜", "번호"),
             values = listOf("관찰 기록", "26.10.15", "001"),
-            height = 314.dp,
+            height = 326.dp,
         )
         Text("한 장의 사진이, 더 오래 기억되는 기록이 됩니다.",
             style = DDZTypography.Caption, color = DDZColor.TextSecondary)
@@ -172,6 +172,48 @@ private fun CompactFeature(
                     contentScale = ContentScale.Crop,
                     alpha = 0.98f,
                 )
+                if (number == "02") {
+                    // Small folder preview for storage rules.
+                    Surface(
+                        color = DDZColor.Surface.copy(alpha = 0.96f),
+                        shape = RoundedCornerShape(7.dp),
+                        modifier = Modifier.align(Alignment.Center).padding(4.dp),
+                    ) {
+                        Column(
+                            Modifier.padding(horizontal = 6.dp, vertical = 5.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(Icons.Default.Folder, contentDescription = null,
+                                    tint = DDZColor.PrimaryDark, modifier = Modifier.size(13.dp))
+                                Text("식물 관찰", style = DDZTypography.Caption,
+                                    color = DDZColor.TextPrimary)
+                            }
+                            Text("2026.10", style = DDZTypography.Caption,
+                                color = DDZColor.TextSecondary)
+                        }
+                    }
+                } else {
+                    // Contact-sheet preview for photo organization.
+                    Row(
+                        modifier = Modifier.align(Alignment.Center).padding(7.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
+                        repeat(3) { index ->
+                            Image(
+                                painter = painterResource(R.drawable.onboarding_hero_photo),
+                                contentDescription = null,
+                                modifier = Modifier.size(width = 20.dp, height = 34.dp)
+                                    .clip(RoundedCornerShape(4.dp)),
+                                contentScale = ContentScale.Crop,
+                                alpha = if (index == 1) 0.70f else 1f,
+                            )
+                        }
+                    }
+                }
                 Surface(
                     color = DDZColor.Surface.copy(alpha = 0.94f),
                     shape = RoundedCornerShape(7.dp),
