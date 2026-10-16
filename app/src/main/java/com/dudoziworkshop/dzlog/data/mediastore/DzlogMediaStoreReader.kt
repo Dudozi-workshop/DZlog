@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.ContentUris
 import android.net.Uri
 import android.provider.MediaStore
+import com.dudoziworkshop.dzlog.domain.gallery.SessionThumbnailPolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 
 /**
@@ -439,17 +440,15 @@ class DzlogMediaStoreReader(
      * a deleted result may fall back to its original, then to an older capture.
      * Each URI is looked up directly rather than scanning the whole gallery.
      */
-    fun loadLatestImageInSession(savedUriGroups: List<List<Uri>>): MediaImageItem? {
-        for (group in savedUriGroups.asReversed()) {
-            val found = group.distinct().mapNotNull(::loadSavedSessionImage)
-            if (found.isEmpty()) continue
-            return found.firstOrNull { photo ->
-                !photo.relativePath.trimEnd('/').substringAfterLast('/')
+    fun loadLatestImageInSession(savedUriGroups: List<List<Uri>>): MediaImageItem? =
+        SessionThumbnailPolicy.newestAvailable(
+            groupsOldestFirst = savedUriGroups,
+            lookup = ::loadSavedSessionImage,
+            isOriginal = { photo ->
+                photo.relativePath.trimEnd('/').substringAfterLast('/')
                     .equals("original", ignoreCase = true)
-            } ?: found.first()
-        }
-        return null
-    }
+            },
+        )
 
     private fun loadSavedSessionImage(contentUri: Uri): MediaImageItem? {
         if (contentUri.scheme != "content" || contentUri.authority != "media") return null
