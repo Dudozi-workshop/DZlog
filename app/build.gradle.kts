@@ -45,13 +45,20 @@ extensions.configure<ApplicationExtension> {
         getByName("debug") {
             val galleryStandalone = providers.gradleProperty("dzlogGalleryStandalone").orNull == "true"
             val isolatedQa = providers.gradleProperty("dzlogStandaloneQa").orNull == "true"
+            val qaInstanceTag = providers.gradleProperty("dzlogQaInstanceTag").orNull.orEmpty()
             require(!(galleryStandalone && isolatedQa)) {
                 "Standalone QA and gallery-only package flags cannot both be enabled."
             }
+            require(qaInstanceTag.isEmpty() || (isolatedQa && qaInstanceTag.matches(Regex("[a-z][a-z0-9]{0,15}")))) {
+                "QA instance tag must be an ASCII lowercase application ID segment for isolated QA builds."
+            }
             if (isolatedQa) {
-                // Installs beside the Play release; never overwrite user-installed DZlog.
-                applicationIdSuffix = ".qa"
-                manifestPlaceholders["dzlogAppLabel"] = "DZlog QA"
+                // Each CI QA artifact gets a unique install ID. This avoids signature
+                // conflicts with an older QA APK built by a different CI runner,
+                // while leaving the production application and its data untouched.
+                applicationIdSuffix = ".qa" + if (qaInstanceTag.isEmpty()) "" else ".$qaInstanceTag"
+                manifestPlaceholders["dzlogAppLabel"] =
+                    if (qaInstanceTag.isEmpty()) "DZlog QA" else "DZlog QA $qaInstanceTag"
             } else if (galleryStandalone) {
                 applicationIdSuffix = ".gallerydev"
                 manifestPlaceholders["dzlogAppLabel"] = "DZlog Gallery"
