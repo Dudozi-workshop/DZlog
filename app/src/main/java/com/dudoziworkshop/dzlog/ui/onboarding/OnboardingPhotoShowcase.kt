@@ -57,7 +57,7 @@ internal fun OnboardingPhotoShowcase(
             .semantics { contentDescription = description }
             .background(DDZColor.SelectedSoft),
     ) {
-        PhotoShowcaseBackdrop(compact)
+        PhotoShowcaseBackdrop(compact, edgeToEdge)
         // The phone is now part of the static editorial artwork.
         // Record values and actions remain real Compose controls, not a
         // screenshot, so no duplicate fake camera frame is drawn here.
@@ -97,8 +97,8 @@ internal fun OnboardingPhotoShowcase(
                 values = values,
                 compact = compact,
                 modifier = Modifier.align(Alignment.BottomEnd)
-                    .fillMaxWidth(if (compact) 0.95f else 0.80f)
-                    .padding(end = if (compact) 9.dp else 12.dp, bottom = if (compact) 13.dp else 28.dp)
+                    .fillMaxWidth(if (compact) 0.95f else if (edgeToEdge) 0.68f else 0.80f)
+                    .padding(end = if (compact) 9.dp else 12.dp, bottom = if (compact) 13.dp else if (edgeToEdge) 19.dp else 28.dp)
                     .shadow(5.dp, RoundedCornerShape(11.dp)),
             )
         } else {
@@ -112,7 +112,7 @@ internal fun OnboardingPhotoShowcase(
 }
 
 @Composable
-private fun PhotoShowcaseBackdrop(compact: Boolean) {
+private fun PhotoShowcaseBackdrop(compact: Boolean, edgeToEdge: Boolean) {
     Box(
         Modifier.fillMaxSize().background(
             Brush.linearGradient(
@@ -122,7 +122,8 @@ private fun PhotoShowcaseBackdrop(compact: Boolean) {
     ) {
         Image(
             painter = painterResource(
-                if (compact) R.drawable.onboarding_reference_starter
+                if (edgeToEdge) R.drawable.onboarding_actual_camera_hero
+                else if (compact) R.drawable.onboarding_reference_starter
                 else R.drawable.onboarding_reference_hero
             ),
             contentDescription = null,
