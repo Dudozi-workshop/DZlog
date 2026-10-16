@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.ui.log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -57,7 +57,6 @@ internal fun QuickResultsScreen(
     val sections = remember(captures, selectedFolder) {
         QuickResultsSessionPolicy.sections(captures, selectedFolder)
     }
-    val visibleCaptures = sections.sumOf { it.captures.size }
 
     Column(Modifier.fillMaxSize().background(DDZColor.Background)) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -122,12 +121,11 @@ internal fun QuickResultsScreen(
                                     row.forEach { capture ->
                                         Box(
                                             modifier = Modifier.weight(1f)
+                                                .aspectRatio(1f)
                                                 .background(DDZColor.SurfaceSoft, RoundedCornerShape(8.dp))
                                                 .clickable { onOpenCapture(capture) },
                                         ) {
-                                            androidx.compose.foundation.layout.Box(
-                                                Modifier.fillMaxWidth().then(Modifier)
-                                            ) {
+                                            Box(Modifier.fillMaxSize()) {
                                                 DzThumbnail(capture.displayedPhoto.uri)
                                                 val label = GalleryCounterBadgePolicy.labelFromDzlogFilename(
                                                     capture.displayedPhoto.displayName,
