@@ -52,13 +52,13 @@ internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = fa
             modifier = Modifier.padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text("사진을,", style = DDZTypography.HomeMainTitle, color = DDZColor.TextPrimary)
-            Text("더 가치 있는 기록으로.", style = DDZTypography.HomeMainTitle,
+            Text("사진에 기록을 더해,", style = DDZTypography.HomeMainTitle, color = DDZColor.TextPrimary)
+            Text("정리를 더 쉽게.", style = DDZTypography.HomeMainTitle,
                 color = DDZColor.PrimaryDark)
         }
-        Text("일상부터 현장까지,", style = DDZTypography.SectionTitle,
+        Text("일상부터 업무 현장까지,", style = DDZTypography.SectionTitle,
             color = DDZColor.SelectedDark, modifier = Modifier.padding(horizontal = 20.dp))
-        Text("사진과 기록을 함께 남겨보세요.", style = DDZTypography.Body,
+        Text("사진과 메모를 함께 남겨보세요.", style = DDZTypography.Body,
             color = DDZColor.TextSecondary, modifier = Modifier.padding(horizontal = 20.dp))
         OnboardingPhotoShowcase(
             labels = listOf("기록명", "날짜", "번호"),

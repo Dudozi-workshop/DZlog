@@ -168,7 +168,11 @@ def main():
         # disposable emulator app before the existing large-text E2E run.
         adb("shell", "settings", "put", "system", "font_scale", "1.0")
         adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
-        root = wait_for("사진을,", timeout=85)
+        root = wait_for("사진에 기록을 더해,", timeout=85)
+        if contains(root, "건너뛰기"):
+            raise AssertionError("First introduction must not offer Skip")
+        if not is_fully_on_screen(root, "시작하기"):
+            raise AssertionError("Start button must remain fully visible")
         if not is_fully_on_screen(root, "한 장의 사진이, 더 오래 기억되는 기록이 됩니다."):
             raise AssertionError("Intro composition needs scrolling at normal font size")
         mark("00-intro-normal-font")
@@ -195,7 +199,7 @@ def main():
             adb("shell", "pm", "grant", PKG, permission)
         adb("shell", "settings", "put", "system", "font_scale", "1.4")
         adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
-        root = wait_for("사진을,", timeout=85)
+        root = wait_for("사진에 기록을 더해,", timeout=85)
         if not is_fully_on_screen(root, "다음"):
             raise AssertionError("Compact onboarding intro CTA clipped")
         mark("01-intro-compact-large-font")
@@ -231,7 +235,7 @@ def main():
         adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
         wait_for("촬영 시작", timeout=75)
         root = mark("07-relaunch-home")
-        if contains(root, "사진을,") or contains(root, "어떤 기록을 시작할까요?"):
+        if contains(root, "사진에 기록을 더해,") or contains(root, "어떤 기록을 시작할까요?"):
             raise AssertionError("Onboarding repeated after completing setup")
         # Use an ACTUAL camera screen capture for the approved marketing mockup.
         # This only visits the camera on the disposable emulator. No shutter,
@@ -239,7 +243,7 @@ def main():
         tap_visible("촬영 시작")
         time.sleep(2.5)
         camera_root = mark("08-actual-dzlog-camera")
-        if contains(camera_root, "사진을,"):
+        if contains(camera_root, "사진에 기록을 더해,"):
             raise AssertionError("Camera navigation unexpectedly reopened onboarding")
         alive()
         print("PASS: 4-stage onboarding, starter, permissions, relaunch and real camera preview")
