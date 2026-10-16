@@ -76,6 +76,7 @@ import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryPhotoMover
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
+import com.dudoziworkshop.dzlog.domain.gallery.GalleryGridColumnsPolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.feature.log.policy.CapturePathImpact
@@ -90,6 +91,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -105,9 +107,19 @@ fun LogFolderScreen(
     showDefaultPhotos: Boolean = false,
     onShowDefaultPhotosChange: (Boolean) -> Unit = {},
     capturePathDrafts: List<List<TableEditorSlotDraft?>> = emptyList(),
+    gridColumns: Int = 3,
+    onGridColumnsChange: (Int) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val displayedGridColumns = GalleryGridColumnsPolicy.normalize(gridColumns)
+    var lastColumnHint by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(lastColumnHint) {
+        if (lastColumnHint != null) {
+            delay(850)
+            lastColumnHint = null
+        }
+    }
     val reader = remember(context) { DzlogMediaStoreReader(context.contentResolver) }
     val folderStorage = remember(context) { GalleryFolderStorage(context.applicationContext) }
     val folderCatalog = remember(context) { GalleryFolderCatalog(context.applicationContext) }
@@ -468,6 +480,13 @@ fun LogFolderScreen(
         if (!photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null) cancelSelection()
     }
     BackHandler(enabled = operationLocked && !photoDeleteLoading) { /* Preserve the active operation and its callbacks. */ }
+    val photoListPinchModifier = Modifier.galleryGridPinch(
+        columns = displayedGridColumns,
+        enabled = !selectionActive && !navigationLocked,
+    ) { nextColumns ->
+        lastColumnHint = nextColumns
+        onGridColumnsChange(nextColumns)
+    }
     val title = if (showRecentPhotos) "최근 촬영" else if (showDefaultPhotos) "기본 저장"
         else if (displayFolderPath == GalleryFolderIndexPolicy.ROOT) "갤러리"
         else displayFolderPath.trimEnd('/').substringAfterLast('/')
@@ -499,6 +518,9 @@ fun LogFolderScreen(
                 }
                 Text(title, modifier = Modifier.weight(1f), color = DDZColor.TextPrimary,
                     style = DDZTypography.ScreenTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                lastColumnHint?.let { newColumns ->
+                    Text("${newColumns}열", style = DDZTypography.Caption, color = DDZColor.Primary)
+                }
                 if (originalGrid) {
                     Text("원본", style = DDZTypography.Caption, color = DDZColor.Primary,
                         modifier = Modifier.background(DDZColor.SageLight, RoundedCornerShape(10.dp))
@@ -567,20 +589,22 @@ fun LogFolderScreen(
                     OutlinedButton(onClick = { reloadKey++ }) { Text("다시 시도") }
                 }
             } else if (root && showRecentPhotos) {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(5.dp),
+                LazyColumn(modifier = photoListPinchModifier,
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
                     contentPadding = PaddingValues(bottom = 24.dp)) {
                     if (recentPhotos.isEmpty()) {
                         item { GalleryEmptyText("저장된 사진이 없습니다.") }
                     } else {
-                        items(recentPhotos.chunked(3)) { row ->
-                            GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
+                        items(recentPhotos.chunked(displayedGridColumns)) { row ->
+                            GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive, columns = displayedGridColumns) { photo ->
                                 if (!navigationLocked) onOpenPhoto(recentPhotos, recentPhotos.indexOfFirst { it.id == photo.id })
                             }
                         }
                     }
                 }
             } else if (root && showDefaultPhotos) {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
+                LazyColumn(modifier = photoListPinchModifier,
+                    verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
                     contentPadding = PaddingValues(bottom = DDZSpacing.sectionGap)) {
                     item {
                         Row(Modifier.fillMaxWidth(),
@@ -613,8 +637,8 @@ fun LogFolderScreen(
                     if (defaultPhotos.isEmpty() && (index?.directOriginalCount ?: 0) == 0) {
                         item { GalleryEmptyText("기본 저장 사진이 없습니다.") }
                     } else {
-                        if (defaultPhotos.isNotEmpty()) items(sortedDefaultPhotos.chunked(3)) { row ->
-                            GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
+                        if (defaultPhotos.isNotEmpty()) items(sortedDefaultPhotos.chunked(displayedGridColumns)) { row ->
+                            GalleryPhotoRow(row, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive, columns = displayedGridColumns) { photo ->
                                 if (!navigationLocked) onOpenPhoto(sortedDefaultPhotos, sortedDefaultPhotos.indexOfFirst { it.id == photo.id })
                             }
                         }
@@ -623,6 +647,11 @@ fun LogFolderScreen(
                 }
             } else if (root && index != null) {
                 LogGalleryHomeContent(
+                    gridColumns = displayedGridColumns,
+                    onGridColumnsChange = { nextColumns ->
+                        lastColumnHint = nextColumns
+                        onGridColumnsChange(nextColumns)
+                    },
                     selectedTab = selectedTab,
                     onTabChange = { if (!selectionActive && !navigationLocked) selectedTab = it },
                     folderIndex = requireNotNull(index),
@@ -651,7 +680,8 @@ fun LogFolderScreen(
                 )
             } else {
                 val current = index
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
+                LazyColumn(modifier = photoListPinchModifier,
+                    verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
                     contentPadding = PaddingValues(bottom = DDZSpacing.sectionGap)) {
                     if (!originalGrid && current != null && current.directOriginalCount > 0) {
                         item(key = "folder-originals") {
@@ -707,8 +737,8 @@ fun LogFolderScreen(
                     if (favoriteOnly && photos.isNotEmpty() && visiblePhotos.isEmpty()) {
                         item { GalleryEmptyText("즐겨찾기한 사진이 없습니다.") }
                     } else if (visiblePhotos.isNotEmpty()) {
-                        items(sortedPhotos.chunked(3)) { rowPhotos ->
-                            GalleryPhotoRow(rowPhotos, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive) { photo ->
+                        items(sortedPhotos.chunked(displayedGridColumns)) { rowPhotos ->
+                            GalleryPhotoRow(rowPhotos, selectedPhotoIds, ::enterSelection, ::togglePhoto, selectionActive = selectionActive, columns = displayedGridColumns) { photo ->
                                 if (!navigationLocked) onOpenPhoto(sortedPhotos, sortedPhotos.indexOfFirst { it.id == photo.id })
                             }
                         }
