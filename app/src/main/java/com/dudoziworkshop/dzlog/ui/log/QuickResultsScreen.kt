@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -19,8 +18,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
+import com.dudoziworkshop.dzlog.ui.common.AlbumViewAction
+import com.dudoziworkshop.dzlog.ui.common.DDZButton
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
@@ -55,6 +57,7 @@ internal fun QuickResultsScreen(
     showCounterBadges: Boolean,
     onGridColumnsChange: (Int) -> Unit,
     onOpenCapture: (List<QuickResultCapture>, Int) -> Unit,
+    onOpenAlbum: () -> Unit,
     onReturnToCamera: () -> Unit,
 ) {
     val columns = GalleryGridColumnsPolicy.normalize(gridColumns)
@@ -80,11 +83,14 @@ internal fun QuickResultsScreen(
     }
 
     Column(Modifier.fillMaxSize().background(DDZColor.Background).windowInsetsPadding(WindowInsets.safeDrawing)) {
-        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("빠른결과", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
                 Text("이번 촬영 ${captures.size}건", color = DDZColor.TextSecondary)
             }
+            AlbumViewAction(onClick = onOpenAlbum)
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.End) {
             Box {
                 TextButton(onClick = { menuExpanded = true }) {
                     Text((selectedFolder?.let(QuickResultsSessionPolicy::folderLabel) ?: "전체 폴더") + " ▾", color = DDZColor.Primary, maxLines = 1, overflow = TextOverflow.Ellipsis, style = DDZTypography.TextAction)
@@ -226,13 +232,15 @@ internal fun QuickResultsScreen(
             }
         }
 
-        Button(
-            modifier = Modifier.fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .height(52.dp),
+        DDZButton(
+            text = "촬영 계속하기",
+            leadingIcon = Icons.Default.CameraAlt,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             onClick = onReturnToCamera,
+            style = DDZButtonStyle.Primary,
+            containerColorOverride = DDZColor.PrimaryDark,
+            minHeight = 48.dp,
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = DDZColor.PrimaryDark),
-        ) { Text("카메라로", style = DDZTypography.ButtonText) }
+        )
     }
 }
