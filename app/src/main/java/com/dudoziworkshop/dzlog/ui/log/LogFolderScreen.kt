@@ -117,11 +117,15 @@ fun LogFolderScreen(
     val scope = rememberCoroutineScope()
     val displayedGridColumns = GalleryGridColumnsPolicy.normalize(gridColumns)
     val photoListState = rememberLazyListState()
-    var pendingRowAnchor by remember { mutableStateOf<GalleryPhotoRowAnchorPolicy.Position?>(null) }
+    var pendingRowAnchor by remember {
+        mutableStateOf<Pair<Int, GalleryPhotoRowAnchorPolicy.Position>?>(null)
+    }
     LaunchedEffect(displayedGridColumns, pendingRowAnchor) {
-        pendingRowAnchor?.let { anchor ->
-            photoListState.scrollToItem(anchor.itemIndex, anchor.scrollOffset)
-            pendingRowAnchor = null
+        pendingRowAnchor?.let { pending ->
+            if (displayedGridColumns == pending.first) {
+                photoListState.scrollToItem(pending.second.itemIndex, pending.second.scrollOffset)
+                pendingRowAnchor = null
+            }
         }
     }
     var lastColumnHint by remember { mutableStateOf<Int?>(null) }
@@ -515,7 +519,7 @@ fun LogFolderScreen(
                     (if (visiblePhotos.isNotEmpty()) 1 else 0)
             }
         }
-        pendingRowAnchor = GalleryPhotoRowAnchorPolicy.remap(
+        pendingRowAnchor = nextColumns to GalleryPhotoRowAnchorPolicy.remap(
             visibleItemIndex = photoListState.firstVisibleItemIndex,
             visibleScrollOffset = photoListState.firstVisibleItemScrollOffset,
             firstPhotoRowIndex = firstPhotoRow,
