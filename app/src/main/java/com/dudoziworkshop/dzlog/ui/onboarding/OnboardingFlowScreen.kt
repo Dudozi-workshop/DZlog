@@ -89,7 +89,7 @@ internal fun OnboardingFlowScreen(
             // Keep the approved poster-like hero dominant without sacrificing
             // the bottom caption on ordinary-size screens. Accessibility
             // text scaling may scroll rather than clip any controls.
-            val introHeroHeight = (maxHeight - if (compact) 164.dp else 183.dp)
+            val introHeroHeight = (maxHeight - if (compact) 151.dp else 169.dp)
                 .coerceIn(if (compact) 182.dp else 260.dp, if (compact) 355.dp else 450.dp)
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -128,8 +128,8 @@ internal fun OnboardingFlowScreen(
             }
         }
         Column(
-            Modifier.fillMaxWidth().background(DDZColor.Surface).padding(
-                horizontal = 20.dp, vertical = 12.dp),
+            Modifier.fillMaxWidth().background(if (step == 1) DDZColor.Background else DDZColor.Surface).padding(
+                horizontal = 20.dp, vertical = if (step == 1) 11.dp else 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             DDZButton(
@@ -149,7 +149,7 @@ internal fun OnboardingFlowScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !busy, minHeight = DDZLayout.Control.Button,
+                enabled = !busy, minHeight = if (step == 1) 56.dp else DDZLayout.Control.Button,
                 shape = if (step == 1) RoundedCornerShape(15.dp) else null,
                 textStyleOverride = if (step == 1) androidx.compose.ui.text.TextStyle(
                     fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
