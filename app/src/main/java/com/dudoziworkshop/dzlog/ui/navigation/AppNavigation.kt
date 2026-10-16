@@ -1132,7 +1132,33 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onBack = {
                         screen = resolveViewerBackTarget()
                     },
-                    onItemsReloaded = { gridItems = it },
+                    onItemsReloaded = { updatedItems ->
+                        gridItems = updatedItems
+                        if (viewerEntrySource == ViewerEntrySource.QUICK_RESULTS) {
+                            // Viewer deletion and move affect only the session projection.
+                            // Do not mutate the camera Undo stack or capture counters.
+                            appScope.launch {
+                                val refreshed = withContext(Dispatchers.IO) {
+                                    DzlogMediaStoreReader(context.contentResolver)
+                                        .loadImagesUnderPrefix("Pictures/DZlog/")
+                                }
+                                quickResultsPhotos = refreshed
+                                val groups = cameraSessionCaptureStack.map { group ->
+                                    group.map(Uri::toString)
+                                }
+                                quickResultsCaptures = QuickResultsSessionPolicy.captures(
+                                    groups,
+                                    refreshed.map { photo ->
+                                        QuickResultPhoto(
+                                            photo.uri.toString(),
+                                            photo.displayName,
+                                            photo.relativePath,
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                    },
                     onRequestCloseViewer = {
                         isSelectionMode = false
                         selectedIds = emptySet()
