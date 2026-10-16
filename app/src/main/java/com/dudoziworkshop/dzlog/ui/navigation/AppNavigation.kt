@@ -1167,9 +1167,20 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onItemsReloaded = { updatedItems ->
                         gridItems = updatedItems
                     },
-                    onSessionMediaChanged = {
+                    onSessionMediaChanged = { changedIds ->
                         if (viewerEntrySource == ViewerEntrySource.QUICK_RESULTS) {
-                            // Refresh the projection, never the camera Undo stack.
+                            // Gallery mutations must not trigger a camera phrase rollback.
+                            // Keep session groups intact for browsing, but fence changed
+                            // capture URIs from a subsequent camera Undo.
+                            val affectedUris = quickResultsPhotos
+                                .filter { it.id in changedIds }
+                                .map { it.uri.toString() }
+                            val affectedGroups = cameraSessionCaptureStack.filter { group ->
+                                group.any { uri -> uri.toString() in affectedUris }
+                            }
+                            cameraPhraseUndoHistory.invalidateUndoForExistingCaptures(
+                                affectedGroups.flatMap { group -> group.map(Uri::toString) }
+                            )
                             appScope.launch {
                                 val refreshed = withContext(Dispatchers.IO) {
                                     DzlogMediaStoreReader(context.contentResolver)
