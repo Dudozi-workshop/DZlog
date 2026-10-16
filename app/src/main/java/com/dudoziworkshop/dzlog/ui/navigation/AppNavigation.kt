@@ -20,6 +20,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -137,6 +138,7 @@ data class OriginalNavContext(
 @Composable
 fun AppRoot(startOnCamera: Boolean = false) {
     var screen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    val quickResultsSaveableHolder = rememberSaveableStateHolder()
     var previousScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
     var templateListEntryScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
     var albumEntryScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
@@ -1028,6 +1030,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 screen = AppScreen.ALBUM_FOLDER
             }
             AppScreen.QUICK_RESULTS -> {
+                quickResultsSaveableHolder.SaveableStateProvider("quick-results") {
                 QuickResultsScreen(
                     captures = quickResultsCaptures,
                     gridColumns = appSettings.quickResultsGridColumns,
@@ -1050,6 +1053,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     },
                     onReturnToCamera = { screen = AppScreen.CAMERA },
                 )
+                }
             }
         // 📸 앨범 내 사진 목록 화면
             AppScreen.ALBUM_GRID -> {
