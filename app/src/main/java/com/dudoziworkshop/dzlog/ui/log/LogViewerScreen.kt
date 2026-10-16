@@ -112,7 +112,7 @@ fun LogViewerScreen(
     onRequestCloseViewer: () -> Unit,
     quickResultOriginalByResultUri: Map<String, MediaImageItem> = emptyMap(),
     isQuickResultsViewer: Boolean = false,
-    onSessionMediaChanged: () -> Unit = {},
+    onSessionMediaChanged: (Set<Long>) -> Unit = {},
 ) {
     val context = LocalContext.current
     val resolver = context.contentResolver
@@ -417,7 +417,7 @@ fun LogViewerScreen(
             onVerified = { deletedIds ->
                 if (originalPreview?.id in deletedIds) originalPreview = null
                 GallerySnapshotMemory.cache.invalidate()
-                onSessionMediaChanged()
+                onSessionMediaChanged(deletedIds)
                 if (items.any { it.id in deletedIds }) {
                     val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, deletedIds)
                     pendingViewerIndex = update.currentIndex
@@ -437,7 +437,7 @@ fun LogViewerScreen(
             item = requested,
             reader = reader,
             onVerified = { movedIds ->
-                onSessionMediaChanged()
+                onSessionMediaChanged(movedIds)
                 if (originalPreview?.id in movedIds || resultItem?.id in movedIds) originalPreview = null
                 if (items.any { it.id in movedIds }) {
                     val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, movedIds)
