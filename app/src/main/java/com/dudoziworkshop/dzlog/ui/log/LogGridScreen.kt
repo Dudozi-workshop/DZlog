@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.gallery.GalleryGridColumnsPolicy
+import com.dudoziworkshop.dzlog.domain.gallery.GalleryPhotoRowAnchorPolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.ui.common.buildTwoPartTitle
@@ -125,6 +126,13 @@ fun LogGridScreen(
     val actionLocked = deleteSelection != null
     val displayedColumns = GalleryGridColumnsPolicy.normalize(gridColumns)
     val gridState = rememberLazyGridState()
+    var pendingPhotoAnchor by remember { mutableStateOf<GalleryPhotoRowAnchorPolicy.Position?>(null) }
+    LaunchedEffect(displayedColumns, pendingPhotoAnchor) {
+        pendingPhotoAnchor?.let { anchor ->
+            gridState.scrollToItem(anchor.itemIndex, anchor.scrollOffset)
+            pendingPhotoAnchor = null
+        }
+    }
     var lastColumnHint by remember { mutableIntStateOf(0) }
     LaunchedEffect(lastColumnHint) {
         if (lastColumnHint != 0) {
@@ -370,6 +378,14 @@ fun LogGridScreen(
                         columns = displayedColumns,
                         enabled = !actionLocked && !isSelectionMode,
                     ) { newColumns ->
+                        pendingPhotoAnchor = GalleryPhotoRowAnchorPolicy.remap(
+                            visibleItemIndex = gridState.firstVisibleItemIndex / displayedColumns,
+                            visibleScrollOffset = gridState.firstVisibleItemScrollOffset,
+                            firstPhotoRowIndex = 0,
+                            photoCount = displayItems.size,
+                            oldColumns = displayedColumns,
+                            newColumns = newColumns,
+                        ).let { anchor -> anchor.copy(itemIndex = anchor.itemIndex * newColumns) }
                         lastColumnHint = newColumns
                         onGridColumnsChange(newColumns)
                     }
