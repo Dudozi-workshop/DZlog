@@ -70,6 +70,8 @@ internal fun LogGalleryHomeContent(
     summariesByPath: Map<String, GalleryFolderSummary>,
     allImages: List<MediaImageItem>,
     favoriteIds: Set<Long>,
+    gridColumns: Int = 3,
+    onGridColumnsChange: (Int) -> Unit = {},
     onOpenFolder: (String) -> Unit,
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
     onOpenOriginal: (String) -> Unit,
@@ -124,7 +126,11 @@ internal fun LogGalleryHomeContent(
     val imagesById = remember(allImages) { allImages.associateBy { it.id.toString() } }
 
     LazyColumn(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().galleryGridPinch(
+            columns = gridColumns,
+            enabled = selectedTab == GalleryTab.FAVORITES && !selectionActive,
+            onColumnsChanged = onGridColumnsChange,
+        ),
         verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
         contentPadding = PaddingValues(bottom = DDZSpacing.sectionGap),
     ) {
@@ -202,8 +208,8 @@ internal fun LogGalleryHomeContent(
                 if (favorites.isEmpty()) {
                     item { GalleryEmptyText("즐겨찾기한 사진이 없습니다.") }
                 } else {
-                    items(favorites.chunked(3)) { row ->
-                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto, selectionActive = selectionActive) { photo -> onOpenPhoto(favorites, favorites.indexOfFirst { it.id == photo.id }) }
+                    items(favorites.chunked(gridColumns)) { row ->
+                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto, selectionActive = selectionActive, columns = gridColumns) { photo -> onOpenPhoto(favorites, favorites.indexOfFirst { it.id == photo.id }) }
                     }
                 }
             }
@@ -339,6 +345,7 @@ internal fun GalleryPhotoRow(
     onLongPressPhoto: (MediaImageItem) -> Unit = {},
     onSelectPhoto: (MediaImageItem) -> Unit = {},
     selectionActive: Boolean = selectedIds.isNotEmpty(),
+    columns: Int = 3,
     onPhotoClick: (MediaImageItem) -> Unit,
 ) {
     Row(
@@ -350,7 +357,7 @@ internal fun GalleryPhotoRow(
                 selectionActive = selectionActive,
                 modifier = Modifier.weight(1f).aspectRatio(1f)) { onPhotoClick(photo) }
         }
-        repeat(3 - photos.size) {
+        repeat((columns - photos.size).coerceAtLeast(0)) {
             Box(modifier = Modifier.weight(1f))
         }
     }
