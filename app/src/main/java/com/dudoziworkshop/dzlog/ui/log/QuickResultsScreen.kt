@@ -93,6 +93,10 @@ internal fun QuickResultsScreen(
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Text("이번 촬영 사진이 없습니다.", color = DDZColor.TextSecondary)
             }
+        } else if (visibleCaptures.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text("선택한 폴더에 이번 촬영 사진이 없습니다.", color = DDZColor.TextSecondary)
+            }
         } else {
             LazyColumn(
                 state = listState,
