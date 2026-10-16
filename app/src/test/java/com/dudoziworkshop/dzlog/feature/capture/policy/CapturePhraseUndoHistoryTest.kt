@@ -53,4 +53,27 @@ class CapturePhraseUndoHistoryTest {
         assertFalse(journal.canUndo(listOf("uri1"), "template-2"))
         assertTrue(journal.canUndo(listOf("uri1"), "template-1"))
     }
+
+    @Test fun `gallery mutation blocks old camera undo without blocking a new shot`() {
+        val journal = CapturePhraseUndoHistory()
+        journal.record("template-1", listOf("result-1", "original-1"), template(), template(shots = 1))
+        journal.invalidateUndoForExistingCaptures(listOf("result-1", "original-1"))
+        assertFalse(journal.canUndo(listOf("result-1", "original-1"), "template-1"))
+        // Gallery changes never call deleted(), so phrase progress is untouched.
+        assertFalse(journal.hasIncompleteDeletion())
+        journal.record("template-1", listOf("result-2"), template(shots = 1), template(shots = 2))
+        assertTrue(journal.canUndo(listOf("result-2"), "template-1"))
+        assertFalse(journal.canUndo(listOf("original-1"), "template-1"))
+        journal.clear()
+        assertTrue(journal.canUndo(listOf("original-1"), "template-1"))
+    }
+
+    @Test fun `editing another capture leaves latest untouched`() {
+        val journal = CapturePhraseUndoHistory()
+        journal.record("template-1", listOf("older"), template(), template(shots = 1))
+        journal.record("template-1", listOf("newer"), template(shots = 1), template(shots = 2))
+        journal.invalidateUndoForExistingCaptures(listOf("older"))
+        assertTrue(journal.canUndo(listOf("newer"), "template-1"))
+        assertFalse(journal.canUndo(listOf("older"), "template-1"))
+    }
 }
