@@ -46,7 +46,7 @@ internal fun QuickResultsScreen(
     gridColumns: Int,
     showCounterBadges: Boolean,
     onGridColumnsChange: (Int) -> Unit,
-    onOpenCapture: (QuickResultCapture) -> Unit,
+    onOpenCapture: (List<QuickResultCapture>, Int) -> Unit,
     onReturnToCamera: () -> Unit,
 ) {
     val columns = GalleryGridColumnsPolicy.normalize(gridColumns)
@@ -57,6 +57,8 @@ internal fun QuickResultsScreen(
     val sections = remember(captures, selectedFolder) {
         QuickResultsSessionPolicy.sections(captures, selectedFolder)
     }
+
+    val visibleCaptures = sections.flatMap { it.captures }
 
     Column(Modifier.fillMaxSize().background(DDZColor.Background)) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -123,7 +125,7 @@ internal fun QuickResultsScreen(
                                             modifier = Modifier.weight(1f)
                                                 .aspectRatio(1f)
                                                 .background(DDZColor.SurfaceSoft, RoundedCornerShape(8.dp))
-                                                .clickable { onOpenCapture(capture) },
+                                                .clickable { onOpenCapture(visibleCaptures, visibleCaptures.indexOfFirst { it.captureIndex == capture.captureIndex }) },
                                         ) {
                                             Box(Modifier.fillMaxSize()) {
                                                 DzThumbnail(capture.displayedPhoto.uri)
