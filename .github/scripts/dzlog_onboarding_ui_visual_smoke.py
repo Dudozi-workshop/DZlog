@@ -177,6 +177,16 @@ def main():
         if not is_fully_on_screen(root, "쌓인 기록도, 찾기 쉽게."):
             raise AssertionError("Third feature card needs scrolling at normal font size")
         mark("00-feature-normal-font")
+        # Finish the NORMAL-font journey before switching to accessibility
+        # scale. Compose may keep the activity's previous fontScale after
+        # a settings change, making a mid-activity check a false failure.
+        tap_visible("사용 준비하기")
+        folder_setup()
+        choose("업무·현장")
+        normal_starter = hierarchy()
+        if not is_fully_on_screen(normal_starter, "저장 규칙 미리보기"):
+            raise AssertionError("Starter photo/save preview needs scrolling at normal font size")
+        mark("00-starter-normal-font")
         adb("shell", "am", "force-stop", PKG)
         adb("shell", "pm", "clear", PKG)
         for permission in ("android.permission.CAMERA", "android.permission.READ_MEDIA_IMAGES"):
@@ -202,14 +212,8 @@ def main():
 
         # Selection only: changing category must not create or save templates.
         choose("업무·현장")
-        adb("shell", "settings", "put", "system", "font_scale", "1.0")
-        time.sleep(2)
-        root = hierarchy()
-        if not is_fully_on_screen(root, "저장 규칙 미리보기"):
-            raise AssertionError("Starter photo/save preview needs scrolling at normal font size")
-        mark("05-starter-normal-font")
-        adb("shell", "settings", "put", "system", "font_scale", "1.4")
-        time.sleep(2)
+        # Large 140%-font mode may scroll but all controls stay reachable.
+        mark("05-starter-large-font")
         choose("다른 양식 보기")
         choose("연구·실험")
         root = wait_for("연구·실험", timeout=40)
