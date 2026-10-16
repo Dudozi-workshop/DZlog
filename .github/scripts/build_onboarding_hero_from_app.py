@@ -33,7 +33,7 @@ def make_phone(camera_file, plant_file):
     ImageDraw.Draw(clip).rounded_rectangle((0, 0, 409, 914), radius=34, fill=255)
     phone.paste(face, (13, 12), clip)
     draw.rounded_rectangle((174, 18, 265, 35), radius=10, fill=(25, 25, 25, 240))
-    return phone.rotate(12, Image.Resampling.BICUBIC, expand=True)
+    return phone.rotate(9, Image.Resampling.BICUBIC, expand=True)
 
 def main():
     parser = ArgumentParser()
@@ -42,16 +42,17 @@ def main():
     parser.add_argument("--camera", required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
-    bg = cover(Image.open(args.desk), SIZE, centering=(.5, .6))
-    bg = Image.alpha_composite(bg, Image.new("RGBA", SIZE, (250, 241, 225, 22)))
+    bg = cover(Image.open(args.desk), SIZE, centering=(.54, .56))
+    bg = Image.alpha_composite(bg, Image.new("RGBA", SIZE, (250, 241, 225, 28)))
     phone = make_phone(args.camera, args.plant)
     # The final Android hero uses a narrow portrait crop of this landscape art.
     # Position the actual DZlog phone inside the crop, not beyond its left edge.
-    px, py = 288, 60
+    phone = phone.resize((round(phone.width * .84), round(phone.height * .84)), Image.Resampling.LANCZOS)
+    px, py = 466, 114
     shadow = Image.new("RGBA", phone.size, (17, 20, 14, 0))
-    shadow.putalpha(phone.getchannel("A").point(lambda a: round(a * .32)))
+    shadow.putalpha(phone.getchannel("A").point(lambda a: round(a * .26)))
     layer = Image.new("RGBA", SIZE)
-    layer.alpha_composite(shadow, (px + 25, py + 26))
+    layer.alpha_composite(shadow, (px + 18, py + 20))
     bg = Image.alpha_composite(bg, layer.filter(ImageFilter.GaussianBlur(22)))
     bg.alpha_composite(phone, (px, py))
     output = Path(args.output)
