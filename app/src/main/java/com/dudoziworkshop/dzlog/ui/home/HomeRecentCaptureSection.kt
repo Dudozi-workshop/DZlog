@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
+import com.dudoziworkshop.dzlog.ui.common.AlbumViewAction
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import coil.compose.AsyncImage
@@ -61,18 +62,7 @@ internal fun HomeRecentCaptureSection(
             color = DDZColor.TextSecondary,
             modifier = Modifier.weight(1f),
         )
-        Text(
-            text = stringResource(com.dudoziworkshop.dzlog.R.string.home_album_view),
-            style = DDZTypography.Secondary.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
-            color = DDZColor.PrimaryDark,
-            modifier = Modifier
-                .clip(RoundedCornerShape(HomeUiSpec.AlbumActionRadius))
-                .clickable(onClick = onOpenAlbum)
-                .padding(
-                    horizontal = HomeUiSpec.AlbumActionHorizontalPadding,
-                    vertical = HomeUiSpec.AlbumActionVerticalPadding,
-                ),
-        )
+        AlbumViewAction(onClick = onOpenAlbum)
     }
 
     Spacer(Modifier.height(HomeUiSpec.RecentHeaderToImageGap))

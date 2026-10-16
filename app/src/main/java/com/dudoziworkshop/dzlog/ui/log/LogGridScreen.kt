@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -67,6 +68,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.dudoziworkshop.dzlog.domain.gallery.GalleryGridColumnsPolicy
+import com.dudoziworkshop.dzlog.domain.gallery.GalleryPhotoRowAnchorPolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.ui.common.buildTwoPartTitle
@@ -93,6 +96,9 @@ fun LogGridScreen(
     items: List<MediaImageItem>,
     isSelectionMode: Boolean,
     selectedIds: Set<Long>,
+    gridColumns: Int,
+    showCounterBadges: Boolean = true,
+    onGridColumnsChange: (Int) -> Unit,
     onItemsLoaded: (List<MediaImageItem>) -> Unit,
     onOpenViewer: (List<MediaImageItem>, Int) -> Unit,
     onToggleSelection: (id: Long) -> Unit,
@@ -118,6 +124,26 @@ fun LogGridScreen(
     var favoriteOnly by rememberSaveable { mutableStateOf(false) }
     var deleteSelection by remember(relativePath) { mutableStateOf<List<MediaImageItem>?>(null) }
     val actionLocked = deleteSelection != null
+    val displayedColumns = GalleryGridColumnsPolicy.normalize(gridColumns)
+    val gridState = rememberLazyGridState()
+    var pendingPhotoAnchor by remember {
+        mutableStateOf<Pair<Int, GalleryPhotoRowAnchorPolicy.Position>?>(null)
+    }
+    LaunchedEffect(displayedColumns, pendingPhotoAnchor) {
+        pendingPhotoAnchor?.let { pending ->
+            if (displayedColumns == pending.first) {
+                gridState.scrollToItem(pending.second.itemIndex, pending.second.scrollOffset)
+                pendingPhotoAnchor = null
+            }
+        }
+    }
+    var lastColumnHint by remember { mutableIntStateOf(0) }
+    LaunchedEffect(lastColumnHint) {
+        if (lastColumnHint != 0) {
+            delay(850)
+            lastColumnHint = 0
+        }
+    }
     BackHandler(enabled = actionLocked) { /* The confirmation/retry dialog owns dismissal. */ }
 
 
@@ -342,12 +368,31 @@ fun LogGridScreen(
                 return@Column
             }
 
+            Box(modifier = Modifier.fillMaxSize()) {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
+                columns = GridCells.Fixed(displayedColumns),
+                state = gridState,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(bottom = 24.dp),
-                modifier = Modifier.fillMaxSize().padding(bottom = bottomInset)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = bottomInset)
+                    .galleryGridPinch(
+                        columns = displayedColumns,
+                        enabled = !actionLocked && !isSelectionMode,
+                    ) { newColumns ->
+                        pendingPhotoAnchor = newColumns to GalleryPhotoRowAnchorPolicy.remap(
+                            visibleItemIndex = gridState.firstVisibleItemIndex / displayedColumns,
+                            visibleScrollOffset = gridState.firstVisibleItemScrollOffset,
+                            firstPhotoRowIndex = 0,
+                            photoCount = displayItems.size,
+                            oldColumns = displayedColumns,
+                            newColumns = newColumns,
+                        ).let { anchor -> anchor.copy(itemIndex = anchor.itemIndex * newColumns) }
+                        lastColumnHint = newColumns
+                        onGridColumnsChange(newColumns)
+                    }
             ) {
                 itemsIndexed(displayItems, key = { _, it -> it.id }) { _, item ->
                     val selected = selectedIds.contains(item.id)
@@ -370,6 +415,7 @@ fun LogGridScreen(
                     ) {
                         Box(modifier = Modifier.fillMaxSize()) {
                             DzThumbnail(uriString = item.uri.toString())
+                            GalleryCounterBadge(item, showCounterBadges, modifier = Modifier.align(Alignment.BottomStart).padding(5.dp))
 
                             if (isFavorite) {
                                 Box(
@@ -405,6 +451,21 @@ fun LogGridScreen(
                         }
                     }
                 }
+            }
+
+            if (lastColumnHint != 0) {
+                Text(
+                    text = "${lastColumnHint}열",
+                    color = Color.White,
+                    style = DDZTypography.Caption,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 8.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(DDZColor.PrimaryDark)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
             }
         }
 

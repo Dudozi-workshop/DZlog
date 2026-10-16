@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,6 +33,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dudoziworkshop.dzlog.domain.gallery.GalleryPhotoRowAnchorPolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryChildFolder
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
@@ -70,6 +73,9 @@ internal fun LogGalleryHomeContent(
     summariesByPath: Map<String, GalleryFolderSummary>,
     allImages: List<MediaImageItem>,
     favoriteIds: Set<Long>,
+    gridColumns: Int = 3,
+    showCounterBadges: Boolean = true,
+    onGridColumnsChange: (Int) -> Unit = {},
     onOpenFolder: (String) -> Unit,
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
     onOpenOriginal: (String) -> Unit,
@@ -119,12 +125,41 @@ internal fun LogGalleryHomeContent(
         filterGalleryFolders(folderIndex.children, summariesByPath, folderFilter, folderSort)
     }
     val favorites = allImages.filter { it.id in favoriteIds }
+    val favoritesListState = rememberLazyListState()
+    // Wait until the persisted column count is observed before scrolling.
+    var pendingFavoritesAnchor by remember {
+        mutableStateOf<Pair<Int, GalleryPhotoRowAnchorPolicy.Position>?>(null)
+    }
+    LaunchedEffect(gridColumns, pendingFavoritesAnchor, selectedTab) {
+        val pending = pendingFavoritesAnchor
+        if (pending != null && gridColumns == pending.first && selectedTab == GalleryTab.FAVORITES) {
+            favoritesListState.scrollToItem(pending.second.itemIndex, pending.second.scrollOffset)
+            pendingFavoritesAnchor = null
+        }
+    }
     val directPhotos = allImages.filter { GalleryDefaultStoragePolicy.isDirectRootPhoto(it.relativePath) }
     // Summary IDs are MediaStore IDs, so resolve them against this same snapshot.
     val imagesById = remember(allImages) { allImages.associateBy { it.id.toString() } }
 
     LazyColumn(
-        modifier = Modifier.fillMaxWidth(),
+        state = favoritesListState,
+        modifier = Modifier.fillMaxWidth().galleryGridPinch(
+            columns = gridColumns,
+            enabled = selectedTab == GalleryTab.FAVORITES && !selectionActive,
+            onColumnsChanged = { nextColumns ->
+                if (favorites.isNotEmpty()) {
+                    pendingFavoritesAnchor = nextColumns to GalleryPhotoRowAnchorPolicy.remap(
+                        visibleItemIndex = favoritesListState.firstVisibleItemIndex,
+                        visibleScrollOffset = favoritesListState.firstVisibleItemScrollOffset,
+                        firstPhotoRowIndex = 1, // The favorites section title
+                        photoCount = favorites.size,
+                        oldColumns = gridColumns,
+                        newColumns = nextColumns,
+                    )
+                }
+                onGridColumnsChange(nextColumns)
+            },
+        ),
         verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
         contentPadding = PaddingValues(bottom = DDZSpacing.sectionGap),
     ) {
@@ -202,8 +237,8 @@ internal fun LogGalleryHomeContent(
                 if (favorites.isEmpty()) {
                     item { GalleryEmptyText("즐겨찾기한 사진이 없습니다.") }
                 } else {
-                    items(favorites.chunked(3)) { row ->
-                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto, selectionActive = selectionActive) { photo -> onOpenPhoto(favorites, favorites.indexOfFirst { it.id == photo.id }) }
+                    items(favorites.chunked(gridColumns)) { row ->
+                        GalleryPhotoRow(row, selectedIds, onLongPressPhoto, onSelectPhoto, selectionActive = selectionActive, columns = gridColumns, showCounterBadges = showCounterBadges) { photo -> onOpenPhoto(favorites, favorites.indexOfFirst { it.id == photo.id }) }
                     }
                 }
             }
@@ -320,15 +355,27 @@ internal fun GalleryFolderRow(
 @Composable
 internal fun GalleryOriginalRow(count: Int, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth()
+            .background(DDZColor.Surface, MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick)
+            .defaultMinSize(minHeight = DDZLayout.ListItem.CompactMinHeight)
+            .padding(horizontal = DDZSpacing.controlGap, vertical = DDZSpacing.itemGap),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(DDZSpacing.compactCardContentGap),
     ) {
-        Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
-        Text("원본사진", modifier = Modifier.weight(1f))
-        Text("${count}장", color = DDZColor.TextSecondary)
-        Icon(Icons.Default.ChevronRight, contentDescription = "원본사진 열기")
+        Box(
+            modifier = Modifier.size(DDZLayout.ListItem.CompactThumbnailSize)
+                .clip(MaterialTheme.shapes.small)
+                .background(DDZColor.SurfaceSoft),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text("원본사진", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("${count}장", color = DDZColor.TextSecondary, style = DDZTypography.Secondary)
+        }
+        Icon(Icons.Default.ChevronRight, contentDescription = "원본사진 열기", tint = DDZColor.IconMuted)
     }
 }
 
@@ -339,6 +386,8 @@ internal fun GalleryPhotoRow(
     onLongPressPhoto: (MediaImageItem) -> Unit = {},
     onSelectPhoto: (MediaImageItem) -> Unit = {},
     selectionActive: Boolean = selectedIds.isNotEmpty(),
+    columns: Int = 3,
+    showCounterBadges: Boolean = true,
     onPhotoClick: (MediaImageItem) -> Unit,
 ) {
     Row(
@@ -348,9 +397,9 @@ internal fun GalleryPhotoRow(
         photos.forEach { photo ->
             GalleryPhotoTile(photo, selectedIds, onLongPressPhoto, onSelectPhoto,
                 selectionActive = selectionActive,
-                modifier = Modifier.weight(1f).aspectRatio(1f)) { onPhotoClick(photo) }
+                modifier = Modifier.weight(1f).aspectRatio(1f), showCounterBadges = showCounterBadges) { onPhotoClick(photo) }
         }
-        repeat(3 - photos.size) {
+        repeat((columns - photos.size).coerceAtLeast(0)) {
             Box(modifier = Modifier.weight(1f))
         }
     }
@@ -366,6 +415,7 @@ private fun GalleryPhotoTile(
     onSelectPhoto: (MediaImageItem) -> Unit,
     selectionActive: Boolean,
     modifier: Modifier,
+    showCounterBadges: Boolean = true,
     onPhotoClick: () -> Unit,
 ) {
     Box(modifier = modifier.combinedClickable(
@@ -373,6 +423,7 @@ private fun GalleryPhotoTile(
         onLongClick = { onLongPressPhoto(photo) },
     )) {
         DzThumbnail(photo.uri.toString())
+        GalleryCounterBadge(photo, showCounterBadges, modifier = Modifier.align(Alignment.BottomStart).padding(5.dp))
         if (selectionActive) {
             Checkbox(
                 checked = photo.id in selectedIds,

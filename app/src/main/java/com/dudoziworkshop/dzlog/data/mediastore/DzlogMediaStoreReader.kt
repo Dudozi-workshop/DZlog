@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.ContentUris
 import android.net.Uri
 import android.provider.MediaStore
+import com.dudoziworkshop.dzlog.domain.gallery.SessionThumbnailPolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 
 /**
@@ -431,6 +432,47 @@ class DzlogMediaStoreReader(
             return c.count
         }
         return 0
+    }
+
+    /**
+     * The camera thumbnail follows committed captures in this camera session,
+     * not the next image's destination folder. Try the latest shutter first;
+     * a deleted result may fall back to its original, then to an older capture.
+     * Each URI is looked up directly rather than scanning the whole gallery.
+     */
+    fun loadLatestImageInSession(savedUriGroups: List<List<Uri>>): MediaImageItem? =
+        SessionThumbnailPolicy.newestAvailable(
+            groupsOldestFirst = savedUriGroups,
+            lookup = ::loadSavedSessionImage,
+            isOriginal = { photo ->
+                photo.relativePath.trimEnd('/').substringAfterLast('/')
+                    .equals("original", ignoreCase = true)
+            },
+        )
+
+    private fun loadSavedSessionImage(contentUri: Uri): MediaImageItem? {
+        if (contentUri.scheme != "content" || contentUri.authority != "media") return null
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.RELATIVE_PATH,
+            MediaStore.Images.Media.DATE_ADDED,
+        )
+        val where = MediaStoreQueryPolicy.whereRelativePathLike(dzlogBaseLike)
+        return contentResolver.query(
+            contentUri, projection, where.selection + visiblePhotoClause,
+            where.selectionArgs, null,
+        )?.use { c ->
+            if (!c.moveToFirst()) return@use null
+            val id = c.getLong(c.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
+            MediaImageItem(
+                id = id,
+                uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id),
+                displayName = c.getString(c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)).orEmpty(),
+                relativePath = c.getString(c.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)).orEmpty(),
+                dateAddedSeconds = c.getLong(c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)),
+            )
+        }
     }
 
     fun loadLatestImageInRelativePath(relativePath: String): MediaImageItem? {

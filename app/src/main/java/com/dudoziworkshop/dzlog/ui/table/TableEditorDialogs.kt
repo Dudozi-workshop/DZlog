@@ -7,7 +7,7 @@ import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.feature.table.policy.RotatingPhraseSetCreationPolicy
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
@@ -203,15 +203,23 @@ internal fun RotatingPhraseDialogsHost(
                 DDZDialogAction(style = DDZButtonStyle.Primary, onClick = {
                     val name = rotatingUi.createSetName.trim()
                     if (name.isNotEmpty() && rotatingUi.templateDialogCellId != null) {
-                        val created = RotatingPhraseSet(UUID.randomUUID().toString(), name, emptyList(), 1)
-                        val updated = templateState.copy(
-                            phraseSets = templateState.phraseSets + created,
-                            cells = templateState.cells.map { cell ->
-                                if (cell.cellId == rotatingUi.templateDialogCellId) cell.copy(phraseSetId = created.id, everyOverride = null) else cell
-                            }
+                        val result = RotatingPhraseSetCreationPolicy.createAndSelect(
+                            template = templateState,
+                            targetCellId = rotatingUi.templateDialogCellId,
+                            name = name,
+                            newSetId = UUID.randomUUID().toString(),
                         )
-                        updateTemplate(updated)
-                        onRotatingUiChange(rotatingUi.copy(isCreateSetDialogOpen = false, createSetName = ""))
+                        if (result != null) {
+                            updateTemplate(result.template)
+                            onRotatingUiChange(
+                                rotatingUi.copy(
+                                    isCreateSetDialogOpen = false,
+                                    createSetName = "",
+                                    isSetEditDialogOpen = true,
+                                    editingSetId = result.selectedSetId,
+                                )
+                            )
+                        }
                     }
                 }) { Text("추가", style = DDZTypography.ButtonText) }
             },

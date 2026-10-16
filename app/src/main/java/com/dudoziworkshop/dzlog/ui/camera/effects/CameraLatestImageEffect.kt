@@ -15,7 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
-import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -27,8 +26,7 @@ internal data class LatestImageController(
 @Composable
 internal fun rememberLatestImageController(
     context: Context,
-    counterScopeRelativePathKey: String,
-    saveMode: SaveMode,
+    sessionCaptureStack: List<List<android.net.Uri>>,
 ): LatestImageController {
     val refreshTick = rememberMediaStoreRefreshTick(context)
     var latestImage by remember { mutableStateOf<MediaImageItem?>(null) }
@@ -36,21 +34,24 @@ internal fun rememberLatestImageController(
     var reloadTick by remember { mutableIntStateOf(0) }
     fun reload() { reloadTick += 1 }
 
-    // One cancellable lookup owns the thumbnail. A slow old-folder lookup must
-    // never replace a newer folder/mode result or remain navigable while loading.
-    LaunchedEffect(context, refreshTick, saveMode, counterScopeRelativePathKey, reloadTick) {
-        latestImage = null
+    // Reading the observable stack makes a new committed shutter trigger a
+    // refresh even if its save folder differs from the next capture's folder.
+    val savedGroups = sessionCaptureStack.map { group -> group.toList() }
+
+    // Do not clear an existing thumbnail merely because the save path or
+    // save mode changed. A cancellable lookup replaces it after reconciliation.
+    LaunchedEffect(context, refreshTick, savedGroups, reloadTick) {
         latestImage = withContext(Dispatchers.IO) {
             val reader = DzlogMediaStoreReader(context.contentResolver)
-            val baseRelativePath = counterScopeRelativePathKey
-                .substringBefore("|g2=", counterScopeRelativePathKey)
-                .let { if (it.endsWith('/')) it else "$it/" }
-            val targetRelativePath = if (saveMode == SaveMode.ORIGINAL_ONLY) {
-                if (baseRelativePath.endsWith("original/")) baseRelativePath else "${baseRelativePath}original/"
-            } else {
-                baseRelativePath
-            }
-            runCatching { reader.loadLatestImageInRelativePath(targetRelativePath) }.getOrNull()
+            runCatching {
+                if (savedGroups.isNotEmpty()) {
+                    reader.loadLatestImageInSession(savedGroups)
+                } else {
+                    // A new camera batch must not display a previous batch's
+                    // thumbnail. The empty tile still opens the regular album.
+                    null
+                }
+            }.getOrNull()
         }
     }
 

@@ -20,6 +20,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -67,6 +68,7 @@ import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase
 import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureSavedResult
 import com.dudoziworkshop.dzlog.feature.table.policy.replaceActiveSavedTableTemplate
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
+import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePhraseUndoHistory
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
 import com.dudoziworkshop.dzlog.ui.log.LogFolderScreen
@@ -77,6 +79,12 @@ import com.dudoziworkshop.dzlog.ui.log.ORIGINAL_PHOTOS_TITLE
 import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
 import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2Screen
 import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateListScreen
+import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultPhoto
+import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultCapture
+import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultsSessionPolicy
+import com.dudoziworkshop.dzlog.ui.log.QuickResultsScreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -94,7 +102,8 @@ enum class AppScreen {
     ALBUM_G1,
     ALBUM_G2,
     ALBUM_GRID,
-    ALBUM_VIEWER
+    ALBUM_VIEWER,
+    QUICK_RESULTS
 }
 
 enum class GridEntrySource {
@@ -107,6 +116,7 @@ enum class ViewerEntrySource {
     GRID,
     CAMERA_RECENT,
     FOLDER,
+    QUICK_RESULTS,
 }
 
 enum class OriginalParent {
@@ -129,9 +139,11 @@ data class OriginalNavContext(
 @Composable
 fun AppRoot(startOnCamera: Boolean = false) {
     var screen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    val quickResultsSaveableHolder = rememberSaveableStateHolder()
     var previousScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
     var templateListEntryScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
     var albumEntryScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    var returnToQuickResultsFromAlbum by rememberSaveable { mutableStateOf(false) }
     var gridEntrySource by rememberSaveable { mutableStateOf(GridEntrySource.NORMAL) }
     var viewerEntrySource by rememberSaveable { mutableStateOf(ViewerEntrySource.GRID) }
 
@@ -149,6 +161,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var viewerStartIndex by rememberSaveable { mutableIntStateOf(0) }
     val cameraSessionCaptureStack = remember { mutableStateListOf<List<Uri>>() }
+    val cameraPhraseUndoHistory = remember { CapturePhraseUndoHistory() }
+    var quickResultsPhotos by remember { mutableStateOf<List<com.dudoziworkshop.dzlog.domain.model.MediaImageItem>>(emptyList()) }
+    var quickResultsCaptures by remember { mutableStateOf<List<QuickResultCapture>>(emptyList()) }
 
     // 기존 상태
 
@@ -530,11 +545,13 @@ fun AppRoot(startOnCamera: Boolean = false) {
         target == AppScreen.ALBUM_G1 ||
             target == AppScreen.ALBUM_G2 ||
             target == AppScreen.ALBUM_GRID ||
-            target == AppScreen.ALBUM_VIEWER
+            target == AppScreen.ALBUM_VIEWER ||
+            target == AppScreen.QUICK_RESULTS
 
     fun navigateTo(target: AppScreen) {
         if (screen == AppScreen.CAMERA && target != AppScreen.CAMERA && !isAlbumScreen(target)) {
             cameraSessionCaptureStack.clear()
+            cameraPhraseUndoHistory.clear()
         }
         if (target == AppScreen.TABLE_TEMPLATES) {
             templateListEntryScreen = screen
@@ -569,6 +586,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
             ViewerEntrySource.CAMERA_RECENT -> AppScreen.CAMERA
             ViewerEntrySource.FOLDER -> AppScreen.ALBUM_FOLDER
             ViewerEntrySource.GRID -> AppScreen.ALBUM_GRID
+            ViewerEntrySource.QUICK_RESULTS -> AppScreen.QUICK_RESULTS
         }
     }
 
@@ -620,16 +638,46 @@ fun AppRoot(startOnCamera: Boolean = false) {
     }
 
     fun openAlbumRoot() {
+        // Only the quick-results album shortcut returns to quick results.
+        // Direct camera album entry retains the original camera-back behavior.
+        returnToQuickResultsFromAlbum = screen == AppScreen.QUICK_RESULTS
         albumLocation = null
         clearOriginalContext()
         albumFolderPath = GalleryFolderIndexPolicy.ROOT
         showRootDefaultPhotos = false
         albumGridEntryScreen = AppScreen.ALBUM_FOLDER
         resetGridUiState()
-        albumEntryScreen = screen
+        albumEntryScreen = if (returnToQuickResultsFromAlbum) AppScreen.CAMERA else screen
         gridEntrySource = GridEntrySource.NORMAL
         viewerEntrySource = ViewerEntrySource.GRID
         navigateTo(AppScreen.ALBUM_FOLDER)
+    }
+
+    fun rootAlbumBackTarget(): AppScreen =
+        if (returnToQuickResultsFromAlbum) AppScreen.QUICK_RESULTS
+        else if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA
+        else AppScreen.HOME
+
+    fun openQuickResults() {
+        albumEntryScreen = AppScreen.CAMERA
+        navigateTo(AppScreen.QUICK_RESULTS)
+    }
+
+    LaunchedEffect(screen, cameraSessionCaptureStack.size) {
+        if (screen != AppScreen.QUICK_RESULTS) return@LaunchedEffect
+        val savedGroups = cameraSessionCaptureStack.map { group -> group.map { it.toString() } }
+        if (savedGroups.isEmpty()) {
+            quickResultsPhotos = emptyList()
+            quickResultsCaptures = emptyList()
+            return@LaunchedEffect
+        }
+        val photos = withContext(Dispatchers.IO) {
+            DzlogMediaStoreReader(context.contentResolver).loadImagesUnderPrefix("Pictures/DZlog/")
+        }
+        quickResultsPhotos = photos
+        quickResultsCaptures = QuickResultsSessionPolicy.captures(savedGroups, photos.map {
+            QuickResultPhoto(it.uri.toString(), it.displayName, it.relativePath)
+        })
     }
 
     fun openRecentCaptureGrid(g1: String, g2: String, relativePath: String, startIndex: Int) {
@@ -641,22 +689,10 @@ fun AppRoot(startOnCamera: Boolean = false) {
         )
 
         if (screen == AppScreen.CAMERA) {
-            // Recent thumbnail opens the containing album grid, not the single-photo viewer.
-            openWaterGrid(location)
-            if (isOriginalRelativePath(location.relativePath)) {
-                openOriginalGridFrom(
-                    parent = OriginalParent.LIST,
-                    originalPath = location.relativePath,
-                    returnLocationIfWater = null,
-                )
-            }
-            albumGridEntryScreen = AppScreen.ALBUM_FOLDER
-            albumEntryScreen = AppScreen.CAMERA
-            gridEntrySource = GridEntrySource.CAMERA_RECENT
-            viewerEntrySource = ViewerEntrySource.GRID
-            navigateTo(AppScreen.ALBUM_GRID)
+            openQuickResults()
             return
         }
+
 
         openWaterGrid(location)
         if (isOriginalRelativePath(location.relativePath)) {
@@ -750,6 +786,10 @@ fun AppRoot(startOnCamera: Boolean = false) {
             AppScreen.TABLE_TEMPLATES -> screen = templateListEntryScreen
             AppScreen.TABLE_EDITOR -> screen = previousScreen
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
+            AppScreen.QUICK_RESULTS -> {
+                returnToQuickResultsFromAlbum = false
+                screen = AppScreen.CAMERA
+            }
 
             AppScreen.ALBUM_GRID -> {
                 handleAlbumGridBack()
@@ -769,7 +809,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 } else {
                     val parent = GalleryFolderIndexPolicy.parentOf(albumFolderPath)
                     if (parent != null) albumFolderPath = parent
-                    else screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
+                    else screen = rootAlbumBackTarget()
                 }
             }
             AppScreen.ALBUM_G1 -> screen = AppScreen.ALBUM_FOLDER
@@ -799,6 +839,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
                     sessionCaptureStack = cameraSessionCaptureStack,
+                    phraseUndoHistory = cameraPhraseUndoHistory,
                     verifiedTier = verifiedProTier,
                     onCaptureCommitted = {
                         captureTemplateId?.let { id ->
@@ -849,6 +890,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onOpenAlbum = ::openAlbumRoot,
                     onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
                     sessionCaptureStack = cameraSessionCaptureStack,
+                    phraseUndoHistory = cameraPhraseUndoHistory,
                     verifiedTier = verifiedProTier,
                     onCaptureCommitted = {
                         captureTemplateId?.let { id ->
@@ -943,6 +985,11 @@ fun AppRoot(startOnCamera: Boolean = false) {
             AppScreen.ALBUM_FOLDER -> {
                 LogFolderScreen(
                     relativePath = albumFolderPath,
+                    gridColumns = appSettings.galleryGridColumns,
+                    showCounterBadges = appSettings.showGalleryCounterBadges,
+                    onGridColumnsChange = { columns ->
+                        appScope.launch { AppSettingsStore.setGalleryGridColumns(context, columns) }
+                    },
                     showDefaultPhotos = showRootDefaultPhotos,
                     onShowDefaultPhotosChange = { showRootDefaultPhotos = it },
                     capturePathDrafts = (tableTemplateViewModel.templates.map { it.templateState.pathSlotDrafts } + listOf(tableTemplateState.pathSlotDrafts)).distinct(),
@@ -960,7 +1007,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                         } else {
                             val parent = GalleryFolderIndexPolicy.parentOf(albumFolderPath)
                             if (parent != null) albumFolderPath = parent
-                            else screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
+                            else screen = rootAlbumBackTarget()
                         }
                     },
                     onOpenFolder = { folder ->
@@ -999,6 +1046,36 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 // Legacy routes are redirected; new entrypoints only use ALBUM_FOLDER.
                 screen = AppScreen.ALBUM_FOLDER
             }
+            AppScreen.QUICK_RESULTS -> {
+                quickResultsSaveableHolder.SaveableStateProvider("quick-results") {
+                QuickResultsScreen(
+                    captures = quickResultsCaptures,
+                    gridColumns = appSettings.quickResultsGridColumns,
+                    showCounterBadges = appSettings.showGalleryCounterBadges,
+                    onGridColumnsChange = { count ->
+                        appScope.launch { AppSettingsStore.setQuickResultsGridColumns(context, count) }
+                    },
+                    onOpenCapture = { filtered, requestedIndex ->
+                        val photosByUri = quickResultsPhotos.associateBy { it.uri.toString() }
+                        val visiblePhotos = filtered.mapNotNull { photosByUri[it.displayedPhoto.uri] }
+                        val targetUri = filtered.getOrNull(requestedIndex)?.displayedPhoto?.uri
+                        val index = visiblePhotos.indexOfFirst { it.uri.toString() == targetUri }
+                        if (index >= 0) {
+                            gridItems = visiblePhotos
+                            viewerStartIndex = index
+                            albumLocation = AlbumLocation("", "", visiblePhotos[index].relativePath, null)
+                            viewerEntrySource = ViewerEntrySource.QUICK_RESULTS
+                            screen = AppScreen.ALBUM_VIEWER
+                        }
+                    },
+                    onOpenAlbum = ::openAlbumRoot,
+                    onReturnToCamera = {
+                        returnToQuickResultsFromAlbum = false
+                        screen = AppScreen.CAMERA
+                    },
+                )
+                }
+            }
         // 📸 앨범 내 사진 목록 화면
             AppScreen.ALBUM_GRID -> {
             val location = requireValidAlbumLocationOrFallback()
@@ -1010,6 +1087,11 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     items = gridItems,
                     isSelectionMode = isSelectionMode,
                     selectedIds = selectedIds,
+                    gridColumns = appSettings.galleryGridColumns,
+                    showCounterBadges = appSettings.showGalleryCounterBadges,
+                    onGridColumnsChange = { columns ->
+                        appScope.launch { AppSettingsStore.setGalleryGridColumns(context, columns) }
+                    },
                     onItemsLoaded = { loaded ->
                         gridItems = loaded
                         selectedIds = selectedIds.intersect(loaded.mapTo(mutableSetOf()) { it.id })
@@ -1071,7 +1153,52 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onBack = {
                         screen = resolveViewerBackTarget()
                     },
-                    onItemsReloaded = { gridItems = it },
+                    isQuickResultsViewer = viewerEntrySource == ViewerEntrySource.QUICK_RESULTS,
+                    quickResultOriginalByResultUri =
+                        if (viewerEntrySource == ViewerEntrySource.QUICK_RESULTS) {
+                            val photosByUri = quickResultsPhotos.associateBy { it.uri.toString() }
+                            quickResultsCaptures.mapNotNull { capture ->
+                                val resultUri = capture.result?.uri
+                                val originalUri = capture.original?.uri
+                                if (resultUri == null || originalUri == null) null
+                                else photosByUri[originalUri]?.let { resultUri to it }
+                            }.toMap()
+                        } else emptyMap(),
+                    onItemsReloaded = { updatedItems ->
+                        gridItems = updatedItems
+                    },
+                    onSessionMediaChanged = { changedIds ->
+                        if (viewerEntrySource == ViewerEntrySource.QUICK_RESULTS) {
+                            // Gallery mutations must not trigger a camera phrase rollback.
+                            // Keep session groups intact for browsing, but fence changed
+                            // capture URIs from a subsequent camera Undo.
+                            val affectedUris = quickResultsPhotos
+                                .filter { it.id in changedIds }
+                                .map { it.uri.toString() }
+                            val affectedGroups = cameraSessionCaptureStack.filter { group ->
+                                group.any { uri -> uri.toString() in affectedUris }
+                            }
+                            cameraPhraseUndoHistory.invalidateUndoForExistingCaptures(
+                                affectedGroups.flatMap { group -> group.map(Uri::toString) }
+                            )
+                            appScope.launch {
+                                val refreshed = withContext(Dispatchers.IO) {
+                                    DzlogMediaStoreReader(context.contentResolver)
+                                        .loadImagesUnderPrefix("Pictures/DZlog/")
+                                }
+                                quickResultsPhotos = refreshed
+                                val groups = cameraSessionCaptureStack.map { group ->
+                                    group.map(Uri::toString)
+                                }
+                                quickResultsCaptures = QuickResultsSessionPolicy.captures(
+                                    groups,
+                                    refreshed.map { photo ->
+                                        QuickResultPhoto(photo.uri.toString(), photo.displayName, photo.relativePath)
+                                    },
+                                )
+                            }
+                        }
+                    },
                     onRequestCloseViewer = {
                         isSelectionMode = false
                         selectedIds = emptySet()
