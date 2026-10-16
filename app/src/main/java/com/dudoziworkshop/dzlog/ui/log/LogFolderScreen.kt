@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -77,6 +78,7 @@ import com.dudoziworkshop.dzlog.data.mediastore.GalleryPhotoMover
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.domain.gallery.GalleryGridColumnsPolicy
+import com.dudoziworkshop.dzlog.domain.gallery.GalleryPhotoRowAnchorPolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.feature.log.policy.CapturePathImpact
@@ -114,6 +116,14 @@ fun LogFolderScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val displayedGridColumns = GalleryGridColumnsPolicy.normalize(gridColumns)
+    val photoListState = rememberLazyListState()
+    var pendingRowAnchor by remember { mutableStateOf<GalleryPhotoRowAnchorPolicy.Position?>(null) }
+    LaunchedEffect(displayedGridColumns, pendingRowAnchor) {
+        pendingRowAnchor?.let { anchor ->
+            photoListState.scrollToItem(anchor.itemIndex, anchor.scrollOffset)
+            pendingRowAnchor = null
+        }
+    }
     var lastColumnHint by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(lastColumnHint) {
         if (lastColumnHint != null) {
@@ -485,6 +495,34 @@ fun LogFolderScreen(
         columns = displayedGridColumns,
         enabled = !selectionActive && !navigationLocked,
     ) { nextColumns ->
+        val photoCount: Int
+        val firstPhotoRow: Int
+        when {
+            root && showRecentPhotos -> {
+                photoCount = recentPhotos.size
+                firstPhotoRow = 0
+            }
+            root && showDefaultPhotos -> {
+                photoCount = sortedDefaultPhotos.size
+                firstPhotoRow = 1 + if ((index?.directOriginalCount ?: 0) > 0) 1 else 0
+            }
+            else -> {
+                photoCount = sortedPhotos.size
+                firstPhotoRow =
+                    (if (!originalGrid && (index?.directOriginalCount ?: 0) > 0) 1 else 0) +
+                    (if (!originalGrid) 1 else 0) +
+                    (index?.children?.size ?: 0) +
+                    (if (visiblePhotos.isNotEmpty()) 1 else 0)
+            }
+        }
+        pendingRowAnchor = GalleryPhotoRowAnchorPolicy.remap(
+            visibleItemIndex = photoListState.firstVisibleItemIndex,
+            visibleScrollOffset = photoListState.firstVisibleItemScrollOffset,
+            firstPhotoRowIndex = firstPhotoRow,
+            photoCount = photoCount,
+            oldColumns = displayedGridColumns,
+            newColumns = nextColumns,
+        )
         lastColumnHint = nextColumns
         onGridColumnsChange(nextColumns)
     }
@@ -590,7 +628,7 @@ fun LogFolderScreen(
                     OutlinedButton(onClick = { reloadKey++ }) { Text("다시 시도") }
                 }
             } else if (root && showRecentPhotos) {
-                LazyColumn(modifier = photoListPinchModifier,
+                LazyColumn(modifier = photoListPinchModifier, state = photoListState,
                     verticalArrangement = Arrangement.spacedBy(5.dp),
                     contentPadding = PaddingValues(bottom = 24.dp)) {
                     if (recentPhotos.isEmpty()) {
@@ -604,7 +642,7 @@ fun LogFolderScreen(
                     }
                 }
             } else if (root && showDefaultPhotos) {
-                LazyColumn(modifier = photoListPinchModifier,
+                LazyColumn(modifier = photoListPinchModifier, state = photoListState,
                     verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
                     contentPadding = PaddingValues(bottom = DDZSpacing.sectionGap)) {
                     item {
@@ -682,7 +720,7 @@ fun LogFolderScreen(
                 )
             } else {
                 val current = index
-                LazyColumn(modifier = photoListPinchModifier,
+                LazyColumn(modifier = photoListPinchModifier, state = photoListState,
                     verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
                     contentPadding = PaddingValues(bottom = DDZSpacing.sectionGap)) {
                     if (!originalGrid && current != null && current.directOriginalCount > 0) {
