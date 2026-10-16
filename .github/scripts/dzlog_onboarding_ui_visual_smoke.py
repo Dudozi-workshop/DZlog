@@ -200,7 +200,7 @@ def main():
         adb("shell", "settings", "put", "system", "font_scale", "1.4")
         adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
         root = wait_for("사진에 기록을 더해,", timeout=85)
-        if not is_fully_on_screen(root, "다음"):
+        if not is_fully_on_screen(root, "시작하기"):
             raise AssertionError("Compact onboarding intro CTA clipped")
         mark("01-intro-compact-large-font")
         tap_visible("시작하기")
