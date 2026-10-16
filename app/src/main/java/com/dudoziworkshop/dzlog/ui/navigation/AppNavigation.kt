@@ -1132,11 +1132,22 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onBack = {
                         screen = resolveViewerBackTarget()
                     },
+                    quickResultOriginalByResultUri =
+                        if (viewerEntrySource == ViewerEntrySource.QUICK_RESULTS) {
+                            val photosByUri = quickResultsPhotos.associateBy { it.uri.toString() }
+                            quickResultsCaptures.mapNotNull { capture ->
+                                val resultUri = capture.result?.uri
+                                val originalUri = capture.original?.uri
+                                if (resultUri == null || originalUri == null) null
+                                else photosByUri[originalUri]?.let { resultUri to it }
+                            }.toMap()
+                        } else emptyMap(),
                     onItemsReloaded = { updatedItems ->
                         gridItems = updatedItems
+                    },
+                    onSessionMediaChanged = {
                         if (viewerEntrySource == ViewerEntrySource.QUICK_RESULTS) {
-                            // Viewer deletion and move affect only the session projection.
-                            // Do not mutate the camera Undo stack or capture counters.
+                            // Refresh the projection, never the camera Undo stack.
                             appScope.launch {
                                 val refreshed = withContext(Dispatchers.IO) {
                                     DzlogMediaStoreReader(context.contentResolver)
@@ -1149,11 +1160,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                                 quickResultsCaptures = QuickResultsSessionPolicy.captures(
                                     groups,
                                     refreshed.map { photo ->
-                                        QuickResultPhoto(
-                                            photo.uri.toString(),
-                                            photo.displayName,
-                                            photo.relativePath,
-                                        )
+                                        QuickResultPhoto(photo.uri.toString(), photo.displayName, photo.relativePath)
                                     },
                                 )
                             }
