@@ -448,8 +448,7 @@ fun CameraPreview(
     val displayCounter = derivedState.displayCounter
     val latestImageController = rememberLatestImageController(
         context = context,
-        counterScopeRelativePathKey = captureScopeState.counterScope.relativePathKey,
-        saveMode = appSettings.saveMode
+        sessionCaptureStack = sessionCaptureStack,
     )
     LaunchedEffect(asyncCaptureService, latestImageController) {
         asyncCaptureService.events.collect { event ->
