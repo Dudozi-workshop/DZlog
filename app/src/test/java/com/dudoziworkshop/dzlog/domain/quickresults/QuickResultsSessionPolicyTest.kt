@@ -88,4 +88,34 @@ class QuickResultsSessionPolicyTest {
         assertEquals(1, captures.size)
     }
 
+    @Test fun folderHeaderShowsFullRelativePathUnderDzlog() {
+        assertEquals("로도비트 / T4 / 261016",
+            QuickResultsSessionPolicy.folderLabel("Pictures/DZlog/로도비트/T4/261016/"))
+        assertEquals("DZlog",
+            QuickResultsSessionPolicy.folderLabel("Pictures/DZlog/"))
+        assertEquals("A / B", QuickResultsSessionPolicy.folderLabel("A/B/"))
+    }
+
+    @Test fun contiguousSessionSegmentDisplaysCaptureRange() {
+        val result = QuickResultsSessionPolicy.captures(
+            (0 until 25).map { listOf("photo$it") },
+            (0 until 25).map { photo("photo$it", "Pictures/DZlog/A/") },
+        )
+        val section = QuickResultsSessionPolicy.sections(result).single()
+        assertEquals("25건 · #1~25", QuickResultsSessionPolicy.sectionLabel(section))
+        val five = section.copy(captures = section.captures.take(5))
+        assertEquals("5건 · #21~25", QuickResultsSessionPolicy.sectionLabel(five))
+    }
+
+    @Test fun filteredNoncontiguousCapturesDoNotClaimContinuousRange() {
+        val a = "Pictures/DZlog/A/"
+        val b = "Pictures/DZlog/B/"
+        val result = QuickResultsSessionPolicy.captures(
+            listOf(listOf("a1"), listOf("b1"), listOf("a2")),
+            listOf(photo("a1", a), photo("b1", b), photo("a2", a)),
+        )
+        val section = QuickResultsSessionPolicy.sections(result, a).single()
+        assertEquals("2건 · #3 외 1건", QuickResultsSessionPolicy.sectionLabel(section))
+    }
+
 }
