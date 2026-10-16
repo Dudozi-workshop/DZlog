@@ -164,6 +164,23 @@ def main():
     try:
         adb("shell", "wm", "size", "720x1600")
         adb("shell", "wm", "density", "360")
+        # Visual-fit preflight at standard text scaling. Reset only the
+        # disposable emulator app before the existing large-text E2E run.
+        adb("shell", "settings", "put", "system", "font_scale", "1.0")
+        adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
+        root = wait_for("사진을,", timeout=85)
+        if not is_fully_on_screen(root, "한 장의 사진이, 더 오래 기억되는 기록이 됩니다."):
+            raise AssertionError("Intro composition needs scrolling at normal font size")
+        mark("00-intro-normal-font")
+        tap_visible("다음")
+        root = wait_for("사진과 기록, 내 방식대로.", timeout=55)
+        if not is_fully_on_screen(root, "쌓인 기록도, 찾기 쉽게."):
+            raise AssertionError("Third feature card needs scrolling at normal font size")
+        mark("00-feature-normal-font")
+        adb("shell", "am", "force-stop", PKG)
+        adb("shell", "pm", "clear", PKG)
+        for permission in ("android.permission.CAMERA", "android.permission.READ_MEDIA_IMAGES"):
+            adb("shell", "pm", "grant", PKG, permission)
         adb("shell", "settings", "put", "system", "font_scale", "1.4")
         adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
         root = wait_for("사진을,", timeout=85)
