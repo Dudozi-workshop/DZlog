@@ -39,14 +39,15 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 /** Editorial introduction. All examples are non-persistent. */
 @Composable
-internal fun OnboardingBrandIntro() {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Spacer(Modifier.height(8.dp))
+internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = false) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 12.dp)) {
+        if (!compact) Spacer(Modifier.height(8.dp))
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("사진을,", style = DDZTypography.HomeMainTitle, color = DDZColor.TextPrimary)
             Text("더 가치 있는 기록으로.", style = DDZTypography.HomeMainTitle,
@@ -59,7 +60,7 @@ internal fun OnboardingBrandIntro() {
         OnboardingPhotoShowcase(
             labels = listOf("기록명", "날짜", "번호"),
             values = listOf("관찰 기록", "26.10.15", "001"),
-            height = 326.dp,
+            height = heroHeight,
         )
         Text("한 장의 사진이, 더 오래 기억되는 기록이 됩니다.",
             style = DDZTypography.Caption, color = DDZColor.TextSecondary)
@@ -67,9 +68,9 @@ internal fun OnboardingBrandIntro() {
 }
 
 @Composable
-internal fun OnboardingFeatureIntro() {
+internal fun OnboardingFeatureIntro(previewHeight: Dp = 146.dp, compact: Boolean = false) {
     var showRecordTable by rememberSaveable { mutableStateOf(true) }
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 10.dp)) {
         Text("사진에 기록을 더하고,\n정리까지 한 번에.",
             style = DDZTypography.HomeMainTitle, color = DDZColor.TextPrimary)
         Text("촬영부터 보관까지, 필요한 기능만 담았어요.",
@@ -80,8 +81,8 @@ internal fun OnboardingFeatureIntro() {
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(
-                Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                Modifier.padding(if (compact) 9.dp else 12.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp),
             ) {
                 Text("01  사진과 기록, 내 방식대로.",
                     style = DDZTypography.SectionTitle, color = DDZColor.TextPrimary)
@@ -92,7 +93,7 @@ internal fun OnboardingFeatureIntro() {
                 OnboardingPhotoShowcase(
                     labels = listOf("기록명", "날짜", "번호"),
                     values = listOf("관찰 기록", "26.10.15", "001"),
-                    height = 146.dp,
+                    height = previewHeight,
                     compact = true,
                     showTable = showRecordTable,
                 )
@@ -103,12 +104,14 @@ internal fun OnboardingFeatureIntro() {
             number = "02",
             title = "촬영과 동시에, 원하는 곳에.",
             detail = "내 파일명과 폴더 규칙에 맞춰 저장해요.",
+            compact = compact,
         )
         CompactFeature(
             icon = Icons.Default.Description,
             number = "03",
             title = "쌓인 기록도, 찾기 쉽게.",
             detail = "최근 사진과 폴더를 바로 찾아보세요.",
+            compact = compact,
         )
     }
 }
@@ -141,6 +144,7 @@ private fun CompactFeature(
     number: String,
     title: String,
     detail: String,
+    compact: Boolean = false,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -148,27 +152,27 @@ private fun CompactFeature(
         color = DDZColor.Surface,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(9.dp),
+            modifier = Modifier.fillMaxWidth().padding(if (compact) 6.dp else 9.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(5.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 5.dp),
             ) {
                 Text(number, style = DDZTypography.Caption, color = DDZColor.SelectedDark)
                 Text(title, style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                 Text(detail, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
             }
             Box(
-                Modifier.size(82.dp, 78.dp)
+                Modifier.size(if (compact) 70.dp else 82.dp, if (compact) 60.dp else 78.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(DDZColor.SelectedSoft),
             ) {
                 Image(
                     painter = painterResource(R.drawable.onboarding_hero_photo),
                     contentDescription = null,
-                    modifier = Modifier.fillMaxWidth().height(78.dp),
+                    modifier = Modifier.fillMaxWidth().height(if (compact) 60.dp else 78.dp),
                     contentScale = ContentScale.Crop,
                     alpha = 0.98f,
                 )
