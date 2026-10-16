@@ -231,8 +231,16 @@ def main():
         root = mark("07-relaunch-home")
         if contains(root, "사진을,") or contains(root, "어떤 기록을 시작할까요?"):
             raise AssertionError("Onboarding repeated after completing setup")
+        # Use an ACTUAL camera screen capture for the approved marketing mockup.
+        # This only visits the camera on the disposable emulator. No shutter,
+        # gallery deletion, or photo file modifications are performed.
+        tap_visible("촬영 시작")
+        time.sleep(2.5)
+        camera_root = mark("08-actual-dzlog-camera")
+        if contains(camera_root, "사진을,"):
+            raise AssertionError("Camera navigation unexpectedly reopened onboarding")
         alive()
-        print("PASS: compact onboarding, 140% text, table/plain toggle, folder, starter, relaunch")
+        print("PASS: 4-stage onboarding, starter, permissions, relaunch and real camera preview")
     finally:
         try:
             adb("shell", "wm", "size", "reset")
