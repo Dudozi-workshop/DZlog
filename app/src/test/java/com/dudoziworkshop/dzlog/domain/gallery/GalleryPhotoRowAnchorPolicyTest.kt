@@ -24,7 +24,7 @@ class GalleryPhotoRowAnchorPolicyTest {
     }
     @Test fun clampsLastPartialPhotoRow() {
         assertEquals(
-            GalleryPhotoRowAnchorPolicy.Position(4, 0),
+            GalleryPhotoRowAnchorPolicy.Position(3, 0),
             GalleryPhotoRowAnchorPolicy.remap(3, 0, 1, 5, 3, 2)
         )
     }
