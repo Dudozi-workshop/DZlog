@@ -397,11 +397,17 @@ private fun BoxScope.CameraBottomBarRow(
                     latestImage = latestImage,
                     onClick = {
                         ui.dismissCameraInteractions()
-                        if (latestImage == null) {
-                            onOpenAlbum()
+                        if (sessionCaptureStack.isNotEmpty()) {
+                            // Quick Results is a session surface even if a
+                            // thumbnail is still loading or all shots were deleted.
+                            val (g1, g2) = latestImage?.let {
+                                parseG1G2FromRelativePath(it.relativePath)
+                            } ?: ("" to "")
+                            onOpenRecentCaptureGrid(g1, g2, latestImage?.relativePath.orEmpty(), 0)
                         } else {
-                            val (g1, g2) = parseG1G2FromRelativePath(latestImage.relativePath)
-                            onOpenRecentCaptureGrid(g1, g2, latestImage.relativePath, 0)
+                            // A global recent photo may be visible before the
+                            // first shutter; it is not part of this session.
+                            onOpenAlbum()
                         }
                     }
                 )
