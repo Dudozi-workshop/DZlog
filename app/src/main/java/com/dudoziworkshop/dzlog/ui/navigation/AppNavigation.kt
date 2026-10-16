@@ -142,6 +142,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     var previousScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
     var templateListEntryScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
     var albumEntryScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    var returnToQuickResultsFromAlbum by rememberSaveable { mutableStateOf(false) }
     var gridEntrySource by rememberSaveable { mutableStateOf(GridEntrySource.NORMAL) }
     var viewerEntrySource by rememberSaveable { mutableStateOf(ViewerEntrySource.GRID) }
 
@@ -634,17 +635,25 @@ fun AppRoot(startOnCamera: Boolean = false) {
     }
 
     fun openAlbumRoot() {
+        // Only the quick-results album shortcut returns to quick results.
+        // Direct camera album entry retains the original camera-back behavior.
+        returnToQuickResultsFromAlbum = screen == AppScreen.QUICK_RESULTS
         albumLocation = null
         clearOriginalContext()
         albumFolderPath = GalleryFolderIndexPolicy.ROOT
         showRootDefaultPhotos = false
         albumGridEntryScreen = AppScreen.ALBUM_FOLDER
         resetGridUiState()
-        albumEntryScreen = screen
+        albumEntryScreen = if (returnToQuickResultsFromAlbum) AppScreen.CAMERA else screen
         gridEntrySource = GridEntrySource.NORMAL
         viewerEntrySource = ViewerEntrySource.GRID
         navigateTo(AppScreen.ALBUM_FOLDER)
     }
+
+    fun rootAlbumBackTarget(): AppScreen =
+        if (returnToQuickResultsFromAlbum) AppScreen.QUICK_RESULTS
+        else if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA
+        else AppScreen.HOME
 
     fun openQuickResults() {
         albumEntryScreen = AppScreen.CAMERA
@@ -774,7 +783,10 @@ fun AppRoot(startOnCamera: Boolean = false) {
             AppScreen.TABLE_TEMPLATES -> screen = templateListEntryScreen
             AppScreen.TABLE_EDITOR -> screen = previousScreen
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
-            AppScreen.QUICK_RESULTS -> screen = AppScreen.CAMERA
+            AppScreen.QUICK_RESULTS -> {
+                returnToQuickResultsFromAlbum = false
+                screen = AppScreen.CAMERA
+            }
 
             AppScreen.ALBUM_GRID -> {
                 handleAlbumGridBack()
@@ -794,7 +806,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 } else {
                     val parent = GalleryFolderIndexPolicy.parentOf(albumFolderPath)
                     if (parent != null) albumFolderPath = parent
-                    else screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
+                    else screen = rootAlbumBackTarget()
                 }
             }
             AppScreen.ALBUM_G1 -> screen = AppScreen.ALBUM_FOLDER
@@ -990,7 +1002,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                         } else {
                             val parent = GalleryFolderIndexPolicy.parentOf(albumFolderPath)
                             if (parent != null) albumFolderPath = parent
-                            else screen = if (albumEntryScreen == AppScreen.CAMERA) AppScreen.CAMERA else AppScreen.HOME
+                            else screen = rootAlbumBackTarget()
                         }
                     },
                     onOpenFolder = { folder ->
@@ -1051,7 +1063,11 @@ fun AppRoot(startOnCamera: Boolean = false) {
                             screen = AppScreen.ALBUM_VIEWER
                         }
                     },
-                    onReturnToCamera = { screen = AppScreen.CAMERA },
+                    onOpenAlbum = ::openAlbumRoot,
+                    onReturnToCamera = {
+                        returnToQuickResultsFromAlbum = false
+                        screen = AppScreen.CAMERA
+                    },
                 )
                 }
             }
