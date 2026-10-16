@@ -22,7 +22,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,7 +53,7 @@ internal fun QuickResultsScreen(
     val folders = remember(captures) { QuickResultsSessionPolicy.folderChoices(captures) }
     var selectedFolder by rememberSaveable { mutableStateOf<String?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
-    val collapsed = remember { mutableStateMapOf<String, Boolean>() }
+    var collapsedKeys by rememberSaveable { mutableStateOf(emptySet<String>()) }
     val listState = rememberLazyListState()
     val sections = remember(captures, selectedFolder) {
         QuickResultsSessionPolicy.sections(captures, selectedFolder)
@@ -110,7 +109,7 @@ internal fun QuickResultsScreen(
                         Row(
                             Modifier.fillMaxWidth()
                                 .background(DDZColor.Surface, RoundedCornerShape(12.dp))
-                                .clickable { collapsed[section.key] = collapsed[section.key] != true }
+                                .clickable { collapsedKeys = if (section.key in collapsedKeys) collapsedKeys - section.key else collapsedKeys + section.key }
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -119,10 +118,10 @@ internal fun QuickResultsScreen(
                                 modifier = Modifier.weight(1f),
                                 color = DDZColor.TextPrimary,
                             )
-                            Text("${section.captures.size}건 " + if (collapsed[section.key] == true) "▾" else "▴")
+                            Text("${section.captures.size}건 " + if (section.key in collapsedKeys) "▾" else "▴")
                         }
                     }
-                    if (collapsed[section.key] != true) {
+                    if (section.key !in collapsedKeys) {
                         section.captures.chunked(columns).forEach { row ->
                             item(key = "row:${section.key}:${row.first().captureIndex}") {
                                 Row(
