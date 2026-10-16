@@ -86,6 +86,40 @@ object QuickResultsSessionPolicy {
         return sections
     }
 
+    /**
+     * Show the complete folder identity under DZlog; never only the final
+     * segment, because unrelated folders may share the same date/leaf name.
+     */
+    fun folderLabel(folderPath: String): String {
+        val components = folderPath.trim().trim('/').split('/')
+            .filter(String::isNotBlank)
+        val dzlogIndex = components.indexOfFirst { it.equals("DZlog", ignoreCase = true) }
+        return when {
+            dzlogIndex < 0 -> components.joinToString(" / ").ifEmpty { "DZlog" }
+            dzlogIndex == components.lastIndex -> "DZlog"
+            else -> components.drop(dzlogIndex + 1).joinToString(" / ")
+        }
+    }
+
+    /**
+     * Session-order indices, not saved filename counters. A range is shown
+     * only when every capture inside the section is consecutive.
+     * Filtered sections can contain gaps and must not claim a continuous range.
+     */
+    fun sectionLabel(section: QuickResultSection): String {
+        val indices = section.captures.map { it.captureIndex }.sorted()
+        if (indices.isEmpty()) return "0건"
+        val count = indices.size
+        val first = indices.first() + 1
+        val last = indices.last() + 1
+        val detail = when {
+            count == 1 -> "#$first"
+            indices.zipWithNext().all { (a, b) -> b == a + 1 } -> "#$first~$last"
+            else -> "#$last 외 ${count - 1}건"
+        }
+        return "${count}건 · $detail"
+    }
+
     fun folderChoices(newestFirst: List<QuickResultCapture>): List<String> =
         newestFirst.map { it.folderPath }.distinct()
 }
