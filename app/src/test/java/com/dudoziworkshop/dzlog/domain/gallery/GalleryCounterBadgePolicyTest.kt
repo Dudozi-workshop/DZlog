@@ -29,4 +29,30 @@ class GalleryCounterBadgePolicyTest {
         // Sample_20261016.jpg must not be interpreted here.
         assertNull(GalleryCounterBadgePolicy.labelForVerifiedCounter(null, enabled = true))
     }
+    @Test
+    fun generatedDzlogNamesDisplayUnpaddedCounters() {
+        assertEquals("28", GalleryCounterBadgePolicy.labelFromDzlogFilename(
+            "Blueberry_A_0028.jpg", "Pictures/DZlog/Plants/", true
+        ))
+        assertEquals("3", GalleryCounterBadgePolicy.labelFromDzlogFilename(
+            "Sample_3.jpeg", "Pictures/DZlog/original/", true
+        ))
+    }
+
+    @Test
+    fun nonDzlogAndNonCounterNamesDoNotGetBadges() {
+        assertNull(GalleryCounterBadgePolicy.labelFromDzlogFilename(
+            "Sample_28.jpg", "Pictures/Other/", true
+        ))
+        assertNull(GalleryCounterBadgePolicy.labelFromDzlogFilename(
+            "Sample_202610.jpg", "Pictures/DZlog/", true
+        ))
+        assertNull(GalleryCounterBadgePolicy.labelFromDzlogFilename(
+            "Sample_2026_10_16.jpg", "Pictures/DZlog/", true
+        ))
+        assertNull(GalleryCounterBadgePolicy.labelFromDzlogFilename(
+            "Blueberry_003.jpg", "Pictures/DZlog/", false
+        ))
+    }
+
 }
