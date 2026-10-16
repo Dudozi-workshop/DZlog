@@ -181,6 +181,8 @@ def main():
         # scale. Compose may keep the activity's previous fontScale after
         # a settings change, making a mid-activity check a false failure.
         tap_visible("사용 준비하기")
+        wait_for("앱을 사용하기 위해", timeout=75)
+        mark("00-permissions-normal-font")
         folder_setup()
         choose("업무·현장")
         normal_starter = hierarchy()

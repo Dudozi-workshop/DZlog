@@ -87,7 +87,7 @@ internal fun OnboardingFlowScreen(
             // Keep the approved poster-like hero dominant without sacrificing
             // the bottom caption on ordinary-size screens. Accessibility
             // text scaling may scroll rather than clip any controls.
-            val introHeroHeight = (maxHeight - if (compact) 202.dp else 230.dp)
+            val introHeroHeight = (maxHeight - if (compact) 175.dp else 207.dp)
                 .coerceIn(if (compact) 192.dp else 260.dp, if (compact) 340.dp else 430.dp)
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
