@@ -10,12 +10,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
@@ -27,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.gallery.GalleryCounterBadgePolicy
@@ -36,6 +39,7 @@ import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultCapture
 import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultsSessionPolicy
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 
 /**
  * Read-only camera-session results surface.
@@ -81,7 +85,7 @@ internal fun QuickResultsScreen(
             }
             Box {
                 TextButton(onClick = { menuExpanded = true }) {
-                    Text((selectedFolder?.trimEnd('/')?.substringAfterLast('/') ?: "전체 폴더") + " ▾")
+                    Text((selectedFolder?.let(QuickResultsSessionPolicy::folderLabel) ?: "전체 폴더") + " ▾", color = DDZColor.Primary, maxLines = 1, overflow = TextOverflow.Ellipsis, style = DDZTypography.TextAction)
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     DropdownMenuItem(text = { Text("전체 폴더") }, onClick = {
@@ -90,7 +94,7 @@ internal fun QuickResultsScreen(
                     })
                     folders.forEach { folder ->
                         DropdownMenuItem(
-                            text = { Text(folder.trimEnd('/').substringAfterLast('/')) },
+                            text = { Text(QuickResultsSessionPolicy.folderLabel(folder)) },
                             onClick = {
                                 selectedFolder = folder
                                 menuExpanded = false
@@ -134,24 +138,33 @@ internal fun QuickResultsScreen(
                     item(key = "header:" + section.key) {
                         Row(
                             Modifier.fillMaxWidth()
-                                .background(DDZColor.Surface, RoundedCornerShape(12.dp))
+                                .background(DDZColor.Surface, RoundedCornerShape(14.dp))
                                 .clickable { collapsedKeys = if (section.key in collapsedKeys) collapsedKeys - section.key else collapsedKeys + section.key }
-                                .padding(12.dp),
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                section.folderPath.trimEnd('/').substringAfterLast('/'),
+                                QuickResultsSessionPolicy.folderLabel(section.folderPath),
                                 modifier = Modifier.weight(1f),
                                 color = DDZColor.TextPrimary,
+                                style = DDZTypography.SettingLabel,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
                             )
-                            Text("${section.captures.size}건 " + if (section.key in collapsedKeys) "▾" else "▴")
+                            Text(
+                                QuickResultsSessionPolicy.sectionLabel(section) +
+                                    if (section.key in collapsedKeys) " ▾" else " ▴",
+                                color = DDZColor.TextSecondary,
+                                style = DDZTypography.Caption,
+                                modifier = Modifier.padding(start = 8.dp),
+                            )
                         }
                     }
                     if (section.key !in collapsedKeys) {
                         section.captures.chunked(columns).forEach { row ->
                             item(key = "row:${section.key}:${row.first().captureIndex}") {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                                    modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                                 ) {
                                     row.forEach { capture ->
@@ -173,21 +186,20 @@ internal fun QuickResultsScreen(
                                                 showCounterBadges,
                                             )
                                             if (label != null) {
-                                                Text(
-                                                    label,
+                                                GalleryCounterBadgeLabel(
+                                                    label = label,
                                                     modifier = Modifier.align(Alignment.BottomStart)
-                                                        .background(DDZColor.PrimaryDark, RoundedCornerShape(4.dp))
-                                                        .padding(horizontal = 5.dp, vertical = 2.dp),
-                                                    color = androidx.compose.ui.graphics.Color.White,
+                                                        .padding(5.dp),
                                                 )
                                             }
                                             if (capture.isOriginalOnly) {
                                                 Text(
                                                     "원본",
                                                     modifier = Modifier.align(Alignment.TopStart)
-                                                        .background(DDZColor.PrimaryDark, RoundedCornerShape(4.dp))
-                                                        .padding(horizontal = 5.dp, vertical = 2.dp),
-                                                    color = androidx.compose.ui.graphics.Color.White,
+                                                        .background(DDZColor.SageLight, RoundedCornerShape(10.dp))
+                                                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                                                    color = DDZColor.Primary,
+                                                    style = DDZTypography.Caption,
                                                 )
                                             }
                                         }
@@ -204,8 +216,12 @@ internal fun QuickResultsScreen(
         }
 
         Button(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .height(52.dp),
             onClick = onReturnToCamera,
-        ) { Text("카메라로") }
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = DDZColor.PrimaryDark),
+        ) { Text("카메라로", style = DDZTypography.ButtonText) }
     }
 }
