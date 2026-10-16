@@ -135,7 +135,7 @@ internal fun OnboardingFlowScreen(
                     introOnly && step == 2 -> "사용 준비하기"
                     introOnly -> "다음"
                     step == 3 -> if (readOnly) "도움말 닫기" else "DZlog 시작하기"
-                    step == 1 -> "다음"
+                    step == 1 -> if (readOnly) "다음" else "시작하기"
                     else -> "다음"
                 },
                 onClick = {
@@ -149,22 +149,23 @@ internal fun OnboardingFlowScreen(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !busy, minHeight = DDZLayout.Control.Button,
             )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                DDZButton(
-                    text = if (step == 1) {
-                        if (readOnly) "닫기" else "건너뛰기"
-                    } else "이전",
-                    onClick = { if (step == 1) {
-                        if (readOnly) onClose()
-                        else if (introOnly) onIntroComplete() else onSkip()
-                    } else step-- },
-                    enabled = !busy, style = DDZButtonStyle.Text,
-                )
-                if (step != 1 && !readOnly) {
-                    DDZButton(text = "건너뛰기",
-                        onClick = if (introOnly) onIntroComplete else onSkip,
-                        enabled = !busy, style = DDZButtonStyle.Text)
-                } else Spacer(Modifier.height(1.dp))
+            // Initial page intentionally has only one CTA. Retain a close
+            // control when onboarding is replayed from Settings.
+            if (step != 1 || readOnly) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    DDZButton(
+                        text = if (step == 1) "닫기" else "이전",
+                        onClick = { if (step == 1) onClose() else step-- },
+                        enabled = !busy, style = DDZButtonStyle.Text,
+                    )
+                    if (step != 1 && !readOnly) {
+                        DDZButton(
+                            text = "건너뛰기",
+                            onClick = if (introOnly) onIntroComplete else onSkip,
+                            enabled = !busy, style = DDZButtonStyle.Text,
+                        )
+                    }
+                }
             }
             if (busy) CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
         }

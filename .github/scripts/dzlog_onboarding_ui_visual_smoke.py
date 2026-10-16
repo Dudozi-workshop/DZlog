@@ -172,7 +172,7 @@ def main():
         if not is_fully_on_screen(root, "한 장의 사진이, 더 오래 기억되는 기록이 됩니다."):
             raise AssertionError("Intro composition needs scrolling at normal font size")
         mark("00-intro-normal-font")
-        tap_visible("다음")
+        tap_visible("시작하기")
         root = wait_for("사진과 기록, 내 방식대로.", timeout=55)
         if not is_fully_on_screen(root, "쌓인 기록도, 찾기 쉽게."):
             raise AssertionError("Third feature card needs scrolling at normal font size")
@@ -199,7 +199,7 @@ def main():
         if not is_fully_on_screen(root, "다음"):
             raise AssertionError("Compact onboarding intro CTA clipped")
         mark("01-intro-compact-large-font")
-        tap_visible("다음")
+        tap_visible("시작하기")
         wait_for("사진과 기록, 내 방식대로.", timeout=55)
         wait_for("사진에 기록표를 겹친 촬영 예시")
         mark("02-feature-reference-cards")
