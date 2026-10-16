@@ -230,6 +230,7 @@ internal fun RequiredPermissionsGate(
 internal fun PermissionStatusCards(
     state: RequiredPermissionState,
     activeStep: RequiredSetupStep? = null,
+    compact: Boolean = false,
 ) {
     val rows = listOf(
         Triple("카메라", if (state.camera) "허용됨" else "허용 필요", "사진 촬영에 사용해요."),
@@ -247,6 +248,7 @@ internal fun PermissionStatusCards(
             active = (title == "카메라" && activeStep == RequiredSetupStep.CAMERA) ||
                 (title == "사진 접근" && activeStep == RequiredSetupStep.PHOTOS),
             stepNumber = if (activeStep != null) index + 1 else null,
+            compact = compact,
         )
     }
 }
@@ -258,6 +260,7 @@ internal fun PermissionCard(
     detail: String,
     active: Boolean = false,
     stepNumber: Int? = null,
+    compact: Boolean = false,
     content: @Composable () -> Unit = {},
 ) {
     val colors = LocalDDZColor.current
@@ -269,14 +272,18 @@ internal fun PermissionCard(
         shape = MaterialTheme.shapes.medium,
         border = if (active) BorderStroke(1.dp, colors.SelectedDark) else null,
     ) {
-        Column(Modifier.padding(spacing.controlGap), verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+        Column(
+            Modifier.padding(if (compact) 8.dp else spacing.controlGap),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else spacing.xs),
+        ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 stepNumber?.let { Text("$it", style = typography.SettingLabel, color = colors.SelectedDark) }
                 Icon(when (title) { "카메라" -> Icons.Default.CameraAlt; "사진 접근" -> Icons.Default.Image; else -> Icons.Default.Folder }, null, tint = colors.PrimaryDark)
                 Text(title, Modifier.weight(1f), style = typography.SettingLabel, color = colors.TextPrimary)
                 Text(status, style = typography.Caption, color = if (status == "허용됨" || status == "전체 허용" || status == "연결됨") colors.SelectedDark else colors.PrimaryDark)
             }
-            Text(detail, style = typography.Caption, color = colors.TextSecondary)
+            Text(detail, style = typography.Caption, color = colors.TextSecondary,
+                maxLines = if (compact) 2 else Int.MAX_VALUE)
             content()
         }
     }

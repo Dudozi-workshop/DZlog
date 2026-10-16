@@ -68,7 +68,7 @@ internal fun RequiredPermissionSetupScreen(
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(if (onboarding) 9.dp else 14.dp),
         ) {
             Text(
                 if (onboarding) "앱을 사용하기 위해\n권한을 설정해주세요." else "필요한 권한을 확인해 주세요",
@@ -83,7 +83,7 @@ internal fun RequiredPermissionSetupScreen(
                 style = typography.Body,
                 color = colors.TextSecondary,
             )
-            PermissionStatusCards(state, currentStep)
+            PermissionStatusCards(state, currentStep, compact = onboarding)
             PermissionCard(
                 "저장 폴더 연결",
                 if (folderConnected) "연결됨" else "연결 필요",
@@ -91,22 +91,27 @@ internal fun RequiredPermissionSetupScreen(
                 else "사진과 하위 폴더를 관리하려면 Pictures/DZlog 폴더를 연결해 주세요.",
                 active = currentStep == RequiredSetupStep.FOLDER,
                 stepNumber = 3,
+                compact = onboarding,
             )
-            CurrentSetupGuide(
-                currentStep,
-                state.photos,
-                cameraRequestAttempted,
-                photoRequestAttempted,
-            )
+            if (!onboarding || cameraRequestAttempted || photoRequestAttempted) {
+                CurrentSetupGuide(
+                    currentStep,
+                    state.photos,
+                    cameraRequestAttempted,
+                    photoRequestAttempted,
+                )
+            }
             if (onboarding) OnboardingPermissionArtwork()
             if (!notice.isNullOrBlank()) {
                 Text(notice, style = typography.Body, color = colors.Destructive)
             }
-            Text(
-                "이미 허용된 항목은 다시 요청하지 않아요.",
-                style = typography.Caption,
-                color = colors.TextSecondary,
-            )
+            if (!onboarding) {
+                Text(
+                    "이미 허용된 항목은 다시 요청하지 않아요.",
+                    style = typography.Caption,
+                    color = colors.TextSecondary,
+                )
+            }
         }
         Column(
             Modifier.fillMaxWidth().background(colors.Surface)
