@@ -944,6 +944,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 LogFolderScreen(
                     relativePath = albumFolderPath,
                     gridColumns = appSettings.galleryGridColumns,
+                    showCounterBadges = appSettings.showGalleryCounterBadges,
                     onGridColumnsChange = { columns ->
                         appScope.launch { AppSettingsStore.setGalleryGridColumns(context, columns) }
                     },
@@ -1015,6 +1016,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     isSelectionMode = isSelectionMode,
                     selectedIds = selectedIds,
                     gridColumns = appSettings.galleryGridColumns,
+                    showCounterBadges = appSettings.showGalleryCounterBadges,
                     onGridColumnsChange = { columns ->
                         appScope.launch { AppSettingsStore.setGalleryGridColumns(context, columns) }
                     },
