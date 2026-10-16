@@ -169,6 +169,8 @@ def main():
         adb("shell", "settings", "put", "system", "font_scale", "1.0")
         adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
         root = wait_for("사진에 기록을 더해,", timeout=85)
+        if not is_fully_on_screen(root, "사진에 기록을 더해,"):
+            raise AssertionError("First introduction headline must remain visible")
         if contains(root, "건너뛰기"):
             raise AssertionError("First introduction must not offer Skip")
         if not is_fully_on_screen(root, "시작하기"):
