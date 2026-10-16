@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -81,14 +82,22 @@ internal fun OnboardingFlowScreen(
             stage = when (step) { 1 -> 1; 2 -> 2; else -> 4 },
             label = when (step) { 1 -> "앱 소개"; 2 -> "주요 기능"; else -> "시작 양식" },
         )
-        Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
+        BoxWithConstraints(Modifier.weight(1f)) {
+            val compact = maxHeight < 600.dp
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 10.dp),
+            ) {
             when (step) {
-                1 -> OnboardingBrandIntro()
-                2 -> OnboardingFeatureIntro()
+                1 -> OnboardingBrandIntro(
+                    heroHeight = if (compact) 218.dp else 300.dp,
+                    compact = compact,
+                )
+                2 -> OnboardingFeatureIntro(
+                    previewHeight = if (compact) 104.dp else 146.dp,
+                    compact = compact,
+                )
                 else -> {
                     Text("어떤 기록을 시작할까요?",
                         color = DDZColor.TextPrimary, fontWeight = FontWeight.Bold,
@@ -137,10 +146,11 @@ internal fun OnboardingFlowScreen(
                             }
                         }
                     }
-                    StarterPreview(selected)
+                    StarterPreview(selected, if (compact) 126.dp else 184.dp)
                 }
             }
-            Spacer(Modifier.height(if (step == 3) 2.dp else 8.dp))
+            Spacer(Modifier.height(if (compact) 0.dp else 5.dp))
+            }
         }
         Column(
             Modifier.fillMaxWidth().background(DDZColor.Surface).padding(
@@ -189,7 +199,7 @@ internal fun OnboardingFlowScreen(
 }
 
 @Composable
-private fun StarterPreview(def: OnboardingStarterDefinition) {
+private fun StarterPreview(def: OnboardingStarterDefinition, previewHeight: androidx.compose.ui.unit.Dp) {
     val state = remember(def.id) { requireNotNull(OnboardingStarterCatalog.buildState(def.id)) }
     val now = remember(def.id) { Date() }
     val resolved = remember(state, now) {
@@ -222,7 +232,7 @@ private fun StarterPreview(def: OnboardingStarterDefinition) {
                     else -> "입력"
                 }
             },
-            height = 184.dp,
+            height = previewHeight,
             compact = true,
             showGalleryStrip = true,
         )
