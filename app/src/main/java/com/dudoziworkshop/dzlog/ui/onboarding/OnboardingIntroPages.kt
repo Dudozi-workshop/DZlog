@@ -48,22 +48,27 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = false) {
     Column(verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 12.dp)) {
         if (!compact) Spacer(Modifier.height(8.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             Text("사진을,", style = DDZTypography.HomeMainTitle, color = DDZColor.TextPrimary)
             Text("더 가치 있는 기록으로.", style = DDZTypography.HomeMainTitle,
                 color = DDZColor.PrimaryDark)
         }
         Text("일상부터 현장까지,", style = DDZTypography.SectionTitle,
-            color = DDZColor.SelectedDark)
+            color = DDZColor.SelectedDark, modifier = Modifier.padding(horizontal = 20.dp))
         Text("사진과 기록을 함께 남겨보세요.", style = DDZTypography.Body,
-            color = DDZColor.TextSecondary)
+            color = DDZColor.TextSecondary, modifier = Modifier.padding(horizontal = 20.dp))
         OnboardingPhotoShowcase(
             labels = listOf("기록명", "날짜", "번호"),
             values = listOf("관찰 기록", "26.10.15", "001"),
             height = heroHeight,
+            edgeToEdge = true,
         )
         Text("한 장의 사진이, 더 오래 기억되는 기록이 됩니다.",
-            style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+            style = DDZTypography.Caption, color = DDZColor.TextSecondary,
+            modifier = Modifier.padding(horizontal = 20.dp))
     }
 }
 

@@ -91,7 +91,7 @@ internal fun OnboardingFlowScreen(
                 .coerceIn(if (compact) 192.dp else 260.dp, if (compact) 340.dp else 430.dp)
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = if (step == 1) 0.dp else 20.dp),
                 verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 10.dp),
             ) {
             when (step) {

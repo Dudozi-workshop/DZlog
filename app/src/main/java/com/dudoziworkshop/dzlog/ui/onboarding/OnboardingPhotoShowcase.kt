@@ -45,8 +45,11 @@ internal fun OnboardingPhotoShowcase(
     showTable: Boolean = true,
     compact: Boolean = false,
     showGalleryStrip: Boolean = false,
+    edgeToEdge: Boolean = false,
 ) {
-    val shape = RoundedCornerShape(if (compact) 14.dp else 22.dp)
+    val shape = RoundedCornerShape(
+        if (edgeToEdge) 0.dp else if (compact) 14.dp else 22.dp,
+    )
     val description = if (showTable) "사진에 기록표가 겹쳐 보이는 구성 예시"
         else "기록표 없이 촬영한 사진 구성 예시"
     Box(
