@@ -777,9 +777,9 @@ fun CameraPreview(
                             }
                         },
                         sessionCaptureStack = sessionCaptureStack,
-                        undoPending = undoDeleteController.isBusy || undoPhraseSaving || undoDeletionIncomplete || ui.capture.pendingSaveCount > 0,
+                        undoPending = undoDeleteController.isBusy || undoPhraseSaving || ui.capture.pendingSaveCount > 0,
                         onUndoDelete = {
-                            if (ui.capture.pendingSaveCount == 0 && !undoPhraseSaving && !undoDeletionIncomplete) {
+                            if (ui.capture.pendingSaveCount == 0 && !undoPhraseSaving) {
                                 val lastUris = sessionCaptureStack.lastOrNull().orEmpty()
                                 if (phraseUndoHistory.canUndo(lastUris.map(Uri::toString), quickTemplateId)) {
                                     undoDeleteController.deleteLatest(sessionCaptureStack)
