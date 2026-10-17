@@ -49,8 +49,9 @@ class TemplateEditCaptureSyncTest {
             ),
         ),
         phraseSets = listOf(RotatingPhraseSet("set", "Sequence", listOf(firstPhrase, "Next"))),
-        fileNameSlotDrafts = listOf(cellSlot("text"), cellSlot("phrase")),
-        pathSlotDrafts = pathSlots,
+        fileNameSlotDrafts = listOf(cellSlot("text"), cellSlot("phrase")) +
+            List(3) { null },
+        pathSlotDrafts = pathSlots + List((5 - pathSlots.size).coerceAtLeast(0)) { null },
     )
 
     private fun editorPreview(state: TableTemplateState) = buildPreview(
