@@ -12,8 +12,17 @@ on:
 permissions:
   contents: read
 
+# Cancel old validations for the same PR. Each PR's required check still exists.
+concurrency:
+  group: dzlog-capture-pipeline-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   capture-unit-tests:
+    # PR #37 runs the full Android unit suite in Onboarding QA and a distinct
+    # onboarding visual E2E. Running this legacy full-suite + APK on the same
+    # head commit adds no new checks. All other capture-related PRs keep it.
+    if: github.event_name != 'pull_request' || github.head_ref != 'feat/onboarding-ui-20261015'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
