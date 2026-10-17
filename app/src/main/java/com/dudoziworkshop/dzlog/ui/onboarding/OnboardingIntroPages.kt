@@ -52,11 +52,12 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = false) {
     Column(
         modifier = Modifier.padding(top = if (compact) 10.dp else 16.dp),
-        // Let the title breathe, then hand visual attention to the photo.
-        verticalArrangement = Arrangement.spacedBy(if (compact) 18.dp else 22.dp),
+        // Use a short gap below the approved A-copy, keeping the photo prominent.
+        verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp),
     ) {
         // Editorial hierarchy is local to onboarding: avoid changing the app-wide
         // HomeMainTitle style used on other screens.
+        Column(verticalArrangement = Arrangement.spacedBy(if (compact) 9.dp else 12.dp)) {
         BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
             val titleSize = when {
                 maxWidth < 310.dp -> 26.sp
@@ -82,14 +83,21 @@ internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = fa
                 )
             }
         }
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            val subtitle = DDZTypography.Body.copy(fontSize = 14.sp, lineHeight = 20.sp)
+            Text("일상부터 업무 현장까지,", style = subtitle, color = DDZColor.TextSecondary)
+            Text("사진과 메모를 함께 남겨보세요.", style = subtitle, color = DDZColor.TextSecondary)
+        }
+        }
         OnboardingPhotoShowcase(
             labels = listOf("기록명", "날짜", "번호"),
             values = listOf("관찰 기록", "26.10.15", "001"),
             height = heroHeight,
             edgeToEdge = true,
         )
-        // The slogan is already covered by the headline; leave the remaining
-        // space to the approved photographic composition.
     }
 }
 
