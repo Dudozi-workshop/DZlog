@@ -76,7 +76,7 @@ internal fun OnboardingFlowScreen(
     var step by rememberSaveable(introOnly, startStep) {
         mutableIntStateOf(startStep.coerceIn(1, 3))
     }
-    BackHandler(enabled = readOnly) {
+    BackHandler(enabled = readOnly || step == 2) {
         if (step > 1) step-- else onClose()
     }
     val activity = LocalContext.current as? Activity
@@ -200,7 +200,7 @@ internal fun OnboardingFlowScreen(
             )
             // Initial page intentionally has only one CTA. Retain a close
             // control when onboarding is replayed from Settings.
-            if (step != 1 || readOnly) {
+            if (step == 3 || (step == 1 && readOnly)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     DDZButton(
                         text = if (step == 1) "닫기" else "이전",

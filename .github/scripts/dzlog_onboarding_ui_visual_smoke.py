@@ -224,7 +224,7 @@ def main():
         mark("00-intro-normal-font")
         tap_visible("시작하기")
         root = wait_for("사진에 기록표를 겹친 촬영 예시", timeout=55)
-        if not is_fully_on_screen(root, "지난 기록도 빠르게 찾아요."):
+        if not is_fully_on_screen(root, "쌓인 기록도, 찾기 쉽게."):
             raise AssertionError("Third feature card needs scrolling at normal font size")
         mark("00-feature-normal-font")
         # Finish the NORMAL-font journey before switching to accessibility

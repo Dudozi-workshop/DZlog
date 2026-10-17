@@ -2,6 +2,9 @@ package com.dudoziworkshop.dzlog.ui.onboarding
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -95,88 +98,45 @@ internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = fa
 
 @Composable
 internal fun OnboardingFeatureIntro(previewHeight: Dp = 146.dp, compact: Boolean = false) {
+    val image = androidx.compose.ui.graphics.ImageBitmap.imageResource(R.drawable.onboarding_feature_v5)
     Column(
-        modifier = Modifier.padding(top = if (compact) 3.dp else 7.dp),
-        verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp),
+        modifier = Modifier.padding(top = if (compact) 2.dp else 5.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
     ) {
         Text(
             "사진에 기록을 더하고,\n정리까지 한 번에.",
             style = DDZTypography.HomeMainTitle.copy(
-                fontSize = if (compact) 27.sp else 28.sp,
-                lineHeight = if (compact) 34.sp else 35.sp,
+                fontSize = if (compact) 26.sp else 28.sp,
+                lineHeight = if (compact) 32.sp else 35.sp,
             ),
             color = DDZColor.TextPrimary,
         )
-        Text(
-            "촬영부터 보관까지, 필요한 기능만 담았어요.",
-            style = DDZTypography.Body.copy(fontSize = if (compact) 13.sp else 14.sp),
-            color = DDZColor.TextSecondary,
-            maxLines = 2,
-        )
-        // Reuse the approved real-photo composition, not a fabricated camera UI.
-        // This onboarding artwork is read-only and does not change capture state.
-        Surface(
-            color = DDZColor.SelectedSoft.copy(alpha = 0.54f),
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            BoxWithConstraints {
-                val artworkWidth = when {
-                    maxWidth < 300.dp -> 108.dp
-                    compact -> 124.dp
-                    else -> 140.dp
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(if (compact) 9.dp else 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp),
-                    ) {
-                        Text("01 · 촬영", style = DDZTypography.Caption, color = DDZColor.SelectedDark)
-                        Text(
-                            "사진 위에,\n나만의 기록표.",
-                            style = DDZTypography.SectionTitle.copy(
-                                fontSize = if (compact) 15.sp else 16.sp,
-                                lineHeight = if (compact) 20.sp else 22.sp,
-                            ),
-                            color = DDZColor.TextPrimary,
-                            maxLines = 3,
-                        )
-                        Text(
-                            "기록표를 넣거나\n사진만 찍을 수 있어요.",
-                            style = DDZTypography.Caption.copy(
-                                fontSize = if (compact) 11.sp else 12.sp,
-                                lineHeight = if (compact) 15.sp else 17.sp,
-                            ),
-                            color = DDZColor.TextSecondary,
-                        )
-                    }
-                    Image(
-                        painter = painterResource(R.drawable.onboarding_actual_camera_hero),
-                        contentDescription = "사진에 기록표를 겹친 촬영 예시",
-                        modifier = Modifier
-                            .width(artworkWidth)
-                            .height(if (compact) 140.dp else 160.dp)
-                            .clip(RoundedCornerShape(13.dp)),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
-            }
-        }
-        CompactFeature(
-            number = "02",
-            title = "파일명·폴더도 내 방식대로.",
-            detail = "내 규칙에 맞춰 저장해요.",
-            compact = compact,
-        )
-        CompactFeature(
-            number = "03",
-            title = "지난 기록도 빠르게 찾아요.",
-            detail = "최근 사진과 폴더를 바로 확인해요.",
-            compact = compact,
+        FeaturePhotoCard(image, 398, 311, "사진에 기록표를 겹친 촬영 예시")
+        FeaturePhotoCard(image, 724, 282, "촬영과 동시에, 원하는 곳에.")
+        FeaturePhotoCard(image, 1021, 311, "쌓인 기록도, 찾기 쉽게.")
+    }
+}
+
+@Composable
+private fun FeaturePhotoCard(
+    image: androidx.compose.ui.graphics.ImageBitmap,
+    top: Int,
+    sourceHeight: Int,
+    label: String,
+) {
+    androidx.compose.foundation.Canvas(
+        modifier = Modifier.fillMaxWidth()
+            .aspectRatio(673f / sourceHeight)
+            .semantics { contentDescription = label },
+    ) {
+        drawImage(
+            image = image,
+            srcOffset = androidx.compose.ui.unit.IntOffset(177, top),
+            srcSize = androidx.compose.ui.unit.IntSize(673, sourceHeight),
+            dstSize = androidx.compose.ui.unit.IntSize(
+                size.width.toInt().coerceAtLeast(1),
+                size.height.toInt().coerceAtLeast(1),
+            ),
         )
     }
 }
