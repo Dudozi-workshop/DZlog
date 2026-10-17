@@ -5,6 +5,7 @@ Never use on a user's phone or shared photo library. Refuse nonempty MediaStore 
 This verifies actual UI deletion and a best-effort interruption window, NOT injected I/O failure.
 """
 import re
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -176,8 +177,12 @@ def main():
     install_once_ready()
     link_exact_folder()
     finish_setup()
-    check_original_delete()
-    check_interrupted_capture()
+    if os.environ.get("ISSUE39_ONLY_INTERRUPT") == "1":
+        # Part A passed on run 39080203881. Run B in a clean, independent emulator.
+        check_interrupted_capture()
+    else:
+        check_original_delete()
+        check_interrupted_capture()
     print("ISSUE39 MINIMAL QA COMPLETE (isolated emulator only)", flush=True)
 
 if __name__=="__main__":
