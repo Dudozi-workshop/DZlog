@@ -67,6 +67,7 @@ private enum class RuleEditorTarget {
     VALUE,
     TYPE,
     ADD,
+    ADD_CELL,
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -278,7 +279,8 @@ internal fun TableEditorRuleListEditor(
         val active = editingIndex?.let { compactItems.getOrNull(it) }
 
         when {
-            target == RuleEditorTarget.VALUE && active?.sourceType == MockRuleSourceType.CELL -> {
+            target == RuleEditorTarget.ADD_CELL ||
+                (target == RuleEditorTarget.VALUE && active?.sourceType == MockRuleSourceType.CELL) -> {
                 DDZBottomSheet(
                     title = "셀 선택",
                     onDismiss = { editorTarget = null },
@@ -297,16 +299,14 @@ internal fun TableEditorRuleListEditor(
                                         style = DDZButtonStyle.Secondary,
                                         enabled = cell != null && cell.type != TableEditorCellType.COUNTER,
                                         onClick = {
-                                            val index = editingIndex ?: return@DDZButton
                                             val selected = cell ?: return@DDZButton
-                                            replaceAt(
-                                                index,
-                                                MockRuleItem(
-                                                    sourceType = MockRuleSourceType.CELL,
-                                                    value = selected.value,
-                                                    cellId = selected.domainCellId,
-                                                )
+                                            val linked = MockRuleItem(
+                                                sourceType = MockRuleSourceType.CELL,
+                                                value = selected.value,
+                                                cellId = selected.domainCellId,
                                             )
+                                            if (target == RuleEditorTarget.ADD_CELL) append(linked)
+                                            else editingIndex?.let { replaceAt(it, linked) }
                                         },
                                     )
                                 }
@@ -435,6 +435,7 @@ internal fun TableEditorRuleListEditor(
                 val title = when (target) {
                     RuleEditorTarget.TYPE -> "종류 변경"
                     RuleEditorTarget.ADD -> if (isFileName) "구성요소 추가" else "폴더 추가"
+                    RuleEditorTarget.ADD_CELL -> "셀 선택"
                     RuleEditorTarget.VALUE -> "값 설정"
                 }
                 DDZBottomSheet(
