@@ -59,7 +59,7 @@ internal fun FirstCaptureGuide(
         FirstCaptureGuidePhase.SAVED -> "저장 결과 확인"
         FirstCaptureGuidePhase.SETTINGS -> "설정"
         FirstCaptureGuidePhase.UNDO -> "Undo"
-        FirstCaptureGuidePhase.SETTINGS, FirstCaptureGuidePhase.UNDO, FirstCaptureGuidePhase.DISMISSED -> ""
+        FirstCaptureGuidePhase.DISMISSED -> ""
     }
     val description = when (phase) {
         FirstCaptureGuidePhase.QUICK_EDIT ->
@@ -72,6 +72,8 @@ internal fun FirstCaptureGuide(
             "가운데 촬영 버튼을 누르면 사진을 찍고 설정된 저장 방식으로 저장해요. 이 안내에서는 촬영하지 않아도 돼요."
         FirstCaptureGuidePhase.SAVED ->
             "촬영한 사진은 최근 촬영과 앨범에서 확인할 수 있어요. 파일명과 저장 위치는 저장설정에서 관리해요."
+        FirstCaptureGuidePhase.SETTINGS -> "카메라 상단 설정에서 촬영과 미리보기 옵션을 확인할 수 있어요."
+        FirstCaptureGuidePhase.UNDO -> "하단 Undo로 직전 촬영의 취소 기능을 확인할 수 있어요. 안내 중에는 누를 필요가 없어요."
         FirstCaptureGuidePhase.DISMISSED -> ""
     }
     Surface(
