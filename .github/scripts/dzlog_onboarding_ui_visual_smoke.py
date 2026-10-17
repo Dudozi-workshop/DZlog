@@ -64,6 +64,18 @@ def is_fully_on_screen(root, label):
     return False
 
 
+def is_single_line(root, label, max_height_px=66):
+    """Check actual Compose accessibility bounds, not just displayed text."""
+    for node in nodes(root):
+        if (node.get("text") or "") != label:
+            continue
+        match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.get("bounds") or "")
+        if match:
+            _, y1, _, y2 = (int(part) for part in match.groups())
+            return 0 < y2 - y1 <= max_height_px
+    return False
+
+
 def choose(label):
     scroll_until(label)
     tap_visible(label)
@@ -202,6 +214,8 @@ def main():
             raise AssertionError("Old two-line subtitle must be absent on page one")
         if not is_fully_on_screen(root, "촬영은 간편하게, 기록은 선명하게."):
             raise AssertionError("Approved one-line caption must be visible below the hero")
+        if not is_single_line(root, "촬영은 간편하게, 기록은 선명하게."):
+            raise AssertionError("Normal-font page-one caption must occupy exactly one line")
         if contains(root, "기록표 없이 자유롭게 촬영"):
             raise AssertionError("Unapproved floating photo tag must be absent")
         # The editorial photo must fit above the fixed CTA at normal font size.
@@ -236,6 +250,8 @@ def main():
             raise AssertionError("Compact onboarding intro CTA clipped")
         if not is_fully_on_screen(root, "촬영은 간편하게, 기록은 선명하게."):
             raise AssertionError("Approved photo caption clipped at 140% font scale")
+        if not is_single_line(root, "촬영은 간편하게, 기록은 선명하게."):
+            raise AssertionError("140%-font page-one caption must occupy exactly one line")
         if contains(root, "일상부터 업무 현장까지,") or contains(root, "사진과 메모를 함께 남겨보세요."):
             raise AssertionError("Legacy two-line subtitle unexpectedly shown at 140%")
         mark("01-intro-compact-large-font")

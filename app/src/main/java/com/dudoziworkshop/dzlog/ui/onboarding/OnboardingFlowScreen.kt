@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -156,15 +157,21 @@ internal fun OnboardingFlowScreen(
             verticalArrangement = Arrangement.spacedBy(if (step == 1) 10.dp else 6.dp),
         ) {
             if (step == 1) {
+                // Keep the decorative page-one tagline on one line. At large
+                // system font sizes, its display size stays at the normal
+                // 14sp equivalent; actionable UI and other text still scale.
+                val captionFontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
                 Text(
                     text = "촬영은 간편하게, 기록은 선명하게.",
                     style = DDZTypography.Body.copy(
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp,
+                        fontSize = (14f / captionFontScale).sp,
+                        lineHeight = (20f / captionFontScale).sp,
                     ),
                     color = DDZColor.TextSecondary,
                     textAlign = TextAlign.Center,
-                    maxLines = 2,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
