@@ -342,17 +342,17 @@ internal fun CameraBottomControls(
         }
         }
 
-        // The compact session count sits over the last (18%-width) Undo slot.
-        // Preserve the existing thumbnail save-progress/error indicator.
+        // The compact completed-shot count now sits over the first (18%-width) recent-photo slot.
+        // The existing save-progress/error indicator moves to the Undo-side slot.
         sessionCaptureBadgeCount(sessionCaptureStack)?.let { count ->
-            val undoCenter = BottomControlsHorizontalPadding +
-                (maxWidth - BottomControlsHorizontalPadding * 2f) * 0.91f
+            val recentCenter = BottomControlsHorizontalPadding +
+                (maxWidth - BottomControlsHorizontalPadding * 2f) * 0.09f
             SessionCaptureCountBadge(
                 completedCount = count,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(
-                        start = (undoCenter - 32.dp).coerceAtLeast(0.dp),
+                        start = (recentCenter - 32.dp).coerceAtLeast(0.dp),
                         bottom = DDZSpacing.screenPadding + with(density) {
                             bottomBarHeightPx.toDp()
                         } + 4.dp,
@@ -360,12 +360,13 @@ internal fun CameraBottomControls(
             )
         }
 
-        // C-2c: anchor above the first (18%-width) thumbnail slot.
+        // Save progress/error is on the right Undo-side slot. Keep the popup
+        // anchored to this badge; its position provider clamps within the window.
         // Calculate against the real screen width and measured bottom row height;
         // do not alter the row's buttons or the center zoom/tool overlays.
         if (ui.capture.pendingSaveCount > 0 || ui.capture.pendingSaveError) {
-            val thumbnailCenter = BottomControlsHorizontalPadding +
-                (maxWidth - BottomControlsHorizontalPadding * 2f) * 0.09f
+            val undoCenter = BottomControlsHorizontalPadding +
+                (maxWidth - BottomControlsHorizontalPadding * 2f) * 0.91f
             CaptureSaveStatusIndicator(
                 pendingCount = ui.capture.pendingSaveCount,
                 hasError = ui.capture.pendingSaveError,
@@ -373,7 +374,7 @@ internal fun CameraBottomControls(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(
-                        start = (thumbnailCenter - 24.dp).coerceAtLeast(0.dp),
+                        start = (undoCenter - 24.dp).coerceAtLeast(0.dp),
                         bottom = DDZSpacing.screenPadding + with(density) {
                             bottomBarHeightPx.toDp()
                         } - 4.dp,
