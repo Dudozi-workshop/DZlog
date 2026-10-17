@@ -26,6 +26,7 @@ internal class TableEditorV2SelectionState {
             current = layoutSelection,
             tappedDomainCellId = tappedDomainCellId,
         )
+        syncFocusedCellFromLayout()
     }
 
     fun selectLayoutRange(
@@ -38,6 +39,7 @@ internal class TableEditorV2SelectionState {
             startDomainCellId = startDomainCellId,
             endDomainCellId = endDomainCellId,
         )
+        syncFocusedCellFromLayout()
     }
 
     fun normalizeLayoutSelection(
@@ -50,6 +52,19 @@ internal class TableEditorV2SelectionState {
             range = range,
             collapseToTopLeft = collapseToTopLeft,
         )
+        syncFocusedCellFromLayout()
+    }
+
+    private fun syncFocusedCellFromLayout() {
+        selectedCellId = layoutSelection.lastSelectedCellId
+            ?.takeIf { it in layoutSelection.selectedCellIds }
+            ?: layoutSelection.selectedCellIds.firstOrNull()
+    }
+
+    fun reconcileEditSelection(templateState: TableTemplateState) {
+        if (selectedCellId != null && templateState.cells.none { it.cellId == selectedCellId }) {
+            selectedCellId = null
+        }
     }
 
     fun clearEditSelection() {

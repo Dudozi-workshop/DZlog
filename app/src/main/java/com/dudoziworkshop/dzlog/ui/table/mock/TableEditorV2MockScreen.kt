@@ -277,13 +277,14 @@ fun TableEditorV2Screen(
                     active = activeTab,
                     onContent = {
                         mode = MockMode.EDIT
+                        selectionState.reconcileEditSelection(draftTemplateState)
                         selectionState.clearLayoutSelection()
                         showStyle = false
                         showSaveRules = false
                         saveDetailTrail = emptyList()
                     },
                     onLayout = {
-                        selectionState.clearEditSelection()
+                        selectionState.reconcileEditSelection(draftTemplateState)
                         showStyle = false
                         showSaveRules = false
                         saveDetailTrail = emptyList()
@@ -291,7 +292,7 @@ fun TableEditorV2Screen(
                     },
                     onStyle = {
                         mode = MockMode.EDIT
-                        selectionState.clearLayoutSelection()
+                        selectionState.reconcileEditSelection(draftTemplateState)
                         showSaveRules = false
                         saveDetailTrail = emptyList()
                         showStyle = true

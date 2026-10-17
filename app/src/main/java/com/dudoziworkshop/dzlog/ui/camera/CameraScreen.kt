@@ -557,10 +557,18 @@ fun CameraPreview(
         pendingProjection = pendingProjection,
     )
 
-    // Show only a complete, counter-synchronized filename in the top bar.
-    // While a rotating phrase changes streams, keep the previous valid label;
-    // the shutter still remains gated until finalCapturePreview is ready.
-    var lastReadyDisplayName by remember(quickTemplateId) { mutableStateOf<String?>(null) }
+    // Keep the previous synchronized label only while the underlying template,
+    // phrase position and naming settings are unchanged. After an edit, never
+    // display a filename derived from an older template during resynchronization.
+    var lastReadyDisplayName by remember(
+        quickTemplateId,
+        effectiveTemplate,
+        appSettings.phraseProgressCursor,
+        appSettings.includePathInCounterScope,
+        appSettings.includeFilenameInCounterScope,
+        appSettings.saveMode,
+        ui.prefs.counterDigits,
+    ) { mutableStateOf<String?>(null) }
     LaunchedEffect(finalCapturePreview?.displayName) {
         finalCapturePreview?.displayName?.let { lastReadyDisplayName = it }
     }

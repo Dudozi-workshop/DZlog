@@ -67,6 +67,8 @@ private enum class RuleEditorTarget {
     VALUE,
     TYPE,
     ADD,
+    ADD_CELL,
+    CHANGE_TO_CELL,
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -278,7 +280,9 @@ internal fun TableEditorRuleListEditor(
         val active = editingIndex?.let { compactItems.getOrNull(it) }
 
         when {
-            target == RuleEditorTarget.VALUE && active?.sourceType == MockRuleSourceType.CELL -> {
+            target == RuleEditorTarget.ADD_CELL ||
+                target == RuleEditorTarget.CHANGE_TO_CELL ||
+                (target == RuleEditorTarget.VALUE && active?.sourceType == MockRuleSourceType.CELL) -> {
                 DDZBottomSheet(
                     title = "셀 선택",
                     onDismiss = { editorTarget = null },
@@ -295,18 +299,12 @@ internal fun TableEditorRuleListEditor(
                                         text = cell?.value?.ifBlank { "빈 셀" } ?: "-",
                                         modifier = Modifier.weight(1f),
                                         style = DDZButtonStyle.Secondary,
-                                        enabled = cell != null && cell.type != TableEditorCellType.COUNTER,
+                                        enabled = linkedRuleItemFromCell(cell) != null,
                                         onClick = {
-                                            val index = editingIndex ?: return@DDZButton
-                                            val selected = cell ?: return@DDZButton
-                                            replaceAt(
-                                                index,
-                                                MockRuleItem(
-                                                    sourceType = MockRuleSourceType.CELL,
-                                                    value = selected.value,
-                                                    cellId = selected.domainCellId,
-                                                )
-                                            )
+                                            val linked = linkedRuleItemFromCell(cell)
+                                                ?: return@DDZButton
+                                            if (target == RuleEditorTarget.ADD_CELL) append(linked)
+                                            else editingIndex?.let { replaceAt(it, linked) }
                                         },
                                     )
                                 }
@@ -435,6 +433,8 @@ internal fun TableEditorRuleListEditor(
                 val title = when (target) {
                     RuleEditorTarget.TYPE -> "종류 변경"
                     RuleEditorTarget.ADD -> if (isFileName) "구성요소 추가" else "폴더 추가"
+                    RuleEditorTarget.ADD_CELL,
+                    RuleEditorTarget.CHANGE_TO_CELL -> "셀 선택"
                     RuleEditorTarget.VALUE -> "값 설정"
                 }
                 DDZBottomSheet(
@@ -452,11 +452,20 @@ internal fun TableEditorRuleListEditor(
                                         minHeight = 56.dp, style = DDZButtonStyle.Secondary,
                                         containerColorOverride = if (isSelected) DDZColor.SelectedSoft else DDZColor.Surface,
                                         onClick = {
-                                            val next = defaultRuleItem(type)
-                                            if (target == RuleEditorTarget.ADD) append(next)
-                                            else {
-                                                val index = editingIndex ?: return@DDZButton
-                                                replaceAt(index, next)
+                                            if (type == MockRuleSourceType.CELL) {
+                                                // Only commit after a concrete cell is chosen.
+                                                editorTarget = if (target == RuleEditorTarget.ADD) {
+                                                    RuleEditorTarget.ADD_CELL
+                                                } else {
+                                                    RuleEditorTarget.CHANGE_TO_CELL
+                                                }
+                                            } else {
+                                                val next = defaultRuleItem(type)
+                                                if (target == RuleEditorTarget.ADD) append(next)
+                                                else {
+                                                    val index = editingIndex ?: return@DDZButton
+                                                    replaceAt(index, next)
+                                                }
                                             }
                                         },
                                     )

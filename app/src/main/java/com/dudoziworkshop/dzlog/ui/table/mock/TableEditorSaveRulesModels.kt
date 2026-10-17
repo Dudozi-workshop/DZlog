@@ -15,6 +15,13 @@ internal data class MockRuleItem(
     val formatPattern: String? = null,
 )
 
+/** A cell-bound rule is not valid until a selectable cell is confirmed. */
+internal fun linkedRuleItemFromCell(cell: TableEditorCellUiModel?): MockRuleItem? {
+    if (cell == null || cell.isCovered || cell.type == TableEditorCellType.COUNTER) return null
+    val cellId = cell.domainCellId?.takeIf { it.isNotBlank() } ?: return null
+    return MockRuleItem(MockRuleSourceType.CELL, cell.value, cellId)
+}
+
 internal data class MockSaveRulesDraft(
     val fileNameItems: List<MockRuleItem?>,
     val pathItems: List<MockRuleItem?>,
