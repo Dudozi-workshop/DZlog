@@ -148,6 +148,12 @@ def folder_setup():
 
 
 def main():
+    # Ensure the actual bundled page-one photograph is present and not
+    # silently replaced with a tiny placeholder before the UI screenshot QA.
+    hero = Path("app/src/main/res/drawable-nodpi/onboarding_actual_camera_hero.webp")
+    hero_bytes = hero.read_bytes()
+    if len(hero_bytes) < 120_000 or hero_bytes[:4] != b"RIFF" or hero_bytes[8:12] != b"WEBP":
+        raise AssertionError("Page-one camera hero asset is missing or invalid")
     assert adb("shell", "getprop", "ro.build.version.sdk").strip() == "36"
     # Fresh emulator only: install without touching any existing Play application.
     assert not adb("shell", "pm", "list", "packages", PKG).strip(), "Emulator is not empty"
