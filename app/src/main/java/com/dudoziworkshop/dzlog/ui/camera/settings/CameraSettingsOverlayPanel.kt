@@ -216,22 +216,27 @@ private fun CameraFeedbackChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier.height(40.dp),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(DDZLayout.Radius.Small),
-        color = if (selected) DDZColor.SageLight else DDZColor.Surface,
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (selected) DDZColor.SageBorder else DDZColor.Border,
-        ),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(
-                text = label,
-                style = DDZTypography.Caption.copy(fontSize = 11.sp),
-                color = if (selected) DDZColor.SageDarkStrong else DDZColor.TextMuted,
+    // Material3 clickable Surface enforces a 48dp minimum touch size and
+    // makes this row visually taller than the 40dp segmented controls.
+    val chipShape = androidx.compose.foundation.shape.RoundedCornerShape(DDZLayout.Radius.Small)
+    Box(
+        modifier = modifier
+            .height(CompactCameraSegments.fixedHeight)
+            .background(if (selected) DDZColor.SageLight else DDZColor.Surface, chipShape)
+            .border(
+                androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (selected) DDZColor.SageBorder else DDZColor.Border,
+                ),
+                chipShape,
             )
-        }
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = DDZTypography.Caption.copy(fontSize = 11.sp),
+            color = if (selected) DDZColor.SageDarkStrong else DDZColor.TextMuted,
+        )
     }
 }
