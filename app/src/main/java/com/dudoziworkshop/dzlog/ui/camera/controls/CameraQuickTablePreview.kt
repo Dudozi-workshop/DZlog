@@ -260,7 +260,7 @@ internal fun CameraQuickTablePreview(
                 if (zoomFactor > 1f) QuickPreviewScrollIndicators(horizontal, vertical, Modifier.matchParentSize())
                 }
                 Box(Modifier.fillMaxWidth().height(hintHeight), contentAlignment = Alignment.CenterStart) {
-                    Text("텍스트·숫자 셀만 빠르게 수정할 수 있어요.", style = DDZTypography.Caption,
+                    Text("셀을 눌러 값이나 표시 형식을 바꿀 수 있어요.", style = DDZTypography.Caption,
                         color = DDZColor.TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
