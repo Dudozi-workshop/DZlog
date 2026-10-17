@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -117,44 +118,59 @@ internal fun OnboardingPhotoShowcase(
 private fun PhotoShowcaseBackdrop(compact: Boolean, edgeToEdge: Boolean) {
     Box(
         Modifier.fillMaxSize().background(
-            Brush.linearGradient(
-                if (edgeToEdge) listOf(DDZColor.Background, DDZColor.Background)
-                else listOf(Color(0xFFF7EEE4), Color(0xFFD6DFCD), Color(0xFFD0C2AC)),
+            if (edgeToEdge) DDZColor.Background
+            else Brush.linearGradient(
+                listOf(Color(0xFFF7EEE4), Color(0xFFD6DFCD), Color(0xFFD0C2AC)),
             ),
         ),
     ) {
-        Image(
-            painter = painterResource(
-                if (edgeToEdge) R.drawable.onboarding_actual_camera_hero
-                else if (compact) R.drawable.onboarding_reference_starter
-                else R.drawable.onboarding_reference_hero
-            ),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            // Keep the full approved square artwork visible in the tall page-one layout.
-            contentScale = if (edgeToEdge) ContentScale.Fit else ContentScale.Crop,
-            alpha = if (edgeToEdge) 1f else 0.96f,
-        )
-        if (!edgeToEdge) {
-            Box(
-                Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(
-                        listOf(Color.White.copy(alpha = 0.10f), Color.Transparent, Color(0xFF756F59).copy(alpha = 0.12f)),
-                    ),
-                ),
-            )
-        }
         if (edgeToEdge) {
-            // Blend only the photo edges into the page; never veil the central plant or record card.
+            // The approved artwork is square. ContentScale.Fit inside the tall
+            // hero leaves margins, so a full-hero gradient never touches the
+            // artwork's actual top/bottom edges. Fade the square itself instead.
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val artworkSize = minOf(maxWidth, maxHeight)
+                Box(Modifier.align(Alignment.Center).size(artworkSize)) {
+                    Image(
+                        painter = painterResource(R.drawable.onboarding_actual_camera_hero),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit,
+                    )
+                    Box(
+                        Modifier.fillMaxSize().background(
+                            Brush.verticalGradient(
+                                0.00f to DDZColor.Background,
+                                0.10f to DDZColor.Background.copy(alpha = 0.78f),
+                                0.25f to Color.Transparent,
+                                0.75f to Color.Transparent,
+                                0.90f to DDZColor.Background.copy(alpha = 0.78f),
+                                1.00f to DDZColor.Background,
+                            ),
+                        ),
+                    )
+                }
+            }
+        } else {
+            // Other onboarding previews intentionally keep their established crop and tint.
+            Image(
+                painter = painterResource(
+                    if (compact) R.drawable.onboarding_reference_starter
+                    else R.drawable.onboarding_reference_hero,
+                ),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                alpha = 0.96f,
+            )
             Box(
                 Modifier.fillMaxSize().background(
                     Brush.verticalGradient(
-                        0.00f to DDZColor.Background,
-                        0.10f to DDZColor.Background.copy(alpha = 0.28f),
-                        0.18f to Color.Transparent,
-                        0.84f to Color.Transparent,
-                        0.92f to DDZColor.Background.copy(alpha = 0.28f),
-                        1.00f to DDZColor.Background,
+                        listOf(
+                            Color.White.copy(alpha = 0.10f),
+                            Color.Transparent,
+                            Color(0xFF756F59).copy(alpha = 0.12f),
+                        ),
                     ),
                 ),
             )
