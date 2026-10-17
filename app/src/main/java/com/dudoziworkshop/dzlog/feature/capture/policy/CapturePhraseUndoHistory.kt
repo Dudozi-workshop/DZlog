@@ -13,7 +13,6 @@ class CapturePhraseUndoHistory {
     data class Entry(
         val templateId: String,
         val captureRelativePath: String?,
-        val capturePathComparisonKey: String?,
         val initialUris: Set<String>,
         val before: Map<String, CellPhraseProgress>,
         val after: Map<String, CellPhraseProgress>,
@@ -44,7 +43,6 @@ class CapturePhraseUndoHistory {
         before: TableTemplateState,
         after: TableTemplateState,
         captureRelativePath: String? = null,
-        capturePathComparisonKey: String? = null,
     ) {
         if (templateId.isNullOrBlank()) return
         val normalized = uris.filter { it.isNotBlank() }.toSet()
@@ -65,7 +63,6 @@ class CapturePhraseUndoHistory {
         entries.add(Tracked(Entry(
             templateId = templateId,
             captureRelativePath = captureRelativePath,
-            capturePathComparisonKey = capturePathComparisonKey,
             initialUris = normalized,
             before = states(beforeCells),
             after = states(afterCells),
@@ -81,14 +78,6 @@ class CapturePhraseUndoHistory {
         return entries.lastOrNull { tracked ->
             tracked.remainingUris.any(requested::contains)
         }?.entry?.captureRelativePath
-    }
-
-    @Synchronized
-    fun pathComparisonKeyForUndo(uris: Collection<String>): String? {
-        val requested = uris.toSet()
-        return entries.lastOrNull { tracked ->
-            tracked.remainingUris.any(requested::contains)
-        }?.entry?.capturePathComparisonKey
     }
 
     @Synchronized
