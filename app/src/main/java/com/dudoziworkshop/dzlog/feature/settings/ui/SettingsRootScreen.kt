@@ -1,5 +1,9 @@
 package com.dudoziworkshop.dzlog.feature.settings.ui
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import android.app.Activity
 import com.dudoziworkshop.dzlog.feature.table.policy.BillingEntitlementRuntime
 import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutConfig
@@ -500,6 +504,13 @@ private fun SettingsActionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .tutorialTarget(when (title) {
+                "권한 관리" -> "settings.permission"
+                "플로팅 보조 셔터" -> "settings.feedback"
+                "사진 품질" -> "settings.capture"
+                "작업 환경 내보내기" -> "settings.data"
+                else -> "settings.other.$title"
+            })
             .heightIn(min = 66.dp)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),

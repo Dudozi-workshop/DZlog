@@ -1,5 +1,9 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -69,7 +73,7 @@ fun CameraTopBar(
                         color = DDZColor.Card.copy(alpha = 0.5f),
                         shape = CameraCompactControlShape
                     )
-                    .border(1.dp, DDZColor.SageBorder, CameraCompactControlShape)
+                    .tutorialTarget("camera.filename").border(1.dp, DDZColor.SageBorder, CameraCompactControlShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -91,7 +95,7 @@ fun CameraTopBar(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .background(DDZColor.PrimaryDark.copy(alpha = 0f))
-                    .defaultMinSize(minWidth = DDZLayout.Icon.Touch, minHeight = DDZLayout.Icon.Touch)
+                    .defaultMinSize(minWidth = DDZLayout.Icon.Touch, minHeight = DDZLayout.Icon.Touch).tutorialTarget("camera.settings")
                     .then(if (tutorialFocus == FirstCaptureGuidePhase.SETTINGS)
                         Modifier.border(3.dp, DDZColor.PrimaryDark, CameraCompactControlShape)
                     else Modifier)

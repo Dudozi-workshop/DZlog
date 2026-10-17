@@ -1,5 +1,9 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -623,7 +627,7 @@ fun LogFolderScreen(
                 TextButton(enabled = retryEnabled, onClick = { retryDeletePlan = null }) { Text("닫기") }
             }
         }
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f).tutorialTarget("gallery.content")) {
             if (loading && index == null) {
                 GalleryLoadingSkeleton()
             } else if (error != null && index == null) {

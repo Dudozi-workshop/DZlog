@@ -65,7 +65,6 @@ import com.dudoziworkshop.dzlog.feature.table.policy.activeSavedTableStyle
 import com.dudoziworkshop.dzlog.feature.table.policy.quickEditableCells
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickEditSelectionMemory
 import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuide
-import com.dudoziworkshop.dzlog.feature.help.ui.LiveCameraTutorial
 import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase
 import com.dudoziworkshop.dzlog.feature.table.policy.replaceActiveSavedTableTemplate
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
@@ -200,8 +199,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
             else FirstCaptureGuidePhase.DISMISSED)
     }
     var showHelpFromGuide by rememberSaveable { mutableStateOf(false) }
-    var liveCameraTutorialSession by rememberSaveable { mutableStateOf<String?>(null) }
-    var liveCameraTutorialStep by remember { mutableStateOf<String?>(null) }
 
     // This only writes on the first committed photo, not on every consecutive capture.
     // A failed background flag write can be retried after the next successful photo.
@@ -907,16 +904,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                             recordFirstOnboardingCapture()
                         }
                     },
-                    tutorialFocus = if (liveCameraTutorialSession != null) when (liveCameraTutorialStep) {
-                        "undo", "warning" -> FirstCaptureGuidePhase.UNDO
-                        "entry", "quality", "feedback", "controls" -> FirstCaptureGuidePhase.SETTINGS
-                        "zoom" -> FirstCaptureGuidePhase.ZOOM_CHIP
-                        "pinch", "focus" -> FirstCaptureGuidePhase.ZOOM_FOCUS
-                        "menu", "flash", "grid", "table", "assist" -> FirstCaptureGuidePhase.TOOLS
-                        "quick", "template" -> FirstCaptureGuidePhase.QUICK_EDIT
-                        "shutter" -> FirstCaptureGuidePhase.SHUTTER
-                        else -> null
-                    } else if (startOnCamera && screen == AppScreen.CAMERA) firstGuidePhase else null,
+                    tutorialFocus = if (startOnCamera && screen == AppScreen.CAMERA) firstGuidePhase else null,
                 )
             }
 
@@ -972,11 +960,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
             }
 
             AppScreen.SETTINGS -> SettingsScreen(
-                onOpenLiveCameraSession = { sessionId ->
-                    liveCameraTutorialSession = sessionId
-                    firstGuidePhase = FirstCaptureGuidePhase.DISMISSED
-                    screen = AppScreen.CAMERA
-                },
+                tutorialTemplate = tableTemplateState,
+                tutorialStyle = activeSavedTableStyle(tableTemplateViewModel.templates, tableTemplateViewModel.activeTemplateId),
+                tutorialTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                 startWithHelp = showHelpFromGuide,
                 onBack = {
                     showHelpFromGuide = false
@@ -1216,19 +1202,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 )
             }
             }
-        }
-        if (screen == AppScreen.CAMERA && liveCameraTutorialSession != null) {
-            LiveCameraTutorial(
-                sessionId = requireNotNull(liveCameraTutorialSession),
-                onStepChanged = { liveCameraTutorialStep = it },
-                onClose = {
-                    liveCameraTutorialSession = null
-                    liveCameraTutorialStep = null
-                    showHelpFromGuide = true
-                    screen = AppScreen.SETTINGS
-                },
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 80.dp).zIndex(95f),
-            )
         }
         if (startOnCamera && screen == AppScreen.CAMERA &&
             firstGuidePhase != FirstCaptureGuidePhase.DISMISSED

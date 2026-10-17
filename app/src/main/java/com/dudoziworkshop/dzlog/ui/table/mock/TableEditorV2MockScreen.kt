@@ -1,5 +1,9 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -174,6 +178,24 @@ fun TableEditorV2Screen(
     var showSaveRules by remember { mutableStateOf(openSaveSettingsInitially) }
     var saveDetailTrail by remember { mutableStateOf(emptyList<TableEditorSaveDetail>()) }
     val saveDetail = saveDetailTrail.lastOrNull()
+    val tourLocation = LocalTutorialLocation.current
+    LaunchedEffect(tourLocation) {
+        if (tourLocation != null) {
+            val saving = tourLocation.areaId == "saving"
+            mode = if (!saving && tourLocation.sessionId == "structure") MockMode.LAYOUT else MockMode.EDIT
+            showStyle = !saving && tourLocation.sessionId == "style"
+            showSaveRules = saving
+            saveDetailTrail = if (saving) listOf(when (tourLocation.sessionId) {
+                "filename" -> TableEditorSaveDetail.FILE_NAME
+                "folder" -> if (tourLocation.pageId == "advanced") TableEditorSaveDetail.SAVE_MODE else TableEditorSaveDetail.SAVE_PATH
+                "counter" -> if (tourLocation.pageId.endsWith("/scope")) TableEditorSaveDetail.AUTO_NUMBER_ADVANCED else TableEditorSaveDetail.AUTO_NUMBER
+                else -> TableEditorSaveDetail.FILE_NAME
+            }) else emptyList()
+            if (!saving && tourLocation.sessionId == "cells") {
+                draftTemplateState.cells.firstOrNull()?.cellId?.let(selectionState::selectEditCell)
+            }
+        }
+    }
     var showCounterResetDialog by remember { mutableStateOf(false) }
     var showBackSaveDialog by remember { mutableStateOf(false) }
     var showTemplatePicker by remember { mutableStateOf(false) }
@@ -428,7 +450,7 @@ fun TableEditorV2Screen(
                 )
 
                 TableEditorWorkPanel(
-                    Modifier.fillMaxWidth()
+                    Modifier.fillMaxWidth().tutorialTarget("table.panel")
                         .then(if (imeVisible) Modifier else Modifier.height(panelHeight)),
                 ) {
                     Column(Modifier.fillMaxWidth()) {

@@ -22,11 +22,14 @@ internal object DzlogTutorialSections {
     val areas: List<TutorialArea> = listOf(
         TutorialArea("home", "홈", listOf(
             custom("overview", "홈 화면과 주요 메뉴",
-                Triple("main", "홈 화면", "홈에서는 최근 촬영을 확인하고 카메라와 앨범으로 이동할 수 있어요.")),
+                Triple("main", "홈 화면", "홈에서는 현재 양식과 다음 촬영 번호를 확인하고 카메라·앨범·설정으로 이동할 수 있어요."),
+                Triple("templates", "양식 선택", "현재 양식 이름을 누르면 양식을 선택하거나 추가·이름 변경·복사·삭제할 수 있는 목록이 열려요.")),
             custom("recent", "최근 촬영과 빠른 이동",
                 Triple("recent", "최근 촬영", "최근 사진을 선택하면 저장된 사진과 촬영 결과를 확인할 수 있어요.")),
             custom("start", "홈에서 작업 시작하기",
-                Triple("start", "촬영과 앨범", "새 기록은 촬영에서 시작하고, 저장된 사진은 앨범에서 관리해요.")),
+                Triple("start", "촬영과 앨범", "촬영 시작 버튼으로 새 기록을 시작해요. 저장된 사진은 최근 촬영 영역의 앨범 보기에서 관리해요."),
+                Triple("table-settings", "표 설정", "아래 표 설정 버튼에서 현재 양식의 내용·구조·스타일을 편집할 수 있어요."),
+                Triple("save-info", "저장 정보", "저장설정 버튼에서 다음 파일명과 실제 저장 위치를 확인하고 저장설정으로 이동할 수 있어요.")),
         )),
         TutorialArea("camera", "카메라", listOf(
             custom("basics", "화면 구성",
@@ -49,6 +52,9 @@ internal object DzlogTutorialSections {
                 Triple("assist", "보조 셔터", "보조 셔터를 사용하면 화면의 기본 셔터 이외의 위치에서 촬영 버튼을 이용할 수 있어요.")),
             custom("table", "표와 빠른 수정",
                 Triple("select", "표 선택과 배치", "미리보기의 표를 선택하면 이동, 크기, 회전, 잠금 등 배치 도구를 사용할 수 있어요."),
+                Triple("move", "표 이동", "표를 선택한 뒤 끌어 촬영 영역 안에서 위치를 옮겨요. 사진 바깥으로 나가지 않도록 이동 범위가 제한돼요."),
+                Triple("size", "표 크기", "표의 크기 도구와 모서리 조절점으로 크기를 바꿔요. 카메라 배율과는 별도로 조절돼요."),
+                Triple("rotation", "회전과 잠금", "회전 도구로 표 방향을 바꾸고 잠금으로 배치가 움직이지 않도록 할 수 있어요. 셀 내용 수정과 배치 잠금은 별개예요."),
                 Triple("quick", "빠른 수정", "촬영 전에 표의 입력값을 빠르게 확인하고 수정하는 기능이에요. 튜토리얼에서는 입력하지 않아요."),
                 Triple("template", "양식 확인", "빠른 수정에서 현재 사용하는 양식을 확인할 수 있어요. 양식을 바꿀 때는 변경 내용을 확인하세요.")),
             custom("results", "촬영 결과와 Undo",
@@ -84,20 +90,32 @@ internal object DzlogTutorialSections {
             from("saving", "folder", "저장 위치와 방식", "folder", "advanced"),
             from("saving", "counter", "자동번호와 동기화", "counter"),
             custom("rotation", "순환문구와 자동값",
-                Triple("rotation", "순환문구", "문구 목록과 변경 주기에 따라 촬영할 때 표시되는 값이 달라질 수 있어요."),
+                Triple("rotation", "순환문구", "셀 내용에서 순환문구의 목록·세트·변경 주기를 정해요. 저장 규칙에서는 이 셀을 연결해 촬영마다 달라지는 값을 사용할 수 있어요."),
                 Triple("automatic", "자동값", "날짜·시간·자동번호는 설정한 규칙에 따라 생성돼요.")),
         )),
         TutorialArea("settings", "앱 설정", listOf(
             custom("capture", "촬영과 미리보기",
-                Triple("preview", "촬영 옵션", "설정에서 촬영 후 미리보기 방식 등 카메라 옵션을 확인할 수 있어요.")),
+                Triple("preview", "사진 품질", "사진 품질에서 속도 우선·균형·화질 우선을 선택해요. 촬영 비율과 촬영 후 확인 방식은 카메라 상단 설정에서 정해요."),
+                Triple("warning", "Undo 삭제 경고", "저장경로가 다른 사진을 Undo할 때의 삭제 경고를 켜거나 끌 수 있어요. 경고를 꺼도 Undo의 삭제 동작은 유지돼요.")),
             custom("feedback", "소리와 조작 설정",
-                Triple("feedback", "촬영 알림", "촬영 소리와 진동 등 사용 환경에 맞게 조작 설정을 확인할 수 있어요.")),
+                Triple("feedback", "보조 셔터", "플로팅 보조 셔터를 켜거나 끌 수 있어요. 촬영 소리·진동·음량키 동작은 카메라 상단의 촬영 설정에서 확인해요.")),
             custom("permission", "권한과 폴더 연결",
                 Triple("permission", "권한", "사진 저장과 카메라 사용에 필요한 권한과 폴더 연결 상태를 확인할 수 있어요.")),
             custom("data", "데이터 관리와 도움말",
-                Triple("help", "도움말", "궁금한 기능은 사용법 및 도움말에서 해당 세션을 선택해 다시 볼 수 있어요.")),
+                Triple("backup", "작업 환경 백업", "작업 환경 내보내기로 표 양식과 저장 규칙을 백업해요. 가져오기는 백업의 양식을 추가하는 기능이며 사진 파일 백업과는 달라요."),
+                Triple("help", "도움말", "사용법 및 도움말에서 원하는 구역·세션으로 이동해 다시 볼 수 있어요. 보는 중인 위치와 완료 여부도 기억해요.")),
         )),
     )
 
     fun area(id: String) = areas.firstOrNull { it.id == id }
 }
+
+/** Stable page IDs keep saved positions independent of display wording. */
+internal data class TutorialGuidePage(val id: String, val parentId: String, val title: String, val instruction: String)
+internal fun TutorialSession.guidePages(): List<TutorialGuidePage> = steps.flatMap { step ->
+    listOf(TutorialGuidePage(step.id, step.id, step.title, step.instruction)) +
+        step.scenes.map { TutorialGuidePage("${step.id}/${it.id}", step.id, it.title, it.instruction) }
+}
+internal data class TutorialLocation(val areaId: String, val sessionId: String, val pageId: String = "")
+internal fun tutorialPageIndex(pages: List<TutorialGuidePage>, savedId: String): Int =
+    pages.indexOfFirst { it.id == savedId }.coerceAtLeast(0)

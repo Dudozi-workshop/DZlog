@@ -2,6 +2,10 @@
 
 package com.dudoziworkshop.dzlog.ui.home
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -142,7 +146,7 @@ fun HomeScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onManageTemplates() }
+                            .tutorialTarget("home.main").clickable { onManageTemplates() }
                             .padding(horizontal = HomeUiSpec.CurrentCaptureInnerHorizontalPadding),
                         horizontalAlignment = Alignment.Start,
                     ) {
@@ -186,7 +190,7 @@ fun HomeScreen(
                         onClick = onStartCamera,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset),
+                            .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset).tutorialTarget("home.start"),
                         style = DDZButtonStyle.Primary,
                         minHeight = HomeUiSpec.PrimaryButtonHeight,
                         shape = RoundedCornerShape(HomeUiSpec.PrimaryButtonRadius),
@@ -201,7 +205,7 @@ fun HomeScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset),
+                            .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset).tutorialTarget("home.recent"),
                     ) {
                         HomeRecentCaptureSection(
                             image = latestImage,
@@ -223,7 +227,7 @@ fun HomeScreen(
                             label = stringResource(com.dudoziworkshop.dzlog.R.string.home_table_settings),
                             icon = Icons.Default.GridView,
                             onClick = onOpenTableEditor,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).tutorialTarget("home.table"),
                         )
                         HomeUtilityButton(
                             label = stringResource(com.dudoziworkshop.dzlog.R.string.home_save_settings),
@@ -232,7 +236,7 @@ fun HomeScreen(
                                 homeViewModel.refreshSavePreview()
                                 showSaveInfo = true
                             },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).tutorialTarget("home.saving"),
                         )
                     }
                     }

@@ -2,6 +2,10 @@
 
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -142,7 +146,10 @@ internal fun CameraBottomControls(
 
         // Passive preview of the real tools menu: no preference writes or camera commands.
         // It intentionally disappears if the user opens the normal interactive menu.
-        if (tutorialFocus == FirstCaptureGuidePhase.TOOLS && !showToolMenu &&
+        val tutorialTarget = LocalTutorialTarget.current
+        if ((tutorialFocus == FirstCaptureGuidePhase.TOOLS ||
+            tutorialTarget?.startsWith("camera.tool.") == true ||
+            (LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId == "menu")) && !showToolMenu &&
             selectedTool == null && !isToolPanelExpanded
         ) {
             Box(
@@ -354,7 +361,7 @@ internal fun CameraBottomControls(
                 .padding(bottom = DDZSpacing.screenPadding + with(density) {
                     bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing
                 })
-                .then(if (tutorialFocus == FirstCaptureGuidePhase.ZOOM_CHIP)
+                .tutorialTarget("camera.zoom").then(if (tutorialFocus == FirstCaptureGuidePhase.ZOOM_CHIP)
                     Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
                 else Modifier),
             contentAlignment = Alignment.Center,
@@ -454,7 +461,7 @@ private fun BoxScope.CameraBottomBarRow(
                 .onSizeChanged { onBottomBarHeightChange(it.height) },
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.weight(18f).tutorialTarget("camera.recent"), contentAlignment = Alignment.Center) {
                 RecentCaptureThumbButton(
                     latestImage = latestImage,
                     onClick = {
@@ -476,7 +483,7 @@ private fun BoxScope.CameraBottomBarRow(
             }
 
             Box(
-                modifier = Modifier.weight(18f).then(
+                modifier = Modifier.weight(18f).tutorialTarget("camera.tools").then(
                     if (tutorialFocus == FirstCaptureGuidePhase.TOOLS ||
                         tutorialFocus == FirstCaptureGuidePhase.ZOOM_FOCUS)
                         Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
@@ -501,7 +508,7 @@ private fun BoxScope.CameraBottomBarRow(
             }
 
             Box(
-                modifier = Modifier.weight(28f).then(
+                modifier = Modifier.weight(28f).tutorialTarget("camera.shutter").then(
                     if (tutorialFocus == FirstCaptureGuidePhase.SHUTTER)
                         Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
                     else Modifier
@@ -520,7 +527,7 @@ private fun BoxScope.CameraBottomBarRow(
             }
 
             Box(
-                modifier = Modifier.weight(18f).then(
+                modifier = Modifier.weight(18f).tutorialTarget("camera.quick").then(
                     if (tutorialFocus == FirstCaptureGuidePhase.QUICK_EDIT)
                         Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
                     else Modifier
@@ -530,7 +537,7 @@ private fun BoxScope.CameraBottomBarRow(
                 QuickValueButton(onClick = onOpenQuickValues)
             }
 
-            Box(modifier = Modifier.weight(18f).then(
+            Box(modifier = Modifier.weight(18f).tutorialTarget("camera.undo").then(
                 if (tutorialFocus == FirstCaptureGuidePhase.UNDO)
                     Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
                 else Modifier
