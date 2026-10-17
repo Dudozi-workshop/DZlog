@@ -151,7 +151,22 @@ def main():
     assert adb("shell", "getprop", "ro.build.version.sdk").strip() == "36"
     # Fresh emulator only: install without touching any existing Play application.
     assert not adb("shell", "pm", "list", "packages", PKG).strip(), "Emulator is not empty"
-    adb("shell", "mkdir", "-p", "/sdcard/Pictures/DZlog", timeout=35)
+    # Android 16 reports boot-complete before emulated shared storage is
+    # always mounted. Wait for the TEST emulator's Pictures directory rather
+    # than failing before any onboarding screen is exercised.
+    storage_deadline = time.monotonic() + 100
+    last_storage_error = None
+    while time.monotonic() < storage_deadline:
+        try:
+            adb("shell", "mkdir", "-p", "/sdcard/Pictures/DZlog", timeout=15)
+            break
+        except (RuntimeError, subprocess.TimeoutExpired) as exc:
+            last_storage_error = exc
+            time.sleep(2)
+    else:
+        raise RuntimeError(
+            "Emulated shared storage was unavailable after 100 seconds"
+        ) from last_storage_error
     apk = "app/build/outputs/apk/debug/app-debug.apk"
     proc = subprocess.run(["adb", "install", apk], capture_output=True, text=True, timeout=180)
     if proc.returncode != 0:
