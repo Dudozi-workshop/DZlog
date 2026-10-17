@@ -27,10 +27,10 @@ internal fun decodeCatalogWithoutDataLoss(json: String): List<SavedTableTemplate
 }
 
 /**
- * [verifiedNoExistingMedia] may be true only when the caller has successfully checked the
- * DZlog media folders. If media is inaccessible, a verifiable fresh package install
- * can offer onboarding ONLY if there are no existing saved preferences. Existing photos
- * are never deleted; when known to exist they veto the offer.
+ * Before runtime permissions, a verified fresh package with no saved state can
+ * display informational introduction pages even if media cannot yet be inspected.
+ * After permission setup, requireVerifiedMediaForOnboarding rejects any unknown
+ * media result before a template can be created. Prior photos always veto the offer.
  */
 fun decideCatalogStartupRoute(
     catalogJson: String?,
@@ -39,6 +39,7 @@ fun decideCatalogStartupRoute(
     verifiedNoExistingMedia: Boolean,
     verifiedFreshInstall: Boolean = false,
     knownExistingMedia: Boolean = false,
+    requireVerifiedMediaForOnboarding: Boolean = false,
 ): CatalogStartupRoute {
     if (catalogJson != null) {
         return if (decodeCatalogWithoutDataLoss(catalogJson) != null) {
@@ -54,11 +55,14 @@ fun decideCatalogStartupRoute(
             CatalogStartupRoute.RECOVERY_REQUIRED
         }
     }
-    // A successful empty gallery query alone does not imply a fresh install.
-    // An update/reinstall can also have no visible media, so require first install.
-    return if (hasOtherSavedState || knownExistingMedia || !verifiedFreshInstall) {
-        CatalogStartupRoute.CONTINUE_EXISTING
-    } else {
-        CatalogStartupRoute.OFFER_ONBOARDING
+    // Existing content and package updates never trigger fresh onboarding.
+    if (hasOtherSavedState || knownExistingMedia || !verifiedFreshInstall) {
+        return CatalogStartupRoute.CONTINUE_EXISTING
     }
+    // A newly installed package alone is insufficient proof that old photos are absent.
+    // Fail closed if the post-permission MediaStore check did not complete.
+    if (requireVerifiedMediaForOnboarding && !verifiedNoExistingMedia) {
+        return CatalogStartupRoute.RECOVERY_REQUIRED
+    }
+    return CatalogStartupRoute.OFFER_ONBOARDING
 }
