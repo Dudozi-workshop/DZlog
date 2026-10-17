@@ -48,6 +48,7 @@ data class AppSettings(
     val galleryGridColumns: Int = GalleryGridColumnsPolicy.DEFAULT_COLUMNS,
     val quickResultsGridColumns: Int = GalleryGridColumnsPolicy.DEFAULT_COLUMNS,
     val showGalleryCounterBadges: Boolean = true,
+    val undoSavePathWarningEnabled: Boolean = true,
 ) {
     companion object {
         val Default = AppSettings(
@@ -75,6 +76,7 @@ object AppSettingsStore {
     private val galleryGridColumnsKey = intPreferencesKey("gallery_grid_columns_v1")
     private val quickResultsGridColumnsKey = intPreferencesKey("quick_results_grid_columns_v1")
     private val showGalleryCounterBadgesKey = booleanPreferencesKey("show_gallery_counter_badges_v1")
+    private val undoSavePathWarningKey = booleanPreferencesKey("undo_save_path_warning_enabled_v1")
 
     fun flow(context: Context): Flow<AppSettings> =
         context.dataStore.data.map { prefs ->
@@ -83,6 +85,7 @@ object AppSettingsStore {
                 galleryGridColumns = GalleryGridColumnsPolicy.normalize(prefs[galleryGridColumnsKey] ?: GalleryGridColumnsPolicy.DEFAULT_COLUMNS),
                 quickResultsGridColumns = GalleryGridColumnsPolicy.normalize(prefs[quickResultsGridColumnsKey] ?: GalleryGridColumnsPolicy.DEFAULT_COLUMNS),
                 showGalleryCounterBadges = prefs[showGalleryCounterBadgesKey] ?: true,
+                undoSavePathWarningEnabled = prefs[undoSavePathWarningKey] ?: true,
                 saveMode = SaveMode.from(prefs[KEY_SAVE_MODE] ?: SaveMode.BOTH.v),
                 continuousPreviewMode = ContinuousPreviewMode.from(prefs[KEY_CONTINUOUS_PREVIEW_MODE] ?: ContinuousPreviewMode.OFF.v),
                 photoQualityMode = PhotoQualityMode.from(prefs[KEY_PHOTO_QUALITY_MODE] ?: PhotoQualityMode.BALANCED.v),
@@ -107,6 +110,10 @@ object AppSettingsStore {
 
     suspend fun setQuickResultsGridColumns(context: Context, columns: Int) {
         context.dataStore.edit { it[quickResultsGridColumnsKey] = GalleryGridColumnsPolicy.normalize(columns) }
+    }
+
+    suspend fun setUndoSavePathWarningEnabled(context: Context, enabled: Boolean) {
+        context.dataStore.edit { it[undoSavePathWarningKey] = enabled }
     }
 
     suspend fun setShowGalleryCounterBadges(context: Context, enabled: Boolean) {
