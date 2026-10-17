@@ -23,7 +23,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 /** Informational tour: navigation never requires editing, shooting, or saving. */
 internal enum class FirstCaptureGuidePhase {
-    QUICK_EDIT, ZOOM_FOCUS, TOOLS, SHUTTER, SAVED, DISMISSED,
+    QUICK_EDIT, ZOOM_FOCUS, TOOLS, SHUTTER, SAVED, SETTINGS, UNDO, DISMISSED,
 }
 
 internal data class FirstCaptureSavedResult(
@@ -49,7 +49,7 @@ internal fun FirstCaptureGuide(
         FirstCaptureGuidePhase.TOOLS -> 3
         FirstCaptureGuidePhase.SHUTTER -> 4
         FirstCaptureGuidePhase.SAVED -> 5
-        FirstCaptureGuidePhase.DISMISSED -> 5
+        FirstCaptureGuidePhase.SETTINGS, FirstCaptureGuidePhase.UNDO, FirstCaptureGuidePhase.DISMISSED -> 5
     }
     val title = when (phase) {
         FirstCaptureGuidePhase.QUICK_EDIT -> "빠른 수정"
@@ -57,7 +57,9 @@ internal fun FirstCaptureGuide(
         FirstCaptureGuidePhase.TOOLS -> "촬영 보조도구"
         FirstCaptureGuidePhase.SHUTTER -> "촬영 버튼"
         FirstCaptureGuidePhase.SAVED -> "저장 결과 확인"
-        FirstCaptureGuidePhase.DISMISSED -> ""
+        FirstCaptureGuidePhase.SETTINGS -> "설정"
+        FirstCaptureGuidePhase.UNDO -> "Undo"
+        FirstCaptureGuidePhase.SETTINGS, FirstCaptureGuidePhase.UNDO, FirstCaptureGuidePhase.DISMISSED -> ""
     }
     val description = when (phase) {
         FirstCaptureGuidePhase.QUICK_EDIT ->
