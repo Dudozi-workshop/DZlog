@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +48,7 @@ internal fun OnboardingPhotoShowcase(
     showGalleryStrip: Boolean = false,
     edgeToEdge: Boolean = false,
 ) {
+    val enlargedIntroText = edgeToEdge && LocalDensity.current.fontScale >= 1.25f
     val shape = RoundedCornerShape(
         if (edgeToEdge) 0.dp else if (compact) 14.dp else 22.dp,
     )
@@ -97,7 +99,7 @@ internal fun OnboardingPhotoShowcase(
                 values = values,
                 compact = compact,
                 modifier = Modifier.align(Alignment.BottomEnd)
-                    .fillMaxWidth(if (compact) 0.95f else if (edgeToEdge) 0.62f else 0.80f)
+                    .fillMaxWidth(if (compact) 0.95f else if (enlargedIntroText) 0.80f else if (edgeToEdge) 0.62f else 0.80f)
                     .padding(end = if (compact) 9.dp else if (edgeToEdge) 18.dp else 12.dp,
                         bottom = if (compact) 13.dp else if (edgeToEdge) 24.dp else 28.dp)
                     .shadow(if (edgeToEdge) 8.dp else 5.dp, RoundedCornerShape(11.dp)),
