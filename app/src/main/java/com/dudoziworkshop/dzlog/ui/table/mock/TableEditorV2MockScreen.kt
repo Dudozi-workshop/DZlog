@@ -277,6 +277,8 @@ fun TableEditorV2Screen(
                     active = activeTab,
                     onContent = {
                         mode = MockMode.EDIT
+                        selectionState.reconcileEditSelection(draftTemplateState)
+                        selectionState.clearLayoutSelection()
                         showStyle = false
                         showSaveRules = false
                         saveDetailTrail = emptyList()
