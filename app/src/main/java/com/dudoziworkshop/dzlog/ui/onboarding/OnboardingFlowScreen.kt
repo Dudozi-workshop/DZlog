@@ -38,6 +38,8 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
+import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.data.template.OnboardingStarterCatalog
@@ -107,9 +109,10 @@ internal fun OnboardingFlowScreen(
         )
         BoxWithConstraints(Modifier.weight(1f)) {
             val compact = maxHeight < 600.dp
-            // Preserve the approved two-line subtitle and leave the CTA fixed.
+            // The intro caption is fixed above the CTA; reserve space for it while
+            // giving the photo the room freed by the removed two-line subtitle.
             // Larger accessibility text may scroll inside the intro content.
-            val introHeroHeight = (maxHeight - if (compact) 158.dp else 178.dp)
+            val introHeroHeight = (maxHeight - if (compact) 125.dp else 145.dp)
                 .coerceIn(if (compact) 205.dp else 270.dp, if (compact) 420.dp else 530.dp)
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -150,8 +153,21 @@ internal fun OnboardingFlowScreen(
         Column(
             Modifier.fillMaxWidth().background(if (step == 1) DDZColor.Background else DDZColor.Surface).padding(
                 horizontal = 20.dp, vertical = if (step == 1) 11.dp else 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(if (step == 1) 10.dp else 6.dp),
         ) {
+            if (step == 1) {
+                Text(
+                    text = "촬영은 간편하게, 기록은 선명하게.",
+                    style = DDZTypography.Body.copy(
+                        fontSize = if (compact) 13.sp else 14.sp,
+                        lineHeight = if (compact) 19.sp else 20.sp,
+                    ),
+                    color = DDZColor.TextSecondary,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             DDZButton(
                 text = when {
                     step == 1 -> if (readOnly) "다음" else "시작하기"

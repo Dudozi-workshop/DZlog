@@ -198,12 +198,12 @@ def main():
             raise AssertionError("Start button must remain fully visible")
         if not is_fully_on_screen(root, "정리를 더 쉽게."):
             raise AssertionError("Intro title is not fully visible")
-        if not is_fully_on_screen(root, "일상부터 업무 현장까지,"):
-            raise AssertionError("Approved first-page subtitle line 1 must be visible")
-        if not is_fully_on_screen(root, "사진과 메모를 함께 남겨보세요."):
-            raise AssertionError("Approved first-page subtitle line 2 must be visible")
-        if contains(root, "촬영은 간편하게, 기록은 선명하게."):
-            raise AssertionError("Unapproved mini caption must not replace A-copy")
+        if contains(root, "일상부터 업무 현장까지,") or contains(root, "사진과 메모를 함께 남겨보세요."):
+            raise AssertionError("Old two-line subtitle must be absent on page one")
+        if not is_fully_on_screen(root, "촬영은 간편하게, 기록은 선명하게."):
+            raise AssertionError("Approved one-line caption must be visible below the hero")
+        if contains(root, "기록표 없이 자유롭게 촬영"):
+            raise AssertionError("Unapproved floating photo tag must be absent")
         # The editorial photo must fit above the fixed CTA at normal font size.
         if not is_fully_on_screen(root, "사진에 기록표가 겹쳐 보이는 구성 예시"):
             raise AssertionError("Intro photo composition is not fully visible")
@@ -234,6 +234,10 @@ def main():
         root = wait_for("사진에 기록을 더해,", timeout=85)
         if not is_fully_on_screen(root, "시작하기"):
             raise AssertionError("Compact onboarding intro CTA clipped")
+        if not is_fully_on_screen(root, "촬영은 간편하게, 기록은 선명하게."):
+            raise AssertionError("Approved photo caption clipped at 140% font scale")
+        if contains(root, "일상부터 업무 현장까지,") or contains(root, "사진과 메모를 함께 남겨보세요."):
+            raise AssertionError("Legacy two-line subtitle unexpectedly shown at 140%")
         mark("01-intro-compact-large-font")
         tap_visible("시작하기")
         wait_for("사진과 기록, 내 방식대로.", timeout=55)

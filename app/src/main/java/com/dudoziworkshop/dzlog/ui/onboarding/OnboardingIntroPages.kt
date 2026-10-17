@@ -52,7 +52,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = false) {
     Column(
         modifier = Modifier.padding(top = if (compact) 10.dp else 16.dp),
-        // Use a short gap below the approved A-copy, keeping the photo prominent.
+        // Keep the hero directly below the headline; the one-line caption sits below the photo.
         verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp),
     ) {
         // Editorial hierarchy is local to onboarding: avoid changing the app-wide
@@ -82,14 +82,6 @@ internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = fa
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
-        }
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            val subtitle = DDZTypography.Body.copy(fontSize = 14.sp, lineHeight = 20.sp)
-            Text("일상부터 업무 현장까지,", style = subtitle, color = DDZColor.TextSecondary)
-            Text("사진과 메모를 함께 남겨보세요.", style = subtitle, color = DDZColor.TextSecondary)
         }
         }
         OnboardingPhotoShowcase(
