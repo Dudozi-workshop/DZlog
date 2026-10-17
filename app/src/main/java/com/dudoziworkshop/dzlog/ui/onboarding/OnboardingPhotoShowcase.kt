@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
@@ -126,16 +127,15 @@ private fun PhotoShowcaseBackdrop(compact: Boolean, edgeToEdge: Boolean) {
         ),
     ) {
         if (edgeToEdge) {
-            // Enlarge the approved 4:3 artwork by 22% beyond the viewport:
-            // removes the small-inset appearance without the aggressive side
-            // cropping of ContentScale.Crop in the tall hero container.
-            // requiredSize permits the image to exceed the parent's max width;
-            // the enclosing showcase clips only its outermost decorative edges.
+            // Fill more of the hero and reduce the empty gap above the fixed
+            // caption, while keeping the baked-in phone and table legible.
+            // Keep the 4:3 asset ratio and crop only its outer scenery.
             BoxWithConstraints(Modifier.fillMaxSize()) {
-                val photoWidth = maxWidth * 1.22f
+                val photoWidth = maxWidth * 1.30f
                 val photoHeight = photoWidth * (3f / 4f)
                 Box(
                     Modifier.align(Alignment.Center)
+                        .offset(y = 8.dp)
                         .requiredSize(width = photoWidth, height = photoHeight),
                 ) {
                     Image(
@@ -157,6 +157,15 @@ private fun PhotoShowcaseBackdrop(compact: Boolean, edgeToEdge: Boolean) {
                                 1.00f to DDZColor.Background,
                             ),
                         ),
+                    )
+                    // Some GPU rasterizers leave one uncovered row at the
+                    // image boundary after the gradient shader is clipped.
+                    // Cover only that seam; do not veil the phone or card.
+                    Box(
+                        Modifier.align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .background(DDZColor.Background),
                     )
                 }
             }
