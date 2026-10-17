@@ -132,7 +132,7 @@ fun CameraScreen(
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
-    quickEditSelectionMemory: QuickEditSelectionMemory = remember { QuickEditSelectionMemory() },
+    quickEditSelectionMemory: QuickEditSelectionMemory,
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
     val context = LocalContext.current
@@ -212,7 +212,7 @@ fun CameraPreview(
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
-    quickEditSelectionMemory: QuickEditSelectionMemory = remember { QuickEditSelectionMemory() },
+    quickEditSelectionMemory: QuickEditSelectionMemory,
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
     val context = LocalContext.current
