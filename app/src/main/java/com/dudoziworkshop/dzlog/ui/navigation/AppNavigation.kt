@@ -913,6 +913,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                             recordFirstOnboardingCapture()
                         }
                     },
+                    tutorialFocus = if (startOnCamera) firstGuidePhase else null,
                     onFirstQuickEditOpened = {
                         if (startOnCamera && firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT) {
                             firstGuidePhase = FirstCaptureGuidePhase.SHUTTER
