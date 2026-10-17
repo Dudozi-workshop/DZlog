@@ -106,7 +106,7 @@ internal fun OnboardingFlowScreen(
         OnboardingProgressHeader(
             stage = when (step) { 1 -> 1; 2 -> 2; else -> 4 },
             label = when (step) { 1 -> "앱 소개"; 2 -> "주요 기능"; else -> "시작 양식" },
-            introStyle = step == 1,
+            introStyle = step <= 2,
         )
         BoxWithConstraints(Modifier.weight(1f)) {
             val compact = maxHeight < 600.dp
@@ -192,9 +192,9 @@ internal fun OnboardingFlowScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !busy, minHeight = if (step == 1) 56.dp else DDZLayout.Control.Button,
-                shape = if (step == 1) RoundedCornerShape(15.dp) else null,
-                textStyleOverride = if (step == 1) androidx.compose.ui.text.TextStyle(
+                enabled = !busy, minHeight = if (step <= 2) 56.dp else DDZLayout.Control.Button,
+                shape = if (step <= 2) RoundedCornerShape(15.dp) else null,
+                textStyleOverride = if (step <= 2) androidx.compose.ui.text.TextStyle(
                     fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                 ) else null,
             )

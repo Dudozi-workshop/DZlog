@@ -95,66 +95,87 @@ internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = fa
 
 @Composable
 internal fun OnboardingFeatureIntro(previewHeight: Dp = 146.dp, compact: Boolean = false) {
-    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 11.dp)) {
+    Column(
+        modifier = Modifier.padding(top = if (compact) 3.dp else 7.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp),
+    ) {
         Text(
             "사진에 기록을 더하고,\n정리까지 한 번에.",
-            style = DDZTypography.HomeMainTitle, color = DDZColor.TextPrimary,
+            style = DDZTypography.HomeMainTitle.copy(
+                fontSize = if (compact) 27.sp else 28.sp,
+                lineHeight = if (compact) 34.sp else 35.sp,
+            ),
+            color = DDZColor.TextPrimary,
         )
         Text(
             "촬영부터 보관까지, 필요한 기능만 담았어요.",
-            style = DDZTypography.Body, color = DDZColor.TextSecondary,
+            style = DDZTypography.Body.copy(fontSize = if (compact) 13.sp else 14.sp),
+            color = DDZColor.TextSecondary,
+            maxLines = 2,
         )
-        // The approved reference shows one editorial feature card with the
-        // device on the right, not a second full-width fake camera screen.
+        // Reuse the approved real-photo composition, not a fabricated camera UI.
+        // This onboarding artwork is read-only and does not change capture state.
         Surface(
             color = DDZColor.SelectedSoft.copy(alpha = 0.54f),
             shape = RoundedCornerShape(18.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Row(
-                modifier = Modifier.padding(if (compact) 9.dp else 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(7.dp),
+            BoxWithConstraints {
+                val artworkWidth = when {
+                    maxWidth < 300.dp -> 108.dp
+                    compact -> 124.dp
+                    else -> 140.dp
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(if (compact) 9.dp else 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("01", style = DDZTypography.Caption, color = DDZColor.SelectedDark)
-                    Text(
-                        "사진과 기록, 내 방식대로.",
-                        style = DDZTypography.SectionTitle,
-                        color = DDZColor.TextPrimary,
-                    )
-                    Text(
-                        "기록표를 함께 담거나\n표 없이 촬영할 수 있어요.",
-                        style = DDZTypography.Caption,
-                        color = DDZColor.TextSecondary,
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp),
+                    ) {
+                        Text("01 · 촬영", style = DDZTypography.Caption, color = DDZColor.SelectedDark)
+                        Text(
+                            "사진 위에,\n나만의 기록표.",
+                            style = DDZTypography.SectionTitle.copy(
+                                fontSize = if (compact) 15.sp else 16.sp,
+                                lineHeight = if (compact) 20.sp else 22.sp,
+                            ),
+                            color = DDZColor.TextPrimary,
+                            maxLines = 3,
+                        )
+                        Text(
+                            "기록표를 넣거나\n사진만 찍을 수 있어요.",
+                            style = DDZTypography.Caption.copy(
+                                fontSize = if (compact) 11.sp else 12.sp,
+                                lineHeight = if (compact) 15.sp else 17.sp,
+                            ),
+                            color = DDZColor.TextSecondary,
+                        )
+                    }
+                    Image(
+                        painter = painterResource(R.drawable.onboarding_actual_camera_hero),
+                        contentDescription = "사진에 기록표를 겹친 촬영 예시",
+                        modifier = Modifier
+                            .width(artworkWidth)
+                            .height(if (compact) 140.dp else 160.dp)
+                            .clip(RoundedCornerShape(13.dp)),
+                        contentScale = ContentScale.Crop,
                     )
                 }
-                Image(
-                    painter = painterResource(R.drawable.onboarding_reference_hero),
-                    contentDescription = "사진에 기록표를 겹친 촬영 예시",
-                    modifier = Modifier
-                        .width(if (compact) 120.dp else 136.dp)
-                        .height(if (compact) 136.dp else 160.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop,
-                )
             }
         }
         CompactFeature(
-            icon = Icons.Default.Folder,
             number = "02",
-            title = "촬영과 동시에, 원하는 곳에.",
-            detail = "내 파일명과 폴더 규칙에 맞춰 저장해요.",
+            title = "파일명·폴더도 내 방식대로.",
+            detail = "내 규칙에 맞춰 저장해요.",
             compact = compact,
         )
         CompactFeature(
-            icon = Icons.Default.Description,
             number = "03",
-            title = "쌓인 기록도, 찾기 쉽게.",
-            detail = "최근 사진과 폴더를 바로 찾아보세요.",
+            title = "지난 기록도 빠르게 찾아요.",
+            detail = "최근 사진과 폴더를 바로 확인해요.",
             compact = compact,
         )
     }
@@ -184,7 +205,6 @@ private fun FeatureModeLabel(
 
 @Composable
 private fun CompactFeature(
-    icon: ImageVector,
     number: String,
     title: String,
     detail: String,
@@ -196,88 +216,94 @@ private fun CompactFeature(
         color = DDZColor.Surface,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(if (compact) 6.dp else 9.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(if (compact) 7.dp else 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 5.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 4.dp),
             ) {
-                Text(number, style = DDZTypography.Caption, color = DDZColor.SelectedDark)
-                Text(title, style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
-                Text(detail, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+                Text(number + if (number == "02") " · 저장" else " · 앨범",
+                    style = DDZTypography.Caption, color = DDZColor.SelectedDark)
+                Text(
+                    title,
+                    style = DDZTypography.SettingLabel.copy(
+                        fontSize = if (compact) 13.sp else 14.sp,
+                        lineHeight = if (compact) 17.sp else 19.sp,
+                    ),
+                    color = DDZColor.TextPrimary,
+                    maxLines = 2,
+                )
+                Text(
+                    detail,
+                    style = DDZTypography.Caption.copy(
+                        fontSize = if (compact) 11.sp else 12.sp,
+                        lineHeight = if (compact) 15.sp else 16.sp,
+                    ),
+                    color = DDZColor.TextSecondary,
+                    maxLines = 2,
+                )
             }
             Box(
-                Modifier.size(if (compact) 70.dp else 82.dp, if (compact) 60.dp else 78.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                Modifier.size(
+                    width = if (compact) 77.dp else 87.dp,
+                    height = if (compact) 65.dp else 75.dp,
+                ).clip(RoundedCornerShape(12.dp))
                     .background(DDZColor.SelectedSoft),
             ) {
-                Image(
-                    painter = painterResource(
-                        if (number == "02") R.drawable.onboarding_starter_photo
-                        else R.drawable.onboarding_gallery_photo
-                    ),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxWidth().height(if (compact) 60.dp else 78.dp),
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.98f,
-                )
                 if (number == "02") {
-                    // Small folder preview for storage rules.
+                    Image(
+                        painter = painterResource(R.drawable.onboarding_starter_photo),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxWidth().height(if (compact) 65.dp else 75.dp),
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.72f,
+                    )
                     Surface(
-                        color = DDZColor.Surface.copy(alpha = 0.96f),
-                        shape = RoundedCornerShape(7.dp),
-                        modifier = Modifier.align(Alignment.Center).padding(4.dp),
+                        color = DDZColor.Surface.copy(alpha = 0.97f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(5.dp),
                     ) {
-                        Column(
-                            Modifier.padding(horizontal = 6.dp, vertical = 5.dp),
-                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                        Row(
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 5.dp),
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(3.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(Icons.Default.Folder, contentDescription = null,
-                                    tint = DDZColor.PrimaryDark, modifier = Modifier.size(13.dp))
-                                Text("식물 관찰", style = DDZTypography.Caption,
-                                    color = DDZColor.TextPrimary)
-                            }
-                            Text("2026.10", style = DDZTypography.Caption,
-                                color = DDZColor.TextSecondary)
-                        }
-                    }
-                } else {
-                    // Contact-sheet preview for photo organization.
-                    Row(
-                        modifier = Modifier.align(Alignment.Center).padding(7.dp),
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
-                    ) {
-                        repeat(3) { index ->
-                            Image(
-                                painter = painterResource(
-                                    when (index) {
-                                        0 -> R.drawable.onboarding_hero_photo
-                                        1 -> R.drawable.onboarding_gallery_photo
-                                        else -> R.drawable.onboarding_starter_photo
-                                    }
-                                ),
-                                contentDescription = null,
-                                modifier = Modifier.size(width = 20.dp, height = 34.dp)
-                                    .clip(RoundedCornerShape(4.dp)),
-                                contentScale = ContentScale.Crop,
-                                alpha = if (index == 1) 0.70f else 1f,
+                            Icon(
+                                Icons.Default.Folder, contentDescription = null,
+                                tint = DDZColor.PrimaryDark, modifier = Modifier.size(13.dp),
+                            )
+                            Text(
+                                "내 폴더",
+                                fontSize = 10.sp,
+                                color = DDZColor.TextPrimary,
+                                maxLines = 1,
+                                softWrap = false,
                             )
                         }
                     }
-                }
-                Surface(
-                    color = DDZColor.Surface.copy(alpha = 0.94f),
-                    shape = RoundedCornerShape(7.dp),
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(5.dp),
-                ) {
-                    Icon(icon, null, tint = DDZColor.PrimaryDark,
-                        modifier = Modifier.padding(6.dp).size(18.dp))
+                } else {
+                    Row(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.onboarding_hero_photo),
+                            contentDescription = null,
+                            modifier = Modifier.size(width = 33.dp, height = 53.dp)
+                                .clip(RoundedCornerShape(6.dp)),
+                            contentScale = ContentScale.Crop,
+                        )
+                        Image(
+                            painter = painterResource(R.drawable.onboarding_starter_photo),
+                            contentDescription = null,
+                            modifier = Modifier.size(width = 33.dp, height = 53.dp)
+                                .clip(RoundedCornerShape(6.dp)),
+                            contentScale = ContentScale.Crop,
+                        )
+                    }
                 }
             }
         }
