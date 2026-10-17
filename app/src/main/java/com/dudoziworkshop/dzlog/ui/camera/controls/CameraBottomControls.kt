@@ -356,10 +356,10 @@ internal fun CameraBottomControls(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(
-                        start = (recentCenter - 32.dp).coerceAtLeast(0.dp),
+                        start = (recentCenter - 24.dp).coerceAtLeast(0.dp),
                         bottom = DDZSpacing.screenPadding + with(density) {
                             bottomBarHeightPx.toDp()
-                        } + 4.dp,
+                        } - 4.dp,
                     ),
             )
         }
