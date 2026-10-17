@@ -22,22 +22,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
-/** Non-interactive session shot counter, placed above Undo without changing its touch area. */
+/** Non-interactive shot counter matching the save-status badge footprint. */
 @Composable
 internal fun SessionCaptureCountBadge(
     completedCount: Int,
     modifier: Modifier = Modifier,
 ) {
     if (completedCount <= 0) return
-    Box(modifier.width(64.dp).height(24.dp), contentAlignment = Alignment.Center) {
+    Box(modifier.width(48.dp).height(48.dp), contentAlignment = Alignment.Center) {
         Row(
             modifier = Modifier
-                .background(DDZColor.SelectedSoft, RoundedCornerShape(999.dp))
+                .width(46.dp).height(24.dp)
+                .background(DDZColor.SelectedSoft.copy(alpha = 0.88f), RoundedCornerShape(999.dp))
                 .semantics(mergeDescendants = true) {
                     contentDescription = "이번 촬영 ${completedCount}회"
                 }
-                .padding(horizontal = 8.dp, vertical = 3.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                .padding(horizontal = 4.dp, vertical = 3.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
