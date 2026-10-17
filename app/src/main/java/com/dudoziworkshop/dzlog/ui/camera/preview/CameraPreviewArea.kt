@@ -316,13 +316,12 @@ internal fun CameraPreviewArea(
         }
 
         // Phrase switching can temporarily invalidate the counter stream.
-        // Display the last COMPLETE preview instead of showing the next phrase
-        // with its counter missing. The shutter is independently gated until
-        // the new stream has a real synchronized counter.
+        // Only reuse a complete preview for the SAME template content and phrase
+        // position. Edits to cells, phrase sets, or naming rules must never leave
+        // the previous template's values visible while counters resynchronize.
         var lastCompletePreview by remember(
-            args.tableTemplateState.rows,
-            args.tableTemplateState.cols,
-            args.tableTemplateState.cells.map { it.cellId },
+            args.tableTemplateState,
+            args.phraseProgressCursor,
         ) {
             mutableStateOf<Pair<Int, List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>>?>(null)
         }
