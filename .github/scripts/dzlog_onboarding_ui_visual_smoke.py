@@ -177,7 +177,7 @@ def main():
             raise AssertionError("Start button must remain fully visible")
         if not is_fully_on_screen(root, "정리를 더 쉽게."):
             raise AssertionError("Intro title is not fully visible")
-        if not is_fully_on_screen(root, "사진과 메모를 함께 남겨보세요."):
+        if not is_fully_on_screen(root, "찍는 순간, 알아서 정리되도록."):
             raise AssertionError("Intro subtitle is not fully visible")
         # The editorial photo must fit above the fixed CTA at normal font size.
         if not is_fully_on_screen(root, "사진에 기록표가 겹쳐 보이는 구성 예시"):
