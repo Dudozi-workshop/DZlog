@@ -3,6 +3,13 @@ package com.dudoziworkshop.dzlog.ui.common
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material3.Icon
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,7 +27,10 @@ internal fun NextCaptureInfoFields(
     fileName: String,
     relativePaths: List<String>,
 ) {
-    Text("파일명", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Icon(Icons.Filled.Description, contentDescription = null, tint = DDZColor.TextMuted, modifier = Modifier.size(16.dp))
+        Text("파일명", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+    }
     Surface(
         color = DDZColor.Surface,
         border = BorderStroke(1.dp, DDZColor.Border),
@@ -33,7 +43,10 @@ internal fun NextCaptureInfoFields(
             color = DDZColor.TextStrong,
         )
     }
-    Text("저장 경로", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Icon(Icons.Filled.Folder, contentDescription = null, tint = DDZColor.TextMuted, modifier = Modifier.size(16.dp))
+        Text("저장경로", style = DDZTypography.Caption, color = DDZColor.TextMuted)
+    }
     Surface(
         color = DDZColor.Surface,
         border = BorderStroke(1.dp, DDZColor.Border),

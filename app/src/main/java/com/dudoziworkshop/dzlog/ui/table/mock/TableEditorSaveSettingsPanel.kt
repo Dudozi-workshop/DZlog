@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -45,12 +45,12 @@ internal fun TableEditorSaveSettingsPanel(
     ) {
         TableEditorSettingRow(
             label = "파일명",
-            leadingIcon = Icons.Filled.TextFields,
+            leadingIcon = Icons.Filled.Description,
             value = fileNamePreview,
             onClick = { onOpenDetail(TableEditorSaveDetail.FILE_NAME) },
         )
         TableEditorSettingRow(
-            label = "저장 위치",
+            label = "저장경로",
             leadingIcon = Icons.Filled.Folder,
             value = pathPreview,
             onClick = { onOpenDetail(TableEditorSaveDetail.SAVE_PATH) },

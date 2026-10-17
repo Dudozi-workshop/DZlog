@@ -53,6 +53,7 @@ import com.dudoziworkshop.dzlog.ui.common.DDZCard
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.table.mock.TemplateMiniPreview
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -81,8 +82,9 @@ fun TableTemplateListScreen(
         containerColor = DDZColor.Background,
         topBar = {
             DDZTopBar(title = "표 템플릿", onBack = onBack, actions = {
-                DDZButton(text = "새 템플릿", leadingIcon = Icons.Filled.Add,
-                    minHeight = 40.dp, textStyleOverride = DDZTypography.Caption, onClick = onCreateTemplate)
+                DDZButton(text = "+ 새 템플릿",
+                    minHeight = DDZLayout.Control.Standard, horizontalPadding = 10.dp,
+                    textStyleOverride = DDZTypography.Caption, onClick = onCreateTemplate)
             })
         },
     ) { padding ->

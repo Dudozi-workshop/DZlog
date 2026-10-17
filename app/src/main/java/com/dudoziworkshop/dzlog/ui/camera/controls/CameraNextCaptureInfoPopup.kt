@@ -17,7 +17,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.Button
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,8 +54,8 @@ internal fun CameraNextCaptureInfoPopup(
         )
         Surface(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(start = 20.dp, end = 20.dp, top = 50.dp)
+                .align(Alignment.Center)
+                .padding(horizontal = 20.dp)
                 .fillMaxWidth()
                 .widthIn(max = 360.dp),
             shape = RoundedCornerShape(16.dp),
@@ -65,9 +68,9 @@ internal fun CameraNextCaptureInfoPopup(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Text("다음 촬영 정보", style = DDZTypography.OverlayTitleCompact, color = DDZColor.Primary)
-                    IconButton(onClick = onDismiss) {
+                    IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd)) {
                         Icon(Icons.Default.Close, contentDescription = "닫기")
                     }
                 }
