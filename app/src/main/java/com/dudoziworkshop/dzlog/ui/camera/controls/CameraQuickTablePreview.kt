@@ -127,9 +127,9 @@ internal fun CameraQuickTablePreview(
     BoxWithConstraints(modifier, contentAlignment = Alignment.TopCenter) {
         val viewportMaxHeight = maxHeight
         val viewportMaxWidth = maxWidth
-        val padding = DDZSpacing.controlGap
+        val padding = DDZSpacing.itemGap
         val headingHeight = DDZLayout.Control.Compact
-        val hintHeight = DDZLayout.Control.Compact
+        val hintHeight = 24.dp
         val availableWidth = (maxWidth - padding * 2).coerceAtLeast(1.dp)
         val availableHeight = (maxHeight - padding * 2 - headingHeight - hintHeight).coerceAtLeast(1.dp)
         val fit = quickPreviewFit(with(density) { availableWidth.toPx() }, with(density) { availableHeight.toPx() }, aspect)
@@ -158,18 +158,14 @@ internal fun CameraQuickTablePreview(
         Surface(Modifier.size(availableWidth + padding * 2, viewportHeight + padding * 2 + headingHeight + hintHeight),
             shape = RoundedCornerShape(DDZLayout.Radius.Medium), color = DDZColor.SurfaceSoft) {
             Column(Modifier.padding(padding)) {
-                // DZQ-002 B-1: distinguish the template header from the table,
-                // without creating a separate filled template chip or changing its height.
-                Box(
-                    Modifier.fillMaxWidth().height(headingHeight)
-                        .background(DDZColor.Surface, RoundedCornerShape(DDZLayout.Radius.Small))
-                        .border(1.dp, DDZColor.Border, RoundedCornerShape(DDZLayout.Radius.Small))
-                ) {
+                // DZQ-002 device feedback: keep this a flat, compact toolbar.
+                // Emphasize the template name instead of drawing a nested card.
+                Box(Modifier.fillMaxWidth().height(headingHeight)) {
                     Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
                         Row(
                             Modifier.weight(1f).fillMaxHeight()
                                 .clickable(enabled = templates.isNotEmpty() && !switching) { showPicker = true }
-                                .padding(start = DDZSpacing.itemGap, end = DDZSpacing.xs),
+                                .padding(start = DDZSpacing.xs, end = DDZSpacing.xs),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(DDZSpacing.xs),
                         ) {
