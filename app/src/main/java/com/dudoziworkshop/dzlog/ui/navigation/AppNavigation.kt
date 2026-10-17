@@ -913,7 +913,11 @@ fun AppRoot(startOnCamera: Boolean = false) {
                             recordFirstOnboardingCapture()
                         }
                     },
-                    tutorialFocus = if (startOnCamera) firstGuidePhase else null,
+                    tutorialFocus = if (startOnCamera && screen == AppScreen.CAMERA) {
+                        if (firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT &&
+                            quickEditableCells(tableTemplateState).isEmpty()
+                        ) FirstCaptureGuidePhase.SHUTTER else firstGuidePhase
+                    } else null,
                     onFirstQuickEditOpened = {
                         if (startOnCamera && firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT) {
                             firstGuidePhase = FirstCaptureGuidePhase.SHUTTER
@@ -1245,7 +1249,12 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     showHelpFromGuide = true
                     navigateTo(AppScreen.SETTINGS)
                 },
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 80.dp).zIndex(90f),
+                // The tutorial card floats above the bottom controls instead of covering them.
+                // Keep the saved receipt at the top so long paths cannot obscure camera actions.
+                modifier = (if (firstGuidePhase == FirstCaptureGuidePhase.SAVED)
+                    Modifier.align(Alignment.TopCenter).padding(top = 80.dp)
+                else Modifier.align(Alignment.BottomCenter).padding(bottom = 128.dp)
+                ).zIndex(90f),
             )
         }
     }
