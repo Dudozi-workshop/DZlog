@@ -33,8 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.unit.IntOffset
@@ -72,7 +70,6 @@ internal fun CameraPreviewArea(
     isTableLocked: Boolean,
     onTableSelectionChange: (Boolean) -> Unit,
     onCornerResizeScale: (Float, Boolean) -> Unit,
-    onVisibleTableBoundsInRoot: (RectF?) -> Unit,
 ) {
     val context = args.context
     val lifecycleOwner = args.lifecycleOwner
@@ -102,14 +99,6 @@ internal fun CameraPreviewArea(
         var usableTopRatio by remember { mutableFloatStateOf(0f) }
         var usableBottomRatio by remember { mutableFloatStateOf(1f) }
         var watermarkBoundsRect by remember { mutableStateOf<RectF?>(null) }
-        var previewOriginInRoot by remember { mutableStateOf(Offset.Zero) }
-        LaunchedEffect(watermarkBoundsRect, previewOriginInRoot, args.showWmPreview) {
-            val bounds = watermarkBoundsRect?.takeIf { args.showWmPreview }
-            onVisibleTableBoundsInRoot(bounds?.let {
-                RectF(it.left + previewOriginInRoot.x, it.top + previewOriginInRoot.y,
-                    it.right + previewOriginInRoot.x, it.bottom + previewOriginInRoot.y)
-            })
-        }
         var activeHandleCorner by remember { mutableStateOf<ResizeHandleCorner?>(null) }
         var watermarkRawRect by remember { mutableStateOf<RectF?>(null) }
         var watermarkDragActive by remember { mutableStateOf(false) }
@@ -413,7 +402,6 @@ internal fun CameraPreviewArea(
                     .fillMaxWidth(previewBoxLayout.widthFraction)
                     .aspectRatio(previewBoxLayout.safeAspect)
                     .offset { IntOffset(0, previewBoxLayout.topOffsetPx.roundToInt()) }
-                    .onGloballyPositioned { coords -> previewOriginInRoot = coords.positionInRoot() }
                     .onSizeChanged { size ->
                         previewBoxWidthPx = size.width.toFloat()
                         previewBoxHeightPx = size.height.toFloat()
