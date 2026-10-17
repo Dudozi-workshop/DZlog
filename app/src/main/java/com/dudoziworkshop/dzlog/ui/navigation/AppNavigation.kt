@@ -910,7 +910,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     tutorialFocus = if (liveCameraTutorialSession != null) when (liveCameraTutorialStep) {
                         "undo", "warning" -> FirstCaptureGuidePhase.UNDO
                         "entry", "quality", "feedback", "controls" -> FirstCaptureGuidePhase.SETTINGS
-                        "zoom", "pinch", "focus" -> FirstCaptureGuidePhase.ZOOM_FOCUS
+                        "zoom" -> FirstCaptureGuidePhase.ZOOM_CHIP
+                        "pinch", "focus" -> FirstCaptureGuidePhase.ZOOM_FOCUS
                         "menu", "flash", "grid", "table", "assist" -> FirstCaptureGuidePhase.TOOLS
                         "quick", "template" -> FirstCaptureGuidePhase.QUICK_EDIT
                         "shutter" -> FirstCaptureGuidePhase.SHUTTER
