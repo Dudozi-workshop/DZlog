@@ -20,7 +20,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.key
@@ -72,12 +71,6 @@ import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePhraseUndoHistory
 import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureUndoPathWarningPolicy
-import com.dudoziworkshop.dzlog.ui.common.DDZContentDialog
-import com.dudoziworkshop.dzlog.ui.common.DDZButton
-import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
-import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
@@ -898,30 +891,16 @@ fun CameraPreview(
         }
 
         undoPathWarning?.let { (saved, current) ->
-            DDZContentDialog(
-                title = "다른 폴더의 사진을 삭제할까요?",
-                onDismiss = { undoPathWarning = null },
-                content = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("삭제하려는 사진은 현재 촬영 폴더와 다른 위치에 저장되어 있습니다.", style = DDZTypography.Body, color = DDZColor.TextSecondary)
-                        Column(Modifier.fillMaxWidth().background(DDZColor.SurfaceSoft, androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).padding(12.dp)) {
-                            Text("삭제할 사진의 저장경로", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
-                            Text(saved, style = DDZTypography.Secondary, color = DDZColor.TextPrimary)
-                            Text("현재 촬영 저장경로", style = DDZTypography.Caption, color = DDZColor.TextSecondary, modifier = Modifier.padding(top = 8.dp))
-                            Text(current, style = DDZTypography.Secondary, color = DDZColor.TextPrimary)
-                        }
-                        Text("사진을 삭제해도 현재 저장 설정은 유지됩니다.", style = DDZTypography.Secondary, color = DDZColor.TextSecondary)
-                    }
-                },
-                actions = {
-                    DDZButton("취소", onClick = { undoPathWarning = null }, style = DDZButtonStyle.Secondary, modifier = Modifier.weight(1f))
-                    DDZButton("사진 삭제", onClick = {
-                        undoPathWarning = null
-                        val lastUris = sessionCaptureStack.lastOrNull().orEmpty()
-                        if (ui.capture.pendingSaveCount == 0 && !undoPhraseSaving &&
-                            phraseUndoHistory.canUndo(lastUris.map(Uri::toString), quickTemplateId)
-                        ) undoDeleteController.deleteLatest(sessionCaptureStack)
-                    }, style = DDZButtonStyle.Primary, containerColorOverride = DDZColor.Destructive, modifier = Modifier.weight(1f))
+            CameraUndoPathWarningDialog(
+                capturedFolder = saved,
+                currentFolder = current,
+                onCancel = { undoPathWarning = null },
+                onConfirm = {
+                    undoPathWarning = null
+                    val lastUris = sessionCaptureStack.lastOrNull().orEmpty()
+                    if (ui.capture.pendingSaveCount == 0 && !undoPhraseSaving &&
+                        phraseUndoHistory.canUndo(lastUris.map(Uri::toString), quickTemplateId)
+                    ) undoDeleteController.deleteLatest(sessionCaptureStack)
                 },
             )
         }
