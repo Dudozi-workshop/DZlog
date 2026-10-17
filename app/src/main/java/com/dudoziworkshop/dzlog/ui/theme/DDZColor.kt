@@ -37,6 +37,11 @@ object DDZColor {
     val Destructive = Color(0xFFD96862)
     val DestructiveSoft = Color(0xFFF8E3E1)
 
+    // Quick-results original-only state label (not an action color).
+    val QuickOriginalBadgeBackground = Color(0xFFF5F1E8)
+    val QuickOriginalBadgeText = Color(0xFF425340)
+    val QuickOriginalBadgeBorder = Color(0xFFE7E0D2)
+
     // Camera / overlay exception tokens
     val OverlayScrim = Color(0xFF2D2926)
     val OverlayText = Color.White
