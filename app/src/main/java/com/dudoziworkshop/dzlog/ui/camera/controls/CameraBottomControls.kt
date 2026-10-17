@@ -147,11 +147,11 @@ internal fun CameraBottomControls(
         // Passive preview of the real tools menu: no preference writes or camera commands.
         // It intentionally disappears if the user opens the normal interactive menu.
         val tutorialTarget = LocalTutorialTarget.current
-        if ((tutorialFocus == FirstCaptureGuidePhase.TOOLS ||
+        val showPassiveToolMenu = (tutorialFocus == FirstCaptureGuidePhase.TOOLS ||
             tutorialTarget?.startsWith("camera.tool.") == true ||
-            (LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId == "menu")) && !showToolMenu &&
-            selectedTool == null && !isToolPanelExpanded
-        ) {
+            (LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId == "menu")) &&
+            !showToolMenu && selectedTool == null && !isToolPanelExpanded
+        if (showPassiveToolMenu) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -354,7 +354,7 @@ internal fun CameraBottomControls(
         }
 
         // Keep zoom near the shutter and out of the expanded tool panels.
-        if (!showToolMenu && selectedTool == null && !ui.isTableSelected) {
+        if (!showToolMenu && !showPassiveToolMenu && selectedTool == null && !ui.isTableSelected) {
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)

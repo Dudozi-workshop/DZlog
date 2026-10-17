@@ -57,6 +57,7 @@ def touch_passive_screen():
     for x, y in (((x1 + x2) // 2, (y1 + y2) // 2), ((x1 + x2) // 2, y2 - 70)):
         adb("shell", "input", "tap", str(x), str(y))
     adb("shell", "input", "keyevent", "24")
+    time.sleep(3)  # Let the Android volume overlay dismiss before screenshots.
 
 
 def main():
