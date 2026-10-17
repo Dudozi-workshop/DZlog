@@ -45,7 +45,7 @@ def root_gallery():
     adb("shell", "am", "force-stop", PKG)
     adb("shell", "am", "start", "-W", "-n", ACTIVITY)
     wait_for("촬영 시작", timeout=65)
-    tap("앨범 보기 >", "갤러리")
+    tap("앨범 보기", "갤러리")
     wait_for("기본 저장", timeout=75)
 
 def long_press_result_tile():
