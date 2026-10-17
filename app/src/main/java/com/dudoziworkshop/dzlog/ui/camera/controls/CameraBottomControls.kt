@@ -441,7 +441,15 @@ private fun BoxScope.CameraBottomBarRow(
                 )
             }
 
-            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.weight(18f).then(
+                    if (tutorialFocus == FirstCaptureGuidePhase.TOOLS ||
+                        tutorialFocus == FirstCaptureGuidePhase.ZOOM_FOCUS)
+                        Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
+                    else Modifier
+                ),
+                contentAlignment = Alignment.Center
+            ) {
                 CameraToolEntryButton(
                     onClick = {
                         ui.dismissTableSelection()
