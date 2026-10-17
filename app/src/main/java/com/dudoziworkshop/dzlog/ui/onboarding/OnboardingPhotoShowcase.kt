@@ -103,9 +103,9 @@ internal fun OnboardingPhotoShowcase(
                         bottom = if (compact) 13.dp else if (edgeToEdge) 24.dp else 28.dp)
                     .shadow(if (edgeToEdge) 8.dp else 5.dp, RoundedCornerShape(11.dp)),
             )
-        } else {
+        } else if (!showTable && !edgeToEdge) {
             PhotoShowcaseTag(
-                label = "기록표 없이 자유롭게 촬영",
+                label = "기록표 없이 자유롭게 촬영"
                 modifier = Modifier.align(Alignment.BottomEnd)
                     .padding(end = 14.dp, bottom = 16.dp),
             )
@@ -118,7 +118,8 @@ private fun PhotoShowcaseBackdrop(compact: Boolean, edgeToEdge: Boolean) {
     Box(
         Modifier.fillMaxSize().background(
             Brush.linearGradient(
-                listOf(Color(0xFFF7EEE4), Color(0xFFD6DFCD), Color(0xFFD0C2AC)),
+                if (edgeToEdge) listOf(DDZColor.Background, DDZColor.Background)
+                else listOf(Color(0xFFF7EEE4), Color(0xFFD6DFCD), Color(0xFFD0C2AC)),
             ),
         ),
     ) {
@@ -130,31 +131,32 @@ private fun PhotoShowcaseBackdrop(compact: Boolean, edgeToEdge: Boolean) {
             ),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-            alpha = 0.96f,
+            // Keep the full approved square artwork visible in the tall page-one layout.
+            contentScale = if (edgeToEdge) ContentScale.Fit else ContentScale.Crop,
+            alpha = if (edgeToEdge) 1f else 0.96f,
         )
-        Box(
-            Modifier.fillMaxSize().background(
-                Brush.verticalGradient(
-                    listOf(Color.White.copy(alpha = 0.10f), Color.Transparent, Color(0xFF756F59).copy(alpha = 0.12f)),
-                ),
-            ),
-        )
-        if (edgeToEdge) {
-            // A soft page-one photo transition; record values are drawn on top
-            // after this backdrop, so they remain legible and selectable by QA.
+        if (!edgeToEdge) {
             Box(
-                Modifier.fillMaxSize().background(Color(0xFFFFF9F0).copy(alpha = 0.08f))
-                    .background(
-                        Brush.verticalGradient(
-                            0.00f to DDZColor.Background,
-                            0.08f to DDZColor.Background.copy(alpha = 0.62f),
-                            0.22f to Color.Transparent,
-                            0.74f to Color.Transparent,
-                            0.90f to DDZColor.Background.copy(alpha = 0.58f),
-                            1.00f to DDZColor.Background,
-                        ),
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.10f), Color.Transparent, Color(0xFF756F59).copy(alpha = 0.12f)),
                     ),
+                ),
+            )
+        }
+        if (edgeToEdge) {
+            // Blend only the photo edges into the page; never veil the central plant or record card.
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        0.00f to DDZColor.Background,
+                        0.10f to DDZColor.Background.copy(alpha = 0.28f),
+                        0.18f to Color.Transparent,
+                        0.84f to Color.Transparent,
+                        0.92f to DDZColor.Background.copy(alpha = 0.28f),
+                        1.00f to DDZColor.Background,
+                    ),
+                ),
             )
         }
     }
