@@ -683,6 +683,7 @@ fun CameraPreview(
         ) {
             CameraTopBar(
                 topDisplayName = topDisplayName,
+                tutorialFocus = tutorialFocus,
                 hasAutoCounter = displayCounter != null,
                 onOpenCaptureInfo = {
                     ui.isTableSelected = false
