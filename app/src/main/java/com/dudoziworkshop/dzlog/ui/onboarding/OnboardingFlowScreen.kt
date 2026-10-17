@@ -159,8 +159,8 @@ internal fun OnboardingFlowScreen(
                 Text(
                     text = "촬영은 간편하게, 기록은 선명하게.",
                     style = DDZTypography.Body.copy(
-                        fontSize = if (compact) 13.sp else 14.sp,
-                        lineHeight = if (compact) 19.sp else 20.sp,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
                     ),
                     color = DDZColor.TextSecondary,
                     textAlign = TextAlign.Center,
