@@ -26,6 +26,7 @@ internal class TableEditorV2SelectionState {
             current = layoutSelection,
             tappedDomainCellId = tappedDomainCellId,
         )
+        selectedCellId = tappedDomainCellId.takeIf { it in layoutSelection.selectedCellIds }
     }
 
     fun selectLayoutRange(
@@ -38,6 +39,7 @@ internal class TableEditorV2SelectionState {
             startDomainCellId = startDomainCellId,
             endDomainCellId = endDomainCellId,
         )
+        selectedCellId = startDomainCellId.takeIf { it in layoutSelection.selectedCellIds }
     }
 
     fun normalizeLayoutSelection(
@@ -50,6 +52,12 @@ internal class TableEditorV2SelectionState {
             range = range,
             collapseToTopLeft = collapseToTopLeft,
         )
+    }
+
+    fun reconcileEditSelection(templateState: TableTemplateState) {
+        if (selectedCellId != null && templateState.cells.none { it.cellId == selectedCellId }) {
+            selectedCellId = null
+        }
     }
 
     fun clearEditSelection() {
