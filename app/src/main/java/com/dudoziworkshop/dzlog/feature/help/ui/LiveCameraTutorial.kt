@@ -14,6 +14,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -26,16 +27,17 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 /** Camera preview is visible behind this passive tour; no input or capture is required. */
 @Composable
-internal fun LiveCameraTutorial(sessionId: String, onClose: () -> Unit, modifier: Modifier = Modifier) {
+internal fun LiveCameraTutorial(sessionId: String, onClose: () -> Unit, onStepChanged: (String) -> Unit, modifier: Modifier = Modifier) {
     val session = DzlogTutorialSections.area("camera")?.sessions?.firstOrNull { it.id == sessionId }
         ?: return
     val pages = remember(sessionId) {
         session.steps.flatMap { step ->
-            listOf(step.title to step.instruction) + step.scenes.map { it.title to it.instruction }
+            listOf(Triple(step.id, step.title, step.instruction)) + step.scenes.map { Triple(it.id, it.title, it.instruction) }
         }
     }
     var index by remember(sessionId) { mutableIntStateOf(0) }
     val safeIndex = index.coerceIn(pages.indices)
+    LaunchedEffect(sessionId, safeIndex) { onStepChanged(pages[safeIndex].first) }
     Surface(
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
         color = DDZColor.Surface,
@@ -50,8 +52,8 @@ internal fun LiveCameraTutorial(sessionId: String, onClose: () -> Unit, modifier
                     style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
                 TextButton(onClick = onClose) { Text("닫기") }
             }
-            Text(pages[safeIndex].first, style = DDZTypography.SettingLabel, color = DDZColor.PrimaryDark)
-            Text(pages[safeIndex].second, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+            Text(pages[safeIndex].second, style = DDZTypography.SettingLabel, color = DDZColor.PrimaryDark)
+            Text(pages[safeIndex].third, style = DDZTypography.Body, color = DDZColor.TextPrimary)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { index-- }, enabled = safeIndex > 0, modifier = Modifier.weight(1f)) {
                     Text("이전")
