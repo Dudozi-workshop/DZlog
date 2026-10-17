@@ -66,7 +66,6 @@ import com.dudoziworkshop.dzlog.feature.table.policy.quickEditableCells
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickEditSelectionMemory
 import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuide
 import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase
-import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureSavedResult
 import com.dudoziworkshop.dzlog.feature.table.policy.replaceActiveSavedTableTemplate
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePhraseUndoHistory
@@ -199,14 +198,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
         mutableStateOf(if (startOnCamera) FirstCaptureGuidePhase.QUICK_EDIT
             else FirstCaptureGuidePhase.DISMISSED)
     }
-    var firstGuideDisplayName by rememberSaveable { mutableStateOf<String?>(null) }
-    var firstGuideRelativePath by rememberSaveable { mutableStateOf<String?>(null) }
-    val firstGuideResult = if (firstGuideDisplayName != null && firstGuideRelativePath != null) {
-        FirstCaptureSavedResult(
-            displayName = requireNotNull(firstGuideDisplayName),
-            relativePath = requireNotNull(firstGuideRelativePath),
-        )
-    } else null
     var showHelpFromGuide by rememberSaveable { mutableStateOf(false) }
 
     // This only writes on the first committed photo, not on every consecutive capture.
@@ -913,25 +904,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                             recordFirstOnboardingCapture()
                         }
                     },
-                    tutorialFocus = if (startOnCamera && screen == AppScreen.CAMERA) {
-                        if (firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT &&
-                            quickEditableCells(tableTemplateState).isEmpty()
-                        ) FirstCaptureGuidePhase.SHUTTER else firstGuidePhase
-                    } else null,
-                    onFirstQuickEditOpened = {
-                        if (startOnCamera && firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT) {
-                            firstGuidePhase = FirstCaptureGuidePhase.SHUTTER
-                        }
-                    },
-                    onFirstCaptureReceipt = { displayName, path ->
-                        if (startOnCamera && firstGuidePhase != FirstCaptureGuidePhase.DISMISSED &&
-                            firstGuideResult == null
-                        ) {
-                            firstGuideDisplayName = displayName
-                            firstGuideRelativePath = path
-                            firstGuidePhase = FirstCaptureGuidePhase.SAVED
-                        }
-                    },
+                    tutorialFocus = if (startOnCamera && screen == AppScreen.CAMERA) firstGuidePhase else null,
                 )
             }
 
@@ -1231,14 +1204,22 @@ fun AppRoot(startOnCamera: Boolean = false) {
             firstGuidePhase != FirstCaptureGuidePhase.DISMISSED
         ) {
             FirstCaptureGuide(
-                phase = if (firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT &&
-                    quickEditableCells(tableTemplateState).isEmpty()
-                ) FirstCaptureGuidePhase.SHUTTER else firstGuidePhase,
-                result = firstGuideResult,
+                phase = firstGuidePhase,
+                result = null,
                 onSkip = { firstGuidePhase = FirstCaptureGuidePhase.DISMISSED },
+                onBack = {
+                    firstGuidePhase = when (firstGuidePhase) {
+                        FirstCaptureGuidePhase.SAVED -> FirstCaptureGuidePhase.SHUTTER
+                        FirstCaptureGuidePhase.SHUTTER -> FirstCaptureGuidePhase.QUICK_EDIT
+                        else -> FirstCaptureGuidePhase.QUICK_EDIT
+                    }
+                },
                 onContinue = {
-                    firstGuidePhase = if (firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT)
-                        FirstCaptureGuidePhase.SHUTTER else FirstCaptureGuidePhase.DISMISSED
+                    firstGuidePhase = when (firstGuidePhase) {
+                        FirstCaptureGuidePhase.QUICK_EDIT -> FirstCaptureGuidePhase.SHUTTER
+                        FirstCaptureGuidePhase.SHUTTER -> FirstCaptureGuidePhase.SAVED
+                        else -> FirstCaptureGuidePhase.DISMISSED
+                    }
                 },
                 onOpenGallery = {
                     firstGuidePhase = FirstCaptureGuidePhase.DISMISSED
