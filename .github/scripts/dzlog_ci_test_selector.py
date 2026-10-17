@@ -68,7 +68,7 @@ def select(changed: list[str], test_paths: list[str]) -> Selection:
 
     affected = set()
     changed_app = False
-    ci_only = True
+    ci_only = False
 
     for p in paths:
         if p.startswith(TEST):
@@ -101,7 +101,7 @@ def select(changed: list[str], test_paths: list[str]) -> Selection:
             return Selection("full", reason="Other Android source or resources changed")
         elif p.startswith(".github/"):
             # CI config updates verify the policy and run the safety canaries.
-            continue
+            ci_only = True
         elif p.startswith(("docs/", "README", ".gitignore")):
             continue
         else:
@@ -109,10 +109,7 @@ def select(changed: list[str], test_paths: list[str]) -> Selection:
 
     if not changed_app and not ci_only:
         return Selection("none", reason="Documentation-only changes")
-    if not changed_app and ci_only:
-        affected.update(SAFETY)
-    else:
-        affected.update(SAFETY)
+    affected.update(SAFETY)
     if not affected.issubset(available):
         return Selection("full", reason="Required safety test missing")
     if len(affected) > 35:
