@@ -1210,13 +1210,17 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 onBack = {
                     firstGuidePhase = when (firstGuidePhase) {
                         FirstCaptureGuidePhase.SAVED -> FirstCaptureGuidePhase.SHUTTER
-                        FirstCaptureGuidePhase.SHUTTER -> FirstCaptureGuidePhase.QUICK_EDIT
+                        FirstCaptureGuidePhase.SHUTTER -> FirstCaptureGuidePhase.TOOLS
+                        FirstCaptureGuidePhase.TOOLS -> FirstCaptureGuidePhase.ZOOM_FOCUS
+                        FirstCaptureGuidePhase.ZOOM_FOCUS -> FirstCaptureGuidePhase.QUICK_EDIT
                         else -> FirstCaptureGuidePhase.QUICK_EDIT
                     }
                 },
                 onContinue = {
                     firstGuidePhase = when (firstGuidePhase) {
-                        FirstCaptureGuidePhase.QUICK_EDIT -> FirstCaptureGuidePhase.SHUTTER
+                        FirstCaptureGuidePhase.QUICK_EDIT -> FirstCaptureGuidePhase.ZOOM_FOCUS
+                        FirstCaptureGuidePhase.ZOOM_FOCUS -> FirstCaptureGuidePhase.TOOLS
+                        FirstCaptureGuidePhase.TOOLS -> FirstCaptureGuidePhase.SHUTTER
                         FirstCaptureGuidePhase.SHUTTER -> FirstCaptureGuidePhase.SAVED
                         else -> FirstCaptureGuidePhase.DISMISSED
                     }
