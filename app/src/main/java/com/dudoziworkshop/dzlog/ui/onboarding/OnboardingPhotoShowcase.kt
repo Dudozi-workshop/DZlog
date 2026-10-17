@@ -105,7 +105,7 @@ internal fun OnboardingPhotoShowcase(
             )
         } else if (!showTable && !edgeToEdge) {
             PhotoShowcaseTag(
-                label = "기록표 없이 자유롭게 촬영"
+                label = "기록표 없이 자유롭게 촬영",
                 modifier = Modifier.align(Alignment.BottomEnd)
                     .padding(end = 14.dp, bottom = 16.dp),
             )
