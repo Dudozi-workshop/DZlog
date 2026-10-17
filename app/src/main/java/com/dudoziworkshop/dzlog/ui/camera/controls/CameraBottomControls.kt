@@ -42,6 +42,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.feature.capture.policy.sessionCaptureBadgeCount
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
@@ -339,6 +340,24 @@ internal fun CameraBottomControls(
                 },
             )
         }
+        }
+
+        // The compact session count sits over the last (18%-width) Undo slot.
+        // Preserve the existing thumbnail save-progress/error indicator.
+        sessionCaptureBadgeCount(sessionCaptureStack)?.let { count ->
+            val undoCenter = BottomControlsHorizontalPadding +
+                (maxWidth - BottomControlsHorizontalPadding * 2f) * 0.91f
+            SessionCaptureCountBadge(
+                completedCount = count,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(
+                        start = (undoCenter - 32.dp).coerceAtLeast(0.dp),
+                        bottom = DDZSpacing.screenPadding + with(density) {
+                            bottomBarHeightPx.toDp()
+                        } + 4.dp,
+                    ),
+            )
         }
 
         // C-2c: anchor above the first (18%-width) thumbnail slot.
