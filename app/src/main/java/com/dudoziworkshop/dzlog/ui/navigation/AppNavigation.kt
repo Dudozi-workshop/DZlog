@@ -63,6 +63,7 @@ import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.SaveSessionCoor
 import com.dudoziworkshop.dzlog.feature.table.policy.TableTemplateCatalogCoordinator
 import com.dudoziworkshop.dzlog.feature.table.policy.activeSavedTableStyle
 import com.dudoziworkshop.dzlog.feature.table.policy.quickEditableCells
+import com.dudoziworkshop.dzlog.feature.table.policy.QuickEditSelectionMemory
 import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuide
 import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase
 import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureSavedResult
@@ -160,6 +161,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var viewerStartIndex by rememberSaveable { mutableIntStateOf(0) }
+    val quickEditSelectionMemory = remember { QuickEditSelectionMemory() }
     val cameraSessionCaptureStack = remember { mutableStateListOf<List<Uri>>() }
     val cameraPhraseUndoHistory = remember { CapturePhraseUndoHistory() }
     var quickResultsPhotos by remember { mutableStateOf<List<com.dudoziworkshop.dzlog.domain.model.MediaImageItem>>(emptyList()) }
@@ -842,6 +844,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     quickTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
+                    quickEditSelectionMemory = quickEditSelectionMemory,
                     onQuickTemplateSelect = ::switchQuickTemplate,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
                     onOpenSaveSettings = ::openActiveSaveSettings,
@@ -893,6 +896,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     quickTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
+                    quickEditSelectionMemory = quickEditSelectionMemory,
                     onQuickTemplateSelect = ::switchQuickTemplate,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
                     onOpenSaveSettings = ::openActiveSaveSettings,

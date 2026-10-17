@@ -52,6 +52,7 @@ import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.table.policy.*
+import com.dudoziworkshop.dzlog.feature.table.policy.QuickEditSelectionMemory
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZCellTypeIcons
 import com.dudoziworkshop.dzlog.ui.common.input.decimalInputOrPrevious
@@ -93,6 +94,7 @@ internal fun CameraQuickValueSheet(
     saveMode: SaveMode,
     templates: List<SavedTableTemplate>,
     activeTemplateId: String?,
+    selectionMemory: QuickEditSelectionMemory,
     onTemplateSelect: suspend (String, TableTemplateState) -> Boolean,
     onDismiss: () -> Unit,
     onCommit: (TableTemplateState) -> Unit,
@@ -101,7 +103,9 @@ internal fun CameraQuickValueSheet(
     val previewTemplate = draft.template
     val cells = remember(previewTemplate.cells) { quickEditableCells(previewTemplate) }
     val values = remember { cells.map { it.cellId to TextFieldValue(it.rawText, TextRange(it.rawText.length)) }.toMutableStateMap() }
-    var selectedId by remember { mutableStateOf(cells.firstOrNull()?.cellId) }
+    var selectedId by remember(activeTemplateId) {
+        mutableStateOf(selectionMemory.initialSelection(activeTemplateId, cells.map { it.cellId }))
+    }
     var expanded by remember { mutableStateOf(false) }
     var focused by remember { mutableStateOf(false) }
     var switching by remember { mutableStateOf(false) }
@@ -156,6 +160,7 @@ internal fun CameraQuickValueSheet(
         selectedId?.let { oldId -> values[oldId]?.let { values[oldId] = it.copy(composition = null) } }
         values[id]?.let { values[id] = it.copy(composition = null) }
         selectedId = id
+        selectionMemory.recordSelection(activeTemplateId, id, cells.map { it.cellId })
         if (focused) requester.requestFocus()
     }
     Dialog(onDismissRequest = { if (!switching) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false,

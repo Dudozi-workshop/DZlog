@@ -42,6 +42,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.feature.capture.policy.sessionCaptureBadgeCount
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
@@ -335,18 +336,41 @@ internal fun CameraBottomControls(
                 onZoomTenthsChange = { next ->
                     val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
                     ui.prefs.zoomRatioTenths = normalized
+                },
+                onZoomGestureFinished = { last ->
+                    val normalized = last.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
+                    ui.prefs.zoomRatioTenths = normalized
                     scope.launch { settingsWriter.setZoomTenths(normalized) }
                 },
             )
         }
         }
 
-        // C-2c: anchor above the first (18%-width) thumbnail slot.
+        // The compact completed-shot count now sits over the first (18%-width) recent-photo slot.
+        // The existing save-progress/error indicator moves to the Undo-side slot.
+        sessionCaptureBadgeCount(sessionCaptureStack)?.let { count ->
+            val recentCenter = BottomControlsHorizontalPadding +
+                (maxWidth - BottomControlsHorizontalPadding * 2f) * 0.09f
+            SessionCaptureCountBadge(
+                completedCount = count,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(
+                        start = (recentCenter - 24.dp).coerceAtLeast(0.dp),
+                        bottom = DDZSpacing.screenPadding + with(density) {
+                            bottomBarHeightPx.toDp()
+                        } - 4.dp,
+                    ),
+            )
+        }
+
+        // Save progress/error is on the right Undo-side slot. Keep the popup
+        // anchored to this badge; its position provider clamps within the window.
         // Calculate against the real screen width and measured bottom row height;
         // do not alter the row's buttons or the center zoom/tool overlays.
         if (ui.capture.pendingSaveCount > 0 || ui.capture.pendingSaveError) {
-            val thumbnailCenter = BottomControlsHorizontalPadding +
-                (maxWidth - BottomControlsHorizontalPadding * 2f) * 0.09f
+            val undoCenter = BottomControlsHorizontalPadding +
+                (maxWidth - BottomControlsHorizontalPadding * 2f) * 0.91f
             CaptureSaveStatusIndicator(
                 pendingCount = ui.capture.pendingSaveCount,
                 hasError = ui.capture.pendingSaveError,
@@ -354,7 +378,7 @@ internal fun CameraBottomControls(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(
-                        start = (thumbnailCenter - 24.dp).coerceAtLeast(0.dp),
+                        start = (undoCenter - 24.dp).coerceAtLeast(0.dp),
                         bottom = DDZSpacing.screenPadding + with(density) {
                             bottomBarHeightPx.toDp()
                         } - 4.dp,

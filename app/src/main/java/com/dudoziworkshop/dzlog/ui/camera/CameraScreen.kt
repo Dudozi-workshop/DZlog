@@ -80,6 +80,7 @@ import com.dudoziworkshop.dzlog.ui.camera.controls.resizeCameraTableKeepingCente
 import com.dudoziworkshop.dzlog.ui.camera.controls.fitCameraTableForPhotoChange
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraQuickValueSheet
+import com.dudoziworkshop.dzlog.feature.table.policy.QuickEditSelectionMemory
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTopBar
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraNextCaptureInfoPopup
 import com.dudoziworkshop.dzlog.ui.camera.controls.FloatingAssistShutterButton
@@ -132,6 +133,7 @@ fun CameraScreen(
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
+    quickEditSelectionMemory: QuickEditSelectionMemory,
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
     val context = LocalContext.current
@@ -165,6 +167,7 @@ fun CameraScreen(
                 quickTemplateName = quickTemplateName,
                 quickTemplates = quickTemplates,
                 quickTemplateId = quickTemplateId,
+                quickEditSelectionMemory = quickEditSelectionMemory,
                 onQuickTemplateSelect = onQuickTemplateSelect,
                 onOpenTableEditor = onOpenTableEditor,
                 onOpenSaveSettings = onOpenSaveSettings,
@@ -210,6 +213,7 @@ fun CameraPreview(
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
+    quickEditSelectionMemory: QuickEditSelectionMemory,
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
     val context = LocalContext.current
@@ -900,6 +904,7 @@ fun CameraPreview(
                     saveMode = appSettings.saveMode,
                     templates = quickTemplates,
                     activeTemplateId = quickTemplateId,
+                    selectionMemory = quickEditSelectionMemory,
                     onTemplateSelect = onQuickTemplateSelect,
                     onDismiss = { showQuickValueSheet = false },
                     onCommit = onTemplateChange,

@@ -54,6 +54,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -126,9 +127,9 @@ internal fun CameraQuickTablePreview(
     BoxWithConstraints(modifier, contentAlignment = Alignment.TopCenter) {
         val viewportMaxHeight = maxHeight
         val viewportMaxWidth = maxWidth
-        val padding = DDZSpacing.controlGap
+        val padding = DDZSpacing.itemGap
         val headingHeight = DDZLayout.Control.Compact
-        val hintHeight = DDZLayout.Control.Compact
+        val hintHeight = 24.dp
         val availableWidth = (maxWidth - padding * 2).coerceAtLeast(1.dp)
         val availableHeight = (maxHeight - padding * 2 - headingHeight - hintHeight).coerceAtLeast(1.dp)
         val fit = quickPreviewFit(with(density) { availableWidth.toPx() }, with(density) { availableHeight.toPx() }, aspect)
@@ -157,16 +158,30 @@ internal fun CameraQuickTablePreview(
         Surface(Modifier.size(availableWidth + padding * 2, viewportHeight + padding * 2 + headingHeight + hintHeight),
             shape = RoundedCornerShape(DDZLayout.Radius.Medium), color = DDZColor.SurfaceSoft) {
             Column(Modifier.padding(padding)) {
+                // DZQ-002 device feedback: keep this a flat, compact toolbar.
+                // Emphasize the template name instead of drawing a nested card.
                 Box(Modifier.fillMaxWidth().height(headingHeight)) {
-                    Row(Modifier.fillMaxSize(),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Row(Modifier.weight(1f).fillMaxHeight().clickable(enabled = templates.isNotEmpty() && !switching) { showPicker = true },
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text("템플릿  ${templateName.ifBlank { "기본" }}", style = DDZTypography.Caption,
-                            color = DDZColor.TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                        if (templates.isNotEmpty()) Icon(Icons.Filled.ExpandMore, "템플릿 변경",
-                            Modifier.size(DDZLayout.QuickInput.Icon), tint = DDZColor.TextMuted)
+                    Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            Modifier.weight(1f).fillMaxHeight()
+                                .clickable(enabled = templates.isNotEmpty() && !switching) { showPicker = true }
+                                .padding(start = DDZSpacing.xs, end = DDZSpacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(DDZSpacing.xs),
+                        ) {
+                            Text("템플릿", style = DDZTypography.Caption,
+                                color = DDZColor.TextSecondary, maxLines = 1)
+                            Text(templateName.ifBlank { "기본" },
+                                style = DDZTypography.Body.copy(fontWeight = FontWeight.SemiBold),
+                                color = DDZColor.TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f))
+                            if (templates.isNotEmpty()) Icon(Icons.Filled.ExpandMore, "템플릿 변경",
+                                Modifier.size(DDZLayout.QuickInput.Icon), tint = DDZColor.PrimaryDark)
                         }
+                        Box(Modifier.width(1.dp).height(headingHeight - 10.dp)
+                            .background(DDZColor.Border))
                         IconButton(enabled = !switching, onClick = {
                             zoomFactor = if (zoomFactor > 1f) 1f else {
                                 val base = applyValueScaleFactor(computeBaseTextSizeFromRenderedTable(
@@ -176,7 +191,7 @@ internal fun CameraQuickTablePreview(
                         }, modifier = Modifier.size(headingHeight)) {
                             Icon(if (zoomFactor > 1f) Icons.Filled.ZoomOut else Icons.Filled.ZoomIn,
                                 if (zoomFactor > 1f) "표 전체 보기" else "표 확대",
-                                Modifier.size(DDZLayout.QuickInput.Icon), tint = DDZColor.TextMuted)
+                                Modifier.size(DDZLayout.QuickInput.Icon), tint = DDZColor.TextSecondary)
                         }
                     }
                     DropdownMenu(expanded = showPicker, onDismissRequest = { showPicker = false },
