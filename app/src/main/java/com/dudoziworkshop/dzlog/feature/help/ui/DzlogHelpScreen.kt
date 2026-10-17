@@ -47,6 +47,7 @@ internal fun DzlogHelpScreen(
     onOpenModule: (String) -> Unit,
     onOpenIntroduction: () -> Unit,
     onBack: () -> Unit,
+    onOpenLiveCameraSession: (String) -> Unit = {},
 ) {
     val area = moduleId?.let(DzlogTutorialSections::area)
     if (area == null) {
@@ -61,6 +62,7 @@ internal fun DzlogHelpScreen(
             val safe = selectedSession.coerceIn(area.sessions.indices)
             TutorialReader(area, safe,
                 onChooseSession = { selectedSession = it },
+                onOpenLiveCameraSession = { onOpenLiveCameraSession(it) },
                 onBack = { selectedSession = -1 })
         }
     }
@@ -140,6 +142,7 @@ private fun TutorialReader(
     area: TutorialArea,
     sessionIndex: Int,
     onChooseSession: (Int) -> Unit,
+    onOpenLiveCameraSession: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     val session: TutorialSession = area.sessions[sessionIndex]
@@ -178,6 +181,11 @@ private fun TutorialReader(
                         verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(scene?.instruction ?: step.instruction,
                             style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                    }
+                }
+                if (area.id == "camera") {
+                    OutlinedButton(onClick = { onOpenLiveCameraSession(session.id) }) {
+                        Text("실제 촬영 화면에서 안내 보기")
                     }
                 }
                 Text("기능 안내만 표시하며 사진·설정·저장 내용은 변경하지 않아요.",
