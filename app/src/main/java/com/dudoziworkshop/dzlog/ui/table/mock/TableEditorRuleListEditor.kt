@@ -299,14 +299,10 @@ internal fun TableEditorRuleListEditor(
                                         text = cell?.value?.ifBlank { "빈 셀" } ?: "-",
                                         modifier = Modifier.weight(1f),
                                         style = DDZButtonStyle.Secondary,
-                                        enabled = cell != null && cell.type != TableEditorCellType.COUNTER,
+                                        enabled = linkedRuleItemFromCell(cell) != null,
                                         onClick = {
-                                            val selected = cell ?: return@DDZButton
-                                            val linked = MockRuleItem(
-                                                sourceType = MockRuleSourceType.CELL,
-                                                value = selected.value,
-                                                cellId = selected.domainCellId,
-                                            )
+                                            val linked = linkedRuleItemFromCell(cell)
+                                                ?: return@DDZButton
                                             if (target == RuleEditorTarget.ADD_CELL) append(linked)
                                             else editingIndex?.let { replaceAt(it, linked) }
                                         },
