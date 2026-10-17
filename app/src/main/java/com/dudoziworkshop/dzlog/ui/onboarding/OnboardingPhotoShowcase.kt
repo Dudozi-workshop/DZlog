@@ -118,19 +118,25 @@ internal fun OnboardingPhotoShowcase(
 private fun PhotoShowcaseBackdrop(compact: Boolean, edgeToEdge: Boolean) {
     Box(
         Modifier.fillMaxSize().background(
-            if (edgeToEdge) DDZColor.Background
-            else Brush.linearGradient(
-                listOf(Color(0xFFF7EEE4), Color(0xFFD6DFCD), Color(0xFFD0C2AC)),
+            Brush.linearGradient(
+                if (edgeToEdge) listOf(DDZColor.Background, DDZColor.Background)
+                else listOf(Color(0xFFF7EEE4), Color(0xFFD6DFCD), Color(0xFFD0C2AC)),
             ),
         ),
     ) {
         if (edgeToEdge) {
-            // The approved artwork is square. ContentScale.Fit inside the tall
-            // hero leaves margins, so a full-hero gradient never touches the
-            // artwork's actual top/bottom edges. Fade the square itself instead.
+            // The bundled photo is 1400 x 1050 (4:3). ContentScale.Fit inside
+            // the tall hero leaves blank space above and below the photo.
+            // Match the overlay's bounds to the photo rather than the hero
+            // so the fade reaches the *visible image edges* themselves.
             BoxWithConstraints(Modifier.fillMaxSize()) {
-                val artworkSize = minOf(maxWidth, maxHeight)
-                Box(Modifier.align(Alignment.Center).size(artworkSize)) {
+                val photoWidth = minOf(maxWidth, maxHeight * (4f / 3f))
+                val photoHeight = photoWidth * (3f / 4f)
+                Box(
+                    Modifier.align(Alignment.Center)
+                        .width(photoWidth)
+                        .height(photoHeight),
+                ) {
                     Image(
                         painter = painterResource(R.drawable.onboarding_actual_camera_hero),
                         contentDescription = null,
