@@ -8,7 +8,6 @@ package com.dudoziworkshop.dzlog.ui.camera
 import android.Manifest
 import android.annotation.SuppressLint
 import android.net.Uri
-import android.graphics.RectF
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -266,7 +265,6 @@ fun CameraPreview(
     var showQuickValueSheet by remember { mutableStateOf(false) }
     var cornerResizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
-    var visibleTableBoundsInRoot by remember { mutableStateOf<RectF?>(null) }
     val ui = cameraViewModel.ui
     LaunchedEffect(templateSessionSafe) {
         if (!templateSessionSafe) ui.capture.pendingSaveError = true
@@ -710,7 +708,6 @@ fun CameraPreview(
                         if (selected) ui.dismissToolOverlays()
                         ui.isTableSelected = selected
                     },
-                    onVisibleTableBoundsInRoot = { visibleTableBoundsInRoot = it },
                     onCornerResizeScale = { scale, finished ->
                         if (!finished && !ui.prefs.wmTableLocked) {
                             val baseline = cornerResizeBaseline ?: CameraTableResizeBaseline(
@@ -766,7 +763,6 @@ fun CameraPreview(
                         scope = scope,
                         ui = ui,
                         settingsWriter = settingsWriter,
-                        visibleTableBoundsInRoot = visibleTableBoundsInRoot,
                         captureReady = canTriggerCapture && !undoDeleteController.isBusy && !undoPhraseSaving && !undoDeletionIncomplete &&
                             ui.capture.pendingPreviewCaptureId == null &&
                             !ui.capture.pendingSaveError &&
