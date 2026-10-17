@@ -13,18 +13,10 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
-  workflow_dispatch:
-    inputs:
-      build_qa_apk:
-        description: Build an isolated APK only when device QA is requested
-        type: boolean
-        required: false
-        default: false
-
 permissions:
   contents: read
 
-# A newer commit supersedes pending CI for the same PR or integration branch.
+# Cancel superseded runs for the same PR or milestone branch.
 concurrency:
   group: dzlog-mainline-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -67,26 +59,4 @@ jobs:
             app/build/test-results/testDebugUnitTest/**
             app/build/reports/tests/testDebugUnitTest/**
           if-no-files-found: warn
-          retention-days: 7
-      - name: Build isolated QA APK only when requested
-        if: github.event_name == 'workflow_dispatch' && inputs.build_qa_apk
-        shell: bash
-        run: |
-          set -euo pipefail
-          QA_TAG="m${GITHUB_RUN_NUMBER}"
-          ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag="$QA_TAG"
-          APK="app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$APK"
-          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          BADGING="$("$SDK_ROOT/build-tools/35.0.0/aapt" dump badging "$APK" | head -1)"
-          echo "$BADGING"
-          [[ "$BADGING" == *"name='com.dudoziworkshop.dzlog.qa.$QA_TAG'"* ]]
-          "$SDK_ROOT/build-tools/35.0.0/apksigner" verify "$APK"
-      - name: Upload requested QA APK
-        if: github.event_name == 'workflow_dispatch' && inputs.build_qa_apk && success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dzlog-mainline-manual-qa-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
           retention-days: 7
