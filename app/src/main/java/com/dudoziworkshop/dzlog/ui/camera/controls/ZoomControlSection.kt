@@ -11,27 +11,29 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 // 2단계 라운딩 토큰: 줌 칩/프리셋은 pill 계열로 Full 고정한다.
 private val CHIP_SHAPE = RoundedCornerShape(DDZLayout.Radius.Full)
-private val PRESET_VALUES_TENTHS = listOf(10, 20, 40, 100)
 
 @Composable
 internal fun ZoomControlSection(
@@ -46,18 +48,22 @@ internal fun ZoomControlSection(
     val haptic = LocalHapticFeedback.current
     val normalizedMaxTenths = maxZoomTenths.coerceIn(10, 100)
     val normalizedTenths = zoomRatioTenths.coerceIn(10, normalizedMaxTenths)
+    var isScrubbing by remember { mutableStateOf(false) }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
-        if (expanded) {
+        // S1: the moving ruler is shown for a manual expansion or during a chip drag.
+        // The bottom three chips remain in place while the ruler grows upwards.
+        if (expanded || isScrubbing) {
             ZoomDetailExtraSection(
                 zoomTenths = normalizedTenths,
                 maxZoomTenths = normalizedMaxTenths,
                 hapticEnabled = hapticEnabled,
                 onZoomTenthsChange = onZoomTenthsChange,
+                onZoomGestureFinished = onZoomGestureFinished,
                 onStepHaptic = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) },
             )
         }
@@ -68,6 +74,7 @@ internal fun ZoomControlSection(
             hapticEnabled = hapticEnabled,
             onZoomTenthsChange = onZoomTenthsChange,
             onZoomGestureFinished = onZoomGestureFinished,
+            onDragActiveChange = { isScrubbing = it },
             onToggleExpanded = onToggleExpanded,
         )
     }
@@ -80,6 +87,7 @@ internal fun ZoomQuickPanelCore(
     hapticEnabled: Boolean,
     onZoomTenthsChange: (Int) -> Unit,
     onZoomGestureFinished: (Int) -> Unit,
+    onDragActiveChange: (Boolean) -> Unit,
     onToggleExpanded: () -> Unit,
 ) {
     val presets = rememberZoomPresets(maxZoomTenths)
@@ -106,9 +114,19 @@ internal fun ZoomQuickPanelCore(
                 .pointerInput(maxZoomTenths) {
                     var fractional = 0f
                     detectHorizontalDragGestures(
-                        onDragStart = { dragValue = latestZoom; fractional = 0f },
-                        onDragEnd = { latestFinish(dragValue) },
-                        onDragCancel = { latestFinish(dragValue) },
+                        onDragStart = {
+                            dragValue = latestZoom
+                            fractional = 0f
+                            onDragActiveChange(true)
+                        },
+                        onDragEnd = {
+                            onDragActiveChange(false)
+                            latestFinish(dragValue)
+                        },
+                        onDragCancel = {
+                            onDragActiveChange(false)
+                            latestFinish(dragValue)
+                        },
                     ) { change, delta ->
                         fractional += delta / 12.dp.toPx()
                         val steps = fractional.toInt()
@@ -170,63 +188,35 @@ internal fun ZoomDetailExtraSection(
     maxZoomTenths: Int,
     hapticEnabled: Boolean,
     onZoomTenthsChange: (Int) -> Unit,
+    onZoomGestureFinished: (Int) -> Unit = onZoomTenthsChange,
     onStepHaptic: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        PRESET_VALUES_TENTHS.forEach { presetTenths ->
-            val actualPreset = presetTenths.coerceIn(10, maxZoomTenths)
-            val selected = zoomTenths == actualPreset
-            val presetBackground: Color
-            val presetBorder: Color
-            val presetText: Color
-            if (selected) {
-                presetBackground = DDZColor.SageLight.copy(alpha = 0.92f)
-                presetBorder = DDZColor.SageBorder
-                presetText = DDZColor.SageDarkStrong
-            } else {
-                presetBackground = DDZColor.Surface.copy(alpha = 0.96f)
-                presetBorder = DDZColor.SageBorder
-                presetText = DDZColor.TextStrong
-            }
-
-            Box(
-                modifier = Modifier
-                    .clip(CHIP_SHAPE)
-                    .background(color = presetBackground, shape = CHIP_SHAPE)
-                    .border(1.dp, presetBorder, CHIP_SHAPE)
-                    .clickable {
-                        if (hapticEnabled) onStepHaptic()
-                        onZoomTenthsChange(actualPreset)
-                    }
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = formatZoomActualLabel(presetTenths),
-                    style = DDZTypography.Caption,
-                    color = presetText
-                )
-            }
-        }
-    }
-
-    Box(
+    // S1 iPhone-style moving scale: the tick marks move while the pointer stays
+    // centered. The 3 always-visible chips below own the quick preset actions.
+    val rulerShape = RoundedCornerShape(DDZLayout.Radius.Medium)
+    Column(
         modifier = Modifier
-            .fillMaxWidth(0.78f)
-            .background(DDZColor.Surface.copy(alpha = 0.96f), RoundedCornerShape(DDZLayout.Radius.Medium))
-            .border(1.dp, DDZColor.SageBorder, RoundedCornerShape(DDZLayout.Radius.Medium))
-            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .width(280.dp)
+            .clip(rulerShape)
+            .background(DDZColor.AmbientWarm, rulerShape)
+            .border(1.dp, DDZColor.BorderStrong, rulerShape)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
+        Text(
+            text = formatZoomActualLabel(zoomTenths),
+            color = DDZColor.SelectionEmphasis,
+            style = DDZTypography.Body,
+        )
         ZoomTickBar(
             zoomTenths = zoomTenths,
             maxZoomTenths = maxZoomTenths,
             hapticEnabled = hapticEnabled,
             onZoomTenthsChange = onZoomTenthsChange,
+            onZoomGestureFinished = onZoomGestureFinished,
             onStepHaptic = onStepHaptic,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
