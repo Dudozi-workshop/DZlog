@@ -36,12 +36,14 @@ jobs:
       - name: Build isolated Capture QA APK
         run: |
           QA_VERSION_CODE="$((1000000 + GITHUB_RUN_NUMBER))"
-          ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogDebugVersionCode="$QA_VERSION_CODE" --stacktrace
+          QA_INSTANCE_TAG="r${GITHUB_RUN_NUMBER}"
+          ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag="$QA_INSTANCE_TAG" -PdzlogDebugVersionCode="$QA_VERSION_CODE" --stacktrace
           APK="app/build/outputs/apk/debug/app-debug.apk"
           AAPT="$ANDROID_HOME/build-tools/34.0.0/aapt"
           BADGING="$("$AAPT" dump badging "$APK" | head -1)"
           echo "$BADGING"
-          [[ "$BADGING" == *"name='com.dudoziworkshop.dzlog.qa'"* ]]
+          [[ "$BADGING" == *"name='com.dudoziworkshop.dzlog.qa.${QA_INSTANCE_TAG}'"* ]]
+          [[ "$BADGING" != *"name='com.dudoziworkshop.dzlog.qa'"* ]]
           [[ "$BADGING" != *"name='com.dudoziworkshop.dzlog'"* ]]
           mkdir -p qa-output
           cp app/build/outputs/apk/debug/app-debug.apk "qa-output/DZlog-Capture-QA-${GITHUB_RUN_NUMBER}.apk"
