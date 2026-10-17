@@ -31,6 +31,7 @@ internal fun ZoomTickBar(
     maxZoomTenths: Int,
     hapticEnabled: Boolean,
     onZoomTenthsChange: (Int) -> Unit,
+    onZoomGestureFinished: (Int) -> Unit = onZoomTenthsChange,
     onStepHaptic: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -46,6 +47,7 @@ internal fun ZoomTickBar(
     val latestZoomTenths by rememberUpdatedState(normalizedTenths)
     val latestHapticEnabled by rememberUpdatedState(hapticEnabled)
     val latestOnZoomTenthsChange by rememberUpdatedState(onZoomTenthsChange)
+    val latestOnZoomGestureFinished by rememberUpdatedState(onZoomGestureFinished)
     val latestOnStepHaptic by rememberUpdatedState(onStepHaptic)
 
     Canvas(
@@ -59,21 +61,30 @@ internal fun ZoomTickBar(
                         .roundToInt()
                         .coerceIn(MIN_ZOOM_TENTHS, normalizedMaxTenths)
                     latestOnZoomTenthsChange(mapped)
+                    latestOnZoomGestureFinished(mapped)
                 }
             }
             .pointerInput(normalizedMaxTenths) {
                 var dragSession: ZoomDragSession? = null
+                var lastGestureValue = latestZoomTenths
 
                 detectDragGestures(
                     onDragStart = { startOffset ->
+                        lastGestureValue = latestZoomTenths
                         dragSession = ZoomDragSession(
                             startZoomTenths = latestZoomTenths,
                             startX = startOffset.x,
                             lastHapticTenths = latestZoomTenths,
                         )
                     },
-                    onDragEnd = { dragSession = null },
-                    onDragCancel = { dragSession = null },
+                    onDragEnd = {
+                        dragSession = null
+                        latestOnZoomGestureFinished(lastGestureValue)
+                    },
+                    onDragCancel = {
+                        dragSession = null
+                        latestOnZoomGestureFinished(lastGestureValue)
+                    },
                 ) { change, _ ->
                     val session = dragSession ?: ZoomDragSession(
                         startZoomTenths = latestZoomTenths,
@@ -81,13 +92,16 @@ internal fun ZoomTickBar(
                         lastHapticTenths = latestZoomTenths,
                     ).also { dragSession = it }
 
-                    val deltaTenths = (session.startX - change.position.x) / tickSpacingPx
+                    // Match the main chip gesture: swipe right increases magnification.
+                    val deltaTenths = (change.position.x - session.startX) / tickSpacingPx
                     val mapped = (session.startZoomTenths + deltaTenths)
                         .roundToInt()
                         .coerceIn(MIN_ZOOM_TENTHS, normalizedMaxTenths)
                     latestOnZoomTenthsChange(mapped)
+                    lastGestureValue = mapped
                     val previousHapticTenths = session.lastHapticTenths
-                    if (latestHapticEnabled && mapped != previousHapticTenths) {
+                    // One gentle cue per full step avoids vibrating every 0.1x.
+                    if (latestHapticEnabled && mapped / 10 != previousHapticTenths / 10) {
                         latestOnStepHaptic()
                         dragSession = session.copy(lastHapticTenths = mapped)
                     }
