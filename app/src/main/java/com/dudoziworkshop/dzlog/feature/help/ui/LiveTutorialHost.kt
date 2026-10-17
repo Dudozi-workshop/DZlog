@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.feature.help.model.*
@@ -62,12 +63,15 @@ internal fun LiveTutorialHost(
                 }
             }
         } else {
-            Box(Modifier.weight(1f).fillMaxWidth().clearAndSetSemantics { }) {
+            Box(Modifier.weight(1f).fillMaxWidth().clearAndSetSemantics { contentDescription = "기능 안내 화면" }) {
                 CompositionLocalProvider(
                     LocalTutorialLocation provides location,
                     LocalTutorialTarget provides tutorialTarget(location, page.parentId),
                     LocalTutorialReadOnly provides true,
                 ) { screen(location) }
+                if (areaId == "camera" && page.id == "pinch") {
+                    TutorialPinchHint(Modifier.align(Alignment.Center))
+                }
                 // A sibling shield also covers AndroidView camera preview touch events.
                 Box(Modifier.matchParentSize().pointerInput(Unit) {
                     awaitEachGesture {
@@ -143,6 +147,7 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         else -> "settings.capture"
     }
     "gallery" -> "gallery.content"
-    "saving" -> "saving.detail"
+    "saving" -> if (location.sessionId == "rotation") "table.panel" else "saving.detail"
+    "table-detail" -> when (location.sessionId) { "overview" -> "table.tabs"; "save" -> "table.save"; else -> "table.panel" }
     else -> "table.panel"
 }

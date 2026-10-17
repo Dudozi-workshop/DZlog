@@ -219,6 +219,18 @@ fun LogFolderScreen(
         },
         onError = { folderOperationError = it },
     )
+    val tourLocation = LocalTutorialLocation.current
+    LaunchedEffect(tourLocation?.sessionId, allPhotos) {
+        if (tourLocation?.areaId == "gallery" && tourLocation.sessionId == "photos") {
+            showRecentPhotos = true
+            selectedPhotoIds = allPhotos.firstOrNull()?.let { setOf(it.id) } ?: emptySet()
+            selectionActive = selectedPhotoIds.isNotEmpty()
+        } else if (tourLocation != null) {
+            selectionActive = false
+            selectedPhotoIds = emptySet()
+            showRecentPhotos = false
+        }
+    }
     val deleteBusy = deleteAction.busy || photoDeleteLoading
     val operationLocked = deleteBusy || photoMoveBusy || pendingPhotoPlan != null || folderManagementBusy
     val navigationLocked = operationLocked || manageAction != null || showPhotoDelete || showPhotoMove || folderAccessBusy || showFolderAccessHelp

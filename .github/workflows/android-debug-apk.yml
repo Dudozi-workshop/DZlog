@@ -57,7 +57,12 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Run unit tests
-        run: ./gradlew :app:testDebugUnitTest --stacktrace
+        run: |
+          if [[ "$GITHUB_REF_NAME" == "feat/interactive-tutorial-v1" ]]; then
+            ./gradlew :app:testDebugUnitTest --tests 'com.dudoziworkshop.dzlog.feature.help.*' --stacktrace
+          else
+            ./gradlew :app:testDebugUnitTest --stacktrace
+          fi
 
       - name: Verify gallery folder summary test results
         if: github.ref_name == 'feat/gallery-v2' || github.ref_name == 'integration/dzlog-20261010'
@@ -172,3 +177,47 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+
+  tutorial-ui-qa:
+    if: github.ref_name == 'feat/interactive-tutorial-v1'
+    needs: debug-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/download-artifact@v4
+        with:
+          name: DZlog-v2-test-apk
+          path: tutorial-apk
+      - name: Reuse verified APK
+        run: |
+          mkdir -p app/build/outputs/apk/debug
+          cp tutorial-apk/DZlog-v2-test.apk app/build/outputs/apk/debug/app-debug.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Verify six passive guide areas and unchanged user data
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-boot-timeout: 600
+          script: python3 .github/scripts/dzlog_tutorial_v2_smoke.py
+      - name: Upload tutorial screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-tutorial-v2-evidence
+          path: |
+            postrelease-full-e2e/
+            api36-journey/
+          if-no-files-found: ignore

@@ -13,7 +13,16 @@ import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePhraseUndoHistory
 import com.dudoziworkshop.dzlog.feature.help.model.TutorialLocation
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
+import com.dudoziworkshop.dzlog.ui.log.LogViewerScreen
 import com.dudoziworkshop.dzlog.ui.log.LogFolderScreen
+import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2Screen
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsRootScreen
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
@@ -42,9 +51,7 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
                 phraseUndoHistory = remember { CapturePhraseUndoHistory() },
                 quickTemplateName = templateName,
                 quickEditSelectionMemory = remember { QuickEditSelectionMemory() })
-            "gallery" -> LogFolderScreen(relativePath = GalleryFolderIndexPolicy.ROOT,
-                onBack = {}, onOpenFolder = {}, onOpenPhoto = { _, _ -> }, onOpenOriginal = { _, _ -> },
-                gridColumns = settings.galleryGridColumns, showCounterBadges = settings.showGalleryCounterBadges)
+            "gallery" -> LiveGalleryTutorial(location, settings)
             "settings" -> SettingsRootScreen(onBack = {})
             else -> key(location.areaId, location.sessionId) {
                 TableEditorV2Screen(templateState = template,
@@ -56,4 +63,28 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
             }
         }
     }
+}
+
+@Composable
+private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSettings) {
+    val context = LocalContext.current
+    val viewerPhotos by produceState<List<MediaImageItem>>(emptyList(), location.sessionId) {
+        if (location.sessionId == "viewer") {
+            value = try {
+                withContext(Dispatchers.IO) {
+                    DzlogMediaStoreReader(context.contentResolver).loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT)
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+              catch (_: Exception) { emptyList() }
+        }
+    }
+    if (location.sessionId == "viewer" && viewerPhotos.isNotEmpty()) {
+        Box(Modifier.fillMaxSize().tutorialTarget("gallery.content")) {
+            LogViewerScreen(relativePath = viewerPhotos.first().relativePath,
+                items = viewerPhotos, startIndex = 0, onBack = {}, onItemsReloaded = {},
+                onRequestCloseViewer = {})
+        }
+    } else LogFolderScreen(relativePath = GalleryFolderIndexPolicy.ROOT,
+        onBack = {}, onOpenFolder = {}, onOpenPhoto = { _, _ -> }, onOpenOriginal = { _, _ -> },
+        gridColumns = settings.galleryGridColumns, showCounterBadges = settings.showGalleryCounterBadges)
 }
