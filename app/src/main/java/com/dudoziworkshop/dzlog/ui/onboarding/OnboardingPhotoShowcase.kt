@@ -141,6 +141,23 @@ private fun PhotoShowcaseBackdrop(compact: Boolean, edgeToEdge: Boolean) {
                 ),
             ),
         )
+        if (edgeToEdge) {
+            // A soft page-one photo transition; record values are drawn on top
+            // after this backdrop, so they remain legible and selectable by QA.
+            Box(
+                Modifier.fillMaxSize().background(Color(0xFFFFF9F0).copy(alpha = 0.08f))
+                    .background(
+                        Brush.verticalGradient(
+                            0.00f to DDZColor.Background,
+                            0.08f to DDZColor.Background.copy(alpha = 0.62f),
+                            0.22f to Color.Transparent,
+                            0.74f to Color.Transparent,
+                            0.90f to DDZColor.Background.copy(alpha = 0.58f),
+                            1.00f to DDZColor.Background,
+                        ),
+                    ),
+            )
+        }
     }
 }
 
