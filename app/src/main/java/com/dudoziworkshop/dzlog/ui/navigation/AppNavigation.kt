@@ -66,7 +66,6 @@ import com.dudoziworkshop.dzlog.feature.table.policy.quickEditableCells
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickEditSelectionMemory
 import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuide
 import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase
-import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureSavedResult
 import com.dudoziworkshop.dzlog.feature.table.policy.replaceActiveSavedTableTemplate
 import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePhraseUndoHistory
@@ -199,14 +198,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
         mutableStateOf(if (startOnCamera) FirstCaptureGuidePhase.QUICK_EDIT
             else FirstCaptureGuidePhase.DISMISSED)
     }
-    var firstGuideDisplayName by rememberSaveable { mutableStateOf<String?>(null) }
-    var firstGuideRelativePath by rememberSaveable { mutableStateOf<String?>(null) }
-    val firstGuideResult = if (firstGuideDisplayName != null && firstGuideRelativePath != null) {
-        FirstCaptureSavedResult(
-            displayName = requireNotNull(firstGuideDisplayName),
-            relativePath = requireNotNull(firstGuideRelativePath),
-        )
-    } else null
     var showHelpFromGuide by rememberSaveable { mutableStateOf(false) }
 
     // This only writes on the first committed photo, not on every consecutive capture.
@@ -913,20 +904,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                             recordFirstOnboardingCapture()
                         }
                     },
-                    onFirstQuickEditOpened = {
-                        if (startOnCamera && firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT) {
-                            firstGuidePhase = FirstCaptureGuidePhase.SHUTTER
-                        }
-                    },
-                    onFirstCaptureReceipt = { displayName, path ->
-                        if (startOnCamera && firstGuidePhase != FirstCaptureGuidePhase.DISMISSED &&
-                            firstGuideResult == null
-                        ) {
-                            firstGuideDisplayName = displayName
-                            firstGuideRelativePath = path
-                            firstGuidePhase = FirstCaptureGuidePhase.SAVED
-                        }
-                    },
+                    tutorialFocus = if (startOnCamera && screen == AppScreen.CAMERA) firstGuidePhase else null,
                 )
             }
 
@@ -982,6 +960,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
             }
 
             AppScreen.SETTINGS -> SettingsScreen(
+                tutorialTemplate = tableTemplateState,
+                tutorialStyle = activeSavedTableStyle(tableTemplateViewModel.templates, tableTemplateViewModel.activeTemplateId),
+                tutorialTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                 startWithHelp = showHelpFromGuide,
                 onBack = {
                     showHelpFromGuide = false
@@ -1226,14 +1207,26 @@ fun AppRoot(startOnCamera: Boolean = false) {
             firstGuidePhase != FirstCaptureGuidePhase.DISMISSED
         ) {
             FirstCaptureGuide(
-                phase = if (firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT &&
-                    quickEditableCells(tableTemplateState).isEmpty()
-                ) FirstCaptureGuidePhase.SHUTTER else firstGuidePhase,
-                result = firstGuideResult,
+                phase = firstGuidePhase,
+                result = null,
                 onSkip = { firstGuidePhase = FirstCaptureGuidePhase.DISMISSED },
+                onBack = {
+                    firstGuidePhase = when (firstGuidePhase) {
+                        FirstCaptureGuidePhase.SAVED -> FirstCaptureGuidePhase.SHUTTER
+                        FirstCaptureGuidePhase.SHUTTER -> FirstCaptureGuidePhase.TOOLS
+                        FirstCaptureGuidePhase.TOOLS -> FirstCaptureGuidePhase.ZOOM_FOCUS
+                        FirstCaptureGuidePhase.ZOOM_FOCUS -> FirstCaptureGuidePhase.QUICK_EDIT
+                        else -> FirstCaptureGuidePhase.QUICK_EDIT
+                    }
+                },
                 onContinue = {
-                    firstGuidePhase = if (firstGuidePhase == FirstCaptureGuidePhase.QUICK_EDIT)
-                        FirstCaptureGuidePhase.SHUTTER else FirstCaptureGuidePhase.DISMISSED
+                    firstGuidePhase = when (firstGuidePhase) {
+                        FirstCaptureGuidePhase.QUICK_EDIT -> FirstCaptureGuidePhase.ZOOM_FOCUS
+                        FirstCaptureGuidePhase.ZOOM_FOCUS -> FirstCaptureGuidePhase.TOOLS
+                        FirstCaptureGuidePhase.TOOLS -> FirstCaptureGuidePhase.SHUTTER
+                        FirstCaptureGuidePhase.SHUTTER -> FirstCaptureGuidePhase.SAVED
+                        else -> FirstCaptureGuidePhase.DISMISSED
+                    }
                 },
                 onOpenGallery = {
                     firstGuidePhase = FirstCaptureGuidePhase.DISMISSED
@@ -1244,7 +1237,12 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     showHelpFromGuide = true
                     navigateTo(AppScreen.SETTINGS)
                 },
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 80.dp).zIndex(90f),
+                // The tutorial card floats above the bottom controls instead of covering them.
+                // Keep the saved receipt at the top so long paths cannot obscure camera actions.
+                modifier = (if (firstGuidePhase == FirstCaptureGuidePhase.SAVED)
+                    Modifier.align(Alignment.TopCenter).padding(top = 80.dp)
+                else Modifier.align(Alignment.BottomCenter).padding(bottom = 128.dp)
+                ).zIndex(90f),
             )
         }
     }

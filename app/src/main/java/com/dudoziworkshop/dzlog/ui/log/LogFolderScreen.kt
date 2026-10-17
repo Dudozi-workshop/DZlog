@@ -1,5 +1,9 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -215,6 +219,18 @@ fun LogFolderScreen(
         },
         onError = { folderOperationError = it },
     )
+    val tourLocation = LocalTutorialLocation.current
+    LaunchedEffect(tourLocation?.sessionId, allPhotos) {
+        if (tourLocation?.areaId == "gallery" && tourLocation.sessionId == "photos") {
+            showRecentPhotos = true
+            selectedPhotoIds = allPhotos.firstOrNull()?.let { setOf(it.id) } ?: emptySet()
+            selectionActive = selectedPhotoIds.isNotEmpty()
+        } else if (tourLocation != null) {
+            selectionActive = false
+            selectedPhotoIds = emptySet()
+            showRecentPhotos = false
+        }
+    }
     val deleteBusy = deleteAction.busy || photoDeleteLoading
     val operationLocked = deleteBusy || photoMoveBusy || pendingPhotoPlan != null || folderManagementBusy
     val navigationLocked = operationLocked || manageAction != null || showPhotoDelete || showPhotoMove || folderAccessBusy || showFolderAccessHelp
@@ -623,7 +639,7 @@ fun LogFolderScreen(
                 TextButton(enabled = retryEnabled, onClick = { retryDeletePlan = null }) { Text("닫기") }
             }
         }
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f).tutorialTarget("gallery.content")) {
             if (loading && index == null) {
                 GalleryLoadingSkeleton()
             } else if (error != null && index == null) {

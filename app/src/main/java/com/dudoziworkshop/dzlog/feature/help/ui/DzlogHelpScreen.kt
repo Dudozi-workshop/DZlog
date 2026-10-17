@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -31,27 +32,30 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.dudoziworkshop.dzlog.feature.help.model.DzlogTutorialCatalog
-import com.dudoziworkshop.dzlog.feature.help.model.TutorialModule
+import com.dudoziworkshop.dzlog.feature.help.model.DzlogTutorialSections
+import com.dudoziworkshop.dzlog.feature.help.model.TutorialArea
+import com.dudoziworkshop.dzlog.feature.help.model.TutorialSession
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
-/** Safe, read-only help UI. Content never executes the described camera/media operations. */
+/** Read-only guide. Neither browsing nor jumping to a session modifies application data. */
 @Composable
 internal fun DzlogHelpScreen(
     moduleId: String?,
     onOpenModule: (String) -> Unit,
     onOpenIntroduction: () -> Unit,
     onBack: () -> Unit,
+    onOpenLiveSession: (String, String) -> Unit = { _, _ -> },
 ) {
-    BackHandler { onBack() }
-    val module = moduleId?.let(DzlogTutorialCatalog::module)
-    if (module == null) {
+    val area = moduleId?.let(DzlogTutorialSections::area)
+    if (area == null) {
+        BackHandler { onBack() }
         HelpIndex(onOpenModule, onOpenIntroduction, onBack)
     } else {
-        TutorialReader(module, onBack)
+        BackHandler { onBack() }
+        SessionIndex(area, onBack) { onOpenLiveSession(area.id, area.sessions[it].id) }
     }
 }
 
@@ -69,20 +73,33 @@ private fun HelpIndex(
                 .verticalScroll(rememberScrollState()).padding(DDZSpacing.screenPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("DZlog의 주요 기능을 순서대로 살펴볼 수 있어요.",
+            Text("알아보고 싶은 구역을 선택해 세션별 기능을 살펴보세요.",
                 style = DDZTypography.Body, color = DDZColor.TextSecondary)
-            HelpCard(
-                title = "처음 사용법 다시 보기",
-                subtitle = "최초 안내를 다시 살펴봐요. 기존 설정은 변경되지 않아요.",
-                onClick = onOpenIntroduction,
-            )
-            Text("기능별 사용법", style = DDZTypography.SettingLabel,
-                color = DDZColor.PrimaryDark,
-                modifier = Modifier.padding(top = 8.dp))
-            DzlogTutorialCatalog.modules.forEach { module ->
-                HelpCard(module.title, module.steps.size.toString() + "단계", onClick = {
-                    onOpenModule(module.id)
-                })
+            HelpCard("처음 사용법 다시 보기", "설정을 변경하지 않고 소개 화면을 다시 볼 수 있어요.", onOpenIntroduction)
+            DzlogTutorialSections.areas.forEach { area ->
+                HelpCard(area.title, "${area.sessions.size}개 세션", { onOpenModule(area.id) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun SessionIndex(area: TutorialArea, onBack: () -> Unit, onSelect: (Int) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val progress = remember { TutorialProgressStore(context) }
+    Scaffold(containerColor = DDZColor.Background, topBar = {
+        DDZTopBar(title = area.title, onBack = onBack)
+    }) { insets ->
+        Column(
+            modifier = Modifier.fillMaxSize().padding(insets)
+                .verticalScroll(rememberScrollState()).padding(DDZSpacing.screenPadding),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("원하는 세션으로 바로 이동할 수 있어요.",
+                style = DDZTypography.Body, color = DDZColor.TextSecondary)
+            area.sessions.forEachIndexed { index, session ->
+                HelpCard("세션 ${index + 1} · ${session.title}", "${session.steps.sumOf { 1 + it.scenes.size }}개 설명 · ${progress.status(area.id, session.id)}",
+                    { onSelect(index) })
             }
         }
     }
@@ -107,79 +124,6 @@ private fun HelpCard(title: String, subtitle: String, onClick: () -> Unit) {
                 Text(subtitle, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
             }
             Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted)
-        }
-    }
-}
-
-private data class TutorialPage(val stepIndex: Int, val sceneIndex: Int?)
-
-@Composable
-private fun TutorialReader(module: TutorialModule, onBack: () -> Unit) {
-    val pages = remember(module.id) {
-        module.steps.flatMapIndexed { index, step ->
-            listOf(TutorialPage(index, null)) +
-                step.scenes.indices.map { sceneIndex -> TutorialPage(index, sceneIndex) }
-        }
-    }
-    var pageIndex by rememberSaveable(module.id) { mutableIntStateOf(0) }
-    val safeIndex = pageIndex.coerceIn(0, pages.lastIndex)
-    val page = pages[safeIndex]
-    val step = module.steps[page.stepIndex]
-    val scene = page.sceneIndex?.let(step.scenes::get)
-    Scaffold(containerColor = DDZColor.Background, topBar = {
-        DDZTopBar(title = module.title, onBack = onBack)
-    }) { insets ->
-        Column(modifier = Modifier.fillMaxSize().padding(insets)) {
-            Column(
-                modifier = Modifier.fillMaxWidth().weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(DDZSpacing.screenPadding),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Text(
-                    "단계 " + (page.stepIndex + 1) + "/" + module.steps.size +
-                        (page.sceneIndex?.let { "  ·  세부 " + (it + 1) + "/" + step.scenes.size } ?: ""),
-                    style = DDZTypography.Caption, color = DDZColor.PrimaryDark,
-                )
-                Text(scene?.title ?: step.title,
-                    style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
-                Surface(
-                    color = DDZColor.Surface,
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, DDZColor.Border),
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(scene?.instruction ?: step.instruction,
-                            style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                        if (scene == null && step.scenes.isNotEmpty()) {
-                            Text(
-                                "이 단계에는 " + step.scenes.size + "개의 자세한 설명이 있어요.",
-                                style = DDZTypography.Caption, color = DDZColor.TextSecondary,
-                            )
-                        }
-                    }
-                }
-                Text(
-                    "읽기 전용 안내입니다. 촬영·저장·삭제·설정 변경은 수행하지 않아요.",
-                    style = DDZTypography.Caption, color = DDZColor.TextSecondary,
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(DDZSpacing.screenPadding),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                OutlinedButton(
-                    modifier = Modifier.weight(1f),
-                    enabled = safeIndex > 0,
-                    onClick = { pageIndex = safeIndex - 1 },
-                ) { Text("이전", color = DDZColor.PrimaryDark) }
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = { if (safeIndex == pages.lastIndex) onBack() else pageIndex = safeIndex + 1 },
-                    colors = ButtonDefaults.buttonColors(containerColor = DDZColor.PrimaryDark),
-                ) { Text(if (safeIndex == pages.lastIndex) "목록으로" else "다음") }
-            }
         }
     }
 }
