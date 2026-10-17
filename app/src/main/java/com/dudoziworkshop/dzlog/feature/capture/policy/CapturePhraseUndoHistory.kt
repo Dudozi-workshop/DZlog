@@ -12,6 +12,7 @@ import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgress
 class CapturePhraseUndoHistory {
     data class Entry(
         val templateId: String,
+        val captureRelativePath: String?,
         val initialUris: Set<String>,
         val before: Map<String, CellPhraseProgress>,
         val after: Map<String, CellPhraseProgress>,
@@ -41,6 +42,7 @@ class CapturePhraseUndoHistory {
         uris: Collection<String>,
         before: TableTemplateState,
         after: TableTemplateState,
+        captureRelativePath: String? = null,
     ) {
         if (templateId.isNullOrBlank()) return
         val normalized = uris.filter { it.isNotBlank() }.toSet()
@@ -60,6 +62,7 @@ class CapturePhraseUndoHistory {
         entries.removeAll { it.entry.initialUris.any(normalized::contains) }
         entries.add(Tracked(Entry(
             templateId = templateId,
+            captureRelativePath = captureRelativePath,
             initialUris = normalized,
             before = states(beforeCells),
             after = states(afterCells),
@@ -67,6 +70,14 @@ class CapturePhraseUndoHistory {
         )))
         // A camera session retains at most a bounded number of undoable shots.
         if (entries.size > 256) entries.removeAt(0)
+    }
+
+    @Synchronized
+    fun pathForUndo(uris: Collection<String>): String? {
+        val requested = uris.toSet()
+        return entries.lastOrNull { tracked ->
+            tracked.remainingUris.any(requested::contains)
+        }?.entry?.captureRelativePath
     }
 
     @Synchronized
