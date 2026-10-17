@@ -50,7 +50,10 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 /** Editorial introduction. All examples are non-persistent. */
 @Composable
 internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = false) {
-    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 11.dp)) {
+    Column(
+        modifier = Modifier.padding(top = if (compact) 4.dp else 6.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 9.dp else 13.dp),
+    ) {
         // Editorial hierarchy is local to onboarding: avoid changing the app-wide
         // HomeMainTitle style used on other screens.
         BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
