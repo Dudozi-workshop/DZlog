@@ -107,10 +107,10 @@ internal fun OnboardingFlowScreen(
         )
         BoxWithConstraints(Modifier.weight(1f)) {
             val compact = maxHeight < 600.dp
-            // The first intro has one short subtitle and a single CTA;
-            // give the photo more room while allowing accessibility scrolling.
-            val introHeroHeight = (maxHeight - if (compact) 144.dp else 157.dp)
-                .coerceIn(if (compact) 182.dp else 260.dp, if (compact) 355.dp else 450.dp)
+            // Page one has no explanatory subtitle. Allocate that height to the
+            // photographic hero; at large font scales the content may scroll.
+            val introHeroHeight = (maxHeight - if (compact) 122.dp else 140.dp)
+                .coerceIn(if (compact) 205.dp else 270.dp, if (compact) 420.dp else 530.dp)
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                     .padding(horizontal = if (step == 1) 0.dp else 20.dp),
@@ -152,6 +152,18 @@ internal fun OnboardingFlowScreen(
                 horizontal = 20.dp, vertical = if (step == 1) 11.dp else 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            if (step == 1) {
+                Text(
+                    "촬영은 간편하게, 기록은 선명하게.",
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                    color = DDZColor.TextSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    maxLines = 2,
+                )
+            }
             DDZButton(
                 text = when {
                     step == 1 -> if (readOnly) "다음" else "시작하기"
