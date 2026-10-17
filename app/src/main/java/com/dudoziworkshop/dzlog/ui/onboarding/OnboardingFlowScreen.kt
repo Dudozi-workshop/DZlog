@@ -1,5 +1,8 @@
 package com.dudoziworkshop.dzlog.ui.onboarding
 
+import android.app.Activity
+import androidx.core.view.WindowInsetsControllerCompat
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +33,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,6 +75,21 @@ internal fun OnboardingFlowScreen(
     }
     BackHandler(enabled = readOnly) {
         if (step > 1) step-- else onClose()
+    }
+    val activity = LocalContext.current as? Activity
+    val view = LocalView.current
+    // Only the first introduction uses a light photo-editorial background.
+    // Restore the caller's original system-bar icon mode when leaving it.
+    DisposableEffect(step == 1, activity, view) {
+        val window = activity?.window
+        if (step != 1 || window == null) {
+            onDispose { }
+        } else {
+            val controller = WindowInsetsControllerCompat(window, view)
+            val original = controller.isAppearanceLightStatusBars
+            controller.isAppearanceLightStatusBars = true
+            onDispose { controller.isAppearanceLightStatusBars = original }
+        }
     }
     var category by rememberSaveable { mutableStateOf("basic") }
     var chosen by rememberSaveable { mutableStateOf(OnboardingStarterCatalog.DEFAULT_ID) }
