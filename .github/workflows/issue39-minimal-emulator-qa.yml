@@ -43,7 +43,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-boot-timeout: 1200
-          script: python3 .github/scripts/issue39_minimal_emulator_qa.py
+          script: ISSUE39_ONLY_INTERRUPT=1 python3 .github/scripts/issue39_minimal_emulator_qa.py
       - name: Preserve failure evidence
         if: always()
         uses: actions/upload-artifact@v4
