@@ -130,6 +130,7 @@ fun CameraScreen(
     onCaptureCommitted: () -> Unit = {},
     onFirstCaptureReceipt: (String, String) -> Unit = { _, _ -> },
     onFirstQuickEditOpened: () -> Unit = {},
+    tutorialFocus: com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase? = null,
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
@@ -179,6 +180,7 @@ fun CameraScreen(
                 onCaptureCommitted = onCaptureCommitted,
                 onFirstCaptureReceipt = onFirstCaptureReceipt,
                 onFirstQuickEditOpened = onFirstQuickEditOpened,
+                tutorialFocus = tutorialFocus,
             )
         } else {
             Text(
@@ -210,6 +212,7 @@ fun CameraPreview(
     onCaptureCommitted: () -> Unit = {},
     onFirstCaptureReceipt: (String, String) -> Unit = { _, _ -> },
     onFirstQuickEditOpened: () -> Unit = {},
+    tutorialFocus: com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase? = null,
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
@@ -837,6 +840,7 @@ fun CameraPreview(
                             triggerCapture()
                         },
                         onShutterButtonTopYChange = { layout.onShutterButtonTopYChange(it) },
+                        tutorialFocus = tutorialFocus,
                         onOpenQuickValues = {
                             if (ui.capture.pendingSaveCount == 0) {
                                 ui.dismissCameraInteractions()
