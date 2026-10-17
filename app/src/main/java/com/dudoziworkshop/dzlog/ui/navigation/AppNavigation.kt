@@ -395,6 +395,19 @@ fun AppRoot(startOnCamera: Boolean = false) {
         }.getOrDefault(false)
     }
 
+    /** Selecting a template applies it immediately, without opening the editor. */
+    fun selectSavedTemplate(templateId: String) {
+        val target = tableTemplateViewModel.templates.firstOrNull { it.id == templateId } ?: return
+        appScope.launch {
+            tableCatalogCoordinator.activate(
+                items = tableTemplateViewModel.templates,
+                activeTemplateId = target.id,
+            )
+            tableTemplateViewModel.activate(target.id)
+            screen = templateListEntryScreen
+        }
+    }
+
     fun openSavedTemplate(templateId: String) {
         val target = tableTemplateViewModel.templates.firstOrNull { it.id == templateId } ?: return
         appScope.launch {
@@ -923,6 +936,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     activeTemplateId = tableTemplateViewModel.activeTemplateId,
                     onBack = { screen = templateListEntryScreen },
                     onOpenTemplate = ::openSavedTemplate,
+                    onSelectTemplate = ::selectSavedTemplate,
                     onCreateTemplate = ::createNewTemplate,
                     onRenameTemplate = ::renameTemplate,
                     onDuplicateTemplate = ::duplicateTemplate,
