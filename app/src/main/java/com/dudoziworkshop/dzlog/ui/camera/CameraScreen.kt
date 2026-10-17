@@ -472,7 +472,7 @@ fun CameraPreview(
     val latestImage = latestImageController.latestImage
 
     var undoPhraseSaving by remember { mutableStateOf(false) }
-    var undoPathWarning by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var undoPathWarning by remember { mutableStateOf<PendingCameraUndoPathWarning?>(null) }
     var undoDeletionIncomplete by remember { mutableStateOf(phraseUndoHistory.hasIncompleteDeletion()) }
     fun syncAfterUndoDelete(deletedUris: List<Uri>) {
         val entry = phraseUndoHistory.deleted(deletedUris.map(Uri::toString))
@@ -788,7 +788,11 @@ fun CameraPreview(
                                     val savedPath = phraseUndoHistory.pathForUndo(lastUris.map(Uri::toString))
                                     val currentPath = captureScopeState.relativePathPreview
                                     if (CaptureUndoPathWarningPolicy.requiresConfirmation(savedPath, currentPath)) {
-                                        undoPathWarning = savedPath!! to currentPath
+                                        undoPathWarning = PendingCameraUndoPathWarning(
+                                            captureUris = lastUris.map(Uri::toString),
+                                            capturedFolder = savedPath!!,
+                                            currentFolder = currentPath,
+                                        )
                                     } else {
                                         undoDeleteController.deleteLatest(sessionCaptureStack)
                                     }
@@ -890,16 +894,18 @@ fun CameraPreview(
             )
         }
 
-        undoPathWarning?.let { (saved, current) ->
+        undoPathWarning?.let { pending ->
             CameraUndoPathWarningDialog(
-                capturedFolder = saved,
-                currentFolder = current,
+                capturedFolder = pending.capturedFolder,
+                currentFolder = pending.currentFolder,
                 onCancel = { undoPathWarning = null },
                 onConfirm = {
                     undoPathWarning = null
                     val lastUris = sessionCaptureStack.lastOrNull().orEmpty()
-                    if (ui.capture.pendingSaveCount == 0 && !undoPhraseSaving &&
-                        phraseUndoHistory.canUndo(lastUris.map(Uri::toString), quickTemplateId)
+                    val currentUris = lastUris.map(Uri::toString)
+                    if (currentUris == pending.captureUris &&
+                        ui.capture.pendingSaveCount == 0 && !undoPhraseSaving &&
+                        phraseUndoHistory.canUndo(currentUris, quickTemplateId)
                     ) undoDeleteController.deleteLatest(sessionCaptureStack)
                 },
             )
