@@ -47,8 +47,10 @@ def main():
     phone = make_phone(args.camera, args.plant)
     # The final Android hero uses a narrow portrait crop of this landscape art.
     # Position the actual DZlog phone inside the crop, not beyond its left edge.
-    phone = phone.resize((round(phone.width * .84), round(phone.height * .84)), Image.Resampling.LANCZOS)
-    px, py = 466, 114
+    # Keep the phone bottom visible above the live Compose record table.
+    # Preserve the approved warm desk photo and genuine DZlog camera preview.
+    phone = phone.resize((round(phone.width * .72), round(phone.height * .72)), Image.Resampling.LANCZOS)
+    px, py = 430, 55
     shadow = Image.new("RGBA", phone.size, (17, 20, 14, 0))
     shadow.putalpha(phone.getchannel("A").point(lambda a: round(a * .26)))
     layer = Image.new("RGBA", SIZE)
