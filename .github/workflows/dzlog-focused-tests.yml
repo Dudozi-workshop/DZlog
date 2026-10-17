@@ -1,0 +1,38 @@
+name: DZlog Focused CI (Pilot)
+
+on:
+  push:
+    branches:
+      - ci/dzlog-test-optimization-20261018
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzlog-focused-pilot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Test selection rules
+        run: python3 -m unittest discover -s .github/scripts -p 'test_dzlog_ci_test_selector.py' -v
+      - name: Select checks relative to preserved milestone
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin milestone/dzlog-pre-onboarding-20261017
+          python3 .github/scripts/dzlog_ci_test_selector.py --base origin/milestone/dzlog-pre-onboarding-20261017 --head HEAD | tee "$RUNNER_TEMP/test-selection.txt"
+          grep -Eq '^MODE=(focused|full|none)$' "$RUNNER_TEMP/test-selection.txt"
+      - name: Upload selector report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-focused-ci-selection
+          path: ${{ runner.temp }}/test-selection.txt
+          retention-days: 7
