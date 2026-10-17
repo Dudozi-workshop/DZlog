@@ -496,7 +496,11 @@ private fun BoxScope.CameraBottomBarRow(
                 QuickValueButton(onClick = onOpenQuickValues)
             }
 
-            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.weight(18f).then(
+                if (tutorialFocus == FirstCaptureGuidePhase.UNDO)
+                    Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
+                else Modifier
+            ), contentAlignment = Alignment.Center) {
                 UndoCaptureButton(
                     enabled = sessionCaptureStack.isNotEmpty() && !undoPending && !ui.capture.isCapturing,
                     onClick = {
