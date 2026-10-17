@@ -23,7 +23,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 /** Informational tour: navigation never requires editing, shooting, or saving. */
 internal enum class FirstCaptureGuidePhase {
-    QUICK_EDIT, ZOOM_FOCUS, TOOLS, SHUTTER, SAVED, SETTINGS, UNDO, DISMISSED,
+    QUICK_EDIT, ZOOM_FOCUS, ZOOM_CHIP, TOOLS, SHUTTER, SAVED, SETTINGS, UNDO, DISMISSED,
 }
 
 internal data class FirstCaptureSavedResult(
@@ -45,7 +45,7 @@ internal fun FirstCaptureGuide(
     if (phase == FirstCaptureGuidePhase.DISMISSED) return
     val index = when (phase) {
         FirstCaptureGuidePhase.QUICK_EDIT -> 1
-        FirstCaptureGuidePhase.ZOOM_FOCUS -> 2
+        FirstCaptureGuidePhase.ZOOM_FOCUS, FirstCaptureGuidePhase.ZOOM_CHIP -> 2
         FirstCaptureGuidePhase.TOOLS -> 3
         FirstCaptureGuidePhase.SHUTTER -> 4
         FirstCaptureGuidePhase.SAVED -> 5
@@ -53,7 +53,7 @@ internal fun FirstCaptureGuide(
     }
     val title = when (phase) {
         FirstCaptureGuidePhase.QUICK_EDIT -> "빠른 수정"
-        FirstCaptureGuidePhase.ZOOM_FOCUS -> "배율과 초점"
+        FirstCaptureGuidePhase.ZOOM_FOCUS, FirstCaptureGuidePhase.ZOOM_CHIP -> "배율과 초점"
         FirstCaptureGuidePhase.TOOLS -> "촬영 보조도구"
         FirstCaptureGuidePhase.SHUTTER -> "촬영 버튼"
         FirstCaptureGuidePhase.SAVED -> "저장 결과 확인"
@@ -64,7 +64,7 @@ internal fun FirstCaptureGuide(
     val description = when (phase) {
         FirstCaptureGuidePhase.QUICK_EDIT ->
             "오른쪽 아래 빠른 수정에서는 표에 표시할 기록값을 촬영 전에 확인하고 변경할 수 있어요. 지금 입력할 필요는 없어요."
-        FirstCaptureGuidePhase.ZOOM_FOCUS ->
+        FirstCaptureGuidePhase.ZOOM_FOCUS, FirstCaptureGuidePhase.ZOOM_CHIP ->
             "카메라 화면에서 두 손가락을 벌리거나 오므리면 배율을 조절할 수 있어요. 배율 칩과 초점 조절 기능도 사용할 수 있어요. 여기서는 조작하지 않아도 돼요."
         FirstCaptureGuidePhase.TOOLS ->
             "아래 도구 버튼에는 플래시, 초점, 격자, 표 표시처럼 촬영에 도움이 되는 기능이 있어요. 기능마다 필요한 상황에 선택해 사용하면 돼요."
