@@ -15,6 +15,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     startWithHelp: Boolean = false,
     onOpenCredits: () -> Unit = {},
+    onOpenLiveCameraSession: (String) -> Unit = {},
     onImported: (LocalTemplateMergeResult) -> Unit = {},
 ) {
     var backupMode by remember { mutableStateOf<BackupScreenMode?>(null) }
@@ -33,6 +34,7 @@ fun SettingsScreen(
             moduleId = helpRoute?.takeUnless { it == "index" },
             onOpenModule = { helpRoute = it },
             onOpenIntroduction = { helpRoute = "intro" },
+            onOpenLiveCameraSession = onOpenLiveCameraSession,
             onBack = { helpRoute = if (helpRoute == "index") null else "index" },
         )
     } else if (backupMode == null) {
