@@ -201,6 +201,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     }
     var showHelpFromGuide by rememberSaveable { mutableStateOf(false) }
     var liveCameraTutorialSession by rememberSaveable { mutableStateOf<String?>(null) }
+    var liveCameraTutorialStep by remember { mutableStateOf<String?>(null) }
 
     // This only writes on the first committed photo, not on every consecutive capture.
     // A failed background flag write can be retried after the next successful photo.
@@ -906,7 +907,15 @@ fun AppRoot(startOnCamera: Boolean = false) {
                             recordFirstOnboardingCapture()
                         }
                     },
-                    tutorialFocus = if (liveCameraTutorialSession != null) null else if (startOnCamera && screen == AppScreen.CAMERA) firstGuidePhase else null,
+                    tutorialFocus = if (liveCameraTutorialSession != null) when (liveCameraTutorialStep) {
+                        "undo", "warning" -> FirstCaptureGuidePhase.UNDO
+                        "entry", "quality", "feedback", "controls" -> FirstCaptureGuidePhase.SETTINGS
+                        "zoom", "pinch", "focus" -> FirstCaptureGuidePhase.ZOOM_FOCUS
+                        "menu", "flash", "grid", "table", "assist" -> FirstCaptureGuidePhase.TOOLS
+                        "quick", "template" -> FirstCaptureGuidePhase.QUICK_EDIT
+                        "shutter" -> FirstCaptureGuidePhase.SHUTTER
+                        else -> null
+                    } else if (startOnCamera && screen == AppScreen.CAMERA) firstGuidePhase else null,
                 )
             }
 
@@ -1210,8 +1219,10 @@ fun AppRoot(startOnCamera: Boolean = false) {
         if (screen == AppScreen.CAMERA && liveCameraTutorialSession != null) {
             LiveCameraTutorial(
                 sessionId = requireNotNull(liveCameraTutorialSession),
+                onStepChanged = { liveCameraTutorialStep = it },
                 onClose = {
                     liveCameraTutorialSession = null
+                    liveCameraTutorialStep = null
                     showHelpFromGuide = true
                     screen = AppScreen.SETTINGS
                 },
