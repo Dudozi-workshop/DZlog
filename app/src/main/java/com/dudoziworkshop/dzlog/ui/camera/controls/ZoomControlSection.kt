@@ -51,8 +51,8 @@ internal fun ZoomControlSection(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
     ) {
         // S1: the moving ruler is shown for a manual expansion or during a chip drag.
         // The bottom three chips remain in place while the ruler grows upwards.
@@ -98,7 +98,7 @@ internal fun ZoomQuickPanelCore(
     val latestFinish by rememberUpdatedState(onZoomGestureFinished)
     var dragValue = zoomTenths
     Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ZoomNeighborChip(left, hapticEnabled, onZoomGestureFinished) {
@@ -106,10 +106,10 @@ internal fun ZoomQuickPanelCore(
         }
         Box(
             modifier = Modifier
-                .defaultMinSize(minWidth = 68.dp, minHeight = DDZLayout.Control.Standard)
+                .defaultMinSize(minWidth = 52.dp, minHeight = 30.dp)
                 .clip(CHIP_SHAPE)
-                .background(DDZColor.SelectedSoft, CHIP_SHAPE)
-                .border(1.dp, DDZColor.SelectedDark, CHIP_SHAPE)
+                .background(DDZColor.SelectedSoft.copy(alpha = 0.76f), CHIP_SHAPE)
+                .border(1.dp, DDZColor.SelectedDark.copy(alpha = 0.75f), CHIP_SHAPE)
                 .pointerInput(maxZoomTenths) {
                     var fractional = 0f
                     detectHorizontalDragGestures(
@@ -138,7 +138,7 @@ internal fun ZoomQuickPanelCore(
                     }
                 }
                 .clickable(onClick = onToggleExpanded)
-                .padding(horizontal = 12.dp, vertical = 7.dp),
+                .padding(horizontal = 8.dp, vertical = 5.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(formatZoomActualLabel(zoomTenths), color = DDZColor.SelectionEmphasis,
@@ -163,17 +163,17 @@ private fun ZoomNeighborChip(
     onSelect: (Int) -> Unit,
     onHaptic: () -> Unit,
 ) {
-    Box(Modifier.defaultMinSize(minWidth = 42.dp, minHeight = DDZLayout.Control.Standard),
+    Box(Modifier.defaultMinSize(minWidth = 36.dp, minHeight = 30.dp),
         contentAlignment = Alignment.Center) {
         if (value != null) {
             Box(Modifier.clip(CHIP_SHAPE)
-                .background(DDZColor.Surface.copy(alpha = 0.95f), CHIP_SHAPE)
+                .background(DDZColor.Surface.copy(alpha = 0.72f), CHIP_SHAPE)
                 .border(1.dp, DDZColor.SageBorder, CHIP_SHAPE)
                 .clickable {
                     if (hapticEnabled) onHaptic()
                     onSelect(value)
                 }
-                .padding(horizontal = 8.dp, vertical = 7.dp)) {
+                .padding(horizontal = 7.dp, vertical = 5.dp)) {
                 Text(formatZoomActualLabel(value), style = DDZTypography.Caption,
                     color = DDZColor.TextStrong)
             }
@@ -197,7 +197,7 @@ internal fun ZoomDetailExtraSection(
         modifier = Modifier
             .width(280.dp)
             .clip(rulerShape)
-            .background(DDZColor.AmbientWarm, rulerShape)
+            .background(DDZColor.AmbientWarm.copy(alpha = 0.82f), rulerShape)
             .border(1.dp, DDZColor.BorderStrong, rulerShape)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
