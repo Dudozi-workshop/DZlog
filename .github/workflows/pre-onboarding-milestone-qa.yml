@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -25,7 +25,7 @@ jobs:
       - name: Confirm milestone source is unchanged
         shell: bash
         run: |
-          test "$(git rev-parse HEAD^)" = "5ba5d0bb411d72ef73b579aba5453b42ed94f730"
+          git merge-base --is-ancestor 5ba5d0bb411d72ef73b579aba5453b42ed94f730 HEAD
           git diff --exit-code 5ba5d0bb411d72ef73b579aba5453b42ed94f730 HEAD -- app
       - name: Unit tests and isolated QA APK
         run: |
