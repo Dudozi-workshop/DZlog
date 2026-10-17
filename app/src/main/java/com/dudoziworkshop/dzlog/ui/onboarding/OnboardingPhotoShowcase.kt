@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -125,17 +126,17 @@ private fun PhotoShowcaseBackdrop(compact: Boolean, edgeToEdge: Boolean) {
         ),
     ) {
         if (edgeToEdge) {
-            // The bundled photo is 1400 x 1050 (4:3). ContentScale.Fit inside
-            // the tall hero leaves blank space above and below the photo.
-            // Match the overlay's bounds to the photo rather than the hero
-            // so the fade reaches the *visible image edges* themselves.
+            // Enlarge the approved 4:3 artwork by 22% beyond the viewport:
+            // removes the small-inset appearance without the aggressive side
+            // cropping of ContentScale.Crop in the tall hero container.
+            // requiredSize permits the image to exceed the parent's max width;
+            // the enclosing showcase clips only its outermost decorative edges.
             BoxWithConstraints(Modifier.fillMaxSize()) {
-                val photoWidth = minOf(maxWidth, maxHeight * (4f / 3f))
+                val photoWidth = maxWidth * 1.22f
                 val photoHeight = photoWidth * (3f / 4f)
                 Box(
                     Modifier.align(Alignment.Center)
-                        .width(photoWidth)
-                        .height(photoHeight),
+                        .requiredSize(width = photoWidth, height = photoHeight),
                 ) {
                     Image(
                         painter = painterResource(R.drawable.onboarding_actual_camera_hero),
@@ -143,14 +144,16 @@ private fun PhotoShowcaseBackdrop(compact: Boolean, edgeToEdge: Boolean) {
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit,
                     )
+                    // Fade the actual photo edges into the page's cream canvas,
+                    // leaving the phone and baked-in record table unobscured.
                     Box(
                         Modifier.fillMaxSize().background(
                             Brush.verticalGradient(
                                 0.00f to DDZColor.Background,
-                                0.10f to DDZColor.Background.copy(alpha = 0.78f),
-                                0.25f to Color.Transparent,
-                                0.75f to Color.Transparent,
-                                0.90f to DDZColor.Background.copy(alpha = 0.78f),
+                                0.08f to DDZColor.Background.copy(alpha = 0.92f),
+                                0.23f to Color.Transparent,
+                                0.77f to Color.Transparent,
+                                0.92f to DDZColor.Background.copy(alpha = 0.92f),
                                 1.00f to DDZColor.Background,
                             ),
                         ),
