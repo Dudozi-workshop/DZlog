@@ -52,6 +52,7 @@ import com.dudoziworkshop.dzlog.ui.camera.state.CameraOverlayTool
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraUiState
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
+import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
@@ -90,6 +91,7 @@ internal fun CameraBottomControls(
     onTriggerCapture: () -> Unit,
     onOpenQuickValues: () -> Unit,
     onOpenTableEditor: () -> Unit,
+    tutorialFocus: FirstCaptureGuidePhase? = null,
     onShutterButtonTopYChange: (Float?) -> Unit,
     hapticEnabled: Boolean,
 ) {
@@ -130,6 +132,7 @@ internal fun CameraBottomControls(
             onTriggerCapture = onTriggerCapture,
             onUndoDelete = onUndoDelete,
             onShutterButtonTopYChange = onShutterButtonTopYChange,
+            tutorialFocus = tutorialFocus,
             onOpenQuickValues = {
                 ui.dismissCameraInteractions()
                 onOpenQuickValues()
@@ -401,6 +404,7 @@ private fun BoxScope.CameraBottomBarRow(
     onUndoDelete: () -> Unit,
     onShutterButtonTopYChange: (Float?) -> Unit,
     onOpenQuickValues: () -> Unit,
+    tutorialFocus: FirstCaptureGuidePhase?,
     onBottomBarHeightChange: (Int) -> Unit,
 ) {
     Box(
@@ -454,7 +458,14 @@ private fun BoxScope.CameraBottomBarRow(
                 )
             }
 
-            Box(modifier = Modifier.weight(28f), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.weight(28f).then(
+                    if (tutorialFocus == FirstCaptureGuidePhase.SHUTTER)
+                        Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
+                    else Modifier
+                ),
+                contentAlignment = Alignment.Center
+            ) {
                 CaptureButtonSection(
                     ready = enabledNow,
                     onClick = {
@@ -466,7 +477,14 @@ private fun BoxScope.CameraBottomBarRow(
                 )
             }
 
-            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.weight(18f).then(
+                    if (tutorialFocus == FirstCaptureGuidePhase.QUICK_EDIT)
+                        Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
+                    else Modifier
+                ),
+                contentAlignment = Alignment.Center
+            ) {
                 QuickValueButton(onClick = onOpenQuickValues)
             }
 
