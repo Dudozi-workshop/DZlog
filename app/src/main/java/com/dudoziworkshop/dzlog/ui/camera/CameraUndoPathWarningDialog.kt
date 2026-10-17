@@ -1,9 +1,12 @@
 package com.dudoziworkshop.dzlog.ui.camera
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -39,7 +42,10 @@ internal fun CameraUndoPathWarningDialog(
         title = "다른 폴더의 사진을 삭제할까요?",
         onDismiss = onCancel,
         content = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.itemGap)) {
+            Column(
+                modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(spacing.itemGap),
+            ) {
                 Text(
                     "삭제하려는 사진은 현재 촬영 폴더와 다른 위치에 저장되어 있습니다.",
                     style = typography.Body,
