@@ -51,8 +51,9 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 @Composable
 internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = false) {
     Column(
-        modifier = Modifier.padding(top = if (compact) 4.dp else 6.dp),
-        verticalArrangement = Arrangement.spacedBy(if (compact) 9.dp else 13.dp),
+        modifier = Modifier.padding(top = if (compact) 10.dp else 16.dp),
+        // Let the title breathe, then hand visual attention to the photo.
+        verticalArrangement = Arrangement.spacedBy(if (compact) 18.dp else 22.dp),
     ) {
         // Editorial hierarchy is local to onboarding: avoid changing the app-wide
         // HomeMainTitle style used on other screens.
@@ -80,18 +81,6 @@ internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = fa
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
-        }
-        Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            val subtitleStyle = DDZTypography.Body.copy(
-                fontSize = 14.sp, lineHeight = 20.sp,
-            )
-            Text(
-                "찍는 순간, 알아서 정리되도록.",
-                style = subtitleStyle, color = DDZColor.TextSecondary,
-            )
         }
         OnboardingPhotoShowcase(
             labels = listOf("기록명", "날짜", "번호"),
