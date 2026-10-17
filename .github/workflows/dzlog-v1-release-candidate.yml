@@ -5,6 +5,13 @@ on:
       - release/dzlog-v1.0.0-prep-20261017
     paths:
       - .github/workflows/dzlog-v1-release-candidate.yml
+      - app/**
+      - gradle/**
+      - build.gradle.kts
+      - settings.gradle.kts
+      - gradle.properties
+      - gradlew
+      - gradlew.bat
   workflow_dispatch:
 permissions:
   contents: read
@@ -39,6 +46,16 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew :app:testDebugUnitTest :app:bundleRelease --stacktrace
+      - name: Preserve unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-v1-0-0-unit-test-reports
+          path: |
+            app/build/test-results/testDebugUnitTest/**
+            app/build/reports/tests/testDebugUnitTest/**
+          if-no-files-found: warn
+          retention-days: 14
       - name: Verify unsigned bundle exists
         shell: bash
         run: |
