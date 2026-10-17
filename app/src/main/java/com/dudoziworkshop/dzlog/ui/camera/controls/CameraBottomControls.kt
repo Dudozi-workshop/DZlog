@@ -322,7 +322,10 @@ internal fun CameraBottomControls(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = DDZSpacing.screenPadding + with(density) {
                     bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing
-                }),
+                })
+                .then(if (tutorialFocus == FirstCaptureGuidePhase.ZOOM_CHIP)
+                    Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
+                else Modifier),
             contentAlignment = Alignment.Center,
         ) {
             ZoomControlSection(
