@@ -336,6 +336,10 @@ internal fun CameraBottomControls(
                 onZoomTenthsChange = { next ->
                     val normalized = next.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
                     ui.prefs.zoomRatioTenths = normalized
+                },
+                onZoomGestureFinished = { last ->
+                    val normalized = last.coerceIn(10, ui.capture.maxZoomTenths.coerceAtLeast(10))
+                    ui.prefs.zoomRatioTenths = normalized
                     scope.launch { settingsWriter.setZoomTenths(normalized) }
                 },
             )
