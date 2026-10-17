@@ -57,12 +57,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Run unit tests
-        run: |
-          if [[ "$GITHUB_REF_NAME" == "feat/interactive-tutorial-v1" ]]; then
-            ./gradlew :app:testDebugUnitTest --tests 'com.dudoziworkshop.dzlog.feature.help.*' --stacktrace
-          else
-            ./gradlew :app:testDebugUnitTest --stacktrace
-          fi
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
 
       - name: Verify gallery folder summary test results
         if: github.ref_name == 'feat/gallery-v2' || github.ref_name == 'integration/dzlog-20261010'
