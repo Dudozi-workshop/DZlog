@@ -89,11 +89,7 @@ internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = fa
                 fontSize = 14.sp, lineHeight = 20.sp,
             )
             Text(
-                "일상부터 업무 현장까지,",
-                style = subtitleStyle, color = DDZColor.TextSecondary,
-            )
-            Text(
-                "사진과 메모를 함께 남겨보세요.",
+                "찍는 순간, 알아서 정리되도록.",
                 style = subtitleStyle, color = DDZColor.TextSecondary,
             )
         }
