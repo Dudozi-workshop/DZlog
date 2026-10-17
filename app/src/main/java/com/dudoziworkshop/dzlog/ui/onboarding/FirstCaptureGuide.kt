@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -69,12 +70,26 @@ internal fun FirstCaptureGuide(
                     Text("안내 닫기", color = DDZColor.TextSecondary)
                 }
             }
+            if (phase != FirstCaptureGuidePhase.SAVED) {
+                LinearProgressIndicator(
+                    progress = { if (phase == FirstCaptureGuidePhase.QUICK_EDIT) 0.5f else 1f },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = DDZColor.PrimaryDark,
+                )
+                Text(
+                    text = if (phase == FirstCaptureGuidePhase.QUICK_EDIT)
+                        "지금 해보기: 화면 아래 '빠른 수정' 버튼"
+                    else "지금 해보기: 화면 아래 촬영 버튼",
+                    style = DDZTypography.SettingLabel,
+                    color = DDZColor.PrimaryDark,
+                )
+            }
             Text(
                 when (phase) {
                     FirstCaptureGuidePhase.QUICK_EDIT ->
-                        "아래 빠른 수정을 눌러 기록명 등 입력할 값을 수정해 보세요. 입력하지 않아도 촬영할 수 있어요."
+                        "아래 빠른 수정을 눌러 기록명 등 입력할 값을 수정해 보세요. 버튼을 열면 안내가 다음 단계로 넘어가요. 입력하지 않아도 촬영할 수 있어요."
                     FirstCaptureGuidePhase.SHUTTER ->
-                        "준비되면 셔터를 눌러 촬영하세요. 저장이 성공한 뒤 결과를 알려드려요."
+                        "준비되면 실제 촬영 버튼을 눌러보세요. 저장이 완료되면 결과를 바로 확인할 수 있어요."
                     FirstCaptureGuidePhase.SAVED -> "실제 촬영한 사진이 저장됐어요."
                     FirstCaptureGuidePhase.DISMISSED -> ""
                 },
