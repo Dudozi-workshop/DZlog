@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - qa/pre-onboarding-milestone-20261017
+    paths:
+      - .github/workflows/pre-onboarding-milestone-qa.yml
   workflow_dispatch:
 permissions:
   contents: read
