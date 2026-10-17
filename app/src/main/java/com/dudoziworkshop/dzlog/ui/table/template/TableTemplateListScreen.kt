@@ -43,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
@@ -65,6 +66,7 @@ fun TableTemplateListScreen(
     activeTemplateId: String?,
     onBack: () -> Unit,
     onOpenTemplate: (String) -> Unit,
+    onSelectTemplate: (String) -> Unit,
     onCreateTemplate: () -> Unit,
     onRenameTemplate: (String, String) -> Unit,
     onDuplicateTemplate: (String) -> Unit,
@@ -74,6 +76,7 @@ fun TableTemplateListScreen(
     var renameTarget by remember { mutableStateOf<SavedTableTemplate?>(null) }
     var renameDraft by remember { mutableStateOf("") }
     var deleteTarget by remember { mutableStateOf<SavedTableTemplate?>(null) }
+    var previewTarget by remember { mutableStateOf<SavedTableTemplate?>(null) }
 
     var sort by rememberSaveable { mutableStateOf(TableTemplateSort.MODIFIED) }
     var showSort by remember { mutableStateOf(false) }
@@ -148,7 +151,9 @@ fun TableTemplateListScreen(
                     DDZCard(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onOpenTemplate(template.id) },
+                            .clickable(role = Role.Button, onClickLabel = "템플릿 선택") {
+                                onSelectTemplate(template.id)
+                            },
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
                     ) {
                         Row(
@@ -156,7 +161,16 @@ fun TableTemplateListScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            TemplateMiniPreview(template.templateState)
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 56.dp, height = 48.dp)
+                                    .clickable(role = Role.Button, onClickLabel = "표 확대 보기") {
+                                        previewTarget = template
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                TemplateMiniPreview(template.templateState)
+                            }
                             Column(
                                 modifier = Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -204,6 +218,13 @@ fun TableTemplateListScreen(
                                     onDismissRequest = { menuTemplateId = null },
                                 ) {
                                     DropdownMenuItem(
+                                        text = { Text("편집") },
+                                        onClick = {
+                                            menuTemplateId = null
+                                            onOpenTemplate(template.id)
+                                        },
+                                    )
+                                    DropdownMenuItem(
                                         text = { Text("이름 변경") },
                                         onClick = {
                                             menuTemplateId = null
@@ -232,6 +253,17 @@ fun TableTemplateListScreen(
                 }
             }
         }
+    }
+
+    previewTarget?.let { target ->
+        TableTemplateReadOnlyPreviewDialog(
+            template = target,
+            onDismiss = { previewTarget = null },
+            onSelect = {
+                previewTarget = null
+                onSelectTemplate(target.id)
+            },
+        )
     }
 
     renameTarget?.let { target ->

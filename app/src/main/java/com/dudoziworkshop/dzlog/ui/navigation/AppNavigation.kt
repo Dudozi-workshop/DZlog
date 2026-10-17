@@ -395,7 +395,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
         }.getOrDefault(false)
     }
 
-    fun openSavedTemplate(templateId: String) {
+    /** Selecting a template applies it immediately, without opening the editor. */
+    fun selectSavedTemplate(templateId: String) {
         val target = tableTemplateViewModel.templates.firstOrNull { it.id == templateId } ?: return
         appScope.launch {
             tableCatalogCoordinator.activate(
@@ -403,10 +404,18 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 activeTemplateId = target.id,
             )
             tableTemplateViewModel.activate(target.id)
-            openSaveSettingsInitially = false
-            previousScreen = AppScreen.TABLE_TEMPLATES
-            screen = AppScreen.TABLE_EDITOR
+            screen = templateListEntryScreen
         }
+    }
+
+    fun openSavedTemplate(templateId: String) {
+        if (tableTemplateViewModel.templates.none { it.id == templateId }) return
+        // Opening the editor from the overflow menu must not activate this
+        // template until the user explicitly saves the edit session.
+        editorReplacementId = templateId
+        openSaveSettingsInitially = false
+        previousScreen = AppScreen.TABLE_TEMPLATES
+        screen = AppScreen.TABLE_EDITOR
     }
 
     fun canAddSavedTemplate(action: TemplateCollectionAction): Boolean {
@@ -923,6 +932,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     activeTemplateId = tableTemplateViewModel.activeTemplateId,
                     onBack = { screen = templateListEntryScreen },
                     onOpenTemplate = ::openSavedTemplate,
+                    onSelectTemplate = ::selectSavedTemplate,
                     onCreateTemplate = ::createNewTemplate,
                     onRenameTemplate = ::renameTemplate,
                     onDuplicateTemplate = ::duplicateTemplate,
