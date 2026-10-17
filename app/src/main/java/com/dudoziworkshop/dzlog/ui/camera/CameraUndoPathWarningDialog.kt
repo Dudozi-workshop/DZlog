@@ -10,6 +10,14 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -32,11 +40,12 @@ internal fun CameraUndoPathWarningDialog(
     capturedFolder: String,
     currentFolder: String,
     onCancel: () -> Unit,
-    onConfirm: () -> Unit,
+    onConfirm: (Boolean) -> Unit,
 ) {
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
     val spacing = LocalDDZSpacing.current
+    var disableWarning by remember { mutableStateOf(false) }
 
     DDZContentDialog(
         title = "다른 폴더의 사진을 삭제할까요?",
@@ -67,6 +76,14 @@ internal fun CameraUndoPathWarningDialog(
                     )
                     Text(currentFolder, style = typography.Secondary, color = colors.TextPrimary)
                 }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = disableWarning,
+                        onCheckedChange = { disableWarning = it },
+                        colors = CheckboxDefaults.colors(checkedColor = colors.Selected),
+                    )
+                    Text("앞으로 이 경고 표시하지 않기", style = typography.Secondary, color = colors.TextPrimary)
+                }
                 Text(
                     "사진을 삭제해도 현재 저장 설정은 유지됩니다.",
                     style = typography.Secondary,
@@ -83,7 +100,7 @@ internal fun CameraUndoPathWarningDialog(
             )
             DDZButton(
                 text = "사진 삭제",
-                onClick = onConfirm,
+                onClick = { onConfirm(disableWarning) },
                 style = DDZButtonStyle.Primary,
                 containerColorOverride = colors.Destructive,
                 modifier = Modifier.weight(1f),
