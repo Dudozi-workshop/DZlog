@@ -409,17 +409,13 @@ fun AppRoot(startOnCamera: Boolean = false) {
     }
 
     fun openSavedTemplate(templateId: String) {
-        val target = tableTemplateViewModel.templates.firstOrNull { it.id == templateId } ?: return
-        appScope.launch {
-            tableCatalogCoordinator.activate(
-                items = tableTemplateViewModel.templates,
-                activeTemplateId = target.id,
-            )
-            tableTemplateViewModel.activate(target.id)
-            openSaveSettingsInitially = false
-            previousScreen = AppScreen.TABLE_TEMPLATES
-            screen = AppScreen.TABLE_EDITOR
-        }
+        if (tableTemplateViewModel.templates.none { it.id == templateId }) return
+        // Opening the editor from the overflow menu must not activate this
+        // template until the user explicitly saves the edit session.
+        editorReplacementId = templateId
+        openSaveSettingsInitially = false
+        previousScreen = AppScreen.TABLE_TEMPLATES
+        screen = AppScreen.TABLE_EDITOR
     }
 
     fun canAddSavedTemplate(action: TemplateCollectionAction): Boolean {
