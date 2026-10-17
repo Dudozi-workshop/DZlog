@@ -258,7 +258,11 @@ fun CameraPreview(
     val asyncCaptureService = remember(context.applicationContext) {
         CaptureAsyncRuntime.get(context.applicationContext, repository)
     }
-    val pendingProjection = remember(asyncCaptureService) { asyncCaptureService.pendingProjection }
+    val pendingProjection = remember(asyncCaptureService, readOnlyTour) {
+        com.dudoziworkshop.dzlog.feature.help.model.tutorialCaptureProjection(
+            asyncCaptureService.pendingProjection, readOnlyTour,
+        )
+    }
     val templateSessionSafe = remember(asyncCaptureService, quickTemplateId) {
         pendingProjection.bindTemplate(quickTemplateId)
     }
@@ -284,7 +288,7 @@ fun CameraPreview(
         }
     }
     LaunchedEffect(templateSessionSafe) {
-        if (!templateSessionSafe) ui.capture.pendingSaveError = true
+        if (!readOnlyTour && !templateSessionSafe) ui.capture.pendingSaveError = true
     }
 
     // StateFlow delivers the current version after a screen recreation, even if
@@ -566,7 +570,7 @@ fun CameraPreview(
     val isTemplateReady = derivedState.isTemplateReady
 
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
-    if (!readOnlyTour) CameraCounterController(
+    CameraCounterController(
         counterScope = captureScopeState.counterScope,
         scanPrefix = captureScopeState.scanPrefix,
         resumeTick = cameraViewModel.resumeResyncTick,
@@ -1037,7 +1041,7 @@ fun CameraPreview(
                 onCaptureHapticChange = { checked ->
                     scope.launch { AppSettingsStore.setCaptureHapticEnabled(context, checked) }
                 },
-                volumeKeyAction = if (readOnlyTour || showQuickValueSheet) VolumeKeyAction.NONE else appSettings.volumeKeyAction,
+                volumeKeyAction = if (showQuickValueSheet) VolumeKeyAction.NONE else appSettings.volumeKeyAction,
                 onVolumeKeyActionChange = { action ->
                     scope.launch { settingsWriter.setVolumeKeyAction(action) }
                 },
