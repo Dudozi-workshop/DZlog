@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -195,9 +196,10 @@ internal fun ZoomDetailExtraSection(
     val rulerShape = RoundedCornerShape(DDZLayout.Radius.Medium)
     Column(
         modifier = Modifier
-            .width(280.dp)
+            .widthIn(max = 280.dp)
+            .fillMaxWidth(0.86f)
             .clip(rulerShape)
-            .background(DDZColor.AmbientWarm.copy(alpha = 0.82f), rulerShape)
+            .background(DDZColor.OverlayScrim.copy(alpha = 0.57f), rulerShape)
             .border(1.dp, DDZColor.BorderStrong, rulerShape)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -205,7 +207,7 @@ internal fun ZoomDetailExtraSection(
     ) {
         Text(
             text = formatZoomActualLabel(zoomTenths),
-            color = DDZColor.SelectionEmphasis,
+            color = DDZColor.SelectedSoft,
             style = DDZTypography.Body,
         )
         ZoomTickBar(
