@@ -221,7 +221,7 @@ private fun CameraFeedbackChip(
     val chipShape = androidx.compose.foundation.shape.RoundedCornerShape(DDZLayout.Radius.Small)
     Box(
         modifier = modifier
-            .height(CompactCameraSegments.fixedHeight)
+            .height(40.dp)
             .background(if (selected) DDZColor.SageLight else DDZColor.Surface, chipShape)
             .border(
                 androidx.compose.foundation.BorderStroke(
