@@ -101,7 +101,7 @@ internal fun CameraQuickValueSheet(
 ) {
     val draft = remember { QuickValueDraft(template) }
     val previewTemplate = draft.template
-    val cells = remember(previewTemplate.cells) { quickEditableCells(previewTemplate) }
+    val cells = remember(previewTemplate.cells) { quickSelectableCells(previewTemplate) }
     val values = remember { cells.map { it.cellId to TextFieldValue(it.rawText, TextRange(it.rawText.length)) }.toMutableStateMap() }
     var selectedId by remember(activeTemplateId) {
         mutableStateOf(selectionMemory.initialSelection(activeTemplateId, cells.map { it.cellId }))
@@ -288,16 +288,29 @@ internal fun CameraQuickValueSheet(
                         .padding(horizontal = DDZSpacing.controlGap, vertical = DDZSpacing.itemGap)) {
                         val selected = cells.firstOrNull { it.cellId == selectedId }
                         if (selected == null) {
-                            Text("변경할 텍스트·숫자 셀이 없습니다.", style = DDZTypography.Body, color = DDZColor.TextMuted)
+                            Text("변경할 수 있는 셀이 없습니다.", style = DDZTypography.Body, color = DDZColor.TextMuted)
                         } else {
                             val links = quickCellLinks(previewTemplate, selected.cellId)
                             val number = selected.dataType == TableCellDataType.NUMBER
+                            val manual = selected.dataType == TableCellDataType.TEXT || number
                             val previous = adjacentQuickCellId(cells, selected.cellId, -1)
                             val next = adjacentQuickCellId(cells, selected.cellId, 1)
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(if (number) DDZCellTypeIcons.Number else DDZCellTypeIcons.Text, null,
+                                Icon(when (selected.dataType) {
+                                    TableCellDataType.NUMBER -> DDZCellTypeIcons.Number
+                                    TableCellDataType.DATE -> DDZCellTypeIcons.Date
+                                    TableCellDataType.TIME -> DDZCellTypeIcons.Time
+                                    TableCellDataType.ROTATING_TEXT -> DDZCellTypeIcons.RotatingText
+                                    else -> DDZCellTypeIcons.Text
+                                }, null,
                                     tint = DDZColor.TextMuted, modifier = Modifier.size(DDZLayout.QuickInput.Icon))
-                                Text(if (number) "숫자" else "텍스트", style = DDZTypography.Secondary,
+                                Text(when (selected.dataType) {
+                                    TableCellDataType.NUMBER -> "숫자"
+                                    TableCellDataType.DATE -> "날짜"
+                                    TableCellDataType.TIME -> "시간"
+                                    TableCellDataType.ROTATING_TEXT -> "순환문구"
+                                    else -> "텍스트"
+                                }, style = DDZTypography.Secondary,
                                     modifier = Modifier.padding(horizontal = DDZSpacing.xs))
                                 Text(quickCellPosition(selected), style = DDZTypography.Caption, color = DDZColor.TextMuted,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -318,6 +331,22 @@ internal fun CameraQuickValueSheet(
                                     Icon(Icons.Filled.ChevronRight, "다음 셀", Modifier.size(DDZLayout.QuickInput.Icon))
                                 }
                             }
+                            if (!manual) {
+                                CameraQuickAutoValueEditor(
+                                    cell = selected,
+                                    template = previewTemplate,
+                                    now = now,
+                                    enabled = !switching,
+                                    onDateFormat = { pattern ->
+                                        val updated = updateQuickDateFormat(draft.template, selected.cellId, pattern)
+                                        if (updated != draft.template) { draft.template = updated; draft.dirty = true }
+                                    },
+                                    onPhraseSet = { id ->
+                                        val updated = selectQuickPhraseSet(draft.template, selected.cellId, id)
+                                        if (updated != draft.template) { draft.template = updated; draft.dirty = true }
+                                    },
+                                )
+                            } else {
                             val value = values[selected.cellId] ?: TextFieldValue(selected.rawText)
                             fun change(nextValue: TextFieldValue) {
                                 val accepted = if (number) decimalInputOrPrevious(nextValue.text, value.text) else nextValue.text
@@ -359,6 +388,7 @@ internal fun CameraQuickValueSheet(
                                     }
                                 }
                                 TextButton(enabled = !switching, onClick = ::inputDone, modifier = Modifier.height(DDZLayout.QuickInput.Touch)) { Text("입력", color = DDZColor.SelectionEmphasis) }
+                            }
                             }
                         }
                     }
