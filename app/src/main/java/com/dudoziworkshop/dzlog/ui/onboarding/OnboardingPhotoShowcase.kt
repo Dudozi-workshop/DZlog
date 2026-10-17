@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.R
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
-/** Read-only marketing composition; cells are real Compose text, never baked into an image. */
+/** Read-only marketing composition; page one uses the approved card baked into its hero. */
 @Composable
 internal fun OnboardingPhotoShowcase(
     labels: List<String>,
@@ -60,9 +60,8 @@ internal fun OnboardingPhotoShowcase(
             .background(DDZColor.SelectedSoft),
     ) {
         PhotoShowcaseBackdrop(compact, edgeToEdge)
-        // The phone is now part of the static editorial artwork.
-        // Record values and actions remain real Compose controls, not a
-        // screenshot, so no duplicate fake camera frame is drawn here.
+        // Page one's approved photograph already contains the phone and record card.
+        // Other preview variants retain their Compose-rendered records.
         if (compact) {
             PhotoShowcaseTag(
                 label = "사진 미리보기",
@@ -93,7 +92,7 @@ internal fun OnboardingPhotoShowcase(
                 }
             }
         }
-        if (showTable) {
+        if (showTable && !edgeToEdge) {
             PhotoShowcaseRecordTable(
                 labels = labels,
                 values = values,
