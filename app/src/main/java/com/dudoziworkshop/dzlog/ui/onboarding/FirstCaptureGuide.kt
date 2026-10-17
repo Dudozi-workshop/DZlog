@@ -22,7 +22,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 /** Informational tour: navigation never requires editing, shooting, or saving. */
-internal enum class FirstCaptureGuidePhase {
+enum class FirstCaptureGuidePhase {
     QUICK_EDIT, ZOOM_FOCUS, ZOOM_CHIP, TOOLS, SHUTTER, SAVED, SETTINGS, UNDO, DISMISSED,
 }
 
