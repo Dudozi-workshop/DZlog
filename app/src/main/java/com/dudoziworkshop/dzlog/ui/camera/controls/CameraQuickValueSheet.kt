@@ -161,7 +161,11 @@ internal fun CameraQuickValueSheet(
         values[id]?.let { values[id] = it.copy(composition = null) }
         selectedId = id
         selectionMemory.recordSelection(activeTemplateId, id, cells.map { it.cellId })
-        if (focused) requester.requestFocus()
+        if (focused && cells.any {
+                it.cellId == id &&
+                    (it.dataType == TableCellDataType.TEXT || it.dataType == TableCellDataType.NUMBER)
+            }
+        ) requester.requestFocus()
     }
     Dialog(onDismissRequest = { if (!switching) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false,
         decorFitsSystemWindows = false, dismissOnClickOutside = false)) {
@@ -235,6 +239,13 @@ internal fun CameraQuickValueSheet(
             onDispose { }
         }
         fun inputDone() { focus.clearFocus(); keyboard?.hide() }
+        fun selectCell(id: String) {
+            val target = cells.firstOrNull { it.cellId == id } ?: return
+            if (target.dataType != TableCellDataType.TEXT &&
+                target.dataType != TableCellDataType.NUMBER
+            ) inputDone()
+            select(id)
+        }
         fun dismiss() { inputDone(); commit(); onDismiss() }
         BoxWithConstraints(Modifier.heightIn(max = with(density) { hostHeight.toDp() })
             .fillMaxSize().background(DDZColor.PrimaryDark.copy(alpha = 0.72f))
@@ -259,7 +270,7 @@ internal fun CameraQuickValueSheet(
                 CameraQuickNamingPreview(previewTemplate, resolvedCells, selectedId, counterDigits, previewCounter, now, saveMode,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = DDZSpacing.screenPadding))
                 CameraQuickTablePreview(previewTemplate, templateName, resolvedCells, style, captureAspect, tableWidthRatio, tableHeightRatio,
-                    selectedId, cells.map { it.cellId }.toSet(), ::select,
+                    selectedId, cells.map { it.cellId }.toSet(), ::selectCell,
                     onLocked = { id -> Toast.makeText(context,
                         listOf("자동으로 표시되는 값이에요. 변경은 표 상세설정에서 가능해요.",
                             quickCellLinks(previewTemplate, id).description).filter { it.isNotBlank() }.joinToString("\n"),
@@ -324,10 +335,10 @@ internal fun CameraQuickValueSheet(
                                             Modifier.size(DDZLayout.QuickInput.CellMarker), tint = DDZColor.SelectionEmphasis)
                                     }
                                 }
-                                IconButton(enabled = previous != null && !switching, onClick = { previous?.let(::select) }, modifier = Modifier.size(DDZLayout.QuickInput.Touch)) {
+                                IconButton(enabled = previous != null && !switching, onClick = { previous?.let(::selectCell) }, modifier = Modifier.size(DDZLayout.QuickInput.Touch)) {
                                     Icon(Icons.Filled.ChevronLeft, "이전 셀", Modifier.size(DDZLayout.QuickInput.Icon))
                                 }
-                                IconButton(enabled = next != null && !switching, onClick = { next?.let(::select) }, modifier = Modifier.size(DDZLayout.QuickInput.Touch)) {
+                                IconButton(enabled = next != null && !switching, onClick = { next?.let(::selectCell) }, modifier = Modifier.size(DDZLayout.QuickInput.Touch)) {
                                     Icon(Icons.Filled.ChevronRight, "다음 셀", Modifier.size(DDZLayout.QuickInput.Icon))
                                 }
                             }
