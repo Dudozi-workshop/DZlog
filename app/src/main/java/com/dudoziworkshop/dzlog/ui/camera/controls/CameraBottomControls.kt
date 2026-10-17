@@ -3,6 +3,7 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import android.net.Uri
+import android.graphics.RectF
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -80,6 +81,7 @@ internal fun CameraBottomControls(
     scope: CoroutineScope,
     ui: CameraUiState,
     settingsWriter: CameraSettingsWriter,
+    visibleTableBoundsInRoot: RectF?,
     captureReady: Boolean,
     latestImage: MediaImageItem?,
     onOpenAlbum: () -> Unit,
@@ -95,6 +97,9 @@ internal fun CameraBottomControls(
 ) {
     val density = LocalDensity.current
     var bottomBarHeightPx by remember { mutableIntStateOf(0) }
+    var controlsTopInRootPx by remember { mutableFloatStateOf(0f) }
+    var zoomWidthPx by remember { mutableIntStateOf(0) }
+    var zoomHeightPx by remember { mutableIntStateOf(0) }
     var resizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     LaunchedEffect(ui.isTableSelected, ui.isTableResizePanelOpen) {
         if (!ui.isTableSelected) ui.isTableResizePanelOpen = false
@@ -107,7 +112,8 @@ internal fun CameraBottomControls(
     val compactTool = if (ui.isPinchZoomActive) null else selectedTool
     val showDismissLayer = showToolMenu || isToolPanelExpanded || ui.isZoomChipExpanded
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()
+        .onGloballyPositioned { controlsTopInRootPx = it.positionInRoot().y }) {
         if (showDismissLayer) {
             Box(
                 modifier = Modifier
@@ -312,14 +318,34 @@ internal fun CameraBottomControls(
             }
         }
 
-        // Keep zoom near the shutter and out of the expanded tool panels.
+        // Position controls from measured bounds, never from a device aspect ratio.
+        // The photo table stays at its saved position; only the floating zoom UI moves.
         if (!showToolMenu && selectedTool == null && !ui.isTableSelected) {
+        val gapPx = with(density) { ToolOverlayBottomSpacing.toPx() }
+        val baseBottomPx = with(density) { DDZSpacing.screenPadding.toPx() } +
+            bottomBarHeightPx + gapPx
+        val baseTopInRootPx = controlsTopInRootPx +
+            with(density) { maxHeight.toPx() } - baseBottomPx - zoomHeightPx
+        val table = visibleTableBoundsInRoot
+        val overlayLeftPx = (with(density) { maxWidth.toPx() } - zoomWidthPx) / 2f
+        val intersectsTable = table != null && zoomWidthPx > 0 && zoomHeightPx > 0 &&
+            overlayLeftPx + zoomWidthPx > table.left &&
+            overlayLeftPx < table.right &&
+            baseTopInRootPx < table.bottom &&
+            baseTopInRootPx + zoomHeightPx > table.top
+        val liftPx = if (intersectsTable && table != null) {
+            (baseTopInRootPx + zoomHeightPx - table.top + gapPx)
+                .coerceAtLeast(0f)
+                .coerceAtMost((baseTopInRootPx - controlsTopInRootPx).coerceAtLeast(0f))
+        } else 0f
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = DDZSpacing.screenPadding + with(density) {
-                    bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing
-                }),
+                .padding(bottom = with(density) { (baseBottomPx + liftPx).toDp() })
+                .onSizeChanged { size ->
+                    zoomWidthPx = size.width
+                    zoomHeightPx = size.height
+                },
             contentAlignment = Alignment.Center,
         ) {
             ZoomControlSection(
