@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.log
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
@@ -43,6 +44,7 @@ import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultsGridAnchorPolicy
 import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultCapture
 import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultsSessionPolicy
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 /**
@@ -213,10 +215,22 @@ internal fun QuickResultsScreen(
                                                 Text(
                                                     "원본",
                                                     modifier = Modifier.align(Alignment.TopStart)
-                                                        .background(DDZColor.SageLight, RoundedCornerShape(10.dp))
-                                                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                                                    color = DDZColor.Primary,
-                                                    style = DDZTypography.Caption,
+                                                        .padding(DDZLayout.QuickOriginalBadge.EdgeInset)
+                                                        .background(
+                                                            DDZColor.QuickOriginalBadgeBackground,
+                                                            RoundedCornerShape(DDZLayout.QuickOriginalBadge.Radius),
+                                                        )
+                                                        .border(
+                                                            DDZLayout.QuickOriginalBadge.BorderWidth,
+                                                            DDZColor.QuickOriginalBadgeBorder,
+                                                            RoundedCornerShape(DDZLayout.QuickOriginalBadge.Radius),
+                                                        )
+                                                        .padding(
+                                                            horizontal = DDZLayout.QuickOriginalBadge.HorizontalPadding,
+                                                            vertical = DDZLayout.QuickOriginalBadge.VerticalPadding,
+                                                        ),
+                                                    color = DDZColor.QuickOriginalBadgeText,
+                                                    style = DDZTypography.QuickOriginalBadge,
                                                 )
                                             }
                                         }

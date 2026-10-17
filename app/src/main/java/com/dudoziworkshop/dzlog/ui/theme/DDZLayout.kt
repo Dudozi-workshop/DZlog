@@ -14,6 +14,14 @@ object DDZLayout {
         val XS = 4.dp
     }
 
+    object QuickOriginalBadge {
+        val Radius = 7.dp
+        val EdgeInset = 5.dp
+        val HorizontalPadding = 7.dp
+        val VerticalPadding = 3.dp
+        val BorderWidth = 1.dp
+    }
+
     object Icon {
         val Small = 20.dp
         val Touch = 32.dp

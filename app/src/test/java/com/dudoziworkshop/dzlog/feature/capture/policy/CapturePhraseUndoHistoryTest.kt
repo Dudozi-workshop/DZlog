@@ -68,6 +68,29 @@ class CapturePhraseUndoHistoryTest {
         assertTrue(journal.canUndo(listOf("original-1"), "template-1"))
     }
 
+    @Test fun `undo path stays associated with the exact shot`() {
+        val journal = CapturePhraseUndoHistory()
+        journal.record("template-1", listOf("shot-1-result", "shot-1-original"),
+            template(), template(shots = 1), captureRelativePath = "Pictures/DZlog/FolderA/")
+        journal.record("template-1", listOf("shot-2"),
+            template(shots = 1), template(shots = 2), captureRelativePath = "Pictures/DZlog/FolderB/")
+        assertEquals("Pictures/DZlog/FolderA/",
+            journal.pathForUndo(listOf("shot-1-result", "shot-1-original")))
+        assertEquals("Pictures/DZlog/FolderB/", journal.pathForUndo(listOf("shot-2")))
+        assertNull(journal.pathForUndo(listOf("untracked")))
+    }
+
+    @Test fun `canceling confirmation does not consume undo state`() {
+        val journal = CapturePhraseUndoHistory()
+        journal.record("template-1", listOf("shot-1"),
+            template(), template(shots = 1), captureRelativePath = "Pictures/DZlog/FolderA/")
+        assertEquals("Pictures/DZlog/FolderA/", journal.pathForUndo(listOf("shot-1")))
+        assertTrue(journal.canUndo(listOf("shot-1"), "template-1"))
+        assertFalse(journal.hasIncompleteDeletion())
+        // Dismissing a warning does not call deleted() or acknowledgeRestored().
+        assertTrue(journal.canUndo(listOf("shot-1"), "template-1"))
+    }
+
     @Test fun `editing another capture leaves latest untouched`() {
         val journal = CapturePhraseUndoHistory()
         journal.record("template-1", listOf("older"), template(), template(shots = 1))

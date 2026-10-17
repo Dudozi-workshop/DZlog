@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.CheckCircle
@@ -233,6 +234,37 @@ fun SettingsRootScreen(
                                         uncheckedTrackColor = DDZColor.Border,
                                         checkedThumbColor = DDZColor.Surface,
                                         uncheckedThumbColor = DDZColor.Surface,
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                }
+
+                SettingsSection(title = "촬영 설정") {
+                    SettingsGroup {
+                        SettingsActionRow(
+                            icon = Icons.Default.WarningAmber,
+                            title = "저장경로 변경 시 삭제 경고",
+                            subtitle = "다른 폴더에 저장된 사진을 Undo할 때 확인",
+                            onClick = {
+                                scope.launch {
+                                    AppSettingsStore.setUndoSavePathWarningEnabled(
+                                        context, !settings.undoSavePathWarningEnabled,
+                                    )
+                                }
+                            },
+                            trailing = {
+                                Switch(
+                                    checked = settings.undoSavePathWarningEnabled,
+                                    onCheckedChange = { enabled ->
+                                        scope.launch {
+                                            AppSettingsStore.setUndoSavePathWarningEnabled(context, enabled)
+                                        }
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedTrackColor = DDZColor.Selected,
+                                        uncheckedTrackColor = DDZColor.Border,
                                     ),
                                 )
                             },

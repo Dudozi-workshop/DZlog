@@ -14,6 +14,7 @@ object DDZTypography {
     val Secondary = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Normal)
     val Caption = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal)
 
+    val QuickOriginalBadge = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium)
     val ButtonText = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     // Semantic aliases for reusable compact section headers and text actions.
     val CompactSectionTitle = ButtonText

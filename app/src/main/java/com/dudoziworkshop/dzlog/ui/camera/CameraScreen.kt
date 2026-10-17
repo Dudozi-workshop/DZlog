@@ -20,7 +20,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.key
@@ -71,6 +70,8 @@ import com.dudoziworkshop.dzlog.domain.naming.capturePhysicalSavePaths
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.capture.permission.hasCameraPermission
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePhraseUndoHistory
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureUndoPathWarningPolicy
+import androidx.compose.foundation.layout.fillMaxWidth
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraBottomControls
@@ -345,6 +346,7 @@ fun CameraPreview(
                             uris = uris.map(Uri::toString),
                             before = base,
                             after = applied,
+                            captureRelativePath = receipt.snapshot.request.relativePath,
                         )
                         UndoCapturePolicy.pushCapture(sessionCaptureStack, uris)
                     }
@@ -470,9 +472,23 @@ fun CameraPreview(
     val latestImage = latestImageController.latestImage
 
     var undoPhraseSaving by remember { mutableStateOf(false) }
+    var undoPathWarning by remember { mutableStateOf<PendingCameraUndoPathWarning?>(null) }
+    var pendingUndoWarningDisable by remember { mutableStateOf<List<String>?>(null) }
     var undoDeletionIncomplete by remember { mutableStateOf(phraseUndoHistory.hasIncompleteDeletion()) }
     fun syncAfterUndoDelete(deletedUris: List<Uri>) {
         val entry = phraseUndoHistory.deleted(deletedUris.map(Uri::toString))
+        val optOut = pendingUndoWarningDisable
+        if (entry != null && optOut != null && entry.initialUris == optOut.toSet()) {
+            pendingUndoWarningDisable = null
+            scope.launch {
+                try {
+                    AppSettingsStore.setUndoSavePathWarningEnabled(context, false)
+                    Toast.makeText(context, "삭제 경고를 껐습니다. 전체 설정에서 언제든 다시 켤 수 있어요.", Toast.LENGTH_LONG).show()
+                } catch (error: Exception) {
+                    Toast.makeText(context, "삭제 경고 설정을 저장하지 못했습니다.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
         undoDeletionIncomplete = phraseUndoHistory.hasIncompleteDeletion()
         latestImageController.reload()
         cameraViewModel.onUndoCommitted()
@@ -518,7 +534,12 @@ fun CameraPreview(
     val undoDeleteController = rememberUndoDeleteController(
         context = context,
         onCommitted = { deletedUris -> syncAfterUndoDelete(deletedUris) },
-        onRestore = { targetUris -> UndoCapturePolicy.restoreCapture(sessionCaptureStack, targetUris) },
+        onRestore = { targetUris ->
+            if (pendingUndoWarningDisable?.any { it in targetUris.map(Uri::toString) } == true) {
+                pendingUndoWarningDisable = null
+            }
+            UndoCapturePolicy.restoreCapture(sessionCaptureStack, targetUris)
+        },
     )
 
     val isTemplateReady = derivedState.isTemplateReady
@@ -568,7 +589,7 @@ fun CameraPreview(
         appSettings = appSettings,
         verifiedTier = verifiedTier,
         boundImageCapture = boundImageCapture,
-        undoPending = undoDeleteController.isBusy || undoPhraseSaving || undoDeletionIncomplete,
+        undoPending = undoDeleteController.isBusy || undoPhraseSaving || undoDeletionIncomplete || undoPathWarning != null,
         finalCapturePreview = finalCapturePreview,
         scopedCounterStream = scopedCounterStream,
         tableTemplateState = effectiveTemplate,
@@ -759,7 +780,7 @@ fun CameraPreview(
                         scope = scope,
                         ui = ui,
                         settingsWriter = settingsWriter,
-                        captureReady = canTriggerCapture && !undoDeleteController.isBusy && !undoPhraseSaving && !undoDeletionIncomplete &&
+                        captureReady = canTriggerCapture && !undoDeleteController.isBusy && !undoPhraseSaving && !undoDeletionIncomplete && undoPathWarning == null &&
                             ui.capture.pendingPreviewCaptureId == null &&
                             !ui.capture.pendingSaveError &&
                             !ui.capture.isRecoveringPendingCaptures &&
@@ -777,12 +798,23 @@ fun CameraPreview(
                             }
                         },
                         sessionCaptureStack = sessionCaptureStack,
-                        undoPending = undoDeleteController.isBusy || undoPhraseSaving || ui.capture.pendingSaveCount > 0,
+                        undoPending = undoDeleteController.isBusy || undoPhraseSaving || ui.capture.pendingSaveCount > 0 || undoPathWarning != null,
                         onUndoDelete = {
                             if (ui.capture.pendingSaveCount == 0 && !undoPhraseSaving) {
                                 val lastUris = sessionCaptureStack.lastOrNull().orEmpty()
                                 if (phraseUndoHistory.canUndo(lastUris.map(Uri::toString), quickTemplateId)) {
-                                    undoDeleteController.deleteLatest(sessionCaptureStack)
+                                    val savedPath = phraseUndoHistory.pathForUndo(lastUris.map(Uri::toString))
+                                    val currentPath = captureScopeState.relativePathPreview
+                                    if (appSettings.undoSavePathWarningEnabled &&
+                                        CaptureUndoPathWarningPolicy.requiresConfirmation(savedPath, currentPath)) {
+                                        undoPathWarning = PendingCameraUndoPathWarning(
+                                            captureUris = lastUris.map(Uri::toString),
+                                            capturedFolder = savedPath!!,
+                                            currentFolder = currentPath,
+                                        )
+                                    } else {
+                                        undoDeleteController.deleteLatest(sessionCaptureStack)
+                                    }
                                 } else {
                                     Toast.makeText(context, "다른 양식의 촬영 기록입니다.", Toast.LENGTH_SHORT).show()
                                 }
@@ -878,6 +910,26 @@ fun CameraPreview(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                     ) { ui.capture.capturedUri = null }
+            )
+        }
+
+        undoPathWarning?.let { pending ->
+            CameraUndoPathWarningDialog(
+                capturedFolder = pending.capturedFolder,
+                currentFolder = pending.currentFolder,
+                onCancel = { undoPathWarning = null },
+                onConfirm = { disableWarning ->
+                    undoPathWarning = null
+                    val lastUris = sessionCaptureStack.lastOrNull().orEmpty()
+                    val currentUris = lastUris.map(Uri::toString)
+                    if (currentUris == pending.captureUris &&
+                        ui.capture.pendingSaveCount == 0 && !undoPhraseSaving &&
+                        phraseUndoHistory.canUndo(currentUris, quickTemplateId)
+                    ) {
+                        pendingUndoWarningDisable = if (disableWarning) currentUris else null
+                        undoDeleteController.deleteLatest(sessionCaptureStack)
+                    }
+                },
             )
         }
 
