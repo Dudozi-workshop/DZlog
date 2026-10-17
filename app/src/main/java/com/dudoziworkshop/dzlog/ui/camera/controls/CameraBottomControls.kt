@@ -140,6 +140,37 @@ internal fun CameraBottomControls(
             onBottomBarHeightChange = { bottomBarHeightPx = it }
         )
 
+        // Passive preview of the real tools menu: no preference writes or camera commands.
+        // It intentionally disappears if the user opens the normal interactive menu.
+        if (tutorialFocus == FirstCaptureGuidePhase.TOOLS && !showToolMenu &&
+            selectedTool == null && !isToolPanelExpanded
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(
+                        bottom = DDZSpacing.screenPadding + with(density) {
+                            bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing
+                        }
+                    ),
+                contentAlignment = Alignment.BottomCenter,
+            ) {
+                CameraToolMenuSection(
+                    selectedTool = null,
+                    flashMode = ui.prefs.flashMode,
+                    focusMode = ui.focusMode,
+                    showGrid = ui.prefs.showGrid,
+                    showTable = ui.prefs.showWmPreview,
+                    assistShutterEnabled = ui.prefs.assistShutterEnabled,
+                    onSelectTool = {},
+                    onToggleGrid = {},
+                    onToggleTable = {},
+                    onToggleAssistShutter = {},
+                )
+            }
+        }
+
         CameraToolOverlayPanel(
             showToolMenu = showToolMenu,
             compactTool = compactTool,
