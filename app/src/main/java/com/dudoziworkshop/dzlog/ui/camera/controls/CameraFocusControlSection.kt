@@ -83,11 +83,12 @@ internal fun FocusQuickPanelCore(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier
+                .height(DDZLayout.Control.Standard)
                 .clip(FocusChipShape)
                 .background(DDZColor.Surface.copy(alpha = 0.95f), FocusChipShape)
                 .border(1.dp, DDZColor.SageBorder, FocusChipShape)
                 .clickable(onClick = onToggleExpanded)
-                .padding(horizontal = 10.dp, vertical = 6.dp)
+                .padding(horizontal = 10.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.CenterFocusStrong,
@@ -108,6 +109,7 @@ internal fun FocusQuickPanelCore(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
+            .height(DDZLayout.Control.Standard)
             .clip(FocusChipShape)
             .background(DDZColor.Surface.copy(alpha = 0.95f), FocusChipShape)
             .border(1.dp, DDZColor.SageBorder, FocusChipShape)
@@ -115,7 +117,7 @@ internal fun FocusQuickPanelCore(
                 val toggled = if (mode == CameraFocusMode.AUTO) CameraFocusMode.MANUAL else CameraFocusMode.AUTO
                 onModeChange(toggled)
             }
-            .padding(horizontal = 6.dp, vertical = 4.dp)
+            .padding(horizontal = 6.dp)
     ) {
         Icon(
             imageVector = Icons.Default.CenterFocusStrong,
