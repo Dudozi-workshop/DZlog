@@ -157,14 +157,18 @@ internal fun LiveTutorialHost(
 private fun tutorialTarget(location: TutorialLocation, parent: String): String = when (location.areaId) {
     "home" -> when (parent) {
         "templates", "save-info" -> "home.sheet"
-        "recent", "album" -> "home.recent"; "counter" -> "home.counter"; "settings" -> "home.settings"; "table-settings" -> "home.table"
+        "recent" -> "home.photo"; "album" -> "home.album"; "more" -> "home.template-menu"; "counter" -> "home.counter"; "settings" -> "home.settings"; "table-settings" -> "home.table"
         "start" -> "home.start"; else -> "home.main"
     }
     "camera" -> when (parent) {
-        "flash", "grid", "table", "assist", "focus" -> "camera.tool.$parent"
+        "flash", "grid", "table", "assist" -> "camera.tool.$parent"
+        "manual-focus" -> "camera.tool.focus"
+        "focus" -> "camera.preview"
         "menu" -> "camera.tools"
         "zoom" -> "camera.zoom"
         "entry" -> "camera.settings"
+        "ratio" -> "camera.settings.비율"
+        "capture-confirmation" -> "camera.settings.촬영확인"
         "quality" -> "camera.settings.저장"
         "feedback" -> "camera.settings.피드백"
         "controls" -> "camera.settings.음량키"

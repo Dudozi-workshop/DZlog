@@ -25,7 +25,7 @@ internal object DzlogTutorialSections {
                 Triple("main", "현재 템플릿", "미리 만들어 둔 템플릿을 선택하면, 촬영에 사용할 표 양식을 빠르게 바꿀 수 있어요."),
                 Triple("templates", "템플릿 선택", "목록에서 촬영에 사용할 템플릿을 선택해요."),
                 Triple("manage", "템플릿 관리", "템플릿 관리에서 저장된 양식들을 살펴볼 수 있어요."),
-                Triple("more", "수정과 삭제", "템플릿 옆 ⋯ 버튼을 누르면 수정·이름 변경·복사·삭제 메뉴를 열 수 있어요."),
+                Triple("more", "수정과 삭제", "템플릿 옆 ⋯ 버튼을 누르면 편집·이름 변경·복제·삭제 메뉴를 열 수 있어요."),
                 Triple("counter", "다음 촬영번호", "다음 사진에 사용할 촬영번호예요. 촬영하면 번호가 차례로 올라가요."),
                 Triple("start", "촬영 시작", "선택한 템플릿으로 촬영 화면을 열어요.")),
             custom("recent", "사진 확인",
@@ -52,9 +52,10 @@ internal object DzlogTutorialSections {
             custom("zoom-focus", "배율과 초점",
                 Triple("zoom", "배율 칩", "배율 버튼으로 빠르게 바꾸거나 현재 배율을 눌러 눈금을 펼친 뒤 좌우로 드래그해 세밀하게 조절해요."),
                 Triple("pinch", "핀치 줌", "카메라 미리보기에서 두 손가락을 벌리면 확대, 오므리면 축소돼요. 표의 크기 조절과는 별개예요."),
-                Triple("focus", "초점 조절", "화면의 원하는 부분을 터치해 초점을 맞추거나, 초점 도구에서 모드를 선택하고 수동으로 조절할 수 있어요.")),
+                Triple("focus", "초점 조절", "화면에서 선명하게 보고 싶은 부분을 터치하면 그 위치에 초점을 맞출 수 있어요.")),
             custom("tools", "촬영 보조도구",
                 Triple("menu", "도구 메뉴", "하단 도구 버튼에서 촬영을 돕는 설정을 골라 사용할 수 있어요."),
+                Triple("manual-focus", "초점 도구", "초점 도구에서 자동·수동 모드를 선택하고 초점을 조절해요."),
                 Triple("flash", "플래시", "어두운 환경에서 조명 모드를 확인하고 변경할 수 있어요. 사용할 수 있는 모드는 기기에 따라 달라질 수 있어요."),
                 Triple("grid", "격자", "격자 표시를 켜면 화면의 수평과 구도를 맞추기 편해요. 사진에 격자가 함께 저장되는 기능은 아니에요."),
                 Triple("table", "표 표시", "미리보기에서 표 표시 여부를 조정할 수 있어요. 실제 저장 결과는 촬영·저장 설정을 함께 확인하세요."),
@@ -70,10 +71,12 @@ internal object DzlogTutorialSections {
                 Triple("recent", "최근 촬영", "하단의 최근 촬영 영역에서 방금 촬영한 결과로 이동하거나 앨범을 열 수 있어요."),
                 Triple("result", "빠른 결과", "현재 촬영 작업에서 만들어진 사진들을 빠르게 확인하는 화면이에요."),
                 Triple("undo", "Undo · 직전 촬영 취소", "Undo는 직전 촬영을 취소하는 기능이에요. 사진 삭제와 번호·문구 되돌림에 영향을 줄 수 있으니 실제 사용할 때 확인하세요."),
-                Triple("warning", "저장경로 변경 경고", "저장경로 변경으로 직전 촬영 취소에 영향이 생기면 경고가 표시될 수 있어요. 관련 알림은 설정에서 조절할 수 있어요.")),
+                Triple("warning", "저장경로 변경 경고", "현재 저장경로와 다른 경로의 사진을 Undo로 삭제하려 할 때 경고가 표시돼요. 삭제 여부를 확인하고 진행하거나 취소해요.")),
             custom("settings", "카메라 설정",
                 Triple("entry", "설정 열기", "카메라 상단의 설정 버튼으로 촬영 관련 옵션에 들어갈 수 있어요."),
+                Triple("ratio", "촬영 비율", "비율을 선택해 사진에 담기는 화면의 가로·세로 비율을 바꿔요."),
                 Triple("quality", "저장 양식", "원본·표 합성·둘 다 중 저장할 사진의 양식을 선택해요."),
+                Triple("capture-confirmation", "촬영 확인", "안함·잠깐·유지 중 촬영한 사진을 확인하는 방식을 선택해요."),
                 Triple("feedback", "촬영 소리와 진동", "촬영 효과음과 진동 관련 옵션을 확인하고 원하는 사용 환경에 맞게 조절할 수 있어요."),
                 Triple("controls", "촬영 조작 옵션", "음량 버튼과 미리보기 동작처럼 촬영 조작에 영향을 주는 설정을 확인해요.")),
             custom("naming", "파일명과 저장 정보",
@@ -114,7 +117,18 @@ internal object DzlogTutorialSections {
                 Triple("backup", "작업 환경 백업", "작업 환경 내보내기로 표 양식과 저장 규칙을 백업해요. 가져오기는 백업의 양식을 추가하는 기능이며 사진 파일 백업과는 달라요."),
                 Triple("help", "도움말", "사용법 및 도움말에서 원하는 구역·세션으로 이동해 다시 볼 수 있어요. 보는 중인 위치와 완료 여부도 기억해요.")),
         )),
-    )
+    ).map { area ->
+        if (area.id != "camera") area else {
+            fun group(id: String, title: String, vararg sources: String): TutorialSession =
+                TutorialSession(id, title, sources.flatMap { source -> area.sessions.first { it.id == source }.steps })
+            area.copy(sessions = listOf(
+                group("capture", "촬영과 확인", "overview", "capture", "results"),
+                group("tools", "초점과 촬영도구", "zoom-focus", "tools"),
+                group("table", "표와 빠른 수정", "table"),
+                group("settings", "촬영·저장설정", "settings", "naming"),
+            ))
+        }
+    }
 
     fun area(id: String) = areas.firstOrNull { it.id == id }
 }

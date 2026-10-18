@@ -7,7 +7,7 @@ class DzlogTutorialSectionsTest {
     @Test fun allApprovedAreasSessionsAndDetailedScenesAreReachable() {
         assertEquals(listOf("home", "camera", "gallery", "table-detail", "saving", "settings"),
             DzlogTutorialSections.areas.map { it.id })
-        assertEquals(28, DzlogTutorialSections.areas.sumOf { it.sessions.size })
+        assertEquals(24, DzlogTutorialSections.areas.sumOf { it.sessions.size })
         DzlogTutorialSections.areas.forEach { area ->
             assertEquals(area.sessions.size, area.sessions.map { it.id }.toSet().size)
             area.sessions.forEach { session ->
@@ -17,6 +17,15 @@ class DzlogTutorialSectionsTest {
                 pages.forEach { assertTrue(it.title.isNotBlank() && it.instruction.isNotBlank()) }
             }
         }
+    }
+    @Test fun cameraHasFourGroupsWithSettingsInScreenOrder() {
+        val camera = DzlogTutorialSections.area("camera")!!
+        assertEquals(listOf("capture", "tools", "table", "settings"), camera.sessions.map { it.id })
+        val settings = camera.sessions.last().guidePages().map { it.id }
+        assertEquals(listOf("entry", "ratio", "quality", "capture-confirmation", "feedback", "controls"), settings.take(6))
+        val home = DzlogTutorialSections.area("home")!!
+        assertTrue(home.sessions.flatMap { it.guidePages() }.map { it.id }.containsAll(
+            listOf("templates", "manage", "more", "recent-folder", "gallery", "save-info", "settings-screen")))
     }
     @Test fun resumeUsesStableSceneIdsAndFallsBackAfterContentChanges() {
         val pages = DzlogTutorialSections.area("saving")!!.sessions.first { it.id == "counter" }.guidePages()

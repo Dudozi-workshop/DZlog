@@ -283,7 +283,7 @@ fun CameraPreview(
     val tourLocation = LocalTutorialLocation.current
     LaunchedEffect(tourLocation) {
         if (readOnlyTour) {
-            ui.showWizard = tourLocation?.sessionId == "settings" && tourLocation.pageId != "entry"
+            ui.showWizard = tourLocation?.sessionId == "settings" && tourLocation.pageId in listOf("ratio", "quality", "capture-confirmation", "feedback", "controls")
             ui.isTableSelected = tourLocation?.sessionId == "table" && tourLocation.pageId in listOf("select", "move", "size", "rotation")
         }
     }

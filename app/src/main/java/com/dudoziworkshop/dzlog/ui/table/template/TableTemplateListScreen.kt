@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.template
 
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import androidx.compose.foundation.background
@@ -332,7 +333,7 @@ private fun formatTemplateDate(timestamp: Long, used: Boolean): String {
 private fun TemplateActionsMenu(expanded: Boolean, guideExpanded: Boolean, onDismiss: () -> Unit,
     content: @Composable () -> Unit) {
     if (guideExpanded) {
-        androidx.compose.material3.Surface(color = DDZColor.Surface, shadowElevation = 4.dp) {
+        androidx.compose.material3.Surface(modifier = Modifier.tutorialTarget("home.template-menu"), color = DDZColor.Surface, shadowElevation = 4.dp) {
             Column { content() }
         }
     } else DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) { content() }

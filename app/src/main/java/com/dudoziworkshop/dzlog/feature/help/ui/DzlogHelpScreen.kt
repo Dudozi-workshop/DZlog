@@ -76,7 +76,14 @@ private fun HelpIndex(
             Text("알아보고 싶은 기능을 골라 살펴보세요.",
                 style = DDZTypography.Body, color = DDZColor.TextSecondary)
             DzlogTutorialSections.areas.forEach { area ->
-                HelpCard(area.title, area.sessions.take(3).joinToString(" · ") { it.title }, { onOpenModule(area.id) })
+                HelpCard(area.title, when (area.id) {
+                    "home" -> "촬영 준비 · 사진 확인 · 편집과 설정"
+                    "camera" -> "촬영과 확인 · 촬영도구 · 표와 빠른 수정"
+                    "gallery" -> "사진과 폴더 찾기 · 보기와 관리"
+                    "table-detail" -> "표 내용 · 구조 · 스타일 바꾸기"
+                    "saving" -> "파일명 · 저장 위치 · 자동번호"
+                    else -> "촬영 환경 · 권한 · 백업과 도움말"
+                }, { onOpenModule(area.id) })
             }
             TextButton(onClick = onOpenIntroduction) { Text("처음 사용법 다시 보기") }
         }
