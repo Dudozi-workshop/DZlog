@@ -1,0 +1,49 @@
+name: DZlog Capture Feedback - Scoped Build
+
+on:
+  push:
+    branches:
+      - feat/capture-feedback-options-20261018
+    paths:
+      - '.github/workflows/dzlog-capture-feedback-build.yml'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/data/datastore/AppSettingsStore.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/data/datastore/CaptureFeedbackOptions.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/settings/ui/CaptureFeedbackSettingsScreen.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/settings/ui/SettingsRootScreen.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/**'
+      - 'app/src/main/res/raw/dzlog_*'
+      - 'app/src/test/java/com/dudoziworkshop/dzlog/data/datastore/CaptureFeedbackOptionsTest.kt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzlog-capture-feedback-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-and-focused-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Android SDK 36
+        run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDK_ROOT" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Compile only modified application (no full QA / APK)
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:compileDebugKotlin --stacktrace
+      - name: Run only capture feedback option tests
+        run: ./gradlew :app:testDebugUnitTest --tests 'com.dudoziworkshop.dzlog.data.datastore.CaptureFeedbackOptionsTest' --stacktrace
