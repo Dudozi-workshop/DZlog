@@ -129,13 +129,13 @@ private fun FeaturePhotoCard(
 ) {
     androidx.compose.foundation.Canvas(
         modifier = Modifier.fillMaxWidth()
-            .aspectRatio(673f / 311f) // Equal on-screen height; artwork crops stay intact.
+            .aspectRatio(673f / 282f) // Equal height without stretching the source photographs.
             .semantics { contentDescription = label },
     ) {
         drawImage(
             image = image,
-            srcOffset = androidx.compose.ui.unit.IntOffset(177, top),
-            srcSize = androidx.compose.ui.unit.IntSize(673, sourceHeight),
+            srcOffset = androidx.compose.ui.unit.IntOffset(177, top + (sourceHeight - 282) / 2),
+            srcSize = androidx.compose.ui.unit.IntSize(673, 282),
             dstSize = androidx.compose.ui.unit.IntSize(
                 size.width.toInt().coerceAtLeast(1),
                 size.height.toInt().coerceAtLeast(1),
