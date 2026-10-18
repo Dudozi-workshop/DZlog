@@ -1,4 +1,4 @@
-name: DZlog Capture Feedback Isolated APK
+name: DZlog Capture Feedback Fixes - QA APK
 
 on:
   push:
@@ -43,8 +43,8 @@ jobs:
           chmod +x ./gradlew
           ./gradlew :app:assembleDebug \
             -PdzlogStandaloneQa=true \
-            -PdzlogQaInstanceTag=sfx \
-            -PdzlogDebugVersionCode=19901018 \
+            -PdzlogQaInstanceTag=sfx2 \
+            -PdzlogDebugVersionCode=19901019 \
             --stacktrace
           APK=app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
@@ -52,15 +52,15 @@ jobs:
           AAPT="$SDK_ROOT/build-tools/35.0.0/aapt"
           BADGING="$("$AAPT" dump badging "$APK" | head -n 1)"
           echo "$BADGING"
-          [[ "$BADGING" == *"name='com.dudoziworkshop.dzlog.qa.sfx'"* ]]
-          [[ "$BADGING" == *"versionCode='19901018'"* ]]
+          [[ "$BADGING" == *"name='com.dudoziworkshop.dzlog.qa.sfx2'"* ]]
+          [[ "$BADGING" == *"versionCode='19901019'"* ]]
           mkdir -p qa-output
-          cp "$APK" qa-output/DZlog-Capture-Feedback-QA.apk
-          (cd qa-output && sha256sum DZlog-Capture-Feedback-QA.apk > SHA256SUMS.txt)
+          cp "$APK" qa-output/DZlog-Capture-Feedback-Fixes-QA.apk
+          (cd qa-output && sha256sum DZlog-Capture-Feedback-Fixes-QA.apk > SHA256SUMS.txt)
       - name: Publish isolated QA install package
         uses: actions/upload-artifact@v4
         with:
-          name: DZlog-Capture-Feedback-QA
+          name: DZlog-Capture-Feedback-Fixes-QA
           path: qa-output/
           if-no-files-found: error
           retention-days: 7
