@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog as MaterialAlertDialog
@@ -157,12 +158,15 @@ fun DDZContentDialog(
     content: @Composable () -> Unit,
     actions: @Composable RowScope.() -> Unit,
     properties: DialogProperties = DialogProperties(),
+    inlinePreview: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
 
-    Dialog(onDismissRequest = onDismiss, properties = properties) {
+    val dialogContent: @Composable () -> Unit = {
         Surface(
+            modifier = modifier,
             color = colors.Surface,
             shape = MaterialTheme.shapes.large,
             shadowElevation = 4.dp,
@@ -188,6 +192,13 @@ fun DDZContentDialog(
             }
         }
     }
+    if (inlinePreview) {
+        androidx.compose.foundation.layout.Box(
+            Modifier.fillMaxSize().padding(horizontal = 24.dp),
+            contentAlignment = androidx.compose.ui.Alignment.Center,
+        ) { dialogContent() }
+    } else Dialog(onDismissRequest = onDismiss, properties = properties) { dialogContent() }
+
 }
 
 /**

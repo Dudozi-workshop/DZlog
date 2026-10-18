@@ -969,7 +969,14 @@ fun CameraPreview(
             )
         }
 
-        if (showNextCaptureInfo) {
+        if (readOnlyTour && tourLocation?.pageId == "warning") {
+            CameraUndoPathWarningDialog(
+                capturedFolder = "Pictures/DZlog/예시/이전 폴더/",
+                currentFolder = "Pictures/DZlog/예시/현재 폴더/",
+                onCancel = {}, onConfirm = {},
+            )
+        }
+        if (showNextCaptureInfo || (readOnlyTour && tourLocation?.pageId in listOf("filename", "path", "counter"))) {
             CameraNextCaptureInfoPopup(
                 nextFileName = topDisplayName,
                 relativePaths = capturePhysicalSavePaths(

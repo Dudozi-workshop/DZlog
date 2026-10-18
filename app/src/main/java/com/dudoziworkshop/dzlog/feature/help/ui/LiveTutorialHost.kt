@@ -44,7 +44,7 @@ internal fun LiveTutorialHost(
     var areaId by rememberSaveable { mutableStateOf(initialAreaId) }
     var sessionId by rememberSaveable { mutableStateOf(initialSessionId) }
     val area = requireNotNull(DzlogTutorialSections.area(areaId))
-    val session = area.sessions.first { it.id == sessionId }
+    val session = area.sessions.firstOrNull { it.id == sessionId } ?: area.sessions.first()
     val pages = remember(areaId, sessionId) { session.guidePages() }
     var pageId by rememberSaveable(areaId, sessionId) { mutableStateOf(progress.page(areaId, sessionId)) }
     var contents by rememberSaveable { mutableStateOf(false) }
@@ -173,10 +173,12 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         "feedback" -> "camera.settings.피드백"
         "controls" -> "camera.settings.음량키"
         "quick", "template" -> "camera.quick"
-        "undo", "warning" -> "camera.undo"
+        "undo" -> "camera.undo"
+        "warning" -> "camera.undo-warning"
         "recent", "result", "preview" -> "camera.recent"
         "shutter", "saving", "bottom" -> "camera.shutter"
-        "top", "filename", "path", "counter" -> "camera.filename"
+        "top" -> "camera.filename"
+        "filename", "path", "counter" -> "camera.next-info"
         else -> "camera.preview"
     }
     "settings" -> when {

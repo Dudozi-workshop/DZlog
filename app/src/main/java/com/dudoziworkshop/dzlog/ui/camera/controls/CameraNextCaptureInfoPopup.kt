@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -57,7 +58,7 @@ internal fun CameraNextCaptureInfoPopup(
                 .align(Alignment.Center)
                 .padding(horizontal = 20.dp)
                 .fillMaxWidth()
-                .widthIn(max = 360.dp),
+                .widthIn(max = 360.dp).tutorialTarget("camera.next-info"),
             shape = RoundedCornerShape(16.dp),
             color = DDZColor.Card,
             shadowElevation = 6.dp,
