@@ -53,7 +53,7 @@ internal fun guideQuickTemplate(): TableTemplateState {
             RotatingPhraseSet("guide-set-a", "생육 단계", listOf("관찰 전", "관찰 후")),
             RotatingPhraseSet("guide-set-b", "조사 구역", listOf("A 구역", "B 구역")),
         ),
-        fileNameSlotDrafts = listOf(TableEditorSlotDraft("CELL", "기록명", "guide-0")),
-        pathSlotDrafts = listOf(TableEditorSlotDraft("CELL", "구역", "guide-4")),
+        fileNameSlotDrafts = List(FILE_NAME_SLOT_COUNT) { if (it == 0) TableEditorSlotDraft("CELL", "기록명", "guide-0") else null },
+        pathSlotDrafts = List(PATH_SLOT_UI_MAX_COUNT) { if (it == 0) TableEditorSlotDraft("CELL", "구역", "guide-4") else null },
     )
 }

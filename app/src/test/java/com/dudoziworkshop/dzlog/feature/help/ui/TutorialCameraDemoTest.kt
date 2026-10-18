@@ -34,6 +34,8 @@ class TutorialCameraDemoTest {
         assertEquals(setOf(TableCellDataType.TEXT, TableCellDataType.NUMBER,
             TableCellDataType.DATE, TableCellDataType.TIME, TableCellDataType.ROTATING_TEXT,
             TableCellDataType.COUNTER), sample.cells.map { it.dataType }.toSet())
+        assertEquals(FILE_NAME_SLOT_COUNT, sample.fileNameSlotDrafts.size)
+        assertEquals(PATH_SLOT_UI_MAX_COUNT, sample.pathSlotDrafts.size)
         val ids = sample.cells.map { it.cellId }.toSet()
         assertEquals(sample.cells.size, ids.size)
         (sample.fileNameSlotDrafts + sample.pathSlotDrafts).filterNotNull().forEach {
