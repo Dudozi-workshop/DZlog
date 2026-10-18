@@ -113,7 +113,7 @@ internal fun OnboardingFeatureIntro(previewHeight: Dp = 146.dp, compact: Boolean
         )
         // Treat the three cards as a single visual group. Leave breathing room
         // below the headline instead of increasing the gaps between cards.
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(28.dp))
         FeaturePhotoCard(image, 398, 311, "사진에 기록표를 겹친 촬영 예시")
         FeaturePhotoCard(image, 724, 282, "촬영과 동시에, 원하는 곳에.")
         FeaturePhotoCard(image, 1021, 311, "쌓인 기록도, 찾기 쉽게.")
