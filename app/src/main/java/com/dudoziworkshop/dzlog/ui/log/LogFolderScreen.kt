@@ -220,7 +220,8 @@ fun LogFolderScreen(
         onError = { folderOperationError = it },
     )
     val tourLocation = LocalTutorialLocation.current
-    LaunchedEffect(tourLocation?.sessionId, allPhotos) {
+    val readOnlyTour = LocalTutorialReadOnly.current
+    LaunchedEffect(tourLocation, allPhotos, index) {
         if (tourLocation?.areaId == "gallery" && tourLocation.sessionId == "photos") {
             showRecentPhotos = true
             selectedPhotoIds = allPhotos.firstOrNull()?.let { setOf(it.id) } ?: emptySet()
@@ -229,6 +230,24 @@ fun LogFolderScreen(
             selectionActive = false
             selectedPhotoIds = emptySet()
             showRecentPhotos = false
+        }
+        if (tourLocation?.areaId == "gallery") {
+            showCreateDialog = tourLocation.pageId == "folders/new"
+            if (showCreateDialog) newFolderName = "안내 예시 · 생성하지 않음"
+            val exampleFolder = index?.children?.firstOrNull()?.relativePath
+            manageAction = if (exampleFolder != null) when (tourLocation.pageId) {
+                "folders/rename" -> "rename"
+                "folders/move" -> "move"
+                "folders/delete" -> "delete"
+                else -> null
+            } else null
+            if (exampleFolder != null) {
+                managedFolderPath = exampleFolder
+                renameName = exampleFolder.trimEnd('/').substringAfterLast('/')
+                destinationPaths = listOf(GalleryFolderIndexPolicy.ROOT)
+                moveTarget = GalleryFolderIndexPolicy.ROOT
+                managementConfirmed = false
+            }
         }
     }
     val deleteBusy = deleteAction.busy || photoDeleteLoading
@@ -550,6 +569,7 @@ fun LogFolderScreen(
         else if (displayFolderPath == GalleryFolderIndexPolicy.ROOT) "갤러리"
         else displayFolderPath.trimEnd('/').substringAfterLast('/')
     val imagesById = remember(allPhotos) { allPhotos.associateBy { it.id.toString() } }
+    Box(Modifier.fillMaxSize()) {
     Column(modifier = Modifier.dzScreen()
         .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
         .padding(horizontal = 16.dp)) {
@@ -639,7 +659,9 @@ fun LogFolderScreen(
                 TextButton(enabled = retryEnabled, onClick = { retryDeletePlan = null }) { Text("닫기") }
             }
         }
-        Column(Modifier.weight(1f).tutorialTarget("gallery.content")) {
+        Column(Modifier.weight(1f).tutorialTarget(
+            if (readOnlyTour && tourLocation?.pageId in setOf("folders/rename", "folders/move", "folders/delete") && index?.children.isNullOrEmpty())
+                "guide.dialog" else "gallery.content")) {
             if (loading && index == null) {
                 GalleryLoadingSkeleton()
             } else if (error != null && index == null) {
@@ -814,6 +836,37 @@ fun LogFolderScreen(
         deleteAction.progressText?.let { progress ->
             Text(progress, color = DDZColor.TextSecondary, style = DDZTypography.Caption)
         }
+        if (selectionActive) {
+            val actionsEnabled = selectedPhotoIds.isNotEmpty() && !photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null
+            Row(Modifier.fillMaxWidth().tutorialTarget("gallery.selection-actions")
+                .padding(vertical = 8.dp)
+                .background(DDZColor.SurfaceSoft, RoundedCornerShape(16.dp))) {
+                TextButton(modifier = Modifier.weight(1f), enabled = actionsEnabled, onClick = ::startPhotoMove) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.DriveFileMove, contentDescription = null)
+                        Text("이동")
+                    }
+                }
+                TextButton(modifier = Modifier.weight(1f), enabled = actionsEnabled, onClick = {
+                    val selected = (if (root) allPhotos else photos).filter { it.id in selectedPhotoIds }
+                    runCatching { shareGalleryImages(context, selected) }.onFailure {
+                        folderOperationError = it.message ?: "공유 화면을 열지 못했습니다."
+                    }
+                }) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.Share, contentDescription = null)
+                        Text("공유")
+                    }
+                }
+                TextButton(modifier = Modifier.weight(1f), enabled = actionsEnabled, onClick = ::startPhotoDelete) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.Delete, contentDescription = null)
+                        Text("삭제")
+                    }
+                }
+            }
+        }
+    }
         if (showPhotoDelete && !photoDeleteLoading && deleteSelected.isNotEmpty()) {
             GalleryPhotoDeleteConfirmation(
                 selected = deleteSelected,
@@ -850,36 +903,6 @@ fun LogFolderScreen(
                     DDZDialogAction(style = DDZButtonStyle.Secondary, enabled = !deleteBusy, onClick = { showDeleteRetry = false }) { Text("취소") }
                 },
             )
-        }
-        if (selectionActive) {
-            val actionsEnabled = selectedPhotoIds.isNotEmpty() && !photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null
-            Row(Modifier.fillMaxWidth().tutorialTarget("gallery.selection-actions")
-                .padding(vertical = 8.dp)
-                .background(DDZColor.SurfaceSoft, RoundedCornerShape(16.dp))) {
-                TextButton(modifier = Modifier.weight(1f), enabled = actionsEnabled, onClick = ::startPhotoMove) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.DriveFileMove, contentDescription = null)
-                        Text("이동")
-                    }
-                }
-                TextButton(modifier = Modifier.weight(1f), enabled = actionsEnabled, onClick = {
-                    val selected = (if (root) allPhotos else photos).filter { it.id in selectedPhotoIds }
-                    runCatching { shareGalleryImages(context, selected) }.onFailure {
-                        folderOperationError = it.message ?: "공유 화면을 열지 못했습니다."
-                    }
-                }) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Share, contentDescription = null)
-                        Text("공유")
-                    }
-                }
-                TextButton(modifier = Modifier.weight(1f), enabled = actionsEnabled, onClick = ::startPhotoDelete) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Delete, contentDescription = null)
-                        Text("삭제")
-                    }
-                }
-            }
         }
         if (showPhotoMove && showMoveDestination) {
             GalleryMoveDestinationPicker(
@@ -1035,6 +1058,7 @@ fun LogFolderScreen(
                 },
                 confirmButton = {
                     DDZDialogAction(style = DDZButtonStyle.Primary, enabled = !folderManagementBusy && managementConfirmed && (manageAction != "move" || destinationPaths.contains(moveTarget)), onClick = {
+                        if (readOnlyTour) return@DDZDialogAction
                         val action = manageAction
                         val sourcePath = managedFolderPath
                         val requestedName = renameName
@@ -1086,6 +1110,7 @@ fun LogFolderScreen(
                 },
                 confirmButton = {
                     DDZDialogAction(style = DDZButtonStyle.Primary, onClick = {
+                        if (readOnlyTour) return@DDZDialogAction
                         scope.launch {
                             val result = withContext(Dispatchers.IO) {
                                 runCatching {

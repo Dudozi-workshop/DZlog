@@ -93,8 +93,8 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
 @Composable
 private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSettings) {
     val context = LocalContext.current
-    val viewerPhotos by produceState<List<MediaImageItem>>(emptyList(), location.sessionId) {
-        if (location.sessionId == "viewer" || location.sessionId == "overview") {
+    val viewerPhotos by produceState<List<MediaImageItem>>(emptyList()) {
+        run {
             value = try {
                 withContext(Dispatchers.IO) {
                     DzlogMediaStoreReader(context.contentResolver).loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT)
@@ -112,13 +112,25 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
     } else {
         val folder = if (location.pageId == "browse") viewerPhotos.firstOrNull()?.relativePath
             ?: GalleryFolderIndexPolicy.ROOT else GalleryFolderIndexPolicy.ROOT
-        val target = if (location.sessionId == "viewer" || (location.pageId == "browse" && folder == GalleryFolderIndexPolicy.ROOT))
+        val target = if (location.pageId in setOf("photos/move", "photos/delete") && viewerPhotos.isEmpty()) "gallery.selection-actions"
+            else if (location.sessionId == "viewer" || (location.pageId == "browse" && folder == GalleryFolderIndexPolicy.ROOT))
             "gallery.content" else LocalTutorialTarget.current
         CompositionLocalProvider(LocalTutorialTarget provides target) {
             LogFolderScreen(relativePath = folder,
                 onBack = {}, onOpenFolder = {}, onOpenPhoto = { _, _ -> }, onOpenOriginal = { _, _ -> },
                 gridColumns = settings.galleryGridColumns, showCounterBadges = settings.showGalleryCounterBadges)
         }
+    }
+    val selected = viewerPhotos.take(1)
+    if (selected.isNotEmpty()) when (location.pageId) {
+        "photos/move" -> com.dudoziworkshop.dzlog.ui.log.GalleryPhotoMoveConfirmation(
+            selected = selected, allPhotos = viewerPhotos,
+            destinationPath = GalleryFolderIndexPolicy.ROOT + "안내 예시/", busy = false,
+            onChangeDestination = {}, onCancel = {}, onConfirm = {},
+        )
+        "photos/delete" -> com.dudoziworkshop.dzlog.ui.log.GalleryPhotoDeleteConfirmation(
+            selected = selected, allPhotos = viewerPhotos, busy = false, onCancel = {}, onConfirm = {},
+        )
     }
 }
 

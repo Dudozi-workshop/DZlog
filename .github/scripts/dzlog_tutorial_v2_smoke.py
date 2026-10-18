@@ -153,6 +153,19 @@ def main():
         mark(evidence)
         back_to_index()
 
+    # New shared dialogs must stay behind the passive input shield and guide buttons.
+    open_session("앨범", "폴더와 하위 폴더 관리", "폴더 관리")
+    tap("다음", "새 폴더")
+    touch_passive_screen()
+    mark("tutorial-30-new-folder-dialog")
+    back_to_index()
+    open_session("표 편집", "저장·취소와 실행 취소", "저장")
+    for title in ("편집 실행 취소", "편집 다시 실행", "저장하고 나가기"):
+        tap("다음", title)
+    touch_passive_screen()
+    mark("tutorial-31-unsaved-decision-dialog")
+    back_to_index()
+
     if user_preferences() != initial_prefs:
         raise AssertionError("Tutorial altered camera settings, counters, phrases or templates")
     if query_media() != initial_media:

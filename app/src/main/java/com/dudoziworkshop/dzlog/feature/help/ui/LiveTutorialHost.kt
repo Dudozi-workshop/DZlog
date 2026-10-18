@@ -213,6 +213,7 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
     }
     "gallery" -> when {
         location.sessionId == "viewer" -> "gallery.viewer-actions"
+        location.pageId in setOf("photos/move", "photos/delete", "folders/new", "folders/rename", "folders/move", "folders/delete") -> "guide.dialog"
         location.sessionId == "photos" && location.pageId != "photos/select" -> "gallery.selection-actions"
         parent == "browse" -> "gallery.breadcrumbs"
         else -> "gallery.content"
@@ -220,7 +221,12 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
     "saving" -> if (location.sessionId == "rotation") "table.panel" else "saving.detail"
     "table-detail" -> when (location.sessionId) {
         "overview" -> "table.tabs"
-        "save" -> "table.save"
+        "save" -> when (location.pageId) {
+            "save/decision" -> "guide.dialog"
+            "save/undo" -> "table.history.실행 취소"
+            "save/redo" -> "table.history.다시 실행"
+            else -> "table.save"
+        }
         "structure" -> if ('/' in location.pageId) "table.structure.${location.pageId.substringAfter('/')}" else "table.panel"
         "style" -> when (location.pageId.substringAfter('/')) {
             "background" -> "table.style.배경"

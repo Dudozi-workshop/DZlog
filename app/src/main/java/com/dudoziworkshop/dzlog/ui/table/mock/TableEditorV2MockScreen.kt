@@ -842,6 +842,14 @@ fun TableEditorV2Screen(
         )
     }
 
+    if (tourLocation?.areaId == "table-detail" && tourLocation.pageId == "save/decision") {
+        DDZUnsavedDecisionDialog(
+            title = "변경사항을 저장할까요?",
+            message = "저장하지 않으면 이번 편집 내용은 모두 사라집니다.",
+            onCancel = {}, onDiscard = {}, onSave = {},
+        )
+    }
+
     if (showBackSaveDialog) {
         DDZUnsavedDecisionDialog(
             title = "변경사항을 저장할까요?",
@@ -874,7 +882,7 @@ fun TableEditorV2Screen(
 @Composable
 private fun CompactHistoryButton(icon: ImageVector, contentDescription: String,
     enabled: Boolean, onClick: () -> Unit) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(40.dp)) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(40.dp).tutorialTarget("table.history.$contentDescription")) {
         Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(18.dp),
             tint = if (enabled) DDZColor.TextPrimary else DDZColor.TextDisabled)
     }
