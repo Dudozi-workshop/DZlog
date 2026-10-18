@@ -224,7 +224,7 @@ fun LogFolderScreen(
         if (tourLocation?.areaId == "gallery" && tourLocation.sessionId == "photos") {
             showRecentPhotos = true
             selectedPhotoIds = allPhotos.firstOrNull()?.let { setOf(it.id) } ?: emptySet()
-            selectionActive = selectedPhotoIds.isNotEmpty()
+            selectionActive = true
         } else if (tourLocation != null) {
             selectionActive = false
             selectedPhotoIds = emptySet()
@@ -595,7 +595,7 @@ fun LogFolderScreen(
         }
         if (!root) {
             Row(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().tutorialTarget("gallery.breadcrumbs")
                     .horizontalScroll(rememberScrollState())
                     .padding(bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -853,7 +853,7 @@ fun LogFolderScreen(
         }
         if (selectionActive) {
             val actionsEnabled = selectedPhotoIds.isNotEmpty() && !photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null
-            Row(Modifier.fillMaxWidth()
+            Row(Modifier.fillMaxWidth().tutorialTarget("gallery.selection-actions")
                 .padding(vertical = 8.dp)
                 .background(DDZColor.SurfaceSoft, RoundedCornerShape(16.dp))) {
                 TextButton(modifier = Modifier.weight(1f), enabled = actionsEnabled, onClick = ::startPhotoMove) {

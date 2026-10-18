@@ -63,7 +63,8 @@ internal fun LiveTutorialHost(
     }
     var replay by remember(location) { mutableIntStateOf(0) }
     val demo = remember { Animatable(0f) }
-    val hasDemo = areaId == "camera" && page.id in TutorialDemoPages
+    val hasDemo = (areaId == "camera" && page.id in TutorialDemoPages) ||
+        (areaId == "table-detail" && sessionId == "style" && page.id.startsWith("style/"))
     LaunchedEffect(location, replay) {
         demo.snapTo(0f)
         if (hasDemo) { delay(800); demo.animateTo(1f, tween(if (page.id in setOf("preview", "ratio", "quality", "capture-confirmation", "feedback", "controls")) 4200 else 2400)) }
@@ -210,8 +211,26 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         location.sessionId == "feedback" -> "settings.feedback"
         else -> "settings.capture"
     }
-    "gallery" -> "gallery.content"
+    "gallery" -> when {
+        location.sessionId == "viewer" -> "gallery.viewer-actions"
+        location.sessionId == "photos" && location.pageId != "photos/select" -> "gallery.selection-actions"
+        parent == "browse" -> "gallery.breadcrumbs"
+        else -> "gallery.content"
+    }
     "saving" -> if (location.sessionId == "rotation") "table.panel" else "saving.detail"
-    "table-detail" -> when (location.sessionId) { "overview" -> "table.tabs"; "save" -> "table.save"; else -> "table.panel" }
+    "table-detail" -> when (location.sessionId) {
+        "overview" -> "table.tabs"
+        "save" -> "table.save"
+        "structure" -> if ('/' in location.pageId) "table.structure.${location.pageId.substringAfter('/')}" else "table.panel"
+        "style" -> when (location.pageId.substringAfter('/')) {
+            "background" -> "table.style.배경"
+            "opacity" -> "table.style.배경 투명도"
+            "text" -> "table.style.글자 크기"
+            "alignment" -> "table.style.정렬"
+            "border" -> "table.style.테두리"
+            else -> "table.panel"
+        }
+        else -> "table.panel"
+    }
     else -> "table.panel"
 }

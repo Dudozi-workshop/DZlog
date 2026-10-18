@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialDemoProgress
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
@@ -164,7 +165,18 @@ fun TableEditorV2Screen(
         )
     }
     val draftTemplateState = session.draftTemplateState
-    val draftStyleState = session.draftStyleState
+    val styleGuide = LocalTutorialLocation.current?.takeIf { it.areaId == "table-detail" && it.sessionId == "style" }
+    val guideProgress = LocalTutorialDemoProgress.current
+    val draftStyleState = if (styleGuide == null) session.draftStyleState else session.draftStyleState.let { original ->
+        when (styleGuide.pageId) {
+            "style/background" -> original.copy(bgStyle = if (guideProgress < 0.5f) 1 else 0)
+            "style/opacity" -> original.copy(bgStyle = 1, bgAlpha = (255 - 150 * guideProgress).toInt())
+            "style/text" -> original.copy(valueScale = (80 + 60 * guideProgress).toInt())
+            "style/alignment" -> original.copy(textAlign = (guideProgress * 3).toInt().coerceAtMost(2))
+            "style/border" -> original.copy(gridEnabled = guideProgress >= 0.5f)
+            else -> original
+        }
+    }
     val saveRulesDraft = session.saveRulesDraft
 
     val rows = draftTemplateState.rows
@@ -191,6 +203,10 @@ fun TableEditorV2Screen(
                 "counter" -> if (tourLocation.pageId.endsWith("/scope")) TableEditorSaveDetail.AUTO_NUMBER_ADVANCED else TableEditorSaveDetail.AUTO_NUMBER
                 else -> TableEditorSaveDetail.FILE_NAME
             }) else emptyList()
+            if (tourLocation.areaId == "table-detail" && tourLocation.sessionId == "structure") {
+                val exampleCells = draftTemplateState.cells
+                if (exampleCells.size >= 2) selectionState.selectLayoutRange(draftTemplateState, exampleCells[0].cellId, exampleCells[1].cellId)
+            }
             if ((!saving && tourLocation.sessionId == "cells") || (saving && tourLocation.sessionId == "rotation")) {
                 val typeName = if (saving) "ROTATING_TEXT" else when (tourLocation.pageId.substringAfter('/')) {
                     "text" -> "TEXT"; "number" -> "NUMBER"; "counter" -> "COUNTER"

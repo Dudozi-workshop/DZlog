@@ -79,7 +79,7 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
             "gallery" -> LiveGalleryTutorial(location, settings)
             "settings" -> SettingsRootScreen(onBack = {})
             else -> key(location.areaId, location.sessionId) {
-                TableEditorV2Screen(templateState = template,
+                TableEditorV2Screen(templateState = if (location.areaId == "table-detail" && location.sessionId in setOf("cells", "structure")) guideQuickTemplate() else template,
                     includePathInCounterScope = settings.includePathInCounterScope,
                     includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
                     saveMode = settings.saveMode, counterPadding = settings.counterPadding,
@@ -94,7 +94,7 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
 private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSettings) {
     val context = LocalContext.current
     val viewerPhotos by produceState<List<MediaImageItem>>(emptyList(), location.sessionId) {
-        if (location.sessionId == "viewer") {
+        if (location.sessionId == "viewer" || location.sessionId == "overview") {
             value = try {
                 withContext(Dispatchers.IO) {
                     DzlogMediaStoreReader(context.contentResolver).loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT)
@@ -109,9 +109,17 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
                 items = viewerPhotos, startIndex = 0, onBack = {}, onItemsReloaded = {},
                 onRequestCloseViewer = {})
         }
-    } else LogFolderScreen(relativePath = GalleryFolderIndexPolicy.ROOT,
-        onBack = {}, onOpenFolder = {}, onOpenPhoto = { _, _ -> }, onOpenOriginal = { _, _ -> },
-        gridColumns = settings.galleryGridColumns, showCounterBadges = settings.showGalleryCounterBadges)
+    } else {
+        val folder = if (location.pageId == "browse") viewerPhotos.firstOrNull()?.relativePath
+            ?: GalleryFolderIndexPolicy.ROOT else GalleryFolderIndexPolicy.ROOT
+        val target = if (location.sessionId == "viewer" || (location.pageId == "browse" && folder == GalleryFolderIndexPolicy.ROOT))
+            "gallery.content" else LocalTutorialTarget.current
+        CompositionLocalProvider(LocalTutorialTarget provides target) {
+            LogFolderScreen(relativePath = folder,
+                onBack = {}, onOpenFolder = {}, onOpenPhoto = { _, _ -> }, onOpenOriginal = { _, _ -> },
+                gridColumns = settings.galleryGridColumns, showCounterBadges = settings.showGalleryCounterBadges)
+        }
+    }
 }
 
 @Composable
