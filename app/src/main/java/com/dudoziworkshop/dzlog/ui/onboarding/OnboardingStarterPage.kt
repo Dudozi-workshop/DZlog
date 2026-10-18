@@ -53,10 +53,10 @@ internal fun OnboardingStarterPage(
     onCategory: (String) -> Unit,
     onBrowse: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 11.dp else 14.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 14.dp)) {
         Box(Modifier.fillMaxWidth()) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(5.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 5.dp),
                 modifier = Modifier.padding(end = 2.dp),
             ) {
                 Text(
@@ -67,13 +67,13 @@ internal fun OnboardingStarterPage(
                     color = DDZColor.TextPrimary,
                 )
                 Text(
-                    "나에게 맞는 양식을 골라보세요. 나중에도 바꿀 수 있어요.",
+                    "원하는 양식을 골라보세요.",
                     fontSize = 13.sp, lineHeight = 19.sp,
                     color = DDZColor.TextSecondary,
                 )
             }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp)) {
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -88,7 +88,7 @@ internal fun OnboardingStarterPage(
                 selectedId = category, onSelect = onCategory, compact = compact,
             )
         }
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp)) {
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -130,8 +130,8 @@ private fun OnboardingStarterTablePreview(def: OnboardingStarterDefinition, comp
     ) {
         Column(
             modifier = Modifier.fillMaxWidth()
-                .padding(horizontal = 13.dp, vertical = if (compact) 11.dp else 14.dp),
-            verticalArrangement = Arrangement.spacedBy(if (compact) 9.dp else 12.dp),
+                .padding(horizontal = 13.dp, vertical = if (compact) 9.dp else 14.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 12.dp),
         ) {
             Row(
                 Modifier.fillMaxWidth(),
@@ -182,7 +182,7 @@ private fun StarterTableRow(cells: List<String>, color: Color, strong: Boolean, 
                 Text(
                     value,
                     modifier = Modifier.fillMaxWidth().padding(
-                        horizontal = 2.dp, vertical = if (compact) 11.dp else 14.dp,
+                        horizontal = 2.dp, vertical = if (compact) 9.dp else 14.dp,
                     ),
                     fontSize = if (compact) 11.sp else 12.sp,
                     lineHeight = 16.sp,
@@ -225,7 +225,7 @@ private fun StarterSaveRules(def: OnboardingStarterDefinition, compact: Boolean)
         ) {
             Row(
                 Modifier.fillMaxWidth().clickable { expanded = !expanded }
-                    .padding(vertical = 12.dp),
+                    .padding(vertical = if (compact) 9.dp else 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -261,12 +261,12 @@ private fun StarterChangeNotice() {
         shape = RoundedCornerShape(16.dp),
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 11.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 7.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                Modifier.size(34.dp).background(DDZColor.SurfaceSoft, CircleShape),
+                Modifier.size(30.dp).background(DDZColor.SurfaceSoft, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.Default.Description, contentDescription = null,
@@ -276,7 +276,7 @@ private fun StarterChangeNotice() {
                 Text("시작 후에도 양식과 저장 설정을 바꿀 수 있어요.",
                     fontSize = 12.sp, lineHeight = 17.sp,
                     fontWeight = FontWeight.SemiBold, color = DDZColor.TextPrimary)
-                Text("기존 사진과 저장된 양식은 그대로 유지됩니다.",
+                Text("기존 사진과 저장된 양식은 유지됩니다.",
                     fontSize = 11.sp, lineHeight = 16.sp,
                     color = DDZColor.TextSecondary)
             }
