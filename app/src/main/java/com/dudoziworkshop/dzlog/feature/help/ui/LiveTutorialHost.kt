@@ -63,10 +63,11 @@ internal fun LiveTutorialHost(
     }
     var replay by remember(location) { mutableIntStateOf(0) }
     val demo = remember { Animatable(0f) }
-    val hasDemo = areaId == "camera" && page.id in TutorialDemoPages
+    val hasDemo = (areaId == "camera" && page.id in TutorialDemoPages) ||
+        (areaId == "table-detail" && sessionId == "style" && page.id.startsWith("style/"))
     LaunchedEffect(location, replay) {
         demo.snapTo(0f)
-        if (hasDemo) { delay(800); demo.animateTo(1f, tween(2400)) }
+        if (hasDemo) { delay(800); demo.animateTo(1f, tween(if (page.id in setOf("preview", "ratio", "quality", "capture-confirmation", "feedback", "controls")) 4200 else 2400)) }
     }
     var targetBounds by remember(location) { mutableStateOf<Rect?>(null) }
     var rootY by remember { mutableFloatStateOf(0f) }
@@ -98,7 +99,7 @@ internal fun LiveTutorialHost(
                     LocalTutorialBounds provides { targetBounds = it },
                     LocalTutorialDemoProgress provides demo.value,
                     LocalTutorialLocation provides location,
-                    LocalTutorialTarget provides tutorialTarget(location, page.parentId),
+                    LocalTutorialTarget provides (if (location.areaId == "camera" && page.id == "template") "camera.quick-table" else tutorialTarget(location, page.parentId)),
                     LocalTutorialReadOnly provides true,
                 ) { screen(location) }
                 if (areaId == "camera" && page.id == "pinch") {
@@ -193,13 +194,21 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         "template" -> "camera.quick-naming"
         "undo" -> "camera.undo"
         "warning" -> "camera.undo-warning"
-        "recent", "result", "preview" -> "camera.recent"
-        "shutter", "saving", "bottom" -> "camera.shutter"
+        "recent" -> "camera.recent"
+        "result" -> "camera.results"
+        "preview" -> "camera.capture-confirmation"
+        "shutter", "bottom" -> "camera.shutter"
+        "saving" -> "camera.save-detail"
         "top" -> "camera.filename"
         "filename", "path", "counter" -> "camera.next-info"
         else -> "camera.preview"
     }
     "settings" -> when {
+        location.pageId == "permission-screen" -> "settings.screen"
+        location.pageId == "export-screen" -> "settings.backup.저장 위치 선택"
+        location.pageId == "import-screen" -> "settings.backup.다른 백업 파일 선택"
+        location.pageId == "import" -> "settings.other.작업 환경 가져오기"
+        location.pageId == "preview" -> "settings.quality-options"
         parent == "warning" -> "settings.other.저장경로 변경 시 삭제 경고"
         parent == "help" -> "settings.other.사용법 및 도움말"
         location.sessionId == "permission" -> "settings.permission"
@@ -207,8 +216,42 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         location.sessionId == "feedback" -> "settings.feedback"
         else -> "settings.capture"
     }
-    "gallery" -> "gallery.content"
-    "saving" -> if (location.sessionId == "rotation") "table.panel" else "saving.detail"
-    "table-detail" -> when (location.sessionId) { "overview" -> "table.tabs"; "save" -> "table.save"; else -> "table.panel" }
+    "gallery" -> when {
+        location.sessionId == "viewer" -> "gallery.viewer-actions"
+        location.pageId in setOf("photos/move", "photos/delete", "folders/new", "folders/rename", "folders/move", "folders/delete") -> "guide.dialog"
+        location.sessionId == "photos" && location.pageId != "photos/select" -> "gallery.selection-actions"
+        parent == "browse" -> "gallery.breadcrumbs"
+        else -> "gallery.content"
+    }
+    "saving" -> when (location.pageId) {
+        "filename/copy", "folder/copy", "counter/input", "counter/reset" -> "guide.dialog"
+        "filename/preview" -> "saving.preview.현재 파일명"
+        "folder" -> "saving.preview.현재 저장 위치"
+        "filename/sources" -> "saving.add"
+        "filename/parts", "filename/edit", "filename/order", "filename/remove", "folder/parts" -> "saving.rules"
+        "counter/next" -> "saving.next"
+        "counter/digits" -> "saving.digits"
+        "counter/sync" -> "saving.sync"
+        else -> if (location.sessionId == "rotation") "table.panel" else "saving.detail"
+    }
+    "table-detail" -> when (location.sessionId) {
+        "overview" -> "table.tabs"
+        "save" -> when (location.pageId) {
+            "save/decision" -> "guide.dialog"
+            "save/undo" -> "table.history.실행 취소"
+            "save/redo" -> "table.history.다시 실행"
+            else -> "table.save"
+        }
+        "structure" -> if ('/' in location.pageId) "table.structure.${location.pageId.substringAfter('/')}" else "table.panel"
+        "style" -> when (location.pageId.substringAfter('/')) {
+            "background" -> "table.style.배경"
+            "opacity" -> "table.style.배경 투명도"
+            "text" -> "table.style.글자 크기"
+            "alignment" -> "table.style.정렬"
+            "border" -> "table.style.테두리"
+            else -> "table.panel"
+        }
+        else -> "table.panel"
+    }
     else -> "table.panel"
 }
