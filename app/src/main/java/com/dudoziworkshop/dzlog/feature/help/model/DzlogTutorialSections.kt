@@ -122,7 +122,7 @@ internal object DzlogTutorialSections {
             fun group(id: String, title: String, vararg sources: String): TutorialSession =
                 TutorialSession(id, title, sources.flatMap { source -> area.sessions.first { it.id == source }.steps })
             area.copy(sessions = listOf(
-                group("capture", "촬영과 확인", "overview", "capture", "results"),
+                group("capture", "촬영과 확인", "basics", "capture", "results"),
                 group("tools", "초점과 촬영도구", "zoom-focus", "tools"),
                 group("table", "표와 빠른 수정", "table"),
                 group("settings", "촬영·저장설정", "settings", "naming"),
