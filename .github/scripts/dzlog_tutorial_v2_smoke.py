@@ -71,6 +71,30 @@ def main():
     initial_prefs = user_preferences()
     initial_media = query_media()
 
+    # New capture/status/settings changes first. Previously verified quick-edit
+    # pages below are traversed without repeating their full screenshot checks.
+    open_session("카메라", "촬영과 확인", "카메라 화면 둘러보기")
+    for title in ("상단 파일명과 정보", "하단 버튼", "촬영 버튼", "저장 진행 상태",
+                  "촬영 후 미리보기", "최근 촬영", "빠른 결과"):
+        tap("다음", title)
+        if title in ("저장 진행 상태", "촬영 후 미리보기", "빠른 결과"):
+            time.sleep(6)
+            mark({"저장 진행 상태": "tutorial-22-saving-status",
+                  "촬영 후 미리보기": "tutorial-23-capture-preview",
+                  "빠른 결과": "tutorial-24-quick-results-empty"}[title])
+    back_to_index()
+    open_session("카메라", "촬영·저장설정", "설정 열기")
+    for title, evidence in (("촬영 비율", "tutorial-25-aspect"),
+                            ("저장 양식", "tutorial-26-save-format"),
+                            ("촬영 확인", "tutorial-27-confirmation"),
+                            ("촬영 소리와 진동", "tutorial-28-feedback"),
+                            ("촬영 조작 옵션", "tutorial-29-volume")):
+        tap("다음", title)
+        time.sleep(6)
+        mark(evidence)
+    touch_passive_screen()
+    back_to_index()
+
     open_session("카메라", "표와 빠른 수정", "표 선택과 배치")
     for title, evidence in (
         ("표 이동", "tutorial-08-table-move"),
@@ -89,10 +113,9 @@ def main():
         ("템플릿 변경", "tutorial-21-quick-template"),
     ):
         tap("다음", title)
-        if title == "빠른 수정":
-            touch_passive_screen()
-        time.sleep(4)  # Allow the one-shot presentation to finish.
-        mark(evidence)
+        if title == "템플릿 변경":
+            time.sleep(4)
+            mark(evidence)
     back_to_index()
 
     open_session("홈", "촬영 준비", "현재 템플릿")

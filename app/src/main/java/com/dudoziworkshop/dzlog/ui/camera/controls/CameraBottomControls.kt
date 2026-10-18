@@ -2,6 +2,7 @@
 
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.help.ui.guidePendingCount
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialDemoProgress
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
@@ -417,11 +418,11 @@ internal fun CameraBottomControls(
         // anchored to this badge; its position provider clamps within the window.
         // Calculate against the real screen width and measured bottom row height;
         // do not alter the row's buttons or the center zoom/tool overlays.
-        if (ui.capture.pendingSaveCount > 0 || ui.capture.pendingSaveError) {
+        if (guidePage == "saving" || ui.capture.pendingSaveCount > 0 || ui.capture.pendingSaveError) {
             val undoCenter = BottomControlsHorizontalPadding +
                 (maxWidth - BottomControlsHorizontalPadding * 2f) * 0.91f
             CaptureSaveStatusIndicator(
-                pendingCount = ui.capture.pendingSaveCount,
+                pendingCount = if (guidePage == "saving") guidePendingCount(fraction) else ui.capture.pendingSaveCount,
                 hasError = ui.capture.pendingSaveError,
                 detailsAllowed = !showDismissLayer && !ui.isTableSelected,
                 modifier = Modifier

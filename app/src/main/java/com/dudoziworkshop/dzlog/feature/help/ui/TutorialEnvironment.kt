@@ -23,7 +23,7 @@ internal val LocalTutorialLocation = staticCompositionLocalOf<TutorialLocation?>
 internal val LocalTutorialTarget = staticCompositionLocalOf<String?> { null }
 internal val LocalTutorialBounds = staticCompositionLocalOf<(Rect) -> Unit> { {} }
 internal val LocalTutorialDemoProgress = staticCompositionLocalOf { 0f }
-internal val TutorialDemoPages = setOf("zoom", "grid", "table", "assist", "flash", "manual-focus", "move", "size", "rotation", "lock", "quick-text", "quick-number", "quick-date", "quick-phrase", "template")
+internal val TutorialDemoPages = setOf("zoom", "grid", "table", "assist", "flash", "manual-focus", "move", "size", "rotation", "lock", "quick-text", "quick-number", "quick-date", "quick-phrase", "template", "saving", "preview", "ratio", "quality", "capture-confirmation", "feedback", "controls", "pinch")
 
 internal val LocalTutorialReadOnly = staticCompositionLocalOf { false }
 
@@ -42,14 +42,7 @@ internal fun Modifier.tutorialTarget(id: String): Modifier = composed {
 /** A gesture illustration only: never sends zoom gestures to the camera. */
 @Composable
 internal fun TutorialPinchHint(modifier: Modifier = Modifier) {
-    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "pinch-guide")
-    val spread by transition.animateFloat(
-        initialValue = 18f, targetValue = 52f,
-        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-            animation = androidx.compose.animation.core.tween<Float>(1300),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
-        ), label = "finger-spacing",
-    )
+    val spread = 18f + 34f * LocalTutorialDemoProgress.current
     androidx.compose.foundation.layout.Column(
         modifier = modifier, horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
     ) {

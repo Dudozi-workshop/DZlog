@@ -66,7 +66,7 @@ internal fun LiveTutorialHost(
     val hasDemo = areaId == "camera" && page.id in TutorialDemoPages
     LaunchedEffect(location, replay) {
         demo.snapTo(0f)
-        if (hasDemo) { delay(800); demo.animateTo(1f, tween(2400)) }
+        if (hasDemo) { delay(800); demo.animateTo(1f, tween(if (page.id in setOf("preview", "ratio", "quality", "capture-confirmation", "feedback", "controls")) 4200 else 2400)) }
     }
     var targetBounds by remember(location) { mutableStateOf<Rect?>(null) }
     var rootY by remember { mutableFloatStateOf(0f) }
@@ -98,7 +98,7 @@ internal fun LiveTutorialHost(
                     LocalTutorialBounds provides { targetBounds = it },
                     LocalTutorialDemoProgress provides demo.value,
                     LocalTutorialLocation provides location,
-                    LocalTutorialTarget provides tutorialTarget(location, page.parentId),
+                    LocalTutorialTarget provides (if (location.areaId == "camera" && page.id == "template") "camera.quick-table" else tutorialTarget(location, page.parentId)),
                     LocalTutorialReadOnly provides true,
                 ) { screen(location) }
                 if (areaId == "camera" && page.id == "pinch") {
@@ -193,8 +193,11 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         "template" -> "camera.quick-naming"
         "undo" -> "camera.undo"
         "warning" -> "camera.undo-warning"
-        "recent", "result", "preview" -> "camera.recent"
-        "shutter", "saving", "bottom" -> "camera.shutter"
+        "recent" -> "camera.recent"
+        "result" -> "camera.results"
+        "preview" -> "camera.capture-confirmation"
+        "shutter", "bottom" -> "camera.shutter"
+        "saving" -> "camera.save-detail"
         "top" -> "camera.filename"
         "filename", "path", "counter" -> "camera.next-info"
         else -> "camera.preview"

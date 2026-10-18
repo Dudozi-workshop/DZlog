@@ -60,7 +60,11 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
                 onOpenSettings = {}, onStartCamera = {}, onOpenTableEditor = {}, onOpenAlbum = {},
                 onOpenRecentCaptureGrid = { _, _, _, _ -> })
             }
-            "camera" -> if (location.pageId == "details") TableEditorV2Screen(templateState = template,
+            "camera" -> if (location.pageId == "result") com.dudoziworkshop.dzlog.ui.log.QuickResultsScreen(
+                captures = emptyList(), gridColumns = settings.galleryGridColumns,
+                showCounterBadges = settings.showGalleryCounterBadges, onGridColumnsChange = {},
+                onOpenCapture = { _, _ -> }, onOpenAlbum = {}, onReturnToCamera = {},
+            ) else if (location.pageId == "details") TableEditorV2Screen(templateState = template,
                 includePathInCounterScope = settings.includePathInCounterScope,
                 includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
                 saveMode = settings.saveMode, counterPadding = settings.counterPadding,

@@ -150,13 +150,14 @@ internal fun CaptureSaveStatusIndicator(
 }
 
 @Composable
-private fun SaveStatusDetails(
+internal fun SaveStatusDetails(
     count: Int,
     hasError: Boolean,
     onClose: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = Modifier.width(216.dp),
+        modifier = modifier.width(216.dp),
         color = if (hasError) DDZColor.DestructiveSoft else DDZColor.Surface,
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.dp, if (hasError) DDZColor.Destructive.copy(alpha = 0.30f) else DDZColor.Border),

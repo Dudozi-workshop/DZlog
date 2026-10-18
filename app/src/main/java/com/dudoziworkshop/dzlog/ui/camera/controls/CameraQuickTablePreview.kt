@@ -158,7 +158,7 @@ internal fun CameraQuickTablePreview(
         }
         val markerPx = with(density) { DDZLayout.QuickInput.CellMarker.toPx() }
         val gapPx = with(density) { DDZSpacing.xs.toPx() }
-        Surface(Modifier.size(availableWidth + padding * 2, viewportHeight + padding * 2 + headingHeight + hintHeight),
+        Surface(Modifier.size(availableWidth + padding * 2, viewportHeight + padding * 2 + headingHeight + hintHeight).tutorialTarget("camera.quick-table"),
             shape = RoundedCornerShape(DDZLayout.Radius.Medium), color = DDZColor.SurfaceSoft) {
             Column(Modifier.padding(padding)) {
                 // DZQ-002 device feedback: keep this a flat, compact toolbar.

@@ -5,6 +5,13 @@
 
 package com.dudoziworkshop.dzlog.ui.camera
 
+import com.dudoziworkshop.dzlog.feature.help.ui.guideAspect
+import com.dudoziworkshop.dzlog.feature.help.ui.guideSaveMode
+import com.dudoziworkshop.dzlog.feature.help.ui.guidePreviewMode
+import com.dudoziworkshop.dzlog.feature.help.ui.guideCycleIndex
+import com.dudoziworkshop.dzlog.feature.help.ui.guidePendingCount
+import com.dudoziworkshop.dzlog.feature.help.ui.TutorialCapturePreview
+import com.dudoziworkshop.dzlog.ui.camera.controls.SaveStatusDetails
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialDemoProgress
 import com.dudoziworkshop.dzlog.feature.help.ui.guideQuickTemplate
 import com.dudoziworkshop.dzlog.feature.help.ui.guidePreviewArgs
@@ -30,6 +37,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.key
+import androidx.compose.runtime.produceState
+import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -499,6 +508,13 @@ fun CameraPreview(
         }
     }
     val latestImage = latestImageController.latestImage
+    val guidePreviewUri by produceState<Uri?>(null, readOnlyTour, tourLocation?.pageId) {
+        if (readOnlyTour && tourLocation?.pageId == "preview") {
+            value = try { withContext(Dispatchers.IO) { DzlogMediaStoreReader(context.contentResolver).loadLatestImage()?.uri } }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { null }
+        }
+    }
 
     var undoPhraseSaving by remember { mutableStateOf(false) }
     var undoPathWarning by remember { mutableStateOf<PendingCameraUndoPathWarning?>(null) }
@@ -804,6 +820,9 @@ fun CameraPreview(
                     onTapFocusUiChange = { ui.capture.tapFocusUi = it }
                 )
 
+                if (readOnlyTour && tourLocation?.pageId == "preview") {
+                    TutorialCapturePreview(guidePreviewUri, tourProgress, ui.prefs.captureAspect.ratioF)
+                }
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -910,6 +929,11 @@ fun CameraPreview(
                 )
             }
         }
+        if (readOnlyTour && tourLocation?.pageId == "saving") Box(
+            Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 180.dp),
+        ) {
+            SaveStatusDetails(guidePendingCount(tourProgress), false, {}, Modifier.tutorialTarget("camera.save-detail"))
+        }
         val guideQuick = readOnlyTour && (tourLocation?.pageId?.startsWith("quick") == true || tourLocation?.pageId == "template")
         if (showQuickValueSheet || guideQuick) {
             key(if (guideQuick) tourLocation?.pageId else null) {
@@ -1004,7 +1028,7 @@ fun CameraPreview(
 
         if (ui.showWizard) {
             CameraSettingsOverlayPanel(
-                captureAspect = ui.prefs.captureAspect,
+                captureAspect = if (readOnlyTour && tourLocation?.pageId == "ratio") guideAspect(tourProgress) else ui.prefs.captureAspect,
                 onCaptureAspectChange = { aspect ->
                     val current = ui.prefs.captureAspect
                     if (aspect != current) {
@@ -1037,25 +1061,25 @@ fun CameraPreview(
                         }
                     }
                 },
-                saveMode = ui.prefs.saveMode,
+                saveMode = if (readOnlyTour && tourLocation?.pageId == "quality") guideSaveMode(tourProgress) else ui.prefs.saveMode,
                 onSaveModeChange = { mode ->
                     ui.prefs.saveMode = mode
                     scope.launch { settingsWriter.setSaveMode(mode) }
                 },
-                continuousPreviewMode = ui.prefs.continuousPreviewMode,
+                continuousPreviewMode = if (readOnlyTour && tourLocation?.pageId == "capture-confirmation") guidePreviewMode(tourProgress) else ui.prefs.continuousPreviewMode,
                 onContinuousPreviewModeChange = { mode ->
                     ui.prefs.continuousPreviewMode = mode
                     scope.launch { settingsWriter.setContinuousPreviewMode(mode) }
                 },
-                captureSoundEnabled = appSettings.captureSoundEnabled,
+                captureSoundEnabled = if (readOnlyTour && tourLocation?.pageId == "feedback") tourProgress >= 0.34f else appSettings.captureSoundEnabled,
                 onCaptureSoundChange = { checked ->
-                    scope.launch { AppSettingsStore.setCaptureSoundEnabled(context, checked) }
+                    if (!readOnlyTour) scope.launch { AppSettingsStore.setCaptureSoundEnabled(context, checked) }
                 },
-                captureHapticEnabled = appSettings.captureHapticEnabled,
+                captureHapticEnabled = if (readOnlyTour && tourLocation?.pageId == "feedback") tourProgress >= 0.67f else appSettings.captureHapticEnabled,
                 onCaptureHapticChange = { checked ->
-                    scope.launch { AppSettingsStore.setCaptureHapticEnabled(context, checked) }
+                    if (!readOnlyTour) scope.launch { AppSettingsStore.setCaptureHapticEnabled(context, checked) }
                 },
-                volumeKeyAction = if (showQuickValueSheet) VolumeKeyAction.NONE else appSettings.volumeKeyAction,
+                volumeKeyAction = if (readOnlyTour && tourLocation?.pageId == "controls") listOf(VolumeKeyAction.NONE, VolumeKeyAction.ZOOM, VolumeKeyAction.CAPTURE)[guideCycleIndex(tourProgress, 3)] else if (showQuickValueSheet) VolumeKeyAction.NONE else appSettings.volumeKeyAction,
                 onVolumeKeyActionChange = { action ->
                     scope.launch { settingsWriter.setVolumeKeyAction(action) }
                 },

@@ -23,6 +23,20 @@ class TutorialCameraDemoTest {
         assertSame(original, guideWatermarkArgs(original, "quick", 1f))
     }
 
+    @Test fun capturePreviewDistinguishesOffShortAndHold() {
+        assertEquals(ContinuousPreviewMode.OFF, guidePreviewMode(0f))
+        assertFalse(guidePreviewVisible(0f))
+        assertEquals(ContinuousPreviewMode.SHORT, guidePreviewMode(0.4f))
+        assertTrue(guidePreviewVisible(0.4f))
+        assertFalse(guidePreviewVisible(0.6f))
+        assertEquals(ContinuousPreviewMode.HOLD, guidePreviewMode(1f))
+        assertTrue(guidePreviewVisible(1f))
+        assertEquals(CaptureAspect.R3_4, guideAspect(-1f))
+        assertEquals(CaptureAspect.R1_1, guideAspect(1f))
+        assertEquals(SaveMode.ORIGINAL_ONLY, guideSaveMode(0f))
+        assertEquals(SaveMode.BOTH, guideSaveMode(2f))
+    }
+
     @Test fun rotationDemoChangesOnlyItsCopy() {
         assertEquals(0, guideWatermarkArgs(original, "rotation", 0f).rotationCwDeg)
         assertEquals(90, guideWatermarkArgs(original, "rotation", 1f).rotationCwDeg)

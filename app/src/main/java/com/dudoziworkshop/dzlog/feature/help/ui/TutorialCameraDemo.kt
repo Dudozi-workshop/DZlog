@@ -10,6 +10,8 @@ internal fun guidePreviewArgs(args: CameraPreviewAreaArgs, page: String?, progre
     val fraction = progress.coerceIn(0f, 1f)
     val tableDemo = page in setOf("select", "move", "size", "rotation", "lock")
     return args.copy(
+        captureAspect = if (page == "ratio") guideAspect(progress) else args.captureAspect,
+        saveMode = if (page == "quality") guideSaveMode(progress) else args.saveMode,
         showGrid = if (page == "grid") fraction >= 0.5f else args.showGrid,
         showWmPreview = if (page == "table") fraction >= 0.5f else tableDemo || args.showWmPreview,
         zoomRatioTenths = if (page == "zoom") (10 + (args.maxZoomTenths.coerceIn(10, 40) - 10) * fraction).roundToInt() else args.zoomRatioTenths,
@@ -57,3 +59,15 @@ internal fun guideQuickTemplate(): TableTemplateState {
         pathSlotDrafts = List(PATH_SLOT_UI_MAX_COUNT) { if (it == 0) TableEditorSlotDraft("CELL", "구역", "guide-4") else null },
     )
 }
+
+internal fun guideCycleIndex(progress: Float, count: Int): Int =
+    (progress.coerceIn(0f, 1f) * count).toInt().coerceAtMost(count - 1)
+internal fun guideAspect(progress: Float) = CaptureAspect.entries[guideCycleIndex(progress, CaptureAspect.entries.size)]
+internal fun guideSaveMode(progress: Float) = SaveMode.entries[guideCycleIndex(progress, SaveMode.entries.size)]
+internal fun guidePreviewMode(progress: Float) = ContinuousPreviewMode.entries[guideCycleIndex(progress, 3)]
+internal fun guidePreviewVisible(progress: Float): Boolean = when (guidePreviewMode(progress)) {
+    ContinuousPreviewMode.OFF -> false
+    ContinuousPreviewMode.SHORT -> progress < 0.56f
+    ContinuousPreviewMode.HOLD -> true
+}
+internal fun guidePendingCount(progress: Float) = if (progress < 0.5f) 2 else 1
