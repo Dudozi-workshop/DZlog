@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.feature.settings.ui
 
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -306,7 +307,7 @@ private fun SummaryRow(label: String, value: String) {
 @Composable
 private fun BackupActionButton(label: String, enabled: Boolean, onClick: () -> Unit) {
     Button(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().tutorialTarget("settings.backup.$label"),
         enabled = enabled,
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(containerColor = DDZColor.PrimaryDark),
