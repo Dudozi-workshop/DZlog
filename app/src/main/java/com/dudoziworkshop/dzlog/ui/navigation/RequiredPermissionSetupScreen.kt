@@ -59,6 +59,21 @@ internal fun RequiredPermissionSetupScreen(
 ) {
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
+    // Light onboarding background needs dark system icons. The previous mode
+    // must be restored when the permission screen leaves the composition.
+    val permissionActivity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+    val permissionView = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.DisposableEffect(onboarding, permissionActivity, permissionView) {
+        val window = permissionActivity?.window
+        if (!onboarding || window == null) {
+            onDispose { }
+        } else {
+            val controller = androidx.core.view.WindowInsetsControllerCompat(window, permissionView)
+            val previous = controller.isAppearanceLightStatusBars
+            controller.isAppearanceLightStatusBars = true
+            onDispose { controller.isAppearanceLightStatusBars = previous }
+        }
+    }
     val actionLabel = when {
         working -> "확인 중…"
         currentStep == RequiredSetupStep.CAMERA && cameraRequestAttempted -> "휴대폰 권한 설정 열기"
