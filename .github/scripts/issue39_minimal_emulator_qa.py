@@ -158,6 +158,19 @@ def check_interrupted_capture():
     if len(after) not in (0,2):
         raise AssertionError(f"Unpaired capture files after interruption: {after}")
     for row in after: check_file(row)
+    recovery_ui = hierarchy()
+    if any((node.get("text") or node.get("content-desc") or "").find("저장 상태 확인 필요") >= 0
+           for node in nodes(recovery_ui)):
+        # The app intentionally quarantines an uncertain in-flight capture and
+        # disables new capture pending review. Do not dismiss the warning or
+        # force a new shutter: doing so would invalidate its protective policy.
+        mark("07-recovery-quarantined")
+        assert not after, "Recovery review appeared with unexpected committed files"
+        print("PASS B: after force-stop, no silent MediaStore duplicate; "
+              "uncertain capture quarantined with visible review warning", flush=True)
+        print("LIMIT B: strict mid-MediaStore-write kill and post-review "
+              "capture resumption are not established by this smoke test", flush=True)
+        return
     start_camera()
     followup_x, followup_y = shutter_position()
     adb("shell", "input", "tap", str(followup_x), str(followup_y))
