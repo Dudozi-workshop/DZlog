@@ -2,7 +2,6 @@ package com.dudoziworkshop.dzlog.ui.camera
 
 import android.content.Context
 import android.media.AudioAttributes
-import android.media.AudioManager
 import android.media.MediaActionSound
 import android.media.SoundPool
 import android.os.Build
@@ -56,15 +55,11 @@ internal class CaptureFeedback(context: Context) {
         if (successVibrationEnabled && vibrationStrength != CaptureVibrationStrength.OFF) {
             runCatching { vibrate(vibrationStrength) }
         }
-        // Respect device / regional requirements even when the app sound toggle is off.
-        // Forced-shutter devices use the mandatory system sound, not a custom replacement.
-        val forced = runCatching {
-            (appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager)
-                ?.isCameraSoundForced() == true
-        }.getOrDefault(false)
-        if (forced || soundEnabled) {
+        // Use public Android audio APIs only. CameraX and device policy retain
+        // control of any mandatory OS shutter sound; never alter system volume.
+        if (soundEnabled) {
             runCatching {
-                if (forced || soundChoice == CaptureSoundChoice.SYSTEM ||
+                if (soundChoice == CaptureSoundChoice.SYSTEM ||
                     !playCustom(soundChoice, soundVolume)) {
                     systemSound.play(MediaActionSound.SHUTTER_CLICK)
                 }
