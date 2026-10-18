@@ -5,13 +5,10 @@ import androidx.core.view.WindowInsetsControllerCompat
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,29 +35,14 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.data.template.OnboardingStarterCatalog
-import com.dudoziworkshop.dzlog.data.template.OnboardingStarterDefinition
-import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
-import com.dudoziworkshop.dzlog.domain.naming.buildFileName
-import com.dudoziworkshop.dzlog.domain.naming.buildSavePath
-import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
-import java.util.Date
-
-private data class StarterCategory(val id: String, val title: String, val detail: String)
-private val categories = listOf(
-    StarterCategory("basic", "기본 촬영", "가볍게 사진과 기록을 남겨요"),
-    StarterCategory("daily", "일상·취미", "여행 · 반려동물 · 취미 기록"),
-    StarterCategory("work", "업무·현장", "현장 · 점검 · 연구 기록"),
-)
 
 @Composable
 internal fun OnboardingFlowScreen(
@@ -83,9 +65,9 @@ internal fun OnboardingFlowScreen(
     val view = LocalView.current
     // Both introduction pages have light backgrounds and need dark status-bar icons.
     // Keep the approved page-one appearance; restore the caller's setting on exit.
-    DisposableEffect(step <= 2, activity, view) {
+    DisposableEffect(step, activity, view) {
         val window = activity?.window
-        if (step > 2 || window == null) {
+        if (window == null) {
             onDispose { }
         } else {
             val controller = WindowInsetsControllerCompat(window, view)
@@ -129,30 +111,24 @@ internal fun OnboardingFlowScreen(
                     previewHeight = if (compact) 104.dp else 146.dp,
                     compact = compact,
                 )
-                else -> {
-                    Text("어떤 기록을 시작할까요?",
-                        color = DDZColor.TextPrimary, fontWeight = FontWeight.Bold,
-                        style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
-                    Text("나에게 맞는 양식을 골라보세요. 나중에도 바꿀 수 있어요.", color = DDZColor.TextSecondary)
-                    OnboardingStarterCategories(
-                        selectedId = category,
-                        onSelect = { id ->
-                            category = id
-                            chosen = OnboardingStarterCatalog.definitions
-                                .first { it.category == id }.id
-                            showAlternatives = false
-                        },
-                        onBrowse = { showAlternatives = true },
-                        compact = compact,
-                    )
-                    StarterPreview(selected, if (compact) 120.dp else 184.dp, compact)
-                }
+                else -> OnboardingStarterPage(
+                    category = category,
+                    selected = selected,
+                    compact = compact,
+                    onCategory = { id ->
+                        category = id
+                        chosen = OnboardingStarterCatalog.definitions
+                            .first { it.category == id }.id
+                        showAlternatives = false
+                    },
+                    onBrowse = { showAlternatives = true },
+                )
             }
             Spacer(Modifier.height(if (compact) 0.dp else 5.dp))
             }
         }
         Column(
-            Modifier.fillMaxWidth().background(if (step == 1) DDZColor.Background else DDZColor.Surface).padding(
+            Modifier.fillMaxWidth().background(if (step == 2) DDZColor.Surface else DDZColor.Background).padding(
                 horizontal = 20.dp, vertical = if (step == 1) 11.dp else 12.dp),
             verticalArrangement = Arrangement.spacedBy(if (step == 1) 10.dp else 6.dp),
         ) {
@@ -192,29 +168,18 @@ internal fun OnboardingFlowScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !busy, minHeight = if (step <= 2) 56.dp else DDZLayout.Control.Button,
-                shape = if (step <= 2) RoundedCornerShape(15.dp) else null,
-                textStyleOverride = if (step <= 2) androidx.compose.ui.text.TextStyle(
+                enabled = !busy, minHeight = 56.dp,
+                shape = RoundedCornerShape(15.dp),
+                textStyleOverride = androidx.compose.ui.text.TextStyle(
                     fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                ) else null,
+                ),
             )
-            // Initial page intentionally has only one CTA. Retain a close
-            // control when onboarding is replayed from Settings.
-            if (step == 3 || (step == 1 && readOnly)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    DDZButton(
-                        text = if (step == 1) "닫기" else "이전",
-                        onClick = { if (step == 1) onClose() else step-- },
-                        enabled = !busy, style = DDZButtonStyle.Text,
-                    )
-                    if (step != 1 && !readOnly) {
-                        DDZButton(
-                            text = "건너뛰기",
-                            onClick = if (introOnly) onIntroComplete else onSkip,
-                            enabled = !busy, style = DDZButtonStyle.Text,
-                        )
-                    }
-                }
+            // Page four has one clear action; Settings replay retains a close escape.
+            if (step == 1 && readOnly) {
+                DDZButton(
+                    text = "닫기", onClick = onClose,
+                    enabled = !busy, style = DDZButtonStyle.Text,
+                )
             }
             if (busy) CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
         }
@@ -232,93 +197,3 @@ internal fun OnboardingFlowScreen(
     }
 }
 
-@Composable
-private fun StarterPreview(
-    def: OnboardingStarterDefinition,
-    previewHeight: androidx.compose.ui.unit.Dp,
-    compact: Boolean,
-) {
-    val state = remember(def.id) { requireNotNull(OnboardingStarterCatalog.buildState(def.id)) }
-    val now = remember(def.id) { Date() }
-    val resolved = remember(state, now) {
-        TableResolver().plan(
-            cells = state.cells, captureNow = now,
-            config = TableResolver.Config(3, "yyyyMMdd", "HHmm")
-        ).resolvedCells
-    }
-    val fileName = remember(state, resolved) {
-        buildFileName(resolved, state.fileNameSlotDrafts, "_", 3, 1, now,
-            "yyyyMMdd", "HHmm")
-    }
-    val savePath = remember(state, resolved) {
-        buildSavePath(resolved, state.pathSlotDrafts, now, "yyyyMMdd", "HHmm")
-    }
-    var showSaveDetails by rememberSaveable(def.id) { mutableStateOf(false) }
-    Column(
-        Modifier.fillMaxWidth()
-            .background(DDZColor.Surface, RoundedCornerShape(DDZLayout.Radius.Large))
-            .padding(if (compact) 9.dp else 12.dp),
-        verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp),
-    ) {
-        Text(def.title, color = DDZColor.TextPrimary, fontWeight = FontWeight.Bold)
-        OnboardingPhotoShowcase(
-            labels = def.labels,
-            values = state.cells.filter { it.rowIndex == 1 }.map { cell ->
-                when (cell.dataType) {
-                    TableCellDataType.DATE -> "자동 날짜"
-                    TableCellDataType.COUNTER -> "001"
-                    else -> "입력"
-                }
-            },
-            height = previewHeight,
-            compact = true,
-            showGalleryStrip = true,
-        )
-        Text(if (compact) "기록표 숨기기 가능 · 입력값은 빈칸에서 시작"
-             else "촬영 중 기록표 숨기기 가능 · 첫 입력값은 빈칸으로 시작",
-            color = DDZColor.TextSecondary,
-            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-        )
-        Row(
-            Modifier.fillMaxWidth()
-                .clickable { showSaveDetails = !showSaveDetails }
-                .padding(vertical = if (compact) 5.dp else 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                if (showSaveDetails) "저장 규칙 접기" else "저장 규칙 미리보기",
-                color = DDZColor.PrimaryDark,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                if (showSaveDetails) "⌃" else "⌄",
-                color = DDZColor.TextSecondary,
-            )
-        }
-        if (showSaveDetails) {
-            Text(
-                "파일명", color = DDZColor.TextSecondary,
-                style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-            )
-            Text(
-                fileName,
-                color = DDZColor.TextPrimary,
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                "저장 위치", color = DDZColor.TextSecondary,
-                style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-            )
-            Text(
-                savePath,
-                color = DDZColor.TextPrimary,
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
