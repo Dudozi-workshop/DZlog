@@ -21,7 +21,6 @@ import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.preferences.KEY_TABLE_TEMPLATES_JSON
 import com.dudoziworkshop.dzlog.data.template.*
 import kotlinx.coroutines.flow.first
-import com.dudoziworkshop.dzlog.ui.home.HomeTemplatePicker
 import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateListScreen
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,14 +47,7 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
     CompositionLocalProvider(LocalViewModelStoreOwner provides owner) {
         when (location.areaId) {
             "home" -> when (location.pageId) {
-                "templates", "manage", "more" -> LiveHomeTemplates(location, template, style, templateName)
-                "settings-screen" -> SettingsRootScreen(onBack = {})
-                "table-screen" -> TableEditorV2Screen(templateState = template,
-                    includePathInCounterScope = settings.includePathInCounterScope,
-                    includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
-                    saveMode = settings.saveMode, counterPadding = settings.counterPadding,
-                    styleState = style, onSave = { _, _, _, _, _, _, _, _ -> false }, onBack = {}, templateName = templateName)
-                "gallery", "recent-folder" -> LiveHomeFolder(location, settings)
+                "templates", "manage", "more" -> LiveHomeTemplates(template, style, templateName)
                 else -> HomeScreen(tableTemplateState = template, activeTemplateName = templateName,
                 onOpenSettings = {}, onStartCamera = {}, onOpenTableEditor = {}, onOpenAlbum = {},
                 onOpenRecentCaptureGrid = { _, _, _, _ -> })
@@ -148,22 +140,7 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
 }
 
 @Composable
-private fun LiveHomeFolder(location: TutorialLocation, settings: AppSettings) {
-    val context = LocalContext.current
-    val latest by produceState<MediaImageItem?>(null) {
-        value = try { withContext(Dispatchers.IO) { DzlogMediaStoreReader(context.contentResolver).loadLatestImage() } }
-            catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { null }
-    }
-    val path = if (location.pageId == "recent-folder") latest?.relativePath else GalleryFolderIndexPolicy.ROOT
-    if (path == null) androidx.compose.material3.Text("최근 촬영한 사진이 없어요.")
-    else LogFolderScreen(relativePath = path, onBack = {}, onOpenFolder = {},
-        onOpenPhoto = { _, _ -> }, onOpenOriginal = { _, _ -> },
-        gridColumns = settings.galleryGridColumns, showCounterBadges = settings.showGalleryCounterBadges)
-}
-
-@Composable
-private fun LiveHomeTemplates(location: TutorialLocation, template: TableTemplateState,
+private fun LiveHomeTemplates(template: TableTemplateState,
     style: TableStyleState, templateName: String) {
     val context = LocalContext.current
     val fallback = remember(template, style, templateName) {
@@ -173,14 +150,7 @@ private fun LiveHomeTemplates(location: TutorialLocation, template: TableTemplat
         val stored = context.dataStore.data.first()[KEY_TABLE_TEMPLATES_JSON]
         value = stored?.let(::savedTableTemplatesFromJson)?.takeIf { it.isNotEmpty() } ?: fallback
     }
-    if (location.pageId == "templates") {
-        Box(Modifier.fillMaxSize()) {
-            HomeScreen(tableTemplateState = template, activeTemplateName = templateName,
-                onOpenSettings = {}, onStartCamera = {}, onOpenTableEditor = {},
-                onOpenAlbum = {}, onOpenRecentCaptureGrid = { _, _, _, _ -> })
-            HomeTemplatePicker(templates, null, onSelect = {}, onManage = {}, onDismiss = {})
-        }
-    } else TableTemplateListScreen(templates = templates, activeTemplateId = null,
+    TableTemplateListScreen(templates = templates, activeTemplateId = null,
         onBack = {}, onOpenTemplate = {}, onSelectTemplate = {}, onCreateTemplate = {},
         onRenameTemplate = { _, _ -> }, onDuplicateTemplate = {}, onDeleteTemplate = {})
 }

@@ -245,7 +245,7 @@ fun HomeScreen(
             )
         }
     }
-    if (showSaveInfo || com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation.current?.let { it.areaId == "home" && it.pageId == "save-info" } == true) {
+    if (showSaveInfo) {
         HomeSaveInfoSheet(
             fileName = uiState.nextFilenamePreview,
             relativePaths = uiState.nextRelativePathPreview?.let {

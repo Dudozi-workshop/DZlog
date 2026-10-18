@@ -121,12 +121,23 @@ def main():
     open_session("홈", "촬영 준비", "현재 템플릿")
     touch_passive_screen()
     mark("tutorial-01-home")
-    for title in ("템플릿 선택", "템플릿 관리", "수정과 삭제", "다음 촬영번호", "촬영 시작"):
+    for title in ("템플릿 관리", "템플릿 메뉴 버튼", "수정과 삭제", "다음 촬영번호", "촬영 시작"):
         tap("다음", title)
+        if title in ("템플릿 관리", "템플릿 메뉴 버튼", "수정과 삭제"):
+            mark({"템플릿 관리": "tutorial-37-template-list",
+                  "템플릿 메뉴 버튼": "tutorial-38-template-button",
+                  "수정과 삭제": "tutorial-39-template-menu"}[title])
     tap("완료", "최근 촬영")
     # Previous crosses the group boundary, restoring its last explanation.
     tap("이전", "촬영 시작")
     tap("완료", "최근 촬영")
+    mark("tutorial-40-home-recent")
+    tap("다음", "앨범 보기")
+    mark("tutorial-41-home-album")
+    tap("완료", "표 편집")
+    tap("다음", "저장 정보")
+    mark("tutorial-42-home-save-info")
+    tap("다음", "앱 설정")
     tap("닫기", "원하는 설명")
     if not contains(hierarchy(), "완료"):
         raise AssertionError("Finished session status was not retained")

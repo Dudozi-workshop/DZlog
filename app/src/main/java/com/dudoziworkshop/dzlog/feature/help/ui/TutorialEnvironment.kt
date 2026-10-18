@@ -4,10 +4,8 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.border
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -35,7 +33,6 @@ internal fun Modifier.tutorialTarget(id: String): Modifier = composed {
     val requester = remember { BringIntoViewRequester() }
     LaunchedEffect(selected) { if (selected) requester.bringIntoView() }
     if (selected) this.onGloballyPositioned { reportBounds(it.boundsInRoot()) }.bringIntoViewRequester(requester)
-        .border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(12.dp))
     else this
 }
 

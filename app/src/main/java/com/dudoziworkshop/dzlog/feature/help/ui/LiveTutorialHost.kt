@@ -127,7 +127,14 @@ internal fun LiveTutorialHost(
         val target = targetBounds?.translate(0f, -rootY)
         val below = target == null || target.center.y < hostHeight / 2
         val desiredY = if (below) (target?.bottom ?: 0f) + gap else (target?.top ?: hostHeight) - cardHeight - gap
-        val cardY = desiredY.coerceIn(gap, (hostHeight - cardHeight - gap).coerceAtLeast(gap))
+        val topY = (WindowInsets.statusBars.getTop(density) - rootY).coerceAtLeast(0f) + gap
+        val bottomY = (hostHeight - cardHeight - gap).coerceAtLeast(topY)
+        // Keep consecutive explanations anchored, rather than jumping around their targets.
+        val cardY = when {
+            areaId == "home" && page.id in setOf("recent", "album") -> topY
+            areaId == "home" && page.id in setOf("main", "templates", "manage", "more") -> bottomY
+            else -> desiredY.coerceIn(topY, bottomY)
+        }
         if (!contents) Surface(modifier = Modifier.padding(horizontal = 16.dp).offset { IntOffset(0, cardY.roundToInt()) }
             .onGloballyPositioned { cardHeight = it.size.height },
             shape = RoundedCornerShape(18.dp), color = DDZColor.Surface, shadowElevation = 6.dp) {
@@ -170,7 +177,9 @@ internal fun LiveTutorialHost(
 
 private fun tutorialTarget(location: TutorialLocation, parent: String): String = when (location.areaId) {
     "home" -> when (parent) {
-        "templates", "save-info" -> "home.sheet"
+        "templates" -> "home.template-list"
+        "manage" -> "home.template-more"
+        "save-info" -> "home.saving"
         "recent" -> "home.photo"; "album" -> "home.album"; "more" -> "home.template-menu"; "counter" -> "home.counter"; "settings" -> "home.settings"; "table-settings" -> "home.table"
         "start" -> "home.start"; else -> "home.main"
     }

@@ -153,6 +153,7 @@ fun TableTemplateListScreen(
                     DDZCard(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .then(if (template.id == templates.firstOrNull()?.id) Modifier.tutorialTarget("home.template-list") else Modifier)
                             .clickable(role = Role.Button, onClickLabel = "템플릿 선택") {
                                 onSelectTemplate(template.id)
                             },
@@ -208,6 +209,7 @@ fun TableTemplateListScreen(
                             Box {
                                 IconButton(
                                     onClick = { menuTemplateId = template.id },
+                                    modifier = if (template.id == templates.firstOrNull()?.id) Modifier.tutorialTarget("home.template-more") else Modifier,
                                 ) {
                                     Icon(
                                         Icons.Filled.MoreVert,
