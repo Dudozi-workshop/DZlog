@@ -28,3 +28,20 @@ Source reference: `design-assets/capture-feedback/PROVENANCE.md`; original appro
 - No new implementation changes requested here. Existing photos, save, Undo, rotating text and user settings must remain protected; no merge, full QA or release was performed.
 - Feature remains on `feat/capture-feedback-options-20261018`; runtime implementation is in commit `a665e433` and latest QA-workflow commit is `cde4f14c`. Dedicated CC0 source intake branch remains separate.
 - When resuming: verify the vibration sample triggered on changing strength (including no vibration when OFF) on an actual device, then capture feedback and one-shot regression only as needed. Independently approve any merge or Play release.
+
+## Final user device acceptance — 2026-10-18
+
+User subsequently confirmed **all remaining real-device checks work correctly** and explicitly requested final completion.
+
+- PASS — Removed unnecessary camera settings link.
+- PASS — Preview playback of all five selected sounds.
+- PASS — OFF/weak/normal/strong vibration instant example response.
+- PASS — Selected sound and vibration respond on actual camera capture.
+- PASS — Sound selection, app volume and vibration settings survive app restart.
+- PASS — Single-photo original/result save, Undo, counter and rotating phrase behavior remain normal.
+
+This supersedes the earlier **UNVERIFIED** note for vibration preview: it was pending at the prior checkpoint, but the user has now confirmed it and all follow-up device items pass.
+
+Review gate: feature-focused Android Kotlin compilation and five related unit tests succeeded on commit `a665e433`, and the isolated sfx2 APK build succeeded on `cde4f14c` (run [#39107717419](https://github.com/Dudozi-workshop/DZlog/actions/runs/39107717419)). Sound asset provenance and the approved signature WAV are unchanged.
+
+Scope: feature work only; no changes to media persistence, Undo, rotating phrase source or onboarding. An optional integration checkpoint may include feature code/tests/assets and this record, while omitting branch-specific QA-only workflows. Play Store publishing is **not** authorized by this acceptance.
