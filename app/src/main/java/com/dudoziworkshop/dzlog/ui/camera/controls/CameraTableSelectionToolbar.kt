@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,7 +45,7 @@ internal fun CameraTableSelectionToolbar(
 ) {
     Row(
         modifier = Modifier
-            .clip(ToolbarShape)
+            .tutorialTarget("camera.table-toolbar").clip(ToolbarShape)
             .background(DDZColor.Surface.copy(alpha = 0.96f))
             .border(1.dp, DDZColor.SageBorder, ToolbarShape)
             .padding(horizontal = 8.dp, vertical = 6.dp),

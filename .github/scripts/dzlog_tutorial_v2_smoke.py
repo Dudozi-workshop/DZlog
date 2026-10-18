@@ -88,9 +88,35 @@ def main():
 
     open_session("카메라", "초점과 촬영도구", "배율 칩")
     touch_passive_screen()
+    time.sleep(4)
+    mark("tutorial-02a-camera-zoom")
     for title in ("핀치 줌", "초점 조절", "도구 메뉴", "초점 도구", "플래시", "격자"):
         tap("다음", title)
     mark("tutorial-02-camera-tools")
+    back_to_index()
+
+    open_session("카메라", "표와 빠른 수정", "표 선택과 배치")
+    for title, evidence in (
+        ("표 이동", "tutorial-08-table-move"),
+        ("표 크기", "tutorial-09-table-size"),
+        ("표 회전", "tutorial-10-table-rotation"),
+        ("배치 잠금과 해제", "tutorial-11-table-lock"),
+        ("상세 편집", "tutorial-12-table-details"),
+        ("빠른 수정", "tutorial-13-quick-window"),
+        ("문자 입력과 반영", "tutorial-14-quick-text"),
+        ("숫자 입력", "tutorial-15-quick-number"),
+        ("날짜 형식", "tutorial-16-quick-date"),
+        ("촬영 시각", "tutorial-17-quick-time"),
+        ("순환문구 세트", "tutorial-18-quick-phrase"),
+        ("파일명 전체 확인", "tutorial-19-quick-name"),
+        ("저장경로 전체 확인", "tutorial-20-quick-path"),
+        ("템플릿 변경", "tutorial-21-quick-template"),
+    ):
+        tap("다음", title)
+        if title == "빠른 수정":
+            touch_passive_screen()
+        time.sleep(4)  # Allow the one-shot presentation to finish.
+        mark(evidence)
     back_to_index()
 
     for area, session, title, evidence in (

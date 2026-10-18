@@ -23,6 +23,7 @@ fun DDZBottomSheet(
     modifier: Modifier = Modifier,
     title: String? = null,
     skipPartiallyExpanded: Boolean = true,
+    inlinePreview: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = LocalDDZColor.current
@@ -32,14 +33,7 @@ fun DDZBottomSheet(
         skipPartiallyExpanded = skipPartiallyExpanded,
     )
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.Surface,
-        contentColor = colors.TextPrimary,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-        modifier = modifier,
-    ) {
+    val sheetContent: @Composable () -> Unit = {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -60,4 +54,9 @@ fun DDZBottomSheet(
             content()
         }
     }
+    if (inlinePreview) androidx.compose.material3.Surface(modifier.fillMaxWidth(), color = colors.Surface,
+        shape = RoundedCornerShape(20.dp), shadowElevation = 4.dp) { sheetContent() }
+    else ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
+        containerColor = colors.Surface, contentColor = colors.TextPrimary,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp), modifier = modifier) { sheetContent() }
 }

@@ -5,6 +5,9 @@
 
 package com.dudoziworkshop.dzlog.ui.camera
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialDemoProgress
+import com.dudoziworkshop.dzlog.feature.help.ui.guideQuickTemplate
+import com.dudoziworkshop.dzlog.feature.help.ui.guidePreviewArgs
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
@@ -281,10 +284,11 @@ fun CameraPreview(
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
     val tourLocation = LocalTutorialLocation.current
+    val tourProgress = LocalTutorialDemoProgress.current
     LaunchedEffect(tourLocation) {
         if (readOnlyTour) {
             ui.showWizard = tourLocation?.sessionId == "settings" && tourLocation.pageId in listOf("ratio", "quality", "capture-confirmation", "feedback", "controls")
-            ui.isTableSelected = tourLocation?.sessionId == "table" && tourLocation.pageId in listOf("select", "move", "size", "rotation")
+            ui.isTableSelected = tourLocation?.sessionId == "table" && tourLocation.pageId in listOf("select", "move", "size", "rotation", "lock")
         }
     }
     LaunchedEffect(templateSessionSafe) {
@@ -753,9 +757,9 @@ fun CameraPreview(
                 )
 
                 CameraPreviewArea(
-                    args = previewAreaArgs,
+                    args = if (readOnlyTour) guidePreviewArgs(previewAreaArgs, tourLocation?.pageId, tourProgress) else previewAreaArgs,
                     isTableSelected = ui.isTableSelected,
-                    isTableLocked = ui.prefs.wmTableLocked,
+                    isTableLocked = if (readOnlyTour && tourLocation?.pageId in listOf("select", "move", "size", "rotation", "lock")) tourLocation?.pageId == "lock" && tourProgress in 0.33f..0.75f else ui.prefs.wmTableLocked,
                     onTableSelectionChange = { selected ->
                         if (selected) ui.dismissToolOverlays()
                         ui.isTableSelected = selected
@@ -883,7 +887,7 @@ fun CameraPreview(
                 }
 
                 FloatingAssistShutterButton(
-                    enabled = ui.prefs.assistShutterEnabled,
+                    enabled = if (readOnlyTour && tourLocation?.pageId == "assist") tourProgress >= 0.5f else ui.prefs.assistShutterEnabled,
                     xRatio = ui.prefs.assistShutterXRatio,
                     yRatio = ui.prefs.assistShutterYRatio,
                     onPositionRatioChange = { xRatio, yRatio ->
@@ -906,11 +910,13 @@ fun CameraPreview(
                 )
             }
         }
-        if (showQuickValueSheet) {
+        val guideQuick = readOnlyTour && (tourLocation?.pageId?.startsWith("quick") == true || tourLocation?.pageId == "template")
+        if (showQuickValueSheet || guideQuick) {
+            key(if (guideQuick) tourLocation?.pageId else null) {
             key(quickTemplateId) {
                 CameraQuickValueSheet(
-                    template = tableTemplateState,
-                    templateName = quickTemplateName,
+                    template = if (guideQuick) remember { guideQuickTemplate() } else tableTemplateState,
+                    templateName = if (guideQuick) "기능 안내 예시" else quickTemplateName,
                     counterDigits = ui.prefs.counterDigits,
                     counterSeed = ui.counter.scopeNextCounter,
                     counterRequest = ui.counter.syncedRequest,
@@ -930,9 +936,10 @@ fun CameraPreview(
                     selectionMemory = quickEditSelectionMemory,
                     onTemplateSelect = onQuickTemplateSelect,
                     onDismiss = { showQuickValueSheet = false },
-                    onCommit = onTemplateChange,
+                    onCommit = if (guideQuick) ({ _: TableTemplateState -> }) else onTemplateChange,
                 )
             }
+        }
         }
 
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode != ContinuousPreviewMode.OFF) {

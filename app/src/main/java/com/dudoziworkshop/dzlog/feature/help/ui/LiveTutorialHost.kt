@@ -1,5 +1,8 @@
 package com.dudoziworkshop.dzlog.feature.help.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import kotlinx.coroutines.delay
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -58,6 +61,13 @@ internal fun LiveTutorialHost(
         sessionId = session
         contents = false
     }
+    var replay by remember(location) { mutableIntStateOf(0) }
+    val demo = remember { Animatable(0f) }
+    val hasDemo = areaId == "camera" && page.id in TutorialDemoPages
+    LaunchedEffect(location, replay) {
+        demo.snapTo(0f)
+        if (hasDemo) { delay(800); demo.animateTo(1f, tween(2400)) }
+    }
     var targetBounds by remember(location) { mutableStateOf<Rect?>(null) }
     var rootY by remember { mutableFloatStateOf(0f) }
     var cardHeight by remember { mutableIntStateOf(0) }
@@ -86,6 +96,7 @@ internal fun LiveTutorialHost(
             Box(Modifier.fillMaxSize().clearAndSetSemantics { contentDescription = "기능 안내 화면" }) {
                 CompositionLocalProvider(
                     LocalTutorialBounds provides { targetBounds = it },
+                    LocalTutorialDemoProgress provides demo.value,
                     LocalTutorialLocation provides location,
                     LocalTutorialTarget provides tutorialTarget(location, page.parentId),
                     LocalTutorialReadOnly provides true,
@@ -124,6 +135,7 @@ internal fun LiveTutorialHost(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("${area.title} · ${session.title}   ${overallIndex + 1}/${areaPages.size}",
                         Modifier.weight(1f), style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
+                    if (hasDemo) TextButton(onClick = { replay++ }) { Text("다시 보기") }
                     TextButton(onClick = onClose) { Text("닫기") }
                 }
                 LinearProgressIndicator(progress = { (overallIndex + 1).toFloat() / areaPages.size }, modifier = Modifier.fillMaxWidth(), color = DDZColor.PrimaryDark)
@@ -162,18 +174,23 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         "start" -> "home.start"; else -> "home.main"
     }
     "camera" -> when (parent) {
-        "flash", "grid", "table", "assist" -> "camera.tool.$parent"
-        "manual-focus" -> "camera.tool.focus"
+        "flash", "manual-focus" -> "camera.tool-detail"
+        "grid", "table", "assist" -> "camera.tool.$parent"
         "focus" -> "camera.preview"
         "menu" -> "camera.tools"
         "zoom" -> "camera.zoom"
+        "select", "lock" -> "camera.table-toolbar"
+        "move", "size", "rotation" -> "camera.watermark"
+        "details" -> "table.panel"
         "entry" -> "camera.settings"
         "ratio" -> "camera.settings.비율"
         "capture-confirmation" -> "camera.settings.촬영 확인"
         "quality" -> "camera.settings.저장"
         "feedback" -> "camera.settings.피드백"
         "controls" -> "camera.settings.음량키"
-        "quick", "template" -> "camera.quick"
+        "quick", "quick-filename", "quick-path" -> "camera.quick-naming"
+        "quick-text", "quick-number", "quick-date", "quick-time", "quick-phrase" -> "camera.quick-editor"
+        "template" -> "camera.quick-naming"
         "undo" -> "camera.undo"
         "warning" -> "camera.undo-warning"
         "recent", "result", "preview" -> "camera.recent"

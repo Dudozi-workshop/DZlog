@@ -2,6 +2,7 @@
 
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialDemoProgress
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
@@ -108,8 +109,12 @@ internal fun CameraBottomControls(
     }
 
     val showToolMenu = ui.showToolMenu
-    val selectedTool = ui.selectedTool
-    val isToolPanelExpanded = ui.isToolPanelExpanded
+    val guidePage = if (LocalTutorialReadOnly.current) LocalTutorialLocation.current?.pageId else null
+    val fraction = LocalTutorialDemoProgress.current
+    val guideOn = fraction >= 0.5f
+    val guideTool = when (guidePage) { "manual-focus" -> CameraOverlayTool.FOCUS; "flash" -> CameraOverlayTool.FLASH; else -> null }
+    val selectedTool = guideTool ?: ui.selectedTool
+    val isToolPanelExpanded = guideTool != null || ui.isToolPanelExpanded
     val compactTool = if (ui.isPinchZoomActive) null else selectedTool
     val showDismissLayer = showToolMenu || isToolPanelExpanded || ui.isZoomChipExpanded
 
@@ -165,11 +170,11 @@ internal fun CameraBottomControls(
             ) {
                 CameraToolMenuSection(
                     selectedTool = null,
-                    flashMode = ui.prefs.flashMode,
-                    focusMode = ui.focusMode,
-                    showGrid = ui.prefs.showGrid,
-                    showTable = ui.prefs.showWmPreview,
-                    assistShutterEnabled = ui.prefs.assistShutterEnabled,
+                    flashMode = if (guidePage == "flash") when { fraction < 0.33f -> CameraFlashMode.OFF; fraction < 0.66f -> CameraFlashMode.AUTO; else -> CameraFlashMode.ON } else ui.prefs.flashMode,
+                    focusMode = if (guidePage == "manual-focus") { if (guideOn) CameraFocusMode.MANUAL else CameraFocusMode.AUTO } else ui.focusMode,
+                    showGrid = if (guidePage == "grid") guideOn else ui.prefs.showGrid,
+                    showTable = if (guidePage == "table") guideOn else ui.prefs.showWmPreview,
+                    assistShutterEnabled = if (guidePage == "assist") guideOn else ui.prefs.assistShutterEnabled,
                     onSelectTool = {},
                     onToggleGrid = {},
                     onToggleTable = {},
@@ -186,11 +191,11 @@ internal fun CameraBottomControls(
             isPinchZoomActive = ui.isPinchZoomActive,
             zoomRatioTenths = ui.capture.actualZoomTenths,
             maxZoomTenths = ui.capture.maxZoomTenths,
-            flashMode = ui.prefs.flashMode,
-            focusMode = ui.focusMode,
-            focusUiValue = ui.focusUiValue,
-            showGrid = ui.prefs.showGrid,
-            showTable = ui.prefs.showWmPreview,
+            flashMode = if (guidePage == "flash") when { fraction < 0.33f -> CameraFlashMode.OFF; fraction < 0.66f -> CameraFlashMode.AUTO; else -> CameraFlashMode.ON } else ui.prefs.flashMode,
+            focusMode = if (guidePage == "manual-focus") { if (guideOn) CameraFocusMode.MANUAL else CameraFocusMode.AUTO } else ui.focusMode,
+            focusUiValue = if (guidePage == "manual-focus") fraction else ui.focusUiValue,
+            showGrid = if (guidePage == "grid") guideOn else ui.prefs.showGrid,
+            showTable = if (guidePage == "table") guideOn else ui.prefs.showWmPreview,
             bottomOffset = with(density) { bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing },
             onSelectTool = { selectedTool ->
                 ui.dismissTableSelection()
@@ -226,7 +231,7 @@ internal fun CameraBottomControls(
                 ui.prefs.showWmPreview = next
                 scope.launch { settingsWriter.setShowWmPreview(next) }
             },
-            assistShutterEnabled = ui.prefs.assistShutterEnabled,
+            assistShutterEnabled = if (guidePage == "assist") guideOn else ui.prefs.assistShutterEnabled,
             onToggleAssistShutter = {
                 val next = !ui.prefs.assistShutterEnabled
                 ui.prefs.assistShutterEnabled = next
@@ -322,7 +327,7 @@ internal fun CameraBottomControls(
                         }
                         }
                     },
-                    isLocked = ui.prefs.wmTableLocked,
+                    isLocked = if (guidePage == "lock") fraction in 0.33f..0.75f else if (guidePage in listOf("select", "move", "size", "rotation")) false else ui.prefs.wmTableLocked,
                     onToggleLock = {
                         val next = !ui.prefs.wmTableLocked
                         ui.prefs.wmTableLocked = next
@@ -588,7 +593,7 @@ private fun BoxScope.CameraToolOverlayPanel(
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .fillMaxWidth()
-            .padding(bottom = DDZSpacing.screenPadding + bottomOffset),
+            .padding(bottom = DDZSpacing.screenPadding + bottomOffset).tutorialTarget("camera.tool-detail"),
         contentAlignment = Alignment.BottomCenter
     ) {
         when {
