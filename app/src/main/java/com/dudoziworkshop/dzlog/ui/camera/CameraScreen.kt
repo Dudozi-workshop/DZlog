@@ -246,6 +246,7 @@ fun CameraPreview(
         )
     )
     val captureFeedback = remember(context) { CaptureFeedback(context) }
+    DisposableEffect(captureFeedback) { onDispose { captureFeedback.release() } }
     val asyncCaptureService = remember(context.applicationContext) {
         CaptureAsyncRuntime.get(context.applicationContext, repository)
     }
