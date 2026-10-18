@@ -62,7 +62,7 @@ internal fun OnboardingStarterCategories(
             val selected = selectedId == item.id
             Surface(
                 modifier = Modifier.weight(1f)
-                    .heightIn(min = if (compact) 81.dp else 92.dp)
+                    .heightIn(min = if (compact) 76.dp else 92.dp)
                     .clickable(role = Role.RadioButton) { onSelect(item.id) }
                     .semantics { this.selected = selected },
                 color = if (selected) DDZColor.SelectedSoft else DDZColor.Surface,
@@ -76,9 +76,9 @@ internal fun OnboardingStarterCategories(
                 Box {
                     Column(
                         modifier = Modifier.fillMaxWidth()
-                            .padding(horizontal = 3.dp, vertical = if (compact) 8.dp else 10.dp),
+                            .padding(horizontal = 3.dp, vertical = if (compact) 7.dp else 10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp),
                     ) {
                         Box(
                             modifier = Modifier.size(if (compact) 32.dp else 36.dp)
