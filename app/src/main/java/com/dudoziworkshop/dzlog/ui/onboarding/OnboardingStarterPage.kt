@@ -98,7 +98,7 @@ internal fun OnboardingStarterPage(
                     color = DDZColor.TextPrimary)
                 if (category != "basic") {
                     Text(
-                        "다른 양식 보기 ›", color = DDZColor.PrimaryDark,
+                        "다른 양식 보기", color = DDZColor.PrimaryDark,
                         fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.clickable(onClick = onBrowse)
                             .padding(horizontal = 3.dp, vertical = 8.dp),
