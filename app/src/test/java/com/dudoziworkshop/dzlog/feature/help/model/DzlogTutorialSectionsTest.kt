@@ -24,8 +24,10 @@ class DzlogTutorialSectionsTest {
         val settings = camera.sessions.last().guidePages().map { it.id }
         assertEquals(listOf("entry", "ratio", "quality", "capture-confirmation", "feedback", "controls"), settings.take(6))
         val home = DzlogTutorialSections.area("home")!!
-        assertTrue(home.sessions.flatMap { it.guidePages() }.map { it.id }.containsAll(
-            listOf("templates", "manage", "more", "recent-folder", "gallery", "save-info", "settings-screen")))
+        // Home introduces destinations without opening their separate tutorials.
+        assertEquals(listOf("main", "templates", "manage", "more", "counter", "start",
+            "recent", "album", "table-settings", "save-info", "settings"),
+            home.sessions.flatMap { it.guidePages() }.map { it.id })
     }
     @Test fun resumeUsesStableSceneIdsAndFallsBackAfterContentChanges() {
         val pages = DzlogTutorialSections.area("saving")!!.sessions.first { it.id == "counter" }.guidePages()
