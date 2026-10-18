@@ -94,7 +94,7 @@ internal class CaptureFeedback(context: Context) {
         if (!choice.available) return 0
         val id = soundIds[choice] ?: return 0
         if (id == 0 || id !in ready) return 0
-        val gain = volume.coerceIn(0, 100) / 100f
+        val gain = volume.coerceIn(0, 100) / 100f * choice.playbackGain
         return soundPool.play(id, gain, gain, 1, 0, 1f)
     }
 

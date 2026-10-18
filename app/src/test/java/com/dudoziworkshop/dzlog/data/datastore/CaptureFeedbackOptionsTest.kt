@@ -17,6 +17,12 @@ class CaptureFeedbackOptionsTest {
         assertEquals(CaptureSoundChoice.PPUPPYU, CaptureSoundChoice.fromStored(4))
     }
 
+    @Test fun originalSignatureHasNonDestructivePlaybackLevelTrim() {
+        assertEquals(0.10f, CaptureSoundChoice.PPUPPYU.playbackGain, 0.0001f)
+        assertEquals(1f, CaptureSoundChoice.CLASSIC_WERRA.playbackGain, 0.0001f)
+        assertEquals(1f, CaptureSoundChoice.DIGITAL_DSLR.playbackGain, 0.0001f)
+    }
+
     @Test fun vibrationStrengthIdsAndFallbackRemainStable() {
         assertEquals(listOf(0, 1, 2, 3), CaptureVibrationStrength.entries.map { it.storedId })
         assertEquals(CaptureVibrationStrength.MEDIUM, CaptureVibrationStrength.fromStored(-1))

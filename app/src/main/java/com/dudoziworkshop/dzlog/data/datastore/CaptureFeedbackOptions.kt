@@ -11,6 +11,11 @@ enum class CaptureSoundChoice(val storedId: Int, val label: String) {
     // Every shipped choice now has a verified, packaged audio source.
     val available: Boolean get() = true
 
+    // Preserve all original audio bytes; compensate for signature WAV's
+    // stronger measured RMS (-10 dBFS vs. roughly -29 to -33 dBFS shutter WAVs).
+    // This is an initial level trim, pending perceived-loudness device QA.
+    val playbackGain: Float get() = if (this == PPUPPYU) 0.10f else 1f
+
     companion object {
         fun fromStored(value: Int) = entries.firstOrNull { it.storedId == value } ?: SYSTEM
     }
