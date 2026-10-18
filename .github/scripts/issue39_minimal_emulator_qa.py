@@ -47,7 +47,7 @@ def shutter_position():
         # in the same bottom control row; never tap a guessed full-screen point.
         x_tool, y_tool = target(root, "촬영 도구")
         size = adb("shell", "wm", "size")
-        screen = re.search(r"(\\d+)x(\\d+)", size)
+        screen = re.search(r"(\d+)x(\d+)", size)
         if not screen:
             raise AssertionError("Cannot identify screen size for shutter fallback")
         width = int(screen.group(1))
