@@ -37,9 +37,25 @@ def finish_setup():
     tap("건너뛰기")
     wait_for("촬영 시작", timeout=80)
 
+def shutter_position():
+    root = hierarchy()
+    try:
+        return target(root, "●")
+    except AssertionError:
+        # Some emulator accessibility dumps omit the non-clickable inner text.
+        # Require the real camera tool icon and derive the centered shutter position
+        # in the same bottom control row; never tap a guessed full-screen point.
+        x_tool, y_tool = target(root, "촬영 도구")
+        size = adb("shell", "wm", "size")
+        screen = re.search(r"(\\d+)x(\\d+)", size)
+        if not screen:
+            raise AssertionError("Cannot identify screen size for shutter fallback")
+        width = int(screen.group(1))
+        return width // 2, y_tool
+
 def start_camera():
     tap("촬영 시작")
-    wait_for("●", timeout=70)
+    wait_for("촬영 도구", timeout=70)
     time.sleep(7)
 
 def root_gallery():
@@ -88,7 +104,8 @@ def confirm_android_delete():
 def check_original_delete():
     check_empty()
     start_camera()
-    tap("●")
+    x, y = shutter_position()
+    adb("shell", "input", "tap", str(x), str(y))
     committed = rows_after(2)
     for item in committed: check_file(item)
     assert len(committed) == 2 and len({r["_display_name"] for r in committed}) == 1
@@ -123,7 +140,7 @@ def check_interrupted_capture():
     adb("shell", "am", "start", "-W", "-n", ACTIVITY)
     wait_for("촬영 시작")
     start_camera()
-    x,y=target(hierarchy(), "●")
+    x,y=shutter_position()
     # Dispatch a real shutter tap, then terminate the sandbox process
     # immediately, without wiping package data or touching the media files.
     adb("shell", f"input tap {x} {y}; sleep 0.15; am force-stop {PKG}", timeout=40)
