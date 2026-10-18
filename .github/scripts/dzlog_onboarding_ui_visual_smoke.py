@@ -263,8 +263,10 @@ def main():
         folder_setup()
         choose("업무·현장")
         normal_starter = hierarchy()
-        if not is_fully_on_screen(normal_starter, "저장 규칙 미리보기"):
-            raise AssertionError("Starter photo/save preview needs scrolling at normal font size")
+        if not is_fully_on_screen(normal_starter, "저장 규칙 확인"):
+            raise AssertionError("Starter table/save preview needs scrolling at normal font size")
+        if contains(normal_starter, "건너뛰기") or contains(normal_starter, "이전"):
+            raise AssertionError("Approved final starter page must have one CTA")
         mark("00-starter-normal-font")
         adb("shell", "am", "force-stop", PKG)
         adb("shell", "pm", "clear", PKG)
