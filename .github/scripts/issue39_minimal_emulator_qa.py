@@ -159,7 +159,8 @@ def check_interrupted_capture():
         raise AssertionError(f"Unpaired capture files after interruption: {after}")
     for row in after: check_file(row)
     start_camera()
-    tap("●")
+    followup_x, followup_y = shutter_position()
+    adb("shell", "input", "tap", str(followup_x), str(followup_y))
     expected = len(after)+2
     deadline=time.monotonic()+95
     result=[]
