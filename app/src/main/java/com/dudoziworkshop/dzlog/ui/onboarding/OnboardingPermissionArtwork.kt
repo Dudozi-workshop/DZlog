@@ -38,20 +38,20 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 internal fun OnboardingPermissionArtwork() {
     val source = ImageBitmap.imageResource(R.drawable.onboarding_feature_v5)
     Box(
-        modifier = Modifier.fillMaxWidth().height(166.dp)
+        modifier = Modifier.fillMaxWidth().height(146.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(Brush.verticalGradient(listOf(Color(0xFFF9F5EA), Color(0xFFECE2D3)))),
         contentAlignment = Alignment.Center,
     ) {
         Surface(
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp)
-                .size(width = 178.dp, height = 86.dp).graphicsLayer(rotationZ = 6f),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 10.dp)
+                .size(width = 164.dp, height = 77.dp).graphicsLayer(rotationZ = 6f),
             color = Color(0xFFF8F0E5),
             shape = RoundedCornerShape(12.dp),
             shadowElevation = 4.dp,
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
+                modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Row(
@@ -59,15 +59,15 @@ internal fun OnboardingPermissionArtwork() {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(Icons.Default.Folder, contentDescription = null,
-                        tint = Color(0xFFB69678), modifier = Modifier.size(28.dp))
-                    Text("DZlog 기록", fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                        tint = Color(0xFFB69678), modifier = Modifier.size(25.dp))
+                    Text("DZlog 기록", fontSize = 14.sp, fontWeight = FontWeight.Bold,
                         color = DDZColor.PrimaryDark)
                 }
                 Text("2026.10 ~", fontSize = 11.sp, color = Color(0xFFA28F7C))
             }
         }
         Row(
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 9.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(0.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
@@ -83,7 +83,7 @@ private fun OriginalPhoto(
     image: ImageBitmap, sx: Int, sy: Int, sw: Int, sh: Int, rotation: Float,
 ) {
     Surface(
-        modifier = Modifier.size(91.dp, 77.dp).graphicsLayer(rotationZ = rotation),
+        modifier = Modifier.size(82.dp, 69.dp).graphicsLayer(rotationZ = rotation),
         color = Color.White,
         shape = RoundedCornerShape(10.dp),
         shadowElevation = 4.dp,

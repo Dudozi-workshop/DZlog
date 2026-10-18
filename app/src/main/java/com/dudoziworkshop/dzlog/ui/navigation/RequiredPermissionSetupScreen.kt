@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import androidx.compose.foundation.layout.Arrangement
@@ -101,11 +100,14 @@ internal fun RequiredPermissionSetupScreen(
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(if (onboarding) 9.dp else 14.dp),
+            verticalArrangement = Arrangement.spacedBy(if (onboarding) 10.dp else 14.dp),
         ) {
             Text(
                 if (onboarding) "필요한 권한만 설정하고,\n바로 시작해요." else "필요한 권한을 확인해 주세요",
-                style = typography.ScreenTitle,
+                style = if (onboarding) typography.ScreenTitle.copy(
+                    fontSize = 23.sp,
+                    lineHeight = 29.sp,
+                ) else typography.ScreenTitle,
                 color = colors.TextPrimary,
             )
             if (onboarding) {
@@ -169,7 +171,7 @@ private fun OnboardingPermissionOverview(
     working: Boolean,
     onAction: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
         OnboardingPermissionCard(
             "카메라", "사진 촬영과 기록표 촬영에 필요해요.",
             Icons.Default.CameraAlt, Color(0xFF91A77E),
@@ -202,23 +204,24 @@ private fun OnboardingPermissionCard(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(), color = Color(0xFFF5F2E9),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(15.dp),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            Box(Modifier.size(46.dp).background(iconColor, CircleShape),
+            Box(Modifier.size(40.dp).background(iconColor, CircleShape),
                 contentAlignment = Alignment.Center) {
                 Icon(icon, contentDescription = null, tint = Color.White,
-                    modifier = Modifier.size(25.dp))
+                    modifier = Modifier.size(22.dp))
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(title, color = DDZColor.TextPrimary, fontSize = 16.sp,
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, color = DDZColor.TextPrimary, fontSize = 15.sp,
                     fontWeight = FontWeight.Bold, maxLines = 1)
+                // At 140% font scaling let explanations wrap instead of truncating.
                 Text(detail, color = DDZColor.TextSecondary, fontSize = 12.sp,
-                    lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    lineHeight = 17.sp)
             }
             if (folderAction != null) {
                 Surface(
@@ -227,8 +230,8 @@ private fun OnboardingPermissionCard(
                     shape = RoundedCornerShape(24.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFAB8A70)),
                 ) {
-                    Text("연결하기", modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                        fontSize = 12.sp, color = DDZColor.PrimaryDark,
+                    Text("연결하기", modifier = Modifier.padding(horizontal = 9.dp, vertical = 8.dp),
+                        fontSize = 11.5.sp, color = DDZColor.PrimaryDark,
                         fontWeight = FontWeight.SemiBold)
                 }
             } else {
@@ -236,9 +239,9 @@ private fun OnboardingPermissionCard(
                     color = if (granted) Color(0xFFE1E8D6) else Color(0xFFF0E6DA),
                     shape = RoundedCornerShape(22.dp),
                 ) {
-                    Text(status, modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                    Text(status, modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
                         color = if (granted) Color(0xFF49643A) else DDZColor.PrimaryDark,
-                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 }
             }
         }
