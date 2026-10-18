@@ -81,11 +81,11 @@ internal fun OnboardingFlowScreen(
     }
     val activity = LocalContext.current as? Activity
     val view = LocalView.current
-    // Only the first introduction uses a light photo-editorial background.
-    // Restore the caller's original system-bar icon mode when leaving it.
-    DisposableEffect(step == 1, activity, view) {
+    // Both introduction pages have light backgrounds and need dark status-bar icons.
+    // Keep the approved page-one appearance; restore the caller's setting on exit.
+    DisposableEffect(step <= 2, activity, view) {
         val window = activity?.window
-        if (step != 1 || window == null) {
+        if (step > 2 || window == null) {
             onDispose { }
         } else {
             val controller = WindowInsetsControllerCompat(window, view)
