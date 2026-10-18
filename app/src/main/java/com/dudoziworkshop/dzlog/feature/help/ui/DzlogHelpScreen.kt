@@ -73,12 +73,12 @@ private fun HelpIndex(
                 .verticalScroll(rememberScrollState()).padding(DDZSpacing.screenPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("알아보고 싶은 구역을 선택해 세션별 기능을 살펴보세요.",
+            Text("알아보고 싶은 기능을 골라 살펴보세요.",
                 style = DDZTypography.Body, color = DDZColor.TextSecondary)
-            HelpCard("처음 사용법 다시 보기", "설정을 변경하지 않고 소개 화면을 다시 볼 수 있어요.", onOpenIntroduction)
             DzlogTutorialSections.areas.forEach { area ->
-                HelpCard(area.title, "${area.sessions.size}개 세션", { onOpenModule(area.id) })
+                HelpCard(area.title, area.sessions.take(3).joinToString(" · ") { it.title }, { onOpenModule(area.id) })
             }
+            TextButton(onClick = onOpenIntroduction) { Text("처음 사용법 다시 보기") }
         }
     }
 }
@@ -95,10 +95,10 @@ private fun SessionIndex(area: TutorialArea, onBack: () -> Unit, onSelect: (Int)
                 .verticalScroll(rememberScrollState()).padding(DDZSpacing.screenPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("원하는 세션으로 바로 이동할 수 있어요.",
+            Text("원하는 설명부터 볼 수 있어요.",
                 style = DDZTypography.Body, color = DDZColor.TextSecondary)
             area.sessions.forEachIndexed { index, session ->
-                HelpCard("세션 ${index + 1} · ${session.title}", "${session.steps.sumOf { 1 + it.scenes.size }}개 설명 · ${progress.status(area.id, session.id)}",
+                HelpCard(session.title, "${session.steps.sumOf { 1 + it.scenes.size }}개 설명 · ${progress.status(area.id, session.id)}",
                     { onSelect(index) })
             }
         }

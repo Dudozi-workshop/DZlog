@@ -67,6 +67,8 @@ internal fun TableEditorSaveDetailScreen(
 ) {
     var showCounterInput by remember { mutableStateOf(false) }
     var counterInputDraft by remember(nextCounter) { mutableStateOf(nextCounter.toString()) }
+    var pendingCopyDirection by remember(detail) { mutableStateOf<SaveRuleCopyDirection?>(null) }
+    val validCellIds = cells.mapNotNull { linkedRuleItemFromCell(it)?.cellId }.toSet()
 
     val scrollState = key(detail) { rememberScrollState() }
 
@@ -109,6 +111,15 @@ internal fun TableEditorSaveDetailScreen(
                         onManualPreview = onManualPreview,
                         onItemsChange = { onDraftChange(draft.copy(fileNameItems = it)) },
                     )
+                    DDZButton(
+                        text = "저장경로 구성 가져오기",
+                        modifier = Modifier.fillMaxWidth(),
+                        style = DDZButtonStyle.Secondary,
+                        enabled = canCopySaveRuleComposition(
+                            draft, SaveRuleCopyDirection.PATH_TO_FILE_NAME, validCellIds
+                        ),
+                        onClick = { pendingCopyDirection = SaveRuleCopyDirection.PATH_TO_FILE_NAME },
+                    )
                     DDZSettingRow(
                         label = "자동번호",
                         value = formatMockCounter(nextCounter, counterPadding),
@@ -130,6 +141,15 @@ internal fun TableEditorSaveDetailScreen(
                         cols = cols,
                         onManualPreview = onManualPreview,
                         onItemsChange = { onDraftChange(draft.copy(pathItems = it)) },
+                    )
+                    DDZButton(
+                        text = "파일명 구성 가져오기",
+                        modifier = Modifier.fillMaxWidth(),
+                        style = DDZButtonStyle.Secondary,
+                        enabled = canCopySaveRuleComposition(
+                            draft, SaveRuleCopyDirection.FILE_NAME_TO_PATH, validCellIds
+                        ),
+                        onClick = { pendingCopyDirection = SaveRuleCopyDirection.FILE_NAME_TO_PATH },
                     )
                     if (draft.pathItems.all { it == null }) {
                         Text(
@@ -272,6 +292,54 @@ internal fun TableEditorSaveDetailScreen(
                         checked = draft.includeFilenameInScope,
                         onCheckedChange = {
                             onDraftChange(draft.copy(includeFilenameInScope = it))
+                        },
+                    )
+                }
+            }
+        }
+    }
+
+    val pendingCopy = pendingCopyDirection
+    if (pendingCopy != null) {
+        val sourceLabel = if (pendingCopy == SaveRuleCopyDirection.FILE_NAME_TO_PATH) "파일명" else "저장경로"
+        val targetLabel = if (pendingCopy == SaveRuleCopyDirection.FILE_NAME_TO_PATH) "저장경로" else "파일명"
+        val sourceCount = if (pendingCopy == SaveRuleCopyDirection.FILE_NAME_TO_PATH) {
+            draft.fileNameItems.count { it != null }
+        } else {
+            draft.pathItems.count { it != null }
+        }
+        DDZBottomSheet(
+            title = "구성 복사 확인",
+            onDismiss = { pendingCopyDirection = null },
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "$sourceLabel 구성요소 ${sourceCount}개를 $targetLabel 쪽으로 복사합니다.",
+                    style = DDZTypography.Body,
+                    color = DDZColor.TextPrimary,
+                )
+                Text(
+                    "기존 $targetLabel 구성은 바뀝니다. 복사 후에도 양쪽 설정은 독립적으로 유지되며, 저장 전에는 취소할 수 있습니다.",
+                    style = DDZTypography.Secondary,
+                    color = DDZColor.TextSecondary,
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    DDZButton(
+                        text = "취소",
+                        modifier = Modifier.weight(1f),
+                        style = DDZButtonStyle.Secondary,
+                        onClick = { pendingCopyDirection = null },
+                    )
+                    DDZButton(
+                        text = "복사하기",
+                        modifier = Modifier.weight(1f),
+                        enabled = canCopySaveRuleComposition(draft, pendingCopy, validCellIds),
+                        onClick = {
+                            onDraftChange(copySaveRuleComposition(draft, pendingCopy, validCellIds))
+                            pendingCopyDirection = null
                         },
                     )
                 }

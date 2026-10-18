@@ -134,11 +134,11 @@ fun HomeScreen(
                             color = DDZColor.PrimaryDark,
                             modifier = Modifier.weight(1f),
                         )
-                        DDZIconButton(
+                        Box(Modifier.tutorialTarget("home.settings")) { DDZIconButton(
                             icon = Icons.Default.Settings,
                             contentDescription = stringResource(com.dudoziworkshop.dzlog.R.string.home_settings_content_description),
                             onClick = onOpenSettings,
-                        )
+                        ) }
                     }
 
                     Spacer(Modifier.height(heroTopGap))
@@ -178,6 +178,7 @@ fun HomeScreen(
                         Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
                         Text(
                             text = stringResource(com.dudoziworkshop.dzlog.R.string.home_next_capture, nextCounterText),
+                            modifier = Modifier.tutorialTarget("home.counter"),
                             style = DDZTypography.Secondary,
                             color = DDZColor.TextSecondary,
                         )
@@ -244,7 +245,7 @@ fun HomeScreen(
             )
         }
     }
-    if (showSaveInfo) {
+    if (showSaveInfo || com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation.current?.let { it.areaId == "home" && it.pageId == "save-info" } == true) {
         HomeSaveInfoSheet(
             fileName = uiState.nextFilenamePreview,
             relativePaths = uiState.nextRelativePathPreview?.let {

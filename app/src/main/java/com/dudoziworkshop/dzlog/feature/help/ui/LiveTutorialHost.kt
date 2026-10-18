@@ -1,6 +1,18 @@
 package com.dudoziworkshop.dzlog.feature.help.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -45,9 +57,16 @@ internal fun LiveTutorialHost(
         sessionId = session
         contents = false
     }
-    Column(Modifier.fillMaxSize().navigationBarsPadding()) {
+    var targetBounds by remember(location) { mutableStateOf<Rect?>(null) }
+    var rootY by remember { mutableFloatStateOf(0f) }
+    var cardHeight by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val areaPages = area.sessions.flatMap { it.guidePages() }
+    val overallIndex = area.sessions.take(area.sessions.indexOf(session)).sumOf { it.guidePages().size } + index
+    BoxWithConstraints(Modifier.fillMaxSize().navigationBarsPadding().onGloballyPositioned { rootY = it.positionInRoot().y }) {
         if (contents) {
-            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+                TextButton(onClick = { contents = false }) { Text("안내로 돌아가기") }
                 Text("목차 · 바로 이동", style = DDZTypography.SettingLabel)
                 DzlogTutorialSections.areas.forEach { item ->
                     Text(item.title, modifier = Modifier.padding(top = 12.dp), style = DDZTypography.SettingLabel)
@@ -63,8 +82,9 @@ internal fun LiveTutorialHost(
                 }
             }
         } else {
-            Box(Modifier.weight(1f).fillMaxWidth().clearAndSetSemantics { contentDescription = "기능 안내 화면" }) {
+            Box(Modifier.fillMaxSize().clearAndSetSemantics { contentDescription = "기능 안내 화면" }) {
                 CompositionLocalProvider(
+                    LocalTutorialBounds provides { targetBounds = it },
                     LocalTutorialLocation provides location,
                     LocalTutorialTarget provides tutorialTarget(location, page.parentId),
                     LocalTutorialReadOnly provides true,
@@ -83,21 +103,37 @@ internal fun LiveTutorialHost(
                 })
             }
         }
-        Surface(color = DDZColor.Surface, shadowElevation = 6.dp) {
+        if (!contents) Canvas(Modifier.fillMaxSize()) {
+            val shade = Path().apply { addRect(Rect(0f, 0f, size.width, size.height)) }
+            val target = targetBounds?.translate(0f, -rootY)?.inflate(5.dp.toPx())
+            val cutout = Path().apply { if (target != null) addRoundRect(androidx.compose.ui.geometry.RoundRect(target, CornerRadius(12.dp.toPx()))) }
+            drawPath(Path.combine(PathOperation.Difference, shade, cutout), Color.Black.copy(alpha = 0.48f))
+        }
+        val gap = with(density) { 16.dp.toPx() }
+        val hostHeight = with(density) { maxHeight.toPx() }
+        val target = targetBounds?.translate(0f, -rootY)
+        val below = target == null || target.center.y < hostHeight / 2
+        val desiredY = if (below) (target?.bottom ?: 0f) + gap else (target?.top ?: hostHeight) - cardHeight - gap
+        val cardY = desiredY.coerceIn(gap, (hostHeight - cardHeight - gap).coerceAtLeast(gap))
+        if (!contents) Surface(modifier = Modifier.padding(horizontal = 16.dp).offset { IntOffset(0, cardY.roundToInt()) }
+            .onGloballyPositioned { cardHeight = it.size.height },
+            shape = RoundedCornerShape(18.dp), color = DDZColor.Surface, shadowElevation = 6.dp) {
             Column(Modifier.fillMaxWidth().heightIn(max = 260.dp).verticalScroll(rememberScrollState()).padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("${area.title} · 세션 ${area.sessions.indexOf(session) + 1}/${area.sessions.size} · ${index + 1}/${pages.size}",
+                    Text("${area.title} · ${session.title}   ${overallIndex + 1}/${areaPages.size}",
                         Modifier.weight(1f), style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
                     TextButton(onClick = onClose) { Text("닫기") }
                 }
-                Text(session.title, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+                LinearProgressIndicator(progress = { (overallIndex + 1).toFloat() / areaPages.size }, modifier = Modifier.fillMaxWidth(), color = DDZColor.PrimaryDark)
                 Text(page.title, style = DDZTypography.SettingLabel, color = DDZColor.PrimaryDark)
                 Text(page.instruction, style = DDZTypography.Body, color = DDZColor.TextPrimary)
                 if (location.areaId == "gallery") Text("저장된 사진과 폴더가 있는 경우 해당 항목이 보여요.",
                     style = DDZTypography.Caption, color = DDZColor.TextSecondary)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { pageId = pages[index - 1].id }, enabled = index > 0, modifier = Modifier.weight(1f)) { Text("이전") }
+                    OutlinedButton(onClick = { if (index > 0) pageId = pages[index - 1].id
+                        else { val previous = area.sessions[area.sessions.indexOf(session) - 1]; progress.save(TutorialLocation(areaId, previous.id, previous.guidePages().last().id)); select(areaId, previous.id) }
+                    }, enabled = overallIndex > 0, modifier = Modifier.weight(1f)) { Text("이전") }
                     OutlinedButton(onClick = { contents = !contents }, modifier = Modifier.weight(1f)) { Text(if (contents) "안내" else "목차") }
                     Button(onClick = {
                         if (index < pages.lastIndex) pageId = pages[index + 1].id
@@ -120,7 +156,8 @@ internal fun LiveTutorialHost(
 
 private fun tutorialTarget(location: TutorialLocation, parent: String): String = when (location.areaId) {
     "home" -> when (parent) {
-        "recent" -> "home.recent"; "table-settings" -> "home.table"; "save-info" -> "home.saving"
+        "templates", "save-info" -> "home.sheet"
+        "recent", "album" -> "home.recent"; "counter" -> "home.counter"; "settings" -> "home.settings"; "table-settings" -> "home.table"
         "start" -> "home.start"; else -> "home.main"
     }
     "camera" -> when (parent) {

@@ -72,6 +72,7 @@ fun TableTemplateListScreen(
     onDuplicateTemplate: (String) -> Unit,
     onDeleteTemplate: (String) -> Unit,
 ) {
+    val guide = com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation.current
     var menuTemplateId by remember { mutableStateOf<String?>(null) }
     var renameTarget by remember { mutableStateOf<SavedTableTemplate?>(null) }
     var renameDraft by remember { mutableStateOf("") }
@@ -213,9 +214,10 @@ fun TableTemplateListScreen(
                                         tint = DDZColor.TextMuted,
                                     )
                                 }
-                                DropdownMenu(
+                                TemplateActionsMenu(
                                     expanded = menuTemplateId == template.id,
-                                    onDismissRequest = { menuTemplateId = null },
+                                    guideExpanded = guide?.let { it.areaId == "home" && it.pageId == "more" } == true && template.id == templates.firstOrNull()?.id,
+                                    onDismiss = { menuTemplateId = null },
                                 ) {
                                     DropdownMenuItem(
                                         text = { Text("편집") },
@@ -324,4 +326,14 @@ fun TableTemplateListScreen(
 private fun formatTemplateDate(timestamp: Long, used: Boolean): String {
     if (timestamp <= 0L) return if (used) "사용 기록 없음" else "수정일 없음"
     return (if (used) "사용 " else "수정 ") + SimpleDateFormat("yyyy.MM.dd", Locale.getDefault()).format(Date(timestamp))
+}
+
+@Composable
+private fun TemplateActionsMenu(expanded: Boolean, guideExpanded: Boolean, onDismiss: () -> Unit,
+    content: @Composable () -> Unit) {
+    if (guideExpanded) {
+        androidx.compose.material3.Surface(color = DDZColor.Surface, shadowElevation = 4.dp) {
+            Column { content() }
+        }
+    } else DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) { content() }
 }
