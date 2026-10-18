@@ -111,6 +111,9 @@ internal fun OnboardingFeatureIntro(previewHeight: Dp = 146.dp, compact: Boolean
             ),
             color = DDZColor.TextPrimary,
         )
+        // Treat the three cards as a single visual group. Leave breathing room
+        // below the headline instead of increasing the gaps between cards.
+        Spacer(Modifier.height(14.dp))
         FeaturePhotoCard(image, 398, 311, "사진에 기록표를 겹친 촬영 예시")
         FeaturePhotoCard(image, 724, 282, "촬영과 동시에, 원하는 곳에.")
         FeaturePhotoCard(image, 1021, 311, "쌓인 기록도, 찾기 쉽게.")
@@ -126,7 +129,7 @@ private fun FeaturePhotoCard(
 ) {
     androidx.compose.foundation.Canvas(
         modifier = Modifier.fillMaxWidth()
-            .aspectRatio(673f / sourceHeight)
+            .aspectRatio(673f / 311f) // Equal on-screen height; artwork crops stay intact.
             .semantics { contentDescription = label },
     ) {
         drawImage(

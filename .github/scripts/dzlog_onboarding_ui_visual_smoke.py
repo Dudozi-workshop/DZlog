@@ -64,6 +64,32 @@ def is_fully_on_screen(root, label):
     return False
 
 
+
+def screen_bounds(root, label):
+    for node in nodes(root):
+        if (node.get("text") or "") == label or (node.get("content-desc") or "") == label:
+            m = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.get("bounds") or "")
+            if m:
+                return tuple(map(int, m.groups()))
+    raise AssertionError("Missing feature-card bounds: " + label)
+
+
+def assert_equal_feature_cards(root):
+    labels = (
+        "사진에 기록표를 겹친 촬영 예시",
+        "촬영과 동시에, 원하는 곳에.",
+        "쌓인 기록도, 찾기 쉽게.",
+    )
+    bounds = [screen_bounds(root, label) for label in labels]
+    heights = [b[3] - b[1] for b in bounds]
+    if max(heights) - min(heights) > 2:
+        raise AssertionError(f"Feature card heights differ: {heights}")
+    gaps = (bounds[1][1] - bounds[0][3], bounds[2][1] - bounds[1][3])
+    if abs(gaps[0] - gaps[1]) > 3:
+        raise AssertionError(f"Card-to-card spacing changed: {gaps}")
+
+
+
 def is_single_line(root, label, max_height_px=66):
     """Check actual Compose accessibility bounds, not just displayed text."""
     for node in nodes(root):
@@ -226,6 +252,7 @@ def main():
         root = wait_for("사진에 기록표를 겹친 촬영 예시", timeout=55)
         if not is_fully_on_screen(root, "쌓인 기록도, 찾기 쉽게."):
             raise AssertionError("Third feature card needs scrolling at normal font size")
+        assert_equal_feature_cards(root)
         mark("00-feature-normal-font")
         # Finish the NORMAL-font journey before switching to accessibility
         # scale. Compose may keep the activity's previous fontScale after
