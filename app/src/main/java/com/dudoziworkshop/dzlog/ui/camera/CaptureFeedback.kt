@@ -29,17 +29,19 @@ internal class CaptureFeedback(context: Context) {
         )
         .build()
     private val ready = ConcurrentHashMap.newKeySet<Int>()
-    private val soundIds = mapOf(
-        CaptureSoundChoice.SOFT_CONTAREX to soundPool.load(appContext, R.raw.dzlog_contarex_soft, 1),
-        CaptureSoundChoice.CLASSIC_WERRA to soundPool.load(appContext, R.raw.dzlog_werra_classic, 1),
-        CaptureSoundChoice.DIGITAL_DSLR to soundPool.load(appContext, R.raw.dzlog_dslr_digital, 1),
-    )
+    private val soundIds: Map<CaptureSoundChoice, Int>
     private val systemSound = MediaActionSound().apply { load(MediaActionSound.SHUTTER_CLICK) }
 
     init {
+        // Register the listener before loading the first sample.
         soundPool.setOnLoadCompleteListener { _, sampleId, status ->
             if (status == 0) ready.add(sampleId)
         }
+        soundIds = mapOf(
+            CaptureSoundChoice.SOFT_CONTAREX to soundPool.load(appContext, R.raw.dzlog_contarex_soft, 1),
+            CaptureSoundChoice.CLASSIC_WERRA to soundPool.load(appContext, R.raw.dzlog_werra_classic, 1),
+            CaptureSoundChoice.DIGITAL_DSLR to soundPool.load(appContext, R.raw.dzlog_dslr_digital, 1),
+        )
     }
 
     fun play(
