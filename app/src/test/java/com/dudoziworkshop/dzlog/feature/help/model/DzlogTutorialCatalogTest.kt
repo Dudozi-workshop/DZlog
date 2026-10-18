@@ -34,8 +34,11 @@ class DzlogTutorialCatalogTest {
 
     @Test fun approvedDetailedScenesAndModuleLookupRemainAvailable() {
         assertEquals(6, DzlogTutorialCatalog.module("table-detail")!!.steps[1].scenes.size)
-        assertEquals(6, DzlogTutorialCatalog.module("saving")!!.steps[1].scenes.size)
-        assertEquals(5, DzlogTutorialCatalog.module("saving")!!.steps[3].scenes.size)
+        val saving = DzlogTutorialCatalog.module("saving")!!
+        val fileNameScenes = saving.steps.first { it.id == "filename" }.scenes.map { it.id }
+        assertTrue(fileNameScenes.containsAll(listOf("parts", "sources", "edit", "order", "remove", "preview", "copy")))
+        val counterScenes = saving.steps.first { it.id == "counter" }.scenes.map { it.id }
+        assertTrue(counterScenes.containsAll(listOf("next", "input", "digits", "sync", "reset", "scope")))
         assertEquals(5, DzlogTutorialCatalog.module("gallery")!!.steps[3].scenes.size)
         assertEquals(5, DzlogTutorialCatalog.module("gallery")!!.steps[4].scenes.size)
         assertNull(DzlogTutorialCatalog.module("unknown"))
