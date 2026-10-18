@@ -140,13 +140,13 @@ def wait_for_folder_grant_or_starter(timeout=90):
 def folder_setup():
     # No permission dialogs are bypassed: Android permissions were granted
     # expressly within this disposable emulator before the app was launched.
-    root = wait_for("앱을 사용하기 위해", timeout=60)
-    if not contains(root, "저장 폴더 연결"):
+    root = wait_for("필요한 권한만 설정하고,", timeout=60)
+    if not contains(root, "저장 폴더"):
         raise AssertionError("All required setup items should be present")
-    if not is_fully_on_screen(root, "DZlog 폴더 연결"):
+    if not is_fully_on_screen(root, "권한 설정하기"):
         raise AssertionError("Setup primary button clipped at compact size")
     mark("03-permissions")
-    tap_visible("DZlog 폴더 연결")
+    tap_visible("권한 설정하기")
     picker(timeout=90)
     # DocumentsUI may initially report its package before the folder list
     # has rendered. Always navigate using a fresh, settled hierarchy.

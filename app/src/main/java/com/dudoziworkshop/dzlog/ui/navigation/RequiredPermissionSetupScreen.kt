@@ -1,6 +1,23 @@
 package com.dudoziworkshop.dzlog.ui.navigation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -50,6 +67,7 @@ internal fun RequiredPermissionSetupScreen(
             "휴대폰 권한 설정 열기"
         currentStep == RequiredSetupStep.CAMERA -> "카메라 권한 설정"
         currentStep == RequiredSetupStep.PHOTOS -> "사진 접근 권한 설정"
+        onboarding -> "권한 설정하기"
         else -> "DZlog 폴더 연결"
     }
 
@@ -71,28 +89,27 @@ internal fun RequiredPermissionSetupScreen(
             verticalArrangement = Arrangement.spacedBy(if (onboarding) 9.dp else 14.dp),
         ) {
             Text(
-                if (onboarding) "앱을 사용하기 위해\n권한을 설정해주세요." else "필요한 권한을 확인해 주세요",
+                if (onboarding) "필요한 권한만 설정하고,\n바로 시작해요." else "필요한 권한을 확인해 주세요",
                 style = typography.ScreenTitle,
                 color = colors.TextPrimary,
             )
-            Text(
-                if (onboarding)
-                    "촬영한 사진과 기록을 안전하게 보관하려면 다음 설정이 필요해요."
-                else
+            if (onboarding) {
+                OnboardingPermissionOverview(state, folderConnected, currentStep, working, onAction)
+            } else {
+                Text(
                     "사용 중 해제된 권한이 있다면 다시 설정해 주세요. 기록은 그대로 보존돼요.",
-                style = typography.Body,
-                color = colors.TextSecondary,
-            )
-            PermissionStatusCards(state, currentStep, compact = onboarding)
-            PermissionCard(
-                "저장 폴더 연결",
-                if (folderConnected) "연결됨" else "연결 필요",
-                if (folderConnected) "Pictures/DZlog 폴더가 연결되어 있어요."
-                else "사진과 하위 폴더를 관리하려면 Pictures/DZlog 폴더를 연결해 주세요.",
-                active = currentStep == RequiredSetupStep.FOLDER,
-                stepNumber = 3,
-                compact = onboarding,
-            )
+                    style = typography.Body, color = colors.TextSecondary,
+                )
+                PermissionStatusCards(state, currentStep)
+                PermissionCard(
+                    "저장 폴더 연결",
+                    if (folderConnected) "연결됨" else "연결 필요",
+                    if (folderConnected) "Pictures/DZlog 폴더가 연결되어 있어요."
+                    else "사진과 하위 폴더를 관리하려면 Pictures/DZlog 폴더를 연결해 주세요.",
+                    active = currentStep == RequiredSetupStep.FOLDER,
+                    stepNumber = 3,
+                )
+            }
             if (!onboarding || cameraRequestAttempted || photoRequestAttempted) {
                 CurrentSetupGuide(
                     currentStep,
@@ -122,7 +139,93 @@ internal fun RequiredPermissionSetupScreen(
                 onClick = onAction,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !working,
+                shape = if (onboarding) androidx.compose.foundation.shape.RoundedCornerShape(16.dp) else null,
             )
+        }
+    }
+}
+
+/** Onboarding-only decoration. Grant state and permission requests remain in RequiredPermissionsGate. */
+@Composable
+private fun OnboardingPermissionOverview(
+    state: RequiredPermissionState,
+    folderConnected: Boolean,
+    currentStep: RequiredSetupStep,
+    working: Boolean,
+    onAction: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OnboardingPermissionCard(
+            "카메라", "사진 촬영과 기록표 촬영에 필요해요.",
+            Icons.Default.CameraAlt, Color(0xFF91A77E),
+            if (state.camera) "허용됨" else "허용 필요", state.camera,
+        )
+        OnboardingPermissionCard(
+            "사진 접근", "저장된 사진을 갤러리에서 확인해요.",
+            Icons.Default.Image, Color(0xFFB69A83),
+            when (state.photos) {
+                GalleryMediaAccess.FULL -> "허용됨"
+                GalleryMediaAccess.SELECTED_ONLY -> "일부 허용"
+                GalleryMediaAccess.NOT_GRANTED -> "허용 필요"
+            }, state.photos == GalleryMediaAccess.FULL,
+        )
+        OnboardingPermissionCard(
+            "저장 폴더", "사진과 하위 폴더를 정리해 관리해요.",
+            Icons.Default.Folder, Color(0xFF91A77E),
+            if (folderConnected) "연결됨" else "연결 필요", folderConnected,
+            if (!folderConnected && currentStep == RequiredSetupStep.FOLDER) onAction else null,
+            working,
+        )
+    }
+}
+
+@Composable
+private fun OnboardingPermissionCard(
+    title: String, detail: String, icon: ImageVector, iconColor: Color,
+    status: String, granted: Boolean,
+    folderAction: (() -> Unit)? = null, working: Boolean = false,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(), color = Color(0xFFF5F2E9),
+        shape = RoundedCornerShape(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(Modifier.size(46.dp).background(iconColor, CircleShape),
+                contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = Color.White,
+                    modifier = Modifier.size(25.dp))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, color = DDZColor.TextPrimary, fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(detail, color = DDZColor.TextSecondary, fontSize = 12.sp,
+                    lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            if (folderAction != null) {
+                Surface(
+                    modifier = Modifier.clickable(enabled = !working) { folderAction() },
+                    color = Color(0xFFFEFCF8),
+                    shape = RoundedCornerShape(24.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFAB8A70)),
+                ) {
+                    Text("연결하기", modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        fontSize = 12.sp, color = DDZColor.PrimaryDark,
+                        fontWeight = FontWeight.SemiBold)
+                }
+            } else {
+                Surface(
+                    color = if (granted) Color(0xFFE1E8D6) else Color(0xFFF0E6DA),
+                    shape = RoundedCornerShape(22.dp),
+                ) {
+                    Text(status, modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        color = if (granted) Color(0xFF49643A) else DDZColor.PrimaryDark,
+                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                }
+            }
         }
     }
 }

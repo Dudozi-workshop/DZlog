@@ -1,20 +1,18 @@
 package com.dudoziworkshop.dzlog.ui.onboarding
 
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Image as ImageIcon
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -24,72 +22,82 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import com.dudoziworkshop.dzlog.R
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
-/** Decorative photo collection for the permissions page; no permission side effects. */
+/** Decorative only. Crops three user-supplied original pictures from the approved page-2 resource. */
 @Composable
 internal fun OnboardingPermissionArtwork() {
-    Row(
-        modifier = Modifier.height(112.dp).padding(horizontal = 5.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    val source = ImageBitmap.imageResource(R.drawable.onboarding_feature_v5)
+    Box(
+        modifier = Modifier.fillMaxWidth().height(166.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Brush.verticalGradient(listOf(Color(0xFFF9F5EA), Color(0xFFECE2D3)))),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.width(136.dp).height(106.dp)) {
-            Surface(
-                modifier = Modifier.align(Alignment.BottomCenter).size(104.dp, 66.dp),
-                color = Color(0xFFE4D5C1),
-                shape = RoundedCornerShape(17.dp),
+        Surface(
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp)
+                .size(width = 178.dp, height = 86.dp).graphicsLayer(rotationZ = 6f),
+            color = Color(0xFFF8F0E5),
+            shape = RoundedCornerShape(12.dp),
+            shadowElevation = 4.dp,
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Folder, null, tint = DDZColor.PrimaryDark,
-                        modifier = Modifier.size(38.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.Folder, contentDescription = null,
+                        tint = Color(0xFFB69678), modifier = Modifier.size(28.dp))
+                    Text("DZlog 기록", fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                        color = DDZColor.PrimaryDark)
                 }
-            }
-            Surface(
-                modifier = Modifier.align(Alignment.TopStart).padding(start = 9.dp)
-                    .size(62.dp, 65.dp),
-                color = DDZColor.Surface,
-                shape = RoundedCornerShape(10.dp),
-                shadowElevation = 3.dp,
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.onboarding_gallery_photo),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize().padding(4.dp)
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color(0xFFE5EAD9), Color(0xFFC2D5BD)),
-                            ),
-                        ),
-                )
-            }
-            Surface(
-                modifier = Modifier.align(Alignment.TopEnd).padding(end = 7.dp, top = 11.dp)
-                    .size(53.dp, 62.dp),
-                color = Color(0xFFF8F6EE),
-                shape = RoundedCornerShape(9.dp),
-                shadowElevation = 3.dp,
-            ) {
-                Box(Modifier.padding(5.dp), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.ImageIcon, null, tint = DDZColor.SelectedDark,
-                        modifier = Modifier.size(24.dp))
-                }
+                Text("2026.10 ~", fontSize = 11.sp, color = Color(0xFFA28F7C))
             }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("사진도, 기록도,", style = DDZTypography.SettingLabel,
-                color = DDZColor.SelectedDark)
-            Text("내 공간에.", style = DDZTypography.SectionTitle,
-                color = DDZColor.PrimaryDark)
-            Text("한 번 설정하면 편리하게 사용할 수 있어요.",
-                style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+        Row(
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 9.dp),
+            horizontalArrangement = Arrangement.spacedBy(0.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            OriginalPhoto(source, 492, 473, 146, 129, -7f)
+            OriginalPhoto(source, 550, 1210, 115, 90, 2f)
+            OriginalPhoto(source, 687, 1210, 118, 90, 7f)
+        }
+    }
+}
+
+@Composable
+private fun OriginalPhoto(
+    image: ImageBitmap, sx: Int, sy: Int, sw: Int, sh: Int, rotation: Float,
+) {
+    Surface(
+        modifier = Modifier.size(91.dp, 77.dp).graphicsLayer(rotationZ = rotation),
+        color = Color.White,
+        shape = RoundedCornerShape(10.dp),
+        shadowElevation = 4.dp,
+    ) {
+        Canvas(modifier = Modifier.padding(4.dp).clip(RoundedCornerShape(7.dp))) {
+            drawImage(
+                image = image,
+                srcOffset = IntOffset(sx, sy),
+                srcSize = IntSize(sw, sh),
+                dstSize = IntSize(
+                    size.width.toInt().coerceAtLeast(1),
+                    size.height.toInt().coerceAtLeast(1),
+                ),
+            )
         }
     }
 }
