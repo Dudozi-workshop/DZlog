@@ -45,6 +45,7 @@ internal fun LiveTutorialHost(
     var sessionId by rememberSaveable { mutableStateOf(initialSessionId) }
     val area = requireNotNull(DzlogTutorialSections.area(areaId))
     val session = area.sessions.firstOrNull { it.id == sessionId } ?: area.sessions.first()
+    LaunchedEffect(session.id) { if (sessionId != session.id) sessionId = session.id }
     val pages = remember(areaId, sessionId) { session.guidePages() }
     var pageId by rememberSaveable(areaId, sessionId) { mutableStateOf(progress.page(areaId, sessionId)) }
     var contents by rememberSaveable { mutableStateOf(false) }
@@ -168,7 +169,7 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         "zoom" -> "camera.zoom"
         "entry" -> "camera.settings"
         "ratio" -> "camera.settings.비율"
-        "capture-confirmation" -> "camera.settings.촬영확인"
+        "capture-confirmation" -> "camera.settings.촬영 확인"
         "quality" -> "camera.settings.저장"
         "feedback" -> "camera.settings.피드백"
         "controls" -> "camera.settings.음량키"
