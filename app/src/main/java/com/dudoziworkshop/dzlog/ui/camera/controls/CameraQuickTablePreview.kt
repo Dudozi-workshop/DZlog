@@ -93,7 +93,8 @@ internal fun CameraQuickTablePreview(
     onTemplateSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val guideTemplateMenu = LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId == "template" && LocalTutorialDemoProgress.current < 0.5f
+    val guideTemplatePage = LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId == "template"
+    val guideTemplateMenu = guideTemplatePage && LocalTutorialDemoProgress.current < 0.5f
     val density = LocalDensity.current
     var showPicker by remember { mutableStateOf(false) }
     var zoomFactor by remember { mutableStateOf(1f) }
@@ -166,7 +167,7 @@ internal fun CameraQuickTablePreview(
                     Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
                         Row(
                             Modifier.weight(1f).fillMaxHeight()
-                                .clickable(enabled = templates.isNotEmpty() && !switching) { showPicker = true }
+                                .clickable(enabled = (templates.isNotEmpty() || guideTemplatePage) && !switching) { showPicker = true }
                                 .padding(start = DDZSpacing.xs, end = DDZSpacing.xs),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(DDZSpacing.xs),
@@ -179,7 +180,7 @@ internal fun CameraQuickTablePreview(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f))
-                            if (templates.isNotEmpty()) Icon(Icons.Filled.ExpandMore, "템플릿 변경",
+                            if (templates.isNotEmpty() || guideTemplatePage) Icon(Icons.Filled.ExpandMore, "템플릿 변경",
                                 Modifier.size(DDZLayout.QuickInput.Icon), tint = DDZColor.PrimaryDark)
                         }
                         Box(Modifier.width(1.dp).height(headingHeight - 10.dp)
