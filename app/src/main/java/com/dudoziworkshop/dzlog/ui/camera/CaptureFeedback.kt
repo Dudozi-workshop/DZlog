@@ -42,6 +42,7 @@ internal class CaptureFeedback(context: Context) {
             CaptureSoundChoice.SOFT_CONTAREX to soundPool.load(appContext, R.raw.dzlog_contarex_soft, 1),
             CaptureSoundChoice.CLASSIC_WERRA to soundPool.load(appContext, R.raw.dzlog_werra_classic, 1),
             CaptureSoundChoice.DIGITAL_DSLR to soundPool.load(appContext, R.raw.dzlog_dslr_digital, 1),
+            CaptureSoundChoice.PPUPPYU to soundPool.load(appContext, R.raw.dzlog_signature_ppuppyu, 1),
         )
     }
 
@@ -71,24 +72,35 @@ internal class CaptureFeedback(context: Context) {
         }
     }
 
-    /** Never triggers a capture, vibration, counter increment, or photo save. */
+    private var previewStreamId = 0
+
+    /** Preview only; never captures, vibrates or writes media. */
+    @Synchronized
     fun preview(choice: CaptureSoundChoice, volume: Int): Boolean =
         runCatching {
+            if (previewStreamId != 0) soundPool.stop(previewStreamId)
+            previewStreamId = 0
             when (choice) {
                 CaptureSoundChoice.SYSTEM -> {
                     systemSound.play(MediaActionSound.SHUTTER_CLICK)
                     true
                 }
-                else -> playCustom(choice, volume)
+                else -> {
+                    previewStreamId = playCustomStream(choice, volume)
+                    previewStreamId != 0
+                }
             }
         }.getOrDefault(false)
 
-    private fun playCustom(choice: CaptureSoundChoice, volume: Int): Boolean {
-        if (!choice.available) return false
-        val id = soundIds[choice] ?: return false
-        if (id == 0 || id !in ready) return false
-        val gain = (volume.coerceIn(0, 100) / 100f)
-        return soundPool.play(id, gain, gain, 1, 0, 1f) != 0
+    private fun playCustom(choice: CaptureSoundChoice, volume: Int): Boolean =
+        playCustomStream(choice, volume) != 0
+
+    private fun playCustomStream(choice: CaptureSoundChoice, volume: Int): Int {
+        if (!choice.available) return 0
+        val id = soundIds[choice] ?: return 0
+        if (id == 0 || id !in ready) return 0
+        val gain = volume.coerceIn(0, 100) / 100f
+        return soundPool.play(id, gain, gain, 1, 0, 1f)
     }
 
     private fun vibrate(strength: CaptureVibrationStrength) {

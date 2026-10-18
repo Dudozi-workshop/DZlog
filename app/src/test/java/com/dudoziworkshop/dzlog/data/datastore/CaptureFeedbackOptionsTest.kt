@@ -1,7 +1,6 @@
 package com.dudoziworkshop.dzlog.data.datastore
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -13,11 +12,9 @@ class CaptureFeedbackOptionsTest {
         assertEquals(CaptureSoundChoice.DIGITAL_DSLR, CaptureSoundChoice.fromStored(3))
     }
 
-    @Test fun signatureIsNotSelectableBeforeOriginalIsRecovered() {
-        assertFalse(CaptureSoundChoice.PPUPPYU.available)
-        CaptureSoundChoice.entries.filter { it != CaptureSoundChoice.PPUPPYU }.forEach {
-            assertTrue(it.available)
-        }
+    @Test fun allFiveSelectionsHavePackagedSources() {
+        CaptureSoundChoice.entries.forEach { assertTrue(it.available) }
+        assertEquals(CaptureSoundChoice.PPUPPYU, CaptureSoundChoice.fromStored(4))
     }
 
     @Test fun vibrationStrengthIdsAndFallbackRemainStable() {

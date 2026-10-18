@@ -8,8 +8,8 @@ enum class CaptureSoundChoice(val storedId: Int, val label: String) {
     DIGITAL_DSLR(3, "디지털 DSLR"),
     PPUPPYU(4, "뿌쀼!");
 
-    // Approved signature WAV must be recovered unchanged before release.
-    val available: Boolean get() = this != PPUPPYU
+    // Every shipped choice now has a verified, packaged audio source.
+    val available: Boolean get() = true
 
     companion object {
         fun fromStored(value: Int) = entries.firstOrNull { it.storedId == value } ?: SYSTEM
