@@ -204,6 +204,9 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         else -> "camera.preview"
     }
     "settings" -> when {
+        location.pageId in setOf("permission-screen", "export-screen", "import-screen") -> "settings.screen"
+        location.pageId == "import" -> "settings.other.작업 환경 가져오기"
+        location.pageId == "preview" -> "settings.quality-options"
         parent == "warning" -> "settings.other.저장경로 변경 시 삭제 경고"
         parent == "help" -> "settings.other.사용법 및 도움말"
         location.sessionId == "permission" -> "settings.permission"
@@ -218,7 +221,17 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         parent == "browse" -> "gallery.breadcrumbs"
         else -> "gallery.content"
     }
-    "saving" -> if (location.sessionId == "rotation") "table.panel" else "saving.detail"
+    "saving" -> when (location.pageId) {
+        "filename/copy", "folder/copy", "counter/input", "counter/reset" -> "guide.dialog"
+        "filename/preview" -> "saving.preview.현재 파일명"
+        "folder" -> "saving.preview.현재 저장 위치"
+        "filename/sources" -> "saving.add"
+        "filename/parts", "filename/edit", "filename/order", "filename/remove", "folder/parts" -> "saving.rules"
+        "counter/next" -> "saving.next"
+        "counter/digits" -> "saving.digits"
+        "counter/sync" -> "saving.sync"
+        else -> if (location.sessionId == "rotation") "table.panel" else "saving.detail"
+    }
     "table-detail" -> when (location.sessionId) {
         "overview" -> "table.tabs"
         "save" -> when (location.pageId) {

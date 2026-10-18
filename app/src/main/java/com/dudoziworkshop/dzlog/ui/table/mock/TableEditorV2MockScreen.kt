@@ -190,6 +190,7 @@ fun TableEditorV2Screen(
     var showSaveRules by remember { mutableStateOf(openSaveSettingsInitially) }
     var saveDetailTrail by remember { mutableStateOf(emptyList<TableEditorSaveDetail>()) }
     val saveDetail = saveDetailTrail.lastOrNull()
+    val readOnlyTour = LocalTutorialReadOnly.current
     val tourLocation = LocalTutorialLocation.current
     LaunchedEffect(tourLocation) {
         if (tourLocation != null) {
@@ -817,14 +818,14 @@ fun TableEditorV2Screen(
         )
     }
 
-    if (showCounterResetDialog) {
+    if (showCounterResetDialog || (tourLocation?.areaId == "saving" && tourLocation.pageId == "counter/reset")) {
         DDZConfirmDialog(
             title = "자동번호를 초기화할까요?",
             message = "다음 번호가 ${formatMockCounter(1, session.draftCounterPadding)}로 변경됩니다. 저장된 사진의 번호는 변경되지 않습니다.",
             confirmText = "초기화",
             dismissText = "취소",
             onConfirm = {
-                counterController.reset(session)
+                if (!readOnlyTour) counterController.reset(session)
                 showCounterResetDialog = false
             },
             onDismiss = { showCounterResetDialog = false },

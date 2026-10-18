@@ -68,6 +68,18 @@ internal fun TableEditorSaveDetailScreen(
     var showCounterInput by remember { mutableStateOf(false) }
     var counterInputDraft by remember(nextCounter) { mutableStateOf(nextCounter.toString()) }
     var pendingCopyDirection by remember(detail) { mutableStateOf<SaveRuleCopyDirection?>(null) }
+    val guide = LocalTutorialLocation.current
+    androidx.compose.runtime.LaunchedEffect(guide?.pageId) {
+        if (guide?.areaId == "saving") {
+            showCounterInput = guide.pageId == "counter/input"
+            counterInputDraft = nextCounter.toString()
+            pendingCopyDirection = when (guide.pageId) {
+                "filename/copy" -> SaveRuleCopyDirection.PATH_TO_FILE_NAME
+                "folder/copy" -> SaveRuleCopyDirection.FILE_NAME_TO_PATH
+                else -> null
+            }
+        }
+    }
     val validCellIds = cells.mapNotNull { linkedRuleItemFromCell(it)?.cellId }.toSet()
 
     val scrollState = key(detail) { rememberScrollState() }
@@ -189,7 +201,7 @@ internal fun TableEditorSaveDetailScreen(
                 TableEditorSaveDetail.AUTO_NUMBER -> {
                     Text("다음 번호", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().tutorialTarget("saving.next"),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -228,7 +240,7 @@ internal fun TableEditorSaveDetailScreen(
 
                     Text("자릿수", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().tutorialTarget("saving.digits"),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         (1..4).forEach { digits ->
@@ -250,6 +262,7 @@ internal fun TableEditorSaveDetailScreen(
 
                     DDZSettingRow(
                         label = "번호 동기화",
+                        modifier = Modifier.tutorialTarget("saving.sync"),
                         value = "저장된 사진의 마지막 번호 다음 값으로 맞춥니다.",
                         onClick = if (isCounterBusy) null else onSyncCounter,
                     )
@@ -269,7 +282,7 @@ internal fun TableEditorSaveDetailScreen(
 
                     DDZButton(
                         text = "번호 초기화",
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().tutorialTarget("saving.reset"),
                         style = DDZButtonStyle.Destructive,
                         enabled = !isCounterBusy,
                         onClick = onResetCounter,
@@ -382,6 +395,7 @@ private fun PreviewCard(label: String, value: String) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .tutorialTarget("saving.preview.$label")
             .background(DDZColor.SurfaceSoft, RoundedCornerShape(16.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),

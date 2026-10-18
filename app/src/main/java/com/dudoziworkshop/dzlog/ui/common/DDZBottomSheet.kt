@@ -1,7 +1,10 @@
 package com.dudoziworkshop.dzlog.ui.common
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,6 +59,12 @@ fun DDZBottomSheet(
     }
     if (inlinePreview) androidx.compose.material3.Surface(modifier.fillMaxWidth(), color = colors.Surface,
         shape = RoundedCornerShape(20.dp), shadowElevation = 4.dp) { sheetContent() }
+    else if (LocalTutorialReadOnly.current) androidx.compose.foundation.layout.Box(
+        Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
+    ) {
+        androidx.compose.material3.Surface(modifier.fillMaxWidth().tutorialTarget("guide.dialog"), color = colors.Surface,
+            shape = RoundedCornerShape(20.dp), shadowElevation = 4.dp) { sheetContent() }
+    }
     else ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
         containerColor = colors.Surface, contentColor = colors.TextPrimary,
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp), modifier = modifier) { sheetContent() }

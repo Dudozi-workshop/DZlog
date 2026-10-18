@@ -166,6 +166,30 @@ def main():
     mark("tutorial-31-unsaved-decision-dialog")
     back_to_index()
 
+    open_session("저장설정", "파일명 구성", "저장설정 개요")
+    for title in ("파일명 구성", "구성요소", "출처 추가", "값과 유형", "순서 변경", "요소 삭제", "결과 미리보기", "저장경로 구성 가져오기"):
+        tap("다음", title)
+    touch_passive_screen()
+    mark("tutorial-32-save-rule-copy")
+    back_to_index()
+    open_session("저장설정", "자동번호와 동기화", "자동번호")
+    for title in ("다음 번호", "번호 직접 입력"):
+        tap("다음", title)
+    mark("tutorial-33-counter-input")
+    for title in ("자릿수", "번호 동기화", "번호 초기화"):
+        tap("다음", title)
+    touch_passive_screen()
+    mark("tutorial-34-counter-reset")
+    back_to_index()
+    open_session("앱 설정", "데이터 관리와 도움말", "작업 환경 백업")
+    tap("다음", "작업 환경 내보내기")
+    touch_passive_screen()
+    mark("tutorial-35-backup-export")
+    for title in ("작업 환경 가져오기", "작업 환경 가져오기 화면"):
+        tap("다음", title)
+    mark("tutorial-36-backup-import")
+    back_to_index()
+
     if user_preferences() != initial_prefs:
         raise AssertionError("Tutorial altered camera settings, counters, phrases or templates")
     if query_media() != initial_media:

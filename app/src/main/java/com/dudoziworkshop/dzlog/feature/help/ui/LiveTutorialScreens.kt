@@ -77,9 +77,22 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
                 quickTemplateName = templateName,
                 quickEditSelectionMemory = remember { QuickEditSelectionMemory() })
             "gallery" -> LiveGalleryTutorial(location, settings)
-            "settings" -> SettingsRootScreen(onBack = {})
+            "settings" -> when (location.pageId) {
+                "permission-screen" -> Box(Modifier.fillMaxSize().tutorialTarget("settings.screen")) {
+                    com.dudoziworkshop.dzlog.ui.navigation.PermissionManagementScreen(onBack = {})
+                }
+                "export-screen", "import-screen" -> Box(Modifier.fillMaxSize().tutorialTarget("settings.screen")) {
+                    com.dudoziworkshop.dzlog.feature.settings.ui.SettingsBackupScreen(
+                        mode = if (location.pageId == "export-screen") com.dudoziworkshop.dzlog.feature.settings.ui.BackupScreenMode.EXPORT
+                            else com.dudoziworkshop.dzlog.feature.settings.ui.BackupScreenMode.IMPORT,
+                        onBack = {}, onImported = {},
+                    )
+                }
+                else -> SettingsRootScreen(onBack = {})
+            }
             else -> key(location.areaId, location.sessionId) {
-                TableEditorV2Screen(templateState = if (location.areaId == "table-detail" && location.sessionId in setOf("cells", "structure")) guideQuickTemplate() else template,
+                TableEditorV2Screen(templateState = if ((location.areaId == "table-detail" && location.sessionId in setOf("cells", "structure")) ||
+                    (location.areaId == "saving" && location.sessionId == "rotation")) guideQuickTemplate() else template,
                     includePathInCounterScope = settings.includePathInCounterScope,
                     includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
                     saveMode = settings.saveMode, counterPadding = settings.counterPadding,

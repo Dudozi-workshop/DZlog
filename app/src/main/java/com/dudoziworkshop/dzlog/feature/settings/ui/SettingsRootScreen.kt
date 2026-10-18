@@ -104,6 +104,10 @@ fun SettingsRootScreen(
     val scope = rememberCoroutineScope()
     val settings by AppSettingsStore.flow(context).collectAsState(initial = AppSettings.Default)
     var isQualityExpanded by remember { mutableStateOf(false) }
+    val guide = LocalTutorialLocation.current
+    androidx.compose.runtime.LaunchedEffect(guide) {
+        if (guide != null) isQualityExpanded = guide.areaId == "settings" && guide.pageId == "preview"
+    }
     var isQualitySaving by remember { mutableStateOf(false) }
     val version = remember(context) { buildAppVersionLabel(context) }
     val proTier by BillingEntitlementRuntime.tier.collectAsState()
@@ -208,7 +212,7 @@ fun SettingsRootScreen(
                         if (isQualityExpanded) {
                             SettingsDivider()
                             Column(
-                                modifier = Modifier.padding(vertical = 6.dp),
+                                modifier = Modifier.padding(vertical = 6.dp).tutorialTarget("settings.quality-options"),
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
                             ) {
                                 SETTINGS_QUALITY_ITEMS.forEach { item ->
