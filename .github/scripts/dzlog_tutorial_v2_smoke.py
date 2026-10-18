@@ -71,30 +71,6 @@ def main():
     initial_prefs = user_preferences()
     initial_media = query_media()
 
-    open_session("홈", "촬영 준비", "현재 템플릿")
-    touch_passive_screen()
-    mark("tutorial-01-home")
-    for title in ("템플릿 선택", "템플릿 관리", "수정과 삭제", "다음 촬영번호", "촬영 시작"):
-        tap("다음", title)
-    tap("완료", "최근 촬영")
-    # Previous crosses the group boundary, restoring its last explanation.
-    tap("이전", "촬영 시작")
-    tap("완료", "최근 촬영")
-    tap("닫기", "원하는 설명")
-    if not contains(hierarchy(), "완료"):
-        raise AssertionError("Finished session status was not retained")
-    adb("shell", "input", "keyevent", "4")
-    wait_for("알아보고 싶은 기능")
-
-    open_session("카메라", "초점과 촬영도구", "배율 칩")
-    touch_passive_screen()
-    time.sleep(4)
-    mark("tutorial-02a-camera-zoom")
-    for title in ("핀치 줌", "초점 조절", "도구 메뉴", "초점 도구", "플래시", "격자"):
-        tap("다음", title)
-    mark("tutorial-02-camera-tools")
-    back_to_index()
-
     open_session("카메라", "표와 빠른 수정", "표 선택과 배치")
     for title, evidence in (
         ("표 이동", "tutorial-08-table-move"),
@@ -117,6 +93,30 @@ def main():
             touch_passive_screen()
         time.sleep(4)  # Allow the one-shot presentation to finish.
         mark(evidence)
+    back_to_index()
+
+    open_session("홈", "촬영 준비", "현재 템플릿")
+    touch_passive_screen()
+    mark("tutorial-01-home")
+    for title in ("템플릿 선택", "템플릿 관리", "수정과 삭제", "다음 촬영번호", "촬영 시작"):
+        tap("다음", title)
+    tap("완료", "최근 촬영")
+    # Previous crosses the group boundary, restoring its last explanation.
+    tap("이전", "촬영 시작")
+    tap("완료", "최근 촬영")
+    tap("닫기", "원하는 설명")
+    if not contains(hierarchy(), "완료"):
+        raise AssertionError("Finished session status was not retained")
+    adb("shell", "input", "keyevent", "4")
+    wait_for("알아보고 싶은 기능")
+
+    open_session("카메라", "초점과 촬영도구", "배율 칩")
+    touch_passive_screen()
+    time.sleep(4)
+    mark("tutorial-02a-camera-zoom")
+    for title in ("핀치 줌", "초점 조절", "도구 메뉴", "초점 도구", "플래시", "격자"):
+        tap("다음", title)
+    mark("tutorial-02-camera-tools")
     back_to_index()
 
     for area, session, title, evidence in (
@@ -149,6 +149,10 @@ if __name__ == "__main__":
         main()
     except Exception:
         try:
+            crash = adb("logcat", "-d", "-b", "crash", "-v", "threadtime")
+            print("ANDROID CRASH LOG\n" + crash, flush=True)
+            from pathlib import Path
+            Path("postrelease-full-e2e/tutorial-crash-log.txt").write_text(crash)
             mark("tutorial-FAILED")
         except Exception:
             pass
