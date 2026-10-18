@@ -96,6 +96,9 @@ fun CaptureFeedbackSettingsScreen(onBack: () -> Unit) {
                                 .fillMaxWidth()
                                 .clickable(enabled = choice.available) {
                                     scope.launch { AppSettingsStore.setCaptureSoundChoice(context, choice) }
+                                    if (!player.preview(choice, draftVolume.roundToInt())) {
+                                        Toast.makeText(context, "미리 듣기를 재생하지 못했습니다.", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -161,6 +164,11 @@ fun CaptureFeedbackSettingsScreen(onBack: () -> Unit) {
                 ),
             )
             Text(
+                "미리 듣기는 기기 미디어 음량을 사용하며 0%에서는 소리가 나지 않습니다.",
+                style = DDZTypography.Caption,
+                color = DDZColor.TextSecondary,
+            )
+            Text(
                 "Android 기본 셔터음은 시스템 정책을 따르므로 앱에서 별도로 음량을 조절할 수 없습니다.",
                 style = DDZTypography.Caption,
                 color = DDZColor.TextSecondary,
@@ -181,6 +189,11 @@ fun CaptureFeedbackSettingsScreen(onBack: () -> Unit) {
                         val selected = selectedStrength == strength
                         Surface(
                             modifier = Modifier.weight(1f).clickable {
+                                // Demonstrate immediately, independently from media capture.
+                                // A disabled global app-haptic setting does not suppress preview.
+                                if (!player.previewVibration(strength)) {
+                                    Toast.makeText(context, "기기 진동을 사용할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                }
                                 scope.launch {
                                     AppSettingsStore.setCaptureVibrationStrength(context, strength)
                                 }

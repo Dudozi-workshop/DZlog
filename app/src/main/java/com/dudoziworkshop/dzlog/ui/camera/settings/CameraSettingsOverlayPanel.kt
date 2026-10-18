@@ -69,7 +69,6 @@ internal fun CameraSettingsOverlayPanel(
     onCaptureSoundChange: (Boolean) -> Unit,
     captureHapticEnabled: Boolean,
     onCaptureHapticChange: (Boolean) -> Unit,
-    onOpenCaptureFeedbackSettings: () -> Unit,
     volumeKeyAction: VolumeKeyAction,
     onVolumeKeyActionChange: (VolumeKeyAction) -> Unit,
     onDismiss: () -> Unit
@@ -166,18 +165,6 @@ internal fun CameraSettingsOverlayPanel(
                 CompactSettingsRow("피드백") {
                     CameraFeedbackChip("소리", captureSoundEnabled, { onCaptureSoundChange(!captureSoundEnabled) }, Modifier.weight(1f))
                     CameraFeedbackChip("진동", captureHapticEnabled, { onCaptureHapticChange(!captureHapticEnabled) }, Modifier.weight(1f))
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().height(30.dp)
-                        .clickable(onClick = onOpenCaptureFeedbackSettings),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    Text(
-                        "촬영 효과음 및 진동 설정 ›",
-                        style = DDZTypography.Caption,
-                        color = DDZColor.PrimaryDark,
-                    )
                 }
                 CompactSettingsRow("음량키") {
                     CompactSegments(listOf(

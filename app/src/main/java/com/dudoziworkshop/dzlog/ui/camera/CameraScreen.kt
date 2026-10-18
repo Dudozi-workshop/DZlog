@@ -48,7 +48,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
-import com.dudoziworkshop.dzlog.feature.settings.ui.CaptureFeedbackSettingsScreen
 import com.dudoziworkshop.dzlog.data.mediastore.MediaStoreSaverImpl
 import com.dudoziworkshop.dzlog.data.preferences.dataStore
 import com.dudoziworkshop.dzlog.data.repository.CaptureAsyncRuntime
@@ -266,7 +265,6 @@ fun CameraPreview(
 
     var boundImageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var showQuickValueSheet by remember { mutableStateOf(false) }
-    var showCaptureFeedbackSettings by remember { mutableStateOf(false) }
     var cornerResizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
@@ -1018,10 +1016,6 @@ fun CameraPreview(
                     scope.launch { AppSettingsStore.setCaptureSoundEnabled(context, checked) }
                 },
                 captureHapticEnabled = appSettings.captureHapticEnabled,
-                onOpenCaptureFeedbackSettings = {
-                    ui.showWizard = false
-                    showCaptureFeedbackSettings = true
-                },
                 onCaptureHapticChange = { checked ->
                     scope.launch { AppSettingsStore.setCaptureHapticEnabled(context, checked) }
                 },
@@ -1031,11 +1025,6 @@ fun CameraPreview(
                 },
                 onDismiss = { ui.showWizard = false }
             )
-        }
-        if (showCaptureFeedbackSettings) {
-            Box(modifier = Modifier.fillMaxSize().zIndex(120f)) {
-                CaptureFeedbackSettingsScreen(onBack = { showCaptureFeedbackSettings = false })
-            }
         }
     }
 }

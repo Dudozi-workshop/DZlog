@@ -2,7 +2,9 @@ package com.dudoziworkshop.dzlog.ui.camera
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaActionSound
+import android.media.MediaPlayer
 import android.media.SoundPool
 import android.os.Build
 import android.os.VibrationEffect
@@ -67,25 +69,78 @@ internal class CaptureFeedback(context: Context) {
         }
     }
 
-    private var previewStreamId = 0
+    // Preview is a deliberate foreground action. Unlike SoundPool's asynchronous
+    // sample loading at camera startup, MediaPlayer.create prepares the bundled
+    // sample before playback, so an immediate first tap will not be discarded.
+    private var previewPlayer: MediaPlayer? = null
+    private val previewAttributes = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_MEDIA)
+        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+        .build()
 
-    /** Preview only; never captures, vibrates or writes media. */
+    private fun previewResource(choice: CaptureSoundChoice): Int? = when (choice) {
+        CaptureSoundChoice.SYSTEM -> null
+        CaptureSoundChoice.SOFT_CONTAREX -> R.raw.dzlog_contarex_soft
+        CaptureSoundChoice.CLASSIC_WERRA -> R.raw.dzlog_werra_classic
+        CaptureSoundChoice.DIGITAL_DSLR -> R.raw.dzlog_dslr_digital
+        CaptureSoundChoice.PPUPPYU -> R.raw.dzlog_signature_ppuppyu
+    }
+
     @Synchronized
-    fun preview(choice: CaptureSoundChoice, volume: Int): Boolean =
-        runCatching {
-            if (previewStreamId != 0) soundPool.stop(previewStreamId)
-            previewStreamId = 0
-            when (choice) {
-                CaptureSoundChoice.SYSTEM -> {
-                    systemSound.play(MediaActionSound.SHUTTER_CLICK)
-                    true
+    private fun stopPreview() {
+        val previous = previewPlayer
+        previewPlayer = null
+        if (previous != null) {
+            runCatching { previous.stop() }
+            runCatching { previous.release() }
+        }
+    }
+
+    /** Preview only: no vibration, capture, counter, or photo save side effects. */
+    @Synchronized
+    fun preview(choice: CaptureSoundChoice, volume: Int): Boolean = runCatching {
+        stopPreview()
+        if (choice == CaptureSoundChoice.SYSTEM) {
+            // Platform sound follows Android's shutter and device-volume policy.
+            systemSound.play(MediaActionSound.SHUTTER_CLICK)
+            true
+        } else {
+            val resource = previewResource(choice) ?: return@runCatching false
+            val media = MediaPlayer.create(
+                appContext, resource, previewAttributes,
+                AudioManager.AUDIO_SESSION_ID_GENERATE,
+            ) ?: return@runCatching false
+            previewPlayer = media
+            val gain = volume.coerceIn(0, 100) / 100f * choice.playbackGain
+            media.setVolume(gain, gain)
+            media.setOnCompletionListener { finished ->
+                synchronized(this) {
+                    if (previewPlayer === finished) previewPlayer = null
                 }
-                else -> {
-                    previewStreamId = playCustomStream(choice, volume)
-                    previewStreamId != 0
-                }
+                runCatching { finished.release() }
             }
+            media.setOnErrorListener { failed, _, _ ->
+                synchronized(this) {
+                    if (previewPlayer === failed) previewPlayer = null
+                }
+                runCatching { failed.release() }
+                true
+            }
+            media.start()
+            true
+        }
+    }.getOrDefault(false)
+
+    /** Demonstrate only the requested strength; OFF does not vibrate. */
+    fun previewVibration(strength: CaptureVibrationStrength): Boolean {
+        if (strength == CaptureVibrationStrength.OFF) return true
+        return runCatching {
+            val device = resolveVibrator()
+            if (device == null || !device.hasVibrator()) return@runCatching false
+            vibrate(strength)
+            true
         }.getOrDefault(false)
+    }
 
     private fun playCustom(choice: CaptureSoundChoice, volume: Int): Boolean =
         playCustomStream(choice, volume) != 0
@@ -132,6 +187,7 @@ internal class CaptureFeedback(context: Context) {
         }
 
     fun release() {
+        stopPreview()
         runCatching { soundPool.release() }
         runCatching { systemSound.release() }
     }
