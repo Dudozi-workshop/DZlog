@@ -111,6 +111,9 @@ internal fun buildCameraTriggerCapture(
             captureFeedback.play(
                 successVibrationEnabled = appSettings.hapticEnabled && appSettings.captureHapticEnabled,
                 soundEnabled = appSettings.captureSoundEnabled,
+                soundChoice = appSettings.captureSoundChoice,
+                soundVolume = appSettings.captureSoundVolume,
+                vibrationStrength = appSettings.captureVibrationStrength,
             )
         },
         onImageCaptured = { },

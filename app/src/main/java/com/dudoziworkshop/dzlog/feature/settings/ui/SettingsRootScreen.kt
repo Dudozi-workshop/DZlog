@@ -99,6 +99,13 @@ fun SettingsRootScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val settings by AppSettingsStore.flow(context).collectAsState(initial = AppSettings.Default)
+    var showCaptureFeedbackSettings by androidx.compose.runtime.saveable.rememberSaveable {
+        mutableStateOf(false)
+    }
+    if (showCaptureFeedbackSettings) {
+        CaptureFeedbackSettingsScreen(onBack = { showCaptureFeedbackSettings = false })
+        return
+    }
     var isQualityExpanded by remember { mutableStateOf(false) }
     var isQualitySaving by remember { mutableStateOf(false) }
     val version = remember(context) { buildAppVersionLabel(context) }
@@ -243,6 +250,20 @@ fun SettingsRootScreen(
 
                 SettingsSection(title = "촬영 설정") {
                     SettingsGroup {
+                        SettingsActionRow(
+                            icon = Icons.Default.CameraAlt,
+                            title = "촬영 효과음 및 진동",
+                            subtitle = "효과음 선택·미리 듣기·음량·진동 강도",
+                            onClick = { showCaptureFeedbackSettings = true },
+                            trailing = {
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = DDZColor.IconMuted,
+                                )
+                            },
+                        )
+                        SettingsDivider()
                         SettingsActionRow(
                             icon = Icons.Default.WarningAmber,
                             title = "저장경로 변경 시 삭제 경고",

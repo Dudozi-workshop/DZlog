@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Never commit Android release/upload signing material.
+*.jks
+*.keystore
+*.p12
+key.properties
