@@ -56,7 +56,8 @@ internal fun cameraGuideSavedPage(sessionId: String, pageId: String): String = w
     "table" -> when {
         pageId == "move" -> "size"
         pageId == "rotation" -> "lock"
-        pageId.startsWith("quick-") -> "quick"
+        pageId in setOf("quick-text", "quick-number", "quick-date", "quick-phrase", "quick-time") -> "quick-values"
+        pageId.startsWith("quick-") -> pageId
         else -> pageId
     }
     "settings" -> when (pageId) {
