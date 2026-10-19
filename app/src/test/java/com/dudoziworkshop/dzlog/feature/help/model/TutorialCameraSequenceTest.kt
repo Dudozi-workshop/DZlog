@@ -34,6 +34,8 @@ class TutorialCameraSequenceTest {
         assertEquals(30, sessions.sumOf { it.steps.size })
         assertEquals(listOf("flash", "grid", "table", "assist", "zoom"), sessions[1].steps.drop(2).map { it.id })
         assertTrue(cameraGuideAtBottom("filename"))
+        assertTrue(cameraGuideAtBottom("capture-confirmation"))
+        assertTrue(cameraGuideAtBottom("feedback"))
         assertFalse(cameraGuideAtBottom("focus"))
         assertEquals(listOf("quick-text", "quick-number", "quick-date", "quick-phrase"), sessions.last().steps.takeLast(4).map { it.id })
         assertEquals(listOf("menu"), cameraGuideScenes("menu"))
