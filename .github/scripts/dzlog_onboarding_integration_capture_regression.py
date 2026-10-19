@@ -52,6 +52,11 @@ def fresh_setup():
     ):
         adb("shell", "pm", "grant", PKG, permission)
 
+    # The approved compact-layout checks use a 720x1600 physical-pixel viewport.
+    # The emulator runner otherwise boots Pixel 6 at 1080x2400.
+    adb("shell", "wm", "size", "720x1600")
+    adb("shell", "wm", "density", "360")
+    adb("shell", "settings", "put", "system", "font_scale", "1.0")
     adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
     wait_for("사진에 기록을 더해,", timeout=90)
     evidence("integration-01-intro")
