@@ -126,6 +126,7 @@ ksp {
 
 dependencies {
     implementation(project(":shared"))
+    implementation(project(":sharedUi"))
     implementation(platform(libs.androidx.compose.bom))
 
     implementation(libs.androidx.activity.compose)

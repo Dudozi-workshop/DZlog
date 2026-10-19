@@ -2,11 +2,11 @@ package com.dudoziworkshop.dzlog.ui.table.template
 
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.feature.table.editor.TableStructureRangeActions
+import com.dudoziworkshop.dzlog.domain.table.resolveTableRootCells
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 
 /** Geometry only; the read-only preview never changes template data or selection. */
-internal data class TemplatePreviewCellBounds(
+data class TemplatePreviewCellBounds(
     val cell: TableCellState,
     val left: Float,
     val top: Float,
@@ -14,14 +14,14 @@ internal data class TemplatePreviewCellBounds(
     val height: Float,
 )
 
-internal fun templatePreviewCellBounds(state: TableTemplateState): List<TemplatePreviewCellBounds> {
+fun templatePreviewCellBounds(state: TableTemplateState): List<TemplatePreviewCellBounds> {
     if (state.rows <= 0 || state.cols <= 0) return emptyList()
     val rows = TableLayoutCalculator.resolveWeights(state.rowWeights, state.rows)
     val cols = TableLayoutCalculator.resolveWeights(state.colWeights, state.cols)
     val totalHeight = rows.sum()
     val totalWidth = cols.sum()
 
-    return TableStructureRangeActions.rootCells(state.cells).mapNotNull { cell ->
+    return resolveTableRootCells(state.cells).mapNotNull { cell ->
         val row = cell.rowIndex
         val col = cell.colIndex
         if (row !in rows.indices || col !in cols.indices) return@mapNotNull null

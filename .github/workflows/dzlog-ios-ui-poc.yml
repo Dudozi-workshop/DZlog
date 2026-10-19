@@ -1,0 +1,35 @@
+name: DZlog M2 Shared UI PoC
+on:
+  pull_request:
+    branches: [milestone/dzlog-pre-onboarding-20261017]
+    paths: ['sharedUi/**', 'shared/**', 'iosApp/**', 'scripts/ios/**', 'build.gradle.kts', 'settings.gradle.kts', '.github/workflows/dzlog-ios-ui-poc.yml']
+permissions:
+  contents: read
+concurrency:
+  group: dzlog-ios-ui-poc-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  simulator-ui:
+    runs-on: macos-14
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build existing shared UI for iPhone and simulator
+        run: bash ./gradlew -PdzlogSharedOnly=true -PdzlogUiPoc=true :sharedUi:compileKotlinIosArm64 :sharedUi:linkDebugFrameworkIosSimulatorArm64 --stacktrace
+      - name: Build minimal UIKit host
+        run: bash scripts/ios/build-ui-poc.sh
+      - name: Launch Compose UI and capture actual simulator screen
+        run: bash scripts/ios/smoke-ui-poc.sh
+      - name: Preserve UI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-ios-ui-poc-evidence
+          path: build/ios-poc/evidence/**
+          if-no-files-found: warn
+          retention-days: 7

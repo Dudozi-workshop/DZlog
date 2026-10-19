@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.feature.table.editor
 
+import com.dudoziworkshop.dzlog.domain.table.resolveTableRootCells
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -422,20 +423,13 @@ object TableStructureRangeActions {
     )
 
     private fun resolveStructure(cells: List<TableCellState>): StructureResolution {
-        val sortedCells = cells.sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
-
         val roots = mutableListOf<TableCellState>()
         val rootCoverages = mutableListOf<RootCoverage>()
         val covered = mutableSetOf<Pair<Int, Int>>()
         val rootByCoordinate = mutableMapOf<Pair<Int, Int>, TableCellState>()
 
-        sortedCells.forEach { rawCandidate ->
-            val candidate = rawCandidate.copy(
-                rowSpan = rawCandidate.rowSpan.coerceAtLeast(1),
-                colSpan = rawCandidate.colSpan.coerceAtLeast(1),
-            )
+        resolveTableRootCells(cells).forEach { candidate ->
             val origin = candidate.rowIndex to candidate.colIndex
-            if (origin in covered) return@forEach
 
             roots += candidate
             val range = TableSelectionRange(

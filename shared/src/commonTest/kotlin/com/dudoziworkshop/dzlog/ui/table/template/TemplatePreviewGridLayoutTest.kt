@@ -2,9 +2,9 @@ package com.dudoziworkshop.dzlog.ui.table.template
 
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class TemplatePreviewGridLayoutTest {
     private fun cell(
@@ -61,5 +61,16 @@ class TemplatePreviewGridLayoutTest {
         assertEquals(1, bounds.size)
         assertEquals("valid", bounds.single().cell.cellId)
         assertTrue(bounds.all { it.width > 0f && it.height > 0f })
+    }
+    @Test fun mergedRootHidesCoveredBackingCellsInTheSharedPreview() {
+        val state = TableTemplateState(2, 2, listOf(
+            cell("root", 0, 0, rowSpan = 2, colSpan = 2),
+            cell("covered-1", 0, 1), cell("covered-2", 1, 0), cell("covered-3", 1, 1),
+        ))
+        val bounds = templatePreviewCellBounds(state)
+        assertEquals(1, bounds.size)
+        assertEquals("root", bounds.single().cell.cellId)
+        assertEquals(1f, bounds.single().width, 0.0001f)
+        assertEquals(1f, bounds.single().height, 0.0001f)
     }
 }

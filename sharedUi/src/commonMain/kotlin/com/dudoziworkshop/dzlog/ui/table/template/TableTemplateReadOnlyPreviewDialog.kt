@@ -33,7 +33,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 /** Only the stored template is read. Opening this dialog never changes the active template. */
 @Composable
-internal fun TableTemplateReadOnlyPreviewDialog(
+fun TableTemplateReadOnlyPreviewDialog(
     template: SavedTableTemplate,
     onDismiss: () -> Unit,
     onSelect: () -> Unit,

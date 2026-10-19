@@ -1,0 +1,62 @@
+package com.dudoziworkshop.dzlog.poc
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.ComposeUIViewController
+import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
+import com.dudoziworkshop.dzlog.domain.model.*
+import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
+import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateReadOnlyPreviewDialog
+import com.dudoziworkshop.dzlog.ui.theme.*
+import platform.UIKit.UIViewController
+
+/** Simulator-only PoC host; the screen implementation is the existing shared dialog. */
+fun MainViewController(): UIViewController = ComposeUIViewController {
+    DDZTheme {
+        val template = remember { previewFixture() }
+        var open by remember { mutableStateOf(true) }
+        var selected by remember { mutableStateOf(false) }
+        Column(
+            Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding().padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text("DZlog", style = DDZTypography.HomeMainTitle, color = DDZColor.PrimaryDark)
+            Text("템플릿 미리보기", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
+            Text(if (selected) "선택한 템플릿 · ${template.name}" else "템플릿을 선택해 주세요.",
+                style = DDZTypography.Body, color = DDZColor.TextSecondary)
+            Button(onClick = { open = true }) { Text("표 미리보기", style = DDZTypography.ButtonText) }
+        }
+        if (open) TableTemplateReadOnlyPreviewDialog(
+            template = template,
+            onDismiss = { open = false },
+            onSelect = { selected = true; open = false },
+        )
+    }
+}
+
+/** Synthetic, memory-only sample. No photo, database, preference or active-template write. */
+private fun previewFixture(): SavedTableTemplate {
+    val types = listOf(TableCellDataType.TEXT, TableCellDataType.NUMBER, TableCellDataType.DATE,
+        TableCellDataType.TIME, TableCellDataType.COUNTER, TableCellDataType.ROTATING_TEXT)
+    val cells = buildList {
+        for (index in 0 until 9) add(TableCellState(
+            rowIndex = index / 3, colIndex = index % 3, cellId = "poc-$index",
+            rowSpan = 1, colSpan = if (index == 0) 3 else 1,
+            dataType = if (index < 3) TableCellDataType.TEXT else types[index - 3],
+            rawText = when (index) { 0 -> "블루베리 관찰 기록"; 3 -> "Draper"; 4 -> "32"; else -> "" },
+            phraseSetId = if (index == 8) "poc-phrases" else null,
+        ))
+    }
+    return SavedTableTemplate(
+        id = "poc-template", name = "현장 기록", modifiedAt = 0,
+        templateState = TableTemplateState(3, 3, cells,
+            rowWeights = listOf(0.8f, 1f, 1f), colWeights = listOf(1.2f, 1f, 1f),
+            phraseSets = listOf(RotatingPhraseSet("poc-phrases", "처리", listOf("처리 A", "처리 B")))),
+        styleState = TableStyleState(),
+    )
+}
