@@ -1,0 +1,54 @@
+name: DZlog Onboarding Real Camera Artwork
+on:
+  push:
+    branches: [feat/onboarding-ui-20261015]
+    paths:
+      - .github/workflows/dzlog-onboarding-real-camera-art.yml
+      - .github/scripts/build_onboarding_hero_from_app.py
+permissions:
+  contents: write
+  actions: read
+jobs:
+  build-artwork:
+    if: github.repository == 'Dudozi-workshop/DZlog'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install image renderer
+        run: python -m pip install Pillow==11.3.0
+      - name: Get real DZlog camera screen from passing Android16 QA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/dzlog-qa
+          gh run download 38904234115 --repo Dudozi-workshop/DZlog --name dzlog-onboarding-ui-evidence --dir /tmp/dzlog-qa
+          test -s /tmp/dzlog-qa/onboarding-08-actual-dzlog-camera.png
+      - name: Download licensed natural-light desk photograph
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --connect-timeout 15 --max-time 90 \
+            'https://images.unsplash.com/photo-1617202009609-74a52df21011?w=1800&q=85&fit=crop' \
+            --output /tmp/dzlog-desk.jpg
+          test $(stat -c%s /tmp/dzlog-desk.jpg) -gt 25000
+      - name: Compose the actual camera interface with staged photo feed
+        run: |
+          python .github/scripts/build_onboarding_hero_from_app.py \
+            --desk /tmp/dzlog-desk.jpg \
+            --plant app/src/main/res/drawable-nodpi/onboarding_hero_photo.jpg \
+            --camera /tmp/dzlog-qa/onboarding-08-actual-dzlog-camera.png \
+            --output app/src/main/res/drawable-nodpi/onboarding_actual_camera_hero.webp
+      - name: Commit only the composed illustration
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/src/main/res/drawable-nodpi/onboarding_actual_camera_hero.webp
+          if ! git diff --cached --quiet; then
+            git commit -m 'assets(onboarding): bundle warm desk and real DZlog camera hero'
+            git push origin HEAD:feat/onboarding-ui-20261015
+          fi
