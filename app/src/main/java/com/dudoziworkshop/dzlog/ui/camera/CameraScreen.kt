@@ -508,13 +508,6 @@ fun CameraPreview(
         }
     }
     val latestImage = latestImageController.latestImage
-    val guidePreviewUri by produceState<Uri?>(null, readOnlyTour, tourLocation?.pageId) {
-        if (readOnlyTour && tourLocation?.pageId == "preview") {
-            value = try { withContext(Dispatchers.IO) { DzlogMediaStoreReader(context.contentResolver).loadLatestImage()?.uri } }
-                catch (cancelled: CancellationException) { throw cancelled }
-                catch (_: Exception) { null }
-        }
-    }
 
     var undoPhraseSaving by remember { mutableStateOf(false) }
     var undoPathWarning by remember { mutableStateOf<PendingCameraUndoPathWarning?>(null) }
@@ -821,7 +814,7 @@ fun CameraPreview(
                 )
 
                 if (readOnlyTour && tourLocation?.pageId == "preview") {
-                    TutorialCapturePreview(guidePreviewUri, tourProgress, ui.prefs.captureAspect.ratioF)
+                    TutorialCapturePreview(tourProgress, ui.prefs.captureAspect.ratioF)
                 }
                 Box(
                     modifier = Modifier
