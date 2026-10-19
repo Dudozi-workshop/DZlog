@@ -221,7 +221,7 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         "ratio" -> "camera.settings.비율"
         "capture-confirmation" -> "camera.settings.촬영 확인"
         "quality" -> "camera.settings.저장"
-        "feedback" -> "camera.settings.피드백"
+        "feedback", "sound", "haptic" -> "camera.settings.피드백"
         "controls" -> "camera.settings.음량키"
         "quick", "quick-filename", "quick-path" -> "camera.quick-naming"
         "quick-text", "quick-number", "quick-date", "quick-time", "quick-phrase" -> "camera.quick-editor"
