@@ -36,9 +36,9 @@ internal fun OnboardingProgressHeader(
     val safeStage = stage.coerceIn(1, 4)
     Column(
         modifier = modifier.fillMaxWidth().padding(
-            horizontal = 20.dp, vertical = if (introStyle) 10.dp else 12.dp,
+            horizontal = 20.dp, vertical = 10.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(if (introStyle) 8.dp else 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -47,15 +47,12 @@ internal fun OnboardingProgressHeader(
         ) {
             Text(
                 "DZlog",
-                style = if (introStyle) DDZTypography.SettingLabel.copy(
-                    fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                ) else DDZTypography.SettingLabel,
-                fontWeight = if (introStyle) FontWeight.SemiBold else FontWeight.Bold,
+                style = OnboardingTextStyles.Brand,
                 color = DDZColor.PrimaryDark,
             )
             Text(
                 "$label · $safeStage / 4",
-                style = DDZTypography.Caption,
+                style = OnboardingTextStyles.Caption,
                 color = DDZColor.TextSecondary,
             )
         }
@@ -66,7 +63,7 @@ internal fun OnboardingProgressHeader(
         ) {
             repeat(4) { index ->
                 Box(
-                    Modifier.weight(1f).height(if (introStyle) 3.dp else 4.dp)
+                    Modifier.weight(1f).height(3.dp)
                         .background(
                             if (index < safeStage) DDZColor.Selected else DDZColor.SurfaceSoft,
                             RoundedCornerShape(50),
