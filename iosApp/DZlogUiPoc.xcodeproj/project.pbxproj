@@ -136,6 +136,8 @@
 			"isa" = "XCBuildConfiguration";
 			"buildSettings" = {
 				"SDKROOT" = "iphoneos";
+				"ARCHS" = "arm64";
+				"ONLY_ACTIVE_ARCH" = "YES";
 				"IPHONEOS_DEPLOYMENT_TARGET" = "15.0";
 				"SWIFT_VERSION" = "5.0";
 				"TARGETED_DEVICE_FAMILY" = "1,2";
