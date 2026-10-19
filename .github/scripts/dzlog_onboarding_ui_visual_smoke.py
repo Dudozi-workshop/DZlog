@@ -305,12 +305,12 @@ def main():
         mark("05-starter-selection-compact")
         tap_visible("DZlog 시작하기")
         # Initial setup must enter home, never force the camera.
-        root = wait_for("사용법 시작", timeout=80)
+        root = wait_for("사용법 살펴보기", timeout=80)
         if not contains(root, "나중에"):
             raise AssertionError("First-home tutorial offer missing")
         mark("06-home-tutorial-invitation")
         tap_visible("나중에")
-        if contains(wait_for("촬영 시작", timeout=60), "사용법 시작"):
+        if contains(wait_for("촬영 시작", timeout=60), "사용법 살펴보기"):
             raise AssertionError("Tutorial invitation was not dismissed")
         adb("shell", "am", "force-stop", PKG)
         adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
