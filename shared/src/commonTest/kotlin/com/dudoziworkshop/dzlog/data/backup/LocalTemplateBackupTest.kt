@@ -3,15 +3,13 @@ package com.dudoziworkshop.dzlog.data.backup
 import com.dudoziworkshop.dzlog.data.template.createSavedTableTemplate
 import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
-import org.json.JSONObject
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
+import com.dudoziworkshop.dzlog.data.json.CompatJsonObject as JSONObject
+import com.dudoziworkshop.dzlog.data.json.CompatJsonArray as JSONArray
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
-@RunWith(RobolectricTestRunner::class)
 class LocalTemplateBackupTest {
     private fun item(name: String = "현장 기록") = createSavedTableTemplate(
         name = name,
@@ -101,14 +99,14 @@ class LocalTemplateBackupTest {
     @Test fun referenceErrorsAreRejectedEvenWhenChecksumIsCorrect() {
         val item = item()
         val root = JSONObject(LocalTemplateBackupCodec.encode(listOf(item), item.id, 1000L))
-        val payload = org.json.JSONArray(root.getString("payload"))
+        val payload = JSONArray(root.getString("payload"))
         val cells = payload.getJSONObject(0).getJSONObject("template").getJSONArray("cells")
         cells.getJSONObject(0).put("rowIndex", 99)
         // Encode will run the validator before hashing, so these invalid models cannot be exported.
         val invalid = payload.toString()
         assertTrue(invalid.contains("99"))
         try {
-            LocalTemplateBackupValidator.validate(payload)
+            SharedTemplateBackupValidator.validate(payload)
             throw AssertionError("Invalid template must fail")
         } catch (expected: IllegalArgumentException) {
             assertTrue(expected.message?.isNotBlank() == true)

@@ -1,7 +1,8 @@
 package com.dudoziworkshop.dzlog.data.backup
 
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
-import java.util.UUID
+import com.dudoziworkshop.dzlog.data.platform.newTemplateId
+import com.dudoziworkshop.dzlog.data.platform.backupNowMillis
 
 data class LocalTemplateMergePreview(
     val incomingCount: Int,
@@ -41,7 +42,7 @@ object LocalTemplateBackupMerge {
         var renamed = 0
         val imported = archive.templates.map { item ->
             require(item.id !in newIds) { "백업 템플릿 ID가 중복되었습니다." }
-            val newId = generateSequence { UUID.randomUUID().toString() }.first { usedIds.add(it) }
+            val newId = generateSequence { newTemplateId() }.first { usedIds.add(it) }
             newIds[item.id] = newId
             val name = uniqueName(item.name, usedNames)
             if (name != item.name) renamed++

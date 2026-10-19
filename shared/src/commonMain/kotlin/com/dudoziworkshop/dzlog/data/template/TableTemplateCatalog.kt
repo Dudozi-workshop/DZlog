@@ -2,9 +2,10 @@ package com.dudoziworkshop.dzlog.data.template
 
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
-import org.json.JSONArray
-import org.json.JSONObject
-import java.util.UUID
+import com.dudoziworkshop.dzlog.data.json.CompatJsonArray as JSONArray
+import com.dudoziworkshop.dzlog.data.json.CompatJsonObject as JSONObject
+import com.dudoziworkshop.dzlog.data.platform.newTemplateId
+import com.dudoziworkshop.dzlog.data.platform.backupNowMillis
 
 data class SavedTableTemplate(
     val id: String,
@@ -19,8 +20,8 @@ fun createSavedTableTemplate(
     name: String,
     templateState: TableTemplateState,
     styleState: TableStyleState,
-    modifiedAt: Long = System.currentTimeMillis(),
-    id: String = UUID.randomUUID().toString(),
+    modifiedAt: Long = backupNowMillis(),
+    id: String = newTemplateId(),
 ): SavedTableTemplate = SavedTableTemplate(
     id = id,
     name = name.trim().ifBlank { "새 템플릿" },
@@ -118,5 +119,5 @@ fun sortTableTemplates(items: List<SavedTableTemplate>, sort: TableTemplateSort)
     when (sort) {
         TableTemplateSort.MODIFIED -> items.sortedWith(compareByDescending<SavedTableTemplate> { it.modifiedAt }.thenBy { it.id })
         TableTemplateSort.USED -> items.sortedWith(compareByDescending<SavedTableTemplate> { it.lastUsedAt }.thenByDescending { it.modifiedAt }.thenBy { it.id })
-        TableTemplateSort.NAME -> items.sortedWith(compareBy<SavedTableTemplate> { it.name.lowercase(java.util.Locale.ROOT) }.thenBy { it.id })
+        TableTemplateSort.NAME -> items.sortedWith(compareBy<SavedTableTemplate> { it.name.lowercase() }.thenBy { it.id })
     }

@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.data.template
 
+import com.dudoziworkshop.dzlog.data.platform.newTemplateId
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
@@ -15,8 +16,8 @@ import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TimeFormatOptions
 import com.dudoziworkshop.dzlog.domain.model.TimeSeparator
-import org.json.JSONArray
-import org.json.JSONObject
+import com.dudoziworkshop.dzlog.data.json.CompatJsonArray as JSONArray
+import com.dudoziworkshop.dzlog.data.json.CompatJsonObject as JSONObject
 
 fun tableTemplateStateFromJson(json: String): TableTemplateState? {
     return runCatching {
@@ -128,7 +129,7 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         typedValue = typedValue,
                         timeFormatOptions = timeOpts,
                         groupLevel = GroupLevel.valueOf(o.optString("groupLevel", GroupLevel.NONE.name)),
-                        cellId = o.optString("cellId", java.util.UUID.randomUUID().toString()),
+                        cellId = o.optString("cellId", newTemplateId()),
                         rowSpan = o.optInt("rowSpan", 1),
                         colSpan = o.optInt("colSpan", 1),
                         dataType = dataType,

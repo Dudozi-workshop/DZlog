@@ -5,9 +5,10 @@ import com.dudoziworkshop.dzlog.data.template.savedTableTemplatesFromJson
 import com.dudoziworkshop.dzlog.data.template.savedTableTemplatesToJson
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
-import java.security.MessageDigest
-import org.json.JSONArray
-import org.json.JSONObject
+import com.dudoziworkshop.dzlog.data.platform.backupNowMillis
+import com.dudoziworkshop.dzlog.data.platform.backupSha256
+import com.dudoziworkshop.dzlog.data.json.CompatJsonArray as JSONArray
+import com.dudoziworkshop.dzlog.data.json.CompatJsonObject as JSONObject
 
 /**
  * Portable local template archive. No photos, gallery locations, account data or
@@ -28,7 +29,7 @@ object LocalTemplateBackupCodec {
     fun encode(
         items: List<SavedTableTemplate>,
         activeTemplateId: String?,
-        createdAtMillis: Long = System.currentTimeMillis(),
+        createdAtMillis: Long = backupNowMillis(),
     ): String {
         require(items.isNotEmpty()) { "백업할 템플릿이 없습니다." }
         require(createdAtMillis >= 0L) { "잘못된 백업 시각입니다." }
@@ -45,7 +46,7 @@ object LocalTemplateBackupCodec {
             ))
         }
         val payload = savedTableTemplatesToJson(portableItems)
-        LocalTemplateBackupValidator.validate(JSONArray(payload))
+        SharedTemplateBackupValidator.validate(JSONArray(payload))
         require(activeTemplateId == null || portableItems.any { it.id == activeTemplateId }) {
             "현재 템플릿 참조가 올바르지 않습니다."
         }
@@ -57,14 +58,14 @@ object LocalTemplateBackupCodec {
             .put("payload", payload)
             .put("sha256", sha256(payload))
             .toString()
-        require(archive.toByteArray(Charsets.UTF_8).size <= MAX_ARCHIVE_BYTES) {
+        require(archive.encodeToByteArray().size <= MAX_ARCHIVE_BYTES) {
             "백업 파일이 허용 크기를 초과했습니다."
         }
         return archive
     }
 
     fun decode(json: String): LocalTemplateBackup = try {
-        require(json.toByteArray(Charsets.UTF_8).size <= MAX_ARCHIVE_BYTES) {
+        require(json.encodeToByteArray().size <= MAX_ARCHIVE_BYTES) {
             "백업 파일이 허용 크기를 초과했습니다."
         }
         val root = JSONObject(json)
@@ -87,7 +88,7 @@ object LocalTemplateBackupCodec {
             "백업 파일이 손상되었습니다."
         }
         val data = JSONArray(payload)
-        LocalTemplateBackupValidator.validate(data)
+        SharedTemplateBackupValidator.validate(data)
         val items = requireNotNull(savedTableTemplatesFromJson(payload)) {
             "템플릿을 읽을 수 없습니다."
         }
@@ -109,8 +110,5 @@ object LocalTemplateBackupCodec {
         throw IllegalArgumentException("백업 파일을 읽을 수 없습니다.", e)
     }
 
-    private fun sha256(payload: String): String =
-        MessageDigest.getInstance("SHA-256")
-            .digest(payload.toByteArray(Charsets.UTF_8))
-            .joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
+    private fun sha256(payload: String): String = backupSha256(payload)
 }

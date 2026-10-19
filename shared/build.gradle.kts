@@ -15,6 +15,9 @@ kotlin {
     jvmToolchain(21)
 
     sourceSets {
+        jvmMain.dependencies { compileOnly("org.json:json:20240303") }
+        jvmTest.dependencies { implementation("org.json:json:20240303") }
+        iosMain.dependencies { implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3") }
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
