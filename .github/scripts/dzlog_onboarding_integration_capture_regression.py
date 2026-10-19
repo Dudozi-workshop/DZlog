@@ -18,7 +18,7 @@ from dzlog_onboarding_ui_visual_smoke import (
 )
 import android16_capture_media_smoke
 import android16_rapid_shutter_smoke
-import android16_permission_return_smoke
+from android16_permission_return_smoke import press_permission_deny
 import android16_update_install_smoke
 
 
@@ -85,6 +85,65 @@ def fresh_setup():
     evidence("integration-03-home-relaunch")
 
 
+def permission_recovery_regression():
+    """Verify the mandatory permission gate, never assume revoked grants show Home."""
+    from android16_capture_media_smoke import check_both, query_media
+    before = query_media()
+    if len(before) < 12 or len(before) % 2:
+        raise AssertionError("Permission test requires completed disposable captures")
+    check_both(before, len(before) // 2)
+    snapshot = sorted((
+        r["_id"], r["_display_name"], r["relative_path"], r["_size"],
+        r["mime_type"], r["is_pending"],
+    ) for r in before)
+
+    # Revoking camera must show the existing required-permission recovery gate,
+    # not the Home screen. This gate protects the user instead of crashing.
+    adb("shell", "pm", "revoke", PKG, "android.permission.CAMERA")
+    adb("shell", "am", "force-stop", PKG)
+    adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
+    wait_for("필요한 권한을 확인해 주세요", timeout=65)
+    if not contains(hierarchy(), "카메라 권한 설정"):
+        raise AssertionError("Camera permission-recovery action absent")
+    evidence("integration-28-camera-permission-recovery")
+    tap_visible("카메라 권한 설정")
+    press_permission_deny()
+    wait_for("휴대폰 권한 설정 열기", timeout=50)
+    evidence("integration-29-camera-prompt-denied")
+
+    # Simulate enabling camera again in system settings on this test emulator.
+    adb("shell", "pm", "grant", PKG, "android.permission.CAMERA")
+    adb("shell", "am", "force-stop", PKG)
+    adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
+    wait_for("촬영 시작", timeout=65)
+    evidence("integration-30-camera-regranted-home")
+
+    # The current product requires FULL photo access. Its expected behavior on
+    # revocation is the recovery screen, not unrestricted gallery navigation.
+    adb("shell", "pm", "revoke", PKG, "android.permission.READ_MEDIA_IMAGES")
+    adb("shell", "am", "force-stop", PKG)
+    adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
+    wait_for("필요한 권한을 확인해 주세요", timeout=65)
+    if not contains(hierarchy(), "사진 접근 권한 설정"):
+        raise AssertionError("Photo-access permission recovery action absent")
+    evidence("integration-31-photo-permission-recovery")
+    adb("shell", "pm", "grant", PKG, "android.permission.READ_MEDIA_IMAGES")
+    adb("shell", "am", "force-stop", PKG)
+    adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
+    wait_for("촬영 시작", timeout=65)
+    evidence("integration-32-photo-regranted-home")
+
+    after = query_media()
+    check_both(after, len(before) // 2)
+    final = sorted((
+        r["_id"], r["_display_name"], r["relative_path"], r["_size"],
+        r["mime_type"], r["is_pending"],
+    ) for r in after)
+    if final != snapshot:
+        raise AssertionError("Permission recovery modified persisted photo metadata")
+    print("PASS: permission deny/regrant, guarded recovery, Home return and photos preserved", flush=True)
+
+
 def main():
     fresh_setup()
     print("CHECK 1: approved onboarding -> home -> relaunch PASS", flush=True)
@@ -92,8 +151,8 @@ def main():
     print("CHECK 2: 5 real shutters / 10 original+result JPEGs PASS", flush=True)
     android16_rapid_shutter_smoke.main()
     print("CHECK 3: burst / capture gate recovery PASS", flush=True)
-    android16_permission_return_smoke.main()
-    print("CHECK 4: permission deny/regrant and media retained PASS", flush=True)
+    permission_recovery_regression()
+    print("CHECK 4: recovery gates, permission regrant and media retained PASS", flush=True)
     android16_update_install_smoke.main()
     print("CHECK 5: update-install retains original+result JPEGs, counters PASS", flush=True)
     evidence("integration-05-final")
