@@ -20,10 +20,17 @@ internal fun cameraGuideScenes(pageId: String): List<String> = when (pageId) {
     "lock" -> listOf("rotation", "lock")
     "quick" -> listOf("quick-button")
     "quick-values" -> listOf("quick-text", "quick-number", "quick-date", "quick-phrase")
+    "quick-text" -> listOf("quick-text")
+    "quick-number" -> listOf("quick-number")
+    "quick-date" -> listOf("quick-date")
+    "quick-phrase" -> listOf("quick-phrase")
+    "capture-confirmation" -> listOf("capture-confirmation")
+    "sound" -> listOf("feedback")
+    "haptic" -> listOf("feedback")
     "template" -> listOf("template-name", "template")
     "ratio" -> listOf("entry", "ratio")
-    "quality" -> listOf("quality", "capture-confirmation")
-    "controls" -> listOf("feedback", "controls")
+    "quality" -> listOf("quality")
+    "controls" -> listOf("controls")
     "filename" -> listOf("top", "filename")
     else -> listOf(pageId)
 }
@@ -58,14 +65,15 @@ internal fun cameraGuideSavedPage(sessionId: String, pageId: String): String = w
     "table" -> when {
         pageId == "move" -> "size"
         pageId == "rotation" -> "lock"
-        pageId in setOf("quick-text", "quick-number", "quick-date", "quick-phrase", "quick-time") -> "quick-values"
+        pageId in setOf("quick-text", "quick-number", "quick-date", "quick-phrase") -> pageId
+        pageId == "quick-time" -> "quick-date"
         pageId.startsWith("quick-") -> pageId
         else -> pageId
     }
     "settings" -> when (pageId) {
         "entry" -> "ratio"
-        "capture-confirmation" -> "quality"
-        "feedback" -> "controls"
+        "capture-confirmation" -> "capture-confirmation"
+        "feedback" -> "sound"
         "path", "counter" -> "filename"
         else -> pageId
     }
