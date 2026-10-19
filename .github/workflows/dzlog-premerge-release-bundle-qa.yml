@@ -1,0 +1,52 @@
+name: DZlog Premerge Unsigned Release Build QA
+
+on:
+  push:
+    branches:
+      - qa/onboarding-premerge-20261020
+    paths:
+      - '.github/workflows/dzlog-premerge-release-bundle-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzlog-premerge-release-bundle-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unsigned-bundle-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Android SDK API 36
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -1)"
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Verify intended production identity and release version
+        run: |
+          set -euo pipefail
+          grep -F 'applicationId = "com.dudoziworkshop.dzlog"' app/build.gradle.kts
+          grep -F 'versionName = "1.0.0"' app/build.gradle.kts
+          grep -F 'versionCode = 3' app/build.gradle.kts
+          grep -F 'targetSdk = 36' app/build.gradle.kts
+      - name: Build unsigned Android App Bundle without keys
+        run: bash ./gradlew --no-daemon :app:bundleRelease
+      - name: Verify release AAB payload exists
+        run: |
+          set -euo pipefail
+          AAB=app/build/outputs/bundle/release/app-release.aab
+          test -s "$AAB"
+          unzip -t "$AAB" | tail -1
+          sha256sum "$AAB"
+          echo "QA only: unsigned bundle verified for buildability."
+          echo "DO NOT UPLOAD this unsigned AAB to Google Play."
+      # Intentionally do not upload the AAB or access production signing keys.
