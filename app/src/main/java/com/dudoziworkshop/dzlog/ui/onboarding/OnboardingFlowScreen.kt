@@ -154,7 +154,7 @@ internal fun OnboardingFlowScreen(
             }
             DDZButton(
                 text = when {
-                    step == 1 -> if (readOnly) "다음" else "시작하기"
+                    step == 1 -> "시작하기"
                     introOnly && step == 2 -> "사용 준비하기"
                     introOnly -> "다음"
                     step == 3 -> if (readOnly) "도움말 닫기" else "DZlog 시작하기"
@@ -172,16 +172,9 @@ internal fun OnboardingFlowScreen(
                 enabled = !busy, minHeight = 56.dp,
                 shape = RoundedCornerShape(15.dp),
                 textStyleOverride = androidx.compose.ui.text.TextStyle(
-                    fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                    fontSize = OnboardingTextStyles.Button.fontSize, fontWeight = FontWeight.SemiBold,
                 ),
             )
-            // Page four has one clear action; Settings replay retains a close escape.
-            if (step == 1 && readOnly) {
-                DDZButton(
-                    text = "닫기", onClick = onClose,
-                    enabled = !busy, style = DDZButtonStyle.Text,
-                )
-            }
             if (busy) CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
         }
     }
