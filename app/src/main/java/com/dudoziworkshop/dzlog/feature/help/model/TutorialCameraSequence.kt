@@ -25,8 +25,7 @@ internal fun cameraGuideScenes(pageId: String): List<String> = when (pageId) {
     "quick-date" -> listOf("quick-date")
     "quick-phrase" -> listOf("quick-phrase")
     "capture-confirmation" -> listOf("capture-confirmation")
-    "sound" -> listOf("sound")
-    "haptic" -> listOf("haptic")
+    "feedback" -> listOf("sound", "haptic")
     "template" -> listOf("template-name", "template")
     "ratio" -> listOf("entry", "ratio")
     "quality" -> listOf("quality")
@@ -73,7 +72,8 @@ internal fun cameraGuideSavedPage(sessionId: String, pageId: String): String = w
     "settings" -> when (pageId) {
         "entry" -> "ratio"
         "capture-confirmation" -> "capture-confirmation"
-        "feedback" -> "sound"
+        "sound", "haptic" -> "feedback"
+        "feedback" -> "feedback"
         "path", "counter" -> "filename"
         else -> pageId
     }
