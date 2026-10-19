@@ -117,7 +117,7 @@ def wait_for_folder_grant_or_starter(timeout=90):
     affirmative = {"allow", "허용", "액세스 허용", "접근 허용"}
     while time.monotonic() < deadline:
         root = hierarchy()
-        if contains(root, "어떤 기록을 시작할까요?"):
+        if contains(root, "시작할까요?"):
             return root
         if contains(root, "선택한 위치가 달라요"):
             raise AssertionError("App rejected the selected SAF folder")
@@ -316,7 +316,7 @@ def main():
         adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
         wait_for("촬영 시작", timeout=75)
         root = mark("07-relaunch-home")
-        if contains(root, "사진에 기록을 더해,") or contains(root, "어떤 기록을 시작할까요?"):
+        if contains(root, "사진에 기록을 더해,") or contains(root, "시작할까요?"):
             raise AssertionError("Onboarding repeated after completing setup")
         # Use an ACTUAL camera screen capture for the approved marketing mockup.
         # This only visits the camera on the disposable emulator. No shutter,
