@@ -77,7 +77,7 @@ internal fun HomeTutorialInvitationDialog(
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    "카메라부터 앨범, 기록표와 저장 설정까지\\n" +
+                    "카메라부터 앨범, 기록표와 저장 설정까지\n" +
                         "실제 화면에서 주요 기능을 하나씩 살펴볼 수 있어요.",
                     fontSize = 14.sp,
                     lineHeight = 21.sp,
