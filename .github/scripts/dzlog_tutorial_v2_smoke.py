@@ -91,19 +91,18 @@ def main():
         mark(evidence)
         if any(abs(a - b) > 4 for a, b in zip(guide_button_y(), bottom_buttons)):
             raise AssertionError("Top settings guide controls shifted unexpectedly")
-    tap("다음", "화면 터치 초점")
+    tap("다음", "촬영도구 메뉴")
     tap("이전", "소리와 조작")
     back_to_index()
 
-    open_session("카메라", "촬영 화면·도구", "화면 터치 초점")
+    open_session("카메라", "촬영 화면·도구", "촬영도구 메뉴")
     top_buttons = guide_button_y()
-    for title, evidence in (("배율 조절", "tutorial-02a-camera-zoom"),
-                            ("촬영도구 메뉴", "tutorial-02-camera-tools"),
-                            ("초점 도구", "tutorial-02b-camera-focus"),
+    for title, evidence in (("초점", "tutorial-02b-camera-focus"),
                             ("플래시", "tutorial-02c-camera-flash"),
                             ("격자", "tutorial-02d-camera-grid"),
                             ("표 표시", "tutorial-02e-camera-table"),
-                            ("보조 셔터", "tutorial-02f-camera-assist")):
+                            ("보조 셔터", "tutorial-02f-camera-assist"),
+                            ("배율 조절", "tutorial-02a-camera-zoom")):
         tap("다음", title)
         time.sleep(3)
         mark(evidence)
