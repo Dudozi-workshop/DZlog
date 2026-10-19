@@ -26,8 +26,8 @@ extensions.configure<ApplicationExtension> {
         applicationId = "com.dudoziworkshop.dzlog"
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.0.0"
+        versionCode = 3
+        versionName = "1.0.0"
         manifestPlaceholders["dzlogAppLabel"] = "@string/app_name"
     }
 

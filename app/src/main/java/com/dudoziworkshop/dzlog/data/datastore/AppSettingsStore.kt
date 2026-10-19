@@ -39,6 +39,9 @@ data class AppSettings(
     val hapticEnabled: Boolean,
     val captureHapticEnabled: Boolean = true,
     val captureSoundEnabled: Boolean = true,
+    val captureSoundChoice: CaptureSoundChoice = CaptureSoundChoice.SYSTEM,
+    val captureSoundVolume: Int = 70,
+    val captureVibrationStrength: CaptureVibrationStrength = CaptureVibrationStrength.MEDIUM,
     val volumeKeyAction: VolumeKeyAction = VolumeKeyAction.NONE,
     val blankWarningEnabled: Boolean,
     val assistShutterEnabled: Boolean = false,
@@ -77,6 +80,9 @@ object AppSettingsStore {
     private val quickResultsGridColumnsKey = intPreferencesKey("quick_results_grid_columns_v1")
     private val showGalleryCounterBadgesKey = booleanPreferencesKey("show_gallery_counter_badges_v1")
     private val undoSavePathWarningKey = booleanPreferencesKey("undo_save_path_warning_enabled_v1")
+    private val captureSoundChoiceKey = intPreferencesKey("capture_sound_choice_v1")
+    private val captureSoundVolumeKey = intPreferencesKey("capture_sound_volume_v1")
+    private val captureVibrationStrengthKey = intPreferencesKey("capture_vibration_strength_v1")
 
     fun flow(context: Context): Flow<AppSettings> =
         context.dataStore.data.map { prefs ->
@@ -96,6 +102,9 @@ object AppSettingsStore {
                 hapticEnabled = prefs[KEY_HAPTIC_ENABLED] ?: true,
                 captureHapticEnabled = prefs[KEY_CAPTURE_HAPTIC_ENABLED] ?: true,
                 captureSoundEnabled = prefs[KEY_CAPTURE_SOUND_ENABLED] ?: true,
+                captureSoundChoice = CaptureSoundChoice.fromStored(prefs[captureSoundChoiceKey] ?: 0),
+                captureSoundVolume = (prefs[captureSoundVolumeKey] ?: 70).coerceIn(0, 100),
+                captureVibrationStrength = CaptureVibrationStrength.fromStored(prefs[captureVibrationStrengthKey] ?: 2),
                 volumeKeyAction = VolumeKeyAction.from(prefs[KEY_VOLUME_KEY_ACTION] ?: VolumeKeyAction.NONE.v),
                 blankWarningEnabled = prefs[KEY_BLANK_WARNING_ENABLED] ?: true,
                 assistShutterEnabled = prefs[KEY_ASSIST_SHUTTER_ENABLED] ?: false,
@@ -173,6 +182,25 @@ object AppSettingsStore {
 
     suspend fun setCaptureSoundEnabled(context: Context, enabled: Boolean) {
         context.dataStore.edit { it[KEY_CAPTURE_SOUND_ENABLED] = enabled }
+    }
+
+    suspend fun setCaptureSoundChoice(context: Context, choice: CaptureSoundChoice) {
+        require(choice.available) { "Signature sound asset is not yet available" }
+        context.dataStore.edit { it[captureSoundChoiceKey] = choice.storedId }
+    }
+
+    suspend fun setCaptureSoundVolume(context: Context, volume: Int) {
+        context.dataStore.edit { it[captureSoundVolumeKey] = volume.coerceIn(0, 100) }
+    }
+
+    suspend fun setCaptureVibrationStrength(context: Context, strength: CaptureVibrationStrength) {
+        context.dataStore.edit {
+            if (strength != CaptureVibrationStrength.OFF) {
+                it[captureVibrationStrengthKey] = strength.storedId
+            }
+            // Preserve prior on/off toggle and its behavior across upgrades.
+            it[KEY_CAPTURE_HAPTIC_ENABLED] = strength != CaptureVibrationStrength.OFF
+        }
     }
 
     suspend fun setVolumeKeyAction(context: Context, action: VolumeKeyAction) {
