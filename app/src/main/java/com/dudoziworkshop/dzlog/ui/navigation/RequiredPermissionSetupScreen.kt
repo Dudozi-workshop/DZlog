@@ -129,15 +129,13 @@ internal fun RequiredPermissionSetupScreen(
                     stepNumber = 3,
                 )
             }
-            // Show permission purpose and next action BEFORE any request.
-            if (true) {
-                CurrentSetupGuide(
-                    currentStep,
-                    state.photos,
-                    cameraRequestAttempted,
-                    photoRequestAttempted,
-                )
-            }
+            // Display the purpose and next action before the permission dialog.
+            CurrentSetupGuide(
+                currentStep,
+                state.photos,
+                cameraRequestAttempted,
+                photoRequestAttempted,
+            )
             if (onboarding) OnboardingPermissionArtwork()
             if (!notice.isNullOrBlank()) {
                 Text(notice, style = typography.Body, color = colors.Destructive)
