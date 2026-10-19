@@ -312,16 +312,22 @@ def main():
         if not is_fully_on_screen(root, "사용법 살펴보기") or not is_fully_on_screen(root, "나중에"):
             raise AssertionError("Tutorial modal actions clipped at 140% font scale")
         mark("06-home-tutorial-invitation")
-        # Collect both sizes on the SAME live modal without changing app data.
+        # Relaunch on each font scale so Compose reads the actual new
+        # configuration; changing the system setting alone is not reliable.
+        # The pending invitation stays visible until explicitly answered.
         adb("shell", "settings", "put", "system", "font_scale", "1.0")
-        time.sleep(2)
-        normal = wait_for("사용법 살펴보기", timeout=40)
+        adb("shell", "am", "force-stop", PKG)
+        adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
+        normal = wait_for("사용법 살펴보기", timeout=75)
         if not is_fully_on_screen(normal, "사용법 살펴보기") or not is_fully_on_screen(normal, "나중에"):
             raise AssertionError("Tutorial modal actions clipped at 100% font scale")
         mark("06-home-tutorial-invitation-normal-font")
         adb("shell", "settings", "put", "system", "font_scale", "1.4")
-        time.sleep(2)
-        wait_for("사용법 살펴보기", timeout=40)
+        adb("shell", "am", "force-stop", PKG)
+        adb("shell", "am", "start", "-W", "-n", ACTIVITY, timeout=90)
+        large = wait_for("사용법 살펴보기", timeout=75)
+        if not is_fully_on_screen(large, "사용법 살펴보기") or not is_fully_on_screen(large, "나중에"):
+            raise AssertionError("Tutorial modal actions clipped after 140% relaunch")
         tap_visible("나중에")
         if contains(wait_for("촬영 시작", timeout=60), "사용법 살펴보기"):
             raise AssertionError("Tutorial invitation was not dismissed")
