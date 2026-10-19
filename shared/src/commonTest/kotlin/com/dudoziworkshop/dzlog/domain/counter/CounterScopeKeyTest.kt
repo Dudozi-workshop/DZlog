@@ -2,10 +2,10 @@ package com.dudoziworkshop.dzlog.domain.counter
 
 import com.dudoziworkshop.dzlog.domain.counter.policy.CounterScopeSnapshot
 import com.dudoziworkshop.dzlog.domain.counter.policy.isNewCounterScope
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class CounterScopeKeyTest {
 

@@ -1,4 +1,4 @@
-name: DZlog Shared Core - iOS Compile
+name: DZlog Shared Core - iOS Compile and Tests
 
 on:
   pull_request:
@@ -29,7 +29,17 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Compile shared core for iPhone and Apple Silicon simulator
+      - name: Compile shared core and run Apple Silicon simulator tests
         run: |
           chmod +x ./gradlew
-          ./gradlew -PdzlogSharedOnly=true :shared:compileKotlinIosArm64 :shared:compileTestKotlinIosArm64 :shared:compileKotlinIosSimulatorArm64 :shared:compileTestKotlinIosSimulatorArm64 --stacktrace
+          ./gradlew -PdzlogSharedOnly=true :shared:compileKotlinIosArm64 :shared:compileTestKotlinIosArm64 :shared:compileKotlinIosSimulatorArm64 :shared:compileTestKotlinIosSimulatorArm64 :shared:iosSimulatorArm64Test --stacktrace
+      - name: Preserve native test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-shared-ios-test-reports
+          path: |
+            shared/build/test-results/iosSimulatorArm64Test/**
+            shared/build/reports/tests/iosSimulatorArm64Test/**
+          if-no-files-found: warn
+          retention-days: 7

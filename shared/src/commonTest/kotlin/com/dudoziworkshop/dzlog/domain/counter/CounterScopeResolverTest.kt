@@ -3,8 +3,8 @@ package com.dudoziworkshop.dzlog.domain.counter
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.Test
 
 class CounterScopeResolverTest {
 

@@ -1,7 +1,7 @@
 package com.dudoziworkshop.dzlog.domain.table
 
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
-import com.dudoziworkshop.dzlog.domain.model.CellValue
+import com.dudoziworkshop.dzlog.domain.counter.planCounterNumber
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import java.text.SimpleDateFormat
@@ -38,15 +38,9 @@ class TableResolver {
         val counterCell = ordered.firstOrNull { it.dataType == TableCellDataType.COUNTER }
         // COUNTER 표기 토글은 표현 레벨이며,
         // 카운터 계산은 stream SSOT(scopeNextCounter) override가 있으면 그것을 우선한다.
-        val currentCounter = counterSeedOverride?.coerceAtLeast(1)
-            ?: (parseCounterSeed(counterCell) ?: 1)
-        val digits = config.counterDigits.coerceIn(0, 6)
-        val counterResolved = if (digits == 0) {
-            currentCounter.toString()
-        } else {
-            currentCounter.toString().padStart(digits, '0')
-        }
-        val nextCounter = currentCounter + 1
+        val number = planCounterNumber(counterCell, counterSeedOverride, config.counterDigits)
+        val counterResolved = number.display
+        val nextCounter = number.next
         // NOTE: DATE/TIME은 셀의 원본 텍스트(rawText)를 신뢰하지 않는다.
         //       항상 captureNow 기준으로 포맷하여 표시/저장한다.
 
@@ -169,9 +163,5 @@ class TableResolver {
         }
     }
 
-    private fun parseCounterSeed(cell: TableCellState?): Int? {
-        if (cell == null) return null
-        val seed = (cell.typedValue as? CellValue.CounterSeed)?.start
-        return seed?.takeIf { it >= 0 }
-    }
+
 }

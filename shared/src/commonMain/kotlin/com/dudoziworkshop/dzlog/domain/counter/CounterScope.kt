@@ -29,7 +29,7 @@ fun buildCounterScope(
         val trimmed = path.trim()
         if (trimmed.isBlank()) "Pictures/DZlog/" else if (trimmed.endsWith('/')) trimmed else "$trimmed/"
     }
-    val streamPrefix = CounterManager.computeCounterStreamPrefix(
+    val streamPrefix = CounterRules.computeCounterStreamPrefix(
         resolvedCells = resolvedCells,
         fnDelim = fnDelim,
         fileNameSlots = fileNameSlots,

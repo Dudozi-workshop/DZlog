@@ -16,8 +16,9 @@ internal object RotatingFilenamePolicy {
                     resolveRotatingFileNameCell(cells)
                 else -> null
             }?.takeIf { it.type == TableCellDataType.ROTATING_TEXT } ?: return@mapNotNull null
-            when (cell.rotatingPhraseSet?.counterProgressMode) {
-                RotatingCounterProgressMode.CONTINUOUS -> "continuous:${cell.rotatingPhraseSet.id}"
+            val phraseSet = cell.rotatingPhraseSet
+            when (phraseSet?.counterProgressMode) {
+                RotatingCounterProgressMode.CONTINUOUS -> "continuous:${phraseSet.id}"
                 else -> "per_phrase:${resolveRotatingCounterStreamIdentity(cell.resolvedText)}"
             }
         }
