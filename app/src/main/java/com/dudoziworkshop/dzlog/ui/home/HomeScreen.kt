@@ -214,41 +214,7 @@ fun HomeScreen(
                         )
                     }
 
-                    if (showTutorialInvitation) {
-                        androidx.compose.material3.Surface(
-                            color = DDZColor.SelectedSoft,
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.fillMaxWidth()
-                                .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset),
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Text("DZlog 사용법을 함께 알아볼까요?",
-                                    style = DDZTypography.SectionTitle,
-                                    color = DDZColor.TextPrimary)
-                                Text("각 기능을 실제 화면에서 차근차근 살펴볼 수 있어요.",
-                                    style = DDZTypography.Caption, color = DDZColor.TextSecondary)
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    DDZButton(
-                                        text = "사용법 시작",
-                                        onClick = onTutorialStart,
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                    DDZButton(
-                                        text = "나중에",
-                                        onClick = onTutorialLater,
-                                        modifier = Modifier.weight(1f),
-                                        style = DDZButtonStyle.Text,
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(sectionGap))
-                    } else {
-                        Spacer(Modifier.height(sectionGap))
-                    }
+                    Spacer(Modifier.height(sectionGap))
 
                     Row(
                         modifier = Modifier
@@ -277,6 +243,10 @@ fun HomeScreen(
             )
         }
     }
+    if (showTutorialInvitation) {
+        HomeTutorialInvitationDialog(onStart = onTutorialStart, onLater = onTutorialLater)
+    }
+
     if (showSaveInfo) {
         HomeSaveInfoSheet(
             fileName = uiState.nextFilenamePreview,
