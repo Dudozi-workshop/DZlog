@@ -140,7 +140,7 @@ def wait_for_folder_grant_or_starter(timeout=90):
 def folder_setup():
     # No permission dialogs are bypassed: Android permissions were granted
     # expressly within this disposable emulator before the app was launched.
-    root = wait_for("필요한 권한만 설정하고,", timeout=60)
+    root = wait_for("필요한 권한을", timeout=60)
     if not contains(root, "저장 폴더"):
         raise AssertionError("All required setup items should be present")
     if not is_fully_on_screen(root, "저장 폴더 연결하기"):
@@ -258,7 +258,7 @@ def main():
         # scale. Compose may keep the activity's previous fontScale after
         # a settings change, making a mid-activity check a false failure.
         tap_visible("사용 준비하기")
-        wait_for("필요한 권한만 설정하고,", timeout=75)
+        wait_for("필요한 권한을", timeout=75)
         mark("00-permissions-normal-font")
         folder_setup()
         choose("업무·현장")
