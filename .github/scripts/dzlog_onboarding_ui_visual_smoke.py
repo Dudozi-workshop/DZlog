@@ -143,10 +143,10 @@ def folder_setup():
     root = wait_for("필요한 권한만 설정하고,", timeout=60)
     if not contains(root, "저장 폴더"):
         raise AssertionError("All required setup items should be present")
-    if not is_fully_on_screen(root, "권한 설정하기"):
+    if not is_fully_on_screen(root, "저장 폴더 연결하기"):
         raise AssertionError("Setup primary button clipped at compact size")
     mark("03-permissions")
-    tap_visible("권한 설정하기")
+    tap_visible("저장 폴더 연결하기")
     picker(timeout=90)
     # DocumentsUI may initially report its package before the folder list
     # has rendered. Always navigate using a fresh, settled hierarchy.
