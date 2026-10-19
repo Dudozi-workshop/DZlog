@@ -49,6 +49,6 @@ class M1BPreExtractionTableContractTest {
             counterSeedOverride = 12,
         )
         assertEquals("0012", plan.resolvedCells.single().resolvedText)
-        assertEquals("13", plan.patch.cellUpdates["n"])
+        assertEquals("13", plan.patch.updatesByCellId["n"])
     }
 }
