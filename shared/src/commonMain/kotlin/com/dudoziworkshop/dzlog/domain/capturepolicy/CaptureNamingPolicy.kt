@@ -9,7 +9,7 @@ import com.dudoziworkshop.dzlog.domain.naming.buildCounterScanPrefix
 import com.dudoziworkshop.dzlog.domain.naming.buildFileName
 import com.dudoziworkshop.dzlog.domain.naming.buildSavePath
 import com.dudoziworkshop.dzlog.domain.naming.resolveFileNameScopeTokensFromDrafts
-import java.util.Date
+import com.dudoziworkshop.dzlog.domain.time.CaptureTime
 
 /**
  * "카운터 · 저장경로 · 파일명"을 한 번에 결정하는 정책 진입점.
@@ -18,9 +18,9 @@ import java.util.Date
  * - 기존 로직을 호출해 결과를 산출할 수 있게 구현함.
  * - 아직 UI/Repository에서 실제 호출은 하지 않는다(동작 불변).
  */
-internal object CaptureNamingPolicy {
+object CaptureNamingPolicy {
 
-    internal data class Result(
+    data class Result(
         val counterScope: CounterScope,
         val scanPrefix: String,
         val relativePath: String,
@@ -35,13 +35,13 @@ internal object CaptureNamingPolicy {
      *   NamePathBuilders를 직접 호출하지 않고 정책 파일만 참조하도록 만든다.
      * - draft 기반 공용 builder(buildFileName)를 호출해 모든 화면과 동일 규칙을 사용한다.
      */
-    internal fun buildDisplayNameForCounter(
+    fun buildDisplayNameForCounter(
         resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>,
         fileNameSlotDrafts: List<com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft?>,
         fnDelim: String,
         counterDigits: Int,
         usedCounter: Int?,
-        now: Date,
+        now: CaptureTime,
         dateFormat: String,
         timeFormat: String,
     ): String {
@@ -61,7 +61,7 @@ internal object CaptureNamingPolicy {
     /**
      * 촬영 시 필요한 naming/path를 한 번에 산출한다. (카운터 값은 호출부가 주입)
      */
-    internal fun buildForCaptureWithCounter(
+    fun buildForCaptureWithCounter(
         captureContext: CaptureContext,
         usedCounter: Int?
     ): Result {
@@ -139,7 +139,7 @@ internal object CaptureNamingPolicy {
      * - fnDelim 기준 마지막 토큰을 카운터로 간주
      * - counterDigits > 0 이면 자리수 검증 수행
      */
-    internal fun parseUsedCounterFromDisplayName(
+    fun parseUsedCounterFromDisplayName(
         displayName: String,
         fnDelim: String,
         counterDigits: Int

@@ -4,11 +4,9 @@ import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.counter.planCounterNumber
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
-import com.dudoziworkshop.dzlog.domain.time.asCaptureTime
 import com.dudoziworkshop.dzlog.domain.time.resolveCaptureDate
 import com.dudoziworkshop.dzlog.domain.time.resolveCaptureMinute
-import java.util.Date
-import java.util.Locale
+import com.dudoziworkshop.dzlog.domain.time.CaptureTime
 
 /**
  * Fixed Contract:
@@ -16,18 +14,17 @@ import java.util.Locale
  * - 셀 타입 분기 / COUNTER 증가 판단 / DATE·TIME 자동 적용 / 빈값 처리 / 패딩
  * - Plan/Commit 분리: plan 단계에서는 상태 변경 없음, patch는 저장 성공 시에만 커밋
  */
-class TableResolver {
+class TableValueResolver {
 
     data class Config(
         val counterDigits: Int,
         val dateFormat: String,
-        val timeFormat: String,
-        val locale: Locale = Locale.getDefault()
+        val timeFormat: String
     )
 
     fun plan(
         cells: List<TableCellState>,
-        captureNow: Date,
+        captureNow: CaptureTime,
         config: Config,
         counterSeedOverride: Int? = null,
         selectedPhraseTextByCellId: Map<String, String> = emptyMap(),
@@ -72,7 +69,7 @@ class TableResolver {
     private fun resolveCell(
         cell: TableCellState,
         counterResolved: String,
-        captureNow: Date,
+        captureNow: CaptureTime,
         config: Config,
         selectedPhraseTextByCellId: Map<String, String>,
     ): ResolvedCell {
@@ -112,7 +109,7 @@ class TableResolver {
             TableCellDataType.DATE -> {
                 // DATE는 항상 현재(captureNow) 기준으로 표시한다.
                 val value = resolveCaptureDate(
-                    captureNow.asCaptureTime(config.locale),
+                    captureNow,
                     cell.formatPattern.ifBlank { config.dateFormat },
                 )
                 val resolved = value.display
@@ -129,7 +126,7 @@ class TableResolver {
 
             TableCellDataType.TIME -> {
                 // TIME 정책: 파일명/저장경로/카운터 스코프 모두 분 단위 HHmm만 사용한다.
-                val value = resolveCaptureMinute(captureNow.asCaptureTime(config.locale))
+                val value = resolveCaptureMinute(captureNow)
                 val resolved = value.display
                 val scopeToken = value.scopeToken
                 ResolvedCell(

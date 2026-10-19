@@ -11,12 +11,12 @@ import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
 import com.dudoziworkshop.dzlog.domain.table.ResolvePlan
-import com.dudoziworkshop.dzlog.domain.table.TableResolver
-import java.util.Date
+import com.dudoziworkshop.dzlog.domain.table.TableValueResolver
+import com.dudoziworkshop.dzlog.domain.time.CaptureTime
 
-internal data class PreviewInput(
+data class PreviewInput(
     val templateState: TableTemplateState,
-    val captureNow: Date,
+    val captureNow: CaptureTime,
     val counterDigits: Int,
     val dateFormat: String,
     val timeFormat: String,
@@ -30,9 +30,9 @@ internal data class PreviewInput(
     val selectedPhraseTextByCellIdOverride: Map<String, String>? = null,
 )
 
-internal data class CaptureScopeInput(
+data class CaptureScopeInput(
     val templateState: TableTemplateState,
-    val captureNow: Date,
+    val captureNow: CaptureTime,
     val counterDigits: Int,
     val dateFormat: String,
     val timeFormat: String,
@@ -44,9 +44,9 @@ internal data class CaptureScopeInput(
     val selectedPhraseTextByCellIdOverride: Map<String, String>? = null,
 )
 
-internal data class FinalCapturePreviewInput(
+data class FinalCapturePreviewInput(
     val templateState: TableTemplateState,
-    val captureNow: Date,
+    val captureNow: CaptureTime,
     val counterDigits: Int,
     val dateFormat: String,
     val timeFormat: String,
@@ -58,7 +58,7 @@ internal data class FinalCapturePreviewInput(
     val phraseProgressCursor: Int,
 )
 
-internal data class CaptureScopeState(
+data class CaptureScopeState(
     val effectiveCells: List<TableCellState>,
     val selectedPhraseTextByCellId: Map<String, String>,
     val plan: ResolvePlan,
@@ -70,7 +70,7 @@ internal data class CaptureScopeState(
     val relativePathPreview: String,
 )
 
-internal data class FinalCapturePreview(
+data class FinalCapturePreview(
     val resolvedCells: List<com.dudoziworkshop.dzlog.domain.table.ResolvedCell>,
     val tablePatch: com.dudoziworkshop.dzlog.domain.table.TablePatch,
     val displayName: String,
@@ -80,7 +80,7 @@ internal data class FinalCapturePreview(
     val relativePathPreview: String,
 )
 
-internal data class PreviewState(
+data class PreviewState(
     val selectedPhraseTextByCellId: Map<String, String>,
     val plan: ResolvePlan,
     val scopeValues: CounterScopeResolver.Result,
@@ -90,9 +90,9 @@ internal data class PreviewState(
 /**
  * 화면별 Preview 계산 경로를 단일화하기 위한 공용 state builder.
  */
-internal fun buildPreview(
+fun buildPreview(
     input: PreviewInput,
-    tableResolver: TableResolver = TableResolver(),
+    tableResolver: TableValueResolver = TableValueResolver(),
 ): PreviewState {
     val scopeState = buildScope(
         input = CaptureScopeInput(
@@ -116,7 +116,7 @@ internal fun buildPreview(
         tableResolver.plan(
             cells = scopeState.effectiveCells,
             captureNow = input.captureNow,
-            config = TableResolver.Config(
+            config = TableValueResolver.Config(
                 counterDigits = input.counterDigits,
                 dateFormat = input.dateFormat,
                 timeFormat = input.timeFormat,
@@ -156,9 +156,9 @@ internal fun buildPreview(
     )
 }
 
-internal fun buildScope(
+fun buildScope(
     input: CaptureScopeInput,
-    tableResolver: TableResolver = TableResolver(),
+    tableResolver: TableValueResolver = TableValueResolver(),
 ): CaptureScopeState {
     val effectiveCells = input.overrideCells ?: input.templateState.cells
     val selectedPhraseTextByCellId = input.selectedPhraseTextByCellIdOverride ?: PhraseResolver.resolveSelectedTextByCellId(
@@ -171,7 +171,7 @@ internal fun buildScope(
     val plan = tableResolver.plan(
         cells = effectiveCells,
         captureNow = input.captureNow,
-        config = TableResolver.Config(
+        config = TableValueResolver.Config(
             counterDigits = input.counterDigits,
             dateFormat = input.dateFormat,
             timeFormat = input.timeFormat,
@@ -221,17 +221,17 @@ internal fun buildScope(
     )
 }
 
-internal fun buildCapturePreview(
+fun buildCapturePreview(
     scopeState: CaptureScopeState,
     input: FinalCapturePreviewInput,
-    tableResolver: TableResolver = TableResolver(),
+    tableResolver: TableValueResolver = TableValueResolver(),
 ): FinalCapturePreview {
     // 핵심 정책: post-sync final preview는 synced counter를 반영한 final plan을 다시 계산한다.
     // 이로써 displayName / resolvedCells / tablePatch가 같은 기준 counter를 사용한다.
     val finalPlan = tableResolver.plan(
         cells = scopeState.effectiveCells,
         captureNow = input.captureNow,
-        config = TableResolver.Config(
+        config = TableValueResolver.Config(
             counterDigits = input.counterDigits,
             dateFormat = input.dateFormat,
             timeFormat = input.timeFormat,

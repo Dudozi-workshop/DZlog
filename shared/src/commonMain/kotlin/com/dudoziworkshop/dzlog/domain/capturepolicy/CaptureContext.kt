@@ -5,7 +5,7 @@ import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
-import java.util.Date
+import com.dudoziworkshop.dzlog.domain.time.CaptureTime
 
 /**
  * Capture-time context snapshot.
@@ -18,9 +18,9 @@ import java.util.Date
  * - 카운터 숫자 결정권은 정책(CaptureCounterPolicy)에만 있어야 함
  * - COUNTER 셀 ON/OFF는 "표현"이며, 스트림/증가 로직에 영향을 주면 안 됨
  */
-internal data class CaptureContext(
+data class CaptureContext(
     val resolvedCells: List<ResolvedCell>,
-    val captureNow: Date,
+    val captureNow: CaptureTime,
     val fileNameSlotDrafts: List<TableEditorSlotDraft?>,
     val pathSlotDrafts: List<TableEditorSlotDraft?>,
     val fnDelim: String,

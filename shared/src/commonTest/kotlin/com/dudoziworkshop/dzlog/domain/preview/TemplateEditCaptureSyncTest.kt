@@ -7,17 +7,17 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellKind
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Test
-import java.util.Date
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.Test
+import com.dudoziworkshop.dzlog.domain.time.CaptureTime
 
 /**
  * DZQ-011: a saved template edit must be the only input to camera table,
  * filename and folder previews. No template switch may be required.
  */
 class TemplateEditCaptureSyncTest {
-    private val now = Date(0L)
+    private val now = CaptureTime(0L, "en-US", "UTC")
 
     private fun cellSlot(id: String) = TableEditorSlotDraft(
         kind = "CELL", label = id, cellId = id,
