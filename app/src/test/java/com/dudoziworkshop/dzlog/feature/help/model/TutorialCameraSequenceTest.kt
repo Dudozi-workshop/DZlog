@@ -19,7 +19,9 @@ class TutorialCameraSequenceTest {
         assertEquals("table", cameraGuideSavedPage("tools", "table"))
         assertEquals("quick-date", cameraGuideSavedPage("table", "quick-date"))
         assertEquals("size", cameraGuideSavedPage("table", "move"))
-        assertEquals("quality", cameraGuideSavedPage("settings", "capture-confirmation"))
+        assertEquals("capture-confirmation", cameraGuideSavedPage("settings", "capture-confirmation"))
+        assertEquals("feedback", cameraGuideSavedPage("settings", "sound"))
+        assertEquals("feedback", cameraGuideSavedPage("settings", "haptic"))
         assertEquals("filename", cameraGuideSavedPage("settings", "counter"))
         assertEquals("unknown", cameraGuideSavedPage("table", "unknown"))
     }
