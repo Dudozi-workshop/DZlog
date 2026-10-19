@@ -306,8 +306,10 @@ def main():
         tap_visible("DZlog 시작하기")
         # Initial setup must enter home, never force the camera.
         root = wait_for("사용법 살펴보기", timeout=80)
-        if not contains(root, "나중에"):
-            raise AssertionError("First-home tutorial offer missing")
+        if not contains(root, "나중에") or not contains(root, "DZlog 사용법을"):
+            raise AssertionError("First-home tutorial modal title or secondary action missing")
+        if not is_fully_on_screen(root, "사용법 살펴보기") or not is_fully_on_screen(root, "나중에"):
+            raise AssertionError("Tutorial modal actions clipped at 140% font scale")
         mark("06-home-tutorial-invitation")
         tap_visible("나중에")
         if contains(wait_for("촬영 시작", timeout=60), "사용법 살펴보기"):
