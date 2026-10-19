@@ -86,8 +86,7 @@ def main():
     for title, evidence in (("촬영 비율", "tutorial-25-aspect"),
                             ("저장 방식", "tutorial-26-save-format"),
                             ("촬영 후 확인 방식", "tutorial-27-preview-mode"),
-                            ("촬영 효과음", "tutorial-28-sound"),
-                            ("촬영 진동", "tutorial-28-haptic"),
+                            ("촬영 소리와 진동", "tutorial-28-feedback"),
                             ("음량 버튼", "tutorial-29-volume")):
         tap("다음", title)
         time.sleep(3)
