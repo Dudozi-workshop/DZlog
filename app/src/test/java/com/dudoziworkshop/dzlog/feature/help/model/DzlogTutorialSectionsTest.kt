@@ -23,8 +23,8 @@ class DzlogTutorialSectionsTest {
         assertEquals(listOf("settings", "tools", "capture", "table"), camera.sessions.map { it.id })
         assertEquals(listOf("filename", "ratio", "quality", "controls"),
             camera.sessions.first().guidePages().map { it.id })
-        assertEquals(listOf(4, 8, 5, 9), camera.sessions.map { it.guidePages().size })
-        assertEquals(26, camera.sessions.sumOf { it.guidePages().size })
+        assertEquals(listOf(4, 7, 5, 9), camera.sessions.map { it.guidePages().size })
+        assertEquals(25, camera.sessions.sumOf { it.guidePages().size })
         val home = DzlogTutorialSections.area("home")!!
         // Home introduces destinations without opening their separate tutorials.
         assertEquals(listOf("main", "templates", "manage", "more", "counter", "start",
