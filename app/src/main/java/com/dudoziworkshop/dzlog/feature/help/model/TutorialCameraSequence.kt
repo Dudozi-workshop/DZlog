@@ -8,13 +8,17 @@ internal fun cameraGuideScenes(pageId: String): List<String> = when (pageId) {
     "saving" -> listOf("shutter", "save-badge", "saving")
     "undo" -> listOf("undo", "warning")
     "zoom" -> listOf("zoom", "pinch")
-    "manual-focus" -> listOf("menu", "manual-focus")
-    "grid" -> listOf("flash", "grid")
-    "assist" -> listOf("table", "assist")
+    "menu" -> listOf("menu")
+    "manual-focus" -> listOf("manual-focus")
+    "flash" -> listOf("flash")
+    "grid" -> listOf("grid")
+    "table" -> listOf("table")
+    "assist" -> listOf("assist")
     "select" -> listOf("select-table", "select")
     "size" -> listOf("move", "resize-button", "size", "corner-size")
     "lock" -> listOf("rotation", "lock")
-    "quick" -> listOf("quick-button", "quick-text", "quick-number", "quick-date", "quick-phrase", "quick-path")
+    "quick" -> listOf("quick-button")
+    "quick-values" -> listOf("quick-text", "quick-number", "quick-date", "quick-phrase")
     "template" -> listOf("template-name", "template")
     "ratio" -> listOf("entry", "ratio")
     "quality" -> listOf("quality", "capture-confirmation")
@@ -45,8 +49,8 @@ internal fun cameraGuideSavedPage(sessionId: String, pageId: String): String = w
     "tools" -> when (pageId) {
         "pinch" -> "zoom"
         "menu" -> "manual-focus"
-        "flash" -> "grid"
-        "table" -> "assist"
+        "flash" -> "flash"
+        "table" -> "table"
         else -> pageId
     }
     "table" -> when {
